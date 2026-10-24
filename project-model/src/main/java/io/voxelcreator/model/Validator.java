@@ -160,12 +160,16 @@ public final class Validator {
       for (var op : layer.operations) {
         String q = path + "/operations/" + oi++;
         reference(op.noiseGeneratorUuid, noises.keySet(), q + "/noiseGeneratorUuid");
-        if (!Set.of("HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY")
-            .contains(op.interpretation))
+        if (!WorldSemantics.INTERPRETATIONS.contains(op.interpretation))
           error("INVALID_INTERPRETATION", q + "/interpretation", "Unsupported interpretation");
         try {
           var s = SettingsResolver.resolve(layer, op);
           settings(s, q + "/overrides");
+          if (op.interpretation.equals("TYPE_SELECTION") && !s.typeSource.equals("INTERVALS"))
+            error(
+                "INVALID_TYPE_SOURCE",
+                q + "/interpretation",
+                "TYPE_SELECTION requires interval type source");
           var n = noises.get(op.noiseGeneratorUuid);
           if (n != null && op.interpretation.startsWith("HEIGHT") && n.dimension != 2)
             error("INVALID_DIMENSION", q, "Height interpretation requires 2D field");
@@ -398,11 +402,80 @@ public final class Validator {
       error("INVALID_PROBABILITY", path, "Strength/probability must be in [0,1]");
     if (!Set.of("SET", "CLEAR", "NO_CHANGE").contains(s.action))
       error("INVALID_ACTION", path + "/action", "Unknown action");
-    if (s.action.equals("SET")) reference(s.voxelTypeUuid, types, path + "/voxelTypeUuid");
+    if (!WorldSemantics.TYPE_SOURCES.contains(s.typeSource))
+      error("INVALID_TYPE_SOURCE", path + "/typeSource", "Unknown type source");
+    if (s.action.equals("SET") && s.typeSource.equals("FIXED"))
+      reference(s.voxelTypeUuid, types, path + "/voxelTypeUuid");
+    if (s.typeSource.equals("INTERVALS") && s.typeIntervals.isEmpty())
+      error("EMPTY_INTERVALS", path + "/typeIntervals", "Interval type source needs candidates");
+    intervals(s.typeIntervals, path + "/typeIntervals");
+    for (String axis : List.of(s.axisX, s.axisY, s.axisZ))
+      if (!WorldSemantics.AXES.contains(axis))
+        error("INVALID_AXIS", path, "Choose signed X, Y or Z");
+    if (s.samplingTransforms.size() > 64)
+      error("COMPLEXITY_LIMIT", path + "/samplingTransforms", "At most 64 sampling transforms");
+    for (int i = 0; i < s.samplingTransforms.size(); i++) {
+      var t = s.samplingTransforms.get(i);
+      String q = path + "/samplingTransforms/" + i;
+      if (!WorldSemantics.TRANSFORMS.contains(t.kind))
+        error("INVALID_TRANSFORM", q, "Unknown sampling transform");
+      if (!WorldSemantics.ROTATION_ORDERS.contains(t.rotationOrder))
+        error("INVALID_ROTATION_ORDER", q, "Explicit XYZ permutation required");
+      finite(t.x, q + "/x");
+      finite(t.y, q + "/y");
+      finite(t.z, q + "/z");
+      finite(t.pivotX, q + "/pivotX");
+      finite(t.pivotY, q + "/pivotY");
+      finite(t.pivotZ, q + "/pivotZ");
+    }
+    driver(s.probabilityDriver, path + "/probabilityDriver");
+    driver(s.strengthDriver, path + "/strengthDriver");
     if (!Set.of("FLOOR", "CEIL", "ROUND").contains(s.rounding))
       error("INVALID_ROUNDING", path, "Unknown rounding");
     predicate(s.voxelStatePredicate, path + "/voxelStatePredicate", 0);
     gate(s.fieldGates, path + "/fieldGates", 0);
+  }
+
+  private void driver(FieldDriver d, String path) {
+    finite(d.inputMin, path + "/inputMin");
+    finite(d.inputMax, path + "/inputMax");
+    finite(d.outputMin, path + "/outputMin");
+    finite(d.outputMax, path + "/outputMax");
+    if (!(d.inputMin < d.inputMax))
+      error("INVALID_DRIVER_RANGE", path, "Input minimum must be smaller than maximum");
+    if (d.outputMin < 0 || d.outputMin > 1 || d.outputMax < 0 || d.outputMax > 1)
+      error("INVALID_PROBABILITY", path, "Driver output endpoints must be in [0,1]");
+    if (!WorldSemantics.MAPPINGS.contains(d.mapping))
+      error("INVALID_MAPPING", path, "Unknown driver mapping");
+    if (d.noiseGeneratorUuid != null)
+      reference(d.noiseGeneratorUuid, noises.keySet(), path + "/noiseGeneratorUuid");
+  }
+
+  private void intervals(List<TypeInterval> ranges, String path) {
+    if (ranges.size() > 256) error("COMPLEXITY_LIMIT", path, "At most 256 type intervals");
+    for (int i = 0; i < ranges.size(); i++) {
+      var r = ranges.get(i);
+      String q = path + "/" + i;
+      finite(r.min, q + "/min");
+      finite(r.max, q + "/max");
+      if (r.min > r.max || r.min == r.max && !(r.includeMin && r.includeMax))
+        error("EMPTY_INTERVAL", q, "Interval must contain at least one value");
+      reference(r.voxelTypeUuid, types, q + "/voxelTypeUuid");
+    }
+    var order = new ArrayList<Integer>();
+    for (int i = 0; i < ranges.size(); i++) order.add(i);
+    order.sort(
+        Comparator.<Integer>comparingDouble(i -> ranges.get(i).min)
+            .thenComparingDouble(i -> ranges.get(i).max));
+    for (int i = 1; i < order.size(); i++) {
+      var a = ranges.get(order.get(i - 1));
+      var b = ranges.get(order.get(i));
+      if (a.max > b.min || a.max == b.min && a.includeMax && b.includeMin)
+        error(
+            "OVERLAPPING_INTERVAL",
+            path + "/" + order.get(i),
+            "Type intervals overlap, including endpoint inclusivity");
+    }
   }
 
   private void predicate(Predicate p, String path, int depth) {
@@ -430,11 +503,25 @@ public final class Validator {
     switch (g.kind) {
       case "AND", "OR" -> {
         if (g.children.isEmpty()) error("EMPTY_GROUP", path, "Gate needs children");
-        for (var c : g.children) gate(c, path + "/children", depth + 1);
+        for (int i = 0; i < g.children.size(); i++)
+          gate(g.children.get(i), path + "/children/" + i, depth + 1);
+      }
+      case "NOT" -> {
+        if (g.children.size() != 1) error("INVALID_GROUP", path, "NOT requires exactly one child");
+        for (int i = 0; i < g.children.size(); i++)
+          gate(g.children.get(i), path + "/children/" + i, depth + 1);
+      }
+      case "PROBABILITY" -> {
+        finite(g.probability, path + "/probability");
+        if (g.probability < 0 || g.probability > 1)
+          error("INVALID_PROBABILITY", path, "Gate probability must be in [0,1]");
       }
       case "COMPARE", "INTERVAL" -> {
         finite(g.threshold, path);
         finite(g.max, path);
+        if (g.kind.equals("INTERVAL")
+            && (g.threshold > g.max || g.threshold == g.max && !(g.includeMin && g.includeMax)))
+          error("EMPTY_INTERVAL", path, "Gate interval must contain at least one value");
         if (g.noiseGeneratorUuid != null) reference(g.noiseGeneratorUuid, noises.keySet(), path);
         if (!Set.of("GE", "GT", "LE", "LT", "EQ", "NE").contains(g.comparison))
           error("INVALID_COMPARISON", path, "Unknown comparison");

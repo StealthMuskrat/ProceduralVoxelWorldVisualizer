@@ -117,6 +117,14 @@ public final class AppMetadata {
       case "voxelTypeUuid" -> "Voxel Type";
       case "voxelStatePredicate" -> "Existing Voxel State";
       case "fieldGates" -> "Field Selection Gates";
+      case "axisX" -> "Sample X Axis";
+      case "axisY" -> "Sample Y Axis";
+      case "axisZ" -> "Sample Z Axis";
+      case "samplingTransforms" -> "Ordered Sampling Transforms";
+      case "typeSource" -> "Type Source";
+      case "typeIntervals" -> "Voxel Type Intervals";
+      case "probabilityDriver" -> "Probability Field Driver";
+      case "strengthDriver" -> "Strength Field Driver";
       case "scaleX" -> "Scale X";
       case "scaleY" -> "Scale Y";
       case "scaleZ" -> "Scale Z";

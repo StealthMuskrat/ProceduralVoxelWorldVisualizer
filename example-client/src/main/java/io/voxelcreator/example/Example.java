@@ -73,6 +73,55 @@ public final class Example {
     return p;
   }
 
+  public static ProjectData worldUseDemo() {
+    var p = demo();
+    p.project.minY = -8;
+    p.project.maxY = 8;
+    var a = p.voxelTypes.getFirst();
+    var b = new VoxelType();
+    b.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000041");
+    b.id = "clay";
+    b.color = new Color(184, 130, 89);
+    p.voxelTypes.add(b);
+    var n = p.noise2D.getFirst();
+    n.algorithm.key = "CONSTANT";
+    n.algorithm.parameters.clear();
+    var expression = ProcessingRegistry.create("EXPRESSION", "coordinate");
+    expression.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000042");
+    expression.parameters.put("expression", ProjectIO.JSON.valueToTree("x"));
+    n.processing.add(expression);
+    n.outputBinding = Binding.earlier(expression.uuid);
+    var s = p.worldGenerator.layers.getFirst().defaults;
+    s.axisX = "Y";
+    s.typeSource = "INTERVALS";
+    s.voxelTypeUuid = null;
+    var translate = new SamplingTransform();
+    translate.x = 2;
+    s.samplingTransforms.add(translate);
+    var left = new TypeInterval();
+    left.min = -100;
+    left.max = 0;
+    left.voxelTypeUuid = a.uuid;
+    var right = new TypeInterval();
+    right.min = 0;
+    right.max = 100;
+    right.includeMax = true;
+    right.voxelTypeUuid = b.uuid;
+    s.typeIntervals.addAll(java.util.List.of(left, right));
+    s.probabilityDriver.enabled = true;
+    s.probabilityDriver.inputMin = -100;
+    s.probabilityDriver.inputMax = 100;
+    s.probabilityDriver.outputMin = 1;
+    s.probabilityDriver.outputMax = 1;
+    s.fieldGates.kind = "NOT";
+    var never = new Gate();
+    never.kind = "PROBABILITY";
+    never.probability = 0;
+    s.fieldGates.children.add(never);
+    p.worldGenerator.layers.getFirst().operations.getFirst().interpretation = "TYPE_SELECTION";
+    return p;
+  }
+
   public static void main(String[] args) throws Exception {
     if (args.length > 0 && args[0].equals("--contracts")) {
       ContractGenerator.write(Path.of(args.length > 1 ? args[1] : "."));
@@ -91,6 +140,36 @@ public final class Example {
       if (derivative.sample(x, 31) != 2. * (x + 3))
         throw new AssertionError("Field-prefix derivative mismatch at " + x);
     System.out.println("Independent sampled-field prefix PASS");
+    var authoring = worldUseDemo();
+    Path authoringFile = working.resolve("world-use.pvproj.json");
+    new ProjectIO().save(authoringFile, authoring);
+    var authoringLoad = new ProjectLoader().load(authoringFile);
+    if (!authoringLoad.success())
+      throw new IllegalStateException(authoringLoad.diagnostics().toString());
+    try (var authoringEngine = new NoiseGeneratorEngine();
+        var authoringWorld =
+            authoringEngine.openWorld(
+                new CompiledProject(authoringLoad.project()),
+                new WorldOptions(null, 4, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+      int stone = authoringWorld.registry().runtimeId(authoring.voxelTypes.getFirst().uuid),
+          clay = authoringWorld.registry().runtimeId(authoring.voxelTypes.getLast().uuid);
+      for (int y = -7; y <= 7; y++)
+        if (authoringWorld.getVoxelTypeId(new BlockPos(-1, y, 3)) != (y + 2 < 0 ? stone : clay))
+          throw new AssertionError("World-use type/axis/column mismatch at " + y);
+      var details = authoringWorld.trace(new BlockPos(-1, -2, 3)).steps().getFirst().details();
+      if (details.matchedInterval() != 1
+          || details.drivers().size() != 1
+          || details.sampleCoordinates().x() != 0)
+        throw new AssertionError("World-use trace mismatch");
+      try (var collected =
+          authoringWorld.collectRegion(
+              RegionRequest.of(new RegionBounds(new BlockPos(-1, -4, 0), new BlockPos(0, 3, 3))))) {
+        if (collected.chunks().size() != 4) throw new AssertionError("Owned collection");
+      }
+    }
+    System.out.println(
+        "Independent world-use intervals / driver / sampling / NOT probability gate / owned"
+            + " collection PASS");
     var p = demo();
     Path file = working.resolve("terrain.pvproj.json");
     new ProjectIO().save(file, p);

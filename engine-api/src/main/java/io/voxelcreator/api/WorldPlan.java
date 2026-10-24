@@ -19,8 +19,14 @@ final class WorldPlan {
       int target,
       long probabilitySeed,
       NoiseAlgorithms.Field field,
-      Map<UUID, NoiseAlgorithms.Field> gates,
-      Map<String, String> sources) {}
+      Map<UUID, NoiseAlgorithms.Field> inputs,
+      Map<String, String> sources,
+      WorldSampling sampling,
+      List<Integer> intervalTargets) {
+    boolean columnCached() {
+      return dimension == 2 && sampling.columnInvariant();
+    }
+  }
 
   private final List<Op> operations;
   private final List<GenerationStage> stages;
@@ -70,6 +76,9 @@ final class WorldPlan {
                 .orElseThrow();
         var gates = new HashMap<UUID, NoiseAlgorithms.Field>();
         collectGates(s.fieldGates, gates, compiler);
+        for (var driver : List.of(s.probabilityDriver, s.strengthDriver))
+          if (driver.enabled && driver.noiseGeneratorUuid != null)
+            gates.computeIfAbsent(driver.noiseGeneratorUuid, id -> compileField(id, compiler));
         var sources = new LinkedHashMap<String, String>();
         for (String key : SettingsResolver.PROPERTIES)
           sources.put(key, SettingsResolver.source(op, key));
@@ -83,12 +92,16 @@ final class WorldPlan {
                 op.interpretation,
                 noise.dimension,
                 s,
-                s.action.equals("SET") ? registry.runtimeId(s.voxelTypeUuid) : 0,
+                s.action.equals("SET") && s.typeSource.equals("FIXED")
+                    ? registry.runtimeId(s.voxelTypeUuid)
+                    : 0,
                 CoordinateHash.seed(
                     CoordinateHash.seed(opSeed, noise.uuid, noise.seedOffset), op.uuid, 0),
-                compiler.compile(noise.uuid),
+                compileField(noise.uuid, compiler),
                 Map.copyOf(gates),
-                Map.copyOf(sources)));
+                Map.copyOf(sources),
+                new WorldSampling(s),
+                s.typeIntervals.stream().map(r -> registry.runtimeId(r.voxelTypeUuid)).toList()));
       }
       stageList.add(
           new GenerationStage(
@@ -115,16 +128,16 @@ final class WorldPlan {
         .orElseThrow(() -> new IllegalArgumentException("Unknown stage " + id));
   }
 
+  private NoiseAlgorithms.Field compileField(UUID id, NoiseCompiler compiler) {
+    var field = compiler.compile(id);
+    return fieldDimensions.get(id) == 2 ? (x, y, z) -> field.sample(x, 0, z) : field;
+  }
+
   private void collectGates(Gate g, Map<UUID, NoiseAlgorithms.Field> map, NoiseCompiler c) {
-    if (g.noiseGeneratorUuid != null) {
-      var field = c.compile(g.noiseGeneratorUuid);
-      map.put(
-          g.noiseGeneratorUuid,
-          fieldDimensions.get(g.noiseGeneratorUuid) == 2
-              ? (x, y, z) -> field.sample(x, 0, z)
-              : field);
-    }
-    for (var child : g.children) collectGates(child, map, c);
+    if ((g.kind.equals("COMPARE") || g.kind.equals("INTERVAL")) && g.noiseGeneratorUuid != null)
+      map.computeIfAbsent(g.noiseGeneratorUuid, id -> compileField(id, c));
+    if (Set.of("AND", "OR", "NOT").contains(g.kind))
+      for (var child : g.children) collectGates(child, map, c);
   }
 
   long stagingEstimate(int size) {
@@ -132,7 +145,7 @@ final class WorldPlan {
         ? 256
         : 128L
             + 16L * size * size * size
-            + 8L * size * size * operations.stream().filter(o -> o.dimension == 2).count();
+            + 8L * size * size * operations.stream().filter(Op::columnCached).count();
   }
 
   boolean empty() {
@@ -180,7 +193,7 @@ final class WorldPlan {
     double[][] fields = new double[Math.min(limit, operations.size())][];
     for (int i = 0; i < fields.length; i++) {
       Op op = operations.get(i);
-      if (op.dimension == 2) {
+      if (op.columnCached()) {
         fields[i] = new double[size * size];
         for (int z = 0; z < size; z++) {
           token.throwIfCancelled();
@@ -209,11 +222,47 @@ final class WorldPlan {
   }
 
   private double field(Op op, int x, int y, int z) {
-    var s = op.settings;
-    return op.field.sample(
-        x * s.scaleX + s.offsetX,
-        op.dimension == 2 ? 0 : y * s.scaleY + s.offsetY,
-        z * s.scaleZ + s.offsetZ);
+    return sampleField(op, op.field, op.dimension, x, y, z);
+  }
+
+  private double sampleField(
+      Op op, NoiseAlgorithms.Field field, int dimension, int x, int y, int z) {
+    try {
+      return op.sampling.sample(field, dimension, x, y, z);
+    } catch (ArithmeticException failure) {
+      throw new EvaluationFailure(op.noiseUuid, op.uuid, x, y, z, failure.getMessage());
+    }
+  }
+
+  private double driver(
+      Op op,
+      FieldDriver driver,
+      String property,
+      double original,
+      int x,
+      int y,
+      int z,
+      List<GenerationTrace.DriverEvaluation> report) {
+    if (!driver.enabled) return 1;
+    double value =
+        driver.noiseGeneratorUuid == null
+            ? original
+            : sampleField(
+                op,
+                op.inputs.get(driver.noiseGeneratorUuid),
+                fieldDimensions.get(driver.noiseGeneratorUuid),
+                x,
+                y,
+                z);
+    double mapped = WorldSemantics.map(driver, value);
+    if (report != null) {
+      double constant =
+          property.equals("probability") ? op.settings.probability : op.settings.strength;
+      report.add(
+          new GenerationTrace.DriverEvaluation(
+              property, driver.noiseGeneratorUuid, value, mapped, constant, constant * mapped));
+    }
+    return mapped;
   }
 
   private int sample(
@@ -230,6 +279,8 @@ final class WorldPlan {
       boolean gatePassed = true, predicatePassed = true;
       boolean gateReached = false, predicateReached = false;
       var gateTrace = trace == null ? null : new ArrayList<GenerationTrace.GateEvaluation>();
+      var driverTrace = trace == null ? null : new ArrayList<GenerationTrace.DriverEvaluation>();
+      int target = op.target, matchedInterval = -1;
       boolean choose = true;
       if (y < Math.max(minY, s.minY) || y > Math.min(maxY, s.maxY)) {
         choose = false;
@@ -254,9 +305,22 @@ final class WorldPlan {
               case "HEIGHT_ABOVE" -> y >= rounded;
               case "HEIGHT_BOUNDARY" -> y == rounded;
               case "SELECTION", "DENSITY" -> f >= s.threshold;
+              case "TYPE_SELECTION", "ALL" -> true;
               default -> throw new AssertionError();
             };
         if (!choose) reason = "Field interpretation rejected sample";
+        if (choose && s.typeSource.equals("INTERVALS")) {
+          matchedInterval = WorldSemantics.interval(s.typeIntervals, f);
+          if (matchedInterval < 0) {
+            choose = false;
+            reason = "No type interval matched; NO_CHANGE";
+          } else target = op.intervalTargets.get(matchedInterval);
+        }
+      }
+      double probability = s.probability * s.strength;
+      if (choose) {
+        probability *= driver(op, s.probabilityDriver, "probability", f, x, y, z, driverTrace);
+        probability *= driver(op, s.strengthDriver, "strength", f, x, y, z, driverTrace);
       }
       if (choose) {
         gateReached = true;
@@ -275,7 +339,6 @@ final class WorldPlan {
         reason =
             "Previous committed voxel predicate rejected state " + registry.semanticId(previous);
       }
-      double probability = s.probability * s.strength;
       double random = CoordinateHash.probability(op.probabilitySeed, x, y, z);
       if (choose && (probability <= 0 || (probability < 1 && random >= probability))) {
         choose = false;
@@ -284,7 +347,7 @@ final class WorldPlan {
       if (choose) {
         state =
             switch (s.action) {
-              case "SET" -> op.target;
+              case "SET" -> target;
               case "CLEAR" -> 0;
               case "NO_CHANGE" -> state;
               default -> throw new AssertionError();
@@ -312,7 +375,11 @@ final class WorldPlan {
                     predicateReached ? predicatePassed : null,
                     probability,
                     random,
-                    choose)));
+                    choose,
+                    Double.isNaN(f) ? null : op.sampling.coordinates(x, y, z, op.dimension),
+                    matchedInterval < 0 ? null : matchedInterval,
+                    target,
+                    List.copyOf(driverTrace))));
       index++;
     }
     return state;
@@ -369,8 +436,24 @@ final class WorldPlan {
       String path) {
     double value = Double.NaN;
     boolean result;
+    Double gateRandom = null;
     if (g.kind.equals("ALWAYS")) result = true;
-    else if (g.kind.equals("AND") || g.kind.equals("OR")) {
+    else if (g.kind.equals("NOT"))
+      result = !gate(g.children.getFirst(), op, original, x, y, z, report, path + "/0");
+    else if (g.kind.equals("PROBABILITY")) {
+      value = g.probability;
+      gateRandom =
+          CoordinateHash.probability(
+              CoordinateHash.mix(
+                  op.probabilitySeed
+                      ^ 0x6a09e667f3bcc909L
+                      ^ CoordinateHash.mix(g.seedOffset)
+                      ^ CoordinateHash.mix(path.hashCode())),
+              x,
+              y,
+              z);
+      result = g.probability >= 1 || g.probability > 0 && gateRandom < g.probability;
+    } else if (g.kind.equals("AND") || g.kind.equals("OR")) {
       result = g.kind.equals("AND");
       for (int i = 0; i < g.children.size(); i++) {
         boolean child = gate(g.children.get(i), op, original, x, y, z, report, path + "/" + i);
@@ -387,15 +470,16 @@ final class WorldPlan {
       value =
           g.noiseGeneratorUuid == null
               ? original
-              : op.gates
-                  .get(g.noiseGeneratorUuid)
-                  .sample(
-                      x * op.settings.scaleX + op.settings.offsetX,
-                      y * op.settings.scaleY + op.settings.offsetY,
-                      z * op.settings.scaleZ + op.settings.offsetZ);
+              : sampleField(
+                  op,
+                  op.inputs.get(g.noiseGeneratorUuid),
+                  fieldDimensions.get(g.noiseGeneratorUuid),
+                  x,
+                  y,
+                  z);
       result =
           g.kind.equals("INTERVAL")
-              ? value >= g.threshold && value <= g.max
+              ? WorldSemantics.contains(value, g.threshold, g.max, g.includeMin, g.includeMax)
               : switch (g.comparison) {
                 case "GE" -> value >= g.threshold;
                 case "GT" -> value > g.threshold;
@@ -409,7 +493,12 @@ final class WorldPlan {
     if (report != null)
       report.add(
           new GenerationTrace.GateEvaluation(
-              path, g.kind, g.noiseGeneratorUuid, Double.isNaN(value) ? null : value, result));
+              path,
+              g.kind,
+              g.noiseGeneratorUuid,
+              Double.isNaN(value) ? null : value,
+              result,
+              gateRandom));
     return result;
   }
 }

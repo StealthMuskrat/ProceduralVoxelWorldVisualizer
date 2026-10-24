@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.storage.StorageContractTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T15:03:04.053Z" hostname="715e00c143c7" time="7.557">
+<testsuite name="io.voxelcreator.storage.StorageContractTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T15:37:09.478Z" hostname="715e00c143c7" time="0.545">
   <properties/>
-  <testcase name="allRootsCoalesceAndSparse256UsesNoDenseArray()" classname="io.voxelcreator.storage.StorageContractTest" time="6.269"/>
-  <testcase name="adaptiveStorageAgainstDenseOracle()" classname="io.voxelcreator.storage.StorageContractTest" time="0.482"/>
-  <testcase name="floorCoordinatesAndInclusiveClip()" classname="io.voxelcreator.storage.StorageContractTest" time="0.098"/>
-  <testcase name="archiveSemanticRemapCoverageAndRandomAccess()" classname="io.voxelcreator.storage.StorageContractTest" time="0.427"/>
-  <testcase name="rejectsCorruptIndexAndPreservesPriorArchiveWhenWriterAborted()" classname="io.voxelcreator.storage.StorageContractTest" time="0.053"/>
+  <testcase name="allRootsCoalesceAndSparse256UsesNoDenseArray()" classname="io.voxelcreator.storage.StorageContractTest" time="0.292"/>
+  <testcase name="adaptiveStorageAgainstDenseOracle()" classname="io.voxelcreator.storage.StorageContractTest" time="0.066"/>
+  <testcase name="floorCoordinatesAndInclusiveClip()" classname="io.voxelcreator.storage.StorageContractTest" time="0.022"/>
+  <testcase name="archiveSemanticRemapCoverageAndRandomAccess()" classname="io.voxelcreator.storage.StorageContractTest" time="0.135"/>
+  <testcase name="rejectsCorruptIndexAndPreservesPriorArchiveWhenWriterAborted()" classname="io.voxelcreator.storage.StorageContractTest" time="0.017"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

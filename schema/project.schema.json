@@ -166,6 +166,40 @@
       },
       "required" : [ "uuid", "min", "max", "outsideDomain", "points" ]
     },
+    "FieldDriver" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "enabled" : {
+          "type" : "boolean"
+        },
+        "noiseGeneratorUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "inputMin" : {
+          "type" : "number"
+        },
+        "inputMax" : {
+          "type" : "number"
+        },
+        "outputMin" : {
+          "type" : "number",
+          "minimum" : 0,
+          "maximum" : 1
+        },
+        "outputMax" : {
+          "type" : "number",
+          "minimum" : 0,
+          "maximum" : 1
+        },
+        "mapping" : {
+          "type" : "string",
+          "enum" : [ "LINEAR", "SMOOTHSTEP" ]
+        }
+      },
+      "required" : [ "enabled", "inputMin", "inputMax", "outputMin", "outputMax", "mapping" ]
+    },
     "Folder" : {
       "type" : "object",
       "additionalProperties" : false,
@@ -199,7 +233,8 @@
       "additionalProperties" : false,
       "properties" : {
         "kind" : {
-          "type" : "string"
+          "type" : "string",
+          "enum" : [ "ALWAYS", "COMPARE", "INTERVAL", "PROBABILITY", "NOT", "AND", "OR" ]
         },
         "comparison" : {
           "type" : "string"
@@ -209,6 +244,22 @@
         },
         "max" : {
           "type" : "number"
+        },
+        "includeMin" : {
+          "type" : "boolean"
+        },
+        "includeMax" : {
+          "type" : "boolean"
+        },
+        "probability" : {
+          "type" : "number",
+          "minimum" : 0,
+          "maximum" : 1
+        },
+        "seedOffset" : {
+          "type" : "integer",
+          "minimum" : -9223372036854775808,
+          "maximum" : 9223372036854775807
         },
         "noiseGeneratorUuid" : {
           "format" : "uuid",
@@ -380,7 +431,8 @@
           "format" : "uuid"
         },
         "interpretation" : {
-          "type" : "string"
+          "type" : "string",
+          "enum" : [ "HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY", "TYPE_SELECTION", "ALL" ]
         },
         "overrides" : {
           "type" : "object",
@@ -563,6 +615,42 @@
       },
       "required" : [ "formatVersion", "project", "voxelTypes", "voxelGroups", "voxelSets", "noise2D", "noise3D", "worldGenerator", "folders", "bookmarks" ]
     },
+    "SamplingTransform" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "enabled" : {
+          "type" : "boolean"
+        },
+        "kind" : {
+          "type" : "string",
+          "enum" : [ "TRANSLATE", "SCALE", "ROTATE" ]
+        },
+        "rotationOrder" : {
+          "type" : "string",
+          "enum" : [ "XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX" ]
+        },
+        "x" : {
+          "type" : "number"
+        },
+        "y" : {
+          "type" : "number"
+        },
+        "z" : {
+          "type" : "number"
+        },
+        "pivotX" : {
+          "type" : "number"
+        },
+        "pivotY" : {
+          "type" : "number"
+        },
+        "pivotZ" : {
+          "type" : "number"
+        }
+      },
+      "required" : [ "enabled", "kind", "rotationOrder", "x", "y", "z", "pivotX", "pivotY", "pivotZ" ]
+    },
     "Settings" : {
       "type" : "object",
       "additionalProperties" : false,
@@ -614,6 +702,25 @@
         "offsetZ" : {
           "type" : "number"
         },
+        "axisX" : {
+          "type" : "string",
+          "enum" : [ "X", "Y", "Z", "-X", "-Y", "-Z" ]
+        },
+        "axisY" : {
+          "type" : "string",
+          "enum" : [ "X", "Y", "Z", "-X", "-Y", "-Z" ]
+        },
+        "axisZ" : {
+          "type" : "string",
+          "enum" : [ "X", "Y", "Z", "-X", "-Y", "-Z" ]
+        },
+        "samplingTransforms" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/SamplingTransform"
+          },
+          "maxItems" : 64
+        },
         "seedOffset" : {
           "type" : "integer",
           "minimum" : -9223372036854775808,
@@ -630,6 +737,23 @@
           "format" : "uuid",
           "type" : [ "string", "null" ]
         },
+        "typeSource" : {
+          "type" : "string",
+          "enum" : [ "FIXED", "INTERVALS" ]
+        },
+        "typeIntervals" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/TypeInterval"
+          },
+          "maxItems" : 256
+        },
+        "probabilityDriver" : {
+          "$ref" : "#/$defs/FieldDriver"
+        },
+        "strengthDriver" : {
+          "$ref" : "#/$defs/FieldDriver"
+        },
         "voxelStatePredicate" : {
           "$ref" : "#/$defs/Predicate"
         },
@@ -638,6 +762,29 @@
         }
       },
       "required" : [ "baseHeight", "heightScale", "threshold", "strength", "probability", "minY", "maxY", "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ", "seedOffset", "action", "rounding", "voxelStatePredicate", "fieldGates" ]
+    },
+    "TypeInterval" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "min" : {
+          "type" : "number"
+        },
+        "max" : {
+          "type" : "number"
+        },
+        "includeMin" : {
+          "type" : "boolean"
+        },
+        "includeMax" : {
+          "type" : "boolean"
+        },
+        "voxelTypeUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        }
+      },
+      "required" : [ "min", "max", "includeMin", "includeMax" ]
     },
     "VoxelType" : {
       "type" : "object",

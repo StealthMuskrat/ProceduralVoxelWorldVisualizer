@@ -93,10 +93,34 @@
         "offsetX" : 0.0,
         "offsetY" : 0.0,
         "offsetZ" : 0.0,
+        "axisX" : "X",
+        "axisY" : "Y",
+        "axisZ" : "Z",
+        "samplingTransforms" : [ ],
         "seedOffset" : 0,
         "action" : "SET",
         "rounding" : "FLOOR",
         "voxelTypeUuid" : "00000000-0000-4000-8000-000000000003",
+        "typeSource" : "FIXED",
+        "typeIntervals" : [ ],
+        "probabilityDriver" : {
+          "enabled" : false,
+          "noiseGeneratorUuid" : null,
+          "inputMin" : 0.0,
+          "inputMax" : 1.0,
+          "outputMin" : 0.0,
+          "outputMax" : 1.0,
+          "mapping" : "LINEAR"
+        },
+        "strengthDriver" : {
+          "enabled" : false,
+          "noiseGeneratorUuid" : null,
+          "inputMin" : 0.0,
+          "inputMax" : 1.0,
+          "outputMin" : 0.0,
+          "outputMax" : 1.0,
+          "mapping" : "LINEAR"
+        },
         "voxelStatePredicate" : {
           "kind" : "ANY",
           "reference" : null,
@@ -107,6 +131,10 @@
           "comparison" : "GE",
           "threshold" : 0.0,
           "max" : 1.0,
+          "includeMin" : true,
+          "includeMax" : true,
+          "probability" : 1.0,
+          "seedOffset" : 0,
           "noiseGeneratorUuid" : null,
           "children" : [ ]
         }

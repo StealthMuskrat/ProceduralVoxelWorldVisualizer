@@ -18,7 +18,7 @@ java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxe
 
 On Windows the classpath separator is `;`. This consumer uses only the engine JAR, not editor/render modules.
 
-The explicit `--smoke` application argument creates test resources, saves and reloads a test project, visits all three engine-backed tabs, writes screenshots and exits after 360 frames. It must print THREE_ENGINE_VIEWPORTS_PASS and DESKTOP_SMOKE_COMPLETED. Normal startup creates no resources. Smoke evidence is not a substitute for every interactive acceptance scenario.
+The explicit `--smoke` application argument creates test resources, saves and reloads a test project, visits all three engine-backed tabs, writes screenshots and exits after 480 frames. It must print THREE_ENGINE_VIEWPORTS_PASS and DESKTOP_SMOKE_COMPLETED. Normal startup creates no resources. Smoke evidence is not a substitute for every interactive acceptance scenario.
 
 The `voxel.configDir` system property overrides the independent preference directory for testing. The normal directory is `.procedural-voxel-creator` under the user home. Projects save only on explicit commands; there is no autosave or recent-project history.
 

@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 95 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
+Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 112 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -21,7 +21,7 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 | A13 curve editor | PARTIAL | Auto/Aligned/Free coefficient and identity tests; group snapping/tangent/local history; native curve render; complete GUI gesture matrix remains |
 | A14 voxel identities | PARTIAL | Registry/archive remapping tested; manager interactions remain |
 | A15 nested conditions | PASS | Separate recursive field/voxel evaluators; all seven base predicates including EMPTY behavior and nested groups tested |
-| A16 inheritance/stages | PARTIAL | Three staged operations, zero override/live reset tests; complete operation inventory remains |
+| A16 inheritance/stages | PARTIAL | SET/CLEAR/NO_CHANGE stages, interval endpoints/gaps/overlap rejection, mapped probability/strength, signed axes/ordered transforms, live scalar/atomic list inheritance; full GUI acceptance and general parameter destinations remain |
 | A17 coordinates/Y | PASS | EngineContractTest and StorageContractTest negative/inclusive/clipping cases |
 | A18 invariance | PARTIAL | Actual chunks at every root 2..256; sync/async/cache/seed tests; 32/64 golden scene hashes; broader scheduling matrix remains |
 | A19 adaptive storage | PASS | Dense random oracle, sparse 256³, uniform/coalescence and occupied iteration |
@@ -49,7 +49,7 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 |---|---|
 | 0–4, 20 | EngineContractTest transactional persistence, validation, IDs; document and schema review |
 | 5–8 | MathContractTest expression inventory, noise adapter repetition, curve policies; TypedProcessingTest, FieldSamplingTest and CoordinateTransformTest typed/lazy/prefix/immutable contracts |
-| 9–10 | EngineContractTest layered fixtures and explicit override resolution |
+| 9–10 | EngineContractTest, WorldSettingsTest, WorldUseTest and WorldResourceTest: intervals, transformations, drivers, short-circuit gates, independent probability vectors, root/worker/stage invariance, imports and atomic replacement |
 | 11–12 | StorageContractTest coordinates, dense oracle, coalescence, sparse 256³ |
 | 13–14 | EngineContractTest async/contexts/backpressure; independent Example; StorageContractTest archives |
 | 15–16 | Native `--smoke` visits all tabs; RendererContractTest camera; remaining manual scenarios |
@@ -76,3 +76,5 @@ The volume/slice extension passes 60 local JUnit tests. Native Linux smoke now a
 Authoring/stage batch validation adds CurveContractTest, CurveGestureTest, ResourceTransactionTest and StagePreviewTest. Native smoke visits Curve Editor and Final/Before/After/Only Changes in addition to volume and X/Y/Z slices. See the raw evidence for this batch; these scoped checks do not certify every A01–A36 scenario.
 
 The streaming/runtime batch passes 95 JUnit tests. Added coverage includes same-context sync/async sharing, independent cancellation, collection ownership/admission and coordinate/count overflow; display aggregation/ties/boundary shells, packed 256 coordinates/material IDs, AO/seams, arena coalescing, hysteresis, pressure order, camera travel and stale-source publication. Native StreamingRenderProbe verifies bounded upload publication, frustum counts, multirow palettes, palette-only updates and pixel-identical indirect/fallback rendering. Desktop smoke additionally pans the streamed world. See [streaming design and limits](STREAMING_AND_LOD.md).
+
+World-use validation passes 112 JUnit tests. New independent expectations cover interval inclusivity/singletons/gaps, transformation order/pivots/axis permutations, 2D-to-world-Y sampling and projection, driver endpoint math/composition, fixed probability vectors, gate short-circuiting, failed-publication safety, historical format-2 loading, root/worker/stage invariance and nested resource references/undo. The external engine-only consumer also exercises the portable world-use fixture and owned region results. These scoped checks do not certify every interactive Tree 10 scenario.

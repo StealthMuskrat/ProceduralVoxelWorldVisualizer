@@ -194,6 +194,7 @@ public final class Viewports implements AutoCloseable {
       throw new IllegalStateException("Incremental world streaming did not complete");
     System.out.println("CAMERA_DRIVEN_STREAMING_PASS " + streamingStatistics());
     properties.assertSmokeCurveRendered();
+    properties.assertSmokeWorldControlsRendered();
     System.out.println("EXACT_WORLD_STAGE_PREVIEWS_PASS");
     System.out.println("THREE_ENGINE_VIEWPORTS_PASS");
     System.out.println("RAYMARCHED_VOLUME_AND_XYZ_SLICES_PASS");
@@ -209,6 +210,11 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void smokePhase(int frame) {
+    if (frame == 365 || frame == 385 || frame == 400 || frame == 415)
+      properties.smokeWorldControls(
+          frame == 365
+              ? "Transforms"
+              : frame == 385 ? "Types" : frame == 400 ? "Drivers and gates" : null);
     if (frame == 360) {
       views[2].fixed = false;
       mark(views[2]);
@@ -1507,6 +1513,25 @@ public final class Viewports implements AutoCloseable {
                     + details.probability()
                     + "; deterministic draw "
                     + details.random());
+            if (details.sampleCoordinates() != null)
+              ImGui.textWrapped("Sample coordinates: " + details.sampleCoordinates());
+            if (details.matchedInterval() != null)
+              ImGui.text(
+                  "Type interval "
+                      + (details.matchedInterval() + 1)
+                      + " -> "
+                      + traceNames.getOrDefault(details.candidateType(), "Unknown snapshot type"));
+            for (var driver : details.drivers())
+              ImGui.textWrapped(
+                  driver.property()
+                      + " driver: sample="
+                      + driver.sample()
+                      + ", mapped="
+                      + driver.mapped()
+                      + ", constant="
+                      + driver.constant()
+                      + ", effective="
+                      + driver.effective());
             if (ImGui.treeNode("Effective values")) {
               details
                   .effectiveSettings()
@@ -1522,7 +1547,8 @@ public final class Viewports implements AutoCloseable {
                         + " value="
                         + (gate.value() == null ? "not sampled" : gate.value())
                         + " passed="
-                        + gate.passed());
+                        + gate.passed()
+                        + (gate.random() == null ? "" : " draw=" + gate.random()));
               ImGui.treePop();
             }
           }

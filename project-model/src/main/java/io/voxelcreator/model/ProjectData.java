@@ -152,11 +152,35 @@ public final class ProjectData {
     public double baseHeight = 0, heightScale = 64, threshold = 0, strength = 1, probability = 1;
     public int minY = Integer.MIN_VALUE, maxY = Integer.MAX_VALUE;
     public double scaleX = 1, scaleY = 1, scaleZ = 1, offsetX = 0, offsetY = 0, offsetZ = 0;
+    public String axisX = "X", axisY = "Y", axisZ = "Z";
+    public List<SamplingTransform> samplingTransforms = new ArrayList<>();
     public long seedOffset = 0;
     public String action = "NO_CHANGE", rounding = "FLOOR";
     public UUID voxelTypeUuid;
+    public String typeSource = "FIXED";
+    public List<TypeInterval> typeIntervals = new ArrayList<>();
+    public FieldDriver probabilityDriver = new FieldDriver(), strengthDriver = new FieldDriver();
     public Predicate voxelStatePredicate = new Predicate();
     public Gate fieldGates = new Gate();
+  }
+
+  public static final class SamplingTransform {
+    public boolean enabled = true;
+    public String kind = "TRANSLATE", rotationOrder = "XYZ";
+    public double x = 0, y = 0, z = 0, pivotX = 0, pivotY = 0, pivotZ = 0;
+  }
+
+  public static final class TypeInterval {
+    public double min = 0, max = 1;
+    public boolean includeMin = true, includeMax = false;
+    public UUID voxelTypeUuid;
+  }
+
+  public static final class FieldDriver {
+    public boolean enabled = false;
+    public UUID noiseGeneratorUuid;
+    public double inputMin = 0, inputMax = 1, outputMin = 0, outputMax = 1;
+    public String mapping = "LINEAR";
   }
 
   public static final class Predicate {
@@ -168,6 +192,9 @@ public final class ProjectData {
   public static final class Gate {
     public String kind = "ALWAYS", comparison = "GE";
     public double threshold = 0, max = 1;
+    public boolean includeMin = true, includeMax = true;
+    public double probability = 1;
+    public long seedOffset = 0;
     public UUID noiseGeneratorUuid;
     public List<Gate> children = new ArrayList<>();
   }

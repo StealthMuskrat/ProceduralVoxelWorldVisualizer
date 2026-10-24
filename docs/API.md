@@ -50,3 +50,9 @@ try (RegionResult result = world.collectRegion(RegionRequest.of(bounds))) {
 ```
 
 Closing releases admission; immutable snapshots remain valid. A Cleaner releases abandoned result leases as a fallback. RegionResult retains its two-argument constructor, accessors and value equality, but is now a class rather than a record: record patterns/reflection require migration. `EngineMetrics.collectionBytes()` reports these reservations. Prefer streaming for large regions. Contexts admit at most 16 region streams and 8192 pending chunk subscribers. Region counts beyond signed-long capacity fail with REGION_TOO_LARGE; chunk generation rejects block-coordinate overflow with COORDINATE_RANGE.
+
+## Placement world-use settings
+
+Layer defaults and placement overrides now expose signed sample axes, component scales/offsets, an atomic ordered `samplingTransforms` list, FIXED/INTERVALS type sources and separate mapped `probabilityDriver`/`strengthDriver` objects. `WorldSemantics` and `registries/world-operation-registry.json` publish the vocabulary. TYPE_SELECTION requires interval types; ALL supports a parameter-only primary input. Existing defaults preserve the previous generation semantics. The mathematical contracts and format-2 compatibility policy are in [WORLD_USE.md](WORLD_USE.md); `Example.worldUseDemo()` is an engine-only authoring example.
+
+GenerationTrace.Details adds `sampleCoordinates()`, `matchedInterval()` (nullable, zero-based), `candidateType()` and immutable `drivers()`. Each driver report includes sample, mapped factor, constant and effective constant×factor. GateEvaluation adds nullable `random()` for its independent probability draw. Existing constructors remain available; clients destructuring the records must update to the extended components. Unexecuted gates/drivers are omitted, and skipped gates/predicates retain null outcomes.

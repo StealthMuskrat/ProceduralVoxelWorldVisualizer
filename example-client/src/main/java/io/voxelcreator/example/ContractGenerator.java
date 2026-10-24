@@ -154,6 +154,48 @@ public final class ContractGenerator {
     ((ObjectNode) defs.path("Operation").path("properties"))
         .set("noiseGeneratorUuid", obj().put("type", "string").put("format", "uuid"));
     ((ArrayNode) defs.path("Operation").path("required")).add("noiseGeneratorUuid");
+    // New format-2 fields have documented defaults, so historical format-2 documents remain valid.
+    for (String name : List.of("Settings", "Gate")) {
+      var required = (ArrayNode) defs.path(name).path("required");
+      Set<String> optional =
+          name.equals("Settings")
+              ? Set.of(
+                  "axisX",
+                  "axisY",
+                  "axisZ",
+                  "samplingTransforms",
+                  "typeSource",
+                  "typeIntervals",
+                  "probabilityDriver",
+                  "strengthDriver")
+              : Set.of("includeMin", "includeMax", "probability", "seedOffset");
+      for (int i = required.size() - 1; i >= 0; i--)
+        if (optional.contains(required.get(i).asText())) required.remove(i);
+    }
+    var settingsProps = (ObjectNode) defs.path("Settings").path("properties");
+    for (String axis : List.of("axisX", "axisY", "axisZ"))
+      ((ObjectNode) settingsProps.path(axis)).set("enum", JSON.valueToTree(WorldSemantics.AXES));
+    ((ObjectNode) settingsProps.path("typeSource"))
+        .set("enum", JSON.valueToTree(WorldSemantics.TYPE_SOURCES));
+    ((ObjectNode) settingsProps.path("typeIntervals")).put("maxItems", 256);
+    ((ObjectNode) settingsProps.path("samplingTransforms")).put("maxItems", 64);
+    ((ObjectNode) defs.path("SamplingTransform").path("properties").path("kind"))
+        .set("enum", JSON.valueToTree(WorldSemantics.TRANSFORMS));
+    ((ObjectNode) defs.path("SamplingTransform").path("properties").path("rotationOrder"))
+        .set("enum", JSON.valueToTree(WorldSemantics.ROTATION_ORDERS));
+    ((ObjectNode) defs.path("FieldDriver").path("properties").path("mapping"))
+        .set("enum", JSON.valueToTree(WorldSemantics.MAPPINGS));
+    for (String key : List.of("outputMin", "outputMax"))
+      ((ObjectNode) defs.path("FieldDriver").path("properties").path(key))
+          .put("minimum", 0)
+          .put("maximum", 1);
+    ((ObjectNode) defs.path("Gate").path("properties").path("kind"))
+        .set("enum", JSON.valueToTree(WorldSemantics.GATES));
+    ((ObjectNode) defs.path("Gate").path("properties").path("probability"))
+        .put("minimum", 0)
+        .put("maximum", 1);
+    ((ObjectNode) defs.path("Operation").path("properties").path("interpretation"))
+        .set("enum", JSON.valueToTree(WorldSemantics.INTERPRETATIONS));
     writeJSON(root.resolve("schema/project.schema.json"), schema);
     for (String[] editor :
         List.of(
@@ -224,17 +266,34 @@ public final class ContractGenerator {
     writeJSON(
         root.resolve("registries/expression-function-registry.json"),
         Map.of("registryVersion", 1, "functions", funcs));
-    writeJSON(
-        root.resolve("registries/world-operation-registry.json"),
-        Map.of(
-            "registryVersion",
-            1,
-            "actions",
-            List.of("SET", "CLEAR", "NO_CHANGE"),
-            "interpretations",
-            List.of("HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY"),
-            "inheritableProperties",
-            SettingsResolver.PROPERTIES));
+    var worldRegistry = new LinkedHashMap<String, Object>();
+    worldRegistry.put("registryVersion", 2);
+    worldRegistry.put("actions", List.of("SET", "CLEAR", "NO_CHANGE"));
+    worldRegistry.put("interpretations", WorldSemantics.INTERPRETATIONS);
+    worldRegistry.put("inheritableProperties", SettingsResolver.PROPERTIES);
+    worldRegistry.put("sampleAxes", WorldSemantics.AXES);
+    worldRegistry.put("samplingTransforms", WorldSemantics.TRANSFORMS);
+    worldRegistry.put("rotationOrders", WorldSemantics.ROTATION_ORDERS);
+    worldRegistry.put("typeSources", WorldSemantics.TYPE_SOURCES);
+    worldRegistry.put("driverMappings", WorldSemantics.MAPPINGS);
+    worldRegistry.put("fieldGates", WorldSemantics.GATES);
+    worldRegistry.put(
+        "samplingOrder",
+        "signed axes, component scale and offset, enabled transforms in stored order, resource"
+            + " definition; 2D fields use transformed X/Z");
+    worldRegistry.put(
+        "driverComposition",
+        "probability * strength * mapped probability driver * mapped strength driver; disabled"
+            + " factors are 1");
+    worldRegistry.put(
+        "intervalPolicy",
+        "finite nonempty intervals; explicit inclusive endpoints; overlaps rejected; no match is"
+            + " NO_CHANGE");
+    worldRegistry.put(
+        "rotationPolicy",
+        "right-handed degrees; each listed axis rotates current coordinates about that fixed"
+            + " sampling-space axis; pivot applies before/after each transform");
+    writeJSON(root.resolve("registries/world-operation-registry.json"), worldRegistry);
     var curve = new ProjectData.Curve();
     curve.uuid = UUID.fromString("00000000-0000-4000-8000-000000000030");
     curve.points.getFirst().uuid = UUID.fromString("00000000-0000-4000-8000-000000000031");
@@ -246,6 +305,7 @@ public final class ContractGenerator {
     new ProjectIO().save(root.resolve("fixtures/valid-empty.json"), empty);
     new ProjectIO().save(root.resolve("fixtures/terrain.json"), Example.demo());
     new ProjectIO().save(root.resolve("fixtures/sampled-fields.json"), Example.sampledFieldsDemo());
+    new ProjectIO().save(root.resolve("fixtures/world-use.json"), Example.worldUseDemo());
     ObjectNode invalid = JSON.valueToTree(empty);
     invalid.put("formatVersion", 999);
     writeJSON(root.resolve("fixtures/invalid-format-version.json"), invalid);

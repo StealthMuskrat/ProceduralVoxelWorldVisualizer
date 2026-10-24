@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.render.VolumeSamplingTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-24T15:03:24.831Z" hostname="715e00c143c7" time="0.024">
+<testsuite name="io.voxelcreator.render.VolumeSamplingTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-24T15:36:03.083Z" hostname="715e00c143c7" time="0.044">
   <properties/>
-  <testcase name="textureAxisOrderAndCellCentersPreserveAffineField()" classname="io.voxelcreator.render.VolumeSamplingTest" time="0.005"/>
-  <testcase name="cancellationStopsTextureSampling()" classname="io.voxelcreator.render.VolumeSamplingTest" time="0.001"/>
-  <testcase name="displaySnapshotIsImmutableAndFiniteWithoutChangingCanonicalField()" classname="io.voxelcreator.render.VolumeSamplingTest" time="0.004"/>
-  <testcase name="sliceMappingsKeepTheDeclaredNormalFixed()" classname="io.voxelcreator.render.VolumeSamplingTest" time="0.011"/>
+  <testcase name="textureAxisOrderAndCellCentersPreserveAffineField()" classname="io.voxelcreator.render.VolumeSamplingTest" time="0.007"/>
+  <testcase name="cancellationStopsTextureSampling()" classname="io.voxelcreator.render.VolumeSamplingTest" time="0.013"/>
+  <testcase name="displaySnapshotIsImmutableAndFiniteWithoutChangingCanonicalField()" classname="io.voxelcreator.render.VolumeSamplingTest" time="0.009"/>
+  <testcase name="sliceMappingsKeepTheDeclaredNormalFixed()" classname="io.voxelcreator.render.VolumeSamplingTest" time="0.004"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

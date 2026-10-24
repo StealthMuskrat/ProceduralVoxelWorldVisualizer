@@ -33,6 +33,50 @@ public final class PropertyPanel {
     System.out.println("CURVE_EDITOR_NATIVE_PASS");
   }
 
+  private Settings smokeWorldSettings;
+  private String smokeWorldSection;
+  private final Set<String> smokeWorldDrawn = new HashSet<>();
+
+  public void smokeWorldControls(String section) {
+    smokeWorldSection = section;
+    smokeWorldSettings =
+        section == null
+            ? null
+            : ProjectIO.JSON.convertValue(
+                ProjectIO.JSON.valueToTree(
+                    state.project().worldGenerator.layers.getFirst().defaults),
+                Settings.class);
+  }
+
+  public void assertSmokeWorldControlsRendered() {
+    if (!smokeWorldDrawn.containsAll(Set.of("Transforms", "Types", "Drivers and gates")))
+      throw new IllegalStateException("World-use controls were not rendered: " + smokeWorldDrawn);
+    System.out.println("WORLD_USE_CONTROLS_NATIVE_PASS");
+  }
+
+  private void drawSmokeWorldControls() {
+    if (smokeWorldSettings == null) return;
+    ImGui.setNextWindowPos(290, 140, ImGuiCond.Appearing);
+    ImGui.setNextWindowSize(740, 650, ImGuiCond.Appearing);
+    if (ImGui.begin("World-use Controls (smoke)")) {
+      smokeWorldDrawn.add(smokeWorldSection);
+      ImGui.text("Placement " + smokeWorldSection);
+      ImGui.separator();
+      switch (smokeWorldSection) {
+        case "Transforms" -> samplingTransforms(smokeWorldSettings.samplingTransforms);
+        case "Types" -> typeIntervals(smokeWorldSettings.typeIntervals);
+        default -> {
+          ImGui.pushID("probability");
+          fieldDriver(smokeWorldSettings.probabilityDriver);
+          ImGui.popID();
+          ImGui.separator();
+          gate(smokeWorldSettings.fieldGates, 0);
+        }
+      }
+    }
+    ImGui.end();
+  }
+
   private UUID focusedControl;
 
   public void goToControl(UUID resource, UUID control) {
@@ -124,6 +168,7 @@ public final class PropertyPanel {
       smokeCurveDrawn = true;
       if (curve.draw()) curve = null;
     }
+    drawSmokeWorldControls();
   }
 
   private void noise(Noise n) {
@@ -823,13 +868,26 @@ public final class PropertyPanel {
     }
   }
 
+  private void fieldPicker(String label, UUID current, Consumer<UUID> set) {
+    var list = new ArrayList<Noise>();
+    list.addAll(state.project().noise2D);
+    list.addAll(state.project().noise3D);
+    if (ImGui.beginCombo(label, current == null ? "Placement field" : idFor(list, current))) {
+      if (ImGui.selectable("Placement field", current == null)) set.accept(null);
+      for (var n : list)
+        if (ImGui.selectable(n.id + " [" + n.dimension + "D]", n.uuid.equals(current)))
+          set.accept(n.uuid);
+      ImGui.endCombo();
+    }
+  }
+
   private void placement(Operation op) {
     f.bool("Enabled", op.enabled, v -> op.enabled = v);
     noisePicker("Noise generator", op.noiseGeneratorUuid, v -> op.noiseGeneratorUuid = v);
     f.choice(
         "Interpretation",
         op.interpretation,
-        List.of("HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY"),
+        WorldSemantics.INTERPRETATIONS,
         v -> op.interpretation = v);
     Layer layer = EditorState.layerFor(state.project(), op.uuid);
     if (layer == null) return;
@@ -882,7 +940,13 @@ public final class PropertyPanel {
         return "Unresolved type";
       }
     }
-    if (value.isObject()) return value.path("kind").asText("Configured condition");
+    if (value.isArray()) return value.size() + " ordered items";
+    if (value.isObject())
+      return value.has("mapping")
+          ? (value.path("enabled").asBoolean()
+              ? value.path("mapping").asText() + " field mapping"
+              : "Disabled (factor 1)")
+          : value.path("kind").asText("Configured condition");
     if (value.isFloatingPointNumber()) return String.format(Locale.ROOT, "%.5f", value.asDouble());
     return value.asText();
   }
@@ -934,9 +998,39 @@ public final class PropertyPanel {
             s.rounding,
             List.of("FLOOR", "CEIL", "ROUND"),
             v -> s.rounding = v);
-      else if (key.equals("voxelTypeUuid"))
-        typePicker(AppMetadata.settingLabel(key), s.voxelTypeUuid, v -> s.voxelTypeUuid = v);
-      else if (key.equals("voxelStatePredicate")) {
+      else if (key.startsWith("axis"))
+        f.choice(
+            AppMetadata.settingLabel(key),
+            (String) field.get(s),
+            WorldSemantics.AXES,
+            v -> {
+              try {
+                field.set(s, v);
+              } catch (ReflectiveOperationException e) {
+                throw new IllegalStateException(e);
+              }
+            });
+      else if (key.equals("typeSource"))
+        f.choice("Type Source", s.typeSource, WorldSemantics.TYPE_SOURCES, v -> s.typeSource = v);
+      else if (key.equals("samplingTransforms")) {
+        if (ImGui.treeNode("Ordered Sampling Transforms")) {
+          samplingTransforms(s.samplingTransforms);
+          ImGui.treePop();
+        }
+      } else if (key.equals("typeIntervals")) {
+        if (ImGui.treeNode("Voxel Type Intervals")) {
+          typeIntervals(s.typeIntervals);
+          ImGui.treePop();
+        }
+      } else if (key.equals("probabilityDriver") || key.equals("strengthDriver")) {
+        if (ImGui.treeNode(AppMetadata.settingLabel(key))) {
+          fieldDriver(key.equals("probabilityDriver") ? s.probabilityDriver : s.strengthDriver);
+          ImGui.treePop();
+        }
+      } else if (key.equals("voxelTypeUuid")) {
+        if (s.typeSource.equals("INTERVALS")) ImGui.textDisabled("Voxel targets: interval list");
+        else typePicker(AppMetadata.settingLabel(key), s.voxelTypeUuid, v -> s.voxelTypeUuid = v);
+      } else if (key.equals("voxelStatePredicate")) {
         if (ImGui.treeNode("Previous Voxel State")) {
           predicate(s.voxelStatePredicate, 0);
           ImGui.treePop();
@@ -1004,20 +1098,37 @@ public final class PropertyPanel {
   private void gate(Gate g, int depth) {
     if (depth > 16) return;
     f.choice(
-        "Gate", g.kind, List.of("ALWAYS", "COMPARE", "INTERVAL", "AND", "OR"), v -> g.kind = v);
+        "Gate",
+        g.kind,
+        WorldSemantics.GATES,
+        v -> {
+          g.kind = v;
+          if (v.equals("NOT") && g.children.isEmpty()) g.children.add(new Gate());
+        });
     if (g.kind.equals("COMPARE") || g.kind.equals("INTERVAL")) {
-      noisePicker("Field (none = placement)", g.noiseGeneratorUuid, v -> g.noiseGeneratorUuid = v);
-      f.choice(
-          "Comparison",
-          g.comparison,
-          List.of("GE", "GT", "LE", "LT", "EQ", "NE"),
-          v -> g.comparison = v);
+      fieldPicker("Field", g.noiseGeneratorUuid, v -> g.noiseGeneratorUuid = v);
+      if (g.kind.equals("COMPARE"))
+        f.choice(
+            "Comparison",
+            g.comparison,
+            List.of("GE", "GT", "LE", "LT", "EQ", "NE"),
+            v -> g.comparison = v);
       f.number("Threshold / minimum", g.threshold, v -> g.threshold = v);
-      if (g.kind.equals("INTERVAL")) f.number("Maximum (inclusive)", g.max, v -> g.max = v);
+      if (g.kind.equals("INTERVAL")) {
+        f.number("Maximum", g.max, v -> g.max = v);
+        f.bool("Include minimum", g.includeMin, v -> g.includeMin = v);
+        f.bool("Include maximum", g.includeMax, v -> g.includeMax = v);
+      }
     }
-    if (g.kind.equals("AND") || g.kind.equals("OR")) {
+    if (g.kind.equals("PROBABILITY")) {
+      f.number("Gate probability [0,1]", g.probability, v -> g.probability = v);
+      longText("Gate seed offset", g.seedOffset, v -> g.seedOffset = v);
+      ImGui.textWrapped("Independent deterministic XYZ draw, stable within this gate path.");
+    }
+    if (g.kind.equals("AND") || g.kind.equals("OR") || g.kind.equals("NOT")) {
       for (int i = 0; i < g.children.size(); i++) {
         ImGui.pushID(i);
+        if (smokeWorldSettings != null) ImGui.setNextItemOpen(true, ImGuiCond.Always);
         if (ImGui.treeNode("Gate clause " + i)) {
           gate(g.children.get(i), depth + 1);
           if (ImGui.smallButton("Remove")) g.children.remove(i);
@@ -1025,8 +1136,126 @@ public final class PropertyPanel {
         }
         ImGui.popID();
       }
-      if (ImGui.button("Add Gate")) g.children.add(new Gate());
+      if ((!g.kind.equals("NOT") || g.children.isEmpty()) && ImGui.button("Add Gate"))
+        g.children.add(new Gate());
     }
+  }
+
+  private void fieldDriver(FieldDriver d) {
+    f.bool("Enabled", d.enabled, v -> d.enabled = v);
+    fieldPicker("Field", d.noiseGeneratorUuid, v -> d.noiseGeneratorUuid = v);
+    f.choice("Mapping", d.mapping, WorldSemantics.MAPPINGS, v -> d.mapping = v);
+    f.number("Input minimum", d.inputMin, v -> d.inputMin = v);
+    f.number("Input maximum", d.inputMax, v -> d.inputMax = v);
+    f.number("Output at minimum [0,1]", d.outputMin, v -> d.outputMin = v);
+    f.number("Output at maximum [0,1]", d.outputMax, v -> d.outputMax = v);
+    ImGui.textWrapped(
+        "Samples use the placement coordinates. Input clamps to the declared range; the mapped"
+            + " factor multiplies the constant. Disabled factor = 1. Use ALL interpretation for a"
+            + " parameter-only input.");
+  }
+
+  private void typeIntervals(List<TypeInterval> intervals) {
+    ImGui.textWrapped(
+        "Non-overlapping scalar intervals select occupied types. No match leaves the previous voxel"
+            + " unchanged. Shared endpoints may belong to at most one interval.");
+    int remove = -1, up = -1, down = -1;
+    for (int i = 0; i < intervals.size(); i++) {
+      ImGui.pushID(i);
+      var r = intervals.get(i);
+      if (smokeWorldSettings != null) ImGui.setNextItemOpen(true, ImGuiCond.Always);
+      if (ImGui.treeNode(
+          "Interval " + (i + 1) + " : " + idFor(state.project().voxelTypes, r.voxelTypeUuid))) {
+        f.number("Minimum", r.min, v -> r.min = v);
+        f.number("Maximum", r.max, v -> r.max = v);
+        f.bool("Include minimum", r.includeMin, v -> r.includeMin = v);
+        f.bool("Include maximum", r.includeMax, v -> r.includeMax = v);
+        typePicker("Voxel type", r.voxelTypeUuid, v -> r.voxelTypeUuid = v);
+        if (i > 0) {
+          if (ImGui.smallButton("Up")) up = i;
+          ImGui.sameLine();
+        }
+        if (i + 1 < intervals.size()) {
+          if (ImGui.smallButton("Down")) down = i;
+          ImGui.sameLine();
+        }
+        if (ImGui.smallButton("Remove")) remove = i;
+        ImGui.treePop();
+      }
+      ImGui.popID();
+    }
+    if (remove >= 0) intervals.remove(remove);
+    else if (up >= 0) Collections.swap(intervals, up, up - 1);
+    else if (down >= 0) Collections.swap(intervals, down, down + 1);
+    if (intervals.size() < 256 && ImGui.button("Add Type Interval")) {
+      var r = new TypeInterval();
+      if (!intervals.isEmpty()) {
+        r.min = intervals.getLast().max;
+        r.max = r.min + 1;
+        r.includeMin = !intervals.getLast().includeMax;
+      }
+      if (!state.project().voxelTypes.isEmpty())
+        r.voxelTypeUuid = state.project().voxelTypes.getFirst().uuid;
+      intervals.add(r);
+    }
+  }
+
+  private void samplingTransforms(List<SamplingTransform> transforms) {
+    ImGui.textWrapped(
+        "Signed axes, then component scale/offset, then this list in order. Rotations are"
+            + " right-handed degrees about the pivot. 2D fields use transformed X/Z.");
+    int remove = -1, up = -1, down = -1;
+    for (int i = 0; i < transforms.size(); i++) {
+      ImGui.pushID(i);
+      var t = transforms.get(i);
+      if (smokeWorldSettings != null) ImGui.setNextItemOpen(true, ImGuiCond.Always);
+      if (ImGui.treeNode("Transform " + (i + 1) + " : " + t.kind)) {
+        f.bool("Enabled", t.enabled, v -> t.enabled = v);
+        f.choice(
+            "Kind",
+            t.kind,
+            WorldSemantics.TRANSFORMS,
+            v -> {
+              t.kind = v;
+              t.x = t.y = t.z = v.equals("SCALE") ? 1 : 0;
+            });
+        f.number("X", t.x, v -> t.x = v);
+        f.number("Y", t.y, v -> t.y = v);
+        f.number("Z", t.z, v -> t.z = v);
+        if (!t.kind.equals("TRANSLATE")) {
+          f.number("Pivot X", t.pivotX, v -> t.pivotX = v);
+          f.number("Pivot Y", t.pivotY, v -> t.pivotY = v);
+          f.number("Pivot Z", t.pivotZ, v -> t.pivotZ = v);
+          if (t.kind.equals("ROTATE"))
+            f.choice(
+                "Axis order",
+                t.rotationOrder,
+                WorldSemantics.ROTATION_ORDERS,
+                v -> t.rotationOrder = v);
+        }
+        if (i > 0) {
+          if (ImGui.smallButton("Up")) up = i;
+          ImGui.sameLine();
+        }
+        if (i + 1 < transforms.size()) {
+          if (ImGui.smallButton("Down")) down = i;
+          ImGui.sameLine();
+        }
+        if (ImGui.smallButton("Duplicate") && transforms.size() < 64)
+          transforms.add(
+              i + 1,
+              ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(t), SamplingTransform.class));
+        ImGui.sameLine();
+        if (ImGui.smallButton("Remove")) remove = i;
+        ImGui.treePop();
+      }
+      ImGui.popID();
+    }
+    if (remove >= 0) transforms.remove(remove);
+    else if (up >= 0) Collections.swap(transforms, up, up - 1);
+    else if (down >= 0) Collections.swap(transforms, down, down + 1);
+    if (transforms.size() < 64 && ImGui.button("Add Sampling Transform"))
+      transforms.add(new SamplingTransform());
   }
 
   private void longText(String label, long value, java.util.function.LongConsumer set) {

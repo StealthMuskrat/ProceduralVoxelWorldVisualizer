@@ -1,0 +1,55 @@
+{
+  "formatVersion": 1,
+  "derivation": "Independent unsigned 64-bit arithmetic; hexadecimal integers are raw two-complement bit patterns.",
+  "worldSeed": 7,
+  "noiseUuid": "00000000-0000-0000-0000-000000000004",
+  "noiseSeedOffset": 0,
+  "operationUuid": "00000000-0000-0000-0000-000000000007",
+  "operationSeedOffset": 0,
+  "operationProbabilitySeed": "e0c3d7fd7038d39c",
+  "gatePath": "fieldGates",
+  "gateSeedOffset": 0,
+  "gateProbabilitySeed": "c8fb097a2b5ce2ac",
+  "vectors": [
+    {
+      "xyz": [
+        0,
+        0,
+        0
+      ],
+      "hash": "6085e519f5bcb9b8",
+      "probability": 0.3770430744532288,
+      "gateDraw": 0.3253917293423707
+    },
+    {
+      "xyz": [
+        -1,
+        5,
+        3
+      ],
+      "hash": "af371fe34ef98454",
+      "probability": 0.6844348840668086,
+      "gateDraw": 0.5463307744993244
+    },
+    {
+      "xyz": [
+        2147483647,
+        -2147483648,
+        19
+      ],
+      "hash": "b730ab588a0e60e8",
+      "probability": 0.7155863848839146,
+      "gateDraw": 0.8015005967088591
+    },
+    {
+      "xyz": [
+        -33,
+        0,
+        32
+      ],
+      "hash": "f7ace865eeaed5d8",
+      "probability": 0.9674821137293137,
+      "gateDraw": 0.04984097978231161
+    }
+  ]
+}

@@ -5,7 +5,21 @@ import java.util.*;
 
 public record GenerationTrace(BlockPos position, int finalType, List<Step> steps) {
   public record GateEvaluation(
-      String path, String kind, UUID noiseUuid, Double value, boolean passed) {}
+      String path, String kind, UUID noiseUuid, Double value, boolean passed, Double random) {
+    public GateEvaluation(String path, String kind, UUID noiseUuid, Double value, boolean passed) {
+      this(path, kind, noiseUuid, value, passed, null);
+    }
+  }
+
+  public record SampleCoordinates(double x, double y, double z) {}
+
+  public record DriverEvaluation(
+      String property,
+      UUID noiseUuid,
+      double sample,
+      double mapped,
+      double constant,
+      double effective) {}
 
   public record Details(
       Map<String, String> effectiveSettings,
@@ -14,10 +28,37 @@ public record GenerationTrace(BlockPos position, int finalType, List<Step> steps
       Boolean predicatePassed,
       double probability,
       double random,
-      boolean selected) {
+      boolean selected,
+      SampleCoordinates sampleCoordinates,
+      Integer matchedInterval,
+      int candidateType,
+      List<DriverEvaluation> drivers) {
     public Details {
       effectiveSettings = Map.copyOf(effectiveSettings);
       gates = List.copyOf(gates);
+      drivers = List.copyOf(drivers);
+    }
+
+    public Details(
+        Map<String, String> effectiveSettings,
+        List<GateEvaluation> gates,
+        Boolean gatePassed,
+        Boolean predicatePassed,
+        double probability,
+        double random,
+        boolean selected) {
+      this(
+          effectiveSettings,
+          gates,
+          gatePassed,
+          predicatePassed,
+          probability,
+          random,
+          selected,
+          null,
+          null,
+          0,
+          List.of());
     }
   }
 

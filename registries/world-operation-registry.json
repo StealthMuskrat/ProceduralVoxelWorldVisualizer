@@ -1,6 +1,16 @@
 {
-  "registryVersion" : 1,
-  "inheritableProperties" : [ "baseHeight", "heightScale", "threshold", "strength", "probability", "minY", "maxY", "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ", "seedOffset", "action", "rounding", "voxelTypeUuid", "voxelStatePredicate", "fieldGates" ],
+  "registryVersion" : 2,
   "actions" : [ "SET", "CLEAR", "NO_CHANGE" ],
-  "interpretations" : [ "HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY" ]
+  "interpretations" : [ "HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY", "TYPE_SELECTION", "ALL" ],
+  "inheritableProperties" : [ "baseHeight", "heightScale", "threshold", "strength", "probability", "minY", "maxY", "axisX", "axisY", "axisZ", "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ", "samplingTransforms", "seedOffset", "action", "rounding", "typeSource", "voxelTypeUuid", "typeIntervals", "probabilityDriver", "strengthDriver", "voxelStatePredicate", "fieldGates" ],
+  "sampleAxes" : [ "X", "Y", "Z", "-X", "-Y", "-Z" ],
+  "samplingTransforms" : [ "TRANSLATE", "SCALE", "ROTATE" ],
+  "rotationOrders" : [ "XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX" ],
+  "typeSources" : [ "FIXED", "INTERVALS" ],
+  "driverMappings" : [ "LINEAR", "SMOOTHSTEP" ],
+  "fieldGates" : [ "ALWAYS", "COMPARE", "INTERVAL", "PROBABILITY", "NOT", "AND", "OR" ],
+  "samplingOrder" : "signed axes, component scale and offset, enabled transforms in stored order, resource definition; 2D fields use transformed X/Z",
+  "driverComposition" : "probability * strength * mapped probability driver * mapped strength driver; disabled factors are 1",
+  "intervalPolicy" : "finite nonempty intervals; explicit inclusive endpoints; overlaps rejected; no match is NO_CHANGE",
+  "rotationPolicy" : "right-handed degrees; each listed axis rotates current coordinates about that fixed sampling-space axis; pivot applies before/after each transform"
 }

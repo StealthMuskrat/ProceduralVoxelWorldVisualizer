@@ -184,6 +184,9 @@ public final class Desktop extends Application {
             || frameCount == 215
             || frameCount == 230
             || frameCount == 350
+            || frameCount == 375
+            || frameCount == 395
+            || frameCount == 410
             || frameCount == 470)) captureFrame();
     glfwSwapBuffers(handle);
     glfwPollEvents();
@@ -1125,6 +1128,38 @@ public final class Desktop extends Application {
           clear.interpretation = "DENSITY";
           clear.overrides.put("action", ProjectIO.JSON.valueToTree("CLEAR"));
           l.operations.add(clear);
+          var clay = new VoxelType();
+          clay.id = "clay";
+          clay.color = new Color(184, 130, 89);
+          p.voxelTypes.add(clay);
+          l.defaults.typeSource = "INTERVALS";
+          l.defaults.voxelTypeUuid = null;
+          var low = new TypeInterval();
+          low.min = -2;
+          low.max = 0;
+          low.voxelTypeUuid = type.uuid;
+          var high = new TypeInterval();
+          high.min = 0;
+          high.max = 2;
+          high.includeMax = true;
+          high.voxelTypeUuid = clay.uuid;
+          l.defaults.typeIntervals.addAll(List.of(low, high));
+          var shift = new SamplingTransform();
+          shift.x = 3;
+          l.defaults.samplingTransforms.add(shift);
+          var turn = new SamplingTransform();
+          turn.kind = "ROTATE";
+          turn.y = 15;
+          l.defaults.samplingTransforms.add(turn);
+          l.defaults.probabilityDriver.enabled = true;
+          l.defaults.probabilityDriver.inputMin = -1;
+          l.defaults.probabilityDriver.outputMin = 1;
+          l.defaults.probabilityDriver.outputMax = 1;
+          l.defaults.fieldGates.kind = "NOT";
+          var never = new Gate();
+          never.kind = "PROBABILITY";
+          never.probability = 0;
+          l.defaults.fieldGates.children.add(never);
           p.worldGenerator.layers.add(l);
         });
     try {

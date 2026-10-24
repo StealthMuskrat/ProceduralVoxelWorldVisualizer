@@ -1,6 +1,6 @@
 # Verification evidence
 
-- `clean test build dependencyNotices releaseJars`: PASS with 95 JUnit tests on Temurin 25.0.4+7 x64.
+- `clean test build dependencyNotices releaseJars`: PASS with 112 JUnit tests on Temurin 25.0.4+7 x64.
 - Independent javac/java consumer using only `noise-generator-engine.jar`: PASS.
 - Local native smoke: all three engine-backed viewports, explicit save/reload, screenshots with nonblank-frame checks, and exit: PASS on Temurin 25.0.5+8; OpenGL 4.5 Mesa llvmpipe.
 - Draft 2020-12 project/user/app schema verification and fixtures: PASS using jsonschema 4.23.0.
@@ -25,3 +25,11 @@ The authoring/stage batch passes 79 JUnit tests, strict schema/curve fixtures, u
 The streaming/runtime batch passes 95 JUnit tests on pinned Temurin 25.0.4+7. `streaming-build.log`, `streaming-artifacts.log` and `streaming-independent-consumer.log` record the final build, exact regression hashes, schemas, engine isolation and external consumer. `linux-streaming-probe.log` records bounded packed uploads, culling, multirow palette updates and indirect/fallback pixel parity. `linux-streaming-smoke.log` includes streamed camera movement, stage/volume/slice modes and save/reload on Mesa llvmpipe OpenGL 4.5. The paired input for the image is `streaming-smoke-project.json`. Pressure controls reduced effective distance during this software-rendered run; this is functional evidence, not representative hardware performance certification.
 
 ![Camera-driven streamed world after panning](streaming-world.png)
+
+The world-use batch passes 112 JUnit tests on pinned Temurin 25.0.4+7. `world-use-build.log`, `world-use-artifacts.log` and `world-use-independent-consumer.log` record the clean build, schemas, unchanged exact voxel regression hashes, engine isolation and external world-use/owned-collection consumer. `linux-world-use-smoke.log` records the native controls, stage previews, ray-marched volume/slices, streamed camera movement and save/reload. The isolated smoke controls use a copy of the saved `world-use-smoke-project.json` defaults; they exercise the actual property widgets without committing those demonstration edits. Screenshots were inspected and action-row clipping was corrected before the final run. This is scoped native rendering evidence, not a full gesture or Windows 11 hardware certification.
+
+![Ordered placement sampling transforms](world-use-transforms.png)
+
+![Interval type selection with explicit endpoints](world-use-types.png)
+
+![Mapped field driver and NOT/probability gate](world-use-drivers.png)

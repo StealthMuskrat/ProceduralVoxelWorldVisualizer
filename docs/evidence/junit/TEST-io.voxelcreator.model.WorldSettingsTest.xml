@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.voxelcreator.model.WorldSettingsTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T15:37:07.035Z" hostname="715e00c143c7" time="0.5">
+  <properties/>
+  <testcase name="fixedRegistryAndAtomicOverridesPreserveLiveInheritance()" classname="io.voxelcreator.model.WorldSettingsTest" time="0.493"/>
+  <testcase name="fieldMappingsHaveExplicitEndpointsAndStableExtremeSpans()" classname="io.voxelcreator.model.WorldSettingsTest" time="0.003"/>
+  <testcase name="intervalLookupHonorsSingletonsAndEitherSharedEndpoint()" classname="io.voxelcreator.model.WorldSettingsTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

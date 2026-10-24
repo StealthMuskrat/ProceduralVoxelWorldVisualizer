@@ -8,9 +8,37 @@ public final class SettingsResolver {
   public static final Set<String> PROPERTIES;
 
   static {
-    var s = new LinkedHashSet<String>();
-    for (var f : ProjectData.Settings.class.getFields()) s.add(f.getName());
-    PROPERTIES = Collections.unmodifiableSet(s);
+    PROPERTIES =
+        Collections.unmodifiableSet(
+            new LinkedHashSet<>(
+                List.of(
+                    "baseHeight",
+                    "heightScale",
+                    "threshold",
+                    "strength",
+                    "probability",
+                    "minY",
+                    "maxY",
+                    "axisX",
+                    "axisY",
+                    "axisZ",
+                    "scaleX",
+                    "scaleY",
+                    "scaleZ",
+                    "offsetX",
+                    "offsetY",
+                    "offsetZ",
+                    "samplingTransforms",
+                    "seedOffset",
+                    "action",
+                    "rounding",
+                    "typeSource",
+                    "voxelTypeUuid",
+                    "typeIntervals",
+                    "probabilityDriver",
+                    "strengthDriver",
+                    "voxelStatePredicate",
+                    "fieldGates")));
   }
 
   public static ProjectData.Settings resolve(ProjectData.Layer layer, ProjectData.Operation op) {
