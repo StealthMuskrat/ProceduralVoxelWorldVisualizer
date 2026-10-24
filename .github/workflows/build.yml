@@ -62,6 +62,10 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeReferenceProbe build/theme-probe
           python scripts/verify_theme.py build/theme-probe/user-config.json build/theme-probe/theme-contrast.json
+      - name: Large resource browser reference
+        run: |
+          java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
+          python scripts/verify_resource_browser.py build/browser-probe/resource-browser.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -77,6 +81,7 @@ jobs:
             **/build/reports/tests/
             build/smoke/
             build/theme-probe/
+            build/browser-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -178,6 +183,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_theme.py build/theme-probe/user-config.json build/theme-probe/theme-contrast.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows large resource browser reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_resource_browser.py build/browser-probe/resource-browser.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -217,6 +229,7 @@ jobs:
             build/windows-smoke.log
             build/smoke/
             build/theme-probe/
+            build/browser-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/

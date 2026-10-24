@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.ShortcutsTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:47:58.502Z" hostname="715e00c143c7" time="0.087">
+<testsuite name="io.voxelcreator.editor.ShortcutsTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:47:57.899Z" hostname="715e00c143c7" time="0.051">
   <properties/>
-  <testcase name="textPopupsActiveWidgetsRecordingAndFlyingSuppressEveryCommand()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.015"/>
+  <testcase name="textPopupsActiveWidgetsRecordingAndFlyingSuppressEveryCommand()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.012"/>
   <testcase name="unboundMissingAndUnknownActionsHaveExplicitBehavior()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.003"/>
   <testcase name="malformedOrReservedChordsRejectWithoutSilentlyDroppingModifiers()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.001"/>
-  <testcase name="everyAdvertisedPhysicalKeyRoundTripsAndMapsToOneNativeKey()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.011"/>
-  <testcase name="canonicalizationIsCaseInsensitiveAndModifierOrderIndependent()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.004"/>
-  <testcase name="allModifierCombinationsRequireExactEquality()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.007"/>
-  <testcase name="documentResourceAndCurveContextsResolveOnlyTheirEligibleCommands()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.003"/>
-  <testcase name="legacyUpgradePreservesAuthoredChoicesAndDisablesConflictingNewDefaults()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.007"/>
-  <testcase name="historicalMissingCoreBindingsRemainUnboundAndAllAuthoredBindingsWin()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.005"/>
-  <testcase name="compiledBindingsAreImmutableSnapshotsAndOnlyOneActionIsSelectedPerFrame()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.003"/>
-  <testcase name="defaultsAreConflictFreeAndDefensive()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.007"/>
-  <testcase name="conflictDetectionUsesCanonicalChordsAndOverlappingScopes()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.002"/>
+  <testcase name="everyAdvertisedPhysicalKeyRoundTripsAndMapsToOneNativeKey()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.008"/>
+  <testcase name="canonicalizationIsCaseInsensitiveAndModifierOrderIndependent()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.0"/>
+  <testcase name="allModifierCombinationsRequireExactEquality()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.009"/>
+  <testcase name="documentResourceAndCurveContextsResolveOnlyTheirEligibleCommands()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.002"/>
+  <testcase name="legacyUpgradePreservesAuthoredChoicesAndDisablesConflictingNewDefaults()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.002"/>
+  <testcase name="historicalMissingCoreBindingsRemainUnboundAndAllAuthoredBindingsWin()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.002"/>
+  <testcase name="compiledBindingsAreImmutableSnapshotsAndOnlyOneActionIsSelectedPerFrame()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.004"/>
+  <testcase name="defaultsAreConflictFreeAndDefensive()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.001"/>
+  <testcase name="conflictDetectionUsesCanonicalChordsAndOverlappingScopes()" classname="io.voxelcreator.editor.ShortcutsTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.WorldUseTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:48:09.033Z" hostname="715e00c143c7" time="0.41">
+<testsuite name="io.voxelcreator.api.WorldUseTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:48:05.526Z" hostname="715e00c143c7" time="0.26">
   <properties/>
-  <testcase name="transformsApplyAxesComponentsOrderAndPivotBeforeCanonicalField()" classname="io.voxelcreator.api.WorldUseTest" time="0.036"/>
-  <testcase name="probabilityGatesHaveIndependentFixedVectorsAndExactEdges()" classname="io.voxelcreator.api.WorldUseTest" time="0.017"/>
-  <testcase name="validationRejectsOverlapsAndEmptyMappingsWithPrecisePaths()" classname="io.voxelcreator.api.WorldUseTest" time="0.011"/>
-  <testcase name="failedTransformsPublishNoChunkAndOldFormatTwoSettingsStillLoad(Path)" classname="io.voxelcreator.api.WorldUseTest" time="0.035"/>
-  <testcase name="yDependentTwoDimensionalPlacementsNeverReuseAColumn()" classname="io.voxelcreator.api.WorldUseTest" time="0.065"/>
-  <testcase name="nestedGatesShortCircuitUnexecutedInvalidSamples()" classname="io.voxelcreator.api.WorldUseTest" time="0.017"/>
-  <testcase name="projectionDiscardsUnusedYWhileReferencedThreeDimensionalFieldsRequireIt()" classname="io.voxelcreator.api.WorldUseTest" time="0.014"/>
-  <testcase name="driversMultiplyConstantsAndRespectReferencedFieldDimension()" classname="io.voxelcreator.api.WorldUseTest" time="0.025"/>
-  <testcase name="chunkOrderRootsAsyncContextsAndStagesShareTheSameDecisions()" classname="io.voxelcreator.api.WorldUseTest" time="0.148"/>
-  <testcase name="intervalsSelectAtDeclaredEdgesAndGapsPreserveCommittedState()" classname="io.voxelcreator.api.WorldUseTest" time="0.018"/>
-  <testcase name="rotationOrderAndDisabledTransformsAreExplicit()" classname="io.voxelcreator.api.WorldUseTest" time="0.017"/>
+  <testcase name="transformsApplyAxesComponentsOrderAndPivotBeforeCanonicalField()" classname="io.voxelcreator.api.WorldUseTest" time="0.01"/>
+  <testcase name="probabilityGatesHaveIndependentFixedVectorsAndExactEdges()" classname="io.voxelcreator.api.WorldUseTest" time="0.01"/>
+  <testcase name="validationRejectsOverlapsAndEmptyMappingsWithPrecisePaths()" classname="io.voxelcreator.api.WorldUseTest" time="0.009"/>
+  <testcase name="failedTransformsPublishNoChunkAndOldFormatTwoSettingsStillLoad(Path)" classname="io.voxelcreator.api.WorldUseTest" time="0.019"/>
+  <testcase name="yDependentTwoDimensionalPlacementsNeverReuseAColumn()" classname="io.voxelcreator.api.WorldUseTest" time="0.038"/>
+  <testcase name="nestedGatesShortCircuitUnexecutedInvalidSamples()" classname="io.voxelcreator.api.WorldUseTest" time="0.008"/>
+  <testcase name="projectionDiscardsUnusedYWhileReferencedThreeDimensionalFieldsRequireIt()" classname="io.voxelcreator.api.WorldUseTest" time="0.009"/>
+  <testcase name="driversMultiplyConstantsAndRespectReferencedFieldDimension()" classname="io.voxelcreator.api.WorldUseTest" time="0.011"/>
+  <testcase name="chunkOrderRootsAsyncContextsAndStagesShareTheSameDecisions()" classname="io.voxelcreator.api.WorldUseTest" time="0.123"/>
+  <testcase name="intervalsSelectAtDeclaredEdgesAndGapsPreserveCommittedState()" classname="io.voxelcreator.api.WorldUseTest" time="0.008"/>
+  <testcase name="rotationOrderAndDisabledTransformsAreExplicit()" classname="io.voxelcreator.api.WorldUseTest" time="0.01"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

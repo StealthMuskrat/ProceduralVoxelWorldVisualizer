@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.core.FieldSamplingTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:48:12.222Z" hostname="715e00c143c7" time="0.088">
+<testsuite name="io.voxelcreator.core.FieldSamplingTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:48:08.588Z" hostname="715e00c143c7" time="0.116">
   <properties/>
   <testcase name="immutablePrefixScratchIsIndependentAcrossWorkers()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.008"/>
-  <testcase name="prefixOrderTypesCyclesAndWorkAreValidatedBeforeSampling()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.007"/>
-  <testcase name="sourceFieldAndLegacyReferenceRemainSelectable()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.009"/>
-  <testcase name="prefixReappliesTransformsExactlyOnceAtRequestedLocation()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.016"/>
-  <testcase name="dimensionalReferencesHaveExplicitProjectionAndSlice()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.029"/>
-  <testcase name="filterUsesNeighboringFieldValuesWithNormalizedKernelAndStrength()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.009"/>
-  <testcase name="fractalAndWarpResampleTheSelectedDefinition()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.008"/>
+  <testcase name="prefixOrderTypesCyclesAndWorkAreValidatedBeforeSampling()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.011"/>
+  <testcase name="sourceFieldAndLegacyReferenceRemainSelectable()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.01"/>
+  <testcase name="prefixReappliesTransformsExactlyOnceAtRequestedLocation()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.015"/>
+  <testcase name="dimensionalReferencesHaveExplicitProjectionAndSlice()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.04"/>
+  <testcase name="filterUsesNeighboringFieldValuesWithNormalizedKernelAndStrength()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.013"/>
+  <testcase name="fractalAndWarpResampleTheSelectedDefinition()" classname="io.voxelcreator.core.FieldSamplingTest" time="0.012"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.render.StreamingContractTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:47:46.463Z" hostname="715e00c143c7" time="1.256">
+<testsuite name="io.voxelcreator.render.StreamingContractTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:47:47.372Z" hostname="715e00c143c7" time="1.236">
   <properties/>
   <testcase name="freeRangesCoalesceAndDoNotAliasLiveAllocations()" classname="io.voxelcreator.render.StreamingContractTest" time="0.002"/>
-  <testcase name="packedBoundary256AndLargeTypeDoNotWrap()" classname="io.voxelcreator.render.StreamingContractTest" time="1.24"/>
-  <testcase name="neighborSolidFacesAreHiddenAndAoReadsTheDiagonalHalo()" classname="io.voxelcreator.render.StreamingContractTest" time="0.003"/>
-  <testcase name="pressureHonorsPriorityManualResumeAndGradualRestoration()" classname="io.voxelcreator.render.StreamingContractTest" time="0.0"/>
+  <testcase name="packedBoundary256AndLargeTypeDoNotWrap()" classname="io.voxelcreator.render.StreamingContractTest" time="1.222"/>
+  <testcase name="neighborSolidFacesAreHiddenAndAoReadsTheDiagonalHalo()" classname="io.voxelcreator.render.StreamingContractTest" time="0.002"/>
+  <testcase name="pressureHonorsPriorityManualResumeAndGradualRestoration()" classname="io.voxelcreator.render.StreamingContractTest" time="0.001"/>
   <testcase name="lodUsesNearestAabbDistanceAndHysteresis()" classname="io.voxelcreator.render.StreamingContractTest" time="0.001"/>
   <testcase name="majorityTieBoundaryShellAndExactSnapshotsStayIndependent()" classname="io.voxelcreator.render.StreamingContractTest" time="0.005"/>
   <system-out><![CDATA[]]></system-out>

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.EditorEventsTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:47:57.614Z" hostname="715e00c143c7" time="0.193">
+<testsuite name="io.voxelcreator.editor.EditorEventsTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:47:57.115Z" hostname="715e00c143c7" time="0.177">
   <properties/>
-  <testcase name="retentionIsBoundedAndRecentGroupsSurvive()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.022"/>
-  <testcase name="concurrentWorkerFloodGroupsExactlyWithoutUiCallbacks()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.121"/>
+  <testcase name="retentionIsBoundedAndRecentGroupsSurvive()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.009"/>
+  <testcase name="concurrentWorkerFloodGroupsExactlyWithoutUiCallbacks()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.138"/>
   <testcase name="repeatsKeepStableIdentityFirstTimeAndMoveToFront()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.002"/>
-  <testcase name="longMessagesAreBoundedWithoutMergingDifferentTruncatedSuffixes()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.009"/>
-  <testcase name="readResolveDismissAreIndependentAndHistoryRemains()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.011"/>
-  <testcase name="filtersComposeAndGroupingIncludesSourceSeverityAndSubsystem()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.024"/>
+  <testcase name="longMessagesAreBoundedWithoutMergingDifferentTruncatedSuffixes()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.005"/>
+  <testcase name="readResolveDismissAreIndependentAndHistoryRemains()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.005"/>
+  <testcase name="filtersComposeAndGroupingIncludesSourceSeverityAndSubsystem()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.016"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

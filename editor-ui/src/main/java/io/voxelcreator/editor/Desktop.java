@@ -91,6 +91,13 @@ public final class Desktop extends Application {
     themePanel = new ThemePanel(state.user);
     properties = new PropertyPanel(state);
     resources = new ResourcePanel(state, properties);
+    resources.findReferences =
+        id -> {
+          findReference = id;
+          find.set(true);
+          search.set("");
+          searchKey = "";
+        };
     diagnostics =
         new DiagnosticsPanel(
             state,
@@ -215,6 +222,11 @@ public final class Desktop extends Application {
         themePanel.assertSmokeDrawn();
         themes.set(false);
         System.out.println("THEME_CONTRAST_DRAFT_NATIVE_PASS");
+      }
+      if (runtimeFrame == 225) resources.smokeBrowser(true);
+      if (runtimeFrame == 238) {
+        resources.smokeBrowser(false);
+        System.out.println("RESOURCE_BROWSER_NATIVE_PASS");
       }
       if (runtimeFrame == 462) {
         profiler.set(true);

@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.storage.PaletteStorageTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:48:17.521Z" hostname="715e00c143c7" time="0.93">
+<testsuite name="io.voxelcreator.storage.PaletteStorageTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:48:14.049Z" hostname="715e00c143c7" time="0.928">
   <properties/>
-  <testcase name="invalidBoxesTypesAndSamplerFailureLeavePublishedSnapshotIntact()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.006"/>
-  <testcase name="sparse256BulkFillClearAndCoalescenceNeverExpandDenseRoot()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.003"/>
-  <testcase name="primitivePaletteGrowthPreservesEveryDistinctHighRuntimeId()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.02"/>
-  <testcase name="randomizedInclusiveFillsMatchDenseOracleAndPreserveSnapshots()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.098"/>
-  <testcase name="allRootCheckerboardsRemainExactAndCompact()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.766"/>
-  <testcase name="everyLeafWidthCrossesWordsWithoutLosingLargeRuntimeIds()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.008"/>
+  <testcase name="invalidBoxesTypesAndSamplerFailureLeavePublishedSnapshotIntact()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.004"/>
+  <testcase name="sparse256BulkFillClearAndCoalescenceNeverExpandDenseRoot()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.002"/>
+  <testcase name="primitivePaletteGrowthPreservesEveryDistinctHighRuntimeId()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.018"/>
+  <testcase name="randomizedInclusiveFillsMatchDenseOracleAndPreserveSnapshots()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.081"/>
+  <testcase name="allRootCheckerboardsRemainExactAndCompact()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.793"/>
+  <testcase name="everyLeafWidthCrossesWordsWithoutLosingLargeRuntimeIds()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.006"/>
   <testcase name="concurrentReadersAndIndependentEditsHavePrivateStorage()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.011"/>
-  <testcase name="localPalettesKeepOneBitLeavesInChunksWithManyTypes()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.011"/>
+  <testcase name="localPalettesKeepOneBitLeavesInChunksWithManyTypes()" classname="io.voxelcreator.storage.PaletteStorageTest" time="0.008"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

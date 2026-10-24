@@ -1,0 +1,34 @@
+{
+  "formatVersion" : 1,
+  "noiseCount" : 2000,
+  "voxelCount" : 5000,
+  "indexCount" : 7102,
+  "top" : {
+    "indexed" : 7102,
+    "builds" : 1,
+    "projections" : 3,
+    "treeRows" : 19,
+    "managerRows" : 12,
+    "submitted" : [ "bab2eb3f-a02f-4082-8652-41514fcf53b2", "e8313cac-9f54-4591-9bb0-b49739f7a97b", "06f64af8-19fa-42f2-b78b-a4e00d144b4b", "915dd3a7-5963-4e5c-9bc6-ac013ab527fa", "5c11d915-6063-417c-83b1-8cc4a638b7a4", "d4ccaa06-dac6-4ef8-a0fb-7988b17197ee", "802df072-22cc-4ceb-ac42-572183f777f0", "399a753b-9652-45d0-9067-e8e0da807406", "0e4d5cf1-236b-4d9c-b4bb-bd1667b8be44", "8b47e44a-dda6-4639-a360-92269dc26507", "deccfce9-30d7-45af-bdc7-399051f52642", "8df3abe3-461d-4fd8-b933-73dc82f31f77", "122e4c6e-97e3-4557-9cf6-7ca6e55b9fa3", "6c4e9453-7f87-46ba-a984-fd6b4ac68dbf", "a6d05338-ec3b-4b06-85e5-215a27e02551", "5b948a57-de4b-4f54-baff-a43aea9a73f0", "df7d8fbd-6eab-4a0c-8413-9ad34d53908b", "bd8c920c-90f0-4e04-bc7d-2ba24f019ae9", "089414b2-beb4-4159-96ec-714408f93d05" ]
+  },
+  "scrolled" : {
+    "indexed" : 7102,
+    "builds" : 1,
+    "projections" : 3,
+    "treeRows" : 20,
+    "managerRows" : 12,
+    "submitted" : [ "150e7854-4edf-4f16-8842-512a2e86171c", "2f7ee103-e6fe-422e-b0c9-7cd99675e58d", "b68b20e8-b786-41e6-ac14-7467c9fe0d08", "745dad9a-b667-467d-a367-2a5663a97eaf", "308881d9-2916-4edf-9a1c-053d1ef85375", "b3968715-ba98-4b29-a65c-c4eec3322a76", "42eae0e1-b198-4f5a-b5d7-a5b948bc57f9", "edd63b99-ba04-4615-9910-d0261a1567c8", "4afe6f78-f759-4dca-9cf5-cf5df3e327e7", "a9161c21-1204-4661-a0af-1e810c9eb29a", "39adb89a-9785-41e8-afe1-f8190bb650b7", "b5e5e1f0-b2e7-4779-a03d-47bcc7099458", "4c7eb70b-bb90-4f0b-b0f3-b24bf5d1393d", "c2859bd7-0350-486f-bd8c-83d2807c6bf1", "f9f5c77f-503f-47ad-b793-2eda057bdbed", "6319dd3a-5d48-41ba-a4da-7fe055c87584", "4e0df4a6-219e-4115-8af4-ac62b096e3e3", "665911c2-6690-4ef1-8468-f2fb7cc563f9", "4bfacb7f-a8c4-4ec5-b84c-cb55e19f04e6", "36cc06cf-48d7-4bae-b92a-cf9dc274a0b9" ]
+  },
+  "filtered" : {
+    "indexed" : 7102,
+    "builds" : 1,
+    "projections" : 6,
+    "treeRows" : 3,
+    "managerRows" : 1,
+    "submitted" : [ "bab2eb3f-a02f-4082-8652-41514fcf53b2", "dc7909be-d619-4f07-be10-d25f2b882063", "97c5f5ea-e9f4-4813-9a8b-9cae478bed14" ]
+  },
+  "filteredLabels" : [ "outer", "inner", "noise-01999" ],
+  "filteredDepths" : [ 0, 1, 2 ],
+  "filteredTypeIds" : [ "type-04999" ],
+  "unchangedSample" : 199.9
+}

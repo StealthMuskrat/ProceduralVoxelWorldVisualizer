@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.model.DiagnosticLocationTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:48:14.370Z" hostname="715e00c143c7" time="0.484">
+<testsuite name="io.voxelcreator.model.DiagnosticLocationTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:48:10.414Z" hostname="715e00c143c7" time="0.596">
   <properties/>
-  <testcase name="explicitCompilerContextIsNeverOverwrittenByPointerFallback()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.377"/>
-  <testcase name="normalValidatorRetainsUuidContextWithoutMutatingCandidate()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.07"/>
-  <testcase name="processingInputsAndEscapedParameterKeysResolveBeforeReorder()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.005"/>
+  <testcase name="explicitCompilerContextIsNeverOverwrittenByPointerFallback()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.508"/>
+  <testcase name="normalValidatorRetainsUuidContextWithoutMutatingCandidate()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.054"/>
+  <testcase name="processingInputsAndEscapedParameterKeysResolveBeforeReorder()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.001"/>
   <testcase name="rejectedCandidatePathsIdentifyNestedOperationRatherThanItsLayer()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.013"/>
-  <testcase name="uuidArrayPathsAndHistoricalNoiseMembershipAliasesResolve()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.004"/>
-  <testcase name="curvePointLocationKeepsTheOwningNoiseAndPointIdentity()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.01"/>
+  <testcase name="uuidArrayPathsAndHistoricalNoiseMembershipAliasesResolve()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.003"/>
+  <testcase name="curvePointLocationKeepsTheOwningNoiseAndPointIdentity()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.009"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

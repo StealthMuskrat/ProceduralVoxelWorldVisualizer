@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.voxelcreator.editor.ResourceTreeIndexTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:47:57.547Z" hostname="715e00c143c7" time="0.237">
+  <properties/>
+  <testcase name="wideListsHaveExactFilterMembershipAcrossKindsAndLocaleChanges()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.082"/>
+  <testcase name="committedRenameUndoRedoRefreshIndexWithoutChangingIdentities()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.005"/>
+  <testcase name="deeplyNestedProjectionUsesBoundedCallStackAndRetainsEveryAncestor()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.125"/>
+  <testcase name="descendantSearchRevealsAncestorsAndMatchingContainersRevealContents()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.002"/>
+  <testcase name="layersDefaultOpenAndOperationSearchKeepsItsOwningLayer()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.001"/>
+  <testcase name="canonicalSiblingOrderAndExplicitExpansionMatchAuthoredChildOrder()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.003"/>
+  <testcase name="shiftRangesFollowDisplayedSiblingOrderAndExcludeFilteredHiddenAndOtherParents()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.001"/>
+  <testcase name="bindingFreshSnapshotDropsDeletedExpansionAndRejectsInvalidContainers()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.003"/>
+  <testcase name="metadataSnapshotsOwnLabelsColorsAndOrdersWithoutHoldingMutableResources()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.002"/>
+  <testcase name="cacheInvalidatesOnRevisionAndProjectReplacementButNotQueriesOrNavigation()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.002"/>
+  <testcase name="projectingAndFilteringPreserveDocumentDraftHistoryAndNumericalSourceIdentity()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.007"/>
+  <testcase name="searchDoesNotOverwriteExpansionAndViewReusesOnlyMatchingInputs()" classname="io.voxelcreator.editor.ResourceTreeIndexTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

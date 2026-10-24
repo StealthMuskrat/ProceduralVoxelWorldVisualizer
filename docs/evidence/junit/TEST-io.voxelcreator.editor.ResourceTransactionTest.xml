@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.ResourceTransactionTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:47:58.129Z" hostname="715e00c143c7" time="0.196">
+<testsuite name="io.voxelcreator.editor.ResourceTransactionTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:47:57.475Z" hostname="715e00c143c7" time="0.07">
   <properties/>
-  <testcase name="deletionRewritesMembershipAndPlacementAtomically()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.04"/>
-  <testcase name="copyingSiblingClosureRemapsInternalAndPreservesExternalReferences()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.013"/>
-  <testcase name="referencesAndSearchDoNotTreatPresentationLabelsAsLinks()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.012"/>
-  <testcase name="importReuseRequiresSemanticCompatibilityAndSkipClosesDependencies()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.013"/>
-  <testcase name="stochasticUuidSeedsPreventFalseSemanticReuse()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.008"/>
-  <testcase name="deltasPreserveRedoDirtyStateAndStoreSmallEditsAsSmallRecords()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.093"/>
-  <testcase name="folderCopiesOrderAndCutMovesLiveDefinitionsWithoutChangingIdentity()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.012"/>
+  <testcase name="deletionRewritesMembershipAndPlacementAtomically()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.007"/>
+  <testcase name="copyingSiblingClosureRemapsInternalAndPreservesExternalReferences()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.006"/>
+  <testcase name="referencesAndSearchDoNotTreatPresentationLabelsAsLinks()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.006"/>
+  <testcase name="importReuseRequiresSemanticCompatibilityAndSkipClosesDependencies()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.007"/>
+  <testcase name="stochasticUuidSeedsPreventFalseSemanticReuse()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.004"/>
+  <testcase name="deltasPreserveRedoDirtyStateAndStoreSmallEditsAsSmallRecords()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.032"/>
+  <testcase name="folderCopiesOrderAndCutMovesLiveDefinitionsWithoutChangingIdentity()" classname="io.voxelcreator.editor.ResourceTransactionTest" time="0.006"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

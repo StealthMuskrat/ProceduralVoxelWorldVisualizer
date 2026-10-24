@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.CreationDefaultsTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:47:57.021Z" hostname="715e00c143c7" time="0.522">
+<testsuite name="io.voxelcreator.editor.CreationDefaultsTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:47:56.669Z" hostname="715e00c143c7" time="0.405">
   <properties/>
-  <testcase name="allCreationIdentitiesAreFreshAndLiteralArraysDoNotAliasProfilesOrSiblings()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.007"/>
-  <testcase name="curveRemapClampAndExpressionCrossConstraintsAreValidated()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.07"/>
-  <testcase name="copiesAndImportsRetainConcreteDefinitionsInsteadOfApplyingCurrentProfile()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.027"/>
-  <testcase name="allProcessingAndTransformFactoriesKeepRegistrySignaturesAndConcreteDefaults()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.185"/>
+  <testcase name="allCreationIdentitiesAreFreshAndLiteralArraysDoNotAliasProfilesOrSiblings()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.011"/>
+  <testcase name="curveRemapClampAndExpressionCrossConstraintsAreValidated()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.078"/>
+  <testcase name="copiesAndImportsRetainConcreteDefinitionsInsteadOfApplyingCurrentProfile()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.039"/>
+  <testcase name="allProcessingAndTransformFactoriesKeepRegistrySignaturesAndConcreteDefaults()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.148"/>
   <testcase name="typedDefaultsUnknownKeysChoicesAndNonfiniteValuesRejectBeforeCreation()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.007"/>
-  <testcase name="configuredFactoriesHaveIndependentMathematicalExpectationsAndFutureOnlyOwnership()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.14"/>
-  <testcase name="everyAlgorithmAndDimensionPreservesCanonicalUnconfiguredNumerics()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.042"/>
-  <testcase name="allBuiltInCreationControlsValidateAndAreDefensivelyOwned()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.025"/>
-  <testcase name="exactLongSeedBoundariesAndRegistryRangesRejectCoercion()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.013"/>
+  <testcase name="configuredFactoriesHaveIndependentMathematicalExpectationsAndFutureOnlyOwnership()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.059"/>
+  <testcase name="everyAlgorithmAndDimensionPreservesCanonicalUnconfiguredNumerics()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.038"/>
+  <testcase name="allBuiltInCreationControlsValidateAndAreDefensivelyOwned()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.013"/>
+  <testcase name="exactLongSeedBoundariesAndRegistryRangesRejectCoercion()" classname="io.voxelcreator.editor.CreationDefaultsTest" time="0.008"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

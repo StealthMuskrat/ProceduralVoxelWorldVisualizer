@@ -25,10 +25,27 @@ public final class ResourcePanel {
   private final ImString renameText = new ImString(256);
   private boolean renameFocus;
   private String renameError = "";
-  private final List<UUID> visibleRows = new ArrayList<>();
+  private final ResourceTreeIndex.Cache browserCache = new ResourceTreeIndex.Cache();
+  private final ResourceTreeView treeView = new ResourceTreeView();
+  private final Map<String, Boolean> rootExpansion = new HashMap<>();
+  private ResourceTreeIndex browser;
+  private Map<UUID, Identity> identities = Map.of();
+  private List<ResourceTreeIndex.Row> selectionRows = List.of(), managerSelectionRows = List.of();
+  private final ImString managerFilter = new ImString(256), placementFilter = new ImString(256);
+  private String managerKey, placementKey;
+  private List<ResourceTreeIndex.Node> managerRows = List.of(), placementRows = List.of();
+  private boolean placementPending;
+  private UUID placementNoise;
+  private int submittedRows;
+  private boolean smokeBrowserDrawn;
+  private int submittedManagerRows;
+  private Float probeScroll;
+  private final List<UUID> submittedTreeIds = new ArrayList<>();
+
   private UUID rangeAnchor;
   private String dragRoot = "";
   private List<UUID> dragSelection = List.of();
+  public Consumer<UUID> findReferences;
   public final Set<UUID> exportSelection = new LinkedHashSet<>();
 
   public ResourcePanel(EditorState s, PropertyPanel properties) {
@@ -38,24 +55,50 @@ public final class ResourcePanel {
 
   public void reset() {
     clipboard = null;
+    browserCache.clear();
+    treeView.clear();
+    rootExpansion.clear();
+    browser = null;
+    managerFilter.set("");
+    placementFilter.set("");
+    managerKey = placementKey = null;
+    managerRows = placementRows = List.of();
+    selectionRows = managerSelectionRows = List.of();
+    placementPending = false;
+    placementLayer = placementNoise = null;
 
     filter.set("");
     renameId = null;
     rangeAnchor = null;
+    dragRoot = "";
+    dragSelection = List.of();
+    manager.set(false);
     exportSelection.clear();
   }
 
   public void draw() {
     ImGui.begin("Resources");
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Resources", 1f));
-    visibleRows.clear();
+    refreshBrowser();
+    submittedRows = 0;
+    submittedTreeIds.clear();
     ImGui.inputTextWithHint("##filter", "Filter resources...", filter);
+    ImGui.beginChild("resource-tree", 0, Math.max(100, ImGui.getContentRegionAvailY() - 100), true);
     root("2D Noise", "noise2D");
     root("3D Noise", "noise3D");
-    worldRoot();
+    root("World Generator", "world");
+    if (probeScroll != null) {
+      ImGui.setScrollY(probeScroll);
+      probeScroll = null;
+    }
+    ImGui.endChild();
     ImGui.separator();
     if (ImGui.button("Voxel Manager")) manager.set(true);
+    if (browser.get(state.selected) != null
+        && browser.get(state.selected).kind().equals("layer")
+        && ImGui.button("Add Noise Generator to Layer")) beginPlacement(state.selected);
     ImGui.textDisabled("Right-click a root to create resources");
+    if (!renameError.isEmpty()) ImGui.textWrapped("! " + renameError);
     focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
     if (focused && ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       renameId = null;
@@ -64,6 +107,7 @@ public final class ResourcePanel {
     ImGui.end();
     createDialog();
     deleteDialog();
+    placementDialog();
     manager();
   }
 
@@ -97,118 +141,167 @@ public final class ResourcePanel {
     }
   }
 
+  private void refreshBrowser() {
+    var next = browserCache.get(state.project(), state.revision);
+    if (next == browser) return;
+    browser = next;
+    treeView.bind(browser);
+    var values = new HashMap<UUID, Identity>();
+    ResourceGraph.entries(state.project()).forEach(e -> values.put(e.uuid(), e.resource()));
+    identities = Map.copyOf(values);
+    managerKey = placementKey = null;
+  }
+
   private void root(String label, String kind) {
+    ImGui.setNextItemOpen(
+        !filter.get().isBlank() || rootExpansion.getOrDefault(kind, true), ImGuiCond.Always);
     boolean open = ImGui.treeNodeEx(label, ImGuiTreeNodeFlags.DefaultOpen);
+    if (filter.get().isBlank()) rootExpansion.put(kind, open);
     rootMenu(kind, null);
-    dropTarget(kind, null);
+    if (!kind.equals("world")) dropTarget(kind, null);
     if (open) {
-      folderContents(kind, null, new HashSet<>());
+      var rows = treeView.rows(kind, filter.get());
+      selectionRows = rows;
+      float height = ImGui.getFrameHeightWithSpacing();
+      var clipper = new ImGuiListClipper();
+      try {
+        clipper.begin(rows.size(), height);
+        while (clipper.step())
+          for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++)
+            treeRow(rows.get(i));
+        clipper.end();
+      } finally {
+        clipper.destroy();
+      }
       ImGui.treePop();
     }
   }
 
-  private void folderContents(String kind, UUID parent, Set<UUID> visited) {
-    for (var entry : ResourceGraph.children(state.project(), kind, parent)) {
-      if (entry.resource() instanceof Folder folder) {
-        if (!visited.add(folder.uuid)) continue;
-        boolean open =
-            ImGui.treeNodeEx(
-                folder.id + "###" + folder.uuid,
-                ImGuiTreeNodeFlags.OpenOnArrow
-                    | (state.multiSelection.contains(folder.uuid)
-                        ? ImGuiTreeNodeFlags.Selected
-                        : 0));
-        visibleRows.add(folder.uuid);
-        if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen())
-          select("folder", folder.uuid, kind + ":" + parent);
-        if (folder.uuid.equals(renameId)) inlineRename(folder);
-        rowMenu("folder", folder, kind, parent);
-        drag(folder.uuid, kind);
-        dropTarget(kind, folder.uuid);
-        if (open) {
-          folderContents(kind, folder.uuid, visited);
-          ImGui.treePop();
-        }
-      } else if (entry.resource() instanceof Noise noise && matches(noise.id))
-        row(kind, noise, kind, parent);
-    }
-  }
-
-  private boolean matches(String value) {
-    return filter.get().isBlank()
-        || value.toLowerCase(Locale.ROOT).contains(filter.get().toLowerCase(Locale.ROOT));
+  private void treeRow(ResourceTreeIndex.Row row) {
+    var node = row.node();
+    Identity resource = identities.get(node.uuid());
+    if (resource == null) return;
+    submittedRows++;
+    submittedTreeIds.add(node.uuid());
+    ImGui.pushID(node.uuid().toString());
+    float indent = Math.min(row.depth(), 32) * ImGui.getTreeNodeToLabelSpacing();
+    if (indent > 0) ImGui.indent(indent);
+    if (node.uuid().equals(renameId)) inlineRename(resource);
+    else if (node.container()) {
+      ImGui.setNextItemOpen(row.open(), ImGuiCond.Always);
+      boolean expanded =
+          ImGui.treeNodeEx(
+              (node.enabled() ? "" : "[off] ") + AppMetadata.uiText(node.id()) + "###container",
+              ImGuiTreeNodeFlags.OpenOnArrow
+                  | ImGuiTreeNodeFlags.NoTreePushOnOpen
+                  | ImGuiTreeNodeFlags.FramePadding
+                  | (state.multiSelection.contains(node.uuid()) ? ImGuiTreeNodeFlags.Selected : 0));
+      if (expanded != row.open() && filter.get().isBlank()) treeView.open(node.uuid(), expanded);
+      if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen())
+        select(node.kind(), node.uuid(), node.root() + ":" + node.parent());
+    } else if (ImGui.selectable(
+        (node.enabled() ? "" : "[off] ") + AppMetadata.uiText(node.id()) + "###leaf",
+        state.multiSelection.contains(node.uuid()),
+        0,
+        0,
+        ImGui.getFrameHeight()))
+      select(node.kind(), node.uuid(), node.root() + ":" + node.parent());
+    rowMenu(node.kind(), resource, node.root(), node.parent());
+    drag(node.uuid(), node.root());
+    if (node.kind().equals("folder")) dropTarget(node.root(), node.uuid());
+    else if (node.kind().equals("layer") && dragRoot.equals("operation"))
+      dropTarget("operation", node.uuid());
+    else dropBefore(node.uuid());
+    if (indent > 0) ImGui.unindent(indent);
+    ImGui.popID();
   }
 
   private void row(String kind, Identity resource, String root, UUID parent) {
     ImGui.pushID(resource.uuid.toString());
-    visibleRows.add(resource.uuid);
     if (resource.uuid.equals(renameId)) inlineRename(resource);
-    else if (ImGui.selectable(resource.id, state.multiSelection.contains(resource.uuid)))
-      select(kind, resource.uuid, root + ":" + parent);
+    else if (ImGui.selectable(
+        AppMetadata.uiText(resource.id),
+        state.multiSelection.contains(resource.uuid),
+        0,
+        0,
+        ImGui.getFrameHeight())) select(kind, resource.uuid, root + ":" + parent);
     rowMenu(kind, resource, root, parent);
     drag(resource.uuid, root);
     dropBefore(resource.uuid);
     ImGui.popID();
   }
 
-  private void worldRoot() {
-    boolean open = ImGui.treeNodeEx("World Generator", ImGuiTreeNodeFlags.DefaultOpen);
-    rootMenu("world", null);
-    if (open) {
-      for (var layer : state.project().worldGenerator.layers) {
-        if (!matches(layer.id) && !filter.get().isBlank()) continue;
-        boolean expanded =
-            ImGui.treeNodeEx(
-                (layer.enabled ? "" : "[off] ") + layer.id + "###" + layer.uuid,
-                ImGuiTreeNodeFlags.OpenOnArrow
-                    | ImGuiTreeNodeFlags.DefaultOpen
-                    | (state.selected != null && state.selected.equals(layer.uuid)
-                        ? ImGuiTreeNodeFlags.Selected
-                        : 0));
-        visibleRows.add(layer.uuid);
-        if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen())
-          select("layer", layer.uuid, "world:null");
-        if (layer.uuid.equals(renameId)) inlineRename(layer);
-        rowMenu("layer", layer, "world", null);
-        drag(layer.uuid, "world");
-        dropBefore(layer.uuid);
-        dropTarget("operation", layer.uuid);
-        if (expanded) {
-          for (var op : layer.operations) row("operation", op, "operation", layer.uuid);
-          ImGui.pushID(layer.uuid.toString());
-          if (ImGui.smallButton("Add Noise Generator")) {
-            placementLayer = layer.uuid;
-            ImGui.openPopup("add-placement");
-          }
-          if (ImGui.beginPopup("add-placement")) {
-            for (var list : List.of(state.project().noise2D, state.project().noise3D))
-              for (var n : list)
-                if (ImGui.menuItem(n.id + " [" + n.dimension + "D]")) {
-                  UUID layerId = layer.uuid, noiseId = n.uuid;
-                  state.change(
-                      p -> {
-                        var target =
-                            p.worldGenerator.layers.stream()
-                                .filter(l -> l.uuid.equals(layerId))
-                                .findFirst()
-                                .orElseThrow();
-                        var op = new Operation();
-                        op.id =
-                            ResourceTransactions.unique(
-                                n.id, target.operations.stream().map(o -> o.id).toList());
-                        op.noiseGeneratorUuid = noiseId;
-                        op.interpretation = n.dimension == 2 ? "HEIGHT_BELOW" : "DENSITY";
-                        target.operations.add(op);
-                      });
-                }
-            ImGui.endPopup();
-          }
-          ImGui.popID();
-          ImGui.treePop();
-        }
-      }
-      ImGui.treePop();
+  private void beginPlacement(UUID layer) {
+    placementLayer = layer;
+    placementNoise = null;
+    placementFilter.set("");
+    placementKey = null;
+    placementPending = true;
+  }
+
+  private void placementDialog() {
+    if (placementPending) {
+      ImGui.openPopup("Add Noise Generator");
+      placementPending = false;
     }
+    ImGui.setNextWindowSize(560, 430, ImGuiCond.FirstUseEver);
+    if (!ImGui.beginPopupModal("Add Noise Generator")) return;
+    ImGui.inputTextWithHint("##placement-filter", "Find noise by ID...", placementFilter);
+    if (!Objects.equals(placementKey, placementFilter.get())) {
+      placementKey = placementFilter.get();
+      placementRows = browser.noises(placementKey);
+    }
+    // Initial empty query also materializes the complete 2D/3D list.
+    if (placementRows.isEmpty() && placementKey.isEmpty()) placementRows = browser.noises("");
+    ImGui.text(placementRows.size() + " matching noise generator(s)");
+    ImGui.beginChild(
+        "placement-options", 0, Math.max(120, ImGui.getContentRegionAvailY() - 48), true);
+    var clipper = new ImGuiListClipper();
+    try {
+      clipper.begin(placementRows.size(), ImGui.getTextLineHeightWithSpacing());
+      while (clipper.step())
+        for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
+          var node = placementRows.get(i);
+          if (ImGui.selectable(
+              AppMetadata.uiText(node.id())
+                  + " ["
+                  + (node.kind().equals("noise2D") ? "2D" : "3D")
+                  + "]###"
+                  + node.uuid(),
+              node.uuid().equals(placementNoise))) placementNoise = node.uuid();
+        }
+      clipper.end();
+    } finally {
+      clipper.destroy();
+    }
+    ImGui.endChild();
+    ImGui.beginDisabled(placementNoise == null || browser.get(placementLayer) == null);
+    if (ImGui.button("Add Placement")) {
+      UUID layerId = placementLayer, noiseId = placementNoise;
+      if (state.change(
+          p -> {
+            var layer =
+                p.worldGenerator.layers.stream()
+                    .filter(l -> l.uuid.equals(layerId))
+                    .findFirst()
+                    .orElseThrow();
+            var noise = (Noise) EditorState.find(p, noiseId);
+            var op = new Operation();
+            op.id =
+                ResourceTransactions.unique(
+                    noise.id, layer.operations.stream().map(o -> o.id).toList());
+            op.noiseGeneratorUuid = noiseId;
+            op.interpretation = noise.dimension == 2 ? "HEIGHT_BELOW" : "DENSITY";
+            layer.operations.add(op);
+          })) {
+        state.refreshDraft();
+        ImGui.closeCurrentPopup();
+      }
+    }
+    ImGui.endDisabled();
+    ImGui.sameLine();
+    if (ImGui.button("Cancel")) ImGui.closeCurrentPopup();
+    ImGui.endPopup();
   }
 
   private void rootMenu(String kind, UUID parent) {
@@ -230,6 +323,7 @@ public final class ResourcePanel {
         if (ImGui.menuItem("Paste", clipboard != null && clipboard.root().equals(root)))
           paste(root, r.uuid);
       }
+      if (r instanceof Layer && ImGui.menuItem("Add Noise Generator")) beginPlacement(r.uuid);
       if (r instanceof Layer
           && ImGui.menuItem(
               "Paste Placements", clipboard != null && clipboard.root().equals("operation")))
@@ -271,6 +365,7 @@ public final class ResourcePanel {
   }
 
   private void dropTarget(String root, UUID parent) {
+    if (!dragRoot.equals(root)) return;
     if (ImGui.beginDragDropTarget()) {
       String value = ImGui.acceptDragDropPayload("resource", String.class);
       if (value != null && !dragSelection.isEmpty()) {
@@ -308,25 +403,16 @@ public final class ResourcePanel {
         state.refreshDraft();
       } else renameError = "ID rejected; correct it or press Escape";
     }
-    if (!renameError.isEmpty()) ImGui.textWrapped("! " + renameError);
     ImGui.popID();
   }
 
   private void select(String kind, UUID id, String scope) {
     if (ImGui.getIO().getKeyShift() && rangeAnchor != null) {
-      var anchor = ResourceGraph.find(state.project(), rangeAnchor);
-      var target = ResourceGraph.find(state.project(), id);
-      if (anchor != null && target != null && anchor.scope().equals(target.scope())) {
-        var siblings =
-            ResourceGraph.entries(state.project()).stream()
-                .filter(e -> e.scope().equals(target.scope()))
-                .map(ResourceGraph.Entry::uuid)
-                .toList();
-        int a = siblings.indexOf(rangeAnchor), b = siblings.indexOf(id);
+      var range = ResourceTreeIndex.range(selectionRows, rangeAnchor, id);
+      if (!range.isEmpty()) {
         state.select(kind, id, scope, false);
         state.multiSelection.clear();
-        for (int i = Math.min(a, b); i <= Math.max(a, b); i++)
-          state.multiSelection.add(siblings.get(i));
+        state.multiSelection.addAll(range);
         return;
       }
     }
@@ -582,31 +668,96 @@ public final class ResourcePanel {
 
   private void manager() {
     if (!manager.get()) return;
-    ImGui.setNextWindowSize(600, 500, ImGuiCond.FirstUseEver);
+    refreshBrowser();
+    ImGui.setNextWindowSize(650, 520, ImGuiCond.FirstUseEver);
     ImGui.begin("Voxel Manager", manager);
+    ImGui.inputTextWithHint(
+        "##voxel-filter", "Filter voxel type, set or group IDs...", managerFilter);
+    submittedManagerRows = 0;
     if (ImGui.beginTabBar("voxel-tabs")) {
-      if (ImGui.beginTabItem("Voxel Types")) {
-        if (ImGui.button("Create Voxel Type")) create("voxel", "voxel", null);
-        for (var t : state.project().voxelTypes) {
-          ImGui.colorButton(
-              "##" + t.uuid, new ImVec4(t.color.r / 255f, t.color.g / 255f, t.color.b / 255f, 1));
-          ImGui.sameLine();
-          row("voxel", t, "voxel", null);
-        }
-        ImGui.endTabItem();
-      }
-      if (ImGui.beginTabItem("Voxel Sets")) {
-        if (ImGui.button("Create Set")) create("set", "set", null);
-        for (var set : state.project().voxelSets) row("set", set, "set", null);
-        ImGui.endTabItem();
-      }
-      if (ImGui.beginTabItem("Groups")) {
-        if (ImGui.button("Create Group")) create("group", "group", null);
-        for (var g : state.project().voxelGroups) row("group", g, "group", null);
-        ImGui.endTabItem();
-      }
+      managerTab("Voxel Types", "voxel", "Create Voxel Type");
+      managerTab("Voxel Sets", "set", "Create Set");
+      managerTab("Groups", "group", "Create Group");
       ImGui.endTabBar();
     }
+    smokeBrowserDrawn = true;
     ImGui.end();
+  }
+
+  private void managerTab(String label, String kind, String createLabel) {
+    if (!ImGui.beginTabItem(label)) return;
+    if (ImGui.button(createLabel)) create(kind, kind, null);
+    String key = kind + ":" + managerFilter.get();
+    if (!key.equals(managerKey)) {
+      managerKey = key;
+      managerRows = browser.kind(kind, managerFilter.get());
+      managerSelectionRows =
+          managerRows.stream().map(n -> new ResourceTreeIndex.Row(n, 0, false)).toList();
+    }
+    selectionRows = managerSelectionRows;
+    ImGui.text(managerRows.size() + " matching " + label.toLowerCase(Locale.ROOT));
+    ImGui.beginChild("manager-rows", 0, Math.max(80, ImGui.getContentRegionAvailY() - 30), true);
+    var clipper = new ImGuiListClipper();
+    try {
+      clipper.begin(managerRows.size(), ImGui.getFrameHeightWithSpacing());
+      while (clipper.step())
+        for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
+          var node = managerRows.get(i);
+          submittedManagerRows++;
+          if (node.swatch() != null) {
+            var c = node.swatch();
+            ImGui.colorButton(
+                "##swatch" + node.uuid(), new ImVec4(c.r() / 255f, c.g() / 255f, c.b() / 255f, 1));
+            ImGui.sameLine();
+          }
+          row(kind, identities.get(node.uuid()), kind, null);
+        }
+      clipper.end();
+    } finally {
+      clipper.destroy();
+    }
+    ImGui.endChild();
+    if (findReferences != null
+        && browser.get(state.selected) != null
+        && browser.get(state.selected).kind().equals(kind)
+        && ImGui.button("Find References to Selected")) {
+      findReferences.accept(state.selected);
+    }
+    ImGui.endTabItem();
+  }
+
+  void smokeBrowser(boolean show) {
+    manager.set(show);
+    if (show) {
+      smokeBrowserDrawn = false;
+      managerFilter.set("");
+    } else if (!smokeBrowserDrawn) throw new AssertionError("Voxel browser was not drawn");
+  }
+
+  record BrowserStats(
+      int indexed,
+      long builds,
+      long projections,
+      int treeRows,
+      int managerRows,
+      List<UUID> submitted) {}
+
+  BrowserStats browserStats() {
+    return new BrowserStats(
+        browser.size(),
+        browserCache.builds(),
+        treeView.projections(),
+        submittedRows,
+        submittedManagerRows,
+        List.copyOf(submittedTreeIds));
+  }
+
+  void probeFilter(String tree, String voxels) {
+    filter.set(tree);
+    managerFilter.set(voxels);
+  }
+
+  void probeScroll(float value) {
+    probeScroll = value;
   }
 }

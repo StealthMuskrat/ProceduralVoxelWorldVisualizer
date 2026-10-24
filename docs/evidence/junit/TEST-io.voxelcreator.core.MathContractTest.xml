@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.core.MathContractTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:48:12.313Z" hostname="715e00c143c7" time="0.049">
+<testsuite name="io.voxelcreator.core.MathContractTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:48:08.708Z" hostname="715e00c143c7" time="0.069">
   <properties/>
   <testcase name="curvesKnotsAndPolicies()" classname="io.voxelcreator.core.MathContractTest" time="0.002"/>
-  <testcase name="unusedEnabledArithmeticIsValidatedButNotExecuted()" classname="io.voxelcreator.core.MathContractTest" time="0.006"/>
-  <testcase name="shortCircuitAndTypes()" classname="io.voxelcreator.core.MathContractTest" time="0.007"/>
+  <testcase name="unusedEnabledArithmeticIsValidatedButNotExecuted()" classname="io.voxelcreator.core.MathContractTest" time="0.007"/>
+  <testcase name="shortCircuitAndTypes()" classname="io.voxelcreator.core.MathContractTest" time="0.006"/>
   <testcase name="hashHasKnownIndependentSplitMixVectors()" classname="io.voxelcreator.core.MathContractTest" time="0.001"/>
-  <testcase name="arithmeticPrecedenceAndPower()" classname="io.voxelcreator.core.MathContractTest" time="0.002"/>
-  <testcase name="processingOutputAndSharedDefinition()" classname="io.voxelcreator.core.MathContractTest" time="0.003"/>
-  <testcase name="functionInventory()" classname="io.voxelcreator.core.MathContractTest" time="0.005"/>
+  <testcase name="arithmeticPrecedenceAndPower()" classname="io.voxelcreator.core.MathContractTest" time="0.001"/>
+  <testcase name="processingOutputAndSharedDefinition()" classname="io.voxelcreator.core.MathContractTest" time="0.004"/>
+  <testcase name="functionInventory()" classname="io.voxelcreator.core.MathContractTest" time="0.007"/>
   <testcase name="integerAlgorithmControlsRejectFractionalValues()" classname="io.voxelcreator.core.MathContractTest" time="0.002"/>
-  <testcase name="noiseFamiliesRepeatAtNegativeAndLargeCoordinates()" classname="io.voxelcreator.core.MathContractTest" time="0.009"/>
-  <testcase name="sourceSpansAndLimits()" classname="io.voxelcreator.core.MathContractTest" time="0.002"/>
-  <testcase name="vectorArithmeticIsExplicitAndCoordinatesAreNotVectors()" classname="io.voxelcreator.core.MathContractTest" time="0.006"/>
+  <testcase name="noiseFamiliesRepeatAtNegativeAndLargeCoordinates()" classname="io.voxelcreator.core.MathContractTest" time="0.019"/>
+  <testcase name="sourceSpansAndLimits()" classname="io.voxelcreator.core.MathContractTest" time="0.003"/>
+  <testcase name="vectorArithmeticIsExplicitAndCoordinatesAreNotVectors()" classname="io.voxelcreator.core.MathContractTest" time="0.008"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

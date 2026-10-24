@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.render.ArenaCompactionTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:47:45.432Z" hostname="715e00c143c7" time="0.3">
+<testsuite name="io.voxelcreator.render.ArenaCompactionTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:47:46.461Z" hostname="715e00c143c7" time="0.293">
   <properties/>
-  <testcase name="workspaceAndPrimitiveBoundariesLimitLargeCopies()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.07"/>
-  <testcase name="invalidReleaseDoesNotLoseALiveAllocation()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.015"/>
-  <testcase name="incompleteTriangleTailRetainsTheSameGlPrimitiveSemantics()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.014"/>
-  <testcase name="layoutPreservesOrderFreezesMutationAndCommitsOneFreeTail()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.007"/>
+  <testcase name="workspaceAndPrimitiveBoundariesLimitLargeCopies()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.082"/>
+  <testcase name="invalidReleaseDoesNotLoseALiveAllocation()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.01"/>
+  <testcase name="incompleteTriangleTailRetainsTheSameGlPrimitiveSemantics()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.019"/>
+  <testcase name="layoutPreservesOrderFreezesMutationAndCommitsOneFreeTail()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.006"/>
   <testcase name="packedLayoutsAreNoOpsAndZeroMeshesNeverConsumeSpace()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.001"/>
   <testcase name="overlappingMovesPreserveEveryByteAfterEveryAcknowledgedPrimitive()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.005"/>
-  <testcase name="copyAcknowledgementsCannotBeDuplicatedForgedOrAdvancedBeforeSuccess()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.009"/>
-  <testcase name="randomizedFragmentationMatchesIndependentByteOracleAtEveryIntermediateLayout()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.161"/>
+  <testcase name="copyAcknowledgementsCannotBeDuplicatedForgedOrAdvancedBeforeSuccess()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.006"/>
+  <testcase name="randomizedFragmentationMatchesIndependentByteOracleAtEveryIntermediateLayout()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.153"/>
   <testcase name="resetInvalidatesOldLayoutsAndAllowsFreshFullBudgetAllocation()" classname="io.voxelcreator.render.ArenaCompactionTest" time="0.004"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
