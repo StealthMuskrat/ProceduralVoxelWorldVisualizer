@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.WorldResourceTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T18:41:28.198Z" hostname="715e00c143c7" time="0.154">
+<testsuite name="io.voxelcreator.editor.WorldResourceTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T19:29:31.231Z" hostname="715e00c143c7" time="0.036">
   <properties/>
-  <testcase name="movingAPlacementPreservesOverridesAndResolvesDestinationDefaults()" classname="io.voxelcreator.editor.WorldResourceTest" time="0.089"/>
-  <testcase name="replacementAndUndoReachNestedNewSettingsAtomically()" classname="io.voxelcreator.editor.WorldResourceTest" time="0.037"/>
-  <testcase name="portableClosureAndCopyRemapDriverAndIntervalDependencies()" classname="io.voxelcreator.editor.WorldResourceTest" time="0.024"/>
+  <testcase name="movingAPlacementPreservesOverridesAndResolvesDestinationDefaults()" classname="io.voxelcreator.editor.WorldResourceTest" time="0.014"/>
+  <testcase name="replacementAndUndoReachNestedNewSettingsAtomically()" classname="io.voxelcreator.editor.WorldResourceTest" time="0.012"/>
+  <testcase name="portableClosureAndCopyRemapDriverAndIntervalDependencies()" classname="io.voxelcreator.editor.WorldResourceTest" time="0.009"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

@@ -19,7 +19,7 @@ public final class WorldContext implements AutoCloseable {
   private final AtomicBoolean closed = new AtomicBoolean();
   private final LinkedHashMap<ChunkPos, VoxelChunk> cache = new LinkedHashMap<>(16, .75f, true);
   private final Set<ChunkPos> pinned = new HashSet<>();
-  private long bytes = 0, hits = 0, misses = 0;
+  private long bytes = 0, hits = 0, misses = 0, automaticEvictions = 0, retentionRejected = 0;
   private final Set<CompletableFuture<VoxelChunk>> futures = ConcurrentHashMap.newKeySet();
   private final Set<StreamingTask> regions = ConcurrentHashMap.newKeySet();
   private final AtomicInteger activeRegions = new AtomicInteger();
@@ -57,7 +57,7 @@ public final class WorldContext implements AutoCloseable {
 
   public VoxelChunk generateChunk(ChunkPos pos) {
     try {
-      return request(pos, new CancellationToken(), false).join();
+      return request(pos, new CancellationToken(), false, GenerationPriority.NORMAL).join();
     } catch (CompletionException failure) {
       if (failure.getCause() instanceof RuntimeException runtime) throw runtime;
       throw failure;
@@ -93,32 +93,110 @@ public final class WorldContext implements AutoCloseable {
     }
   }
 
+  private static long cacheCost(VoxelChunk chunk) {
+    return 128L + chunk.estimatedBytes();
+  }
+
+  private long cacheLimit() {
+    return options.cachePolicy() == CachePolicy.MEMORY_CACHE
+        ? engine.memoryBudget
+        : options.cacheBytes();
+  }
+
+  private boolean automaticCache() {
+    return options.cachePolicy() == CachePolicy.MEMORY_CACHE
+        || options.cachePolicy() == CachePolicy.BOUNDED_MEMORY_CACHE;
+  }
+
+  private void removeCached(VoxelChunk chunk, boolean automatic) {
+    long cost = cacheCost(chunk);
+    bytes -= cost;
+    engine.cacheBytes.addAndGet(-cost);
+    if (automatic) automaticEvictions++;
+  }
+
+  private boolean localCapacity(long needed) {
+    long limit = cacheLimit();
+    if (needed > limit) return false;
+    if (automaticCache()) {
+      var iterator = cache.entrySet().iterator();
+      while (bytes > limit - needed && iterator.hasNext()) {
+        var e = iterator.next();
+        removeCached(e.getValue(), true);
+        iterator.remove();
+      }
+    }
+    return bytes <= limit - needed;
+  }
+
+  /**
+   * Called without the engine admission lock; USER_MANAGED entries are never reclaimed implicitly.
+   */
+  long reclaimCache(long requested) {
+    if (!automaticCache() || requested <= 0) return 0;
+    synchronized (cache) {
+      long freed = 0;
+      var iterator = cache.entrySet().iterator();
+      while (freed < requested && iterator.hasNext()) {
+        var e = iterator.next();
+        freed += cacheCost(e.getValue());
+        removeCached(e.getValue(), true);
+        iterator.remove();
+      }
+      return freed;
+    }
+  }
+
   private void retain(VoxelChunk result) {
     if (options.cachePolicy() == CachePolicy.NO_CACHE) return;
+    long needed = cacheCost(result);
     synchronized (cache) {
       if (closed.get() || cache.containsKey(result.position())) return;
-      long needed = result.estimatedBytes(), limit = options.cacheBytes();
-      var it = cache.entrySet().iterator();
-      while (bytes + needed > limit && it.hasNext()) {
-        var entry = it.next();
-        if (pinned.contains(entry.getKey())) continue;
-        bytes -= entry.getValue().estimatedBytes();
-        engine.cacheBytes.addAndGet(-entry.getValue().estimatedBytes());
-        it.remove();
+      if (!localCapacity(needed)) {
+        retentionRejected++;
+        return;
       }
-      if (bytes + needed <= limit && engine.reserveCache(needed)) {
+    }
+    // Reclaiming another context while holding this cache lock would invert the cache lock order.
+    if (!engine.reserveCache(needed)) {
+      synchronized (cache) {
+        if (!closed.get()) retentionRejected++;
+      }
+      return;
+    }
+    boolean transferred = false;
+    try {
+      synchronized (cache) {
+        if (closed.get() || cache.containsKey(result.position())) return;
+        if (!localCapacity(needed)) {
+          retentionRejected++;
+          return;
+        }
         cache.put(result.position(), result);
         bytes += needed;
+        transferred = true;
       }
+    } finally {
+      if (!transferred) engine.cacheBytes.addAndGet(-needed);
     }
   }
 
   public CompletableFuture<VoxelChunk> generateChunkAsync(ChunkPos pos) {
-    return request(pos, new CancellationToken(), true);
+    return request(pos, new CancellationToken(), true, GenerationPriority.NORMAL);
   }
 
   public CompletableFuture<VoxelChunk> generateChunkAsync(ChunkPos pos, CancellationToken token) {
-    return request(pos, token, true);
+    return request(pos, token, true, GenerationPriority.NORMAL);
+  }
+
+  public CompletableFuture<VoxelChunk> generateChunkAsync(
+      ChunkPos pos, GenerationPriority priority) {
+    return request(pos, new CancellationToken(), true, priority);
+  }
+
+  public CompletableFuture<VoxelChunk> generateChunkAsync(
+      ChunkPos pos, CancellationToken token, GenerationPriority priority) {
+    return request(pos, token, true, priority);
   }
 
   private void position(ChunkPos pos) {
@@ -132,10 +210,11 @@ public final class WorldContext implements AutoCloseable {
   }
 
   private CompletableFuture<VoxelChunk> request(
-      ChunkPos pos, CancellationToken token, boolean async) {
+      ChunkPos pos, CancellationToken token, boolean async, GenerationPriority priority) {
     check();
     position(pos);
     Objects.requireNonNull(token);
+    Objects.requireNonNull(priority);
     try {
       token.throwIfCancelled();
     } catch (CancellationException cancelled) {
@@ -157,10 +236,16 @@ public final class WorldContext implements AutoCloseable {
         throw new RejectedExecutionException("Too many pending chunk subscribers");
       flight = inFlight.get(pos);
       if (flight == null) {
-        flight = new SharedGeneration(pos);
+        flight = new SharedGeneration(pos, priority);
         inFlight.put(pos, flight);
         leader = true;
-      } else sharedRequests.incrementAndGet();
+      } else {
+        sharedRequests.incrementAndGet();
+        if (priority.ordinal() < flight.priority.ordinal() && !flight.started.get()) {
+          flight.priority = priority;
+          engine.promote(flight, priority);
+        }
+      }
       flight.waiters.add(waiter);
       futures.add(waiter.future);
     }
@@ -168,17 +253,32 @@ public final class WorldContext implements AutoCloseable {
     waiter.future.whenComplete(
         (v, error) -> {
           futures.remove(waiter.future);
+          var registration = waiter.registration;
+          if (registration != null) registration.close();
           synchronized (inFlight) {
             owner.waiters.remove(waiter);
-            if (owner.waiters.isEmpty() && !owner.started.get()) {
+            if (owner.waiters.isEmpty()) {
               inFlight.remove(pos, owner);
-              engine.workers.remove(owner);
+              if (!owner.started.get()) engine.workers.remove(owner);
             }
           }
         });
+    try {
+      waiter.registration =
+          token.onCancel(
+              () ->
+                  waiter.future.completeExceptionally(
+                      new CancellationException("Chunk request cancelled")));
+      if (waiter.future.isDone()) waiter.registration.close();
+    } catch (RuntimeException failure) {
+      waiter.future.completeExceptionally(failure);
+    }
     if (leader && async) {
       try {
-        engine.workers.execute(flight);
+        synchronized (inFlight) {
+          if (inFlight.get(pos) == flight && !flight.waiters.isEmpty())
+            engine.workers.execute(flight);
+        }
       } catch (RejectedExecutionException rejected) {
         flight.fail(rejected);
         engine.report("QUEUE_OVERLOAD", rejected.getMessage());
@@ -195,25 +295,57 @@ public final class WorldContext implements AutoCloseable {
   private static final class Waiter {
     final CancellationToken token;
     final CompletableFuture<VoxelChunk> future = new CompletableFuture<>();
+    volatile CancellationToken.Registration registration;
 
     Waiter(CancellationToken token) {
       this.token = token;
     }
   }
 
-  private final class SharedGeneration implements Runnable {
+  private final class SharedGeneration implements FairWorkQueue.Work {
     final ChunkPos position;
     final List<Waiter> waiters = new ArrayList<>();
     final AtomicBoolean started = new AtomicBoolean();
 
-    SharedGeneration(ChunkPos position) {
+    volatile GenerationPriority priority;
+
+    SharedGeneration(ChunkPos position, GenerationPriority priority) {
       this.position = position;
+      this.priority = priority;
+    }
+
+    public Object scope() {
+      return WorldContext.this;
+    }
+
+    public GenerationPriority priority() {
+      return priority;
     }
 
     boolean abandoned() {
+      List<Waiter> snapshot;
       synchronized (inFlight) {
-        return closed.get()
-            || waiters.stream().noneMatch(w -> !w.future.isDone() && !w.token.isCancelled());
+        if (closed.get()) {
+          inFlight.remove(position, this);
+          return true;
+        }
+        snapshot = List.copyOf(waiters);
+      }
+      // Host parent suppliers and completion callbacks must run outside the ownership lock.
+      boolean inactive = true;
+      for (var waiter : snapshot) {
+        if (waiter.future.isDone()) continue;
+        try {
+          if (!waiter.token.isCancelled()) inactive = false;
+        } catch (RuntimeException failure) {
+          waiter.future.completeExceptionally(failure);
+        }
+      }
+      if (!inactive) return false;
+      synchronized (inFlight) {
+        if (!waiters.equals(snapshot)) return false;
+        inFlight.remove(position, this);
+        return true;
       }
     }
 
@@ -239,10 +371,15 @@ public final class WorldContext implements AutoCloseable {
         waiters.clear();
       }
       for (var waiter : subscribers) {
-        if (closed.get() || waiter.token.isCancelled())
-          waiter.future.completeExceptionally(new CancellationException("Chunk request cancelled"));
-        else if (failure != null) waiter.future.completeExceptionally(failure);
-        else waiter.future.complete(result);
+        try {
+          if (closed.get() || waiter.token.isCancelled())
+            waiter.future.completeExceptionally(
+                new CancellationException("Chunk request cancelled"));
+          else if (failure != null) waiter.future.completeExceptionally(failure);
+          else waiter.future.complete(result);
+        } catch (RuntimeException subscriberFailure) {
+          waiter.future.completeExceptionally(subscriberFailure);
+        }
       }
     }
   }
@@ -281,6 +418,7 @@ public final class WorldContext implements AutoCloseable {
     Objects.requireNonNull(token);
     plan.stage(stage);
     position(position);
+    token.throwIfCancelled();
     long reserved = Math.multiplyExact(2, plan.stagingEstimate(chunkSize()));
     if (!engine.reserveStaging(reserved))
       throw new RejectedExecutionException("Stage preview memory budget reached");
@@ -297,7 +435,8 @@ public final class WorldContext implements AutoCloseable {
 
   public CacheStats cacheStats() {
     synchronized (cache) {
-      return new CacheStats(hits, misses, cache.size(), bytes, pinned.size());
+      return new CacheStats(
+          hits, misses, cache.size(), bytes, pinned.size(), automaticEvictions, retentionRejected);
     }
   }
 
@@ -306,8 +445,7 @@ public final class WorldContext implements AutoCloseable {
       if (pinned.contains(p)) throw new IllegalStateException("Chunk pinned");
       var c = cache.remove(p);
       if (c != null) {
-        bytes -= c.estimatedBytes();
-        engine.cacheBytes.addAndGet(-c.estimatedBytes());
+        removeCached(c, false);
       }
     }
   }
@@ -318,8 +456,7 @@ public final class WorldContext implements AutoCloseable {
       while (it.hasNext()) {
         var e = it.next();
         if (pinned.contains(e.getKey())) continue;
-        bytes -= e.getValue().estimatedBytes();
-        engine.cacheBytes.addAndGet(-e.getValue().estimatedBytes());
+        removeCached(e.getValue(), false);
         it.remove();
       }
     }
@@ -361,6 +498,11 @@ public final class WorldContext implements AutoCloseable {
   }
 
   public RegionResult collectRegion(RegionRequest request) {
+    return collectRegion(request, task -> {});
+  }
+
+  private RegionResult collectRegion(
+      RegionRequest request, java.util.function.Consumer<RegionTask> started) {
     check();
     long count =
         request
@@ -396,6 +538,7 @@ public final class WorldContext implements AutoCloseable {
                 chunks.add(c);
                 return CompletableFuture.completedFuture(null);
               });
+      started.accept(task);
       var summary = task.completion().join();
       var counter = engine.collectionBytes;
       var result = new RegionResult(List.copyOf(chunks), summary, () -> counter.addAndGet(-worst));
@@ -409,11 +552,26 @@ public final class WorldContext implements AutoCloseable {
   public CompletableFuture<RegionResult> collectRegionAsync(RegionRequest request) {
     check();
     var future = new CompletableFuture<RegionResult>();
+    var task = new AtomicReference<RegionTask>();
+    future.whenComplete(
+        (value, error) -> {
+          if (future.isCancelled()) {
+            var active = task.get();
+            if (active != null) active.cancel();
+          }
+        });
     Thread.ofVirtual()
         .start(
             () -> {
               try {
-                var result = collectRegion(request);
+                if (future.isCancelled()) return;
+                var result =
+                    collectRegion(
+                        request,
+                        active -> {
+                          task.set(active);
+                          if (future.isCancelled()) active.cancel();
+                        });
                 if (!future.complete(result)) result.close();
               } catch (Throwable e) {
                 future.completeExceptionally(e);
@@ -492,7 +650,13 @@ public final class WorldContext implements AutoCloseable {
           while ((more || !pending.isEmpty()) && !token.isCancelled() && !closed.get()) {
             while (more && pending.size() < request.maxInFlightChunks() && !token.isCancelled()) {
               var pos = new ChunkPos((int) x, (int) y, (int) z);
-              pending.add(new Pending(pos, generateChunkAsync(pos, token)));
+              CompletableFuture<VoxelChunk> next;
+              try {
+                next = generateChunkAsync(pos, token, request.priority());
+              } catch (RuntimeException failure) {
+                next = CompletableFuture.failedFuture(failure);
+              }
+              pending.add(new Pending(pos, next));
               if (++z > maxZ) {
                 z = minZ;
                 if (++y > maxY) {
@@ -501,6 +665,7 @@ public final class WorldContext implements AutoCloseable {
                 }
               }
             }
+            if (token.isCancelled() || closed.get() || pending.isEmpty()) break;
             Pending chosen = pending.getFirst();
             if (request.order() == RegionRequest.DeliveryOrder.COMPLETION) {
               CompletableFuture.anyOf(

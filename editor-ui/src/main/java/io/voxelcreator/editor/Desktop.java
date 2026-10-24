@@ -26,6 +26,7 @@ public final class Desktop extends Application {
   private DiagnosticsPanel diagnostics;
   private String smokeDiagnosticDocument;
   private long smokeDiagnosticEvent;
+  private boolean smokeSchedulerDrawn;
   private final UiFields fields = new UiFields();
   private boolean layout = false;
   private final ImBoolean find = new ImBoolean(false),
@@ -166,9 +167,15 @@ public final class Desktop extends Application {
     if (smokeFrames > 0) {
       views.smokePhase(480 - smokeFrames);
       smokeDiagnostics(480 - smokeFrames);
+      int runtimeFrame = 480 - smokeFrames;
+      if (runtimeFrame == 125) profiler.set(true);
+      if (runtimeFrame == 150) profiler.set(false);
       if (--smokeFrames == 0) {
         views.assertSmokeCompleted();
         diagnostics.assertSmokeDrawn();
+        if (!smokeSchedulerDrawn)
+          throw new IllegalStateException("Scheduler profiler was not rendered");
+        System.out.println("FAIR_SCHEDULER_PROFILER_NATIVE_PASS");
         System.out.println(
             "DESKTOP_SMOKE_COMPLETED frames=" + frameCount + " engine=" + state.engine.metrics());
         glfwSetWindowShouldClose(handle, true);
@@ -196,6 +203,7 @@ public final class Desktop extends Application {
             || frameCount == 195
             || frameCount == 215
             || frameCount == 230
+            || frameCount == 140
             || frameCount == 345
             || frameCount == 350
             || frameCount == 375
@@ -959,6 +967,8 @@ public final class Desktop extends Application {
     ImGui.setNextWindowSize(650, 500, ImGuiCond.FirstUseEver);
     ImGui.begin("Profiler", profiler);
     ImGui.textWrapped(state.engine.metrics().toString());
+    ImGui.textWrapped(state.engine.schedulerStats().toString());
+    if (smokeFrames > 0) smokeSchedulerDrawn = true;
     ImGui.text("Background preview queue: " + state.background.getQueue().size());
     int n = Math.min(frameAt, frames.length);
     if (n > 0) {

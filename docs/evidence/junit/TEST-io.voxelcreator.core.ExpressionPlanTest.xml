@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.core.ExpressionPlanTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-24T18:41:45.678Z" hostname="715e00c143c7" time="0.153">
+<testsuite name="io.voxelcreator.core.ExpressionPlanTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-24T19:29:43.424Z" hostname="715e00c143c7" time="0.125">
   <properties/>
-  <testcase name="lazySharedOccurrencesKeepTheExecutingSourceSpan()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.024"/>
-  <testcase name="flatExpressionsExecuteWithoutARecursiveJavaEvaluationStack()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.069"/>
-  <testcase name="optimizerPreservesSignedZeroRoundingAndMandatoryInputs()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.008"/>
+  <testcase name="lazySharedOccurrencesKeepTheExecutingSourceSpan()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.027"/>
+  <testcase name="flatExpressionsExecuteWithoutARecursiveJavaEvaluationStack()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.055"/>
+  <testcase name="optimizerPreservesSignedZeroRoundingAndMandatoryInputs()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.005"/>
   <testcase name="nestedHostEvaluationsAndNestedBatchesUseIndependentFrames()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.007"/>
-  <testcase name="constantsAndDeadBranchesFoldOnlyAfterCompleteValidation()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.008"/>
-  <testcase name="sharingReadsStableInputsOnceAndNeverLeaksAcrossSamples()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.005"/>
-  <testcase name="scalarAndBooleanBatchesPreservePaddingAndFailurePrefix()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.011"/>
-  <testcase name="compiledPlansAreSafeAcrossThreadsAndFreshInputEpochs()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.013"/>
+  <testcase name="constantsAndDeadBranchesFoldOnlyAfterCompleteValidation()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.006"/>
+  <testcase name="sharingReadsStableInputsOnceAndNeverLeaksAcrossSamples()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.003"/>
+  <testcase name="scalarAndBooleanBatchesPreservePaddingAndFailurePrefix()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.007"/>
+  <testcase name="compiledPlansAreSafeAcrossThreadsAndFreshInputEpochs()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.009"/>
   <testcase name="invalidConstantsAndClampErrorsRemainRuntimeBoundaries()" classname="io.voxelcreator.core.ExpressionPlanTest" time="0.003"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

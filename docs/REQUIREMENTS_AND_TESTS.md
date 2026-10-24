@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 195 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
+Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 219 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -29,9 +29,9 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 | A21 archives | PASS | Semantic remap, coverage, random read, unresolved IDs, invalid index and aborted write; independent v1/v2 vectors and packed corruption/termination checks |
 | A22 independent engine | PASS | External javac/java with engine JAR only; Example prints PASS |
 | A23 contexts | PASS | Context seed/cache isolation and independent closure test |
-| A24 cancellation | PARTIAL | Independent shared-request cancellation and slow-consumer region and bounded primitive-batch cancellation tested; broader mid-stage stress remains |
+| A24 cancellation | PARTIAL | Immediate explicit-token queued cleanup, independent sharing, running abandonment/rejoin and async collection lease cleanup tested; broader mid-stage stress remains |
 | A25 backpressure | PASS | Consumer future holds max-in-flight capacity; bounded scheduling assertion |
-| A26 failures/closure | PARTIAL | Generation/delivery CONTINUE/FAIL_FAST, context isolation and aggregate collection budgets tested; broader overload stress remains |
+| A26 failures/closure | PARTIAL | Generation/delivery policies, bounded fair priorities, overload/closure cleanup, global cache reclamation and protected user-managed policy tested; broader stress remains |
 | A27 2D viewport | PARTIAL | Engine image sampling and modes implemented; tile cache/UI acceptance remains |
 | A28 3D viewport | PARTIAL | Threshold, marching tetrahedra, points, ray-marched volume and X/Y/Z slices; numerical native volume probe; streamed threshold/point display implemented; volume/isosurface streaming remains |
 | A29 world inspector | PARTIAL | Exact stage pairs and four preview modes, removal ghosts, richer snapshot-correct trace/links; camera-driven stage/final streaming implemented; full GUI scenarios remain |
@@ -86,3 +86,5 @@ The exact-storage extension passes 156 JUnit tests. New coverage includes all lo
 The diagnostics/recovery extension passes 176 JUnit tests. New checks cover candidate path/UUID enrichment, escaped keys, nested operations and curve points, innermost referenced/transform/parser compiler errors, bounded concurrent grouped publication, independent read/resolve/dismiss state, long messages, composed filters, stale/deleted targets and rejected-draft/document/history invariance. Native smoke renders logs, notifications and validation results, groups an actual rejected expression error and navigates without discarding its draft or changing the document. See [DIAGNOSTICS_AND_RECOVERY.md](DIAGNOSTICS_AND_RECOVERY.md). These checks do not certify the entire Tree 19 GUI matrix.
 
 The numeric-parameter extension passes 195 JUnit tests. New independent expectations cover finite signed/descending/constant/extreme mappings, threshold ties, ordered repeated destinations, height rounding, per-resource dimensionality and transformed-Y sampling, secondary-field cache safety, disabled/irrelevant/out-of-Y laziness, overflow without publication, snapshot immutability, worker/root/trace agreement, historical trace constructors and dependency closure/replacement/undo. Schema generation and the independent consumer exercise the portable parameter-drivers fixture. Native smoke renders the ordered numeric controls; complete interactive Tree 10 acceptance remains separate.
+
+The scheduling/cache extension passes 219 JUnit tests. New contracts cover weighted lane service and per-scope FIFO/round robin, shared promotion, bounds/removal/draining/timeouts, cancellation callbacks and registration races, queued capacity release, running abandonment and later requests, parent-supplier lock isolation/failure, asynchronous collection cleanup, all cache policies, LRU/pins, cross-world reclamation, immutable snapshots, concurrent retention and balanced accounting. The independent engine consumer exercises priorities/region metadata and queue stats. Native smoke renders the real Profiler and all previous scenarios. These checks do not certify every scheduling race or representative hardware throughput.

@@ -1,0 +1,150 @@
+Picked up JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=/workspace/scratch/7b7fbf202fed/tools/tmp
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :desktop-package:clean UP-TO-DATE
+> Task :editor-render:clean UP-TO-DATE
+> Task :editor-ui:clean UP-TO-DATE
+> Task :engine-api:clean UP-TO-DATE
+> Task :engine-core:clean UP-TO-DATE
+> Task :example-client:clean UP-TO-DATE
+> Task :project-model:clean UP-TO-DATE
+> Task :voxel-storage:clean UP-TO-DATE
+
+> Task :project-model:compileJava
+Note: /workspace/scratch/7b7fbf202fed/project/project-model/src/main/java/io/voxelcreator/model/ProjectIO.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :engine-core:compileJava
+> Task :voxel-storage:compileJava
+> Task :engine-api:compileJava
+> Task :editor-render:compileJava
+> Task :editor-ui:compileJava
+> Task :desktop-package:compileJava NO-SOURCE
+> Task :desktop-package:processResources NO-SOURCE
+> Task :desktop-package:classes UP-TO-DATE
+> Task :desktop-package:jar
+> Task :desktop-package:sourcesJar
+> Task :desktop-package:compileTestJava NO-SOURCE
+> Task :desktop-package:processTestResources NO-SOURCE
+> Task :desktop-package:testClasses UP-TO-DATE
+> Task :editor-render:processResources NO-SOURCE
+> Task :editor-render:classes
+> Task :editor-render:jar
+> Task :editor-ui:processResources NO-SOURCE
+> Task :editor-ui:classes
+> Task :editor-ui:jar
+> Task :engine-api:processResources NO-SOURCE
+> Task :engine-api:classes
+> Task :engine-api:jar
+> Task :engine-core:processResources NO-SOURCE
+> Task :engine-core:classes
+> Task :engine-core:jar
+> Task :project-model:processResources NO-SOURCE
+> Task :project-model:classes
+> Task :project-model:jar
+> Task :voxel-storage:processResources NO-SOURCE
+> Task :voxel-storage:classes
+> Task :voxel-storage:jar
+> Task :desktop-package:test NO-SOURCE
+> Task :editor-render:sourcesJar
+> Task :editor-render:compileTestJava
+> Task :editor-render:processTestResources NO-SOURCE
+> Task :editor-render:testClasses
+
+> Task :editor-render:test
+Picked up JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=/workspace/scratch/7b7fbf202fed/tools/tmp
+
+> Task :editor-ui:fatJar
+> Task :editor-ui:sourcesJar
+> Task :editor-ui:compileTestJava
+> Task :editor-ui:processTestResources NO-SOURCE
+> Task :editor-ui:testClasses
+
+> Task :editor-ui:test
+Picked up JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=/workspace/scratch/7b7fbf202fed/tools/tmp
+
+> Task :engine-api:sourcesJar
+> Task :engine-api:compileTestJava
+> Task :engine-api:processTestResources NO-SOURCE
+> Task :engine-api:testClasses
+
+> Task :engine-api:test
+Picked up JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=/workspace/scratch/7b7fbf202fed/tools/tmp
+
+> Task :engine-core:sourcesJar
+> Task :engine-core:compileTestJava
+> Task :engine-core:processTestResources NO-SOURCE
+> Task :engine-core:testClasses
+
+> Task :engine-core:test
+Picked up JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=/workspace/scratch/7b7fbf202fed/tools/tmp
+
+> Task :example-client:compileJava
+> Task :example-client:processResources NO-SOURCE
+> Task :example-client:classes
+> Task :example-client:jar
+> Task :example-client:sourcesJar
+> Task :example-client:compileTestJava NO-SOURCE
+> Task :example-client:processTestResources NO-SOURCE
+> Task :example-client:testClasses UP-TO-DATE
+> Task :example-client:test NO-SOURCE
+> Task :project-model:sourcesJar
+> Task :project-model:compileTestJava
+> Task :project-model:processTestResources NO-SOURCE
+> Task :project-model:testClasses
+
+> Task :project-model:test
+Picked up JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=/workspace/scratch/7b7fbf202fed/tools/tmp
+
+> Task :voxel-storage:sourcesJar
+> Task :voxel-storage:compileTestJava
+> Task :voxel-storage:processTestResources
+> Task :voxel-storage:testClasses
+
+> Task :voxel-storage:test
+Picked up JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=/workspace/scratch/7b7fbf202fed/tools/tmp
+
+> Task :desktop-package:assemble
+> Task :desktop-package:check UP-TO-DATE
+> Task :desktop-package:build
+> Task :editor-render:assemble
+> Task :editor-render:check
+> Task :editor-render:build
+> Task :editor-ui:startScripts
+> Task :editor-ui:distTar
+> Task :editor-ui:distZip
+> Task :editor-ui:assemble
+> Task :editor-ui:check
+> Task :editor-ui:build
+> Task :engine-api:assemble
+> Task :engine-api:check
+> Task :engine-api:build
+> Task :engine-core:assemble
+> Task :engine-core:check
+> Task :engine-core:build
+> Task :example-client:startScripts
+> Task :example-client:distTar
+> Task :example-client:distZip
+> Task :example-client:assemble
+> Task :example-client:check UP-TO-DATE
+> Task :example-client:build
+> Task :project-model:assemble
+> Task :project-model:check
+> Task :project-model:build
+> Task :voxel-storage:assemble
+> Task :voxel-storage:check
+> Task :voxel-storage:build
+> Task :dependencyNotices
+> Task :engineJar
+> Task :releaseJars
+
+[Incubating] Problems report is available at: file:///workspace/scratch/7b7fbf202fed/tools/scheduler-final/ProceduralVoxelCreator/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.2.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 55s
+54 actionable tasks: 46 executed, 8 up-to-date

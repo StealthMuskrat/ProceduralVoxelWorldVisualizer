@@ -313,14 +313,18 @@ public final class Example {
                 || stage.after().getVoxelTypeId(x, y, z) != chunk.getVoxelTypeId(x, y, z))
               throw new AssertionError("Independent stage snapshot mismatch");
       System.out.println("Independent exact stage snapshots PASS");
-      var asynchronous = world.generateChunkAsync(new ChunkPos(0, 0, 0)).get(5, TimeUnit.SECONDS);
+      var asynchronous =
+          world
+              .generateChunkAsync(new ChunkPos(0, 0, 0), GenerationPriority.INTERACTIVE)
+              .get(5, TimeUnit.SECONDS);
       System.out.println("Async chunk: " + asynchronous.representation());
       var request =
           new RegionRequest(
               new RegionBounds(new BlockPos(-16, 0, 0), new BlockPos(15, 15, 15)),
               RegionRequest.FailurePolicy.CONTINUE,
               RegionRequest.DeliveryOrder.COORDINATE,
-              2);
+              2,
+              GenerationPriority.BACKGROUND);
       var stream =
           world.streamRegion(
               request,
@@ -365,6 +369,8 @@ public final class Example {
       }
       System.out.println("Palette storage, immutable bulk edits and v1/v2 archives PASS");
       System.out.println("Archive and independent engine consumer PASS; " + world.cacheStats());
+      System.out.println(
+          "Independent generation priorities / scheduler stats PASS " + engine.schedulerStats());
     }
   }
 }

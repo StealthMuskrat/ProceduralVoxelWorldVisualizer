@@ -1,0 +1,20 @@
+{
+  "policyVersion": 1,
+  "priorities": ["INTERACTIVE", "NORMAL", "BACKGROUND"],
+  "defaultPriority": "NORMAL",
+  "queuedServicePattern": ["INTERACTIVE", "INTERACTIVE", "NORMAL", "INTERACTIVE", "BACKGROUND", "INTERACTIVE", "NORMAL"],
+  "emptyLaneFallback": "highest nonempty priority",
+  "scopeService": "round robin world contexts within each lane; FIFO within one scope/lane",
+  "promotion": "higher-priority subscriber promotes its queued shared job; no duplicate generation; promotion is sticky until dispatch",
+  "capacity": "one bounded global queue; full queues reject without displacing accepted jobs",
+  "runningWork": "never preempted; synchronous caller work and executor startup tasks bypass queued service",
+  "cancellation": "explicit tokens complete their subscribers and remove abandoned queued work immediately; parent suppliers remain cooperative",
+  "cachePolicies": {
+    "NO_CACHE": "no retained completed chunks",
+    "MEMORY_CACHE": "automatic retention/reclamation within global engine budget; cacheBytes option ignored",
+    "BOUNDED_MEMORY_CACHE": "automatic local LRU bound and global pressure reclamation",
+    "USER_MANAGED": "retain only while local/global admission fits; no implicit eviction, including unpinned entries; explicit pin/unpin/evict/clear"
+  },
+  "cacheEntryAllowanceBytes": 128,
+  "globalReclamation": "rotate starting context; reclaim local LRU automatic entries; preserve user-managed ownership and immutable client snapshots"
+}

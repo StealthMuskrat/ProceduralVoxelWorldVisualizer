@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.model.NumericDriverSettingsTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T18:41:53.256Z" hostname="715e00c143c7" time="0.146">
+<testsuite name="io.voxelcreator.model.NumericDriverSettingsTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T19:29:46.110Z" hostname="715e00c143c7" time="0.078">
   <properties/>
-  <testcase name="semanticValidationRejectsBadTargetsCombinationsRangesReferencesAndLimits()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.031"/>
-  <testcase name="atomicListInheritanceDistinguishesAbsentEmptyAndExplicitZero()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.088"/>
-  <testcase name="numericRowsCannotMasqueradeAsUnitProbabilityDrivers()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.007"/>
-  <testcase name="arbitraryMappedEndpointsClampAndInterpolateInEitherDirection()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.002"/>
-  <testcase name="unitProbabilityDriverRangeRemainsRestricted()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.004"/>
+  <testcase name="semanticValidationRejectsBadTargetsCombinationsRangesReferencesAndLimits()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.017"/>
+  <testcase name="atomicListInheritanceDistinguishesAbsentEmptyAndExplicitZero()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.048"/>
+  <testcase name="numericRowsCannotMasqueradeAsUnitProbabilityDrivers()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.003"/>
+  <testcase name="arbitraryMappedEndpointsClampAndInterpolateInEitherDirection()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.0"/>
+  <testcase name="unitProbabilityDriverRangeRemainsRestricted()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.003"/>
   <testcase name="extremeFiniteEndpointsNeverProduceInfiniteInterpolation()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.003"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

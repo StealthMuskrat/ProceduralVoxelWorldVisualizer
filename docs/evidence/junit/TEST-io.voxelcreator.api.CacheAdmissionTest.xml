@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.voxelcreator.api.CacheAdmissionTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T19:29:33.311Z" hostname="715e00c143c7" time="2.498">
+  <properties/>
+  <testcase name="globalGenerationAdmissionReclaimsAutomaticCachesAcrossWorlds()" classname="io.voxelcreator.api.CacheAdmissionTest" time="1.499"/>
+  <testcase name="userManagedRetentionNeverImplicitlyEvictsAndPinsProtectExplicitRemoval()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.007"/>
+  <testcase name="globalPressureDoesNotReclaimUserManagedEvenWhenUnpinned()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.604"/>
+  <testcase name="cachePoliciesHaveDistinctRetentionAndLocalLruBehavior()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.013"/>
+  <testcase name="impossibleCollectionDoesNotFlushCachesAndContextCloseBalancesAccounting()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.008"/>
+  <testcase name="concurrentRetainsReclaimsAndCloseHaveNoCacheLockCycle()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.357"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
