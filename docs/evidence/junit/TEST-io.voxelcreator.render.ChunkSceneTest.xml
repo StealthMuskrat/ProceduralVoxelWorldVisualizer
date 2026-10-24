@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.render.ChunkSceneTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T19:29:21.785Z" hostname="715e00c143c7" time="0.432">
+<testsuite name="io.voxelcreator.render.ChunkSceneTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-24T20:07:54.204Z" hostname="715e00c143c7" time="0.586">
   <properties/>
-  <testcase name="cancelledEpochDoesNotPublishAnOldSource()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.092"/>
-  <testcase name="runtimeFailureIsReportedAndNotRetriedEveryFrame()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.098"/>
-  <testcase name="cameraTravelReusesEpochAndEvictsObsoleteData()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.236"/>
+  <testcase name="cancelledEpochDoesNotPublishAnOldSource()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.107"/>
+  <testcase name="optionalCaptureMeasuresActualMeshWorkWithChunkIdentity()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.172"/>
+  <testcase name="runtimeFailureIsReportedAndNotRetriedEveryFrame()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.082"/>
+  <testcase name="cameraTravelReusesEpochAndEvictsObsoleteData()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.219"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

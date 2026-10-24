@@ -92,6 +92,17 @@ public final class AppMetadata {
                 + " Reading a notification does not resolve an action. Mark Action Resolved"
                 + " acknowledges the action; it does not repair project data. Dismiss hides a"
                 + " resolved notification while retaining its grouped log history."));
+    m.controls.put(
+        "profiler",
+        new Control(
+            "Profiler captures",
+            "Opt-in bounded CPU timings and metrics",
+            "View > Profiler starts an explicit capture with duration, sample, series and"
+                + " operation-sampling limits. Inspect counts, mean and P50/P95/P99, filter"
+                + " source/context series and navigate to existing resources. JSON/CSV export"
+                + " writes all retained measurements only when requested. CPU-side mesh/upload"
+                + " timings do not measure GPU completion. Captures and navigation never dirty the"
+                + " project."));
     return m;
   }
 

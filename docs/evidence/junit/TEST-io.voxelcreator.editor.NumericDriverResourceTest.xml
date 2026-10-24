@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.NumericDriverResourceTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T19:29:30.919Z" hostname="715e00c143c7" time="0.067">
+<testsuite name="io.voxelcreator.editor.NumericDriverResourceTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T20:11:40.044Z" hostname="715e00c143c7" time="0.074">
   <properties/>
-  <testcase name="deleteReplacementReachesDefaultsAndPlacementOverridesAndUndo()" classname="io.voxelcreator.editor.NumericDriverResourceTest" time="0.031"/>
-  <testcase name="portableDependencyClosureAndCopyRemapNumericSource()" classname="io.voxelcreator.editor.NumericDriverResourceTest" time="0.02"/>
-  <testcase name="orderedDriverEditIsOneTransactionAndEmptyOverrideRestoresLiveDefaults()" classname="io.voxelcreator.editor.NumericDriverResourceTest" time="0.014"/>
+  <testcase name="deleteReplacementReachesDefaultsAndPlacementOverridesAndUndo()" classname="io.voxelcreator.editor.NumericDriverResourceTest" time="0.035"/>
+  <testcase name="portableDependencyClosureAndCopyRemapNumericSource()" classname="io.voxelcreator.editor.NumericDriverResourceTest" time="0.022"/>
+  <testcase name="orderedDriverEditIsOneTransactionAndEmptyOverrideRestoresLiveDefaults()" classname="io.voxelcreator.editor.NumericDriverResourceTest" time="0.016"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

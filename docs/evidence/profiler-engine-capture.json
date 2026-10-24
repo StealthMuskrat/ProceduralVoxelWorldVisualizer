@@ -1,0 +1,691 @@
+{
+  "formatVersion" : 1,
+  "captureId" : "f5b4cdfe-a40f-4a01-981f-234a56962013",
+  "startedAt" : "2026-10-24T20:12:41.919202946Z",
+  "options" : {
+    "durationMillis" : 10000,
+    "maxSamples" : 8192,
+    "maxSeries" : 128,
+    "operationStride" : 256
+  },
+  "state" : "STOPPED",
+  "elapsedNanos" : 36065398,
+  "samples" : [ {
+    "offsetNanos" : 2140713,
+    "kind" : "FIELD_PREFETCH",
+    "unit" : "NANOSECONDS",
+    "value" : 910151,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 10101142,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 308344,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 11027198,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 4517,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 12379306,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 5771,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 12786776,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 2486,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 13226806,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 3233,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 13641884,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 2170,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 14449075,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 4652,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 14786986,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 2624,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 14979055,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 1132,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 15514978,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 4160,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 15794487,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 2186,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 16060194,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 1899,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 16464883,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 3161,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 16775379,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 2288,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 17085839,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 2025,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 17825336,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 4837,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 2125866,
+    "kind" : "CHUNK_GENERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 16328842,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : null,
+    "label" : "Chunk generation",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 20692401,
+    "kind" : "FIELD_PREFETCH",
+    "unit" : "NANOSECONDS",
+    "value" : 400875,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 21549238,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 4504,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 21977818,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 3347,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 22227706,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 1918,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 22637966,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 3221,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 22850743,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 3253,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 23148522,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 2014,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 24013093,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 3261,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 24489248,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 2651,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 24731668,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 1810,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 24956865,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 1443,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 25959838,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 3711,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 26343435,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 5357,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 26689437,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 2509,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 26938343,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 1603,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 27172192,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 1818,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 27583451,
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "value" : 2616,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  }, {
+    "offsetNanos" : 19973906,
+    "kind" : "STAGE",
+    "unit" : "NANOSECONDS",
+    "value" : 13531905,
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000006",
+    "label" : "Stage snapshots",
+    "chunk" : {
+      "x" : -1,
+      "y" : 0,
+      "z" : 0
+    },
+    "outcome" : "SUCCESS",
+    "threadId" : 3,
+    "threadName" : "main"
+  } ],
+  "series" : [ {
+    "kind" : "FIELD_PREFETCH",
+    "unit" : "NANOSECONDS",
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "count" : 2,
+    "minimum" : 400875,
+    "maximum" : 910151,
+    "mean" : 655513.0,
+    "p50" : 400875,
+    "p95" : 910151,
+    "p99" : 910151,
+    "failed" : 0,
+    "cancelled" : 0
+  }, {
+    "kind" : "OPERATION",
+    "unit" : "NANOSECONDS",
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000007",
+    "label" : "terrain / surface",
+    "count" : 32,
+    "minimum" : 1132,
+    "maximum" : 308344,
+    "mean" : 12516.28125,
+    "p50" : 2624,
+    "p95" : 5771,
+    "p99" : 308344,
+    "failed" : 0,
+    "cancelled" : 0
+  }, {
+    "kind" : "CHUNK_GENERATION",
+    "unit" : "NANOSECONDS",
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : null,
+    "label" : "Chunk generation",
+    "count" : 1,
+    "minimum" : 16328842,
+    "maximum" : 16328842,
+    "mean" : 1.6328842E7,
+    "p50" : 16328842,
+    "p95" : 16328842,
+    "p99" : 16328842,
+    "failed" : 0,
+    "cancelled" : 0
+  }, {
+    "kind" : "STAGE",
+    "unit" : "NANOSECONDS",
+    "contextId" : 1,
+    "projectUuid" : "00000000-0000-4000-8000-000000000001",
+    "sourceUuid" : "00000000-0000-4000-8000-000000000006",
+    "label" : "Stage snapshots",
+    "count" : 1,
+    "minimum" : 13531905,
+    "maximum" : 13531905,
+    "mean" : 1.3531905E7,
+    "p50" : 13531905,
+    "p95" : 13531905,
+    "p99" : 13531905,
+    "failed" : 0,
+    "cancelled" : 0
+  } ]
+}

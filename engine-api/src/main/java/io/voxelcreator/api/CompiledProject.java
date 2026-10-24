@@ -19,6 +19,10 @@ public final class CompiledProject {
     registry = new VoxelRegistry(snapshot.voxelTypes);
   }
 
+  public UUID projectUuid() {
+    return snapshot.project.uuid;
+  }
+
   public int minY() {
     return snapshot.project.minY;
   }

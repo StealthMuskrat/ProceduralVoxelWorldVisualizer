@@ -210,6 +210,21 @@ public final class Viewports implements AutoCloseable {
       views[1].noise = state.project().noise3D.getFirst().uuid;
   }
 
+  /**
+   * Smoke phases advance only after the actual stage preview completed, with timeout in Desktop.
+   */
+  public boolean smokePhaseReady(int frame) {
+    String required =
+        switch (frame) {
+          case 274 -> "Only Changes";
+          case 299 -> "Before";
+          case 324 -> "After";
+          case 359 -> "Final";
+          default -> null;
+        };
+    return required == null || views[2].completedModes.contains(required);
+  }
+
   public void smokePhase(int frame) {
     if (frame == 335 || frame == 355)
       properties.smokeWorldControls(frame == 335 ? "Numeric parameters" : null);
@@ -836,12 +851,14 @@ public final class Viewports implements AutoCloseable {
         return false;
       } else {
         if (v.scene != null) v.scene.close();
+        UUID profileProject = state.project().project.uuid;
         v.scene =
             new ChunkScene(
                 setup.source,
                 state.background,
                 sceneConfig(v, v.mode.equals("Point Cloud")),
-                v.pressure);
+                v.pressure,
+                position -> state.engine.profiler().scope(0, profileProject, position));
         v.activeSceneKey = key;
         v.requestedKey = "";
         v.force = false;
@@ -878,24 +895,46 @@ public final class Viewports implements AutoCloseable {
         for (var removed : v.scene.removed()) gpu.remove(removed);
         int budget = state.user.performance.uploadKiB * 1024;
         long before = gpu.statistics().uploadedBytes();
-        for (int batch = 0;
-            batch < 4 && gpu.statistics().uploadedBytes() - before < budget;
-            batch++) {
-          if (!gpu.pending()) {
-            var uploads = v.scene.uploads(1, budget);
-            if (uploads.isEmpty()) break;
-            if (gpu.contains(uploads.getFirst())) {
-              v.scene.uploaded(uploads.getFirst());
-              continue;
+        var uploadProfile = state.engine.profiler().scope(0, state.project().project.uuid, null);
+        long uploadStamp = uploadProfile == null ? 0 : uploadProfile.begin();
+        var uploadOutcome = Profiler.Outcome.FAILED;
+        try {
+          for (int batch = 0;
+              batch < 4 && gpu.statistics().uploadedBytes() - before < budget;
+              batch++) {
+            if (!gpu.pending()) {
+              var uploads = v.scene.uploads(1, budget);
+              if (uploads.isEmpty()) break;
+              if (gpu.contains(uploads.getFirst())) {
+                v.scene.uploaded(uploads.getFirst());
+                continue;
+              }
+              if (!gpu.stage(uploads.getFirst())) {
+                v.scene.reject();
+                break;
+              }
             }
-            if (!gpu.stage(uploads.getFirst())) {
-              v.scene.reject();
-              break;
-            }
+            var completed =
+                gpu.advance((int) (budget - (gpu.statistics().uploadedBytes() - before)));
+            if (completed != null) v.scene.uploaded(completed);
+            else break;
           }
-          var completed = gpu.advance((int) (budget - (gpu.statistics().uploadedBytes() - before)));
-          if (completed != null) v.scene.uploaded(completed);
-          else break;
+          uploadOutcome = Profiler.Outcome.SUCCESS;
+        } finally {
+          if (uploadStamp != 0) {
+            long uploaded = gpu.statistics().uploadedBytes() - before;
+            uploadProfile.finish(
+                uploadStamp,
+                Profiler.Kind.UPLOAD_CPU,
+                null,
+                "Streaming upload submission",
+                uploadOutcome);
+            uploadProfile.gauge(
+                Profiler.Kind.UPLOAD_BYTES,
+                Profiler.Unit.BYTES,
+                uploaded,
+                "Streaming upload bytes per frame");
+          }
         }
         v.origin.set(
             Math.floor(center.x / 32) * 32,
@@ -1023,6 +1062,9 @@ public final class Viewports implements AutoCloseable {
       v.job =
           state.background.submit(
               () -> {
+                var profile = state.engine.profiler().scope(0, snapshot.project.uuid, null);
+                long stamp = profile == null ? 0 : profile.begin();
+                var outcome = Profiler.Outcome.CANCELLED;
                 try {
                   var compiled = new CompiledProject(snapshot);
                   int[] palette = palette(snapshot, kind);
@@ -1189,7 +1231,12 @@ public final class Viewports implements AutoCloseable {
                             null,
                             null));
                   }
+                  outcome = Profiler.Outcome.SUCCESS;
                 } catch (Throwable e) {
+                  outcome =
+                      e instanceof CancellationException
+                          ? Profiler.Outcome.CANCELLED
+                          : Profiler.Outcome.FAILED;
                   if (!(e instanceof CancellationException))
                     publish(
                         v,
@@ -1204,6 +1251,14 @@ public final class Viewports implements AutoCloseable {
                             new float[64],
                             null,
                             String.valueOf(e.getMessage())));
+                } finally {
+                  if (stamp != 0)
+                    profile.finish(
+                        stamp,
+                        Profiler.Kind.PREVIEW,
+                        noise,
+                        "Fixed preview / " + (kind == 2 ? stageMode : mode),
+                        outcome);
                 }
               });
     } catch (RejectedExecutionException e) {

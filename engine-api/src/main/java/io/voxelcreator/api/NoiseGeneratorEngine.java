@@ -12,6 +12,17 @@ import java.util.function.Consumer;
  */
 public final class NoiseGeneratorEngine implements AutoCloseable {
   final ThreadPoolExecutor workers;
+  private final Profiler profiler = new Profiler();
+  private final AtomicLong contextSequence = new AtomicLong();
+
+  public Profiler profiler() {
+    return profiler;
+  }
+
+  long nextContextId() {
+    return contextSequence.incrementAndGet();
+  }
+
   private final FairWorkQueue queue;
   private final Object contextGate = new Object();
   private final AtomicInteger reclaimCursor = new AtomicInteger();
@@ -169,6 +180,7 @@ public final class NoiseGeneratorEngine implements AutoCloseable {
       }
       for (var c : snapshot) c.close();
       workers.shutdownNow();
+      profiler.close();
     }
   }
 }

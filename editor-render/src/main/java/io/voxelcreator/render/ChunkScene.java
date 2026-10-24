@@ -1,10 +1,12 @@
 package io.voxelcreator.render;
 
 import io.voxelcreator.api.CancellationToken;
+import io.voxelcreator.api.Profiler;
 import io.voxelcreator.storage.ChunkPos;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import org.joml.Vector3d;
 
 /**
@@ -64,6 +66,7 @@ public final class ChunkScene implements AutoCloseable {
   private static final AtomicLong EPOCHS = new AtomicLong();
   private final long epoch = EPOCHS.incrementAndGet();
   private final Source source;
+  private final Function<ChunkPos, Profiler.Scope> profiling;
   private final ExecutorService executor;
   private Config config;
   private final LinkedHashMap<ChunkPos, Entry> entries = new LinkedHashMap<>();
@@ -111,6 +114,16 @@ public final class ChunkScene implements AutoCloseable {
 
   public ChunkScene(
       Source source, ExecutorService executor, Config config, RenderPressure pressure) {
+    this(source, executor, config, pressure, p -> null);
+  }
+
+  public ChunkScene(
+      Source source,
+      ExecutorService executor,
+      Config config,
+      RenderPressure pressure,
+      Function<ChunkPos, Profiler.Scope> profiling) {
+    this.profiling = Objects.requireNonNull(profiling);
     this.source = Objects.requireNonNull(source);
     this.executor = Objects.requireNonNull(executor);
     this.config = config;
@@ -344,6 +357,10 @@ public final class ChunkScene implements AutoCloseable {
       entry.future =
           executor.submit(
               () -> {
+                var profile = profiling.apply(entry.position);
+                long stamp = profile == null ? 0 : profile.begin();
+                var outcome = Profiler.Outcome.FAILED;
+                Result completion;
                 try {
                   token.throwIfCancelled();
                   var lod = new DisplayLod(data, level);
@@ -367,10 +384,21 @@ public final class ChunkScene implements AutoCloseable {
                           ? VoxelMesher.points(size, cells, 1 << level)
                           : VoxelMesher.greedy(size, cells);
                   token.throwIfCancelled();
-                  ready.add(new Result(entry.position, id, null, lod, mesh, signature, null));
+                  completion = new Result(entry.position, id, null, lod, mesh, signature, null);
+                  outcome = Profiler.Outcome.SUCCESS;
                 } catch (Throwable error) {
-                  ready.add(new Result(entry.position, id, null, null, null, signature, error));
+                  if (error instanceof CancellationException) outcome = Profiler.Outcome.CANCELLED;
+                  completion = new Result(entry.position, id, null, null, null, signature, error);
+                } finally {
+                  if (stamp != 0)
+                    profile.finish(
+                        stamp,
+                        Profiler.Kind.MESH_CPU,
+                        null,
+                        "Streaming mesh / LOD " + level,
+                        outcome);
                 }
+                ready.add(completion);
               });
     } catch (RejectedExecutionException full) {
       finish(entry);

@@ -1,0 +1,52 @@
+{
+  "formatVersion": 1,
+  "captureId": "00000000-0000-4000-8000-000000000080",
+  "startedAt": "2026-10-24T00:00:00Z",
+  "options": {
+    "durationMillis": 10000,
+    "maxSamples": 8192,
+    "maxSeries": 128,
+    "operationStride": 256
+  },
+  "state": "STOPPED",
+  "elapsedNanos": 1000000,
+  "samples": [
+    {
+      "kind": "OPERATION",
+      "unit": "NANOSECONDS",
+      "contextId": 1,
+      "projectUuid": "00000000-0000-4000-8000-000000000001",
+      "sourceUuid": "00000000-0000-4000-8000-000000000007",
+      "label": "terrain / surface",
+      "offsetNanos": 100,
+      "value": 25,
+      "chunk": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      },
+      "outcome": "SUCCESS",
+      "threadId": 1,
+      "threadName": "example"
+    }
+  ],
+  "series": [
+    {
+      "kind": "OPERATION",
+      "unit": "NANOSECONDS",
+      "contextId": 1,
+      "projectUuid": "00000000-0000-4000-8000-000000000001",
+      "sourceUuid": "00000000-0000-4000-8000-000000000007",
+      "label": "terrain / surface",
+      "count": 1,
+      "minimum": 25,
+      "maximum": 25,
+      "mean": 25.0,
+      "p50": 25,
+      "p95": 25,
+      "p99": 25,
+      "failed": 0,
+      "cancelled": 0
+    }
+  ]
+}

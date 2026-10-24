@@ -303,6 +303,7 @@ public final class Example {
       double[] grid = new double[64];
       sampler.sampleGrid(-4, -4, 8, 8, 1, grid);
       System.out.println("Direct sample: " + sampler.sample(-1, 3));
+      var capture = engine.profiler().start(new Profiler.Options(10000, 8192, 128, 256));
       VoxelChunk chunk = world.generateChunk(new ChunkPos(-1, 0, 0));
       var stage =
           world.generateStageChunk(chunk.position(), p.worldGenerator.layers.getFirst().uuid);
@@ -313,6 +314,15 @@ public final class Example {
                 || stage.after().getVoxelTypeId(x, y, z) != chunk.getVoxelTypeId(x, y, z))
               throw new AssertionError("Independent stage snapshot mismatch");
       System.out.println("Independent exact stage snapshots PASS");
+      engine.profiler().stop();
+      var captured = capture.snapshot();
+      if (captured.samples().stream().noneMatch(s -> s.kind() == Profiler.Kind.OPERATION)
+          || captured.samples().stream().noneMatch(s -> s.kind() == Profiler.Kind.CHUNK_GENERATION))
+        throw new AssertionError("Independent bounded profile capture missing generation samples");
+      ProfileIO.writeJSON(working.resolve("profile-capture.json"), captured);
+      ProfileIO.writeCSV(working.resolve("profile-capture.csv"), captured);
+      System.out.println(
+          "Independent bounded profiler / JSON / CSV PASS samples=" + captured.samples().size());
       var asynchronous =
           world
               .generateChunkAsync(new ChunkPos(0, 0, 0), GenerationPriority.INTERACTIVE)

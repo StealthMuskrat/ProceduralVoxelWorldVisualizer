@@ -24,6 +24,7 @@ public final class Desktop extends Application {
   private ResourcePanel resources;
   private Viewports views;
   private DiagnosticsPanel diagnostics;
+  private ProfilePanel captures;
   private String smokeDiagnosticDocument;
   private long smokeDiagnosticEvent;
   private boolean smokeSchedulerDrawn;
@@ -55,11 +56,11 @@ public final class Desktop extends Application {
   private String searchKind = "All", searchState = "All", searchKey = "";
   private UUID findReference;
   private List<ResourceSearchIndex.Hit> searchResults = List.of();
-  private final float[] frames = new float[1200];
-  private int frameAt = 0, frameCount = 0;
+  private int frameCount = 0;
   private long preferenceSave = 0;
   private static String[] launchArgs = new String[0];
   private int smokeFrames = 0;
+  private long smokePhaseWait;
 
   @Override
   protected void configure(Configuration config) {
@@ -91,6 +92,13 @@ public final class Desktop extends Application {
               if (!state.canNavigate(target)) return;
               if (target.settings()) openSettings("Project Settings");
               else if (properties.goToProblem(target)) ImGui.setWindowFocus("Properties");
+            });
+    captures =
+        new ProfilePanel(
+            state,
+            target -> {
+              if (state.canNavigate(target) && properties.goToProblem(target))
+                ImGui.setWindowFocus("Properties");
             });
     views = new Viewports(state, properties, handle);
     glfwSetWindowCloseCallback(
@@ -129,7 +137,7 @@ public final class Desktop extends Application {
   public void process() {
     state.drain();
     ImGui.getIO().setFontGlobalScale(state.user.appearance.globalScale);
-    frames[frameAt++ % frames.length] = ImGui.getIO().getDeltaTime() * 1000;
+    captures.frame(ImGui.getIO().getDeltaTime(), views);
     frameCount++;
     menu();
     int dock = ImGui.dockSpaceOverViewport();
@@ -168,13 +176,34 @@ public final class Desktop extends Application {
       views.smokePhase(480 - smokeFrames);
       smokeDiagnostics(480 - smokeFrames);
       int runtimeFrame = 480 - smokeFrames;
-      if (runtimeFrame == 125) profiler.set(true);
+      if (runtimeFrame == 125) {
+        profiler.set(true);
+        captures.start();
+      }
+      if (runtimeFrame == 145) state.engine.profiler().stop();
       if (runtimeFrame == 150) profiler.set(false);
+      if (!views.smokePhaseReady(runtimeFrame)) {
+        if (smokePhaseWait == 0) smokePhaseWait = System.nanoTime();
+        if (System.nanoTime() - smokePhaseWait > 30_000_000_000L)
+          throw new IllegalStateException(
+              "Timed out waiting for native stage preview at phase " + runtimeFrame);
+        return;
+      }
+      smokePhaseWait = 0;
       if (--smokeFrames == 0) {
         views.assertSmokeCompleted();
         diagnostics.assertSmokeDrawn();
         if (!smokeSchedulerDrawn)
           throw new IllegalStateException("Scheduler profiler was not rendered");
+        captures.assertSmokeDrawn();
+        try {
+          var capture = state.engine.profiler().current().orElseThrow().snapshot();
+          ProfileIO.writeJSON(UserConfig.directory().resolve("profile-capture.json"), capture);
+          ProfileIO.writeCSV(UserConfig.directory().resolve("profile-capture.csv"), capture);
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+        System.out.println("BOUNDED_PROFILER_CAPTURE_NATIVE_PASS");
         System.out.println("FAIR_SCHEDULER_PROFILER_NATIVE_PASS");
         System.out.println(
             "DESKTOP_SMOKE_COMPLETED frames=" + frameCount + " engine=" + state.engine.metrics());
@@ -770,10 +799,12 @@ public final class Desktop extends Application {
         }
       fields.bool(
           "Enable targeted profiling",
-          state.user.performance.profiler,
+          state.engine.profiler().current().map(Profiler.Capture::recording).orElse(false),
           v -> {
-            state.user.performance.profiler = v;
-            state.user.save();
+            if (v) {
+              captures.start();
+              profiler.set(true);
+            } else state.engine.profiler().stop();
           });
       if (ImGui.button("Open Profiler")) profiler.set(true);
     } else {
@@ -964,48 +995,8 @@ public final class Desktop extends Application {
 
   private void drawProfiler() {
     if (!profiler.get()) return;
-    ImGui.setNextWindowSize(650, 500, ImGuiCond.FirstUseEver);
-    ImGui.begin("Profiler", profiler);
-    ImGui.textWrapped(state.engine.metrics().toString());
-    ImGui.textWrapped(state.engine.schedulerStats().toString());
     if (smokeFrames > 0) smokeSchedulerDrawn = true;
-    ImGui.text("Background preview queue: " + state.background.getQueue().size());
-    int n = Math.min(frameAt, frames.length);
-    if (n > 0) {
-      float[] samples = Arrays.copyOf(frames, n);
-      Arrays.sort(samples);
-      ImGui.text(
-          String.format(
-              Locale.ROOT,
-              "Frame ms P50 %.2f  P95 %.2f  P99 %.2f  Samples %d / %d",
-              samples[(n - 1) / 2],
-              samples[(int) ((n - 1) * .95)],
-              samples[(int) ((n - 1) * .99)],
-              n,
-              frames.length));
-      ImGui.plotHistogram(
-          "Frame times (ms)",
-          frames,
-          n,
-          0,
-          "Bounded frame capture",
-          0,
-          100,
-          ImGui.getContentRegionAvailX(),
-          150);
-    }
-    var runtime = Runtime.getRuntime();
-    ImGui.text(
-        "Heap bytes: "
-            + (runtime.totalMemory() - runtime.freeMemory())
-            + " / "
-            + runtime.maxMemory());
-    if (ImGui.button("Reset Capture")) {
-      frameAt = 0;
-      Arrays.fill(frames, 0);
-    }
-    ImGui.textWrapped(views.streamingStatistics().toString());
-    ImGui.end();
+    captures.draw(profiler, views.streamingStatistics());
   }
 
   private void drawThemes() {

@@ -40,6 +40,11 @@
       "label" : "Validation, logs and notifications",
       "tooltip" : "Inspect grouped events and navigate to their source",
       "description" : "View > Validate Project checks the committed document without changing it. Logs support severity, subsystem and text filters. Go To Problem opens the stored UUID resource or control when available in the current project or draft. Reading a notification does not resolve an action. Mark Action Resolved acknowledges the action; it does not repair project data. Dismiss hides a resolved notification while retaining its grouped log history."
+    },
+    "profiler" : {
+      "label" : "Profiler captures",
+      "tooltip" : "Opt-in bounded CPU timings and metrics",
+      "description" : "View > Profiler starts an explicit capture with duration, sample, series and operation-sampling limits. Inspect counts, mean and P50/P95/P99, filter source/context series and navigate to existing resources. JSON/CSV export writes all retained measurements only when requested. CPU-side mesh/upload timings do not measure GPU completion. Captures and navigation never dirty the project."
     }
   }
 }

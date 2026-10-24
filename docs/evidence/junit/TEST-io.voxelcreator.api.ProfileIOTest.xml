@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.voxelcreator.api.ProfileIOTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T20:08:12.861Z" hostname="715e00c143c7" time="0.08">
+  <properties/>
+  <testcase name="jsonPreservesEnvelopeSamplesSummaryAndUnicodeAndReplacesExplicitly()" classname="io.voxelcreator.api.ProfileIOTest" time="0.062"/>
+  <testcase name="csvQuotesMultilineFieldsAndRetainsCaptureAndThreadMetadata()" classname="io.voxelcreator.api.ProfileIOTest" time="0.007"/>
+  <testcase name="failedReplacementPreservesDestinationAndCleansTemporaryFile()" classname="io.voxelcreator.api.ProfileIOTest" time="0.009"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

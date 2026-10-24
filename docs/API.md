@@ -94,3 +94,18 @@ Archives default to packed version 2. Readers accept versions 1 and 2 and expose
 `CancellationToken.onCancel` returns a disposable registration; explicit cancel completes its subscribers and frees abandoned queued capacity immediately. Parent suppliers remain cooperative. Cancelling collectRegionAsync also cancels its internal stream and releases the collection lease after cleanup.
 
 MEMORY_CACHE now uses the global budget and ignores cacheBytes. BOUNDED_MEMORY_CACHE retains its local LRU bound and can be reclaimed globally. USER_MANAGED never evicts implicitly, even when unpinned; unretained complete results still return and pinChunk returns false for them. CacheStats adds automaticEvictions and retentionRejected while preserving its prior constructor; its bytes now include a 128-byte per-entry allowance. Record-pattern/reflection clients must account for the new RegionRequest/CacheStats shapes. The ordering, ownership, reclamation and concurrency contracts are in [SCHEDULING_AND_CACHE_ADMISSION.md](SCHEDULING_AND_CACHE_ADMISSION.md).
+
+## Bounded profiling
+
+`engine.profiler()` is a standalone, headless capture owner. It starts disabled; `start(Profiler.Options)` replaces the previous capture, `stop()` retains it, `clear()` releases the owner's reference, and engine close stops it. Previously obtained immutable snapshots remain valid. `WorldContext.contextId()` is unique within that engine; `CompiledProject.projectUuid()` identifies the compiled snapshot.
+
+```java
+var capture = engine.profiler().start(new Profiler.Options(10000, 8192, 128, 256));
+world.generateChunk(new ChunkPos(0, 0, 0));
+engine.profiler().stop();
+var snapshot = capture.snapshot();
+ProfileIO.writeJSON(Path.of("profile-capture.json"), snapshot);
+ProfileIO.writeCSV(Path.of("profile-capture.csv"), snapshot);
+```
+
+Each capture stops at its duration, sample or new-series limit. Operation stride is per calling thread and capture. `Profiler.Scope` binds custom editor/host timings and gauges to one capture; it cannot publish into a replacement capture. A zero begin stamp means disabled; callers can skip label construction for unsampled operations. There is no automatic file output or engine dependency on graphics/UI. See [capture semantics and limitations](PROFILING.md) and the v1 [JSON schema](../schema/profile-capture.schema.json).

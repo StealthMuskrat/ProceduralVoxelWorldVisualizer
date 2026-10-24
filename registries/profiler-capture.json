@@ -1,0 +1,83 @@
+{
+  "formatVersion": 1,
+  "defaultEnabled": false,
+  "limits": {
+    "durationMillis": [
+      100,
+      60000
+    ],
+    "maxSamples": [
+      64,
+      65536
+    ],
+    "maxSeries": [
+      1,
+      1024
+    ],
+    "operationStride": [
+      1,
+      65536
+    ],
+    "labelUtf16Units": 256
+  },
+  "defaults": {
+    "durationMillis": 10000,
+    "maxSamples": 8192,
+    "maxSeries": 128,
+    "operationStride": 256
+  },
+  "kinds": [
+    "FRAME",
+    "QUEUE_WAIT",
+    "CHUNK_GENERATION",
+    "FIELD_PREFETCH",
+    "OPERATION",
+    "STAGE",
+    "REGION_DELIVERY",
+    "PREVIEW",
+    "MESH_CPU",
+    "UPLOAD_CPU",
+    "HEAP_BYTES",
+    "GC_MILLIS",
+    "GC_COUNT",
+    "QUEUE_DEPTH",
+    "ACTIVE_WORKERS",
+    "CACHE_BYTES",
+    "STAGING_BYTES",
+    "COLLECTION_BYTES",
+    "UPLOAD_BYTES",
+    "SCENE_CPU_BYTES",
+    "SCENE_GPU_BYTES"
+  ],
+  "units": [
+    "NANOSECONDS",
+    "BYTES",
+    "COUNT",
+    "MILLISECONDS"
+  ],
+  "outcomes": [
+    "SUCCESS",
+    "FAILED",
+    "CANCELLED",
+    "MEASURED"
+  ],
+  "states": [
+    "RECORDING",
+    "STOPPED",
+    "TIME_LIMIT",
+    "SAMPLE_LIMIT",
+    "SERIES_LIMIT",
+    "REPLACED",
+    "CLOSED"
+  ],
+  "percentile": "nearest rank: sorted[ceil(p * n) - 1]",
+  "operationSampling": "Every stride-th operation per capture and calling thread; results are samples, not exhaustive contributions. Column field prefetch is a separate series.",
+  "timing": "Monotonic elapsed CPU-side wall duration, not thread CPU consumption or GPU completion. Nested timings overlap. Queue timings include requests that reach execution.",
+  "bounds": "Stop on time, sample or new-series limit; no ring eviction or automatic disk logging. A stopped capture is retained until clear, replacement or owner release.",
+  "threadMetadata": "Raw samples retain thread ID and bounded thread name; series aggregate across threads but retain project, context and source UUID.",
+  "exports": [
+    "profile-capture.schema.json",
+    "RFC4180 CSV"
+  ],
+  "projectMutation": false
+}

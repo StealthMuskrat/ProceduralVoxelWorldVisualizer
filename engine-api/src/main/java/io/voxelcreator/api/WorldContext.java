@@ -16,6 +16,12 @@ public final class WorldContext implements AutoCloseable {
   private final CompiledProject compiled;
   private final WorldOptions options;
   private final WorldPlan plan;
+  private final long contextId;
+
+  public long contextId() {
+    return contextId;
+  }
+
   private final AtomicBoolean closed = new AtomicBoolean();
   private final LinkedHashMap<ChunkPos, VoxelChunk> cache = new LinkedHashMap<>(16, .75f, true);
   private final Set<ChunkPos> pinned = new HashSet<>();
@@ -38,6 +44,7 @@ public final class WorldContext implements AutoCloseable {
 
   WorldContext(NoiseGeneratorEngine e, CompiledProject p, WorldOptions o) {
     engine = e;
+    contextId = e.nextContextId();
     compiled = p;
     options = o;
     plan = p.plan(o.seedOverride() == null ? p.defaultSeed() : o.seedOverride());
@@ -64,7 +71,8 @@ public final class WorldContext implements AutoCloseable {
     }
   }
 
-  private VoxelChunk generateUnshared(ChunkPos pos, CancellationToken token) {
+  private VoxelChunk generateUnshared(
+      ChunkPos pos, CancellationToken token, Profiler.Scope profile) {
     check();
     token.throwIfCancelled();
     synchronized (cache) {
@@ -79,15 +87,23 @@ public final class WorldContext implements AutoCloseable {
     if (!engine.reserveStaging(reserve))
       throw new RejectedExecutionException("Generation memory budget reached");
     long started = System.nanoTime();
+    long stamp = profile == null ? 0 : profile.begin();
+    var outcome = Profiler.Outcome.FAILED;
     try {
       CancellationToken scope = new CancellationToken(() -> closed.get() || token.isCancelled());
-      VoxelChunk result = plan.generate(pos, chunkSize(), scope);
+      VoxelChunk result = plan.generate(pos, chunkSize(), scope, profile);
       token.throwIfCancelled();
       check();
       engine.completed.incrementAndGet();
       retain(result);
+      outcome = Profiler.Outcome.SUCCESS;
       return result;
+    } catch (CancellationException cancelled) {
+      outcome = Profiler.Outcome.CANCELLED;
+      throw cancelled;
     } finally {
+      if (profile != null)
+        profile.finish(stamp, Profiler.Kind.CHUNK_GENERATION, null, "Chunk generation", outcome);
       engine.stagingBytes.addAndGet(-reserve);
       engine.nanos.addAndGet(System.nanoTime() - started);
     }
@@ -236,7 +252,7 @@ public final class WorldContext implements AutoCloseable {
         throw new RejectedExecutionException("Too many pending chunk subscribers");
       flight = inFlight.get(pos);
       if (flight == null) {
-        flight = new SharedGeneration(pos, priority);
+        flight = new SharedGeneration(pos, priority, async);
         inFlight.put(pos, flight);
         leader = true;
       } else {
@@ -308,10 +324,14 @@ public final class WorldContext implements AutoCloseable {
     final AtomicBoolean started = new AtomicBoolean();
 
     volatile GenerationPriority priority;
+    final Profiler.Scope profile;
+    final long queuedStamp;
 
-    SharedGeneration(ChunkPos position, GenerationPriority priority) {
+    SharedGeneration(ChunkPos position, GenerationPriority priority, boolean async) {
       this.position = position;
       this.priority = priority;
+      profile = engine.profiler().scope(contextId, compiled.projectUuid(), position);
+      queuedStamp = profile == null || !async ? 0 : profile.begin();
     }
 
     public Object scope() {
@@ -352,7 +372,14 @@ public final class WorldContext implements AutoCloseable {
     public void run() {
       if (!started.compareAndSet(false, true)) return;
       try {
-        var result = generateUnshared(position, new CancellationToken(this::abandoned));
+        if (profile != null)
+          profile.finish(
+              queuedStamp,
+              Profiler.Kind.QUEUE_WAIT,
+              null,
+              "Queued request wait",
+              Profiler.Outcome.SUCCESS);
+        var result = generateUnshared(position, new CancellationToken(this::abandoned), profile);
         finish(result, null);
       } catch (Throwable failure) {
         finish(null, failure);
@@ -422,13 +449,22 @@ public final class WorldContext implements AutoCloseable {
     long reserved = Math.multiplyExact(2, plan.stagingEstimate(chunkSize()));
     if (!engine.reserveStaging(reserved))
       throw new RejectedExecutionException("Stage preview memory budget reached");
+    var profile = engine.profiler().scope(contextId, compiled.projectUuid(), position);
+    long stamp = profile == null ? 0 : profile.begin();
+    var outcome = Profiler.Outcome.FAILED;
     try {
       var scope = new CancellationToken(() -> closed.get() || token.isCancelled());
-      var result = plan.generateStage(position, chunkSize(), scope, stage);
+      var result = plan.generateStage(position, chunkSize(), scope, stage, profile);
       token.throwIfCancelled();
       check();
+      outcome = Profiler.Outcome.SUCCESS;
       return result;
+    } catch (CancellationException cancelled) {
+      outcome = Profiler.Outcome.CANCELLED;
+      throw cancelled;
     } finally {
+      if (profile != null)
+        profile.finish(stamp, Profiler.Kind.STAGE, stage, "Stage snapshots", outcome);
       engine.stagingBytes.addAndGet(-reserved);
     }
   }
@@ -675,10 +711,16 @@ public final class WorldContext implements AutoCloseable {
               chosen = pending.stream().filter(p -> p.future.isDone()).findFirst().orElseThrow();
             }
             String phase = "GENERATION";
+            Profiler.Scope deliveryProfile = null;
+            long deliveryStamp = 0;
+            var deliveryOutcome = Profiler.Outcome.FAILED;
             try {
               var chunk = chosen.future.join();
               token.throwIfCancelled();
               phase = "DELIVERY";
+              deliveryProfile =
+                  engine.profiler().scope(contextId, compiled.projectUuid(), chosen.pos);
+              deliveryStamp = deliveryProfile == null ? 0 : deliveryProfile.begin();
               var accepted = consumer.accept(chunk);
               if (accepted == null)
                 throw new IllegalStateException("ChunkConsumer returned null stage");
@@ -693,7 +735,9 @@ public final class WorldContext implements AutoCloseable {
               }
               ack.join();
               completed.incrementAndGet();
+              deliveryOutcome = Profiler.Outcome.SUCCESS;
             } catch (CancellationException e) {
+              deliveryOutcome = Profiler.Outcome.CANCELLED;
               if (token.isCancelled() || closed.get()) token.cancel();
               else {
                 recordFailure(chosen.pos, phase, e);
@@ -703,6 +747,14 @@ public final class WorldContext implements AutoCloseable {
             } catch (Exception e) {
               recordFailure(chosen.pos, phase, e);
               if (request.failurePolicy() == RegionRequest.FailurePolicy.FAIL_FAST) token.cancel();
+            } finally {
+              if (deliveryProfile != null)
+                deliveryProfile.finish(
+                    deliveryStamp,
+                    Profiler.Kind.REGION_DELIVERY,
+                    null,
+                    "Consumer acknowledgement",
+                    deliveryOutcome);
             }
             pending.remove(chosen);
           }

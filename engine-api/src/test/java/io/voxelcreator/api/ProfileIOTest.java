@@ -1,0 +1,75 @@
+package io.voxelcreator.api;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import io.voxelcreator.model.ProjectIO;
+import io.voxelcreator.storage.ChunkPos;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.util.*;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+class ProfileIOTest {
+  @TempDir Path directory;
+
+  private static Profiler.Snapshot capture() {
+    try (var p = new Profiler()) {
+      var c = p.start(Profiler.Options.defaults());
+      p.scope(17, new UUID(0, 3), new ChunkPos(-2, 0, 1))
+          .gauge(Profiler.Kind.CACHE_BYTES, Profiler.Unit.BYTES, 123, "comma,quote\"\r\nUnicode 雪");
+      p.stop();
+      return c.snapshot();
+    }
+  }
+
+  @Test
+  void jsonPreservesEnvelopeSamplesSummaryAndUnicodeAndReplacesExplicitly() throws Exception {
+    var snapshot = capture();
+    Path output = directory.resolve("capture.json");
+    Files.writeString(output, "old");
+    ProfileIO.writeJSON(output, snapshot);
+    var value = ProjectIO.JSON.readTree(output.toFile());
+    assertEquals(1, value.path("formatVersion").intValue());
+    assertEquals(snapshot.captureId().toString(), value.path("captureId").textValue());
+    assertEquals(snapshot.startedAt().toString(), value.path("startedAt").textValue());
+    assertEquals("STOPPED", value.path("state").textValue());
+    assertEquals(123, value.path("samples").get(0).path("value").longValue());
+    assertEquals(
+        snapshot.samples().getFirst().label(),
+        value.path("samples").get(0).path("label").textValue());
+    assertEquals(-2, value.path("samples").get(0).path("chunk").path("x").intValue());
+    assertEquals(123, value.path("series").get(0).path("p99").longValue());
+    assertEquals(
+        Thread.currentThread().threadId(),
+        value.path("samples").get(0).path("threadId").longValue());
+    try (var files = Files.list(directory)) {
+      assertEquals(1, files.count());
+    }
+  }
+
+  @Test
+  void csvQuotesMultilineFieldsAndRetainsCaptureAndThreadMetadata() throws Exception {
+    var snapshot = capture();
+    Path output = directory.resolve("capture.csv");
+    ProfileIO.writeCSV(output, snapshot);
+    String csv = Files.readString(output, StandardCharsets.UTF_8);
+    assertTrue(csv.startsWith("capture_id,state,started_at,context_id,"));
+    assertTrue(csv.contains("chunk_x,chunk_y,chunk_z,thread_id,thread_name\r\n"));
+    assertTrue(csv.contains("\"comma,quote\"\"\r\nUnicode 雪\""));
+    assertTrue(csv.contains(snapshot.captureId() + ",STOPPED,"));
+    assertTrue(csv.endsWith("\r\n"));
+  }
+
+  @Test
+  void failedReplacementPreservesDestinationAndCleansTemporaryFile() throws Exception {
+    Path destination = directory.resolve("keep");
+    Files.createDirectory(destination);
+    Files.writeString(destination.resolve("sentinel"), "retained");
+    assertThrows(java.io.IOException.class, () -> ProfileIO.writeJSON(destination, capture()));
+    assertEquals("retained", Files.readString(destination.resolve("sentinel")));
+    try (var files = Files.list(directory)) {
+      assertEquals(List.of(destination), files.toList());
+    }
+  }
+}

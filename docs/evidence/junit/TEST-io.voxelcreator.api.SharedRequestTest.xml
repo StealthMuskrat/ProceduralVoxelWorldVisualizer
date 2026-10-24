@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.SharedRequestTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T19:29:40.568Z" hostname="715e00c143c7" time="0.029">
+<testsuite name="io.voxelcreator.api.SharedRequestTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T20:08:13.151Z" hostname="715e00c143c7" time="0.018">
   <properties/>
-  <testcase name="collectedResultsShareAdmissionAndReleaseWithoutInvalidatingSnapshots()" classname="io.voxelcreator.api.SharedRequestTest" time="0.009"/>
-  <testcase name="oversizedCountsFailExplicitlyWithoutLeakingStreamSlots()" classname="io.voxelcreator.api.SharedRequestTest" time="0.004"/>
-  <testcase name="concurrentSubscribersShareOneJobAndCancelIndependently()" classname="io.voxelcreator.api.SharedRequestTest" time="0.007"/>
-  <testcase name="synchronousWorkerCanStealItsQueuedSharedJob()" classname="io.voxelcreator.api.SharedRequestTest" time="0.004"/>
+  <testcase name="collectedResultsShareAdmissionAndReleaseWithoutInvalidatingSnapshots()" classname="io.voxelcreator.api.SharedRequestTest" time="0.006"/>
+  <testcase name="oversizedCountsFailExplicitlyWithoutLeakingStreamSlots()" classname="io.voxelcreator.api.SharedRequestTest" time="0.001"/>
+  <testcase name="concurrentSubscribersShareOneJobAndCancelIndependently()" classname="io.voxelcreator.api.SharedRequestTest" time="0.003"/>
+  <testcase name="synchronousWorkerCanStealItsQueuedSharedJob()" classname="io.voxelcreator.api.SharedRequestTest" time="0.003"/>
   <testcase name="sharingNeverCrossesContextsAndInvalidCoordinatesCannotWrap()" classname="io.voxelcreator.api.SharedRequestTest" time="0.004"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

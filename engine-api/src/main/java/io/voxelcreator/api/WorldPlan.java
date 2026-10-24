@@ -221,24 +221,33 @@ final class WorldPlan {
   }
 
   int sample(int x, int y, int z) {
-    return sample(x, y, z, null, Integer.MAX_VALUE, null, 0);
+    return sample(x, y, z, null, Integer.MAX_VALUE, null, 0, null);
   }
 
   int stageSample(int x, int y, int z, int stage) {
-    return sample(x, y, z, null, stage, null, 0);
+    return sample(x, y, z, null, stage, null, 0, null);
   }
 
   GenerationTrace trace(BlockPos p) {
     var trace = new ArrayList<GenerationTrace.Step>();
-    int result = sample(p.x(), p.y(), p.z(), trace, Integer.MAX_VALUE, null, 0);
+    int result = sample(p.x(), p.y(), p.z(), trace, Integer.MAX_VALUE, null, 0, null);
     return new GenerationTrace(p, result, List.copyOf(trace));
   }
 
   VoxelChunk generate(ChunkPos pos, int size, CancellationToken token) {
-    return generate(pos, size, token, Integer.MAX_VALUE, null);
+    return generate(pos, size, token, null);
+  }
+
+  VoxelChunk generate(ChunkPos pos, int size, CancellationToken token, Profiler.Scope profile) {
+    return generate(pos, size, token, Integer.MAX_VALUE, null, profile);
   }
 
   StageChunk generateStage(ChunkPos pos, int size, CancellationToken token, UUID id) {
+    return generateStage(pos, size, token, id, null);
+  }
+
+  StageChunk generateStage(
+      ChunkPos pos, int size, CancellationToken token, UUID id, Profiler.Scope profile) {
     GenerationStage stage = stage(id);
     if (stage.after() == 0
         || (long) pos.y() * size > maxY
@@ -246,26 +255,39 @@ final class WorldPlan {
       var empty = VoxelChunk.uniform(pos, size, 0);
       return new StageChunk(stage, empty, empty);
     }
-    double[][] fields = fields(pos, size, token, stage.after());
-    VoxelChunk before = generate(pos, size, token, stage.before(), fields),
+    double[][] fields = fields(pos, size, token, stage.after(), profile);
+    VoxelChunk before = generate(pos, size, token, stage.before(), fields, profile),
         after =
             stage.before() == stage.after()
                 ? before
-                : generate(pos, size, token, stage.after(), fields);
+                : generate(pos, size, token, stage.after(), fields, profile);
     token.throwIfCancelled();
     return new StageChunk(stage, before, after);
   }
 
-  private double[][] fields(ChunkPos pos, int size, CancellationToken token, int limit) {
+  private double[][] fields(
+      ChunkPos pos, int size, CancellationToken token, int limit, Profiler.Scope profile) {
     int ox = pos.x() * size, oz = pos.z() * size;
     double[][] fields = new double[Math.min(limit, operations.size())][];
     for (int i = 0; i < fields.length; i++) {
       Op op = operations.get(i);
       if (op.columnCached()) {
-        fields[i] = new double[size * size];
-        for (int z = 0; z < size; z++) {
-          token.throwIfCancelled();
-          for (int x = 0; x < size; x++) fields[i][z * size + x] = field(op, ox + x, 0, oz + z);
+        long stamp = profile == null ? 0 : profile.begin();
+        var outcome = Profiler.Outcome.FAILED;
+        try {
+          fields[i] = new double[size * size];
+          for (int z = 0; z < size; z++) {
+            token.throwIfCancelled();
+            for (int x = 0; x < size; x++) fields[i][z * size + x] = field(op, ox + x, 0, oz + z);
+          }
+          outcome = Profiler.Outcome.SUCCESS;
+        } catch (java.util.concurrent.CancellationException cancelled) {
+          outcome = Profiler.Outcome.CANCELLED;
+          throw cancelled;
+        } finally {
+          if (stamp != 0)
+            profile.finish(
+                stamp, Profiler.Kind.FIELD_PREFETCH, op.uuid, op.layerId + " / " + op.id, outcome);
         }
       }
     }
@@ -273,19 +295,24 @@ final class WorldPlan {
   }
 
   private VoxelChunk generate(
-      ChunkPos pos, int size, CancellationToken token, int limit, double[][] values) {
+      ChunkPos pos,
+      int size,
+      CancellationToken token,
+      int limit,
+      double[][] values,
+      Profiler.Scope profile) {
     if (empty()
         || limit == 0
         || (long) pos.y() * size > maxY
         || (long) pos.y() * size + size - 1 < minY) return VoxelChunk.uniform(pos, size, 0);
     int ox = pos.x() * size, oy = pos.y() * size, oz = pos.z() * size;
-    double[][] fields = values == null ? fields(pos, size, token, limit) : values;
+    double[][] fields = values == null ? fields(pos, size, token, limit, profile) : values;
     return VoxelChunk.generate(
         pos,
         size,
         (x, y, z) -> {
           token.throwIfCancelled();
-          return sample(ox + x, oy + y, oz + z, null, limit, fields, z * size + x);
+          return sample(ox + x, oy + y, oz + z, null, limit, fields, z * size + x, profile);
         });
   }
 
@@ -334,131 +361,151 @@ final class WorldPlan {
   }
 
   private int sample(
-      int x, int y, int z, List<GenerationTrace.Step> trace, int limit, double[][] cached, int at) {
+      int x,
+      int y,
+      int z,
+      List<GenerationTrace.Step> trace,
+      int limit,
+      double[][] cached,
+      int at,
+      Profiler.Scope profile) {
     if (y < minY || y > maxY) return 0;
     int state = 0;
     int index = 0;
     for (Op op : operations) {
       if (index >= limit) break;
-      var s = op.settings;
-      double f = Double.NaN;
-      int previous = state;
-      String reason = "Selected";
-      boolean gatePassed = true, predicatePassed = true;
-      boolean gateReached = false, predicateReached = false;
-      var gateTrace = trace == null ? null : new ArrayList<GenerationTrace.GateEvaluation>();
-      var driverTrace = trace == null ? null : new ArrayList<GenerationTrace.DriverEvaluation>();
-      var parameterTrace =
-          trace == null ? null : new ArrayList<GenerationTrace.ParameterEvaluation>();
-      int target = op.target, matchedInterval = -1;
-      boolean choose = true;
-      if (y < Math.max(minY, s.minY) || y > Math.min(maxY, s.maxY)) {
-        choose = false;
-        reason = "Outside effective Y interval";
-      }
-      if (choose) {
-        f = cached != null && cached[index] != null ? cached[index][at] : field(op, x, y, z);
-        double threshold = s.threshold, baseHeight = s.baseHeight, heightScale = s.heightScale;
-        if (!op.numeric.isEmpty()) {
-          var resolved = numericValues(op, f, x, y, z, parameterTrace);
-          threshold = resolved[0];
-          baseHeight = resolved[1];
-          heightScale = resolved[2];
+      long profileStamp = profile == null ? 0 : profile.beginOperation();
+      var profileOutcome = Profiler.Outcome.FAILED;
+      try {
+        var s = op.settings;
+        double f = Double.NaN;
+        int previous = state;
+        String reason = "Selected";
+        boolean gatePassed = true, predicatePassed = true;
+        boolean gateReached = false, predicateReached = false;
+        var gateTrace = trace == null ? null : new ArrayList<GenerationTrace.GateEvaluation>();
+        var driverTrace = trace == null ? null : new ArrayList<GenerationTrace.DriverEvaluation>();
+        var parameterTrace =
+            trace == null ? null : new ArrayList<GenerationTrace.ParameterEvaluation>();
+        int target = op.target, matchedInterval = -1;
+        boolean choose = true;
+        if (y < Math.max(minY, s.minY) || y > Math.min(maxY, s.maxY)) {
+          choose = false;
+          reason = "Outside effective Y interval";
         }
-        double height = baseHeight + f * heightScale;
-        if (op.interpretation.startsWith("HEIGHT") && !Double.isFinite(height))
-          throw new EvaluationFailure(
-              op.noiseUuid, op.uuid, x, y, z, "Nonfinite height interpretation");
-        double rounded =
-            switch (s.rounding) {
-              case "FLOOR" -> StrictMath.floor(height);
-              case "CEIL" -> StrictMath.ceil(height);
-              case "ROUND" -> StrictMath.floor(height + .5);
-              default -> throw new AssertionError();
-            };
-        choose =
-            switch (op.interpretation) {
-              case "HEIGHT_BELOW" -> y <= rounded;
-              case "HEIGHT_ABOVE" -> y >= rounded;
-              case "HEIGHT_BOUNDARY" -> y == rounded;
-              case "SELECTION", "DENSITY" -> f >= threshold;
-              case "TYPE_SELECTION", "ALL" -> true;
-              default -> throw new AssertionError();
-            };
-        if (!choose) reason = "Field interpretation rejected sample";
-        if (choose && s.typeSource.equals("INTERVALS")) {
-          matchedInterval = WorldSemantics.interval(s.typeIntervals, f);
-          if (matchedInterval < 0) {
-            choose = false;
-            reason = "No type interval matched; NO_CHANGE";
-          } else target = op.intervalTargets.get(matchedInterval);
+        if (choose) {
+          f = cached != null && cached[index] != null ? cached[index][at] : field(op, x, y, z);
+          double threshold = s.threshold, baseHeight = s.baseHeight, heightScale = s.heightScale;
+          if (!op.numeric.isEmpty()) {
+            var resolved = numericValues(op, f, x, y, z, parameterTrace);
+            threshold = resolved[0];
+            baseHeight = resolved[1];
+            heightScale = resolved[2];
+          }
+          double height = baseHeight + f * heightScale;
+          if (op.interpretation.startsWith("HEIGHT") && !Double.isFinite(height))
+            throw new EvaluationFailure(
+                op.noiseUuid, op.uuid, x, y, z, "Nonfinite height interpretation");
+          double rounded =
+              switch (s.rounding) {
+                case "FLOOR" -> StrictMath.floor(height);
+                case "CEIL" -> StrictMath.ceil(height);
+                case "ROUND" -> StrictMath.floor(height + .5);
+                default -> throw new AssertionError();
+              };
+          choose =
+              switch (op.interpretation) {
+                case "HEIGHT_BELOW" -> y <= rounded;
+                case "HEIGHT_ABOVE" -> y >= rounded;
+                case "HEIGHT_BOUNDARY" -> y == rounded;
+                case "SELECTION", "DENSITY" -> f >= threshold;
+                case "TYPE_SELECTION", "ALL" -> true;
+                default -> throw new AssertionError();
+              };
+          if (!choose) reason = "Field interpretation rejected sample";
+          if (choose && s.typeSource.equals("INTERVALS")) {
+            matchedInterval = WorldSemantics.interval(s.typeIntervals, f);
+            if (matchedInterval < 0) {
+              choose = false;
+              reason = "No type interval matched; NO_CHANGE";
+            } else target = op.intervalTargets.get(matchedInterval);
+          }
         }
+        double probability = s.probability * s.strength;
+        if (choose) {
+          probability *= driver(op, s.probabilityDriver, "probability", f, x, y, z, driverTrace);
+          probability *= driver(op, s.strengthDriver, "strength", f, x, y, z, driverTrace);
+        }
+        if (choose) {
+          gateReached = true;
+          gatePassed = gate(s.fieldGates, op, f, x, y, z, gateTrace, "fieldGates");
+        }
+        if (choose && !gatePassed) {
+          choose = false;
+          reason = "Field gate rejected sample";
+        }
+        if (choose) {
+          predicateReached = true;
+          predicatePassed = predicate(s.voxelStatePredicate, previous);
+        }
+        if (choose && !predicatePassed) {
+          choose = false;
+          reason =
+              "Previous committed voxel predicate rejected state " + registry.semanticId(previous);
+        }
+        double random = CoordinateHash.probability(op.probabilitySeed, x, y, z);
+        if (choose && (probability <= 0 || (probability < 1 && random >= probability))) {
+          choose = false;
+          reason = "Probability rejected: " + random + " >= " + probability;
+        }
+        if (choose) {
+          state =
+              switch (s.action) {
+                case "SET" -> target;
+                case "CLEAR" -> 0;
+                case "NO_CHANGE" -> state;
+                default -> throw new AssertionError();
+              };
+          if (s.action.equals("NO_CHANGE")) reason = "Selected; NO_CHANGE";
+        }
+        if (trace != null)
+          trace.add(
+              new GenerationTrace.Step(
+                  op.layerUuid,
+                  op.uuid,
+                  op.noiseUuid,
+                  op.layerId,
+                  op.id,
+                  f,
+                  previous,
+                  state,
+                  choose ? s.action : "NO_CHANGE",
+                  reason,
+                  op.sources,
+                  new GenerationTrace.Details(
+                      settingsValues(s),
+                      List.copyOf(gateTrace),
+                      gateReached ? gatePassed : null,
+                      predicateReached ? predicatePassed : null,
+                      probability,
+                      random,
+                      choose,
+                      Double.isNaN(f) ? null : op.sampling.coordinates(x, y, z, op.dimension),
+                      matchedInterval < 0 ? null : matchedInterval,
+                      target,
+                      List.copyOf(driverTrace),
+                      List.copyOf(parameterTrace))));
+        index++;
+        profileOutcome = Profiler.Outcome.SUCCESS;
+      } finally {
+        if (profileStamp != 0)
+          profile.finish(
+              profileStamp,
+              Profiler.Kind.OPERATION,
+              op.uuid,
+              op.layerId + " / " + op.id,
+              profileOutcome);
       }
-      double probability = s.probability * s.strength;
-      if (choose) {
-        probability *= driver(op, s.probabilityDriver, "probability", f, x, y, z, driverTrace);
-        probability *= driver(op, s.strengthDriver, "strength", f, x, y, z, driverTrace);
-      }
-      if (choose) {
-        gateReached = true;
-        gatePassed = gate(s.fieldGates, op, f, x, y, z, gateTrace, "fieldGates");
-      }
-      if (choose && !gatePassed) {
-        choose = false;
-        reason = "Field gate rejected sample";
-      }
-      if (choose) {
-        predicateReached = true;
-        predicatePassed = predicate(s.voxelStatePredicate, previous);
-      }
-      if (choose && !predicatePassed) {
-        choose = false;
-        reason =
-            "Previous committed voxel predicate rejected state " + registry.semanticId(previous);
-      }
-      double random = CoordinateHash.probability(op.probabilitySeed, x, y, z);
-      if (choose && (probability <= 0 || (probability < 1 && random >= probability))) {
-        choose = false;
-        reason = "Probability rejected: " + random + " >= " + probability;
-      }
-      if (choose) {
-        state =
-            switch (s.action) {
-              case "SET" -> target;
-              case "CLEAR" -> 0;
-              case "NO_CHANGE" -> state;
-              default -> throw new AssertionError();
-            };
-        if (s.action.equals("NO_CHANGE")) reason = "Selected; NO_CHANGE";
-      }
-      if (trace != null)
-        trace.add(
-            new GenerationTrace.Step(
-                op.layerUuid,
-                op.uuid,
-                op.noiseUuid,
-                op.layerId,
-                op.id,
-                f,
-                previous,
-                state,
-                choose ? s.action : "NO_CHANGE",
-                reason,
-                op.sources,
-                new GenerationTrace.Details(
-                    settingsValues(s),
-                    List.copyOf(gateTrace),
-                    gateReached ? gatePassed : null,
-                    predicateReached ? predicatePassed : null,
-                    probability,
-                    random,
-                    choose,
-                    Double.isNaN(f) ? null : op.sampling.coordinates(x, y, z, op.dimension),
-                    matchedInterval < 0 ? null : matchedInterval,
-                    target,
-                    List.copyOf(driverTrace),
-                    List.copyOf(parameterTrace))));
-      index++;
     }
     return state;
   }

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.core.CompilationDiagnosticTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T19:29:42.583Z" hostname="715e00c143c7" time="0.531">
+<testsuite name="io.voxelcreator.core.CompilationDiagnosticTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T20:08:15.386Z" hostname="715e00c143c7" time="1.131">
   <properties/>
-  <testcase name="transformCompilerFailureNamesTheTransform()" classname="io.voxelcreator.core.CompilationDiagnosticTest" time="0.414"/>
-  <testcase name="referencedFailureKeepsTheReferencedResourceInsteadOfTheCaller()" classname="io.voxelcreator.core.CompilationDiagnosticTest" time="0.03"/>
-  <testcase name="parserFailureRetainsOwningItemParameterAndOriginalSpanCause()" classname="io.voxelcreator.core.CompilationDiagnosticTest" time="0.08"/>
+  <testcase name="transformCompilerFailureNamesTheTransform()" classname="io.voxelcreator.core.CompilationDiagnosticTest" time="0.956"/>
+  <testcase name="referencedFailureKeepsTheReferencedResourceInsteadOfTheCaller()" classname="io.voxelcreator.core.CompilationDiagnosticTest" time="0.074"/>
+  <testcase name="parserFailureRetainsOwningItemParameterAndOriginalSpanCause()" classname="io.voxelcreator.core.CompilationDiagnosticTest" time="0.091"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

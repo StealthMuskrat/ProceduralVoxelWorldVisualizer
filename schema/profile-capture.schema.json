@@ -1,0 +1,361 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "formatVersion",
+    "captureId",
+    "startedAt",
+    "options",
+    "state",
+    "elapsedNanos",
+    "samples",
+    "series"
+  ],
+  "properties": {
+    "formatVersion": {
+      "const": 1
+    },
+    "captureId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "durationMillis",
+        "maxSamples",
+        "maxSeries",
+        "operationStride"
+      ],
+      "properties": {
+        "durationMillis": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000
+        },
+        "maxSamples": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 65536
+        },
+        "maxSeries": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        },
+        "operationStride": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        }
+      }
+    },
+    "state": {
+      "enum": [
+        "RECORDING",
+        "STOPPED",
+        "TIME_LIMIT",
+        "SAMPLE_LIMIT",
+        "SERIES_LIMIT",
+        "REPLACED",
+        "CLOSED"
+      ]
+    },
+    "elapsedNanos": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 60000000000
+    },
+    "samples": {
+      "type": "array",
+      "maxItems": 65536,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "unit",
+          "contextId",
+          "projectUuid",
+          "sourceUuid",
+          "label",
+          "offsetNanos",
+          "value",
+          "chunk",
+          "outcome",
+          "threadId",
+          "threadName"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "FRAME",
+              "QUEUE_WAIT",
+              "CHUNK_GENERATION",
+              "FIELD_PREFETCH",
+              "OPERATION",
+              "STAGE",
+              "REGION_DELIVERY",
+              "PREVIEW",
+              "MESH_CPU",
+              "UPLOAD_CPU",
+              "HEAP_BYTES",
+              "GC_MILLIS",
+              "GC_COUNT",
+              "QUEUE_DEPTH",
+              "ACTIVE_WORKERS",
+              "CACHE_BYTES",
+              "STAGING_BYTES",
+              "COLLECTION_BYTES",
+              "UPLOAD_BYTES",
+              "SCENE_CPU_BYTES",
+              "SCENE_GPU_BYTES"
+            ]
+          },
+          "unit": {
+            "enum": [
+              "NANOSECONDS",
+              "BYTES",
+              "COUNT",
+              "MILLISECONDS"
+            ]
+          },
+          "contextId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "projectUuid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceUuid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "offsetNanos": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 60000000000
+          },
+          "value": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "chunk": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "z"
+                ],
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  },
+                  "z": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "SUCCESS",
+              "FAILED",
+              "CANCELLED",
+              "MEASURED"
+            ]
+          },
+          "threadId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9223372036854775807
+          },
+          "threadName": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      }
+    },
+    "series": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "unit",
+          "contextId",
+          "projectUuid",
+          "sourceUuid",
+          "label",
+          "count",
+          "minimum",
+          "maximum",
+          "mean",
+          "p50",
+          "p95",
+          "p99",
+          "failed",
+          "cancelled"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "FRAME",
+              "QUEUE_WAIT",
+              "CHUNK_GENERATION",
+              "FIELD_PREFETCH",
+              "OPERATION",
+              "STAGE",
+              "REGION_DELIVERY",
+              "PREVIEW",
+              "MESH_CPU",
+              "UPLOAD_CPU",
+              "HEAP_BYTES",
+              "GC_MILLIS",
+              "GC_COUNT",
+              "QUEUE_DEPTH",
+              "ACTIVE_WORKERS",
+              "CACHE_BYTES",
+              "STAGING_BYTES",
+              "COLLECTION_BYTES",
+              "UPLOAD_BYTES",
+              "SCENE_CPU_BYTES",
+              "SCENE_GPU_BYTES"
+            ]
+          },
+          "unit": {
+            "enum": [
+              "NANOSECONDS",
+              "BYTES",
+              "COUNT",
+              "MILLISECONDS"
+            ]
+          },
+          "contextId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "projectUuid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceUuid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65536
+          },
+          "minimum": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "maximum": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "mean": {
+            "type": "number",
+            "minimum": 0
+          },
+          "p50": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "p95": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "p99": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "failed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65536
+          },
+          "cancelled": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65536
+          }
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxelcreator.io/schema/profile-capture.schema.json",
+  "title": "Bounded profiler capture v1"
+}

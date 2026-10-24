@@ -3,6 +3,7 @@ package io.voxelcreator.render;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.voxelcreator.api.CancellationToken;
+import io.voxelcreator.api.Profiler;
 import io.voxelcreator.storage.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -26,6 +27,32 @@ public class ChunkSceneTest {
       Thread.sleep(1);
     }
     throw new AssertionError(scene.statistics());
+  }
+
+  @Test
+  void optionalCaptureMeasuresActualMeshWorkWithChunkIdentity() throws Exception {
+    try (var profiler = new Profiler();
+        var workers = Executors.newFixedThreadPool(2)) {
+      var capture = profiler.start(Profiler.Options.defaults());
+      try (var scene =
+          new ChunkScene(
+              (p, t) -> SceneChunk.exact(VoxelChunk.uniform(p, 4, 1)),
+              workers,
+              config(),
+              new RenderPressure(),
+              p -> profiler.scope(0, null, p))) {
+        settle(scene, new Vector3d(1, 1, 1));
+        var mesh =
+            capture.snapshot().samples().stream()
+                .filter(s -> s.kind() == Profiler.Kind.MESH_CPU)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(new ChunkPos(0, 0, 0), mesh.chunk());
+        assertEquals(Profiler.Outcome.SUCCESS, mesh.outcome());
+        assertTrue(mesh.value() >= 0);
+        assertTrue(scene.statistics().meshes() > 0);
+      }
+    }
   }
 
   @Test

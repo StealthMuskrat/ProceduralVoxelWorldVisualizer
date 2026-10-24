@@ -32,6 +32,7 @@ jobs:
           mkdir -p build/independent
           javac -cp build/release/jars/noise-generator-engine.jar -d build/independent example-client/src/main/java/io/voxelcreator/example/*.java
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.Example build/independent/output
+          python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
       - name: Exact storage measurements
         shell: bash
         run: java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.StorageBenchmark > build/storage-benchmark.csv
@@ -86,6 +87,8 @@ jobs:
           javac -cp build/release/jars/noise-generator-engine.jar -d build/independent (Get-ChildItem example-client/src/main/java/io/voxelcreator/example/*.java).FullName
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.Example build/independent/output
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Exact storage measurements
         shell: pwsh
