@@ -53,6 +53,11 @@ jobs:
         run: LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.VolumeRenderProbe
       - name: Packed streaming renderer reference
         run: LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe
+      - name: Application creation profile reference
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CreationProfileProbe build/creation-profile
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CreationDefaultsConsumer build/creation-profile/created-project.pvproj.json
+          python scripts/verify_app_metadata.py build/creation-profile/app-config.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -151,6 +156,15 @@ jobs:
         shell: pwsh
         run: |
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows application creation profile reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CreationProfileProbe build/creation-profile
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CreationDefaultsConsumer build/creation-profile/created-project.pvproj.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_app_metadata.py build/creation-profile/app-config.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh

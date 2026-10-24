@@ -239,8 +239,20 @@ public final class PropertyPanel {
   private void noise(Noise n) {
     ImGui.text("Dimension: " + n.dimension + "D  |  Output: Scalar");
     if (ImGui.collapsingHeader("Source", ImGuiTreeNodeFlags.DefaultOpen)) {
-      f.choice("Algorithm", n.algorithm.key, NoiseAlgorithms.KEYS, v -> n.algorithm.key = v);
-      longText("Seed offset", n.seedOffset, v -> n.seedOffset = v);
+      if (ImGui.beginCombo(
+          state.metadata.label("noise.algorithm", "Algorithm"),
+          algorithmLabel(n.dimension, n.algorithm.key))) {
+        for (String key : NoiseAlgorithms.KEYS)
+          if (ImGui.selectable(algorithmLabel(n.dimension, key) + "###algorithm" + key))
+            n.algorithm.key = key;
+        ImGui.endCombo();
+      }
+      metadataTooltip("noise.algorithm");
+      longText(
+          state.metadata.label("noise.seedOffset", "Seed offset"),
+          n.seedOffset,
+          v -> n.seedOffset = v);
+      metadataTooltip("noise.seedOffset");
       if (!Set.of("CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF").contains(n.algorithm.key)) {
         algorithmNumber(n, "frequency", .01);
         if (n.algorithm.key.equals("CELLULAR")) {
@@ -267,7 +279,13 @@ public final class PropertyPanel {
         var item = n.coordinateTransforms.get(i);
         ImGui.pushID(item.uuid.toString());
         focusRow(item.uuid);
-        if (ImGui.treeNode("[" + i + "] " + item.id + "  " + item.kind)) {
+        if (ImGui.treeNode(
+            "["
+                + i
+                + "] "
+                + item.id
+                + "  "
+                + state.metadata.label("transform." + item.kind, item.kind))) {
           revealRow(item.uuid);
           f.bool("Enabled", item.enabled, v -> item.enabled = v);
           f.text("ID", item.id, v -> item.id = v);
@@ -344,11 +362,10 @@ public final class PropertyPanel {
       if (ImGui.button("Add Transform")) ImGui.openPopup("transform-add");
       if (ImGui.beginPopup("transform-add")) {
         for (String k : List.of("TRANSLATE", "SCALE", "ROTATE", "DOMAIN_WARP"))
-          if (ImGui.menuItem(k)) {
-            var i = new Item();
-            i.kind = k;
-            i.resultType = n.dimension == 2 ? "Coordinates2D" : "Coordinates3D";
-            i.id = uniqueItem(n, k.toLowerCase(Locale.ROOT));
+          if (ImGui.menuItem(state.metadata.label("transform." + k, k) + "###transform" + k)) {
+            var i =
+                EditorCreations.transform(
+                    state.metadata, n.dimension, k, uniqueItem(n, k.toLowerCase(Locale.ROOT)));
             n.coordinateTransforms.add(i);
           }
         ImGui.endPopup();
@@ -367,7 +384,13 @@ public final class PropertyPanel {
           focusedControl = item.uuid;
         focusRow(item.uuid);
         if (ImGui.treeNode(
-            "[" + i + "] " + item.id + "  " + item.kind + (item.enabled ? "" : " (disabled)"))) {
+            "["
+                + i
+                + "] "
+                + item.id
+                + "  "
+                + state.metadata.label("processing." + item.kind, item.kind)
+                + (item.enabled ? "" : " (disabled)"))) {
           revealRow(item.uuid);
           f.text("ID", item.id, v -> item.id = v);
           f.bool("Enabled", item.enabled, v -> item.enabled = v);
@@ -658,10 +681,15 @@ public final class PropertyPanel {
       if (ImGui.button("Add Processing")) ImGui.openPopup("processing-add");
       if (ImGui.beginPopup("processing-add")) {
         for (var e : ProcessingRegistry.ITEMS.entrySet())
-          if (ImGui.menuItem(e.getKey() + " / " + e.getValue().category())) {
+          if (ImGui.menuItem(
+              state.metadata.label("processing." + e.getKey(), e.getKey())
+                  + " / "
+                  + e.getValue().category()
+                  + "###operation"
+                  + e.getKey())) {
             Item i =
-                ProcessingRegistry.create(
-                    e.getKey(), uniqueItem(n, e.getKey().toLowerCase(Locale.ROOT)));
+                EditorCreations.processing(
+                    state.metadata, e.getKey(), uniqueItem(n, e.getKey().toLowerCase(Locale.ROOT)));
             n.processing.add(i);
             if (i.resultType.equals("Scalar")) n.outputBinding = Binding.earlier(i.uuid);
           }
@@ -747,18 +775,33 @@ public final class PropertyPanel {
     return false;
   }
 
+  private String algorithmLabel(int dimension, String key) {
+    var control = state.metadata.control("noise" + dimension + "D.algorithm");
+    return control != null && control.options.containsKey(key)
+        ? state.metadata.option("noise" + dimension + "D.algorithm", key)
+        : state.metadata.label("algorithm." + key, key);
+  }
+
+  private void metadataTooltip(String id) {
+    var control = state.metadata.control(id);
+    if (control != null && ImGui.isItemHovered()) ImGui.setTooltip(control.tooltip);
+  }
+
   private void algorithmNumber(Noise n, String key, double def) {
     f.number(
-        key,
+        state.metadata.label(
+            "noise" + n.dimension + "D.algorithm." + n.algorithm.key + "." + key, key),
         n.algorithm.parameters.getOrDefault(key, def),
         v -> n.algorithm.parameters.put(key, v));
+    metadataTooltip("noise" + n.dimension + "D.algorithm." + n.algorithm.key + "." + key);
   }
 
   private void parameter(Item item, String key, double def) {
     f.number(
-        key,
+        state.metadata.label("processing." + item.kind + ".parameter." + key, key),
         item.parameters.containsKey(key) ? item.parameters.get(key).asDouble() : def,
         v -> item.parameters.put(key, ProjectIO.JSON.valueToTree(v)));
+    metadataTooltip("processing." + item.kind + ".parameter." + key);
   }
 
   private String uniqueItem(Noise n, String base) {

@@ -2,7 +2,7 @@
 from pathlib import Path
 import json,jsonschema
 root=Path(__file__).resolve().parent.parent
-for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json']),('app-config',['app-config-defaults.json']),('profile-capture',['profile-capture.json'])]:
+for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json','creation-defaults-project.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json']),('app-config',['app-config-defaults.json','app-config-legacy.json','app-config-creation.json']),('profile-capture',['profile-capture.json'])]:
  schema=json.loads((root/'schema'/f'{name}.schema.json').read_text())
  jsonschema.Draft202012Validator.check_schema(schema)
  validator=jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker())
@@ -17,4 +17,8 @@ for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fie
   try:validator.validate(json.loads((root/'fixtures/invalid-shortcut-action.json').read_text()))
   except jsonschema.ValidationError:pass
   else:raise AssertionError('Unknown shortcut action was accepted')
+ if name=='app-config':
+  try:validator.validate(json.loads((root/'fixtures/invalid-app-creation.json').read_text()))
+  except jsonschema.ValidationError:pass
+  else:raise AssertionError('Unknown creation signature control was accepted')
  print(name+' schema and fixtures PASS')

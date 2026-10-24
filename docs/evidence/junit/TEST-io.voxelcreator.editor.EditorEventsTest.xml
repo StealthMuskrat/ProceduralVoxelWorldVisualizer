@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.EditorEventsTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T21:45:24.323Z" hostname="715e00c143c7" time="0.23">
+<testsuite name="io.voxelcreator.editor.EditorEventsTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:27:14.591Z" hostname="715e00c143c7" time="1.157">
   <properties/>
-  <testcase name="retentionIsBoundedAndRecentGroupsSurvive()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.019"/>
-  <testcase name="concurrentWorkerFloodGroupsExactlyWithoutUiCallbacks()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.145"/>
-  <testcase name="repeatsKeepStableIdentityFirstTimeAndMoveToFront()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.003"/>
-  <testcase name="longMessagesAreBoundedWithoutMergingDifferentTruncatedSuffixes()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.009"/>
-  <testcase name="readResolveDismissAreIndependentAndHistoryRemains()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.016"/>
-  <testcase name="filtersComposeAndGroupingIncludesSourceSeverityAndSubsystem()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.031"/>
+  <testcase name="retentionIsBoundedAndRecentGroupsSurvive()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.77"/>
+  <testcase name="concurrentWorkerFloodGroupsExactlyWithoutUiCallbacks()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.291"/>
+  <testcase name="repeatsKeepStableIdentityFirstTimeAndMoveToFront()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.004"/>
+  <testcase name="longMessagesAreBoundedWithoutMergingDifferentTruncatedSuffixes()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.013"/>
+  <testcase name="readResolveDismissAreIndependentAndHistoryRemains()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.015"/>
+  <testcase name="filtersComposeAndGroupingIncludesSourceSeverityAndSubsystem()" classname="io.voxelcreator.editor.EditorEventsTest" time="0.04"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

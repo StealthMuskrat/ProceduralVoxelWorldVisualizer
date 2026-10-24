@@ -26,6 +26,7 @@ public final class Desktop extends Application {
   private DiagnosticsPanel diagnostics;
   private ProfilePanel captures;
   private InputSettingsPanel inputSettings;
+  private ApplicationSettingsPanel applicationSettings;
   private String smokeDiagnosticDocument;
   private long smokeDiagnosticEvent;
   private boolean smokeSchedulerDrawn;
@@ -85,6 +86,7 @@ public final class Desktop extends Application {
   @Override
   protected void preRun() {
     inputSettings = new InputSettingsPanel(state.user);
+    applicationSettings = new ApplicationSettingsPanel(state);
     properties = new PropertyPanel(state);
     resources = new ResourcePanel(state, properties);
     diagnostics =
@@ -193,6 +195,15 @@ public final class Desktop extends Application {
         inputSettings.assertSmokeDrawn();
         settings.set(false);
         System.out.println("SHORTCUT_DRAFT_CONFLICT_NATIVE_PASS");
+      }
+      if (runtimeFrame == 177) {
+        openSettings("Application Settings");
+        applicationSettings.smokeDraft();
+      }
+      if (runtimeFrame == 199) {
+        applicationSettings.assertSmokeDrawn();
+        settings.set(false);
+        System.out.println("APPLICATION_PROFILE_DRAFT_NATIVE_PASS");
       }
       if (runtimeFrame == 462) {
         profiler.set(true);
@@ -763,23 +774,7 @@ public final class Desktop extends Application {
       ImGui.sameLine();
       if (ImGui.button("Cancel")) settings.set(false);
     } else if (settingsPage.equals("Application Settings")) {
-      ImGui.textWrapped(
-          "Presentation metadata changes labels/help only. Computational IDs, types, signatures and"
-              + " existing resource values are authoritative.");
-      for (var e : state.metadata.controls.entrySet()) {
-        ImGui.pushID(e.getKey());
-        if (ImGui.treeNode(e.getKey())) {
-          fields.text("Label", e.getValue().label, v -> e.getValue().label = v);
-          fields.text("Tooltip", e.getValue().tooltip, v -> e.getValue().tooltip = v);
-          fields.text("Description", e.getValue().description, v -> e.getValue().description = v);
-          ImGui.treePop();
-        }
-        ImGui.popID();
-      }
-      if (ImGui.button("Save Metadata")) {
-        state.metadata.save();
-        state.status = "Application metadata saved";
-      }
+      applicationSettings.draw();
     } else if (settingsPage.equals("Debug & Profiling")) {
       for (String category :
           List.of(
@@ -963,12 +958,12 @@ public final class Desktop extends Application {
     ImGui.setNextWindowSize(750, 550, ImGuiCond.FirstUseEver);
     ImGui.begin("Help", help);
     ImGui.inputText("Search features", search);
-    for (var e : state.metadata.controls.entrySet()) {
+    for (var e : state.metadata.orderedControls()) {
       var c = e.getValue();
       if ((c.label + c.description + c.tooltip)
               .toLowerCase(Locale.ROOT)
               .contains(search.get().toLowerCase(Locale.ROOT))
-          && ImGui.collapsingHeader(c.label)) {
+          && ImGui.collapsingHeader(AppMetadata.uiText(c.label) + "###help" + e.getKey())) {
         ImGui.textWrapped(c.tooltip);
         ImGui.textWrapped(c.description);
       }

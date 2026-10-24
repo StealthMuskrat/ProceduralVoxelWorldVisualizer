@@ -236,6 +236,92 @@ public final class ContractGenerator {
               root.resolve("registries/keyboard-shortcuts.json"),
               shortcuts.getMethod("registry").invoke(null));
         }
+        if (editor[0].equals("AppMetadata")) {
+          var defaults = JSON.valueToTree(model.getMethod("defaults").invoke(null));
+          var registry =
+              JSON.valueToTree(
+                  Class.forName("io.voxelcreator.editor.CreationRegistry")
+                      .getMethod("registry")
+                      .invoke(null));
+          ObjectNode control = (ObjectNode) ed.path("Control");
+          ((ArrayNode) control.path("required")).removeAll();
+          ((ObjectNode) control.path("properties").path("label"))
+              .put("maxLength", 160)
+              .put("minLength", 1);
+          ((ObjectNode) control.path("properties").path("tooltip")).put("maxLength", 1024);
+          ((ObjectNode) control.path("properties").path("description")).put("maxLength", 8192);
+          ((ObjectNode) control.path("properties").path("group")).put("maxLength", 80);
+          ((ObjectNode) control.path("properties").path("order"))
+              .put("minimum", -10000)
+              .put("maximum", 10000);
+          ObjectNode meta = (ObjectNode) ed.path("AppMetadata");
+          ((ArrayNode) meta.path("required")).removeAll();
+          ((ArrayNode) meta.path("required")).add("formatVersion");
+          ObjectNode controlMap = (ObjectNode) meta.path("properties").path("controls");
+          controlMap
+              .put("additionalProperties", false)
+              .put("maxProperties", defaults.path("controls").size());
+          ObjectNode controlProperties = obj();
+          for (var entries = defaults.path("controls").fields(); entries.hasNext(); ) {
+            var entry = entries.next();
+            ObjectNode optionProperties = obj();
+            for (var option : registry.path("controls").path(entry.getKey()).path("options"))
+              optionProperties.set(
+                  option.asText(),
+                  obj().put("type", "string").put("minLength", 1).put("maxLength", 160));
+            var optionMap = obj().put("type", "object").put("additionalProperties", false);
+            optionMap.set("properties", optionProperties);
+            var refinement = obj();
+            refinement.set("properties", obj().set("options", optionMap));
+            controlProperties.set(
+                entry.getKey(),
+                obj()
+                    .set(
+                        "allOf",
+                        JSON.valueToTree(
+                            List.of(obj().put("$ref", "#/$defs/Control"), refinement))));
+          }
+          controlMap.set("properties", controlProperties);
+          ObjectNode creationMap = (ObjectNode) meta.path("properties").path("creationDefaults");
+          creationMap
+              .put("additionalProperties", false)
+              .put("maxProperties", registry.path("controls").size());
+          ObjectNode properties = obj();
+          for (var entries = registry.path("controls").fields(); entries.hasNext(); ) {
+            var entry = entries.next();
+            var spec = entry.getValue();
+            String kind = spec.path("kind").asText();
+            ObjectNode value = obj();
+            switch (kind) {
+              case "BOOLEAN" -> value.put("type", "boolean");
+              case "TEXT" -> value.put("type", "string").put("maxLength", 8192);
+              case "CHOICE" -> value.set("enum", spec.path("options"));
+              case "LONG" ->
+                  value
+                      .put("type", "integer")
+                      .put("minimum", Long.MIN_VALUE)
+                      .put("maximum", Long.MAX_VALUE);
+              case "VECTOR2", "VECTOR3" -> {
+                int count = kind.equals("VECTOR2") ? 2 : 3;
+                value.put("type", "array").put("minItems", count).put("maxItems", count);
+                value.set(
+                    "items",
+                    obj()
+                        .put("type", "number")
+                        .put("minimum", spec.path("minimum").asDouble())
+                        .put("maximum", spec.path("maximum").asDouble()));
+              }
+              default ->
+                  value
+                      .put("type", kind.equals("INTEGER") ? "integer" : "number")
+                      .put("minimum", spec.path("minimum").asDouble())
+                      .put("maximum", spec.path("maximum").asDouble());
+            }
+            properties.set(entry.getKey(), value);
+          }
+          creationMap.set("properties", properties);
+          writeJSON(root.resolve("registries/editor-creation-controls.json"), registry);
+        }
         es.set("$defs", ed);
         writeJSON(root.resolve("schema/" + editor[1]), es);
         Object defaults =

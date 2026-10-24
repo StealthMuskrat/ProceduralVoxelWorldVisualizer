@@ -358,10 +358,12 @@ public final class ResourcePanel {
                   String id = name.get();
                   switch (createKind) {
                     case "noise2D", "noise3D" -> {
-                      var n = new Noise();
-                      n.id = id;
-                      n.dimension = createKind.equals("noise2D") ? 2 : 3;
-                      n.parentFolderUuid = createParent;
+                      var n =
+                          EditorCreations.noise(
+                              state.metadata,
+                              createKind.equals("noise2D") ? 2 : 3,
+                              id,
+                              createParent);
                       (n.dimension == 2 ? p.noise2D : p.noise3D).add(n);
                       made[0] = n.uuid;
                     }
@@ -380,8 +382,7 @@ public final class ResourcePanel {
                       made[0] = folder.uuid;
                     }
                     case "voxel" -> {
-                      var t = new VoxelType();
-                      t.id = id;
+                      var t = EditorCreations.voxel(state.metadata, id);
                       p.voxelTypes.add(t);
                       made[0] = t.uuid;
                     }

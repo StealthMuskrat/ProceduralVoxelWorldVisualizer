@@ -1,0 +1,30 @@
+{
+  "formatVersion": 1,
+  "controls": {
+    "algorithm.CONSTANT": {
+      "label": "Flat field",
+      "group": "Sources",
+      "order": -2
+    },
+    "noise2D.algorithm": {
+      "options": {
+        "CONSTANT": "Flat preset"
+      }
+    }
+  },
+  "creationDefaults": {
+    "noise2D.algorithm": "CONSTANT",
+    "noise3D.algorithm": "CONSTANT",
+    "noise2D.algorithm.CONSTANT.value": 0.625,
+    "noise3D.algorithm.CONSTANT.value": 0.25,
+    "processing.MULTIPLY.input.b": 4,
+    "processing.ADD.input.b": 0.75,
+    "transform2D.TRANSLATE.z": 3,
+    "voxel.color.r": 12,
+    "voxel.color.g": 34,
+    "voxel.color.b": 56,
+    "curve.startValue": 2,
+    "curve.endValue": 6,
+    "noise3D.seedOffset": -9223372036854775808
+  }
+}

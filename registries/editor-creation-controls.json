@@ -1,0 +1,2337 @@
+{
+  "rangePolicy" : "Immutable creation UI ranges; existing project/engine numeric domains are unchanged.",
+  "controls" : {
+    "noise2D.algorithm" : {
+      "id" : "noise2D.algorithm",
+      "group" : "2D Noise",
+      "label" : "New noise algorithm",
+      "kind" : "CHOICE",
+      "builtIn" : "OPEN_SIMPLEX_2",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "OPEN_SIMPLEX_2", "PERLIN", "VALUE", "VALUE_CUBIC", "CELLULAR", "WHITE_HASH", "CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF" ]
+    },
+    "noise2D.seedOffset" : {
+      "id" : "noise2D.seedOffset",
+      "group" : "2D Noise",
+      "label" : "New noise seed offset",
+      "kind" : "LONG",
+      "builtIn" : 0,
+      "minimum" : -9223372036854775808,
+      "maximum" : 9223372036854775807,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.OPEN_SIMPLEX_2.frequency" : {
+      "id" : "noise2D.algorithm.OPEN_SIMPLEX_2.frequency",
+      "group" : "2D Noise / OPEN_SIMPLEX_2",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.OPEN_SIMPLEX_2.octaves" : {
+      "id" : "noise2D.algorithm.OPEN_SIMPLEX_2.octaves",
+      "group" : "2D Noise / OPEN_SIMPLEX_2",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 3,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.OPEN_SIMPLEX_2.fractal" : {
+      "id" : "noise2D.algorithm.OPEN_SIMPLEX_2.fractal",
+      "group" : "2D Noise / OPEN_SIMPLEX_2",
+      "label" : "Fractal index",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.OPEN_SIMPLEX_2.lacunarity" : {
+      "id" : "noise2D.algorithm.OPEN_SIMPLEX_2.lacunarity",
+      "group" : "2D Noise / OPEN_SIMPLEX_2",
+      "label" : "Lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.OPEN_SIMPLEX_2.gain" : {
+      "id" : "noise2D.algorithm.OPEN_SIMPLEX_2.gain",
+      "group" : "2D Noise / OPEN_SIMPLEX_2",
+      "label" : "Gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.OPEN_SIMPLEX_2.pingPongStrength" : {
+      "id" : "noise2D.algorithm.OPEN_SIMPLEX_2.pingPongStrength",
+      "group" : "2D Noise / OPEN_SIMPLEX_2",
+      "label" : "Ping pong strength",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 0.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.PERLIN.frequency" : {
+      "id" : "noise2D.algorithm.PERLIN.frequency",
+      "group" : "2D Noise / PERLIN",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.PERLIN.octaves" : {
+      "id" : "noise2D.algorithm.PERLIN.octaves",
+      "group" : "2D Noise / PERLIN",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 3,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.PERLIN.fractal" : {
+      "id" : "noise2D.algorithm.PERLIN.fractal",
+      "group" : "2D Noise / PERLIN",
+      "label" : "Fractal index",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.PERLIN.lacunarity" : {
+      "id" : "noise2D.algorithm.PERLIN.lacunarity",
+      "group" : "2D Noise / PERLIN",
+      "label" : "Lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.PERLIN.gain" : {
+      "id" : "noise2D.algorithm.PERLIN.gain",
+      "group" : "2D Noise / PERLIN",
+      "label" : "Gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.PERLIN.pingPongStrength" : {
+      "id" : "noise2D.algorithm.PERLIN.pingPongStrength",
+      "group" : "2D Noise / PERLIN",
+      "label" : "Ping pong strength",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 0.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE.frequency" : {
+      "id" : "noise2D.algorithm.VALUE.frequency",
+      "group" : "2D Noise / VALUE",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE.octaves" : {
+      "id" : "noise2D.algorithm.VALUE.octaves",
+      "group" : "2D Noise / VALUE",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 3,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE.fractal" : {
+      "id" : "noise2D.algorithm.VALUE.fractal",
+      "group" : "2D Noise / VALUE",
+      "label" : "Fractal index",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE.lacunarity" : {
+      "id" : "noise2D.algorithm.VALUE.lacunarity",
+      "group" : "2D Noise / VALUE",
+      "label" : "Lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE.gain" : {
+      "id" : "noise2D.algorithm.VALUE.gain",
+      "group" : "2D Noise / VALUE",
+      "label" : "Gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE.pingPongStrength" : {
+      "id" : "noise2D.algorithm.VALUE.pingPongStrength",
+      "group" : "2D Noise / VALUE",
+      "label" : "Ping pong strength",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 0.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE_CUBIC.frequency" : {
+      "id" : "noise2D.algorithm.VALUE_CUBIC.frequency",
+      "group" : "2D Noise / VALUE_CUBIC",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE_CUBIC.octaves" : {
+      "id" : "noise2D.algorithm.VALUE_CUBIC.octaves",
+      "group" : "2D Noise / VALUE_CUBIC",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 3,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE_CUBIC.fractal" : {
+      "id" : "noise2D.algorithm.VALUE_CUBIC.fractal",
+      "group" : "2D Noise / VALUE_CUBIC",
+      "label" : "Fractal index",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE_CUBIC.lacunarity" : {
+      "id" : "noise2D.algorithm.VALUE_CUBIC.lacunarity",
+      "group" : "2D Noise / VALUE_CUBIC",
+      "label" : "Lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE_CUBIC.gain" : {
+      "id" : "noise2D.algorithm.VALUE_CUBIC.gain",
+      "group" : "2D Noise / VALUE_CUBIC",
+      "label" : "Gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.VALUE_CUBIC.pingPongStrength" : {
+      "id" : "noise2D.algorithm.VALUE_CUBIC.pingPongStrength",
+      "group" : "2D Noise / VALUE_CUBIC",
+      "label" : "Ping pong strength",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 0.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.CELLULAR.frequency" : {
+      "id" : "noise2D.algorithm.CELLULAR.frequency",
+      "group" : "2D Noise / CELLULAR",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.CELLULAR.octaves" : {
+      "id" : "noise2D.algorithm.CELLULAR.octaves",
+      "group" : "2D Noise / CELLULAR",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 3,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.CELLULAR.fractal" : {
+      "id" : "noise2D.algorithm.CELLULAR.fractal",
+      "group" : "2D Noise / CELLULAR",
+      "label" : "Fractal index",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.CELLULAR.lacunarity" : {
+      "id" : "noise2D.algorithm.CELLULAR.lacunarity",
+      "group" : "2D Noise / CELLULAR",
+      "label" : "Lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.CELLULAR.gain" : {
+      "id" : "noise2D.algorithm.CELLULAR.gain",
+      "group" : "2D Noise / CELLULAR",
+      "label" : "Gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.CELLULAR.pingPongStrength" : {
+      "id" : "noise2D.algorithm.CELLULAR.pingPongStrength",
+      "group" : "2D Noise / CELLULAR",
+      "label" : "Ping pong strength",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 0.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.CELLULAR.cellularDistance" : {
+      "id" : "noise2D.algorithm.CELLULAR.cellularDistance",
+      "group" : "2D Noise / CELLULAR",
+      "label" : "Distance index",
+      "kind" : "INTEGER",
+      "builtIn" : 1,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.CELLULAR.cellularReturn" : {
+      "id" : "noise2D.algorithm.CELLULAR.cellularReturn",
+      "group" : "2D Noise / CELLULAR",
+      "label" : "Return index",
+      "kind" : "INTEGER",
+      "builtIn" : 1,
+      "minimum" : 0.0,
+      "maximum" : 6.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.CELLULAR.jitter" : {
+      "id" : "noise2D.algorithm.CELLULAR.jitter",
+      "group" : "2D Noise / CELLULAR",
+      "label" : "Jitter",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.WHITE_HASH.frequency" : {
+      "id" : "noise2D.algorithm.WHITE_HASH.frequency",
+      "group" : "2D Noise / WHITE_HASH",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.CONSTANT.value" : {
+      "id" : "noise2D.algorithm.CONSTANT.value",
+      "group" : "2D Noise / CONSTANT",
+      "label" : "Constant value",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.SPHERE_SDF.radius" : {
+      "id" : "noise2D.algorithm.SPHERE_SDF.radius",
+      "group" : "2D Noise / SPHERE_SDF",
+      "label" : "Radius",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.BOX_SDF.extentX" : {
+      "id" : "noise2D.algorithm.BOX_SDF.extentX",
+      "group" : "2D Noise / BOX_SDF",
+      "label" : "Extent X",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise2D.algorithm.BOX_SDF.extentZ" : {
+      "id" : "noise2D.algorithm.BOX_SDF.extentZ",
+      "group" : "2D Noise / BOX_SDF",
+      "label" : "Extent Z",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm" : {
+      "id" : "noise3D.algorithm",
+      "group" : "3D Noise",
+      "label" : "New noise algorithm",
+      "kind" : "CHOICE",
+      "builtIn" : "OPEN_SIMPLEX_2",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "OPEN_SIMPLEX_2", "PERLIN", "VALUE", "VALUE_CUBIC", "CELLULAR", "WHITE_HASH", "CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF" ]
+    },
+    "noise3D.seedOffset" : {
+      "id" : "noise3D.seedOffset",
+      "group" : "3D Noise",
+      "label" : "New noise seed offset",
+      "kind" : "LONG",
+      "builtIn" : 0,
+      "minimum" : -9223372036854775808,
+      "maximum" : 9223372036854775807,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.OPEN_SIMPLEX_2.frequency" : {
+      "id" : "noise3D.algorithm.OPEN_SIMPLEX_2.frequency",
+      "group" : "3D Noise / OPEN_SIMPLEX_2",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.OPEN_SIMPLEX_2.octaves" : {
+      "id" : "noise3D.algorithm.OPEN_SIMPLEX_2.octaves",
+      "group" : "3D Noise / OPEN_SIMPLEX_2",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 3,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.OPEN_SIMPLEX_2.fractal" : {
+      "id" : "noise3D.algorithm.OPEN_SIMPLEX_2.fractal",
+      "group" : "3D Noise / OPEN_SIMPLEX_2",
+      "label" : "Fractal index",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.OPEN_SIMPLEX_2.lacunarity" : {
+      "id" : "noise3D.algorithm.OPEN_SIMPLEX_2.lacunarity",
+      "group" : "3D Noise / OPEN_SIMPLEX_2",
+      "label" : "Lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.OPEN_SIMPLEX_2.gain" : {
+      "id" : "noise3D.algorithm.OPEN_SIMPLEX_2.gain",
+      "group" : "3D Noise / OPEN_SIMPLEX_2",
+      "label" : "Gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.OPEN_SIMPLEX_2.pingPongStrength" : {
+      "id" : "noise3D.algorithm.OPEN_SIMPLEX_2.pingPongStrength",
+      "group" : "3D Noise / OPEN_SIMPLEX_2",
+      "label" : "Ping pong strength",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 0.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.PERLIN.frequency" : {
+      "id" : "noise3D.algorithm.PERLIN.frequency",
+      "group" : "3D Noise / PERLIN",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.PERLIN.octaves" : {
+      "id" : "noise3D.algorithm.PERLIN.octaves",
+      "group" : "3D Noise / PERLIN",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 3,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.PERLIN.fractal" : {
+      "id" : "noise3D.algorithm.PERLIN.fractal",
+      "group" : "3D Noise / PERLIN",
+      "label" : "Fractal index",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.PERLIN.lacunarity" : {
+      "id" : "noise3D.algorithm.PERLIN.lacunarity",
+      "group" : "3D Noise / PERLIN",
+      "label" : "Lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.PERLIN.gain" : {
+      "id" : "noise3D.algorithm.PERLIN.gain",
+      "group" : "3D Noise / PERLIN",
+      "label" : "Gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.PERLIN.pingPongStrength" : {
+      "id" : "noise3D.algorithm.PERLIN.pingPongStrength",
+      "group" : "3D Noise / PERLIN",
+      "label" : "Ping pong strength",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 0.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE.frequency" : {
+      "id" : "noise3D.algorithm.VALUE.frequency",
+      "group" : "3D Noise / VALUE",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE.octaves" : {
+      "id" : "noise3D.algorithm.VALUE.octaves",
+      "group" : "3D Noise / VALUE",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 3,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE.fractal" : {
+      "id" : "noise3D.algorithm.VALUE.fractal",
+      "group" : "3D Noise / VALUE",
+      "label" : "Fractal index",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE.lacunarity" : {
+      "id" : "noise3D.algorithm.VALUE.lacunarity",
+      "group" : "3D Noise / VALUE",
+      "label" : "Lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE.gain" : {
+      "id" : "noise3D.algorithm.VALUE.gain",
+      "group" : "3D Noise / VALUE",
+      "label" : "Gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE.pingPongStrength" : {
+      "id" : "noise3D.algorithm.VALUE.pingPongStrength",
+      "group" : "3D Noise / VALUE",
+      "label" : "Ping pong strength",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 0.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE_CUBIC.frequency" : {
+      "id" : "noise3D.algorithm.VALUE_CUBIC.frequency",
+      "group" : "3D Noise / VALUE_CUBIC",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE_CUBIC.octaves" : {
+      "id" : "noise3D.algorithm.VALUE_CUBIC.octaves",
+      "group" : "3D Noise / VALUE_CUBIC",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 3,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE_CUBIC.fractal" : {
+      "id" : "noise3D.algorithm.VALUE_CUBIC.fractal",
+      "group" : "3D Noise / VALUE_CUBIC",
+      "label" : "Fractal index",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE_CUBIC.lacunarity" : {
+      "id" : "noise3D.algorithm.VALUE_CUBIC.lacunarity",
+      "group" : "3D Noise / VALUE_CUBIC",
+      "label" : "Lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE_CUBIC.gain" : {
+      "id" : "noise3D.algorithm.VALUE_CUBIC.gain",
+      "group" : "3D Noise / VALUE_CUBIC",
+      "label" : "Gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.VALUE_CUBIC.pingPongStrength" : {
+      "id" : "noise3D.algorithm.VALUE_CUBIC.pingPongStrength",
+      "group" : "3D Noise / VALUE_CUBIC",
+      "label" : "Ping pong strength",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 0.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.CELLULAR.frequency" : {
+      "id" : "noise3D.algorithm.CELLULAR.frequency",
+      "group" : "3D Noise / CELLULAR",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.CELLULAR.octaves" : {
+      "id" : "noise3D.algorithm.CELLULAR.octaves",
+      "group" : "3D Noise / CELLULAR",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 3,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.CELLULAR.fractal" : {
+      "id" : "noise3D.algorithm.CELLULAR.fractal",
+      "group" : "3D Noise / CELLULAR",
+      "label" : "Fractal index",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.CELLULAR.lacunarity" : {
+      "id" : "noise3D.algorithm.CELLULAR.lacunarity",
+      "group" : "3D Noise / CELLULAR",
+      "label" : "Lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.CELLULAR.gain" : {
+      "id" : "noise3D.algorithm.CELLULAR.gain",
+      "group" : "3D Noise / CELLULAR",
+      "label" : "Gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.CELLULAR.pingPongStrength" : {
+      "id" : "noise3D.algorithm.CELLULAR.pingPongStrength",
+      "group" : "3D Noise / CELLULAR",
+      "label" : "Ping pong strength",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 0.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.CELLULAR.cellularDistance" : {
+      "id" : "noise3D.algorithm.CELLULAR.cellularDistance",
+      "group" : "3D Noise / CELLULAR",
+      "label" : "Distance index",
+      "kind" : "INTEGER",
+      "builtIn" : 1,
+      "minimum" : 0.0,
+      "maximum" : 3.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.CELLULAR.cellularReturn" : {
+      "id" : "noise3D.algorithm.CELLULAR.cellularReturn",
+      "group" : "3D Noise / CELLULAR",
+      "label" : "Return index",
+      "kind" : "INTEGER",
+      "builtIn" : 1,
+      "minimum" : 0.0,
+      "maximum" : 6.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.CELLULAR.jitter" : {
+      "id" : "noise3D.algorithm.CELLULAR.jitter",
+      "group" : "3D Noise / CELLULAR",
+      "label" : "Jitter",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.WHITE_HASH.frequency" : {
+      "id" : "noise3D.algorithm.WHITE_HASH.frequency",
+      "group" : "3D Noise / WHITE_HASH",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.CONSTANT.value" : {
+      "id" : "noise3D.algorithm.CONSTANT.value",
+      "group" : "3D Noise / CONSTANT",
+      "label" : "Constant value",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.SPHERE_SDF.radius" : {
+      "id" : "noise3D.algorithm.SPHERE_SDF.radius",
+      "group" : "3D Noise / SPHERE_SDF",
+      "label" : "Radius",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.BOX_SDF.extentX" : {
+      "id" : "noise3D.algorithm.BOX_SDF.extentX",
+      "group" : "3D Noise / BOX_SDF",
+      "label" : "Extent X",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.BOX_SDF.extentY" : {
+      "id" : "noise3D.algorithm.BOX_SDF.extentY",
+      "group" : "3D Noise / BOX_SDF",
+      "label" : "Extent Y",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "noise3D.algorithm.BOX_SDF.extentZ" : {
+      "id" : "noise3D.algorithm.BOX_SDF.extentZ",
+      "group" : "3D Noise / BOX_SDF",
+      "label" : "Extent Z",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.ADD.input.b" : {
+      "id" : "processing.ADD.input.b",
+      "group" : "Processing / ADD",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SUBTRACT.input.b" : {
+      "id" : "processing.SUBTRACT.input.b",
+      "group" : "Processing / SUBTRACT",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.MULTIPLY.input.b" : {
+      "id" : "processing.MULTIPLY.input.b",
+      "group" : "Processing / MULTIPLY",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.DIVIDE.input.b" : {
+      "id" : "processing.DIVIDE.input.b",
+      "group" : "Processing / DIVIDE",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.POWER.input.b" : {
+      "id" : "processing.POWER.input.b",
+      "group" : "Processing / POWER",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.MODULO.input.b" : {
+      "id" : "processing.MODULO.input.b",
+      "group" : "Processing / MODULO",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.MIN.input.b" : {
+      "id" : "processing.MIN.input.b",
+      "group" : "Processing / MIN",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.MAX.input.b" : {
+      "id" : "processing.MAX.input.b",
+      "group" : "Processing / MAX",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.LESS.input.b" : {
+      "id" : "processing.LESS.input.b",
+      "group" : "Processing / LESS",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.LESS_EQUAL.input.b" : {
+      "id" : "processing.LESS_EQUAL.input.b",
+      "group" : "Processing / LESS_EQUAL",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.GREATER.input.b" : {
+      "id" : "processing.GREATER.input.b",
+      "group" : "Processing / GREATER",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.GREATER_EQUAL.input.b" : {
+      "id" : "processing.GREATER_EQUAL.input.b",
+      "group" : "Processing / GREATER_EQUAL",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.EQUAL.input.b" : {
+      "id" : "processing.EQUAL.input.b",
+      "group" : "Processing / EQUAL",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.NOT_EQUAL.input.b" : {
+      "id" : "processing.NOT_EQUAL.input.b",
+      "group" : "Processing / NOT_EQUAL",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.AND.input.a" : {
+      "id" : "processing.AND.input.a",
+      "group" : "Processing / AND",
+      "label" : "Literal input a",
+      "kind" : "BOOLEAN",
+      "builtIn" : false,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.AND.input.b" : {
+      "id" : "processing.AND.input.b",
+      "group" : "Processing / AND",
+      "label" : "Literal input b",
+      "kind" : "BOOLEAN",
+      "builtIn" : false,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.OR.input.a" : {
+      "id" : "processing.OR.input.a",
+      "group" : "Processing / OR",
+      "label" : "Literal input a",
+      "kind" : "BOOLEAN",
+      "builtIn" : false,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.OR.input.b" : {
+      "id" : "processing.OR.input.b",
+      "group" : "Processing / OR",
+      "label" : "Literal input b",
+      "kind" : "BOOLEAN",
+      "builtIn" : false,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.NOT.input.a" : {
+      "id" : "processing.NOT.input.a",
+      "group" : "Processing / NOT",
+      "label" : "Literal input a",
+      "kind" : "BOOLEAN",
+      "builtIn" : false,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SELECT.input.condition" : {
+      "id" : "processing.SELECT.input.condition",
+      "group" : "Processing / SELECT",
+      "label" : "Literal input condition",
+      "kind" : "BOOLEAN",
+      "builtIn" : false,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SELECT.input.true" : {
+      "id" : "processing.SELECT.input.true",
+      "group" : "Processing / SELECT",
+      "label" : "Literal input true",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SELECT.input.false" : {
+      "id" : "processing.SELECT.input.false",
+      "group" : "Processing / SELECT",
+      "label" : "Literal input false",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COMPOSE3.input.x" : {
+      "id" : "processing.COMPOSE3.input.x",
+      "group" : "Processing / COMPOSE3",
+      "label" : "Literal input x",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COMPOSE3.input.y" : {
+      "id" : "processing.COMPOSE3.input.y",
+      "group" : "Processing / COMPOSE3",
+      "label" : "Literal input y",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COMPOSE3.input.z" : {
+      "id" : "processing.COMPOSE3.input.z",
+      "group" : "Processing / COMPOSE3",
+      "label" : "Literal input z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COMPOSE2.input.x" : {
+      "id" : "processing.COMPOSE2.input.x",
+      "group" : "Processing / COMPOSE2",
+      "label" : "Literal input x",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COMPOSE2.input.z" : {
+      "id" : "processing.COMPOSE2.input.z",
+      "group" : "Processing / COMPOSE2",
+      "label" : "Literal input z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.DOT.input.a" : {
+      "id" : "processing.DOT.input.a",
+      "group" : "Processing / DOT",
+      "label" : "Literal input a",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.DOT.input.b" : {
+      "id" : "processing.DOT.input.b",
+      "group" : "Processing / DOT",
+      "label" : "Literal input b",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.CROSS.input.a" : {
+      "id" : "processing.CROSS.input.a",
+      "group" : "Processing / CROSS",
+      "label" : "Literal input a",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.CROSS.input.b" : {
+      "id" : "processing.CROSS.input.b",
+      "group" : "Processing / CROSS",
+      "label" : "Literal input b",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.LENGTH.input.a" : {
+      "id" : "processing.LENGTH.input.a",
+      "group" : "Processing / LENGTH",
+      "label" : "Literal input a",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COMPONENT.input.a" : {
+      "id" : "processing.COMPONENT.input.a",
+      "group" : "Processing / COMPONENT",
+      "label" : "Literal input a",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.NORMALIZE.input.a" : {
+      "id" : "processing.NORMALIZE.input.a",
+      "group" : "Processing / NORMALIZE",
+      "label" : "Literal input a",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.BOOLEAN_TO_SCALAR.input.a" : {
+      "id" : "processing.BOOLEAN_TO_SCALAR.input.a",
+      "group" : "Processing / BOOLEAN_TO_SCALAR",
+      "label" : "Literal input a",
+      "kind" : "BOOLEAN",
+      "builtIn" : false,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.UNION.input.b" : {
+      "id" : "processing.UNION.input.b",
+      "group" : "Processing / UNION",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.INTERSECTION.input.b" : {
+      "id" : "processing.INTERSECTION.input.b",
+      "group" : "Processing / INTERSECTION",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SUBTRACTION.input.b" : {
+      "id" : "processing.SUBTRACTION.input.b",
+      "group" : "Processing / SUBTRACTION",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SMOOTH_UNION.input.b" : {
+      "id" : "processing.SMOOTH_UNION.input.b",
+      "group" : "Processing / SMOOTH_UNION",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COORDINATES2.input.x" : {
+      "id" : "processing.COORDINATES2.input.x",
+      "group" : "Processing / COORDINATES2",
+      "label" : "Literal input x",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COORDINATES2.input.z" : {
+      "id" : "processing.COORDINATES2.input.z",
+      "group" : "Processing / COORDINATES2",
+      "label" : "Literal input z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COORDINATES3.input.x" : {
+      "id" : "processing.COORDINATES3.input.x",
+      "group" : "Processing / COORDINATES3",
+      "label" : "Literal input x",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COORDINATES3.input.y" : {
+      "id" : "processing.COORDINATES3.input.y",
+      "group" : "Processing / COORDINATES3",
+      "label" : "Literal input y",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COORDINATES3.input.z" : {
+      "id" : "processing.COORDINATES3.input.z",
+      "group" : "Processing / COORDINATES3",
+      "label" : "Literal input z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.PROJECT_VECTOR.input.a" : {
+      "id" : "processing.PROJECT_VECTOR.input.a",
+      "group" : "Processing / PROJECT_VECTOR",
+      "label" : "Literal input a",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.EXPAND_VECTOR.input.a" : {
+      "id" : "processing.EXPAND_VECTOR.input.a",
+      "group" : "Processing / EXPAND_VECTOR",
+      "label" : "Literal input a",
+      "kind" : "VECTOR2",
+      "builtIn" : [ 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.EXPAND_VECTOR.input.b" : {
+      "id" : "processing.EXPAND_VECTOR.input.b",
+      "group" : "Processing / EXPAND_VECTOR",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COORDINATES_TO_VECTOR.input.a" : {
+      "id" : "processing.COORDINATES_TO_VECTOR.input.a",
+      "group" : "Processing / COORDINATES_TO_VECTOR",
+      "label" : "Literal input a",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.VECTOR_ROTATE.input.a" : {
+      "id" : "processing.VECTOR_ROTATE.input.a",
+      "group" : "Processing / VECTOR_ROTATE",
+      "label" : "Literal input a",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.VECTOR_TO_COORDINATES.input.a" : {
+      "id" : "processing.VECTOR_TO_COORDINATES.input.a",
+      "group" : "Processing / VECTOR_TO_COORDINATES",
+      "label" : "Literal input a",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.PROJECT_COORDINATES.input.a" : {
+      "id" : "processing.PROJECT_COORDINATES.input.a",
+      "group" : "Processing / PROJECT_COORDINATES",
+      "label" : "Literal input a",
+      "kind" : "VECTOR3",
+      "builtIn" : [ 0.0, 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.EXPAND_COORDINATES.input.a" : {
+      "id" : "processing.EXPAND_COORDINATES.input.a",
+      "group" : "Processing / EXPAND_COORDINATES",
+      "label" : "Literal input a",
+      "kind" : "VECTOR2",
+      "builtIn" : [ 0.0, 0.0 ],
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.EXPAND_COORDINATES.input.b" : {
+      "id" : "processing.EXPAND_COORDINATES.input.b",
+      "group" : "Processing / EXPAND_COORDINATES",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.CONSTANT.parameter.value" : {
+      "id" : "processing.CONSTANT.parameter.value",
+      "group" : "Processing / CONSTANT",
+      "label" : "value",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.REMAP.parameter.inputMin" : {
+      "id" : "processing.REMAP.parameter.inputMin",
+      "group" : "Processing / REMAP",
+      "label" : "inputMin",
+      "kind" : "NUMBER",
+      "builtIn" : -1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.REMAP.parameter.inputMax" : {
+      "id" : "processing.REMAP.parameter.inputMax",
+      "group" : "Processing / REMAP",
+      "label" : "inputMax",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.REMAP.parameter.outputMin" : {
+      "id" : "processing.REMAP.parameter.outputMin",
+      "group" : "Processing / REMAP",
+      "label" : "outputMin",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.REMAP.parameter.outputMax" : {
+      "id" : "processing.REMAP.parameter.outputMax",
+      "group" : "Processing / REMAP",
+      "label" : "outputMax",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.REMAP.parameter.clamp" : {
+      "id" : "processing.REMAP.parameter.clamp",
+      "group" : "Processing / REMAP",
+      "label" : "Clamp output",
+      "kind" : "BOOLEAN",
+      "builtIn" : false,
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ ]
+    },
+    "processing.CLAMP.parameter.min" : {
+      "id" : "processing.CLAMP.parameter.min",
+      "group" : "Processing / CLAMP",
+      "label" : "min",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.CLAMP.parameter.max" : {
+      "id" : "processing.CLAMP.parameter.max",
+      "group" : "Processing / CLAMP",
+      "label" : "max",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.TERRACE.parameter.levels" : {
+      "id" : "processing.TERRACE.parameter.levels",
+      "group" : "Processing / TERRACE",
+      "label" : "Levels",
+      "kind" : "INTEGER",
+      "builtIn" : 8,
+      "minimum" : 1.0,
+      "maximum" : 65536.0,
+      "options" : [ ]
+    },
+    "processing.TERRACE.parameter.transition" : {
+      "id" : "processing.TERRACE.parameter.transition",
+      "group" : "Processing / TERRACE",
+      "label" : "transition",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "processing.FALLOFF.parameter.extent" : {
+      "id" : "processing.FALLOFF.parameter.extent",
+      "group" : "Processing / FALLOFF",
+      "label" : "extent",
+      "kind" : "NUMBER",
+      "builtIn" : 64.0,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.FALLOFF.parameter.centerX" : {
+      "id" : "processing.FALLOFF.parameter.centerX",
+      "group" : "Processing / FALLOFF",
+      "label" : "centerX",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.FALLOFF.parameter.centerY" : {
+      "id" : "processing.FALLOFF.parameter.centerY",
+      "group" : "Processing / FALLOFF",
+      "label" : "centerY",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.FALLOFF.parameter.centerZ" : {
+      "id" : "processing.FALLOFF.parameter.centerZ",
+      "group" : "Processing / FALLOFF",
+      "label" : "centerZ",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SPHERE.parameter.centerX" : {
+      "id" : "processing.SPHERE.parameter.centerX",
+      "group" : "Processing / SPHERE",
+      "label" : "centerX",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SPHERE.parameter.centerY" : {
+      "id" : "processing.SPHERE.parameter.centerY",
+      "group" : "Processing / SPHERE",
+      "label" : "centerY",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SPHERE.parameter.centerZ" : {
+      "id" : "processing.SPHERE.parameter.centerZ",
+      "group" : "Processing / SPHERE",
+      "label" : "centerZ",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SPHERE.parameter.radius" : {
+      "id" : "processing.SPHERE.parameter.radius",
+      "group" : "Processing / SPHERE",
+      "label" : "radius",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.BOX.parameter.extentX" : {
+      "id" : "processing.BOX.parameter.extentX",
+      "group" : "Processing / BOX",
+      "label" : "extentX",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.BOX.parameter.extentY" : {
+      "id" : "processing.BOX.parameter.extentY",
+      "group" : "Processing / BOX",
+      "label" : "extentY",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.BOX.parameter.extentZ" : {
+      "id" : "processing.BOX.parameter.extentZ",
+      "group" : "Processing / BOX",
+      "label" : "extentZ",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SMOOTH_UNION.parameter.smoothness" : {
+      "id" : "processing.SMOOTH_UNION.parameter.smoothness",
+      "group" : "Processing / SMOOTH_UNION",
+      "label" : "smoothness",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.COMPONENT.parameter.component" : {
+      "id" : "processing.COMPONENT.parameter.component",
+      "group" : "Processing / COMPONENT",
+      "label" : "Component index",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : 0.0,
+      "maximum" : 2.0,
+      "options" : [ ]
+    },
+    "processing.VECTOR_ROTATE.parameter.angle" : {
+      "id" : "processing.VECTOR_ROTATE.parameter.angle",
+      "group" : "Processing / VECTOR_ROTATE",
+      "label" : "angle",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -360000.0,
+      "maximum" : 360000.0,
+      "options" : [ ]
+    },
+    "processing.VECTOR_ROTATE.parameter.axis" : {
+      "id" : "processing.VECTOR_ROTATE.parameter.axis",
+      "group" : "Processing / VECTOR_ROTATE",
+      "label" : "Rotation axis",
+      "kind" : "CHOICE",
+      "builtIn" : "x",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "x", "y", "z" ]
+    },
+    "processing.PROJECT_VECTOR.parameter.axes" : {
+      "id" : "processing.PROJECT_VECTOR.parameter.axes",
+      "group" : "Processing / PROJECT_VECTOR",
+      "label" : "Retained axes",
+      "kind" : "CHOICE",
+      "builtIn" : "XZ",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "XZ", "XY", "YZ" ]
+    },
+    "processing.PROJECT_COORDINATES.parameter.axes" : {
+      "id" : "processing.PROJECT_COORDINATES.parameter.axes",
+      "group" : "Processing / PROJECT_COORDINATES",
+      "label" : "Retained axes",
+      "kind" : "CHOICE",
+      "builtIn" : "XZ",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "XZ", "XY", "YZ" ]
+    },
+    "processing.EXPAND_VECTOR.parameter.axes" : {
+      "id" : "processing.EXPAND_VECTOR.parameter.axes",
+      "group" : "Processing / EXPAND_VECTOR",
+      "label" : "Retained axes",
+      "kind" : "CHOICE",
+      "builtIn" : "XZ",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "XZ", "XY", "YZ" ]
+    },
+    "processing.EXPAND_COORDINATES.parameter.axes" : {
+      "id" : "processing.EXPAND_COORDINATES.parameter.axes",
+      "group" : "Processing / EXPAND_COORDINATES",
+      "label" : "Retained axes",
+      "kind" : "CHOICE",
+      "builtIn" : "XZ",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "XZ", "XY", "YZ" ]
+    },
+    "processing.EXPRESSION.parameter.expression" : {
+      "id" : "processing.EXPRESSION.parameter.expression",
+      "group" : "Processing / EXPRESSION",
+      "label" : "Expression",
+      "kind" : "TEXT",
+      "builtIn" : "source",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ ]
+    },
+    "processing.FBM.parameter.octaves" : {
+      "id" : "processing.FBM.parameter.octaves",
+      "group" : "Processing / FBM",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 4,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "processing.FBM.parameter.frequency" : {
+      "id" : "processing.FBM.parameter.frequency",
+      "group" : "Processing / FBM",
+      "label" : "frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.FBM.parameter.lacunarity" : {
+      "id" : "processing.FBM.parameter.lacunarity",
+      "group" : "Processing / FBM",
+      "label" : "lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "processing.FBM.parameter.gain" : {
+      "id" : "processing.FBM.parameter.gain",
+      "group" : "Processing / FBM",
+      "label" : "gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "processing.RIDGED.parameter.octaves" : {
+      "id" : "processing.RIDGED.parameter.octaves",
+      "group" : "Processing / RIDGED",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 4,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "processing.RIDGED.parameter.frequency" : {
+      "id" : "processing.RIDGED.parameter.frequency",
+      "group" : "Processing / RIDGED",
+      "label" : "frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.RIDGED.parameter.lacunarity" : {
+      "id" : "processing.RIDGED.parameter.lacunarity",
+      "group" : "Processing / RIDGED",
+      "label" : "lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "processing.RIDGED.parameter.gain" : {
+      "id" : "processing.RIDGED.parameter.gain",
+      "group" : "Processing / RIDGED",
+      "label" : "gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "processing.BILLOW.parameter.octaves" : {
+      "id" : "processing.BILLOW.parameter.octaves",
+      "group" : "Processing / BILLOW",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 4,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "processing.BILLOW.parameter.frequency" : {
+      "id" : "processing.BILLOW.parameter.frequency",
+      "group" : "Processing / BILLOW",
+      "label" : "frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.BILLOW.parameter.lacunarity" : {
+      "id" : "processing.BILLOW.parameter.lacunarity",
+      "group" : "Processing / BILLOW",
+      "label" : "lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "processing.BILLOW.parameter.gain" : {
+      "id" : "processing.BILLOW.parameter.gain",
+      "group" : "Processing / BILLOW",
+      "label" : "gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "processing.PING_PONG.parameter.octaves" : {
+      "id" : "processing.PING_PONG.parameter.octaves",
+      "group" : "Processing / PING_PONG",
+      "label" : "Octaves",
+      "kind" : "INTEGER",
+      "builtIn" : 4,
+      "minimum" : 1.0,
+      "maximum" : 16.0,
+      "options" : [ ]
+    },
+    "processing.PING_PONG.parameter.frequency" : {
+      "id" : "processing.PING_PONG.parameter.frequency",
+      "group" : "Processing / PING_PONG",
+      "label" : "frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.PING_PONG.parameter.lacunarity" : {
+      "id" : "processing.PING_PONG.parameter.lacunarity",
+      "group" : "Processing / PING_PONG",
+      "label" : "lacunarity",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 1.0,
+      "maximum" : 8.0,
+      "options" : [ ]
+    },
+    "processing.PING_PONG.parameter.gain" : {
+      "id" : "processing.PING_PONG.parameter.gain",
+      "group" : "Processing / PING_PONG",
+      "label" : "gain",
+      "kind" : "NUMBER",
+      "builtIn" : 0.5,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "processing.DERIVATIVE.parameter.spacing" : {
+      "id" : "processing.DERIVATIVE.parameter.spacing",
+      "group" : "Processing / DERIVATIVE",
+      "label" : "spacing",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SMOOTH_FILTER.parameter.spacing" : {
+      "id" : "processing.SMOOTH_FILTER.parameter.spacing",
+      "group" : "Processing / SMOOTH_FILTER",
+      "label" : "spacing",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SMOOTH_FILTER.parameter.radius" : {
+      "id" : "processing.SMOOTH_FILTER.parameter.radius",
+      "group" : "Processing / SMOOTH_FILTER",
+      "label" : "Radius",
+      "kind" : "INTEGER",
+      "builtIn" : 1,
+      "minimum" : 0.0,
+      "maximum" : 4.0,
+      "options" : [ ]
+    },
+    "processing.SMOOTH_FILTER.parameter.strength" : {
+      "id" : "processing.SMOOTH_FILTER.parameter.strength",
+      "group" : "Processing / SMOOTH_FILTER",
+      "label" : "strength",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "processing.SMOOTH_FILTER.parameter.kernel" : {
+      "id" : "processing.SMOOTH_FILTER.parameter.kernel",
+      "group" : "Processing / SMOOTH_FILTER",
+      "label" : "Kernel",
+      "kind" : "CHOICE",
+      "builtIn" : "BOX",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "BOX", "GAUSSIAN" ]
+    },
+    "processing.WARP_SAMPLE.parameter.amplitude" : {
+      "id" : "processing.WARP_SAMPLE.parameter.amplitude",
+      "group" : "Processing / WARP_SAMPLE",
+      "label" : "amplitude",
+      "kind" : "NUMBER",
+      "builtIn" : 8.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.WARP_SAMPLE.parameter.frequency" : {
+      "id" : "processing.WARP_SAMPLE.parameter.frequency",
+      "group" : "Processing / WARP_SAMPLE",
+      "label" : "frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.WARP_SAMPLE.parameter.seedOffset" : {
+      "id" : "processing.WARP_SAMPLE.parameter.seedOffset",
+      "group" : "Processing / WARP_SAMPLE",
+      "label" : "Seed offset",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : -2.147483648E9,
+      "maximum" : 2.147483647E9,
+      "options" : [ ]
+    },
+    "processing.OFFSET_SAMPLE.parameter.x" : {
+      "id" : "processing.OFFSET_SAMPLE.parameter.x",
+      "group" : "Processing / OFFSET_SAMPLE",
+      "label" : "x",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.OFFSET_SAMPLE.parameter.y" : {
+      "id" : "processing.OFFSET_SAMPLE.parameter.y",
+      "group" : "Processing / OFFSET_SAMPLE",
+      "label" : "y",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.OFFSET_SAMPLE.parameter.z" : {
+      "id" : "processing.OFFSET_SAMPLE.parameter.z",
+      "group" : "Processing / OFFSET_SAMPLE",
+      "label" : "z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform2D.TRANSLATE.x" : {
+      "id" : "transform2D.TRANSLATE.x",
+      "group" : "2D Transform / TRANSLATE",
+      "label" : "X",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform2D.TRANSLATE.z" : {
+      "id" : "transform2D.TRANSLATE.z",
+      "group" : "2D Transform / TRANSLATE",
+      "label" : "Z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform2D.SCALE.x" : {
+      "id" : "transform2D.SCALE.x",
+      "group" : "2D Transform / SCALE",
+      "label" : "X",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform2D.SCALE.z" : {
+      "id" : "transform2D.SCALE.z",
+      "group" : "2D Transform / SCALE",
+      "label" : "Z",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform2D.SCALE.pivotX" : {
+      "id" : "transform2D.SCALE.pivotX",
+      "group" : "2D Transform / SCALE",
+      "label" : "Pivot X",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform2D.SCALE.pivotZ" : {
+      "id" : "transform2D.SCALE.pivotZ",
+      "group" : "2D Transform / SCALE",
+      "label" : "Pivot Z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform2D.ROTATE.angle" : {
+      "id" : "transform2D.ROTATE.angle",
+      "group" : "2D Transform / ROTATE",
+      "label" : "angle",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -360000.0,
+      "maximum" : 360000.0,
+      "options" : [ ]
+    },
+    "transform2D.ROTATE.pivotX" : {
+      "id" : "transform2D.ROTATE.pivotX",
+      "group" : "2D Transform / ROTATE",
+      "label" : "Pivot X",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform2D.ROTATE.pivotZ" : {
+      "id" : "transform2D.ROTATE.pivotZ",
+      "group" : "2D Transform / ROTATE",
+      "label" : "Pivot Z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform2D.DOMAIN_WARP.amplitude" : {
+      "id" : "transform2D.DOMAIN_WARP.amplitude",
+      "group" : "2D Transform / DOMAIN_WARP",
+      "label" : "Amplitude",
+      "kind" : "NUMBER",
+      "builtIn" : 8.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform2D.DOMAIN_WARP.frequency" : {
+      "id" : "transform2D.DOMAIN_WARP.frequency",
+      "group" : "2D Transform / DOMAIN_WARP",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform2D.DOMAIN_WARP.seedOffset" : {
+      "id" : "transform2D.DOMAIN_WARP.seedOffset",
+      "group" : "2D Transform / DOMAIN_WARP",
+      "label" : "Seed offset",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : -2.147483648E9,
+      "maximum" : 2.147483647E9,
+      "options" : [ ]
+    },
+    "transform3D.TRANSLATE.x" : {
+      "id" : "transform3D.TRANSLATE.x",
+      "group" : "3D Transform / TRANSLATE",
+      "label" : "X",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.TRANSLATE.y" : {
+      "id" : "transform3D.TRANSLATE.y",
+      "group" : "3D Transform / TRANSLATE",
+      "label" : "Y",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.TRANSLATE.z" : {
+      "id" : "transform3D.TRANSLATE.z",
+      "group" : "3D Transform / TRANSLATE",
+      "label" : "Z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.SCALE.x" : {
+      "id" : "transform3D.SCALE.x",
+      "group" : "3D Transform / SCALE",
+      "label" : "X",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.SCALE.y" : {
+      "id" : "transform3D.SCALE.y",
+      "group" : "3D Transform / SCALE",
+      "label" : "Y",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.SCALE.z" : {
+      "id" : "transform3D.SCALE.z",
+      "group" : "3D Transform / SCALE",
+      "label" : "Z",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.SCALE.pivotX" : {
+      "id" : "transform3D.SCALE.pivotX",
+      "group" : "3D Transform / SCALE",
+      "label" : "Pivot X",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.SCALE.pivotY" : {
+      "id" : "transform3D.SCALE.pivotY",
+      "group" : "3D Transform / SCALE",
+      "label" : "Pivot Y",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.SCALE.pivotZ" : {
+      "id" : "transform3D.SCALE.pivotZ",
+      "group" : "3D Transform / SCALE",
+      "label" : "Pivot Z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.ROTATE.angleX" : {
+      "id" : "transform3D.ROTATE.angleX",
+      "group" : "3D Transform / ROTATE",
+      "label" : "angleX",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -360000.0,
+      "maximum" : 360000.0,
+      "options" : [ ]
+    },
+    "transform3D.ROTATE.angleY" : {
+      "id" : "transform3D.ROTATE.angleY",
+      "group" : "3D Transform / ROTATE",
+      "label" : "angleY",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -360000.0,
+      "maximum" : 360000.0,
+      "options" : [ ]
+    },
+    "transform3D.ROTATE.angleZ" : {
+      "id" : "transform3D.ROTATE.angleZ",
+      "group" : "3D Transform / ROTATE",
+      "label" : "angleZ",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -360000.0,
+      "maximum" : 360000.0,
+      "options" : [ ]
+    },
+    "transform3D.ROTATE.rotationOrder" : {
+      "id" : "transform3D.ROTATE.rotationOrder",
+      "group" : "3D Transform / ROTATE",
+      "label" : "Rotation order",
+      "kind" : "CHOICE",
+      "builtIn" : "XYZ",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX" ]
+    },
+    "transform3D.ROTATE.pivotX" : {
+      "id" : "transform3D.ROTATE.pivotX",
+      "group" : "3D Transform / ROTATE",
+      "label" : "Pivot X",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.ROTATE.pivotY" : {
+      "id" : "transform3D.ROTATE.pivotY",
+      "group" : "3D Transform / ROTATE",
+      "label" : "Pivot Y",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.ROTATE.pivotZ" : {
+      "id" : "transform3D.ROTATE.pivotZ",
+      "group" : "3D Transform / ROTATE",
+      "label" : "Pivot Z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.DOMAIN_WARP.amplitude" : {
+      "id" : "transform3D.DOMAIN_WARP.amplitude",
+      "group" : "3D Transform / DOMAIN_WARP",
+      "label" : "Amplitude",
+      "kind" : "NUMBER",
+      "builtIn" : 8.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.DOMAIN_WARP.frequency" : {
+      "id" : "transform3D.DOMAIN_WARP.frequency",
+      "group" : "3D Transform / DOMAIN_WARP",
+      "label" : "Frequency",
+      "kind" : "NUMBER",
+      "builtIn" : 0.01,
+      "minimum" : 1.0E-9,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "transform3D.DOMAIN_WARP.seedOffset" : {
+      "id" : "transform3D.DOMAIN_WARP.seedOffset",
+      "group" : "3D Transform / DOMAIN_WARP",
+      "label" : "Seed offset",
+      "kind" : "INTEGER",
+      "builtIn" : 0,
+      "minimum" : -2.147483648E9,
+      "maximum" : 2.147483647E9,
+      "options" : [ ]
+    },
+    "voxel.color.r" : {
+      "id" : "voxel.color.r",
+      "group" : "Voxel Type",
+      "label" : "Color R",
+      "kind" : "INTEGER",
+      "builtIn" : 200,
+      "minimum" : 0.0,
+      "maximum" : 255.0,
+      "options" : [ ]
+    },
+    "voxel.color.g" : {
+      "id" : "voxel.color.g",
+      "group" : "Voxel Type",
+      "label" : "Color G",
+      "kind" : "INTEGER",
+      "builtIn" : 200,
+      "minimum" : 0.0,
+      "maximum" : 255.0,
+      "options" : [ ]
+    },
+    "voxel.color.b" : {
+      "id" : "voxel.color.b",
+      "group" : "Voxel Type",
+      "label" : "Color B",
+      "kind" : "INTEGER",
+      "builtIn" : 200,
+      "minimum" : 0.0,
+      "maximum" : 255.0,
+      "options" : [ ]
+    },
+    "curve.min" : {
+      "id" : "curve.min",
+      "group" : "Curve",
+      "label" : "min",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "curve.max" : {
+      "id" : "curve.max",
+      "group" : "Curve",
+      "label" : "max",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "curve.startValue" : {
+      "id" : "curve.startValue",
+      "group" : "Curve",
+      "label" : "startValue",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "curve.endValue" : {
+      "id" : "curve.endValue",
+      "group" : "Curve",
+      "label" : "endValue",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "curve.displayMin" : {
+      "id" : "curve.displayMin",
+      "group" : "Curve",
+      "label" : "displayMin",
+      "kind" : "NUMBER",
+      "builtIn" : -0.2,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "curve.displayMax" : {
+      "id" : "curve.displayMax",
+      "group" : "Curve",
+      "label" : "displayMax",
+      "kind" : "NUMBER",
+      "builtIn" : 1.2,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "curve.interpolation" : {
+      "id" : "curve.interpolation",
+      "group" : "Curve",
+      "label" : "Interpolation",
+      "kind" : "CHOICE",
+      "builtIn" : "LINEAR",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "STEP", "LINEAR", "SMOOTH", "BEZIER" ]
+    },
+    "curve.outsideDomain" : {
+      "id" : "curve.outsideDomain",
+      "group" : "Curve",
+      "label" : "Outside domain",
+      "kind" : "CHOICE",
+      "builtIn" : "CLAMP",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "CLAMP", "EXTEND", "REPEAT", "MIRROR" ]
+    }
+  },
+  "scope" : "Editor-created items only; existing definitions, loading, copying, imports and engine evaluation do not consult these defaults.",
+  "registryVersion" : 1
+}
