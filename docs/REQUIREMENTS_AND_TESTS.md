@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 56 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
+Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 60 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -33,7 +33,7 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 | A25 backpressure | PASS | Consumer future holds max-in-flight capacity; bounded scheduling assertion |
 | A26 failures/closure | PARTIAL | Generation and delivery CONTINUE/FAIL_FAST tested, plus context isolation; overload stress remains |
 | A27 2D viewport | PARTIAL | Engine image sampling and modes implemented; tile cache/UI acceptance remains |
-| A28 3D viewport | PARTIAL | Threshold, marching tetrahedra, points, translucent points, Y slice; full volume/axes/streaming remains |
+| A28 3D viewport | PARTIAL | Threshold, marching tetrahedra, points, ray-marched volume and X/Y/Z slices; numerical native volume probe; full streaming remains |
 | A29 world inspector | PARTIAL | Engine stage replay and links; stage preview UI/richer provenance remains |
 | A30 bookmarks | PARTIAL | Independent coordinate lists and navigation; rename/full gesture audit remains |
 | A31 rendering LOD | PENDING | Exact data separate from display; production LOD/fallback not implemented |
@@ -69,4 +69,6 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 
 Latest local raw evidence: [docs/evidence](evidence/README.md). Formal project/user/app schemas and positive/negative fixtures were validated with jsonschema 4.23.0.
 
-The typed-field extension passes 56 local JUnit tests, formal schemas including sampled-fields.json, the external engine-only consumer, unchanged exact voxel regression hashes, and a native Linux three-viewport/save-open smoke run. The previous baseline Actions run 40048968302 passed both platform builds, bundled launcher and cross-platform identical JAR hashes; the new extension requires its own CI run.
+The typed-field extension passed 56 local JUnit tests, formal schemas including sampled-fields.json, the external engine-only consumer, unchanged exact voxel regression hashes, and a native Linux three-viewport/save-open smoke run. The previous baseline Actions run 40048968302 passed both platform builds, bundled launcher and cross-platform identical JAR hashes. The typed-field extension subsequently passed the same cross-platform pipeline in run 40050919102.
+
+The volume/slice extension passes 60 local JUnit tests. Native Linux smoke now asserts volume and all three slice planes completed; VolumeRenderProbe separately matches rendered center pixels to analytical absorption values. This adds renderer evidence without certifying the complete Tree 17 streaming/LOD requirements.

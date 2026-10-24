@@ -165,8 +165,13 @@ public final class Desktop extends Application {
       ImGui.renderPlatformWindowsDefault();
       glfwMakeContextCurrent(previous);
     }
-    if (smokeFrames > 0 && (frameCount == 110 || frameCount == 230 || frameCount == 350))
-      captureFrame();
+    if (smokeFrames > 0
+        && (frameCount == 110
+            || frameCount == 170
+            || frameCount == 195
+            || frameCount == 215
+            || frameCount == 230
+            || frameCount == 350)) captureFrame();
     glfwSwapBuffers(handle);
     glfwPollEvents();
   }

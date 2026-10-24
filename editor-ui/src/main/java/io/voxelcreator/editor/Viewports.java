@@ -40,7 +40,12 @@ public final class Viewports implements AutoCloseable {
     UUID noise;
     String mode;
     double panX = 0, panZ = 0, panY = 16, step = 1, threshold = 0;
-    int size = 32, slice = 0;
+    int size = 32, slice = 0, volumeSteps = 192;
+    SlicePlane slicePlane = SlicePlane.Y, displayedSlicePlane = SlicePlane.Y;
+    int displayedSlice;
+    double displayedStep = 1;
+    double volumeMin = -1, volumeMax = 1, volumeOpacity = .12;
+    final Set<String> completedModes = new HashSet<>();
     boolean fixed = false, dirty = true, activeJob = false, force = false;
     long revision = -1, lastSubmit = 0;
     volatile long epoch = 0;
@@ -71,7 +76,22 @@ public final class Viewports implements AutoCloseable {
       int[] palette,
       float[] histogram,
       NoiseAlgorithms.Field sampler,
-      String error) {}
+      String error,
+      VolumeData volume) {
+    Preview(
+        long epoch,
+        Mesh mesh,
+        int[] image,
+        double[] raw,
+        int width,
+        Vector3d origin,
+        int[] palette,
+        float[] histogram,
+        NoiseAlgorithms.Field sampler,
+        String error) {
+      this(epoch, mesh, image, raw, width, origin, palette, histogram, sampler, error, null);
+    }
+  }
 
   public Viewports(EditorState state, PropertyPanel properties, long handle) {
     this.state = state;
@@ -104,7 +124,11 @@ public final class Viewports implements AutoCloseable {
       if (!v.completed)
         throw new IllegalStateException(
             "Viewport " + v.kind + " did not complete a valid engine-backed preview: " + v.message);
+    if (!views[1].completedModes.containsAll(Set.of("Volume", "Slices X", "Slices Y", "Slices Z")))
+      throw new IllegalStateException(
+          "Missing volume/slice smoke modes " + views[1].completedModes);
     System.out.println("THREE_ENGINE_VIEWPORTS_PASS");
+    System.out.println("RAYMARCHED_VOLUME_AND_XYZ_SLICES_PASS");
   }
 
   public void smokeSelections() {
@@ -117,6 +141,16 @@ public final class Viewports implements AutoCloseable {
   public void smokePhase(int frame) {
     if (frame == 0 && !state.project().noise2D.isEmpty())
       state.select("noise2D", state.project().noise2D.getFirst().uuid);
+    if (frame == 120) {
+      views[1].mode = "Volume";
+      mark(views[1]);
+    }
+    if (frame == 180 || frame == 200 || frame == 220) {
+      views[1].mode = "Slices";
+      views[1].slicePlane =
+          frame == 180 ? SlicePlane.X : frame == 200 ? SlicePlane.Z : SlicePlane.Y;
+      mark(views[1]);
+    }
     if (frame == 120 && !state.project().noise3D.isEmpty())
       state.select("noise3D", state.project().noise3D.getFirst().uuid);
     if (frame == 240 && !state.project().worldGenerator.layers.isEmpty())
@@ -187,16 +221,50 @@ public final class Viewports implements AutoCloseable {
             v.threshold,
             x -> {
               v.threshold = x;
-              mark(v);
+              if (!v.mode.equals("Volume")) mark(v);
             });
-        if (v.mode.equals("Slices"))
+        if (v.mode.equals("Volume")) {
+          fields.number(
+              "Display minimum",
+              v.volumeMin,
+              x -> {
+                if (Double.isFinite(x) && x < v.volumeMax) v.volumeMin = x;
+              });
+          fields.number(
+              "Display maximum",
+              v.volumeMax,
+              x -> {
+                if (Double.isFinite(x) && x > v.volumeMin) v.volumeMax = x;
+              });
+          fields.number(
+              "Opacity per block",
+              v.volumeOpacity,
+              x -> {
+                if (Double.isFinite(x)) v.volumeOpacity = Math.max(0, Math.min(10, x));
+              });
           fields.integer(
-              "Slice Y",
+              "Ray steps", v.volumeSteps, x -> v.volumeSteps = Math.max(16, Math.min(512, x)));
+          ImGui.textDisabled(
+              "Ray-marched canonical scalar texture; display controls do not alter generation.");
+        }
+        if (v.mode.equals("Slices")) {
+          fields.choice(
+              "Slice normal",
+              v.slicePlane.name(),
+              List.of("X", "Y", "Z"),
+              x -> {
+                v.slicePlane = SlicePlane.valueOf(x);
+                mark(v);
+              });
+          fields.integer(
+              "Slice " + v.slicePlane.name(),
               v.slice,
               x -> {
                 v.slice = x;
                 mark(v);
               });
+          ImGui.textDisabled("Image axes " + v.slicePlane.axes());
+        }
       }
       fields.integer(
           "Preview extent",
@@ -257,9 +325,16 @@ public final class Viewports implements AutoCloseable {
           v.gl.setImage(ready.width, ready.width, ready.image);
           v.image = true;
         } else {
-          v.gl.setMesh(ready.mesh);
+          if (ready.volume != null) v.gl.setVolume(ready.volume);
+          else v.gl.setMesh(ready.mesh);
           v.image = false;
         }
+        if (v.mode.equals("Slices")) {
+          v.displayedSlicePlane = v.slicePlane;
+          v.displayedSlice = v.slice;
+          v.displayedStep = v.step;
+        }
+        v.completedModes.add(v.mode + (v.mode.equals("Slices") ? " " + v.slicePlane.name() : ""));
         v.origin.set(ready.origin);
         v.gl.setPalette(ready.palette);
         v.raw = ready.raw;
@@ -300,13 +375,11 @@ public final class Viewports implements AutoCloseable {
           100);
       h -= 110;
     }
+    if (v.kind == 1 && v.mode.equals("Volume"))
+      v.gl.volumeAppearance(v.volumeMin, v.volumeMax, v.volumeOpacity, v.threshold, v.volumeSteps);
     if (!v.image)
       v.gl.render(
-          (int) w,
-          (int) h,
-          v.camera.matrix(w / h, v.origin),
-          state.user.visualization.unlit,
-          v.mode.equals("Volume") ? .12f : 1);
+          (int) w, (int) h, v.camera.matrix(w / h, v.origin), state.user.visualization.unlit, 1);
     float px = ImGui.getCursorScreenPosX(), py = ImGui.getCursorScreenPosY();
     ImGui.image(v.gl.texture(), w, h, 0, v.image ? 0 : 1, 1, v.image ? 1 : 0);
     boolean hovered = ImGui.isItemHovered();
@@ -375,6 +448,55 @@ public final class Viewports implements AutoCloseable {
         } catch (Exception ignored) {
         }
         ImGui.textDisabled(sample);
+      } else if (v.kind == 1 && v.mode.equals("Slices")) {
+        if (ImGui.isMouseDragging(0) || ImGui.isMouseDragging(2)) {
+          double du = -io.getMouseDeltaX() / w * v.size * v.step,
+              dv = -io.getMouseDeltaY() / h * v.size * v.step;
+          if (v.slicePlane == SlicePlane.X) {
+            v.panY += du;
+            v.camera.focus.y += du;
+          } else {
+            v.panX += du;
+            v.camera.focus.x += du;
+          }
+          if (v.slicePlane == SlicePlane.Z) {
+            v.panY += dv;
+            v.camera.focus.y += dv;
+          } else {
+            v.panZ += dv;
+            v.camera.focus.z += dv;
+          }
+          mark(v);
+        }
+        if (io.getMouseWheel() != 0) {
+          v.step = Math.max(.0001, Math.min(10000, v.step * Math.exp(-io.getMouseWheel() * .15)));
+          mark(v);
+        }
+        if (v.hoverSampler != null && v.image) {
+          SlicePlane plane = v.displayedSlicePlane;
+          double
+              u =
+                  (plane == SlicePlane.X ? v.origin.y : v.origin.x)
+                      + (io.getMousePosX() - px) / w * v.size * v.displayedStep,
+              vv =
+                  (plane == SlicePlane.Z ? v.origin.y : v.origin.z)
+                      + (io.getMousePosY() - py) / h * v.size * v.displayedStep;
+          double x = plane.x(u, vv, v.displayedSlice),
+              y = plane.y(u, vv, v.displayedSlice),
+              z = plane.z(u, vv, v.displayedSlice);
+          try {
+            ImGui.textDisabled(
+                String.format(
+                    Locale.ROOT,
+                    "X %.5f Y %.5f Z %.5f  Raw %.8f",
+                    x,
+                    y,
+                    z,
+                    v.hoverSampler.sample(x, y, z)));
+          } catch (RuntimeException failure) {
+            ImGui.textDisabled("Sample failed: " + failure.getMessage());
+          }
+        }
       } else {
         if (!v.camera.flying) {
           if (ImGui.isMouseDragging(0) && !io.getKeyCtrl())
@@ -420,7 +542,7 @@ public final class Viewports implements AutoCloseable {
         }
       }
     }
-    if (v.kind != 0 && !v.fixed) {
+    if (v.kind != 0 && !v.fixed && !v.mode.equals("Slices")) {
       Vector3d center = v.camera.flying ? v.camera.position : v.camera.focus;
       double cx = Math.floor(center.x / 16) * 16, cz = Math.floor(center.z / 16) * 16;
       double cy = Math.floor(center.y / 16) * 16;
@@ -471,6 +593,7 @@ public final class Viewports implements AutoCloseable {
     String mode = v.mode;
     double panX = v.panX, panZ = v.panZ, step = v.step, threshold = v.threshold;
     int slice = v.slice;
+    SlicePlane slicePlane = v.slicePlane;
     double centerY = v.fixed ? v.panY : v.camera.flying ? v.camera.position.y : v.camera.focus.y;
     boolean fixed = v.fixed;
     final long cacheBudget = (long) state.user.performance.cacheMiB * 1024 * 1024;
@@ -488,6 +611,8 @@ public final class Viewports implements AutoCloseable {
                   int[] palette = palette(snapshot, kind);
                   Vector3d origin =
                       new Vector3d(panX - n / 2., Math.floor(centerY) - n / 2., panZ - n / 2.);
+                  if (kind == 1 && mode.equals("Slices"))
+                    origin.set(panX - n * step / 2., centerY - n * step / 2., panZ - n * step / 2.);
                   if (kind == 0 || kind == 1 && mode.equals("Slices")) {
                     int side = kind == 0 ? 256 : n;
                     double[] raw = new double[side * side];
@@ -500,7 +625,15 @@ public final class Viewports implements AutoCloseable {
                       for (int x = 0; x < side; x++) {
                         double wx = kind == 0 ? panX + (x - side / 2.) * step : origin.x + x,
                             wz = kind == 0 ? panZ + (z - side / 2.) * step : origin.z + z;
-                        double value = sampler.sample(wx, kind == 0 ? 0 : slice, wz);
+                        double u = (slicePlane == SlicePlane.X ? origin.y : origin.x) + x * step,
+                            vv = (slicePlane == SlicePlane.Z ? origin.y : origin.z) + z * step;
+                        double value =
+                            kind == 0
+                                ? sampler.sample(wx, 0, wz)
+                                : sampler.sample(
+                                    slicePlane.x(u, vv, slice),
+                                    slicePlane.y(u, vv, slice),
+                                    slicePlane.z(u, vv, slice));
                         raw[z * side + x] = value;
                         pixels[z * side + x] =
                             color(value, kind == 0 ? mode : "Heatmap", threshold);
@@ -512,6 +645,23 @@ public final class Viewports implements AutoCloseable {
                         new Preview(
                             epoch, null, pixels, raw, side, origin, palette, histogram, sampler,
                             null));
+                  } else if (kind == 1 && mode.equals("Volume")) {
+                    var sampler = new NoiseCompiler(snapshot, snapshot.project.seed).compile(noise);
+                    var volume = VolumeData.sample(n, origin.x, origin.y, origin.z, sampler);
+                    publish(
+                        v,
+                        new Preview(
+                            epoch,
+                            null,
+                            null,
+                            null,
+                            0,
+                            origin,
+                            palette,
+                            new float[64],
+                            sampler,
+                            null,
+                            volume));
                   } else {
                     int ox = (int) origin.x, oy = (int) origin.y, oz = (int) origin.z;
                     int[] cells = new int[n * n * n];
@@ -535,7 +685,7 @@ public final class Viewports implements AutoCloseable {
                             }
                         }
                         mesh =
-                            mode.equals("Point Cloud") || mode.equals("Volume")
+                            mode.equals("Point Cloud")
                                 ? MeshBuilder.points(n, (x, y, z) -> cells[(y * n + z) * n + x])
                                 : MeshBuilder.greedy(n, (x, y, z) -> cells[(y * n + z) * n + x]);
                       }

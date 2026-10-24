@@ -45,6 +45,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y xvfb libgl1-mesa-dri libxkbcommon0 libxrandr2 libxinerama1 libxcursor1 libxi6
           LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -Dvoxel.configDir="$PWD/build/smoke" -jar build/release/jars/ProceduralVoxelCreator.jar --smoke
+      - name: Native volume numerical reference
+        run: LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.VolumeRenderProbe
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -120,6 +122,11 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED "-Dvoxel.configDir=$PWD/build/smoke" -jar build/release/jars/ProceduralVoxelCreator.jar --smoke 2>&1 | Tee-Object build/windows-smoke.log
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           if (-not (Select-String -Path build/windows-smoke.log -Pattern 'THREE_ENGINE_VIEWPORTS_PASS')) { throw 'Viewport smoke did not complete' }
+      - name: Windows volume numerical reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.VolumeRenderProbe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Package development distribution
         if: success()
         run: python scripts/package_release.py --runtime build/windows-runtime --mesa-notices build/mesa-notices --output build/packages
