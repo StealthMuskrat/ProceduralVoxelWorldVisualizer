@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.core.CompilerOptimizationTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:27:43.773Z" hostname="715e00c143c7" time="0.38">
+<testsuite name="io.voxelcreator.core.CompilerOptimizationTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:48:11.867Z" hostname="715e00c143c7" time="0.112">
   <properties/>
-  <testcase name="sampledPrefixesAndFullFieldsKeepIndependentExpressionScratch()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.276"/>
-  <testcase name="projectAndSharedConstantsFoldWithoutSamplingAnUnusedSource()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.029"/>
-  <testcase name="compatiblePureItemsShareSuccessfulResults()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.015"/>
-  <testcase name="implicitSourceWorkAndUnselectedInvalidConstantsRemainVisible()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.029"/>
-  <testcase name="unusedExpressionBindingsDoNotContributeRuntimeWork()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.013"/>
-  <testcase name="sharedFailureKeepsTheSelectedItemsIdentity()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.006"/>
+  <testcase name="sampledPrefixesAndFullFieldsKeepIndependentExpressionScratch()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.067"/>
+  <testcase name="projectAndSharedConstantsFoldWithoutSamplingAnUnusedSource()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.01"/>
+  <testcase name="compatiblePureItemsShareSuccessfulResults()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.007"/>
+  <testcase name="implicitSourceWorkAndUnselectedInvalidConstantsRemainVisible()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.013"/>
+  <testcase name="unusedExpressionBindingsDoNotContributeRuntimeWork()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.007"/>
+  <testcase name="sharedFailureKeepsTheSelectedItemsIdentity()" classname="io.voxelcreator.core.CompilerOptimizationTest" time="0.004"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

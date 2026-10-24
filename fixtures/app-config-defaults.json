@@ -1,12 +1,20 @@
 {
   "formatVersion" : 1,
   "controls" : {
+    "themes" : {
+      "label" : "Themes and contrast",
+      "tooltip" : "Preview, measure and save UI colors",
+      "description" : "View > Themes previews grouped colors independently of saved preferences. Save Theme persists palette values only; Revert or closing restores the active theme. Reset stages documented Dark defaults. Contrast feedback measures alpha-composited text and selected control pairs, while the inspector keeps a readable palette. Status messages retain text indicators. Themes never change project values or evaluation.",
+      "group" : "Overview",
+      "order" : 0,
+      "options" : { }
+    },
     "noise" : {
       "label" : "Noise Editor",
       "tooltip" : "Author a reusable scalar field",
       "description" : "Create a 2D or 3D resource. Edit source, seed, transforms and ordered processing. Apply commits only valid definitions; shared resources retain their own settings when used in a layer.",
       "group" : "Overview",
-      "order" : 0,
+      "order" : 1,
       "options" : { }
     },
     "layers" : {
@@ -14,7 +22,7 @@
       "tooltip" : "Ordered layers and independent placements",
       "description" : "Generation starts EMPTY. Layers run from top to bottom. Each placement inherits absent properties live; Override stores only that placement's property, and Reset removes it. SET, CLEAR and NO_CHANGE evaluate previous committed voxel state. Ordered numeric parameter drivers can replace, add to or multiply thresholds, base height and height scale before interpretation.",
       "group" : "Overview",
-      "order" : 1,
+      "order" : 2,
       "options" : { }
     },
     "navigation" : {
@@ -22,7 +30,7 @@
       "tooltip" : "Orbit, pan and free-fly",
       "description" : "3D: left drag orbits, right drag pans, middle drag moves X/Z, Ctrl+middle moves Y, wheel zooms. Ctrl+click enters free-fly. WASD, Space and Shift move; Escape releases capture. Teleport changes coordinates only.",
       "group" : "Overview",
-      "order" : 2,
+      "order" : 3,
       "options" : { }
     },
     "save" : {
@@ -30,7 +38,7 @@
       "tooltip" : "Explicit saving only",
       "description" : "New, Open and Exit ask Save / Don't Save / Cancel when dirty. Save validates then writes a temporary sibling and atomically replaces the destination where supported. No autosave or recent project list.",
       "group" : "Overview",
-      "order" : 3,
+      "order" : 4,
       "options" : { }
     },
     "processing" : {
@@ -38,7 +46,7 @@
       "tooltip" : "One canonical ordered definition",
       "description" : "Inputs explicitly select constants, shared parameters, ambient variables, source, earlier results or noise references. Scalar/Boolean expressions are typed, bounded and stateless. Power is right associative; &&, || and ?: short circuit. Invalid numeric domains fail the sample.",
       "group" : "Overview",
-      "order" : 4,
+      "order" : 5,
       "options" : { }
     },
     "archives" : {
@@ -46,7 +54,7 @@
       "tooltip" : "Exact semantic voxel results",
       "description" : "Archives store compressed adaptive chunks and a semantic voxel ID dictionary. Coverage distinguishes omitted EMPTY payloads from unarchived coordinates. Rendering quality never changes exact data.",
       "group" : "Overview",
-      "order" : 5,
+      "order" : 6,
       "options" : { }
     },
     "bookmarks" : {
@@ -54,7 +62,7 @@
       "tooltip" : "Separate coordinate lists for each tab",
       "description" : "Bookmarks store only coordinates and a name. Adding, renaming, updating or deleting is an undoable project edit; teleporting never dirties the document.",
       "group" : "Overview",
-      "order" : 6,
+      "order" : 7,
       "options" : { }
     },
     "diagnostics" : {
@@ -62,7 +70,7 @@
       "tooltip" : "Inspect grouped events and navigate to their source",
       "description" : "View > Validate Project checks the committed document without changing it. Logs support severity, subsystem and text filters. Go To Problem opens the stored UUID resource or control when available in the current project or draft. Reading a notification does not resolve an action. Mark Action Resolved acknowledges the action; it does not repair project data. Dismiss hides a resolved notification while retaining its grouped log history.",
       "group" : "Overview",
-      "order" : 7,
+      "order" : 8,
       "options" : { }
     },
     "profiler" : {
@@ -70,7 +78,7 @@
       "tooltip" : "Opt-in bounded CPU timings and metrics",
       "description" : "View > Profiler starts an explicit capture with duration, sample, series and operation-sampling limits. Inspect counts, mean and P50/P95/P99, filter source/context series and navigate to existing resources. JSON/CSV export writes all retained measurements only when requested. CPU-side mesh/upload timings do not measure GPU completion. GPU arenas compact within their existing vertex budget and share upload write limits. Captures and navigation never dirty the project.",
       "group" : "Overview",
-      "order" : 8,
+      "order" : 9,
       "options" : { }
     },
     "shortcuts" : {
@@ -78,7 +86,7 @@
       "tooltip" : "Context-aware remapping with conflict detection",
       "description" : "User Settings > Input keeps a private binding draft. Type or record Ctrl/Shift/Alt/Super chords with letters, digits, F1-F12 or named keys. Apply validates conflicts and saves atomically before activation; Revert discards the draft, and Reset stages defaults. Resource clipboard keys require resource focus, curve undo affects its private history, and text/popups/free-fly retain their own input. Escape cancels recording. Preferences never dirty the project.",
       "group" : "Overview",
-      "order" : 9,
+      "order" : 10,
       "options" : { }
     },
     "creation-defaults" : {
@@ -86,7 +94,7 @@
       "tooltip" : "Future items only",
       "description" : "Application Settings edits labels, help, grouping, order and validated future-item defaults. Apply saves a private metadata draft atomically. New items store concrete values in the project; existing resources, copied/imported definitions, loading and evaluation never consult these defaults. Immutable registry keys, signatures, options and creation ranges cannot be edited here.",
       "group" : "Overview",
-      "order" : 10,
+      "order" : 11,
       "options" : { }
     },
     "noise.algorithm" : {
@@ -94,7 +102,7 @@
       "tooltip" : "Choose the source algorithm",
       "description" : "Editing a source chooses a fixed registry algorithm key; display labels do not change that key.",
       "group" : "Overview",
-      "order" : 11,
+      "order" : 12,
       "options" : { }
     },
     "noise.seedOffset" : {
@@ -102,7 +110,7 @@
       "tooltip" : "Local resource seed offset",
       "description" : "The authored signed 64-bit offset is independent of presentation and future-item defaults.",
       "group" : "Overview",
-      "order" : 12,
+      "order" : 13,
       "options" : { }
     },
     "algorithm.OPEN_SIMPLEX_2" : {

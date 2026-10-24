@@ -86,7 +86,7 @@ public final class InputSettingsPanel {
             texts.get(action.id()).set(session.values().get(action.id()));
           }
           var issue = problems.stream().filter(p -> p.action().equals(action.id())).findFirst();
-          if (issue.isPresent()) ImGui.textColored(1, .6f, .3f, 1, "! " + issue.get().message());
+          if (issue.isPresent()) ThemeStyle.text("Warning", "! " + issue.get().message());
           else ImGui.textDisabled("Default: " + action.defaultBinding());
           ImGui.popID();
         }
@@ -97,11 +97,8 @@ public final class InputSettingsPanel {
     ImGui.endChild();
     if (capture.active()) {
       String target = capture.action();
-      ImGui.textColored(
-          .6f,
-          .85f,
-          1,
-          1,
+      ThemeStyle.text(
+          "Information",
           "Recording "
               + Shortcuts.action(target).label()
               + " / release held keys, then press the chord.");

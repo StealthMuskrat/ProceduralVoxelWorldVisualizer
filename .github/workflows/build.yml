@@ -58,6 +58,10 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CreationProfileProbe build/creation-profile
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CreationDefaultsConsumer build/creation-profile/created-project.pvproj.json
           python scripts/verify_app_metadata.py build/creation-profile/app-config.json
+      - name: Theme preview and contrast reference
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeReferenceProbe build/theme-probe
+          python scripts/verify_theme.py build/theme-probe/user-config.json build/theme-probe/theme-contrast.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -72,6 +76,7 @@ jobs:
             **/build/test-results/
             **/build/reports/tests/
             build/smoke/
+            build/theme-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -166,6 +171,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_app_metadata.py build/creation-profile/app-config.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows theme preview and contrast reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeReferenceProbe build/theme-probe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_theme.py build/theme-probe/user-config.json build/theme-probe/theme-contrast.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -204,6 +216,7 @@ jobs:
             build/packages/*.sha256
             build/windows-smoke.log
             build/smoke/
+            build/theme-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/

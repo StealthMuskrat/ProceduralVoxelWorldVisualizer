@@ -1,0 +1,46 @@
+SMOKE_ENV java=25.0.4+7-LTS os=Linux arch=amd64 gl=4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 renderer=llvmpipe (LLVM 20.1.2, 256 bits)
+SMOKE_PROJECT_SAVE_OPEN_PASS /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-project.json
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-70.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-110.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-140.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-170.png
+SHORTCUT_DRAFT_CONFLICT_NATIVE_PASS
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-195.png
+APPLICATION_PROFILE_DRAFT_NATIVE_PASS
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-215.png
+THEME_CONTRAST_DRAFT_NATIVE_PASS
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-230.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-265.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-290.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-315.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-345.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-350.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-375.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-395.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-410.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-435.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-450.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-455.png
+DIAGNOSTIC_NAVIGATION_PRESERVES_DRAFT_AND_DOCUMENT_PASS
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/theme-smoke/smoke-470.png
+CAMERA_DRIVEN_STREAMING_PASS StreamingStatistics[cpuBytes=667556, reserved=0, gpuBytes=516000, uploadedBytes=0, chunks=27, jobs=0, visible=1, culled=0, drawCalls=1, indirect=true, gpuCapacityBytes=33554432, gpuFreeBytes=33038432, largestFreeRange=33038432, relocatedBytes=0, compactionRemainingBytes=0, compactions=0, compactingArenas=0]
+CURVE_EDITOR_NATIVE_PASS
+WORLD_USE_CONTROLS_NATIVE_PASS
+NUMERIC_PARAMETER_CONTROLS_NATIVE_PASS
+COMPILED_EXPRESSION_FEEDBACK_NATIVE_PASS
+EXACT_WORLD_STAGE_PREVIEWS_PASS
+THREE_ENGINE_VIEWPORTS_PASS
+RAYMARCHED_VOLUME_AND_XYZ_SLICES_PASS
+DIAGNOSTICS_AND_NOTIFICATION_NATIVE_PASS
+BOUNDED_PROFILER_CAPTURE_NATIVE_PASS
+FAIR_SCHEDULER_PROFILER_NATIVE_PASS
+DESKTOP_SMOKE_COMPLETED frames=480 engine=EngineMetrics[workers=4, active=0, queued=0, completed=107, generationNanos=4143531963, cacheBytes=0, stagingBytes=0, memoryBudget=536870912, collectionBytes=0]
+NATIVE_CURSOR_CLEANUP: unavailable platform cursor; completing GLFW shutdown
+VOLUME_NUMERICAL_NATIVE_PASS homogeneous / threshold / gradient / framebuffer transition
+STREAMING_PROBE_ENV gl=4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+GPU_ARENA_COMPACTION_NATIVE_PASS overlapping moves / primitive budgets / incremental pixels / indirect parity / deferred removal / admission retry / explicit request / epoch replacement
+STREAMING_RENDER_NATIVE_PASS packed / budgeted upload / culling / palette / indirect=true
+STREAMING_PROBE_ENV gl=3.0 Mesa 25.2.8-0ubuntu0.24.04.2
+GPU_ARENA_COMPACTION_NATIVE_PASS overlapping moves / primitive budgets / incremental pixels / indirect parity / deferred removal / admission retry / explicit request / epoch replacement
+STREAMING_RENDER_NATIVE_PASS packed / budgeted upload / culling / palette / indirect=false
+SHORTCUT_INPUT_NATIVE_PASS exact modifiers / no repeats / context routing / active text / modal exclusion / release-before-record / atomic apply / restart / conflict rejection / project invariance

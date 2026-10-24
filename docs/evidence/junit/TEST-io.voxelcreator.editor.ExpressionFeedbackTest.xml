@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.ExpressionFeedbackTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:27:15.975Z" hostname="715e00c143c7" time="0.297">
+<testsuite name="io.voxelcreator.editor.ExpressionFeedbackTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:47:57.857Z" hostname="715e00c143c7" time="0.092">
   <properties/>
-  <testcase name="displayFeedbackNeverDirtiesTheDocument(Path)" classname="io.voxelcreator.editor.ExpressionFeedbackTest" time="0.09"/>
-  <testcase name="feedbackCacheIsBounded()" classname="io.voxelcreator.editor.ExpressionFeedbackTest" time="0.169"/>
-  <testcase name="parserFeedbackTracksTypesSharedValuesAndErrorSpans()" classname="io.voxelcreator.editor.ExpressionFeedbackTest" time="0.03"/>
+  <testcase name="displayFeedbackNeverDirtiesTheDocument(Path)" classname="io.voxelcreator.editor.ExpressionFeedbackTest" time="0.032"/>
+  <testcase name="feedbackCacheIsBounded()" classname="io.voxelcreator.editor.ExpressionFeedbackTest" time="0.05"/>
+  <testcase name="parserFeedbackTracksTypesSharedValuesAndErrorSpans()" classname="io.voxelcreator.editor.ExpressionFeedbackTest" time="0.008"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

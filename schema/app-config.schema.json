@@ -13,8 +13,21 @@
         "controls" : {
           "type" : "object",
           "additionalProperties" : false,
-          "maxProperties" : 333,
+          "maxProperties" : 334,
           "properties" : {
+            "themes" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
             "noise" : {
               "allOf" : [ {
                 "$ref" : "#/$defs/Control"

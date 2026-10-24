@@ -22,6 +22,7 @@ public final class UserConfig {
     public float globalScale = 1;
     public Map<String, Float> windowScales = new HashMap<>();
     public Map<Integer, float[]> colors = new HashMap<>();
+    public Map<String, float[]> statusColors = new HashMap<>();
   }
 
   public static final class Workspace {
@@ -90,7 +91,43 @@ public final class UserConfig {
    * fallback.
    */
   public static UserConfig read(Path path) throws IOException {
-    var user = ProjectIO.JSON.readValue(path.toFile(), UserConfig.class);
+    if (Files.size(path) > 8L * 1024 * 1024)
+      throw new IllegalArgumentException("Preference file exceeds 8 MiB");
+    com.fasterxml.jackson.databind.JsonNode tree;
+    try (var input = Files.newInputStream(path)) {
+      tree =
+          ProjectIO.JSON
+              .reader()
+              .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+              .readTree(input);
+    }
+    if (tree == null
+        || !tree.isObject()
+        || !tree.path("formatVersion").isIntegralNumber()
+        || !tree.path("formatVersion").canConvertToInt()
+        || tree.path("formatVersion").intValue() != 1)
+      throw new IllegalArgumentException("Invalid preference format version");
+    var appearance = tree.path("appearance");
+    for (String field : List.of("colors", "statusColors")) {
+      if (!appearance.has(field)) continue;
+      var map = appearance.get(field);
+      if (!map.isObject()) throw new IllegalArgumentException("Invalid theme color map");
+      for (var entries = map.fields(); entries.hasNext(); ) {
+        var entry = entries.next();
+        if (field.equals("colors") && !entry.getKey().matches("0|[1-9][0-9]*"))
+          throw new IllegalArgumentException("Noncanonical theme color key");
+        var value = entry.getValue();
+        if (!value.isArray() || value.size() != 4)
+          throw new IllegalArgumentException("Invalid RGBA theme color");
+        for (var component : value)
+          if (!component.isNumber()
+              || !Double.isFinite(component.doubleValue())
+              || component.doubleValue() < 0
+              || component.doubleValue() > 1)
+            throw new IllegalArgumentException("Invalid theme component");
+      }
+    }
+    var user = ProjectIO.JSON.treeToValue(tree, UserConfig.class);
     if (user.input == null) throw new IllegalArgumentException("Missing input preferences");
     user.input.shortcuts = Shortcuts.upgrade(user.input.shortcuts);
     user.validate();
@@ -98,6 +135,15 @@ public final class UserConfig {
   }
 
   public void validate() {
+    if (appearance == null
+        || workspace == null
+        || input == null
+        || editor == null
+        || visualization == null
+        || performance == null
+        || appearance.windowScales == null)
+      throw new IllegalArgumentException("Missing preference section");
+    ThemePalette.from(appearance);
     if (formatVersion != 1
         || appearance.globalScale < .5
         || appearance.globalScale > 2.5
@@ -138,16 +184,6 @@ public final class UserConfig {
     for (float value : appearance.windowScales.values())
       if (!Float.isFinite(value) || value < .5f || value > 2.5f)
         throw new IllegalArgumentException("Window scale outside 50..250%");
-    for (var entry : appearance.colors.entrySet()) {
-      float[] color = entry.getValue();
-      if (entry.getKey() < 0
-          || entry.getKey() >= imgui.flag.ImGuiCol.COUNT
-          || color == null
-          || color.length != 4) throw new IllegalArgumentException("Invalid theme color");
-      for (float value : color)
-        if (!Float.isFinite(value) || value < 0 || value > 1)
-          throw new IllegalArgumentException("Theme components must be in [0,1]");
-    }
     if (input == null) throw new IllegalArgumentException("Missing input preferences");
     Shortcuts.canonical(input.shortcuts);
   }
@@ -171,6 +207,15 @@ public final class UserConfig {
     snapshot.validate();
     snapshot.writeSnapshot(path);
     input.shortcuts = new LinkedHashMap<>(canonical);
+  }
+
+  /** Merge only theme values into the latest preferences, persist, then publish owned copies. */
+  public void applyTheme(ThemePalette candidate, Path path) {
+    var snapshot = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(this), UserConfig.class);
+    candidate.writeTo(snapshot.appearance);
+    snapshot.validate();
+    snapshot.writeSnapshot(path);
+    candidate.writeTo(appearance);
   }
 
   private void writeSnapshot(Path path) {

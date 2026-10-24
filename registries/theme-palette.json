@@ -1,0 +1,229 @@
+{
+  "statusRoles" : [ "Information", "Warning", "Error", "Success" ],
+  "colors" : [ {
+    "key" : 0,
+    "name" : "Text",
+    "group" : "Text and selection"
+  }, {
+    "key" : 1,
+    "name" : "TextDisabled",
+    "group" : "Text and selection"
+  }, {
+    "key" : 2,
+    "name" : "WindowBg",
+    "group" : "Windows and panels"
+  }, {
+    "key" : 3,
+    "name" : "ChildBg",
+    "group" : "Windows and panels"
+  }, {
+    "key" : 4,
+    "name" : "PopupBg",
+    "group" : "Windows and panels"
+  }, {
+    "key" : 5,
+    "name" : "Border",
+    "group" : "Borders and resizing"
+  }, {
+    "key" : 6,
+    "name" : "BorderShadow",
+    "group" : "Borders and resizing"
+  }, {
+    "key" : 7,
+    "name" : "FrameBg",
+    "group" : "Buttons and inputs"
+  }, {
+    "key" : 8,
+    "name" : "FrameBgHovered",
+    "group" : "Buttons and inputs"
+  }, {
+    "key" : 9,
+    "name" : "FrameBgActive",
+    "group" : "Buttons and inputs"
+  }, {
+    "key" : 10,
+    "name" : "TitleBg",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 11,
+    "name" : "TitleBgActive",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 12,
+    "name" : "TitleBgCollapsed",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 13,
+    "name" : "MenuBarBg",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 14,
+    "name" : "ScrollbarBg",
+    "group" : "Windows and panels"
+  }, {
+    "key" : 15,
+    "name" : "ScrollbarGrab",
+    "group" : "Navigation and plots"
+  }, {
+    "key" : 16,
+    "name" : "ScrollbarGrabHovered",
+    "group" : "Navigation and plots"
+  }, {
+    "key" : 17,
+    "name" : "ScrollbarGrabActive",
+    "group" : "Navigation and plots"
+  }, {
+    "key" : 18,
+    "name" : "CheckMark",
+    "group" : "Buttons and inputs"
+  }, {
+    "key" : 19,
+    "name" : "SliderGrab",
+    "group" : "Buttons and inputs"
+  }, {
+    "key" : 20,
+    "name" : "SliderGrabActive",
+    "group" : "Buttons and inputs"
+  }, {
+    "key" : 21,
+    "name" : "Button",
+    "group" : "Buttons and inputs"
+  }, {
+    "key" : 22,
+    "name" : "ButtonHovered",
+    "group" : "Buttons and inputs"
+  }, {
+    "key" : 23,
+    "name" : "ButtonActive",
+    "group" : "Buttons and inputs"
+  }, {
+    "key" : 24,
+    "name" : "Header",
+    "group" : "Section headers"
+  }, {
+    "key" : 25,
+    "name" : "HeaderHovered",
+    "group" : "Section headers"
+  }, {
+    "key" : 26,
+    "name" : "HeaderActive",
+    "group" : "Section headers"
+  }, {
+    "key" : 27,
+    "name" : "Separator",
+    "group" : "Borders and resizing"
+  }, {
+    "key" : 28,
+    "name" : "SeparatorHovered",
+    "group" : "Borders and resizing"
+  }, {
+    "key" : 29,
+    "name" : "SeparatorActive",
+    "group" : "Borders and resizing"
+  }, {
+    "key" : 30,
+    "name" : "ResizeGrip",
+    "group" : "Borders and resizing"
+  }, {
+    "key" : 31,
+    "name" : "ResizeGripHovered",
+    "group" : "Borders and resizing"
+  }, {
+    "key" : 32,
+    "name" : "ResizeGripActive",
+    "group" : "Borders and resizing"
+  }, {
+    "key" : 33,
+    "name" : "Tab",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 34,
+    "name" : "TabHovered",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 35,
+    "name" : "TabActive",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 36,
+    "name" : "TabUnfocused",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 37,
+    "name" : "TabUnfocusedActive",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 38,
+    "name" : "DockingPreview",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 39,
+    "name" : "DockingEmptyBg",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 40,
+    "name" : "PlotLines",
+    "group" : "Navigation and plots"
+  }, {
+    "key" : 41,
+    "name" : "PlotLinesHovered",
+    "group" : "Navigation and plots"
+  }, {
+    "key" : 42,
+    "name" : "PlotHistogram",
+    "group" : "Navigation and plots"
+  }, {
+    "key" : 43,
+    "name" : "PlotHistogramHovered",
+    "group" : "Navigation and plots"
+  }, {
+    "key" : 44,
+    "name" : "TableHeaderBg",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 45,
+    "name" : "TableBorderStrong",
+    "group" : "Borders and resizing"
+  }, {
+    "key" : 46,
+    "name" : "TableBorderLight",
+    "group" : "Borders and resizing"
+  }, {
+    "key" : 47,
+    "name" : "TableRowBg",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 48,
+    "name" : "TableRowBgAlt",
+    "group" : "Tabs, menus and docking"
+  }, {
+    "key" : 49,
+    "name" : "TextSelectedBg",
+    "group" : "Text and selection"
+  }, {
+    "key" : 50,
+    "name" : "DragDropTarget",
+    "group" : "Navigation and plots"
+  }, {
+    "key" : 51,
+    "name" : "NavHighlight",
+    "group" : "Navigation and plots"
+  }, {
+    "key" : 52,
+    "name" : "NavWindowingHighlight",
+    "group" : "Navigation and plots"
+  }, {
+    "key" : 53,
+    "name" : "NavWindowingDimBg",
+    "group" : "Windows and panels"
+  }, {
+    "key" : 54,
+    "name" : "ModalWindowDimBg",
+    "group" : "Windows and panels"
+  } ],
+  "startingAppearances" : [ "Dark", "Light" ],
+  "componentRange" : [ 0, 1 ],
+  "registryVersion" : 1,
+  "textContrastTarget" : 4.5,
+  "controlContrastTarget" : 3.0
+}

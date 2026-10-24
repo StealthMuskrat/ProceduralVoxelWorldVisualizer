@@ -235,6 +235,35 @@ public final class ContractGenerator {
           writeJSON(
               root.resolve("registries/keyboard-shortcuts.json"),
               shortcuts.getMethod("registry").invoke(null));
+          var themeRegistry =
+              JSON.valueToTree(
+                  Class.forName("io.voxelcreator.editor.ThemeRegistry")
+                      .getMethod("registry")
+                      .invoke(null));
+          ObjectNode appearance = (ObjectNode) ed.path("Appearance");
+          ObjectNode appearanceProperties = (ObjectNode) appearance.path("properties");
+          var themes = obj().put("type", "string");
+          themes.set("enum", themeRegistry.path("startingAppearances"));
+          appearanceProperties.set("theme", themes);
+          var rgba = obj().put("type", "array").put("minItems", 4).put("maxItems", 4);
+          rgba.set("items", obj().put("type", "number").put("minimum", 0).put("maximum", 1));
+          var colorMap = obj().put("type", "object").put("additionalProperties", false);
+          var colorProperties = obj();
+          for (var color : themeRegistry.path("colors"))
+            colorProperties.set(color.path("key").asText(), rgba.deepCopy());
+          colorMap.set("properties", colorProperties);
+          appearanceProperties.set("colors", colorMap);
+          var statusMap = obj().put("type", "object").put("additionalProperties", false);
+          var statusProperties = obj();
+          for (var role : themeRegistry.path("statusRoles"))
+            statusProperties.set(role.asText(), rgba.deepCopy());
+          statusMap.set("properties", statusProperties);
+          appearanceProperties.set("statusColors", statusMap);
+          var appearanceRequired = (ArrayNode) appearance.path("required");
+          for (int i = appearanceRequired.size() - 1; i >= 0; i--)
+            if (appearanceRequired.get(i).asText().equals("statusColors"))
+              appearanceRequired.remove(i);
+          writeJSON(root.resolve("registries/theme-palette.json"), themeRegistry);
         }
         if (editor[0].equals("AppMetadata")) {
           var defaults = JSON.valueToTree(model.getMethod("defaults").invoke(null));

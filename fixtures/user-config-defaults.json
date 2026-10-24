@@ -4,7 +4,8 @@
     "theme" : "Dark",
     "globalScale" : 1.0,
     "windowScales" : { },
-    "colors" : { }
+    "colors" : { },
+    "statusColors" : { }
   },
   "workspace" : {
     "multiViewport" : true,

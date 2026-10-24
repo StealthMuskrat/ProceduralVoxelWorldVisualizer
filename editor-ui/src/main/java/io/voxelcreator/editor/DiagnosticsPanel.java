@@ -138,9 +138,9 @@ public final class DiagnosticsPanel {
       }
     }
     ImGui.beginChild("event-details", 0, 0, true);
-    ImGui.textColored(.5f, .8f, 1f, 1, e.code() + " / " + e.subsystem());
+    ThemeStyle.text("Information", e.code() + " / " + e.subsystem());
     if (e.actionRequired())
-      ImGui.textColored(1, .7f, .3f, 1, "Action required; reading this entry does not resolve it.");
+      ThemeStyle.text("Warning", "! Action required; reading this entry does not resolve it.");
     ImGui.textWrapped(e.message());
     ImGui.separator();
     ImGui.textWrapped("First: " + e.first() + "   Last: " + e.last() + "   Count: " + e.count());
@@ -169,7 +169,7 @@ public final class DiagnosticsPanel {
     ImGui.textWrapped(
         "Scope: " + state.validationScope + ". Validation does not modify the project.");
     if (state.issues.isEmpty())
-      ImGui.textColored(.4f, .85f, .6f, 1, "Project is valid; no validation issues.");
+      ThemeStyle.text("Success", "OK: Project is valid; no validation issues.");
     else {
       ImGui.text(state.issues.size() + " issue(s)");
       ImGui.beginChild(

@@ -132,11 +132,8 @@ public final class PropertyPanel {
       focusedControl = null;
     }
     if (navigationTarget != null && uuid.equals(navigationTarget.control()))
-      ImGui.textColored(
-          .45f,
-          .8f,
-          1f,
-          1,
+      ThemeStyle.text(
+          "Information",
           "Problem: " + Objects.requireNonNullElse(navigationTarget.parameter(), "control"));
   }
 
@@ -169,7 +166,7 @@ public final class PropertyPanel {
     } else {
       ImGui.textDisabled(state.selectedKind.toUpperCase(Locale.ROOT));
       if (navigationTarget != null && Objects.equals(navigationTarget.resource(), state.selected)) {
-        ImGui.textColored(.45f, .8f, 1f, 1, "Problem location");
+        ThemeStyle.text("Information", "Problem location");
         ImGui.textWrapped(
             Objects.requireNonNullElse(navigationTarget.parameter(), "Resource")
                 + "  "
@@ -184,7 +181,7 @@ public final class PropertyPanel {
       }
       f.tooltip("Apply validates this edit and commits one undoable transaction.");
       if (!state.issues.isEmpty()) {
-        ImGui.textColored(1, .4f, .35f, 1, "! " + state.issues.size() + " validation issue(s)");
+        ThemeStyle.text("Error", "! " + state.issues.size() + " validation issue(s)");
         for (int i = 0; i < Math.min(8, state.issues.size()); i++) {
           var d = state.issues.get(i);
           ImGui.textWrapped(d.toString());

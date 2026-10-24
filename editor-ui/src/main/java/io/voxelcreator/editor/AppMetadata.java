@@ -33,6 +33,17 @@ public final class AppMetadata {
   private static AppMetadata builtIns() {
     var m = new AppMetadata();
     m.controls.put(
+        "themes",
+        new Control(
+            "Themes and contrast",
+            "Preview, measure and save UI colors",
+            "View > Themes previews grouped colors independently of saved preferences. Save Theme"
+                + " persists palette values only; Revert or closing restores the active theme."
+                + " Reset stages documented Dark defaults. Contrast feedback measures"
+                + " alpha-composited text and selected control pairs, while the inspector keeps a"
+                + " readable palette. Status messages retain text indicators. Themes never change"
+                + " project values or evaluation."));
+    m.controls.put(
         "noise",
         new Control(
             "Noise Editor",

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.core.CurveContractTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:27:44.368Z" hostname="715e00c143c7" time="0.063">
+<testsuite name="io.voxelcreator.core.CurveContractTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:48:12.071Z" hostname="715e00c143c7" time="0.026">
   <properties/>
-  <testcase name="autoAlignedAndFreeHaveDistinctValidatedSemantics()" classname="io.voxelcreator.core.CurveContractTest" time="0.007"/>
-  <testcase name="duplicateIdentitiesAndUnknownHandleModesAreRejected()" classname="io.voxelcreator.core.CurveContractTest" time="0.006"/>
-  <testcase name="displayRangeDoesNotClampAndCompiledCoefficientsAreImmutable()" classname="io.voxelcreator.core.CurveContractTest" time="0.004"/>
-  <testcase name="curveIdentitiesParticipateInProjectValidationAndDuplication()" classname="io.voxelcreator.core.CurveContractTest" time="0.035"/>
-  <testcase name="autoBezierIsMonotoneOnUnevenIntervalsAndMixedSegments()" classname="io.voxelcreator.core.CurveContractTest" time="0.005"/>
+  <testcase name="autoAlignedAndFreeHaveDistinctValidatedSemantics()" classname="io.voxelcreator.core.CurveContractTest" time="0.003"/>
+  <testcase name="duplicateIdentitiesAndUnknownHandleModesAreRejected()" classname="io.voxelcreator.core.CurveContractTest" time="0.002"/>
+  <testcase name="displayRangeDoesNotClampAndCompiledCoefficientsAreImmutable()" classname="io.voxelcreator.core.CurveContractTest" time="0.0"/>
+  <testcase name="curveIdentitiesParticipateInProjectValidationAndDuplication()" classname="io.voxelcreator.core.CurveContractTest" time="0.014"/>
+  <testcase name="autoBezierIsMonotoneOnUnevenIntervalsAndMixedSegments()" classname="io.voxelcreator.core.CurveContractTest" time="0.003"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

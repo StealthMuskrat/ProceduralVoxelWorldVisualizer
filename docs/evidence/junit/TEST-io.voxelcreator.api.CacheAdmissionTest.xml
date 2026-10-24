@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.CacheAdmissionTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:27:23.855Z" hostname="715e00c143c7" time="6.522">
+<testsuite name="io.voxelcreator.api.CacheAdmissionTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:48:00.930Z" hostname="715e00c143c7" time="2.842">
   <properties/>
-  <testcase name="globalGenerationAdmissionReclaimsAutomaticCachesAcrossWorlds()" classname="io.voxelcreator.api.CacheAdmissionTest" time="4.254"/>
-  <testcase name="userManagedRetentionNeverImplicitlyEvictsAndPinsProtectExplicitRemoval()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.084"/>
-  <testcase name="globalPressureDoesNotReclaimUserManagedEvenWhenUnpinned()" classname="io.voxelcreator.api.CacheAdmissionTest" time="1.373"/>
-  <testcase name="cachePoliciesHaveDistinctRetentionAndLocalLruBehavior()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.027"/>
-  <testcase name="impossibleCollectionDoesNotFlushCachesAndContextCloseBalancesAccounting()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.03"/>
-  <testcase name="concurrentRetainsReclaimsAndCloseHaveNoCacheLockCycle()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.73"/>
+  <testcase name="globalGenerationAdmissionReclaimsAutomaticCachesAcrossWorlds()" classname="io.voxelcreator.api.CacheAdmissionTest" time="1.785"/>
+  <testcase name="userManagedRetentionNeverImplicitlyEvictsAndPinsProtectExplicitRemoval()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.008"/>
+  <testcase name="globalPressureDoesNotReclaimUserManagedEvenWhenUnpinned()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.605"/>
+  <testcase name="cachePoliciesHaveDistinctRetentionAndLocalLruBehavior()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.019"/>
+  <testcase name="impossibleCollectionDoesNotFlushCachesAndContextCloseBalancesAccounting()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.009"/>
+  <testcase name="concurrentRetainsReclaimsAndCloseHaveNoCacheLockCycle()" classname="io.voxelcreator.api.CacheAdmissionTest" time="0.404"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

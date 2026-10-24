@@ -1,0 +1,27 @@
+# Theme preview and contrast feedback
+
+View > Themes opens a dedicated live-preview editor. Palette controls are grouped into windows/panels, text/selection, section headers, buttons/inputs, borders/resizing, tabs/menus/docking and navigation/plots. A name filter and group selector narrow the list. Four status roles (Information, Warning, Error and Success) have independent colors; diagnostic, problem and input messages retain textual state indicators.
+
+Dark and Light are starting appearances. Choosing one clears overrides in the private preview. Each color offers **Use starting color**. **Reset to Default** stages the documented Dark palette. **Save Theme** atomically writes the theme and publishes it; **Revert Theme** restores the current saved appearance. Closing discards unsaved preview changes. The inspector always uses its own readable Dark palette, including controls, text and backgrounds, so identical or transparent authored colors remain recoverable while previewing. The preview sample intentionally displays the selected colors, even if unreadable.
+
+## Palette ownership and persistence
+
+`ThemePalette` is immutable: typed RGBA values and unmodifiable copied maps replace mutable preference arrays at the preview boundary. All components must be finite in [0,1], fixed ImGui keys must be known, status roles must be known, and starting appearances must be Dark or Light. `ThemeRegistry` version 1 publishes the complete pinned ImGui palette, groups, roles and contrast targets. Native style access remains in editor-only `ThemeStyle`.
+
+Preview values do not enter `UserConfig`, periodic workspace saves, shutdown preference saves, project data, project history or property drafts. Save checks the base theme for concurrent changes, merges theme values into a snapshot of the latest unrelated preferences, validates and writes a unique temporary sibling, forces contents and replaces the destination before publishing owned values. Failure preserves the active theme and destination; a stale theme draft must Revert. Scale, docking, shortcuts and performance values are preserved from the current preferences. Filesystem failure beyond the supported replacement contract is not certified.
+
+User Config remains format 1. The existing integer-keyed `appearance.colors` overrides retain their meanings. Optional `appearance.statusColors` adds sparse role overrides; historical files without it use appearance-specific status defaults. Strict reads reject unknown keys, malformed RGBA arrays, null/string components, noncanonical numeric color keys, unsupported versions and trailing JSON, with an 8 MiB input bound. Startup retains its built-in fallback on invalid preferences. Reading never rewrites a historical file. Generated schemas constrain the same known keys, roles and values.
+
+## Contrast calculation and limits
+
+The editor evaluates 26 named pairs: primary text against common window/control/selection surfaces, secondary text, four status roles, check marks, slider grabs and borders. Text feedback uses a 4.5:1 target; the selected control pairs use 3:1. It shows unrounded pass/attention decisions with numerical ratios and textual markers. Feedback never silently changes or prohibits a chosen palette. Built-in secondary text, inactive decoration or a custom color may legitimately show attention; this is guidance rather than a claim that every built-in pair meets a target.
+
+RGBA values first use ordinary sRGB source-over composition. A surface composites over the resolved window, which composites over an assumed opaque black backdrop for Dark or white for Light. The displayed foreground then composites over that surface. The resulting opaque RGB values use the [W3C relative-luminance transfer and contrast-ratio definition](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum): the sRGB breakpoint is 0.04045, luminance weights are 0.2126/0.7152/0.0722, and the ratio is `(lighter + 0.05) / (darker + 0.05)`.
+
+This is scoped presentation feedback. Actual transparency over other applications, nested/custom rendering, glyph antialiasing, disabled widget opacity, arbitrary platform effects, monitor calibration and visual perception can differ. These measurements do not certify WCAG conformance or the complete GUI acceptance matrix. World/noise colors and numerical outputs are independent of the UI palette.
+
+## Validation
+
+Unit contracts use analytical black/white, primary-channel, gamma and half-transparent gray vectors; randomized symmetry/identity/bounds checks; full named-pair audits; preference ownership, merge, restart, stale-base and failed-write cases; historical files and strict invalid input; and project/draft/history/numerical invariance.
+
+`ThemeReferenceProbe` uses a real isolated ImGui context and exports actual resolved Dark, Light and alpha-composition palettes. It verifies private live preview, an independently readable inspector, exclusion from workspace saves, native restoration, theme save/restart and unchanged project evaluation. `verify_theme.py` independently recomputes all 78 exported ratios and validates the persisted profile against the schema. Desktop smoke also stages an intentionally low-contrast preview and closes it without publication. Linux/Windows CI run these checks alongside the existing renderer and packaged-launcher checks. Broader interaction, DPI, OS/display and Windows 11 hardware acceptance remain separate.

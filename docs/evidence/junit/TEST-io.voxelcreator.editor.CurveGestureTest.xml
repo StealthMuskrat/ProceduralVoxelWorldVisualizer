@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.CurveGestureTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:27:13.579Z" hostname="715e00c143c7" time="0.011">
+<testsuite name="io.voxelcreator.editor.CurveGestureTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:47:57.546Z" hostname="715e00c143c7" time="0.011">
   <properties/>
   <testcase name="tangentModeAndLocalCancelIsolationAreEnforced()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.005"/>
   <testcase name="cumulativeGroupSnappingProducesOneUndoEntry()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.002"/>

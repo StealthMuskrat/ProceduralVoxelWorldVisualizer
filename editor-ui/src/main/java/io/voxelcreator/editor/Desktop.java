@@ -27,6 +27,7 @@ public final class Desktop extends Application {
   private ProfilePanel captures;
   private InputSettingsPanel inputSettings;
   private ApplicationSettingsPanel applicationSettings;
+  private ThemePanel themePanel;
   private String smokeDiagnosticDocument;
   private long smokeDiagnosticEvent;
   private boolean smokeSchedulerDrawn;
@@ -87,6 +88,7 @@ public final class Desktop extends Application {
   protected void preRun() {
     inputSettings = new InputSettingsPanel(state.user);
     applicationSettings = new ApplicationSettingsPanel(state);
+    themePanel = new ThemePanel(state.user);
     properties = new PropertyPanel(state);
     resources = new ResourcePanel(state, properties);
     diagnostics =
@@ -204,6 +206,15 @@ public final class Desktop extends Application {
         applicationSettings.assertSmokeDrawn();
         settings.set(false);
         System.out.println("APPLICATION_PROFILE_DRAFT_NATIVE_PASS");
+      }
+      if (runtimeFrame == 201) {
+        themes.set(true);
+        themePanel.smokeDraft();
+      }
+      if (runtimeFrame == 224) {
+        themePanel.assertSmokeDrawn();
+        themes.set(false);
+        System.out.println("THEME_CONTRAST_DRAFT_NATIVE_PASS");
       }
       if (runtimeFrame == 462) {
         profiler.set(true);
@@ -978,60 +989,11 @@ public final class Desktop extends Application {
   }
 
   private void drawThemes() {
-    if (!themes.get()) return;
-    ImGui.setNextWindowSize(600, 600, ImGuiCond.FirstUseEver);
-    ImGui.begin("Themes", themes);
-    fields.choice(
-        "Starting appearance",
-        state.user.appearance.theme,
-        List.of("Dark", "Light"),
-        v -> {
-          state.user.appearance.theme = v;
-          state.user.appearance.colors.clear();
-          applyTheme();
-        });
-    for (int i = 0; i < ImGuiCol.COUNT; i++) {
-      final int color = i;
-      float[] rgba = {
-        ImGui.getStyle().getColor(i).x,
-        ImGui.getStyle().getColor(i).y,
-        ImGui.getStyle().getColor(i).z,
-        ImGui.getStyle().getColor(i).w
-      };
-      if (ImGui.colorEdit4(ImGui.getStyleColorName(i), rgba)) {
-        state.user.appearance.colors.put(i, rgba);
-        ImGui.getStyle().setColor(i, rgba[0], rgba[1], rgba[2], rgba[3]);
-      }
-    }
-    ImGui.textWrapped(
-        "Keep text and control backgrounds clearly distinguishable. Error messages also use !"
-            + " markers.");
-    if (ImGui.button("Reset to Default")) {
-      state.user.appearance.theme = "Dark";
-      state.user.appearance.colors.clear();
-      applyTheme();
-    }
-    if (ImGui.button("Save Theme")) state.user.save();
-    ImGui.end();
+    themePanel.draw(themes);
   }
 
   private void applyTheme() {
-    if (state.user.appearance.theme.equals("Light")) ImGui.styleColorsLight();
-    else ImGui.styleColorsDark();
-    var style = ImGui.getStyle();
-    style.setWindowRounding(5);
-    style.setFrameRounding(4);
-    style.setGrabRounding(4);
-    style.setFramePadding(7, 5);
-    style.setItemSpacing(8, 7);
-    if (state.user.appearance.theme.equals("Dark")) {
-      style.setColor(ImGuiCol.WindowBg, .065f, .078f, .1f, 1);
-      style.setColor(ImGuiCol.Header, .15f, .24f, .29f, 1);
-      style.setColor(ImGuiCol.Button, .13f, .25f, .29f, 1);
-      style.setColor(ImGuiCol.TabActive, .15f, .35f, .39f, 1);
-      style.setColor(ImGuiCol.CheckMark, .5f, .85f, .75f, 1);
-    }
-    state.user.appearance.colors.forEach((key, c) -> style.setColor(key, c[0], c[1], c[2], c[3]));
+    ThemeStyle.apply(ThemePalette.from(state.user.appearance));
   }
 
   private void statusBar() {

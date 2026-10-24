@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.voxelcreator.editor.ThemePreferencesTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-24T22:47:58.629Z" hostname="715e00c143c7" time="0.147">
+  <properties/>
+  <testcase name="applyMergesLatestNonThemePreferencesAndSurvivesRestart()" classname="io.voxelcreator.editor.ThemePreferencesTest" time="0.014"/>
+  <testcase name="immutableOwnedSnapshotsAndRegistryCoverEveryPinnedColor()" classname="io.voxelcreator.editor.ThemePreferencesTest" time="0.003"/>
+  <testcase name="staleBaseRejectsAndRevertAllowsSaveWithoutFalseMapOrderConflicts()" classname="io.voxelcreator.editor.ThemePreferencesTest" time="0.01"/>
+  <testcase name="themeOperationsPreserveExistingProjectDraftHistoryDirtyAndNumericalResults()" classname="io.voxelcreator.editor.ThemePreferencesTest" time="0.014"/>
+  <testcase name="privateDraftResetRevertAndPeriodicSaveExcludePreview()" classname="io.voxelcreator.editor.ThemePreferencesTest" time="0.005"/>
+  <testcase name="invalidCurrentPreferencesCannotPublishCandidateOrOverwriteSavedBytes()" classname="io.voxelcreator.editor.ThemePreferencesTest" time="0.006"/>
+  <testcase name="malformedTypesRangesRolesAndStartingAppearancesReject()" classname="io.voxelcreator.editor.ThemePreferencesTest" time="0.006"/>
+  <testcase name="strictReadRejectsMalformedColorNodesVersionsAndTrailingContent()" classname="io.voxelcreator.editor.ThemePreferencesTest" time="0.041"/>
+  <testcase name="failedReplacementKeepsActiveThemeFileContentsAndPrivateDraft()" classname="io.voxelcreator.editor.ThemePreferencesTest" time="0.037"/>
+  <testcase name="historicalPaletteLoadsWithoutStatusMapAndWithoutRewritingBytes()" classname="io.voxelcreator.editor.ThemePreferencesTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
