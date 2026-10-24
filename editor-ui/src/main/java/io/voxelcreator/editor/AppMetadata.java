@@ -101,8 +101,9 @@ public final class AppMetadata {
                 + " operation-sampling limits. Inspect counts, mean and P50/P95/P99, filter"
                 + " source/context series and navigate to existing resources. JSON/CSV export"
                 + " writes all retained measurements only when requested. CPU-side mesh/upload"
-                + " timings do not measure GPU completion. Captures and navigation never dirty the"
-                + " project."));
+                + " timings do not measure GPU completion. GPU arenas compact within their existing"
+                + " vertex budget and share upload write limits. Captures and navigation never"
+                + " dirty the project."));
     return m;
   }
 

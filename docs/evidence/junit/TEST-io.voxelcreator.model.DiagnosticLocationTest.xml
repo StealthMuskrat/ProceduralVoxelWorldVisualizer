@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.model.DiagnosticLocationTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T20:08:19.995Z" hostname="715e00c143c7" time="0.592">
+<testsuite name="io.voxelcreator.model.DiagnosticLocationTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T21:02:32.870Z" hostname="715e00c143c7" time="0.59">
   <properties/>
-  <testcase name="explicitCompilerContextIsNeverOverwrittenByPointerFallback()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.451"/>
-  <testcase name="normalValidatorRetainsUuidContextWithoutMutatingCandidate()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.089"/>
+  <testcase name="explicitCompilerContextIsNeverOverwrittenByPointerFallback()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.463"/>
+  <testcase name="normalValidatorRetainsUuidContextWithoutMutatingCandidate()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.078"/>
   <testcase name="processingInputsAndEscapedParameterKeysResolveBeforeReorder()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.003"/>
-  <testcase name="rejectedCandidatePathsIdentifyNestedOperationRatherThanItsLayer()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.018"/>
+  <testcase name="rejectedCandidatePathsIdentifyNestedOperationRatherThanItsLayer()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.019"/>
   <testcase name="uuidArrayPathsAndHistoricalNoiseMembershipAliasesResolve()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.006"/>
-  <testcase name="curvePointLocationKeepsTheOwningNoiseAndPointIdentity()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.018"/>
+  <testcase name="curvePointLocationKeepsTheOwningNoiseAndPointIdentity()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.013"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

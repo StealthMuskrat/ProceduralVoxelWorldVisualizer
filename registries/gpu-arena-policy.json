@@ -1,0 +1,19 @@
+{
+  "formatVersion": 1,
+  "allocation": "16-byte aligned first-fit; adjacent free ranges coalesce",
+  "compaction": "stable source-offset order; in-place downward relocation; one compacted free tail",
+  "automaticTrigger": "upload cannot fit a contiguous range but total free bytes cover it",
+  "explicitTrigger": "Profiler > Compact GPU Arenas; queued until an active upload publishes",
+  "maximumCopyBytes": 65536,
+  "pointPrimitiveBytes": 16,
+  "trianglePrimitiveBytes": 48,
+  "budget": "Destination writes from uploads plus relocation never exceed the viewport upload write budget. Relocation additionally reads the same bytes into at most 64 KiB CPU staging.",
+  "gpuWorkspaceBytes": 0,
+  "drawDuringMove": "Completed primitive prefix at destination, remaining suffix at source; indirect and fallback paths use the same ranges",
+  "ownership": "Freeze allocations/releases during compaction; retire removed chunks until commit. Mid-layout retirement can create new holes after commit; later retries may compact again. Epoch reset discards the entire old layout.",
+  "statistics": "used/capacity/free/largest-free bytes, uploaded/relocated destination bytes per frame, remaining bytes, completed compactions, queued/active state, retiring chunks",
+  "failure": "No progress acknowledgement after a failed GL read/write. Existing streaming error handling disables the failed scene and preserves the last framebuffer; no promise of recovery from device loss.",
+  "exactGenerationChanged": false,
+  "projectSchemaChanged": false,
+  "nativeMinimum": "Desktop OpenGL 3.0; buffer readback/subdata requires no newer copy-buffer extension"
+}

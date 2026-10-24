@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.FairWorkQueueTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T20:08:12.301Z" hostname="715e00c143c7" time="0.014">
+<testsuite name="io.voxelcreator.api.FairWorkQueueTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T21:02:25.985Z" hostname="715e00c143c7" time="0.016">
   <properties/>
-  <testcase name="weightedLanesDoNotStarveNormalOrBackgroundWork()" classname="io.voxelcreator.api.FairWorkQueueTest" time="0.001"/>
-  <testcase name="removalReleasesCapacityAndDuplicateRunnablesAreSupported()" classname="io.voxelcreator.api.FairWorkQueueTest" time="0.001"/>
-  <testcase name="normalScopesTakeRoundRobinTurnsAndKeepTheirOwnFifo()" classname="io.voxelcreator.api.FairWorkQueueTest" time="0.0"/>
-  <testcase name="blockingOperationsTimeoutWakeAndDrainWithoutLeakingBuckets()" classname="io.voxelcreator.api.FairWorkQueueTest" time="0.009"/>
+  <testcase name="weightedLanesDoNotStarveNormalOrBackgroundWork()" classname="io.voxelcreator.api.FairWorkQueueTest" time="0.002"/>
+  <testcase name="removalReleasesCapacityAndDuplicateRunnablesAreSupported()" classname="io.voxelcreator.api.FairWorkQueueTest" time="0.004"/>
+  <testcase name="normalScopesTakeRoundRobinTurnsAndKeepTheirOwnFifo()" classname="io.voxelcreator.api.FairWorkQueueTest" time="0.001"/>
+  <testcase name="blockingOperationsTimeoutWakeAndDrainWithoutLeakingBuckets()" classname="io.voxelcreator.api.FairWorkQueueTest" time="0.007"/>
   <testcase name="promotionMovesOneQueuedJobAndPreservesCapacityAndIdentity()" classname="io.voxelcreator.api.FairWorkQueueTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

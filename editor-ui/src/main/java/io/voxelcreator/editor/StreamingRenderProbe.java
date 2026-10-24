@@ -27,6 +27,10 @@ public final class StreamingRenderProbe {
       if (window == 0) throw new IllegalStateException("OpenGL 3.0 required");
       glfwMakeContextCurrent(window);
       GL.createCapabilities();
+      if (Arrays.asList(args).contains("--require-gl30")
+          && (!GL.getCapabilities().OpenGL30 || GL.getCapabilities().OpenGL31))
+        throw new AssertionError("Expected an actual OpenGL 3.0 capability path");
+      System.out.println("STREAMING_PROBE_ENV gl=" + glGetString(GL_VERSION));
       try (var view = new GlViewport()) {
         int[] palette = new int[20000];
         Arrays.fill(palette, 0xff000000);
@@ -92,6 +96,7 @@ public final class StreamingRenderProbe {
         if (Byte.toUnsignedInt(recolored[left + 2]) < 245 || gpu.statistics().gpuBytes() != bytes)
           throw new AssertionError("Palette-only refresh changed geometry or failed");
         if (glGetError() != GL_NO_ERROR) throw new AssertionError("OpenGL error");
+        verifyCompaction(view, matrix, origin);
         System.out.println(
             "STREAMING_RENDER_NATIVE_PASS packed / budgeted upload / culling / palette / indirect="
                 + GL.getCapabilities().OpenGL43);
@@ -100,6 +105,169 @@ public final class StreamingRenderProbe {
       if (window != 0) glfwDestroyWindow(window);
       glfwTerminate();
     }
+  }
+
+  private static void verifyCompaction(GlViewport view, org.joml.Matrix4f matrix, Vector3d origin) {
+    var left = new ChunkPos(0, 0, 0);
+    var right = new ChunkPos(1, 0, 0);
+    var gap = new ChunkPos(200, 0, 0);
+    var spacer = new ChunkPos(201, 0, 0);
+    var retired = new ChunkPos(202, 0, 0);
+    var tail = new ChunkPos(203, 0, 0);
+    var newPosition = new ChunkPos(204, 0, 0);
+    var leftMesh = cube(1);
+    var rightMesh = cube(19999);
+    var point = points(leftMesh, 1);
+    var twoPoints = points(leftMesh, 2);
+    int capacity = leftMesh.byteSize() + rightMesh.byteSize() + 80;
+    var gpu = view.scene(9, capacity);
+    upload(gpu, new ChunkScene.Upload(9, gap, 1, point));
+    upload(gpu, new ChunkScene.Upload(9, left, 1, leftMesh));
+    upload(gpu, new ChunkScene.Upload(9, spacer, 1, twoPoints));
+    upload(gpu, new ChunkScene.Upload(9, right, 1, rightMesh));
+    upload(gpu, new ChunkScene.Upload(9, retired, 1, point));
+    upload(gpu, new ChunkScene.Upload(9, tail, 1, point));
+    if (gpu.requestCompaction())
+      throw new AssertionError("Packed arena should not need compaction");
+    Set<ChunkPos> wanted = Set.of(left, right);
+    byte[] baseline = renderRead(view, matrix, origin, wanted, false);
+    byte[] leftOnly = renderRead(view, matrix, origin, Set.of(left), false);
+    gpu.remove(gap);
+    gpu.remove(spacer);
+    gpu.remove(tail);
+    if (gpu.statistics().freeBytes() != 64 || gpu.statistics().largestFree() != 32)
+      throw new AssertionError("Expected fragmented arena: " + gpu.statistics());
+    var rejected = new ChunkScene.Upload(9, newPosition, 2, points(leftMesh, 3));
+    if (gpu.stage(rejected) || !gpu.compacting() || gpu.pending())
+      throw new AssertionError("Fragmented allocation should start bounded compaction");
+    int frame = 0;
+    while (gpu.compacting()) {
+      if (++frame > 100) throw new AssertionError("Compaction failed to finish");
+      gpu.beginFrame();
+      int moved = gpu.advanceCompaction(48);
+      if (moved <= 0
+          || moved > 48
+          || gpu.statistics().relocatedBytes() != moved
+          || gpu.statistics().uploadedBytes() != 0
+          || gpu.statistics().capacityBytes() != capacity)
+        throw new AssertionError("Relocation transfer or allocation budget: " + gpu.statistics());
+      if (frame == 2) {
+        gpu.remove(retired);
+        if (gpu.statistics().retiring() != 1)
+          throw new AssertionError("Removal was not deferred safely");
+        if (gpu.stage(rejected)) throw new AssertionError("Upload admitted during relocation");
+      }
+      if (!Arrays.equals(baseline, renderRead(view, matrix, origin, wanted, false))
+          || !Arrays.equals(baseline, renderRead(view, matrix, origin, wanted, true)))
+        throw new AssertionError(
+            "Partial overlapping relocation changed rendered geometry at step " + frame);
+      if (!gpu.contains(new ChunkScene.Upload(9, left, 1, leftMesh)))
+        throw new AssertionError("Relocation changed a resident version");
+    }
+    if (gpu.statistics().compactions() != 1
+        || gpu.statistics().freeBytes() != 80
+        || gpu.statistics().largestFree() != 80
+        || gpu.statistics().retiring() != 0)
+      throw new AssertionError("Compaction did not coalesce its free tail: " + gpu.statistics());
+    if (!gpu.stage(rejected))
+      throw new AssertionError("Compaction failed to admit the previously rejected mesh");
+    gpu.remove(left);
+    if (!gpu.requestCompaction() || !gpu.statistics().compactionRequested())
+      throw new AssertionError("Explicit compaction was not deferred for pending upload");
+    byte[] rightOnly = renderRead(view, matrix, origin, Set.of(right), false);
+    while (gpu.pending()) {
+      gpu.beginFrame();
+      gpu.advance(16);
+    }
+    gpu.beginFrame();
+    if (!gpu.compacting())
+      throw new AssertionError("Deferred compaction did not start after upload");
+    gpu.advanceCompaction(48);
+    if (!Arrays.equals(rightOnly, renderRead(view, matrix, origin, Set.of(right), false)))
+      throw new AssertionError("Explicit partial relocation changed the remaining mesh");
+    gpu.epoch(10);
+    if (gpu.hasData()
+        || gpu.compacting()
+        || gpu.pending()
+        || gpu.statistics().compactionRequested()
+        || gpu.statistics().freeBytes() != capacity)
+      throw new AssertionError("New epoch retained obsolete relocation state");
+    upload(gpu, new ChunkScene.Upload(10, left, 1, leftMesh));
+    if (!Arrays.equals(leftOnly, renderRead(view, matrix, origin, Set.of(left), false)))
+      throw new AssertionError("Epoch replacement after partial compaction changed fresh geometry");
+    var partial = new ChunkScene.Upload(10, newPosition, 3, points(leftMesh, 3));
+    if (!gpu.stage(partial)) throw new AssertionError("Pending cancellation setup");
+    gpu.advance(16);
+    gpu.remove(newPosition);
+    if (gpu.pending() || gpu.statistics().gpuBytes() != leftMesh.byteSize())
+      throw new AssertionError("Cancelled partial upload leaked an allocation");
+    var pointPosition = new ChunkPos(1, 0, 0);
+    upload(gpu, new ChunkScene.Upload(10, pointPosition, 1, centerPoints()));
+    gpu.remove(left);
+    var pointWanted = Set.of(pointPosition);
+    byte[] pointImage = renderRead(view, matrix, origin, pointWanted, false);
+    if (Arrays.equals(pointImage, renderRead(view, matrix, origin, Set.of(), false)))
+      throw new AssertionError("Visible point relocation fixture rendered no points");
+    if (!gpu.requestCompaction())
+      throw new AssertionError("Point relocation request did not start");
+    while (gpu.compacting()) {
+      gpu.beginFrame();
+      if (gpu.advanceCompaction(16) != 16) throw new AssertionError("Point primitive copy budget");
+      if (!Arrays.equals(pointImage, renderRead(view, matrix, origin, pointWanted, false))
+          || !Arrays.equals(pointImage, renderRead(view, matrix, origin, pointWanted, true)))
+        throw new AssertionError("Partial point relocation changed framebuffer pixels");
+    }
+    if (glGetError() != GL_NO_ERROR) throw new AssertionError("OpenGL compaction error");
+    System.out.println(
+        "GPU_ARENA_COMPACTION_NATIVE_PASS overlapping moves / primitive budgets / incremental"
+            + " pixels / indirect parity / deferred removal / admission retry / explicit request /"
+            + " epoch replacement");
+  }
+
+  private static PackedMesh cube(int type) {
+    return VoxelMesher.greedy(
+        32, (x, y, z) -> x >= 0 && y >= 0 && z >= 0 && x < 32 && y < 32 && z < 32 ? type : 0);
+  }
+
+  private static PackedMesh points(PackedMesh source, int count) {
+    byte[] bytes = new byte[count * PackedMesh.STRIDE];
+    source.readOnly().get(bytes);
+    return new PackedMesh(bytes, true);
+  }
+
+  private static PackedMesh centerPoints() {
+    var bytes = java.nio.ByteBuffer.allocate(48).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+    for (int x : new int[] {8, 16, 24}) {
+      bytes.putShort((short) (x * 2)).putShort((short) 32).putShort((short) 32);
+      bytes
+          .put((byte) 0)
+          .put((byte) 127)
+          .put((byte) 0)
+          .put((byte) 255)
+          .putShort((short) 0)
+          .putInt(1);
+    }
+    return new PackedMesh(bytes.array(), true);
+  }
+
+  private static void upload(SceneGpuRenderer gpu, ChunkScene.Upload upload) {
+    if (!gpu.stage(upload))
+      throw new AssertionError("Probe allocation rejected: " + gpu.statistics());
+    while (gpu.pending()) {
+      gpu.beginFrame();
+      gpu.advance(1024);
+    }
+  }
+
+  private static byte[] renderRead(
+      GlViewport view,
+      org.joml.Matrix4f matrix,
+      Vector3d origin,
+      Set<ChunkPos> wanted,
+      boolean indirect) {
+    view.sceneView(origin, wanted, indirect, false, 0);
+    view.render(129, 129, matrix, true, 1);
+    return read(view);
   }
 
   private static byte[] read(GlViewport view) {

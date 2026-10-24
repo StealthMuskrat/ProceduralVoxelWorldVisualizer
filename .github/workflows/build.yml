@@ -53,6 +53,8 @@ jobs:
         run: LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.VolumeRenderProbe
       - name: Packed streaming renderer reference
         run: LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe
+      - name: Strict OpenGL 3.0 arena reference
+        run: LIBGL_ALWAYS_SOFTWARE=1 MESA_GL_VERSION_OVERRIDE=3.0 MESA_GLSL_VERSION_OVERRIDE=130 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe --require-gl30
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -146,6 +148,18 @@ jobs:
         run: |
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows strict OpenGL 3.0 arena reference
+        shell: pwsh
+        run: |
+          $env:MESA_GL_VERSION_OVERRIDE = '3.0'
+          $env:MESA_GLSL_VERSION_OVERRIDE = '130'
+          try {
+            & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe --require-gl30
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally {
+            Remove-Item Env:MESA_GL_VERSION_OVERRIDE -ErrorAction SilentlyContinue
+            Remove-Item Env:MESA_GLSL_VERSION_OVERRIDE -ErrorAction SilentlyContinue
+          }
       - name: Package development distribution
         if: success()
         run: python scripts/package_release.py --runtime build/windows-runtime --mesa-notices build/mesa-notices --output build/packages

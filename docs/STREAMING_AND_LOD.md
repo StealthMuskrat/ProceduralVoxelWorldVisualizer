@@ -14,7 +14,7 @@ LOD uses nearest AABB distance, configured chunk-distance rings, quality and 15%
 
 ## GPU path
 
-Each viewport uses one shared packed vertex arena with aligned, coalescing free ranges. Uploads are sliced across frames and a mesh becomes drawable only after its complete upload. The last valid framebuffer is retained while a new source compiles or its first mesh uploads. Camera-relative offsets prevent large world coordinates from becoming vertex floats. Frustum culling precedes submission. OpenGL 4.3 uses indirect multi-draw with instanced chunk offsets; OpenGL 3.0 uses per-draw constant offsets. Palette textures can span multiple rows and update without rebuilding geometry. AO, fog and unlit settings are shader controls.
+Each viewport uses one shared packed vertex arena with aligned, coalescing free ranges and bounded in-place compaction. Uploads are sliced across frames and a mesh becomes drawable only after its complete upload. The last valid framebuffer is retained while a new source compiles or its first mesh uploads. Camera-relative offsets prevent large world coordinates from becoming vertex floats. Frustum culling precedes submission. OpenGL 4.3 uses indirect multi-draw with instanced chunk offsets; OpenGL 3.0 uses per-draw constant offsets. Palette textures can span multiple rows and update without rebuilding geometry. AO, fog and unlit settings are shader controls.
 
 Pressure changes effective settings in order: more distant LOD, shorter render distance, less preload/background work, rejection of new expensive previews, then visible pause requiring Resume. Stable low-pressure intervals gradually restore effective quality. Configured preferences and exact generation data are never rewritten by this controller.
 
@@ -24,4 +24,6 @@ A WorldContext shares concurrent sync/async generation for the same chunk. Each 
 
 Collected regions reserve a shared engine budget, including simultaneous collections and generation/cache staging. RegionResult is AutoCloseable: close releases its admission reservation and does not invalidate immutable chunk snapshots. A Cleaner is a fallback for abandoned results. The existing constructor, chunks()/summary() accessors and value equality remain; clients using record reflection/patterns must update to the owned result class. Prefer try-with-resources. Oversized region counts/collection estimates fail explicitly; world chunks extending beyond signed 32-bit block coordinates are rejected instead of wrapping.
 
-This revision does not add streaming ray-marched volumes/isosurfaces, shadows, arena compaction, cross-context priority fairness or Windows hardware certification. The benchmark and native/contract evidence describe observed scope rather than certifying all A01–A36 requirements.
+This revision does not add streaming ray-marched volumes/isosurfaces, shadows or Windows hardware certification. Cross-context queued priority fairness and GPU arena compaction have separate implemented contracts. The benchmark and native/contract evidence describe observed scope rather than certifying all A01–A36 requirements.
+
+See [GPU_ARENA_COMPACTION.md](GPU_ARENA_COMPACTION.md) for relocation bounds, draw continuity, retirement, allocator ownership and native pixel checks.

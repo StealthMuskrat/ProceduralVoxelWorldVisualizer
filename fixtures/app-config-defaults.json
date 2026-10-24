@@ -44,7 +44,7 @@
     "profiler" : {
       "label" : "Profiler captures",
       "tooltip" : "Opt-in bounded CPU timings and metrics",
-      "description" : "View > Profiler starts an explicit capture with duration, sample, series and operation-sampling limits. Inspect counts, mean and P50/P95/P99, filter source/context series and navigate to existing resources. JSON/CSV export writes all retained measurements only when requested. CPU-side mesh/upload timings do not measure GPU completion. Captures and navigation never dirty the project."
+      "description" : "View > Profiler starts an explicit capture with duration, sample, series and operation-sampling limits. Inspect counts, mean and P50/P95/P99, filter source/context series and navigate to existing resources. JSON/CSV export writes all retained measurements only when requested. CPU-side mesh/upload timings do not measure GPU completion. GPU arenas compact within their existing vertex budget and share upload write limits. Captures and navigation never dirty the project."
     }
   }
 }

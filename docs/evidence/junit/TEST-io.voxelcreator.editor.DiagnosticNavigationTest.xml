@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.DiagnosticNavigationTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T20:11:38.646Z" hostname="715e00c143c7" time="0.321">
+<testsuite name="io.voxelcreator.editor.DiagnosticNavigationTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T21:02:15.717Z" hostname="715e00c143c7" time="0.573">
   <properties/>
-  <testcase name="historicalUuidTargetsSurviveReorderButNotDeletionOrNewProjects()" classname="io.voxelcreator.editor.DiagnosticNavigationTest" time="0.01"/>
-  <testcase name="rejectedDraftNavigationPreservesTextDocumentRevisionAndUndoHistory()" classname="io.voxelcreator.editor.DiagnosticNavigationTest" time="0.299"/>
-  <testcase name="validationAndEventReadStateNeverDirtyOrCreateHistory()" classname="io.voxelcreator.editor.DiagnosticNavigationTest" time="0.004"/>
+  <testcase name="historicalUuidTargetsSurviveReorderButNotDeletionOrNewProjects()" classname="io.voxelcreator.editor.DiagnosticNavigationTest" time="0.013"/>
+  <testcase name="rejectedDraftNavigationPreservesTextDocumentRevisionAndUndoHistory()" classname="io.voxelcreator.editor.DiagnosticNavigationTest" time="0.547"/>
+  <testcase name="validationAndEventReadStateNeverDirtyOrCreateHistory()" classname="io.voxelcreator.editor.DiagnosticNavigationTest" time="0.006"/>
   <testcase name="projectSettingsTargetsAreAvailableOnlyForTheirProject()" classname="io.voxelcreator.editor.DiagnosticNavigationTest" time="0.001"/>
-  <testcase name="currentDraftControlsAreUsedWithoutFallingBackToDifferentCommittedControls()" classname="io.voxelcreator.editor.DiagnosticNavigationTest" time="0.002"/>
+  <testcase name="currentDraftControlsAreUsedWithoutFallingBackToDifferentCommittedControls()" classname="io.voxelcreator.editor.DiagnosticNavigationTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

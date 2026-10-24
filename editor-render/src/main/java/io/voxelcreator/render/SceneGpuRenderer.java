@@ -24,10 +24,53 @@ public final class SceneGpuRenderer implements AutoCloseable {
       long gpuBytes,
       long uploadedBytes,
       boolean indirect,
-      int largestFree) {}
+      int largestFree,
+      int capacityBytes,
+      long freeBytes,
+      long relocatedBytes,
+      long compactionRemainingBytes,
+      long compactions,
+      boolean compacting,
+      boolean compactionRequested,
+      int retiring) {
+    public Statistics(
+        int resident,
+        int visible,
+        int culled,
+        int draws,
+        long gpuBytes,
+        long uploadedBytes,
+        boolean indirect,
+        int largestFree) {
+      this(
+          resident,
+          visible,
+          culled,
+          draws,
+          gpuBytes,
+          uploadedBytes,
+          indirect,
+          largestFree,
+          0,
+          0,
+          0,
+          0,
+          0,
+          false,
+          false,
+          0);
+    }
+  }
 
   private record Resident(long version, ArenaAllocator.Slice slice, int count, boolean points) {}
 
+  private record Draw(ChunkPos position, int offset, int count) {}
+
+  private ArenaCompaction compaction;
+  private final Set<ChunkPos> retiring = new HashSet<>();
+  private boolean compactionRequested, closed;
+  private long relocated, compactions;
+  private ByteBuffer relocationScratch;
   private int vao, vbo, origins, commands, program;
   private final ArenaAllocator arena;
   private final Map<ChunkPos, Resident> resident = new LinkedHashMap<>();
@@ -66,15 +109,15 @@ public final class SceneGpuRenderer implements AutoCloseable {
 
   public void epoch(long value) {
     if (value == epoch) return;
-    if (pending != null) {
-      arena.release(pendingSlice);
-      pending = null;
-      pendingSlice = null;
-    }
-    for (var entry : resident.values()) arena.release(entry.slice);
+    pending = null;
+    pendingSlice = null;
+    compaction = null;
+    compactionRequested = false;
+    retiring.clear();
+    arena.reset();
     resident.clear();
     epoch = value;
-    uploaded = 0;
+    uploaded = relocated = 0;
   }
 
   public boolean hasData() {
@@ -82,7 +125,8 @@ public final class SceneGpuRenderer implements AutoCloseable {
   }
 
   public void beginFrame() {
-    uploaded = 0;
+    uploaded = relocated = 0;
+    if (compactionRequested && pending == null && compaction == null) startCompaction();
   }
 
   private ChunkScene.Upload pending;
@@ -92,7 +136,9 @@ public final class SceneGpuRenderer implements AutoCloseable {
 
   public boolean contains(ChunkScene.Upload upload) {
     var entry = resident.get(upload.position());
-    return entry != null && entry.version == upload.version();
+    return entry != null
+        && !retiring.contains(upload.position())
+        && entry.version == upload.version();
   }
 
   public boolean pending() {
@@ -100,12 +146,17 @@ public final class SceneGpuRenderer implements AutoCloseable {
   }
 
   public boolean stage(ChunkScene.Upload upload) {
+    if (closed) throw new IllegalStateException("Renderer closed");
     if (upload.epoch() != epoch) throw new IllegalArgumentException("Obsolete scene upload");
-    if (pending != null) return false;
+    if (pending != null || compaction != null) return false;
+    if (compactionRequested && startCompaction()) return false;
     var old = resident.get(upload.position());
     if (old != null && old.version == upload.version()) return true;
     var allocation = arena.allocate(upload.mesh().byteSize());
-    if (allocation == null) return false;
+    if (allocation == null) {
+      if (arena.freeBytes() >= upload.mesh().byteSize()) requestCompaction();
+      return false;
+    }
     pending = upload;
     pendingSlice = allocation;
     progress = 0;
@@ -113,6 +164,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
   }
 
   public ChunkScene.Upload advance(int budget) {
+    if (budget < 0) throw new IllegalArgumentException("Negative upload budget");
     if (pending == null) return null;
     int bytes = Math.min(budget, pending.mesh().byteSize() - progress);
     if (bytes > 0) {
@@ -128,6 +180,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
       if (glGetError() != GL_NO_ERROR) {
         arena.release(pendingSlice);
         pending = null;
+        pendingSlice = null;
         throw new IllegalStateException("Packed mesh upload failed");
       }
       uploaded += bytes;
@@ -150,6 +203,10 @@ public final class SceneGpuRenderer implements AutoCloseable {
   }
 
   public void remove(ChunkPos position) {
+    if (compaction != null) {
+      if (resident.containsKey(position)) retiring.add(position);
+      return;
+    }
     if (pending != null && pending.position().equals(position)) {
       arena.release(pendingSlice);
       pending = null;
@@ -157,6 +214,84 @@ public final class SceneGpuRenderer implements AutoCloseable {
     }
     var old = resident.remove(position);
     if (old != null) arena.release(old.slice);
+  }
+
+  public boolean compacting() {
+    return compaction != null;
+  }
+
+  /** Explicit requests defer until an existing upload is published. No duplicate GPU arena. */
+  public boolean requestCompaction() {
+    if (closed) throw new IllegalStateException("Renderer closed");
+    if (compaction != null) return false;
+    if (pending != null) {
+      compactionRequested = true;
+      return true;
+    }
+    return startCompaction();
+  }
+
+  private boolean startCompaction() {
+    compactionRequested = false;
+    var layout = arena.beginCompaction();
+    if (layout == null) return false;
+    var primitives = new HashMap<ArenaAllocator.Slice, Integer>();
+    for (var entry : resident.values())
+      if (entry.slice.length() > 0) primitives.put(entry.slice, entry.points ? 16 : 48);
+    compaction =
+        new ArenaCompaction(layout, slice -> Objects.requireNonNull(primitives.get(slice)));
+    return true;
+  }
+
+  /**
+   * In-place downward copies use at most 64 KiB CPU readback staging and the caller's transfer
+   * budget. GL 1.5 readback/subdata works on the GL 3.0 path too. Each completed range is
+   * immediately drawable, so even an overlapping move never exposes partially overwritten old
+   * geometry.
+   */
+  public int advanceCompaction(int byteBudget) {
+    if (byteBudget < 0) throw new IllegalArgumentException("Negative compaction budget");
+    int moved = 0;
+    while (compaction != null) {
+      var copy = compaction.next(byteBudget - moved);
+      if (copy == null) break;
+      if (relocationScratch == null)
+        relocationScratch = BufferUtils.createByteBuffer(ArenaCompaction.MAX_COPY_BYTES);
+      relocationScratch.clear();
+      relocationScratch.limit(copy.bytes());
+      glBindBuffer(GL_ARRAY_BUFFER, vbo);
+      glGetBufferSubData(GL_ARRAY_BUFFER, copy.sourceOffset(), relocationScratch);
+      if (glGetError() != GL_NO_ERROR) {
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        compaction.retry();
+        throw new IllegalStateException("GPU arena relocation read failed");
+      }
+      relocationScratch.position(0);
+      glBufferSubData(GL_ARRAY_BUFFER, copy.targetOffset(), relocationScratch);
+      glBindBuffer(GL_ARRAY_BUFFER, 0);
+      if (glGetError() != GL_NO_ERROR) {
+        compaction.retry();
+        throw new IllegalStateException("GPU arena relocation write failed");
+      }
+      compaction.copied(copy);
+      moved += copy.bytes();
+      relocated += copy.bytes();
+      if (compaction.complete()) {
+        var layout = compaction.layout();
+        resident.replaceAll(
+            (position, entry) ->
+                new Resident(entry.version, layout.target(entry.slice), entry.count, entry.points));
+        arena.commitCompaction(layout);
+        compaction = null;
+        compactions++;
+        for (var position : retiring) {
+          var entry = resident.remove(position);
+          if (entry != null) arena.release(entry.slice);
+        }
+        retiring.clear();
+      }
+    }
+    return moved;
   }
 
   public Statistics statistics() {
@@ -168,7 +303,15 @@ public final class SceneGpuRenderer implements AutoCloseable {
         arena.usedBytes(),
         uploaded,
         indirect,
-        arena.largestFreeRange());
+        arena.largestFreeRange(),
+        arena.capacity(),
+        arena.freeBytes(),
+        relocated,
+        compaction == null ? 0 : compaction.remainingBytes(),
+        compactions,
+        compaction != null,
+        compactionRequested,
+        retiring.size());
   }
 
   public void render(
@@ -185,11 +328,11 @@ public final class SceneGpuRenderer implements AutoCloseable {
     visible = culled = draws = 0;
     indirect = useIndirect && GL.getCapabilities().OpenGL43;
     var frustum = new FrustumIntersection(matrix);
-    var triangles = new ArrayList<Map.Entry<ChunkPos, Resident>>();
-    var points = new ArrayList<Map.Entry<ChunkPos, Resident>>();
+    var triangles = new ArrayList<Draw>();
+    var points = new ArrayList<Draw>();
     for (var entry : resident.entrySet()) {
       var p = entry.getKey();
-      if (!wanted.contains(p)) continue;
+      if (!wanted.contains(p) || retiring.contains(p)) continue;
       float x = (float) ((double) p.x() * size - origin.x),
           y = (float) ((double) p.y() * size - origin.y),
           z = (float) ((double) p.z() * size - origin.z);
@@ -198,7 +341,15 @@ public final class SceneGpuRenderer implements AutoCloseable {
         continue;
       }
       visible++;
-      if (entry.getValue().count > 0) (entry.getValue().points ? points : triangles).add(entry);
+      var value = entry.getValue();
+      if (value.count > 0) {
+        var destination = value.points ? points : triangles;
+        if (compaction == null) destination.add(new Draw(p, value.slice.offset(), value.count));
+        else
+          for (var segment : compaction.segments(value.slice))
+            if (segment.bytes() > 0)
+              destination.add(new Draw(p, segment.offset(), segment.bytes() / 16));
+      }
     }
     glUseProgram(program);
     glUniformMatrix4fv(glGetUniformLocation(program, "matrix"), false, matrix.get(new float[16]));
@@ -220,20 +371,19 @@ public final class SceneGpuRenderer implements AutoCloseable {
     glUseProgram(0);
   }
 
-  private void draw(
-      List<Map.Entry<ChunkPos, Resident>> entries, int mode, Vector3d origin, int size) {
+  private void draw(List<Draw> entries, int mode, Vector3d origin, int size) {
     if (entries.isEmpty()) return;
     if (indirect) {
       FloatBuffer offsets = BufferUtils.createFloatBuffer(entries.size() * 3);
       IntBuffer batch = BufferUtils.createIntBuffer(entries.size() * 4);
       for (int i = 0; i < entries.size(); i++) {
         var entry = entries.get(i);
-        var p = entry.getKey();
+        var p = entry.position();
         offsets
             .put((float) ((double) p.x() * size - origin.x))
             .put((float) ((double) p.y() * size - origin.y))
             .put((float) ((double) p.z() * size - origin.z));
-        batch.put(entry.getValue().count).put(1).put(entry.getValue().slice.offset() / 16).put(i);
+        batch.put(entry.count()).put(1).put(entry.offset() / 16).put(i);
       }
       offsets.flip();
       batch.flip();
@@ -253,13 +403,13 @@ public final class SceneGpuRenderer implements AutoCloseable {
     } else {
       glDisableVertexAttribArray(4);
       for (var entry : entries) {
-        var p = entry.getKey();
+        var p = entry.position();
         glVertexAttrib3f(
             4,
             (float) ((double) p.x() * size - origin.x),
             (float) ((double) p.y() * size - origin.y),
             (float) ((double) p.z() * size - origin.z));
-        glDrawArrays(mode, entry.getValue().slice.offset() / 16, entry.getValue().count);
+        glDrawArrays(mode, entry.offset() / 16, entry.count());
         draws++;
       }
     }
@@ -313,6 +463,17 @@ public final class SceneGpuRenderer implements AutoCloseable {
   }
 
   public void close() {
+    if (closed) return;
+    closed = true;
+    compaction = null;
+    compactionRequested = false;
+    retiring.clear();
+    resident.clear();
+    pending = null;
+    pendingSlice = null;
+    arena.reset();
+    relocationScratch = null;
+    scratch = null;
     glDeleteProgram(program);
     glDeleteBuffers(vbo);
     glDeleteBuffers(origins);

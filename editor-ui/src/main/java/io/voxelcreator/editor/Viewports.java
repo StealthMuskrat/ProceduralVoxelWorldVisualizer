@@ -97,11 +97,50 @@ public final class Viewports implements AutoCloseable {
       int visible,
       int culled,
       int drawCalls,
-      boolean indirect) {}
+      boolean indirect,
+      long gpuCapacityBytes,
+      long gpuFreeBytes,
+      long largestFreeRange,
+      long relocatedBytes,
+      long compactionRemainingBytes,
+      long compactions,
+      int compactingArenas) {
+    public StreamingStatistics(
+        long cpuBytes,
+        long reserved,
+        long gpuBytes,
+        long uploadedBytes,
+        int chunks,
+        int jobs,
+        int visible,
+        int culled,
+        int drawCalls,
+        boolean indirect) {
+      this(
+          cpuBytes,
+          reserved,
+          gpuBytes,
+          uploadedBytes,
+          chunks,
+          jobs,
+          visible,
+          culled,
+          drawCalls,
+          indirect,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0);
+    }
+  }
 
   public StreamingStatistics streamingStatistics() {
     long cpu = 0, reserved = 0, gpu = 0, uploads = 0;
-    int chunks = 0, jobs = 0, visible = 0, culled = 0, draws = 0;
+    int chunks = 0, jobs = 0, visible = 0, culled = 0, draws = 0, compacting = 0;
+    long capacity = 0, free = 0, largest = 0, moved = 0, remaining = 0, compactions = 0;
     boolean indirect = false;
     for (var v : views) {
       if (v.scene != null) {
@@ -119,10 +158,42 @@ public final class Viewports implements AutoCloseable {
         culled += g.culled();
         draws += g.draws();
         indirect |= g.indirect();
+        capacity += g.capacityBytes();
+        free += g.freeBytes();
+        largest = Math.max(largest, g.largestFree());
+        moved += g.relocatedBytes();
+        remaining += g.compactionRemainingBytes();
+        compactions += g.compactions();
+        if (g.compacting() || g.compactionRequested()) compacting++;
       }
     }
     return new StreamingStatistics(
-        cpu, reserved, gpu, uploads, chunks, jobs, visible, culled, draws, indirect);
+        cpu,
+        reserved,
+        gpu,
+        uploads,
+        chunks,
+        jobs,
+        visible,
+        culled,
+        draws,
+        indirect,
+        capacity,
+        free,
+        largest,
+        moved,
+        remaining,
+        compactions,
+        compacting);
+  }
+
+  public int compactArenas() {
+    int requested = 0;
+    for (var view : views) {
+      var gpu = view.gl.sceneRenderer();
+      if (gpu != null && gpu.requestCompaction()) requested++;
+    }
+    return requested;
   }
 
   private record Preview(
@@ -899,23 +970,27 @@ public final class Viewports implements AutoCloseable {
         long uploadStamp = uploadProfile == null ? 0 : uploadProfile.begin();
         var uploadOutcome = Profiler.Outcome.FAILED;
         try {
+          int maintenance = gpu.advanceCompaction(budget);
+          int uploadBudget = budget - maintenance;
           for (int batch = 0;
-              batch < 4 && gpu.statistics().uploadedBytes() - before < budget;
+              batch < 4
+                  && !gpu.compacting()
+                  && gpu.statistics().uploadedBytes() - before < uploadBudget;
               batch++) {
             if (!gpu.pending()) {
-              var uploads = v.scene.uploads(1, budget);
+              var uploads = v.scene.uploads(1, uploadBudget);
               if (uploads.isEmpty()) break;
               if (gpu.contains(uploads.getFirst())) {
                 v.scene.uploaded(uploads.getFirst());
                 continue;
               }
               if (!gpu.stage(uploads.getFirst())) {
-                v.scene.reject();
+                if (!gpu.compacting()) v.scene.reject();
                 break;
               }
             }
             var completed =
-                gpu.advance((int) (budget - (gpu.statistics().uploadedBytes() - before)));
+                gpu.advance((int) (uploadBudget - (gpu.statistics().uploadedBytes() - before)));
             if (completed != null) v.scene.uploaded(completed);
             else break;
           }
@@ -927,13 +1002,18 @@ public final class Viewports implements AutoCloseable {
                 uploadStamp,
                 Profiler.Kind.UPLOAD_CPU,
                 null,
-                "Streaming upload submission",
+                "Streaming upload and arena maintenance",
                 uploadOutcome);
             uploadProfile.gauge(
                 Profiler.Kind.UPLOAD_BYTES,
                 Profiler.Unit.BYTES,
                 uploaded,
                 "Streaming upload bytes per frame");
+            uploadProfile.gauge(
+                Profiler.Kind.UPLOAD_BYTES,
+                Profiler.Unit.BYTES,
+                gpu.statistics().relocatedBytes(),
+                "Arena relocation bytes per frame");
           }
         }
         v.origin.set(
@@ -978,7 +1058,12 @@ public final class Viewports implements AutoCloseable {
                   + cpu.wanted()
                   + " meshes; "
                   + cpu.activeJobs()
-                  + " jobs";
+                  + " jobs"
+                  + (gpu.compacting()
+                      ? " | Compacting GPU arena: "
+                          + gpu.statistics().compactionRemainingBytes()
+                          + " bytes remain"
+                      : "");
       } catch (RuntimeException gpu) {
         v.scene.close();
         v.scene = null;

@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.SamplingBatchTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-24T20:08:13.037Z" hostname="715e00c143c7" time="0.058">
+<testsuite name="io.voxelcreator.api.SamplingBatchTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-24T21:02:26.530Z" hostname="715e00c143c7" time="0.045">
   <properties/>
-  <testcase name="compiledBatchFailureRetainsTheStructuredExpressionSpan()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.016"/>
-  <testcase name="stridedTwoDimensionalGridUsesDeclaredCoordinatesAndPreservesPadding()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.003"/>
+  <testcase name="compiledBatchFailureRetainsTheStructuredExpressionSpan()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.01"/>
+  <testcase name="stridedTwoDimensionalGridUsesDeclaredCoordinatesAndPreservesPadding()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.001"/>
   <testcase name="failuresRetainCoordinatesCauseAndOnlyTheSuccessfulPrefix()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.003"/>
-  <testcase name="cancellationIsBoundedAndPreflightCancellationWritesNothing()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.003"/>
-  <testcase name="compiledFieldBatchesMatchSingleSamplesAcrossThreads()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.013"/>
-  <testcase name="pointPreflightRejectsNonfiniteCoordinatesAndOverlapsButAllowsDisjointRanges()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.005"/>
-  <testcase name="oversizedAddressesCountsAndCoordinatesFailBeforeWriting()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.008"/>
-  <testcase name="threeDimensionalLayoutRetainsXFastZRowsAndYPlanes()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.002"/>
+  <testcase name="cancellationIsBoundedAndPreflightCancellationWritesNothing()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.002"/>
+  <testcase name="compiledFieldBatchesMatchSingleSamplesAcrossThreads()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.011"/>
+  <testcase name="pointPreflightRejectsNonfiniteCoordinatesAndOverlapsButAllowsDisjointRanges()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.002"/>
+  <testcase name="oversizedAddressesCountsAndCoordinatesFailBeforeWriting()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.009"/>
+  <testcase name="threeDimensionalLayoutRetainsXFastZRowsAndYPlanes()" classname="io.voxelcreator.api.SamplingBatchTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

@@ -102,18 +102,65 @@ public final class ProfilePanel {
     scope.gauge(
         Profiler.Kind.SCENE_GPU_BYTES,
         Profiler.Unit.BYTES,
-        rendering.gpuBytes(),
+        rendering.gpuCapacityBytes(),
         "Scene GPU arena allocation");
   }
 
   public void draw(ImBoolean open, Viewports.StreamingStatistics rendering) {
+    draw(open, rendering, null);
+  }
+
+  public void draw(
+      ImBoolean open,
+      Viewports.StreamingStatistics rendering,
+      java.util.function.IntSupplier compact) {
     if (!open.get()) return;
-    ImGui.setNextWindowSize(1050, 760, ImGuiCond.FirstUseEver);
+    ImGui.setNextWindowSize(1050, 800, ImGuiCond.FirstUseEver);
     ImGui.begin("Profiler", open);
     drawn = true;
     ImGui.textWrapped(state.engine.metrics().toString());
     ImGui.textWrapped(state.engine.schedulerStats().toString());
-    ImGui.textWrapped(rendering.toString());
+    ImGui.text(
+        String.format(
+            Locale.ROOT,
+            "Scene: %d chunks / %d jobs / %d visible / %d culled / %d draws / indirect %s",
+            rendering.chunks(),
+            rendering.jobs(),
+            rendering.visible(),
+            rendering.culled(),
+            rendering.drawCalls(),
+            rendering.indirect()));
+    ImGui.text(
+        String.format(
+            Locale.ROOT,
+            "CPU: %,d resident + %,d reserved bytes | GPU: %,d / %,d vertex arena bytes used",
+            rendering.cpuBytes(),
+            rendering.reserved(),
+            rendering.gpuBytes(),
+            rendering.gpuCapacityBytes()));
+    ImGui.text(
+        String.format(
+            Locale.ROOT,
+            "GPU free: %,d bytes / largest range %,d | frame writes: %,d upload + %,d relocated"
+                + " bytes",
+            rendering.gpuFreeBytes(),
+            rendering.largestFreeRange(),
+            rendering.uploadedBytes(),
+            rendering.relocatedBytes()));
+    ImGui.text(
+        String.format(
+            Locale.ROOT,
+            "Compaction: %d active or queued arenas / %,d bytes remain / %d completed",
+            rendering.compactingArenas(),
+            rendering.compactionRemainingBytes(),
+            rendering.compactions()));
+    if (compact != null && ImGui.button("Compact GPU Arenas"))
+      message =
+          "Requested compaction for "
+              + compact.getAsInt()
+              + " arenas; active uploads finish first.";
+    ImGui.textDisabled(
+        "Relocation shares the upload budget; no additional GPU vertex arena is allocated.");
     if (ImGui.collapsingHeader("Capture limits")) {
       fields.integer("Duration (ms)", duration, v -> duration = Math.clamp(v, 100, 60000));
       fields.integer("Maximum samples", samples, v -> samples = Math.clamp(v, 64, 65536));
@@ -161,6 +208,7 @@ public final class ProfilePanel {
       ImGui.textWrapped(
           "Capture is disabled. Start to collect bounded timings and metrics. CPU-side elapsed"
               + " timings include scheduling/preemption; GPU completion times are not measured.");
+      ImGui.textWrapped(message);
       ImGui.end();
       return;
     }

@@ -15,9 +15,9 @@ A sample retains monotonic start offset, nonnegative value, explicit unit/outcom
 | STAGE | Admitted exact before/after snapshot generation, including shared prefetch and both prefixes. Source is the selected stage UUID. |
 | REGION_DELIVERY | Consumer invocation through acknowledgement, failure or cancellation. Does not include generation wait. |
 | PREVIEW / MESH_CPU | Fixed-preview worker execution and streamed LOD/mesh worker execution; exclude background queue wait. |
-| UPLOAD_CPU / UPLOAD_BYTES | Streaming CPU upload staging/submission interval and actual uploaded bytes per frame, including zero-byte frames. |
+| UPLOAD_CPU / UPLOAD_BYTES | Streaming CPU upload staging/submission interval and actual uploaded bytes per frame, including zero-byte frames. The CPU interval also includes bounded arena maintenance; a separate byte gauge reports relocation destination writes. |
 | FRAME | ImGui frame interval. |
-| Memory / queue / GC | Editor gauges at most every 250 ms: JVM used heap and cumulative GC time/count; engine active workers, queues, cache/staging/collection admission; scene CPU resident+reserved and allocated GPU arena bytes. |
+| Memory / queue / GC | Editor gauges at most every 250 ms: JVM used heap and cumulative GC time/count; engine active workers, queues, cache/staging/collection admission; scene CPU resident+reserved and allocated GPU vertex arena capacity. |
 
 Durations are monotonic **CPU-side wall elapsed time**, including preemption and waits, not thread CPU consumption. Nested chunk/prefetch/operation/stage/preview timings overlap; adding them double-counts work. Layer labels allow filtering related operations but do not provide an exclusive layer total. GPU arena size is allocation accounting, not physical GPU residency. Hardware GPU completion/timestamp queries and exhaustive thread traces are outside this implementation.
 

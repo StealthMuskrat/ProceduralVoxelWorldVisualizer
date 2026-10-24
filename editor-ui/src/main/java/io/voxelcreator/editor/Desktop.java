@@ -182,6 +182,11 @@ public final class Desktop extends Application {
       }
       if (runtimeFrame == 145) state.engine.profiler().stop();
       if (runtimeFrame == 150) profiler.set(false);
+      if (runtimeFrame == 462) {
+        profiler.set(true);
+        views.compactArenas();
+      }
+      if (runtimeFrame == 478) profiler.set(false);
       if (!views.smokePhaseReady(runtimeFrame)) {
         if (smokePhaseWait == 0) smokePhaseWait = System.nanoTime();
         if (System.nanoTime() - smokePhaseWait > 30_000_000_000L)
@@ -996,7 +1001,7 @@ public final class Desktop extends Application {
   private void drawProfiler() {
     if (!profiler.get()) return;
     if (smokeFrames > 0) smokeSchedulerDrawn = true;
-    captures.draw(profiler, views.streamingStatistics());
+    captures.draw(profiler, views.streamingStatistics(), views::compactArenas);
   }
 
   private void drawThemes() {

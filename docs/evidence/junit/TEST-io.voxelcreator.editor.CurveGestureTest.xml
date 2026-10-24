@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.CurveGestureTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T20:11:38.050Z" hostname="715e00c143c7" time="0.591">
+<testsuite name="io.voxelcreator.editor.CurveGestureTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T21:02:15.003Z" hostname="715e00c143c7" time="0.707">
   <properties/>
-  <testcase name="tangentModeAndLocalCancelIsolationAreEnforced()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.572"/>
-  <testcase name="cumulativeGroupSnappingProducesOneUndoEntry()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.01"/>
-  <testcase name="invalidCrossingRetainsLastValidGestureAndEndpointsStayLocked()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.003"/>
+  <testcase name="tangentModeAndLocalCancelIsolationAreEnforced()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.688"/>
+  <testcase name="cumulativeGroupSnappingProducesOneUndoEntry()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.009"/>
+  <testcase name="invalidCrossingRetainsLastValidGestureAndEndpointsStayLocked()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.005"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

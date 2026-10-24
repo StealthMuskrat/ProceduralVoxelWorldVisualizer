@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.WorldUseTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-24T20:08:13.213Z" hostname="715e00c143c7" time="0.477">
+<testsuite name="io.voxelcreator.api.WorldUseTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-24T21:02:26.670Z" hostname="715e00c143c7" time="0.307">
   <properties/>
-  <testcase name="transformsApplyAxesComponentsOrderAndPivotBeforeCanonicalField()" classname="io.voxelcreator.api.WorldUseTest" time="0.014"/>
-  <testcase name="probabilityGatesHaveIndependentFixedVectorsAndExactEdges()" classname="io.voxelcreator.api.WorldUseTest" time="0.011"/>
-  <testcase name="validationRejectsOverlapsAndEmptyMappingsWithPrecisePaths()" classname="io.voxelcreator.api.WorldUseTest" time="0.009"/>
+  <testcase name="transformsApplyAxesComponentsOrderAndPivotBeforeCanonicalField()" classname="io.voxelcreator.api.WorldUseTest" time="0.01"/>
+  <testcase name="probabilityGatesHaveIndependentFixedVectorsAndExactEdges()" classname="io.voxelcreator.api.WorldUseTest" time="0.01"/>
+  <testcase name="validationRejectsOverlapsAndEmptyMappingsWithPrecisePaths()" classname="io.voxelcreator.api.WorldUseTest" time="0.008"/>
   <testcase name="failedTransformsPublishNoChunkAndOldFormatTwoSettingsStillLoad(Path)" classname="io.voxelcreator.api.WorldUseTest" time="0.025"/>
-  <testcase name="yDependentTwoDimensionalPlacementsNeverReuseAColumn()" classname="io.voxelcreator.api.WorldUseTest" time="0.1"/>
-  <testcase name="nestedGatesShortCircuitUnexecutedInvalidSamples()" classname="io.voxelcreator.api.WorldUseTest" time="0.013"/>
+  <testcase name="yDependentTwoDimensionalPlacementsNeverReuseAColumn()" classname="io.voxelcreator.api.WorldUseTest" time="0.075"/>
+  <testcase name="nestedGatesShortCircuitUnexecutedInvalidSamples()" classname="io.voxelcreator.api.WorldUseTest" time="0.011"/>
   <testcase name="projectionDiscardsUnusedYWhileReferencedThreeDimensionalFieldsRequireIt()" classname="io.voxelcreator.api.WorldUseTest" time="0.009"/>
-  <testcase name="driversMultiplyConstantsAndRespectReferencedFieldDimension()" classname="io.voxelcreator.api.WorldUseTest" time="0.016"/>
-  <testcase name="chunkOrderRootsAsyncContextsAndStagesShareTheSameDecisions()" classname="io.voxelcreator.api.WorldUseTest" time="0.245"/>
-  <testcase name="intervalsSelectAtDeclaredEdgesAndGapsPreserveCommittedState()" classname="io.voxelcreator.api.WorldUseTest" time="0.015"/>
+  <testcase name="driversMultiplyConstantsAndRespectReferencedFieldDimension()" classname="io.voxelcreator.api.WorldUseTest" time="0.012"/>
+  <testcase name="chunkOrderRootsAsyncContextsAndStagesShareTheSameDecisions()" classname="io.voxelcreator.api.WorldUseTest" time="0.119"/>
+  <testcase name="intervalsSelectAtDeclaredEdgesAndGapsPreserveCommittedState()" classname="io.voxelcreator.api.WorldUseTest" time="0.012"/>
   <testcase name="rotationOrderAndDisabledTransformsAreExplicit()" classname="io.voxelcreator.api.WorldUseTest" time="0.012"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
