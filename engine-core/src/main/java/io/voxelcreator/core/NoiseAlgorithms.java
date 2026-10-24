@@ -27,6 +27,17 @@ public final class NoiseAlgorithms {
           "BOX_SDF");
 
   public static Field compile(Algorithm a, int dimension, long seed) {
+    for (var parameter : a.parameters.entrySet()) {
+      double value = parameter.getValue();
+      if (!Double.isFinite(value))
+        throw new IllegalArgumentException(
+            "Finite algorithm parameter required: " + parameter.getKey());
+      if (Set.of("octaves", "fractal", "cellularDistance", "cellularReturn")
+              .contains(parameter.getKey())
+          && value != StrictMath.rint(value))
+        throw new IllegalArgumentException(
+            "Integer algorithm parameter required: " + parameter.getKey());
+    }
     if (!KEYS.contains(a.key)) throw new IllegalArgumentException("Unknown algorithm " + a.key);
     for (String p : a.parameters.keySet())
       if (!Set.of(

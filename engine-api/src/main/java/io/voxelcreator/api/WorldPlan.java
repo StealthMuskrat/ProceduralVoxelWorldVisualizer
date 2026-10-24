@@ -160,6 +160,9 @@ final class WorldPlan {
       if (choose) {
         f = cached != null && cached[index] != null ? cached[index][at] : field(op, x, y, z);
         double height = s.baseHeight + f * s.heightScale;
+        if (op.interpretation.startsWith("HEIGHT") && !Double.isFinite(height))
+          throw new EvaluationFailure(
+              op.noiseUuid, op.uuid, x, y, z, "Nonfinite height interpretation");
         double rounded =
             switch (s.rounding) {
               case "FLOOR" -> StrictMath.floor(height);

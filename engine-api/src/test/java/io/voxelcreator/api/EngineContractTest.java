@@ -420,4 +420,21 @@ public class EngineContractTest {
       assertEquals("DELIVERY", summary.failures().getFirst().phase());
     }
   }
+
+  @Test
+  void nonfiniteOperationArithmeticFailsBeforePublishingAChunk() {
+    var p = fixture();
+    p.noise2D.getFirst().algorithm.parameters.put("value", Double.MAX_VALUE);
+    p.worldGenerator.layers.getFirst().defaults.heightScale = 2;
+    try (var engine = new NoiseGeneratorEngine();
+        var world =
+            engine.openWorld(
+                new CompiledProject(p),
+                new WorldOptions(
+                    null, 2, WorldOptions.CachePolicy.BOUNDED_MEMORY_CACHE, 1 << 20))) {
+      assertThrows(EvaluationFailure.class, () -> world.generateChunk(new ChunkPos(0, 0, 0)));
+      assertEquals(0, world.cacheStats().chunks());
+      assertEquals(0, engine.metrics().stagingBytes());
+    }
+  }
 }

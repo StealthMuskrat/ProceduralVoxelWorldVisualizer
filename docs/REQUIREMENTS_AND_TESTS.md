@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 35 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
+Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 37 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -40,7 +40,7 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 | A32 appearance/workspace | PARTIAL | Theme/docking/scales/shortcuts persistence implemented; restart and DPI matrix remain |
 | A33 utilities | PARTIAL | Real Find/Validate/Logs/Help/metrics; full filters/navigation/profiling scope remains |
 | A34 desktop JAR | PARTIAL | Linux and Windows Server native JAR smoke passed; complete Windows 11 GUI acceptance remains |
-| A35 Windows bundle | PARTIAL | Windows bundled runtime smoke and package passed; packaged launcher and full Windows 11 acceptance remain separate gates |
+| A35 Windows bundle | PARTIAL | Windows bundled runtime smoke and package passed; packaged launcher smoke passed in run 40047610767; full Windows 11 acceptance remains a separate gate |
 | A36 final delivery | PARTIAL | Source/build/tests/fixtures/docs/checksum packaging; full release gates remain |
 
 ## Tree-to-test mapping

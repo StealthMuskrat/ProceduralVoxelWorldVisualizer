@@ -5,7 +5,7 @@ p=argparse.ArgumentParser();p.add_argument('--benchmark',type=Path);p.add_argume
 root=Path(__file__).resolve().parent.parent
 if a.hashes:
  lines=[]
- for f in sorted((root/'build/release/jars').glob('*.jar')):lines.append(hashlib.sha256(f.read_bytes()).hexdigest()+'  '+f.name)
+ for f in sorted((root/'build/release/jars').glob('*.jar'),key=lambda f:f.name):lines.append(hashlib.sha256(f.read_bytes()).hexdigest()+'  '+f.name)
  if len(lines)!=2:raise SystemExit('Expected desktop and engine JARs')
  a.hashes.parent.mkdir(parents=True,exist_ok=True)
  with a.hashes.open('w',newline='\n') as out:out.write('\n'.join(lines)+'\n')

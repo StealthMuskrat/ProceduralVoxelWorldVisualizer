@@ -104,7 +104,13 @@ jobs:
           if (-not $driver) { throw 'Missing Mesa x64 OpenGL driver' }
           Copy-Item "$($driver.DirectoryName)/*.dll" build/windows-runtime/bin/ -Force
           New-Item -ItemType Directory -Force build/mesa-notices | Out-Null
-          Get-ChildItem "$env:RUNNER_TEMP/mesa" -Recurse -File | Where-Object { $_.Name -match 'license|copying|readme' } | Copy-Item -Destination build/mesa-notices -Force
+          $mesaRoot = "$env:RUNNER_TEMP/mesa"
+          Get-ChildItem $mesaRoot -Recurse -File | Where-Object { $_.FullName -match 'license|copying|readme' } | ForEach-Object {
+            $relative = [System.IO.Path]::GetRelativePath($mesaRoot, $_.FullName)
+            $destination = Join-Path "$PWD/build/mesa-notices" $relative
+            New-Item -ItemType Directory -Force (Split-Path $destination) | Out-Null
+            Copy-Item $_.FullName $destination -Force
+          }
           "Mesa 26.2.4 release-msvc archive SHA256 $expected" | Out-File build/mesa-notices/INPUT.txt
       - name: Bundled Windows desktop smoke
         shell: pwsh

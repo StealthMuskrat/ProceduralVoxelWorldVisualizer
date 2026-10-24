@@ -209,4 +209,13 @@ public class MathContractTest {
     assertThrows(
         EvaluationFailure.class, () -> new NoiseCompiler(p, 0).compile(n.uuid).sample(0, 0, 0));
   }
+
+  @Test
+  void integerAlgorithmControlsRejectFractionalValues() {
+    for (String key : List.of("octaves", "fractal", "cellularDistance", "cellularReturn")) {
+      var a = new Algorithm();
+      a.parameters.put(key, 1.5);
+      assertThrows(IllegalArgumentException.class, () -> NoiseAlgorithms.compile(a, 3, 0), key);
+    }
+  }
 }

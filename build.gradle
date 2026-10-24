@@ -22,7 +22,7 @@ project(':editor-ui') {
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
   from sourceSets.main.output
   dependsOn configurations.runtimeClasspath
-  from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+  from { configurations.runtimeClasspath.files.sort { a, b -> a.name <=> b.name }.collect { it.isDirectory() ? it : zipTree(it) } }
   exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class', 'META-INF/versions/**/module-info.class'
  }
 }
@@ -34,7 +34,7 @@ tasks.register('engineJar', Jar) {
  destinationDirectory = layout.buildDirectory.dir('release/jars')
  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
  dependsOn ':engine-api:classes', ':project-model:jar', ':engine-core:jar', ':voxel-storage:jar'
- from { project(':engine-api').configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+ from { project(':engine-api').configurations.runtimeClasspath.files.sort { a, b -> a.name <=> b.name }.collect { it.isDirectory() ? it : zipTree(it) } }
  from project(':engine-api').sourceSets.main.output
  exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class', 'META-INF/versions/**/module-info.class'
 }
