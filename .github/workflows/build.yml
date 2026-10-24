@@ -32,6 +32,9 @@ jobs:
           mkdir -p build/independent
           javac -cp build/release/jars/noise-generator-engine.jar -d build/independent example-client/src/main/java/io/voxelcreator/example/*.java
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.Example build/independent/output
+      - name: Exact storage measurements
+        shell: bash
+        run: java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.StorageBenchmark > build/storage-benchmark.csv
       - name: Exact voxel and artifact hashes
         run: |
           java -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.render.Benchmark > build/benchmark.csv
@@ -58,6 +61,7 @@ jobs:
             **/build/reports/tests/
             build/smoke/
             build/benchmark.csv
+            build/storage-benchmark.csv
   windows:
     runs-on: windows-2025
     steps:
@@ -82,6 +86,11 @@ jobs:
           javac -cp build/release/jars/noise-generator-engine.jar -d build/independent (Get-ChildItem example-client/src/main/java/io/voxelcreator/example/*.java).FullName
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.Example build/independent/output
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Exact storage measurements
+        shell: pwsh
+        run: |
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.StorageBenchmark | Out-File -Encoding utf8 build/storage-benchmark.csv
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Exact voxel and artifact hashes
         shell: pwsh
@@ -154,6 +163,7 @@ jobs:
             build/windows-smoke.log
             build/smoke/
             build/benchmark.csv
+            build/storage-benchmark.csv
             **/build/test-results/
 
   reproducibility:

@@ -16,9 +16,14 @@ public final class VoxelRegistry {
     var byUuid = new HashMap<UUID, Integer>();
     for (var t : types) {
       int id = names.size();
-      if (t.id.equals("EMPTY") || byName.put(t.id, id) != null)
+      if (t.id == null
+          || t.id.isBlank()
+          || !java.text.Normalizer.isNormalized(t.id, java.text.Normalizer.Form.NFC)
+          || t.id.equals("EMPTY")
+          || byName.put(t.id, id) != null)
         throw new IllegalArgumentException("Duplicate/reserved voxel ID");
-      byUuid.put(t.uuid, id);
+      if (t.uuid == null || byUuid.put(t.uuid, id) != null)
+        throw new IllegalArgumentException("Missing/duplicate voxel UUID");
       names.add(t.id);
     }
     ids = List.copyOf(names);

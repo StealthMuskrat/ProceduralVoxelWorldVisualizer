@@ -1,6 +1,6 @@
 # Verification evidence
 
-- `clean test build dependencyNotices releaseJars`: PASS with 138 JUnit tests on Temurin 25.0.4+7 x64.
+- `clean test build dependencyNotices releaseJars`: PASS with 156 JUnit tests on Temurin 25.0.4+7 x64.
 - Independent javac/java consumer using only `noise-generator-engine.jar`: PASS.
 - Local native smoke: all three engine-backed viewports, explicit save/reload, screenshots with nonblank-frame checks, and exit: PASS on Temurin 25.0.5+8; OpenGL 4.5 Mesa llvmpipe.
 - Draft 2020-12 project/user/app schema verification and fixtures: PASS using jsonschema 4.23.0.
@@ -37,3 +37,7 @@ The world-use batch passes 112 JUnit tests on pinned Temurin 25.0.4+7. `world-us
 The compiler/batch extension passes 138 JUnit tests on pinned Temurin 25.0.4+7. `compiler-build.log`, `compiler-artifacts.log` and `compiler-independent-consumer.log` record the clean build, schema/fixture checks, unchanged exact voxel hashes, engine isolation and external compiled-expression/strided-grid/point-array consumer. `linux-compiler-smoke.log` adds native expression feedback to the curve, world-use, stage, streaming, volume and slice checks. The inspected screenshot is paired with `compiler-smoke-project.json`. The panel shows constant/branch removal and shared calculations from the actual parser plan. Functional checks do not certify SIMD, hardware throughput or the complete GUI interaction matrix.
 
 ![Compiled expression feedback and evaluation details](compiled-expression.png)
+
+The exact-storage extension passes 156 JUnit tests on pinned Temurin 25.0.4+7. `storage-build.log` and the latest raw JUnit XML record the clean build. `storage-independent-consumer.log` exercises immutable bulk replacement and default v2/explicit v1 archives using only the engine JAR. `storage-artifacts.log` records schema family, unchanged exact voxel hashes and engine isolation. `storage-benchmark.csv` measures current palette storage and v1/v2 raw-tree bytes; `storage-world-benchmark.csv` retains exact generation hashes. See [storage design and scope](../EXACT_STORAGE.md).
+
+For the measured 64³ checkerboard, the current snapshot estimate is 119,456 bytes; raw v1/v2 trees are 1,053,257 / 74,313 bytes respectively. The many-type fixture has 4,097 chunk palette entries and still uses one-bit local leaves. These raw-tree comparisons exclude zlib compression and archive headers. Timing rows are local container observations, not a representative hardware certification or a prior implementation speed comparison.

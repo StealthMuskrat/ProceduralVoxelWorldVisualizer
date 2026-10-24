@@ -370,7 +370,15 @@ public final class WorldContext implements AutoCloseable {
             .orElse(0L);
     long worst;
     try {
-      worst = Math.multiplyExact(count, 128L + 5L * chunkSize() * chunkSize() * chunkSize());
+      worst =
+          Math.multiplyExact(
+              count,
+              128L
+                  + 5L * chunkSize() * chunkSize() * chunkSize()
+                  + 4L
+                      * Math.min(
+                          compiled.registry().size(),
+                          (long) chunkSize() * chunkSize() * chunkSize()));
     } catch (ArithmeticException overflow) {
       throw new RejectedExecutionException(
           "REGION_TOO_LARGE: collection estimate exceeds signed 64-bit capacity");

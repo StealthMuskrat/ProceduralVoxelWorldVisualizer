@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.render.StreamingContractTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T16:33:50.805Z" hostname="715e00c143c7" time="1.983">
+<testsuite name="io.voxelcreator.render.StreamingContractTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T17:36:49.729Z" hostname="715e00c143c7" time="2.282">
   <properties/>
-  <testcase name="freeRangesCoalesceAndDoNotAliasLiveAllocations()" classname="io.voxelcreator.render.StreamingContractTest" time="0.022"/>
-  <testcase name="packedBoundary256AndLargeTypeDoNotWrap()" classname="io.voxelcreator.render.StreamingContractTest" time="1.919"/>
-  <testcase name="neighborSolidFacesAreHiddenAndAoReadsTheDiagonalHalo()" classname="io.voxelcreator.render.StreamingContractTest" time="0.013"/>
-  <testcase name="pressureHonorsPriorityManualResumeAndGradualRestoration()" classname="io.voxelcreator.render.StreamingContractTest" time="0.005"/>
-  <testcase name="lodUsesNearestAabbDistanceAndHysteresis()" classname="io.voxelcreator.render.StreamingContractTest" time="0.004"/>
-  <testcase name="majorityTieBoundaryShellAndExactSnapshotsStayIndependent()" classname="io.voxelcreator.render.StreamingContractTest" time="0.011"/>
+  <testcase name="freeRangesCoalesceAndDoNotAliasLiveAllocations()" classname="io.voxelcreator.render.StreamingContractTest" time="0.028"/>
+  <testcase name="packedBoundary256AndLargeTypeDoNotWrap()" classname="io.voxelcreator.render.StreamingContractTest" time="2.217"/>
+  <testcase name="neighborSolidFacesAreHiddenAndAoReadsTheDiagonalHalo()" classname="io.voxelcreator.render.StreamingContractTest" time="0.008"/>
+  <testcase name="pressureHonorsPriorityManualResumeAndGradualRestoration()" classname="io.voxelcreator.render.StreamingContractTest" time="0.002"/>
+  <testcase name="lodUsesNearestAabbDistanceAndHysteresis()" classname="io.voxelcreator.render.StreamingContractTest" time="0.001"/>
+  <testcase name="majorityTieBoundaryShellAndExactSnapshotsStayIndependent()" classname="io.voxelcreator.render.StreamingContractTest" time="0.014"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

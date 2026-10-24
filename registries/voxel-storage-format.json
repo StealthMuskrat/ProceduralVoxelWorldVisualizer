@@ -1,0 +1,29 @@
+{
+  "defaultArchiveVersion": 2,
+  "readableArchiveVersions": [1, 2],
+  "magicHex": "505643574f524c44",
+  "footerHex": "505643494e444558",
+  "byteOrder": "BIG_ENDIAN",
+  "compression": {"identifier": 1, "codec": "zlib", "scope": "one exact root"},
+  "indexEntryBytes": 28,
+  "treeNodes": {
+    "0": "EMPTY",
+    "1": "UNIFORM: positive int32 dictionary ID",
+    "2": "BRANCH: eight child trees; child index xBit | yBit<<1 | zBit<<2",
+    "3": "DENSE: size^3 nonnegative int32 dictionary IDs; X fast, Z rows, Y planes",
+    "4": "PALETTE (v2 only): uint8 count, ascending distinct int32 dictionary IDs, packed uint32 words"
+  },
+  "packedLeaf": {
+    "maxSide": 4,
+    "minimumPaletteSize": 2,
+    "maximumPaletteSize": 64,
+    "bitsPerIndex": "ceil(log2(count))",
+    "wordCount": "ceil(size^3 * bitsPerIndex / 32)",
+    "indexOrder": "X fast, Z rows, Y planes",
+    "bitOrder": "index i starts at bit i*bitsPerIndex, least significant bit first across words",
+    "padding": "unused high bits in final word must be zero",
+    "paletteUsage": "every entry must occur"
+  },
+  "limits": {"dictionaryEntries": 1000000, "dictionaryBytes": 16777216, "coveredRoots": 1000000, "compressedRootBytes": 104857600, "decodedRootBytes": 83886080},
+  "coverage": "indexed zero-length payload is logical EMPTY; unindexed position is not archived"
+}

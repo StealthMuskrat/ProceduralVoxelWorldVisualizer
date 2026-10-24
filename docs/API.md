@@ -70,3 +70,9 @@ noise2D.samplePoints(xs, zs, 0, xs.length, pointValues, 0, token);
 ```
 
 Bounds, address products and coordinate extents preflight before writes. Coordinate/output overlap is rejected; padding and untouched tails are preserved. Cancellation checks occur at rows and at most every 256 samples. BatchSamplingException identifies the first failed traversal index and XYZ, with the original cause; a wrapped EvaluationFailure retains the underlying Expression.Problem span. Expression.BatchFailure provides analogous sample/cause detail for direct program batches. Successful prefix writes remain valid, while the failed sample and tail are untouched. Callers must keep coordinate arrays unchanged throughout the call. The authored project format and expression grammar did not change.
+
+## Exact storage and archives
+
+`VoxelChunk.withVoxel` and `withFilledBox(minX,minY,minZ,maxX,maxY,maxZ,type)` return immutable exact replacements; boxes are inclusive local coordinates and type 0 clears. Fully covered adaptive subtrees become uniform immediately. Retained storage is copied, so these are snapshot operations rather than a mutable per-cell staging API. `paletteRuntimeIds()` returns a defensive dictionary copy; `storageStatistics()` reports reachable storage and occupied cells.
+
+Archives default to packed version 2. Readers accept versions 1 and 2 and expose `version()`. Use `openWorldWriter(path,registry,VoxelArchive.Format.LEGACY_V1)` for older readers. Existing raw `writeTree` remains v1; `writePackedTree` adds compact leaves and `readTree` accepts both. The project JSON version is unchanged. See [exact storage and wire contracts](EXACT_STORAGE.md) for layout, bounds, ownership and resource limits.

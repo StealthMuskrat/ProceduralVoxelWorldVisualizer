@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.EngineContractTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-24T16:34:07.281Z" hostname="715e00c143c7" time="8.467">
+<testsuite name="io.voxelcreator.api.EngineContractTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-24T17:37:07.782Z" hostname="715e00c143c7" time="6.381">
   <properties/>
-  <testcase name="previousStatePredicateMatrixAndSeparateNestedFieldGates()" classname="io.voxelcreator.api.EngineContractTest" time="2.301"/>
-  <testcase name="actualChunksAgreeAcrossEveryRootSize()" classname="io.voxelcreator.api.EngineContractTest" time="5.478"/>
-  <testcase name="rejectsCyclesBadBindingsAndAllowsDisabledDraft()" classname="io.voxelcreator.api.EngineContractTest" time="0.127"/>
-  <testcase name="consumerFailurePoliciesAndYClipping()" classname="io.voxelcreator.api.EngineContractTest" time="0.038"/>
-  <testcase name="cancelledConsumerAcknowledgementIsADeliveryFailure()" classname="io.voxelcreator.api.EngineContractTest" time="0.005"/>
-  <testcase name="transactionalLoadUndoAndAtomicSave()" classname="io.voxelcreator.api.EngineContractTest" time="0.047"/>
-  <testcase name="snapshotsSeedsCachesAndAsyncStayIsolated()" classname="io.voxelcreator.api.EngineContractTest" time="0.023"/>
-  <testcase name="explicitZeroOverrideAndLiveInheritance()" classname="io.voxelcreator.api.EngineContractTest" time="0.003"/>
-  <testcase name="strictProjectShapeRejectsMissingIdsCoercionsAndUnknownFields()" classname="io.voxelcreator.api.EngineContractTest" time="0.033"/>
-  <testcase name="generationFailureContinueAndFailFastAreNotCoordinatorFailures()" classname="io.voxelcreator.api.EngineContractTest" time="0.118"/>
-  <testcase name="nonfiniteOperationArithmeticFailsBeforePublishingAChunk()" classname="io.voxelcreator.api.EngineContractTest" time="0.014"/>
-  <testcase name="layeredActionsTraceAndAllRootSizes()" classname="io.voxelcreator.api.EngineContractTest" time="0.201"/>
+  <testcase name="previousStatePredicateMatrixAndSeparateNestedFieldGates()" classname="io.voxelcreator.api.EngineContractTest" time="1.414"/>
+  <testcase name="actualChunksAgreeAcrossEveryRootSize()" classname="io.voxelcreator.api.EngineContractTest" time="4.263"/>
+  <testcase name="rejectsCyclesBadBindingsAndAllowsDisabledDraft()" classname="io.voxelcreator.api.EngineContractTest" time="0.061"/>
+  <testcase name="consumerFailurePoliciesAndYClipping()" classname="io.voxelcreator.api.EngineContractTest" time="0.051"/>
+  <testcase name="cancelledConsumerAcknowledgementIsADeliveryFailure()" classname="io.voxelcreator.api.EngineContractTest" time="0.025"/>
+  <testcase name="transactionalLoadUndoAndAtomicSave()" classname="io.voxelcreator.api.EngineContractTest" time="0.079"/>
+  <testcase name="snapshotsSeedsCachesAndAsyncStayIsolated()" classname="io.voxelcreator.api.EngineContractTest" time="0.05"/>
+  <testcase name="explicitZeroOverrideAndLiveInheritance()" classname="io.voxelcreator.api.EngineContractTest" time="0.005"/>
+  <testcase name="strictProjectShapeRejectsMissingIdsCoercionsAndUnknownFields()" classname="io.voxelcreator.api.EngineContractTest" time="0.047"/>
+  <testcase name="generationFailureContinueAndFailFastAreNotCoordinatorFailures()" classname="io.voxelcreator.api.EngineContractTest" time="0.09"/>
+  <testcase name="nonfiniteOperationArithmeticFailsBeforePublishingAChunk()" classname="io.voxelcreator.api.EngineContractTest" time="0.016"/>
+  <testcase name="layeredActionsTraceAndAllRootSizes()" classname="io.voxelcreator.api.EngineContractTest" time="0.192"/>
   <testcase name="streamingBackpressureAndCancellation()" classname="io.voxelcreator.api.EngineContractTest" time="0.061"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

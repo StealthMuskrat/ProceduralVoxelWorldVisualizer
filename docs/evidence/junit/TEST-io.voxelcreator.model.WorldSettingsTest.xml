@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.model.WorldSettingsTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T16:34:23.480Z" hostname="715e00c143c7" time="0.621">
+<testsuite name="io.voxelcreator.model.WorldSettingsTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T17:37:22.284Z" hostname="715e00c143c7" time="1.642">
   <properties/>
-  <testcase name="fixedRegistryAndAtomicOverridesPreserveLiveInheritance()" classname="io.voxelcreator.model.WorldSettingsTest" time="0.614"/>
-  <testcase name="fieldMappingsHaveExplicitEndpointsAndStableExtremeSpans()" classname="io.voxelcreator.model.WorldSettingsTest" time="0.002"/>
-  <testcase name="intervalLookupHonorsSingletonsAndEitherSharedEndpoint()" classname="io.voxelcreator.model.WorldSettingsTest" time="0.0"/>
+  <testcase name="fixedRegistryAndAtomicOverridesPreserveLiveInheritance()" classname="io.voxelcreator.model.WorldSettingsTest" time="1.626"/>
+  <testcase name="fieldMappingsHaveExplicitEndpointsAndStableExtremeSpans()" classname="io.voxelcreator.model.WorldSettingsTest" time="0.007"/>
+  <testcase name="intervalLookupHonorsSingletonsAndEitherSharedEndpoint()" classname="io.voxelcreator.model.WorldSettingsTest" time="0.002"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

@@ -145,6 +145,7 @@ final class WorldPlan {
         ? 256
         : 128L
             + 16L * size * size * size
+            + 32L * Math.min(registry.size(), (long) size * size * size)
             + 8L * size * size * operations.stream().filter(Op::columnCached).count();
   }
 

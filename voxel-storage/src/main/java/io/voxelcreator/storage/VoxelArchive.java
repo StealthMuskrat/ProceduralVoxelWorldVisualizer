@@ -6,17 +6,37 @@ import java.util.*;
 import java.util.zip.*;
 
 /**
- * Version 1 independently zlib-compressed adaptive trees, semantic dictionary and indexed explicit
- * coverage.
+ * Versioned independently zlib-compressed adaptive trees, semantic dictionary and indexed coverage.
+ * Reads legacy version 1; writes palette-packed version 2 by default.
  */
 public final class VoxelArchive {
   private static final long MAGIC = 0x505643574f524c44L, FOOTER = 0x505643494e444558L;
-  private static final int VERSION = 1, MAX_PAYLOAD = 100 * 1024 * 1024, MAX_ENTRIES = 1_000_000;
+  private static final int MAX_DICTIONARY_BYTES = 16 * 1024 * 1024;
+  private static final int MAX_PAYLOAD = 100 * 1024 * 1024, MAX_ENTRIES = 1_000_000;
+
+  public enum Format {
+    LEGACY_V1(1),
+    PACKED_V2(2);
+    private final int version;
+
+    Format(int version) {
+      this.version = version;
+    }
+
+    public int version() {
+      return version;
+    }
+  }
 
   private record Entry(ChunkPos position, int size, long offset, int length) {}
 
   public static Writer openWorldWriter(Path path, VoxelRegistry registry) throws IOException {
-    return new Writer(path, registry);
+    return openWorldWriter(path, registry, Format.PACKED_V2);
+  }
+
+  public static Writer openWorldWriter(Path path, VoxelRegistry registry, Format format)
+      throws IOException {
+    return new Writer(path, registry, format);
   }
 
   public static Reader openWorldReader(Path path, VoxelRegistry registry) throws IOException {
@@ -42,20 +62,41 @@ public final class VoxelArchive {
     private final Path destination, temp;
     private final RandomAccessFile file;
     private final VoxelRegistry registry;
+    private final Format format;
     private final Map<ChunkPos, Entry> index = new LinkedHashMap<>();
     private boolean finished = false, closed = false;
 
-    Writer(Path path, VoxelRegistry registry) throws IOException {
+    Writer(Path path, VoxelRegistry registry, Format format) throws IOException {
+      this.format = Objects.requireNonNull(format);
+      this.registry = Objects.requireNonNull(registry);
       destination = path.toAbsolutePath();
       Files.createDirectories(destination.getParent());
       temp = Files.createTempFile(destination.getParent(), ".voxel-archive-", ".tmp");
-      this.registry = registry;
       file = new RandomAccessFile(temp.toFile(), "rw");
-      file.writeLong(MAGIC);
-      file.writeInt(VERSION);
-      file.writeInt(1);
-      file.writeInt(registry.size());
-      for (String id : registry.semanticIds()) file.writeUTF(id);
+      try {
+        file.writeLong(MAGIC);
+        file.writeInt(format.version);
+        file.writeInt(1);
+        file.writeInt(registry.size());
+        if (registry.size() > MAX_ENTRIES) throw new IOException("Dictionary count limit");
+        for (String id : registry.semanticIds()) {
+          file.writeUTF(id);
+          if (file.getFilePointer() > 20L + MAX_DICTIONARY_BYTES)
+            throw new IOException("Dictionary byte limit");
+        }
+      } catch (IOException | RuntimeException failure) {
+        try {
+          file.close();
+        } catch (IOException cleanup) {
+          failure.addSuppressed(cleanup);
+        }
+        try {
+          Files.deleteIfExists(temp);
+        } catch (IOException cleanup) {
+          failure.addSuppressed(cleanup);
+        }
+        throw failure;
+      }
     }
 
     public void append(VoxelChunk chunk) throws IOException {
@@ -67,18 +108,29 @@ public final class VoxelArchive {
       if (!chunk.isEmpty()) {
         var buffer = new ByteArrayOutputStream();
         try (var out = new DataOutputStream(new DeflaterOutputStream(buffer))) {
-          chunk.writeTree(
-              out,
+          java.util.function.IntUnaryOperator mapping =
               id -> {
                 registry.semanticId(id);
                 return id;
-              });
+              };
+          if (format == Format.LEGACY_V1) chunk.writeTree(out, mapping);
+          else chunk.writePackedTree(out, mapping);
         }
         byte[] payload = buffer.toByteArray();
         if (payload.length > MAX_PAYLOAD) throw new IOException("Payload limit");
         offset = file.getFilePointer();
         length = payload.length;
-        file.write(payload);
+        try {
+          file.write(payload);
+        } catch (IOException failure) {
+          try {
+            file.setLength(offset);
+            file.seek(offset);
+          } catch (IOException cleanup) {
+            failure.addSuppressed(cleanup);
+          }
+          throw failure;
+        }
       }
       index.put(chunk.position(), new Entry(chunk.position(), chunk.size(), offset, length));
     }
@@ -127,6 +179,7 @@ public final class VoxelArchive {
     private final Map<ChunkPos, Entry> index;
     private final List<String> dictionary;
     private final int[] remap;
+    private final int version;
     private boolean closed = false;
 
     Reader(Path path, VoxelRegistry registry) throws IOException {
@@ -135,7 +188,9 @@ public final class VoxelArchive {
         long fileLength = file.length();
         if (fileLength < 40 || file.readLong() != MAGIC)
           throw new IOException("Invalid archive signature");
-        if (file.readInt() != VERSION) throw new IOException("Unsupported archive version");
+        version = file.readInt();
+        if (version != 1 && version != 2)
+          throw new IOException("Unsupported archive version " + version);
         if (file.readInt() != 1) throw new IOException("Unsupported compression identifier");
         int count = file.readInt();
         if (count < 1 || count > 1_000_000) throw new IOException("Dictionary count out of bounds");
@@ -144,7 +199,12 @@ public final class VoxelArchive {
         remap = new int[count];
         for (int i = 0; i < count; i++) {
           String id = file.readUTF();
-          if (id.isBlank() || !unique.add(id)) throw new IOException("Invalid dictionary");
+          if (file.getFilePointer() > 20L + MAX_DICTIONARY_BYTES
+              || file.getFilePointer() > fileLength - 20)
+            throw new IOException("Dictionary byte limit or truncated header");
+          if (id.isBlank()
+              || !java.text.Normalizer.isNormalized(id, java.text.Normalizer.Form.NFC)
+              || !unique.add(id)) throw new IOException("Invalid dictionary");
           names.add(id);
           try {
             remap[i] = registry.runtimeId(id);
@@ -188,15 +248,23 @@ public final class VoxelArchive {
           if (len > 0) ranges.add(new long[] {offset, offset + len});
         }
         ranges.sort(Comparator.comparingLong(a -> a[0]));
-        for (int i = 1; i < ranges.size(); i++)
-          if (ranges.get(i)[0] < ranges.get(i - 1)[1])
-            throw new IOException("Overlapping archive payloads");
+        long expected = dataStart;
+        for (long[] range : ranges) {
+          if (range[0] != expected)
+            throw new IOException("Overlapping or unindexed archive payload bytes");
+          expected = range[1];
+        }
+        if (expected != indexStart) throw new IOException("Unindexed archive payload bytes");
         index = Collections.unmodifiableMap(map);
       } catch (Throwable e) {
         file.close();
         if (e instanceof IOException io) throw io;
         throw new IOException("Malformed archive", e);
       }
+    }
+
+    public int version() {
+      return version;
     }
 
     public Set<ChunkPos> coverage() {
@@ -226,7 +294,8 @@ public final class VoxelArchive {
       file.readFully(payload);
       var missing = new LinkedHashSet<String>();
       var inflater = new Inflater();
-      try (var zipped = new InflaterInputStream(new ByteArrayInputStream(payload), inflater);
+      var compressed = new ByteArrayInputStream(payload);
+      try (var zipped = new InflaterInputStream(compressed, inflater);
           var bounded = new LimitedInputStream(zipped, 80L * 1024 * 1024);
           var in = new DataInputStream(bounded)) {
         VoxelChunk chunk =
@@ -243,8 +312,12 @@ public final class VoxelArchive {
                     return 1;
                   }
                   return id;
-                });
-        if (in.read() != -1 || !inflater.finished() || inflater.getRemaining() != 0)
+                },
+                version >= 2);
+        if (in.read() != -1
+            || !inflater.finished()
+            || inflater.getRemaining() != 0
+            || compressed.available() != 0)
           throw new IOException("Trailing or truncated compressed chunk data");
         if (!missing.isEmpty()) throw new IOException("Unresolved semantic IDs: " + missing);
         return Optional.of(chunk);

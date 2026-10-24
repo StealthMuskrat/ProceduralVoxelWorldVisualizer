@@ -282,6 +282,26 @@ public final class Example {
           for (int x = 0; x < 16; x++)
             if (chunk.getVoxelTypeId(x, y, z) != roundtrip.getVoxelTypeId(x, y, z))
               throw new AssertionError("Archive mismatch");
+      var edited = chunk.withFilledBox(0, 0, 0, 7, 15, 15, 0);
+      if (edited.getVoxelTypeId(0, 0, 0) != 0
+          || chunk.getVoxelTypeId(0, 0, 0) != roundtrip.getVoxelTypeId(0, 0, 0))
+        throw new AssertionError("Immutable bulk edit failed");
+      Path legacy = working.resolve("legacy-world.pvw");
+      try (var writer =
+          VoxelArchive.openWorldWriter(
+              legacy, compiled.registry(), VoxelArchive.Format.LEGACY_V1)) {
+        writer.append(edited);
+        writer.finish();
+      }
+      try (var reader = VoxelArchive.openWorldReader(archive, compiled.registry())) {
+        if (reader.version() != 2) throw new AssertionError("Expected packed archive version 2");
+      }
+      try (var reader = VoxelArchive.openWorldReader(legacy, compiled.registry())) {
+        if (reader.version() != 1
+            || reader.read(chunk.position()).orElseThrow().getVoxelTypeId(0, 0, 0) != 0)
+          throw new AssertionError("Legacy archive compatibility failed");
+      }
+      System.out.println("Palette storage, immutable bulk edits and v1/v2 archives PASS");
       System.out.println("Archive and independent engine consumer PASS; " + world.cacheStats());
     }
   }
