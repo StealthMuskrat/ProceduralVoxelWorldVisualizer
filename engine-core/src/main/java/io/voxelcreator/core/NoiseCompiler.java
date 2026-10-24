@@ -21,6 +21,53 @@ public final class NoiseCompiler {
 
   private record FieldPlan(Field field, long work, int depth) {}
 
+  public record Statistics(
+      int enabledItems,
+      int constantItems,
+      int sharedItems,
+      long expressionInstructions,
+      int scratchSlots,
+      long sampleWork,
+      int dependencyDepth) {}
+
+  private final Map<UUID, Statistics> statistics = new HashMap<>();
+
+  public Statistics statistics(UUID resource) {
+    compile(resource);
+    return statistics.get(resource);
+  }
+
+  private record InputKey(String type, List<Long> literal, Number evaluator) {}
+
+  private record OperationKey(
+      String kind,
+      String type,
+      Map<String, InputKey> inputs,
+      com.fasterxml.jackson.databind.JsonNode parameters) {}
+
+  private static OperationKey commonKey(Item item, Map<String, Input> bound) {
+    if (ProcessingRegistry.SAMPLED.contains(item.kind)
+        || Set.of("EXPRESSION", "FALLOFF", "SPHERE", "BOX", "COORDINATE_HASH", "COORDINATE")
+            .contains(item.kind)) return null;
+    var inputs = new TreeMap<String, InputKey>();
+    bound.forEach(
+        (name, input) -> {
+          var bits =
+              input.literal == null
+                  ? List.<Long>of()
+                  : java.util.Arrays.stream(input.literal)
+                      .mapToObj(Double::doubleToRawLongBits)
+                      .toList();
+          inputs.put(
+              name, new InputKey(input.type, bits, input.literal == null ? input.number : null));
+        });
+    return new OperationKey(
+        item.kind,
+        item.resultType,
+        Map.copyOf(inputs),
+        ProjectIO.JSON.valueToTree(item.parameters));
+  }
+
   public static final long MAX_SAMPLE_WORK = 1_000_000;
 
   public NoiseCompiler(ProjectData data, long seed) {
@@ -82,6 +129,8 @@ public final class NoiseCompiler {
   private interface Number {
     double get(Context c, int component);
   }
+
+  private static final Number SOURCE_VALUE = (c, k) -> c.sourceValue();
 
   private record Input(String type, Number number, int depth, long work, double[] literal) {
     Input(String type, Number number) {
@@ -159,9 +208,12 @@ public final class NoiseCompiler {
     for (var p : n.sharedParameters) params.put(p.uuid, constant(p.type, p.value));
     TransformPlan transforms = compileTransforms(n, source, params, seed);
     var prefixes = new HashMap<UUID, FieldPlan>();
-    Input rawResult = new Input("Scalar", (c, k) -> c.sourceValue(), 0, 16);
+    Input rawResult = new Input("Scalar", SOURCE_VALUE, 0, 16);
     FieldPlan sourceField = executable(n, source, transforms, rawResult, transforms.slots);
     int slot = transforms.slots;
+    int enabledItems = 0, constantItems = 0, sharedItems = 0;
+    long expressionInstructions = 0;
+    var commonOperations = new HashMap<OperationKey, Integer>();
     for (var item : n.processing) {
       var spec = ProcessingRegistry.ITEMS.get(item.kind);
       if (spec == null)
@@ -170,6 +222,7 @@ public final class NoiseCompiler {
       if (!item.enabled) {
         continue;
       }
+      enabledItems++;
       final int index = slot;
       slot += 3;
       var bound = new HashMap<String, Input>();
@@ -204,6 +257,7 @@ public final class NoiseCompiler {
         throw new IllegalArgumentException(item.id + ": result type must be " + spec.result());
       String kind = item.kind;
       Number eval;
+      Input expressionConstant = null;
       long sampleWork = 0;
       int sampleDepth = 0;
       if (kind.equals("CONSTANT")) {
@@ -232,30 +286,58 @@ public final class NoiseCompiler {
         }
         for (String key : AMBIENT) types.putIfAbsent(key, Expression.Type.Scalar);
         types.putIfAbsent("source", Expression.Type.Scalar);
-        var program = Expression.compile(text(item, "expression", ""), types);
+        var constants = new LinkedHashMap<String, Double>();
+        for (var entry : bound.entrySet())
+          if (entry.getValue().literal != null)
+            constants.put(entry.getKey(), entry.getValue().literal[0]);
+        for (String key :
+            List.of("worldMinY", "worldMaxY", "worldHeight", "projectSeed", "noiseGeneratorSeed"))
+          if (!bound.containsKey(key)) constants.put(key, ambient(key, null, seed));
+        var program = Expression.compile(text(item, "expression", ""), types, constants);
         if (!program.type().name().equals(item.resultType))
           throw new IllegalArgumentException("Expression result type mismatch in " + item.id);
-        ThreadLocal<Expression.Variables> vars = new ThreadLocal<>();
-        ThreadLocal<Context> current = new ThreadLocal<>();
+        var resolved = new LinkedHashMap<String, Input>();
+        for (String name : program.inputs()) {
+          Input input = bound.get(name);
+          if (input == null)
+            input =
+                name.equals("source")
+                    ? rawResult
+                    : new Input("Scalar", (c, k) -> ambient(name, c, seed));
+          resolved.put(name, input);
+        }
+        // Only executed-expression dependencies contribute to work/depth; every authored binding
+        // was still resolved and type checked before dead branches were removed.
+        bound.clear();
+        bound.putAll(resolved);
+        Input[] arguments = resolved.values().toArray(Input[]::new);
+        final class Access implements Expression.IndexedVariables {
+          Context current;
+
+          public double get(int index) {
+            return arguments[index].scalar(current);
+          }
+        }
+        ThreadLocal<Access> access = ThreadLocal.withInitial(Access::new);
         eval =
             (c, k) -> {
-              current.set(c);
-              Expression.Variables v = vars.get();
-              if (v == null) {
-                v =
-                    name -> {
-                      Context ctx = current.get();
-                      var in = bound.get(name);
-                      return in != null
-                          ? in.scalar(ctx)
-                          : name.equals("source") ? ctx.sourceValue() : ambient(name, ctx, seed);
-                    };
-                vars.set(v);
+              var variables = access.get();
+              var previous = variables.current;
+              variables.current = c;
+              try {
+                return program.type() == Expression.Type.Scalar
+                    ? program.scalarIndexed(variables)
+                    : program.boolIndexed(variables) ? 1 : 0;
+              } finally {
+                variables.current = previous;
               }
-              return program.type() == Expression.Type.Scalar
-                  ? program.scalar(v)
-                  : program.bool(v) ? 1 : 0;
             };
+        sampleWork = program.statistics().instructions();
+        expressionInstructions += program.statistics().instructions();
+        if (program.constantValue().isPresent()) {
+          double[] value = {program.constantValue().getAsDouble()};
+          expressionConstant = new Input(item.resultType, (c, k) -> value[k], 0, 0, value);
+        }
       } else if (ProcessingRegistry.SAMPLED.contains(kind)) {
         Binding selected = item.inputs.get("field");
         if (selected == null) {
@@ -421,8 +503,10 @@ public final class NoiseCompiler {
         eval = (c, k) -> evaluate(kind, parameters, bound, c, k, seed, dimension);
       }
       int components = components(item.resultType);
-      Input folded = null;
-      if (kind.equals("SELECT") && bound.get("condition").literal != null)
+      Input folded = expressionConstant;
+      if (expressionConstant != null) {
+        // A valid complete expression constant has no runtime dependencies.
+      } else if (kind.equals("SELECT") && bound.get("condition").literal != null)
         folded = bound.get(bound.get("condition").literal[0] != 0 ? "true" : "false");
       else if ((kind.equals("AND") || kind.equals("OR"))
           && a.literal != null
@@ -446,9 +530,14 @@ public final class NoiseCompiler {
         }
       }
       if (folded != null) {
+        if (folded.literal != null) constantItems++;
         inputs.put(item.uuid, folded);
         continue;
       }
+      var key = commonKey(item, bound);
+      Integer previousSlot = key == null ? null : commonOperations.putIfAbsent(key, index);
+      final int sharedIndex = previousSlot == null ? index : previousSlot;
+      if (previousSlot != null) sharedItems++;
       Number number = eval;
       Step instruction =
           c -> {
@@ -460,7 +549,7 @@ public final class NoiseCompiler {
               }
             } catch (RuntimeException e) {
               if (e instanceof EvaluationFailure) throw e;
-              throw new EvaluationFailure(n.uuid, item.uuid, c.x, c.y, c.z, e.getMessage());
+              throw new EvaluationFailure(n.uuid, item.uuid, c.x, c.y, c.z, e.getMessage(), e);
             }
           };
       int depth =
@@ -473,12 +562,14 @@ public final class NoiseCompiler {
           new Input(
               item.resultType,
               (c, k) -> {
-                int cell = index / 3;
+                int cell = sharedIndex / 3;
                 if (c.stamps[cell] != c.epoch) {
                   instruction.run(c);
+                  if (sharedIndex != index)
+                    System.arraycopy(c.values, index, c.values, sharedIndex, components);
                   c.stamps[cell] = c.epoch;
                 }
-                return c.values[index + k];
+                return c.values[sharedIndex + k];
               },
               depth,
               Math.addExact(1 + sampleWork, bound.values().stream().mapToLong(Input::work).sum())));
@@ -488,6 +579,16 @@ public final class NoiseCompiler {
     FieldPlan result = executable(n, source, transforms, output, slot);
     resourceWork.put(n.uuid, result.work);
     resourceDepth.put(n.uuid, result.depth);
+    statistics.put(
+        n.uuid,
+        new Statistics(
+            enabledItems,
+            constantItems,
+            sharedItems,
+            expressionInstructions,
+            slot,
+            result.work,
+            result.depth));
     return result.field;
   }
 
@@ -663,7 +764,7 @@ public final class NoiseCompiler {
             } catch (RuntimeException failure) {
               if (failure instanceof EvaluationFailure) throw failure;
               throw new EvaluationFailure(
-                  resource, id, c.worldX, c.worldY, c.worldZ, failure.getMessage());
+                  resource, id, c.worldX, c.worldY, c.worldZ, failure.getMessage(), failure);
             }
           };
       steps.add(step);
@@ -770,7 +871,7 @@ public final class NoiseCompiler {
     Input in =
         switch (b.sourceKind) {
           case "Constant" -> constant(b.type, b.value);
-          case "Source Result" -> new Input("Scalar", (c, k) -> c.sourceValue(), 0, 16);
+          case "Source Result" -> new Input("Scalar", SOURCE_VALUE, 0, 16);
           case "Earlier Result" -> earlier.get(b.itemUuid);
           case "Shared Parameter" -> params.get(b.parameterUuid);
           case "Ambient Value" -> {

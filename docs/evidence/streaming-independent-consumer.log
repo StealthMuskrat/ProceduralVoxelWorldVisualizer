@@ -1,0 +1,7 @@
+Independent sampled-field prefix PASS
+Direct sample: 0.03902283310890198
+Independent exact stage snapshots PASS
+Async chunk: BRANCH
+Delivered ChunkPos[x=-1, y=0, z=0]
+Delivered ChunkPos[x=0, y=0, z=0]
+Archive and independent engine consumer PASS; CacheStats[hits=2, misses=2, chunks=2, bytes=5660, pinnedChunks=0]

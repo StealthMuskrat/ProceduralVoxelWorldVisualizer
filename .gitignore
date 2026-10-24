@@ -6,3 +6,6 @@
 imgui.ini
 .DS_Store
 .local/
+
+# Keep the raw verification logs referenced by the repository evidence.
+!/docs/evidence/*.log

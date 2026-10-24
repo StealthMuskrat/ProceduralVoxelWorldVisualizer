@@ -1106,6 +1106,13 @@ public final class Desktop extends Application {
           var n = new Noise();
           n.id = "terrain";
           n.algorithm.parameters.put("frequency", .035);
+          var expression = ProcessingRegistry.create("EXPRESSION", "compiled-expression");
+          expression.parameters.put(
+              "expression",
+              ProjectIO.JSON.valueToTree(
+                  "source+(sin(x*0.01)+sin(x*0.01))*0.05+(true ? 2^3 : 1/0)*0.001"));
+          n.processing.add(expression);
+          n.outputBinding = Binding.earlier(expression.uuid);
           p.noise2D.add(n);
           var volume = new Noise();
           volume.id = "caves";

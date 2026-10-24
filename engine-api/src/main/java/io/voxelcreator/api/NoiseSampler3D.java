@@ -13,16 +13,67 @@ public interface NoiseSampler3D {
       int depth,
       double step,
       double[] destination) {
-    if (width < 0
-        || height < 0
-        || depth < 0
-        || (long) width * height * depth > destination.length
-        || !Double.isFinite(step))
-      throw new IllegalArgumentException("Grid dimensions/step/destination");
-    for (int y = 0; y < height; y++)
-      for (int z = 0; z < depth; z++)
-        for (int x = 0; x < width; x++)
-          destination[(y * depth + z) * width + x] =
-              sample(ox + x * step, oy + y * step, oz + z * step);
+    sampleGrid(
+        ox,
+        oy,
+        oz,
+        width,
+        height,
+        depth,
+        step,
+        step,
+        step,
+        destination,
+        0,
+        width,
+        (long) width * depth,
+        new CancellationToken());
+  }
+
+  /** X-fast Z rows in Y planes: index = offset + y*planeStride + z*rowStride + x. */
+  default void sampleGrid(
+      double ox,
+      double oy,
+      double oz,
+      int width,
+      int height,
+      int depth,
+      double stepX,
+      double stepY,
+      double stepZ,
+      double[] destination,
+      int offset,
+      long rowStride,
+      long planeStride,
+      CancellationToken token) {
+    SamplingBatches.grid3(
+        this,
+        ox,
+        oy,
+        oz,
+        width,
+        height,
+        depth,
+        stepX,
+        stepY,
+        stepZ,
+        destination,
+        offset,
+        rowStride,
+        planeStride,
+        token);
+  }
+
+  default void samplePoints(
+      double[] xs,
+      double[] ys,
+      double[] zs,
+      int sourceOffset,
+      int count,
+      double[] destination,
+      int destinationOffset,
+      CancellationToken token) {
+    SamplingBatches.points3(
+        this, xs, ys, zs, sourceOffset, count, destination, destinationOffset, token);
   }
 }

@@ -1,4 +1,5 @@
 {
+  "evaluator" : "immutable lazy register plan; successful-value sharing; indexed primitive bindings",
   "functions" : {
     "sin" : {
       "invalidNumericPolicy" : "structured failure at executed boundary",
@@ -199,5 +200,13 @@
       "argumentTypes" : "Scalar"
     }
   },
-  "registryVersion" : 1
+  "registryVersion" : 2,
+  "floatingPointPolicy" : "no reassociation or unsafe algebraic identities; invalid constants remain at executed source spans",
+  "limits" : {
+    "sourceCharacters" : 16384,
+    "instructions" : 32768,
+    "tokens" : 4096,
+    "parserDepth" : 64,
+    "parsedNodes" : 4096
+  }
 }

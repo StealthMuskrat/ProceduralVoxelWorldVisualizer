@@ -1,0 +1,9 @@
+Independent sampled-field prefix PASS
+Independent world-use intervals / driver / sampling / NOT probability gate / owned collection PASS
+Independent compiled-expression / strided grid / primitive points PASS Statistics[enabledItems=1, constantItems=0, sharedItems=0, expressionInstructions=22, scratchSlots=3, sampleWork=23, dependencyDepth=1]
+Direct sample: 0.03902283310890198
+Independent exact stage snapshots PASS
+Async chunk: BRANCH
+Delivered ChunkPos[x=-1, y=0, z=0]
+Delivered ChunkPos[x=0, y=0, z=0]
+Archive and independent engine consumer PASS; CacheStats[hits=2, misses=2, chunks=2, bytes=5660, pinnedChunks=0]

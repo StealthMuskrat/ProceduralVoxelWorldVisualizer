@@ -14,6 +14,7 @@ import java.util.function.*;
 public final class PropertyPanel {
   private final EditorState state;
   private final UiFields f = new UiFields();
+  private final ExpressionFeedback expressionFeedback = new ExpressionFeedback();
   private UUID last;
   private CurveDialog curve;
   private boolean smokeCurveDrawn;
@@ -75,6 +76,24 @@ public final class PropertyPanel {
       }
     }
     ImGui.end();
+  }
+
+  private boolean smokeExpressionMode, smokeExpressionDrawn;
+
+  public void smokeExpression(boolean show) {
+    smokeExpressionMode = show;
+    if (show) {
+      var n = state.project().noise2D.getFirst();
+      var item =
+          n.processing.stream().filter(i -> i.kind.equals("EXPRESSION")).findFirst().orElseThrow();
+      goToControl(n.uuid, item.uuid);
+    }
+  }
+
+  public void assertSmokeExpressionRendered() {
+    if (!smokeExpressionDrawn)
+      throw new IllegalStateException("Expression feedback was not rendered");
+    System.out.println("COMPILED_EXPRESSION_FEEDBACK_NATIVE_PASS");
   }
 
   private UUID focusedControl;
@@ -361,6 +380,36 @@ public final class PropertyPanel {
                 "Expression",
                 expr,
                 v -> item.parameters.put("expression", ProjectIO.JSON.valueToTree(v)));
+            var feedback = expressionFeedback.inspect(state.project(), n, item);
+            if (!feedback.valid()) ImGui.textWrapped("! " + feedback.error());
+            else {
+              ImGui.textWrapped(
+                  feedback.type()
+                      + " expression; "
+                      + (feedback.inputs().isEmpty()
+                          ? "constant output"
+                          : "inputs: " + String.join(", ", feedback.inputs())));
+              if (smokeExpressionMode) {
+                smokeExpressionDrawn = true;
+                ImGui.setNextItemOpen(true, ImGuiCond.Always);
+              }
+              if (ImGui.treeNode("Evaluation details")) {
+                var stats = feedback.statistics();
+                ImGui.text(
+                    "Constant parts: "
+                        + stats.foldedNodes()
+                        + "; removed branches: "
+                        + stats.prunedBranches());
+                ImGui.text(
+                    "Shared calculations: "
+                        + stats.sharedExpressions()
+                        + "; instructions: "
+                        + stats.instructions());
+                ImGui.textWrapped(
+                    "Input and resource references receive full validation on Apply.");
+                ImGui.treePop();
+              }
+            }
           }
           if (java.util.Set.of("ADD", "SUBTRACT", "MULTIPLY", "DIVIDE").contains(item.kind))
             f.choice(

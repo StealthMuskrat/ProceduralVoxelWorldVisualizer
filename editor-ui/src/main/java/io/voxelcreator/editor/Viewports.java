@@ -195,6 +195,7 @@ public final class Viewports implements AutoCloseable {
     System.out.println("CAMERA_DRIVEN_STREAMING_PASS " + streamingStatistics());
     properties.assertSmokeCurveRendered();
     properties.assertSmokeWorldControlsRendered();
+    properties.assertSmokeExpressionRendered();
     System.out.println("EXACT_WORLD_STAGE_PREVIEWS_PASS");
     System.out.println("THREE_ENGINE_VIEWPORTS_PASS");
     System.out.println("RAYMARCHED_VOLUME_AND_XYZ_SLICES_PASS");
@@ -223,6 +224,8 @@ public final class Viewports implements AutoCloseable {
     if (frame == 445) views[2].camera.focus.z -= 64;
     if (frame == 30) properties.smokeCurve(true);
     if (frame == 90) properties.smokeCurve(false);
+    if (frame == 95) properties.smokeExpression(true);
+    if (frame == 115) properties.smokeExpression(false);
     if (frame == 240 || frame == 275 || frame == 300 || frame == 325) {
       views[2].stageMode =
           frame == 240

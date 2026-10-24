@@ -1,0 +1,78 @@
+{
+  "formatVersion" : 2,
+  "project" : {
+    "uuid" : "00000000-0000-4000-8000-000000000020",
+    "seed" : 0,
+    "minY" : -64,
+    "maxY" : 319
+  },
+  "voxelTypes" : [ ],
+  "voxelGroups" : [ ],
+  "voxelSets" : [ ],
+  "noise2D" : [ {
+    "uuid" : "00000000-0000-4000-8000-000000000022",
+    "id" : "compiled-expression",
+    "dimension" : 2,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "CONSTANT",
+      "parameters" : {
+        "frequency" : 0.01
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ {
+      "uuid" : "00000000-0000-4000-8000-000000000052",
+      "id" : "optimized",
+      "kind" : "EXPRESSION",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "expression" : "(x+z)*(x+z)+bias+(true ? 2^3 : 1/0)"
+      },
+      "inputs" : {
+        "bias" : {
+          "sourceKind" : "Shared Parameter",
+          "type" : "Scalar",
+          "ambientKey" : null,
+          "value" : 0.0,
+          "parameterUuid" : "00000000-0000-4000-8000-000000000051",
+          "itemUuid" : null,
+          "noiseGeneratorUuid" : null,
+          "projection" : "XZ",
+          "slice" : 0.0
+        }
+      }
+    } ],
+    "sharedParameters" : [ {
+      "uuid" : "00000000-0000-4000-8000-000000000051",
+      "id" : "bias",
+      "type" : "Scalar",
+      "value" : 3
+    } ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Earlier Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : "00000000-0000-4000-8000-000000000052",
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  } ],
+  "noise3D" : [ ],
+  "worldGenerator" : {
+    "uuid" : "00000000-0000-4000-8000-000000000021",
+    "layers" : [ ]
+  },
+  "folders" : [ ],
+  "bookmarks" : {
+    "noise2D" : [ ],
+    "noise3D" : [ ],
+    "world" : [ ]
+  }
+}

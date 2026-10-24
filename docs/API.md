@@ -56,3 +56,17 @@ Closing releases admission; immutable snapshots remain valid. A Cleaner releases
 Layer defaults and placement overrides now expose signed sample axes, component scales/offsets, an atomic ordered `samplingTransforms` list, FIXED/INTERVALS type sources and separate mapped `probabilityDriver`/`strengthDriver` objects. `WorldSemantics` and `registries/world-operation-registry.json` publish the vocabulary. TYPE_SELECTION requires interval types; ALL supports a parameter-only primary input. Existing defaults preserve the previous generation semantics. The mathematical contracts and format-2 compatibility policy are in [WORLD_USE.md](WORLD_USE.md); `Example.worldUseDemo()` is an engine-only authoring example.
 
 GenerationTrace.Details adds `sampleCoordinates()`, `matchedInterval()` (nullable, zero-based), `candidateType()` and immutable `drivers()`. Each driver report includes sample, mapped factor, constant and effective constant×factor. GateEvaluation adds nullable `random()` for its independent probability draw. Existing constructors remain available; clients destructuring the records must update to the extended components. Unexecuted gates/drivers are omitted, and skipped gates/predicates retain null outcomes.
+
+## Compiled expressions and bulk scalar sampling
+
+Expression.Program now exposes immutable `inputs()` order, `statistics()`, `constantValue()`, lazy `scalarIndexed`/`boolIndexed`, and primitive `scalars`/`booleans` batches. Providers must return stable values during one evaluation; each successful input can be read once and reused. Full typed parsing precedes branch removal. No floating-point reassociation or invalid-boundary suppression occurs. NoiseCompiler.statistics(UUID) reports compilation counts and conservative work. See [compiler contracts](COMPILED_EXPRESSIONS.md).
+
+NoiseSampler2D/3D retain their functional `sample` and existing uniform-step grid methods. New grid overloads accept per-axis steps, destination offset, long row/plane strides and CancellationToken. New `samplePoints` overloads accept coordinate arrays, source offset/count and destination offset/token. 3D retains X-fast Z rows in Y planes. For example:
+
+```java
+double[] values = new double[48];
+noise2D.sampleGrid(-2, 3, 4, 3, .5, -1, values, 2, 8, token);
+noise2D.samplePoints(xs, zs, 0, xs.length, pointValues, 0, token);
+```
+
+Bounds, address products and coordinate extents preflight before writes. Coordinate/output overlap is rejected; padding and untouched tails are preserved. Cancellation checks occur at rows and at most every 256 samples. BatchSamplingException identifies the first failed traversal index and XYZ, with the original cause; a wrapped EvaluationFailure retains the underlying Expression.Problem span. Expression.BatchFailure provides analogous sample/cause detail for direct program batches. Successful prefix writes remain valid, while the failed sample and tail are untouched. Callers must keep coordinate arrays unchanged throughout the call. The authored project format and expression grammar did not change.

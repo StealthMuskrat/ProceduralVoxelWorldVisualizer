@@ -1,0 +1,33 @@
+# Compiled expressions and primitive batches
+
+Expression parsing still validates the complete authored syntax and types, including branches that constant conditions later remove. Immutable nodes then become a bounded register plan. The evaluator follows explicit branches, uses primitive double values and epoch stamps, and has no recursive AST traversal or per-sample argument allocation after thread-local scratch warms up. A long flat arithmetic expression therefore does not grow the Java evaluation stack. Limits remain 16384 source characters, 4096 tokens/nodes and 64 parser nesting levels; compiled plans additionally cap instructions at 32768.
+
+## Optimizations and numerical boundaries
+
+Valid constant subexpressions and built-in functions fold at compilation. Constant ternary conditions remove the unselected branch; constant Boolean prefixes preserve short-circuit behavior. Noise expressions substitute immutable named/shared constants and fixed project/seed context values before folding. Only surviving variable inputs contribute runtime dependency work and depth. Every authored binding is still resolved and type checked, and every enabled item is still compiled for validation.
+
+The optimizer does not reassociate arithmetic, simplify x−x to zero, remove 0×x, or otherwise suppress a numeric boundary. Signed zero is retained in literal identities. An invalid constant such as 1/0 or sqrt(−1) stays at its runtime source boundary, so an unselected invalid branch remains legal while selecting it fails at the original span. Clamp-range errors also gain the executing function span.
+
+Repeated expression operations share a register only after successful finite evaluation within one sample. Checks remain inside the original branch flow: there is no speculative branch execution or hoisting. Each occurrence retains its own source span if it is the first executing occurrence. Epochs isolate successive samples; per-thread frames isolate concurrent and nested host evaluations. The public Variables/IndexedVariables contracts require inputs to stay immutable within one evaluation. They may change between samples. Boolean providers conventionally supply 0/1; internal logical operations preserve explicit truth conversion.
+
+Compatible pure processing items can also share successful results within a sampling Context. Keys include result type, operation, exact ordered inputs and parameters; raw-source inputs have a canonical identity. Sampled fields, implicit coordinate/hash/context-dependent operations and Expression items are excluded from this cross-item grouping; expressions have their own register sharing. A shared result never redirects an unexecuted item's failure to another item UUID: each occurrence computes through its own error boundary until a successful shared value exists. This is conservative sharing, not a claim that every semantically equivalent definition is recognized.
+
+`Expression.Program.inputs()` declares the indexed input order. `scalarIndexed`/`boolIndexed` invoke only demanded inputs, preserving lazy referenced fields. `constantValue()` is present only for a valid complete constant. Immutable `statistics()` reports parsed nodes, folds, removed branches, shared occurrences, value slots and instructions. NoiseCompiler.statistics(UUID) reports authored enabled/constant/shared item counts, aggregate expression instructions, scratch slots and conservative selected sample work/dependency depth. Counts describe compilation, not a hardware speed certification.
+
+The Noise Editor displays cached parser/type/span feedback and surviving input names while editing. Expand Evaluation details for constant/branch/sharing counts and instruction cost. Cache keys include expression text, declared types, literal/shared values and project seed/bounds; a bounded cache avoids reparsing unchanged text on every frame. Full resource and binding validation still occurs on Apply. This display state never dirties the project.
+
+## Expression batches
+
+Program.scalars(count, BatchVariables, destination, offset) and booleans(...) reuse a primitive frame for successive samples. BatchVariables receives an input name and a zero-based sample index; each input remains lazy and is evaluated at most once per sample. Successful prefix outputs are written in order. BatchFailure identifies the first failing sample and retains the source-span exception as its cause; the failed output and remaining destination cells are untouched. Destination/count/offset errors are rejected before execution.
+
+## Engine sampler batches
+
+NoiseSampler2D/3D retain their existing functional single-sample APIs and uniform-step sampleGrid methods. New overloads add independent axis steps, destination offset, row/plane strides, reusable point-coordinate arrays and CancellationToken. The 3D grid layout remains X-fast Z rows in Y planes:
+
+`offset + y × planeStride + z × rowStride + x`
+
+Padding cells are untouched. Address and sample-count arithmetic is checked before writes, including products beyond signed-long capacity. Origins, steps and endpoint coordinates must be finite. Point coordinates receive a complete finite/bounds preflight. Overlapping coordinate/output ranges are rejected instead of allocating hidden copies; disjoint ranges in the same array are permitted. Coordinate arrays must remain unchanged during the call.
+
+Grid coordinates use origin + index×step for each axis, preserving the original floating-point order. Negative and zero steps are allowed. Empty shapes return without traversing otherwise huge axes. Cancellation checks occur before execution, at row boundaries and at most every 256 samples; cancellation propagates as CancellationException. Numeric/callback failures raise BatchSamplingException with zero-based traversal index, XYZ and original cause. A wrapped EvaluationFailure retains the underlying expression-span cause. The successful prefix remains, while the failing sample and tail remain untouched. These mutable caller buffers are not published as immutable chunk snapshots.
+
+This is CPU primitive-buffer scheduling with reusable scratch, not SIMD, GPU field evaluation or automatic parallel scheduling. Larger engine region work still uses the existing bounded asynchronous chunk/region APIs. Project format and authored expression grammar are unchanged. `fixtures/compiled-expressions.json` and the external Example demonstrate folded branches, shared calculations, a shared parameter, strided grids and point arrays. Registry metadata records the evaluator limits and numerical policy.

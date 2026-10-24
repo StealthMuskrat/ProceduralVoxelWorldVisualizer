@@ -1,6 +1,6 @@
 # Verification evidence
 
-- `clean test build dependencyNotices releaseJars`: PASS with 112 JUnit tests on Temurin 25.0.4+7 x64.
+- `clean test build dependencyNotices releaseJars`: PASS with 138 JUnit tests on Temurin 25.0.4+7 x64.
 - Independent javac/java consumer using only `noise-generator-engine.jar`: PASS.
 - Local native smoke: all three engine-backed viewports, explicit save/reload, screenshots with nonblank-frame checks, and exit: PASS on Temurin 25.0.5+8; OpenGL 4.5 Mesa llvmpipe.
 - Draft 2020-12 project/user/app schema verification and fixtures: PASS using jsonschema 4.23.0.
@@ -33,3 +33,7 @@ The world-use batch passes 112 JUnit tests on pinned Temurin 25.0.4+7. `world-us
 ![Interval type selection with explicit endpoints](world-use-types.png)
 
 ![Mapped field driver and NOT/probability gate](world-use-drivers.png)
+
+The compiler/batch extension passes 138 JUnit tests on pinned Temurin 25.0.4+7. `compiler-build.log`, `compiler-artifacts.log` and `compiler-independent-consumer.log` record the clean build, schema/fixture checks, unchanged exact voxel hashes, engine isolation and external compiled-expression/strided-grid/point-array consumer. `linux-compiler-smoke.log` adds native expression feedback to the curve, world-use, stage, streaming, volume and slice checks. The inspected screenshot is paired with `compiler-smoke-project.json`. The panel shows constant/branch removal and shared calculations from the actual parser plan. Functional checks do not certify SIMD, hardware throughput or the complete GUI interaction matrix.
+
+![Compiled expression feedback and evaluation details](compiled-expression.png)

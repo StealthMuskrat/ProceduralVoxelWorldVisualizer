@@ -14,4 +14,10 @@ public final class EvaluationFailure extends RuntimeException {
     this.y = y;
     this.z = z;
   }
+
+  public EvaluationFailure(
+      UUID resource, UUID item, double x, double y, double z, String message, Throwable cause) {
+    this(resource, item, x, y, z, message);
+    initCause(cause);
+  }
 }

@@ -1,0 +1,25 @@
+SMOKE_ENV java=25.0.4+7-LTS os=Linux arch=amd64 gl=4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 renderer=llvmpipe (LLVM 20.1.2, 256 bits)
+SMOKE_PROJECT_SAVE_OPEN_PASS /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-project.json
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-70.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-110.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-170.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-195.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-215.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-230.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-265.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-290.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-315.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-350.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-375.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-395.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-410.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/compiler-smoke/smoke-470.png
+CAMERA_DRIVEN_STREAMING_PASS StreamingStatistics[cpuBytes=841780, reserved=0, gpuBytes=0, uploadedBytes=0, chunks=27, jobs=0, visible=1, culled=0, drawCalls=1, indirect=true]
+CURVE_EDITOR_NATIVE_PASS
+WORLD_USE_CONTROLS_NATIVE_PASS
+COMPILED_EXPRESSION_FEEDBACK_NATIVE_PASS
+EXACT_WORLD_STAGE_PREVIEWS_PASS
+THREE_ENGINE_VIEWPORTS_PASS
+RAYMARCHED_VOLUME_AND_XYZ_SLICES_PASS
+DESKTOP_SMOKE_COMPLETED frames=480 engine=EngineMetrics[workers=4, active=0, queued=0, completed=84, generationNanos=4623994554, cacheBytes=0, stagingBytes=0, memoryBudget=536870912, collectionBytes=0]
+NATIVE_CURSOR_CLEANUP: unavailable platform cursor; completing GLFW shutdown

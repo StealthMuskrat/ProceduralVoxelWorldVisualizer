@@ -6,13 +6,38 @@ public interface NoiseSampler2D {
 
   default void sampleGrid(
       double originX, double originZ, int width, int depth, double step, double[] destination) {
-    if (width < 0
-        || depth < 0
-        || (long) width * depth > destination.length
-        || !Double.isFinite(step))
-      throw new IllegalArgumentException("Grid dimensions/step/destination");
-    for (int z = 0; z < depth; z++)
-      for (int x = 0; x < width; x++)
-        destination[z * width + x] = sample(originX + x * step, originZ + z * step);
+    sampleGrid(
+        originX, originZ, width, depth, step, step, destination, 0, width, new CancellationToken());
+  }
+
+  /**
+   * X-fast rows of Z; padding is preserved. Counts, addresses and coordinates preflight before
+   * writes.
+   */
+  default void sampleGrid(
+      double originX,
+      double originZ,
+      int width,
+      int depth,
+      double stepX,
+      double stepZ,
+      double[] destination,
+      int offset,
+      long rowStride,
+      CancellationToken token) {
+    SamplingBatches.grid2(
+        this, originX, originZ, width, depth, stepX, stepZ, destination, offset, rowStride, token);
+  }
+
+  default void samplePoints(
+      double[] xs,
+      double[] zs,
+      int sourceOffset,
+      int count,
+      double[] destination,
+      int destinationOffset,
+      CancellationToken token) {
+    SamplingBatches.points2(
+        this, xs, zs, sourceOffset, count, destination, destinationOffset, token);
   }
 }

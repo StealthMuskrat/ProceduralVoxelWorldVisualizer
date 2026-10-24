@@ -28,39 +28,124 @@ public final class Expression {
     double get(String name);
   }
 
+  /** Inputs are immutable within one evaluation; Boolean inputs conventionally use 0/1. */
   @FunctionalInterface
-  private interface Eval {
-    double eval(Variables variables);
+  public interface IndexedVariables {
+    double get(int index);
+  }
+
+  @FunctionalInterface
+  public interface BatchVariables {
+    double get(String name, int sample);
+  }
+
+  public record Statistics(
+      int parsedNodes,
+      int foldedNodes,
+      int prunedBranches,
+      int sharedExpressions,
+      int valueSlots,
+      int instructions) {}
+
+  public static final class BatchFailure extends IllegalArgumentException {
+    public final int sampleIndex;
+
+    public BatchFailure(int sampleIndex, RuntimeException cause) {
+      super("Expression batch sample " + sampleIndex + ": " + cause.getMessage(), cause);
+      this.sampleIndex = sampleIndex;
+    }
   }
 
   public static final class Program {
-    private final Node node;
+    private final ExpressionPlan plan;
 
-    private Program(Node n) {
-      node = n;
+    private Program(Node node, int parsedNodes) {
+      plan = new ExpressionPlan(node, parsedNodes);
     }
 
     public Type type() {
-      return node.type;
+      return plan.type();
     }
 
-    public double scalar(Variables v) {
-      if (type() != Type.Scalar) throw new IllegalStateException("Boolean expression");
-      return node.run(v);
+    public List<String> inputs() {
+      return plan.inputs();
     }
 
-    public boolean bool(Variables v) {
-      if (type() != Type.Boolean) throw new IllegalStateException("Scalar expression");
-      return node.run(v) != 0;
+    public Statistics statistics() {
+      return plan.statistics();
+    }
+
+    public OptionalDouble constantValue() {
+      return plan.constantValue();
+    }
+
+    private void require(Type type) {
+      if (type() != type)
+        throw new IllegalStateException(
+            type == Type.Scalar ? "Boolean expression" : "Scalar expression");
+    }
+
+    public double scalar(Variables variables) {
+      require(Type.Scalar);
+      return plan.named(variables);
+    }
+
+    public boolean bool(Variables variables) {
+      require(Type.Boolean);
+      return plan.named(variables) != 0;
+    }
+
+    public double scalarIndexed(IndexedVariables variables) {
+      require(Type.Scalar);
+      return plan.indexed(variables);
+    }
+
+    public boolean boolIndexed(IndexedVariables variables) {
+      require(Type.Boolean);
+      return plan.indexed(variables) != 0;
+    }
+
+    public void scalars(int count, BatchVariables variables, double[] destination, int offset) {
+      require(Type.Scalar);
+      plan.batch(count, variables, destination, null, offset);
+    }
+
+    public void booleans(int count, BatchVariables variables, boolean[] destination, int offset) {
+      require(Type.Boolean);
+      plan.batch(count, variables, null, destination, offset);
     }
   }
 
-  private record Node(Type type, Eval fn, int start, int end) {
-    double run(Variables v) {
-      double d = fn.eval(v);
-      if (!Double.isFinite(d))
-        throw new Problem("Nonfinite result or invalid numeric domain", start, end);
-      return d;
+  static final class Node {
+    final Type type;
+    final String operation, name;
+    final List<Node> children;
+    final double value;
+    final int start, end;
+
+    Node(
+        Type type,
+        String operation,
+        String name,
+        double value,
+        List<Node> children,
+        int start,
+        int end) {
+      this.type = type;
+      this.operation = operation;
+      this.name = name;
+      this.value = value;
+      this.children = List.copyOf(children);
+      this.start = start;
+      this.end = end;
+    }
+
+    static Node literal(Type type, double value, int start, int end) {
+      return new Node(type, "literal", null, value, List.of(), start, end);
+    }
+
+    boolean literal() {
+      return operation.equals("literal");
     }
   }
 
@@ -138,16 +223,34 @@ public final class Expression {
   }
 
   public static Program compile(String source, Map<String, Type> vars) {
-    return new Program(new Parser(source, Map.copyOf(vars)).parse());
+    return compile(source, vars, Map.of());
+  }
+
+  public static Program compile(
+      String source, Map<String, Type> vars, Map<String, Double> constants) {
+    var types = Map.copyOf(vars);
+    var values = Map.copyOf(constants);
+    values.forEach(
+        (name, value) -> {
+          if (!types.containsKey(name)
+              || !Double.isFinite(value)
+              || (types.get(name) == Type.Boolean && value != 0 && value != 1))
+            throw new IllegalArgumentException("Invalid constant input " + name);
+        });
+    var parser = new Parser(source, types, values);
+    var root = parser.parse();
+    return new Program(root, parser.nodes);
   }
 
   private static final class Parser {
     final List<Token> tokens = new ArrayList<>();
     final Map<String, Type> vars;
+    final Map<String, Double> constants;
     int at = 0, depth = 0, nodes = 0;
 
-    Parser(String s, Map<String, Type> vars) {
+    Parser(String s, Map<String, Type> vars, Map<String, Double> constants) {
       this.vars = vars;
+      this.constants = constants;
       if (s == null || s.length() > 16384) throw new Problem("Expression length limit 16384", 0, 0);
       int i = 0;
       while (i < s.length()) {
@@ -188,6 +291,7 @@ public final class Expression {
     }
 
     Token take() {
+      if (at >= tokens.size() - 1) throw problem("Expected expression", tokens.getLast());
       return tokens.get(at++);
     }
 
@@ -207,9 +311,24 @@ public final class Expression {
       return new Problem(m, t.start, t.end);
     }
 
-    Node node(Type t, Eval e, int s, int end) {
-      if (++nodes > 4096) throw new Problem("AST size limit", s, end);
-      return new Node(t, e, s, end);
+    Node node(
+        Type type,
+        String operation,
+        String name,
+        double value,
+        List<Node> children,
+        int start,
+        int end) {
+      if (++nodes > 4096) throw new Problem("AST size limit", start, end);
+      return new Node(type, operation, name, value, children, start, end);
+    }
+
+    Node literal(Type type, double value, int start, int end) {
+      return node(type, "literal", null, value, List.of(), start, end);
+    }
+
+    Node operation(Type type, String operation, List<Node> children, int start, int end) {
+      return node(type, operation, null, 0, children, start, end);
     }
 
     Node parse() {
@@ -230,28 +349,26 @@ public final class Expression {
         Type required = t.text.equals("!") ? Type.Boolean : Type.Scalar;
         require(a, required, t);
         left =
-            node(
+            operation(
                 required,
-                v ->
-                    t.text.equals("!")
-                        ? (a.run(v) == 0 ? 1 : 0)
-                        : t.text.equals("-") ? -a.run(v) : a.run(v),
+                t.text.equals("!") ? "not" : t.text.equals("-") ? "negate" : "positive",
+                List.of(a),
                 t.start,
                 a.end);
       } else if (t.text.equals("true") || t.text.equals("false")) {
         double x = t.text.equals("true") ? 1 : 0;
-        left = node(Type.Boolean, v -> x, t.start, t.end);
+        left = literal(Type.Boolean, x, t.start, t.end);
       } else if (Set.of("pi", "e", "tau").contains(t.text)) {
         double x =
             t.text.equals("e")
                 ? StrictMath.E
                 : t.text.equals("pi") ? StrictMath.PI : 2 * StrictMath.PI;
-        left = node(Type.Scalar, v -> x, t.start, t.end);
+        left = literal(Type.Scalar, x, t.start, t.end);
       } else if (Character.isDigit(t.text.charAt(0)) || t.text.charAt(0) == '.') {
         try {
           double x = Double.parseDouble(t.text);
           if (!Double.isFinite(x)) throw new NumberFormatException();
-          left = node(Type.Scalar, v -> x, t.start, t.end);
+          left = literal(Type.Scalar, x, t.start, t.end);
         } catch (NumberFormatException e) {
           throw problem("Invalid finite number", t);
         }
@@ -267,22 +384,14 @@ public final class Expression {
         }
         if (args.size() != f.arity) throw problem("Expected " + f.arity + " arguments", t);
         for (Node a : args) require(a, Type.Scalar, t);
-        // One argument buffer per compiled node per thread, never per sample.
-        ThreadLocal<double[]> scratch = ThreadLocal.withInitial(() -> new double[args.size()]);
-        left =
-            node(
-                Type.Scalar,
-                v -> {
-                  double[] a = scratch.get();
-                  for (int j = 0; j < a.length; j++) a[j] = args.get(j).run(v);
-                  return f.implementation.applyAsDouble(a);
-                },
-                t.start,
-                tokens.get(at - 1).end);
+        left = node(Type.Scalar, "call", t.text, 0, args, t.start, tokens.get(at - 1).end);
       } else {
         Type type = vars.get(t.text);
         if (type == null) throw problem("Unknown input '" + t.text + "'", t);
-        left = node(type, v -> v.get(t.text), t.start, t.end);
+        left =
+            constants.containsKey(t.text)
+                ? literal(type, constants.get(t.text), t.start, t.end)
+                : node(type, "variable", t.text, 0, List.of(), t.start, t.end);
       }
       while (true) {
         Token op = peek();
@@ -296,7 +405,7 @@ public final class Expression {
           expect(":");
           Node no = expr(0);
           if (yes.type != no.type) throw problem("Ternary branches must have matching types", op);
-          left = node(yes.type, v -> a.run(v) != 0 ? yes.run(v) : no.run(v), a.start, no.end);
+          left = operation(yes.type, "select", List.of(a, yes, no), a.start, no.end);
           continue;
         }
         Node b = expr(precedence + (op.text.equals("^") ? 0 : 1));
@@ -310,9 +419,10 @@ public final class Expression {
           require(b, logic ? Type.Boolean : Type.Scalar, op);
         }
         left =
-            node(
+            operation(
                 logic || equality || compare ? Type.Boolean : Type.Scalar,
-                v -> apply(op.text, a, b, v),
+                op.text,
+                List.of(a, b),
                 a.start,
                 b.end);
       }
@@ -336,28 +446,6 @@ public final class Expression {
         case "*", "/", "%" -> 6;
         case "^" -> 8;
         default -> -1;
-      };
-    }
-
-    static double apply(String op, Node a, Node b, Variables v) {
-      double x = a.run(v);
-      if (op.equals("&&")) return x != 0 && b.run(v) != 0 ? 1 : 0;
-      if (op.equals("||")) return x != 0 || b.run(v) != 0 ? 1 : 0;
-      double y = b.run(v);
-      return switch (op) {
-        case "+" -> x + y;
-        case "-" -> x - y;
-        case "*" -> x * y;
-        case "/" -> x / y;
-        case "%" -> x % y;
-        case "^" -> StrictMath.pow(x, y);
-        case "<" -> x < y ? 1 : 0;
-        case "<=" -> x <= y ? 1 : 0;
-        case ">" -> x > y ? 1 : 0;
-        case ">=" -> x >= y ? 1 : 0;
-        case "==" -> x == y ? 1 : 0;
-        case "!=" -> x != y ? 1 : 0;
-        default -> throw new AssertionError(op);
       };
     }
   }

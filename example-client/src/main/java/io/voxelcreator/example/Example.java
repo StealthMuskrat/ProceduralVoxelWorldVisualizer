@@ -122,6 +122,31 @@ public final class Example {
     return p;
   }
 
+  public static ProjectData compiledExpressionsDemo() {
+    var p = sampledFieldsDemo();
+    var n = p.noise2D.getFirst();
+    n.id = "compiled-expression";
+    n.processing.clear();
+    n.coordinateTransforms.clear();
+    var parameter = new Parameter();
+    parameter.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000051");
+    parameter.id = "bias";
+    parameter.type = "Scalar";
+    parameter.value = ProjectIO.JSON.valueToTree(3);
+    n.sharedParameters.add(parameter);
+    var expression = ProcessingRegistry.create("EXPRESSION", "optimized");
+    expression.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000052");
+    expression.parameters.put(
+        "expression", ProjectIO.JSON.valueToTree("(x+z)*(x+z)+bias+(true ? 2^3 : 1/0)"));
+    var binding = Binding.constant(0);
+    binding.sourceKind = "Shared Parameter";
+    binding.parameterUuid = parameter.uuid;
+    expression.inputs.put("bias", binding);
+    n.processing.add(expression);
+    n.outputBinding = Binding.earlier(expression.uuid);
+    return p;
+  }
+
   public static void main(String[] args) throws Exception {
     if (args.length > 0 && args[0].equals("--contracts")) {
       ContractGenerator.write(Path.of(args.length > 1 ? args[1] : "."));
@@ -170,6 +195,36 @@ public final class Example {
     System.out.println(
         "Independent world-use intervals / driver / sampling / NOT probability gate / owned"
             + " collection PASS");
+    var expressionData = compiledExpressionsDemo();
+    Path expressionsFile = working.resolve("compiled-expressions.pvproj.json");
+    new ProjectIO().save(expressionsFile, expressionData);
+    var expressionLoad = new ProjectLoader().load(expressionsFile);
+    if (!expressionLoad.success())
+      throw new IllegalStateException(expressionLoad.diagnostics().toString());
+    var expressionCompiled = new CompiledProject(expressionLoad.project());
+    var expressionSampler = expressionCompiled.noise2D("compiled-expression", 17);
+    double[] expressionGrid = new double[35];
+    java.util.Arrays.fill(expressionGrid, -999);
+    expressionSampler.sampleGrid(
+        -2, -1, 4, 3, .5, -2, expressionGrid, 2, 7, new CancellationToken());
+    for (int z = 0; z < 3; z++)
+      for (int x = 0; x < 4; x++) {
+        double v = (-2 + x * .5) + (-1 - z * 2);
+        if (expressionGrid[2 + z * 7 + x] != v * v + 11)
+          throw new AssertionError("Compiled expression/grid mismatch");
+      }
+    double[] xs = {-3, -1, 2}, zs = {2, 4, -5}, pointResults = new double[3];
+    expressionSampler.samplePoints(xs, zs, 0, 3, pointResults, 0, new CancellationToken());
+    for (int i = 0; i < 3; i++)
+      if (pointResults[i] != (xs[i] + zs[i]) * (xs[i] + zs[i]) + 11)
+        throw new AssertionError("Primitive point batch mismatch");
+    var report =
+        new io.voxelcreator.core.NoiseCompiler(expressionLoad.project(), 17)
+            .statistics(expressionData.noise2D.getFirst().uuid);
+    if (report.expressionInstructions() < 1)
+      throw new AssertionError("Missing compiler statistics");
+    System.out.println(
+        "Independent compiled-expression / strided grid / primitive points PASS " + report);
     var p = demo();
     Path file = working.resolve("terrain.pvproj.json");
     new ProjectIO().save(file, p);

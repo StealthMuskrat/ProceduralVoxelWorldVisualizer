@@ -265,7 +265,28 @@ public final class ContractGenerator {
                     "structured failure at executed boundary")));
     writeJSON(
         root.resolve("registries/expression-function-registry.json"),
-        Map.of("registryVersion", 1, "functions", funcs));
+        Map.of(
+            "registryVersion",
+            2,
+            "functions",
+            funcs,
+            "evaluator",
+            "immutable lazy register plan; successful-value sharing; indexed primitive bindings",
+            "limits",
+            Map.of(
+                "sourceCharacters",
+                16384,
+                "tokens",
+                4096,
+                "parsedNodes",
+                4096,
+                "parserDepth",
+                64,
+                "instructions",
+                32768),
+            "floatingPointPolicy",
+            "no reassociation or unsafe algebraic identities; invalid constants remain at executed"
+                + " source spans"));
     var worldRegistry = new LinkedHashMap<String, Object>();
     worldRegistry.put("registryVersion", 2);
     worldRegistry.put("actions", List.of("SET", "CLEAR", "NO_CHANGE"));
@@ -306,6 +327,9 @@ public final class ContractGenerator {
     new ProjectIO().save(root.resolve("fixtures/terrain.json"), Example.demo());
     new ProjectIO().save(root.resolve("fixtures/sampled-fields.json"), Example.sampledFieldsDemo());
     new ProjectIO().save(root.resolve("fixtures/world-use.json"), Example.worldUseDemo());
+    new ProjectIO()
+        .save(
+            root.resolve("fixtures/compiled-expressions.json"), Example.compiledExpressionsDemo());
     ObjectNode invalid = JSON.valueToTree(empty);
     invalid.put("formatVersion", 999);
     writeJSON(root.resolve("fixtures/invalid-format-version.json"), invalid);
