@@ -11,6 +11,7 @@ Third-party components retain their own terms:
 | Dear ImGui / imgui-java | 1.89.0 binding | MIT; https://github.com/SpaiR/imgui-java |
 | JOML | 1.10.8 | MIT; https://github.com/JOML-CI/JOML |
 | Jackson | 2.18.3 | Apache License 2.0; https://github.com/FasterXML/jackson-databind |
+| Kotlin runtime / JetBrains annotations | 1.8.20 / 13.0 | Apache License 2.0; transitive GUI binding support |
 | JUnit | 5.11.4, build/test only | EPL 2.0; https://github.com/junit-team/junit5 |
 | Gradle wrapper | 9.2.1, build only | Apache License 2.0; https://github.com/gradle/gradle |
 | Eclipse Temurin | 25.0.4+7 runtime when bundled | GPLv2 with Classpath Exception; supplied legal/ directory retained |

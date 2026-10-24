@@ -42,3 +42,5 @@ Linux local software OpenGL smoke completed all three engine-backed viewports, s
 The imgui-java 1.89 GLFW backend can attempt to destroy an unavailable X11 cursor (0). Desktop shutdown contains that specific failure and still disposes callbacks, contexts and GLFW. Other NullPointerExceptions are not suppressed. Multi-release JAR metadata is retained for LWJGL 3.4.1 Java 25 support.
 
 Generation admission reserves a conservative 16 bytes per root voxel plus 2D field-cache storage, accounting for arena growth and immutable publication copies rather than only the final snapshot size. This may reject large concurrent roots before allocation even when the eventual sparse chunk would be small.
+
+The GUI binding publishes additional Kotlin support dependencies through Gradle module metadata. kotlin-stdlib-jdk8 1.8.20 is explicit in the desktop runtime graph so POM-based local mirrors and online Gradle resolution produce the same complete runtime; its transitive artifacts are checksum verified. The headless engine graph remains free of GUI/Kotlin dependencies.

@@ -15,7 +15,7 @@ project(':editor-render') { dependencies { api project(':engine-api'); api 'org.
 project(':editor-ui') {
  apply plugin: 'application'
  application { mainClass = 'io.voxelcreator.editor.Desktop' }
- dependencies { implementation project(':editor-render'); implementation 'io.github.spair:imgui-java-app:1.89.0' }
+ dependencies { implementation project(':editor-render'); implementation 'io.github.spair:imgui-java-app:1.89.0'; runtimeOnly 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.20' }
  tasks.register('fatJar', Jar) {
   archiveFileName = 'ProceduralVoxelCreator.jar'
   manifest { attributes 'Main-Class': application.mainClass.get(), 'Multi-Release': 'true', 'Enable-Native-Access': 'ALL-UNNAMED' }
