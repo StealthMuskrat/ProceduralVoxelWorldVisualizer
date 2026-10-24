@@ -106,4 +106,24 @@ public final class AppMetadata {
       throw new IllegalStateException(e);
     }
   }
+
+  public static String settingLabel(String key) {
+    return switch (key) {
+      case "baseHeight" -> "Base Height";
+      case "heightScale" -> "Height Scale";
+      case "minY" -> "Minimum Y";
+      case "maxY" -> "Maximum Y";
+      case "seedOffset" -> "Seed Offset";
+      case "voxelTypeUuid" -> "Voxel Type";
+      case "voxelStatePredicate" -> "Existing Voxel State";
+      case "fieldGates" -> "Field Selection Gates";
+      case "scaleX" -> "Scale X";
+      case "scaleY" -> "Scale Y";
+      case "scaleZ" -> "Scale Z";
+      case "offsetX" -> "Offset X";
+      case "offsetY" -> "Offset Y";
+      case "offsetZ" -> "Offset Z";
+      default -> Character.toUpperCase(key.charAt(0)) + key.substring(1);
+    };
+  }
 }

@@ -18,13 +18,28 @@ jobs:
         with:
           distribution: temurin
           java-version: '25.0.4+7.0.LTS'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.10'
+      - name: Validate schema family
+        run: |
+          python -m pip install -r scripts/requirements-validation.txt
+          python scripts/verify_schemas.py
       - name: Clean build and contracts
-        run: ./gradlew clean test build releaseJars
+        run: ./gradlew clean test build dependencyNotices releaseJars
       - name: Independent engine consumer
         run: |
           mkdir -p build/independent
           javac -cp build/release/jars/noise-generator-engine.jar -d build/independent example-client/src/main/java/io/voxelcreator/example/*.java
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.Example build/independent/output
+      - name: Exact voxel and artifact hashes
+        run: |
+          java -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.render.Benchmark > build/benchmark.csv
+          python scripts/verify_artifacts.py --benchmark build/benchmark.csv --hashes build/jar-hashes.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Linux-jar-hashes
+          path: build/jar-hashes.txt
       - name: Native editor smoke
         run: |
           sudo apt-get update -qq
@@ -38,6 +53,7 @@ jobs:
             **/build/test-results/
             **/build/reports/tests/
             build/smoke/
+            build/benchmark.csv
   windows:
     runs-on: windows-2025
     steps:
@@ -46,8 +62,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '25.0.4+7.0.LTS'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.10'
+      - name: Validate schema family
+        run: |
+          python -m pip install -r scripts/requirements-validation.txt
+          python scripts/verify_schemas.py
       - name: Build and test
-        run: .\gradlew.bat clean test build releaseJars
+        run: .\gradlew.bat clean test build dependencyNotices releaseJars
       - name: Independent engine consumer
         shell: pwsh
         run: |
@@ -56,6 +79,17 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.Example build/independent/output
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Exact voxel and artifact hashes
+        shell: pwsh
+        run: |
+          java -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.render.Benchmark | Out-File -Encoding utf8 build/benchmark.csv
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_artifacts.py --benchmark build/benchmark.csv --hashes build/jar-hashes.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Windows-jar-hashes
+          path: build/jar-hashes.txt
       - name: Assemble runtime and software OpenGL
         shell: pwsh
         run: |
@@ -83,12 +117,32 @@ jobs:
       - name: Package development distribution
         if: success()
         run: python scripts/package_release.py --runtime build/windows-runtime --mesa-notices build/mesa-notices --output build/packages
+      - name: Packaged launcher smoke
+        if: success()
+        shell: pwsh
+        run: |
+          $env:JAVA_TOOL_OPTIONS = "-Dvoxel.configDir=$PWD/build/packaged-smoke"
+          & .\build\packages\ProceduralVoxelCreator-Development\windows\launcher\ProceduralVoxelCreator.cmd --smoke
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: windows-development-build
           path: |
-            build/packages/*
+            build/packages/*.zip
+            build/packages/*.sha256
             build/windows-smoke.log
             build/smoke/
+            build/benchmark.csv
             **/build/test-results/
+
+  reproducibility:
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-jar-hashes'
+          path: hashes
+      - name: Compare Linux and Windows JAR bytes
+        run: cmp hashes/Linux-jar-hashes/jar-hashes.txt hashes/Windows-jar-hashes/jar-hashes.txt

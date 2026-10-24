@@ -67,7 +67,8 @@ final class WorldPlan {
                 noise.dimension,
                 s,
                 s.action.equals("SET") ? registry.runtimeId(s.voxelTypeUuid) : 0,
-                CoordinateHash.seed(opSeed, op.uuid, noise.seedOffset),
+                CoordinateHash.seed(
+                    CoordinateHash.seed(opSeed, noise.uuid, noise.seedOffset), op.uuid, 0),
                 compiler.compile(noise.uuid),
                 Map.copyOf(gates),
                 Map.copyOf(sources)));
@@ -86,7 +87,7 @@ final class WorldPlan {
     return operations.isEmpty()
         ? 256
         : 128L
-            + 8L * size * size * size
+            + 16L * size * size * size
             + 8L * size * size * operations.stream().filter(o -> o.dimension == 2).count();
   }
 

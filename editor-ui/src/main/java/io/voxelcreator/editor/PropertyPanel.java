@@ -168,6 +168,12 @@ public final class PropertyPanel {
                 expr,
                 v -> item.parameters.put("expression", ProjectIO.JSON.valueToTree(v)));
           }
+          if (java.util.Set.of("ADD", "SUBTRACT", "MULTIPLY", "DIVIDE").contains(item.kind))
+            f.choice(
+                "Result type",
+                item.resultType,
+                List.of("Scalar", "Vector2", "Vector3"),
+                v -> item.resultType = v);
           if (item.kind.equals("NORMALIZE"))
             f.choice(
                 "Result type",
@@ -305,11 +311,27 @@ public final class PropertyPanel {
         }
         ImGui.popID();
       }
-      if (ImGui.button("Add Scalar Parameter")) {
-        var param = new Parameter();
-        param.id = "parameter-" + (n.sharedParameters.size() + 1);
-        param.value = ProjectIO.JSON.valueToTree(0);
-        n.sharedParameters.add(param);
+      if (ImGui.button("Add Parameter")) ImGui.openPopup("new-parameter");
+      if (ImGui.beginPopup("new-parameter")) {
+        for (String type : List.of("Scalar", "Boolean", "Vector2", "Vector3"))
+          if (ImGui.menuItem(type)) {
+            var param = new Parameter();
+            param.id =
+                ResourceTransactions.unique(
+                    "parameter", n.sharedParameters.stream().map(v -> v.id).toList());
+            param.type = type;
+            param.value =
+                ProjectIO.JSON.valueToTree(
+                    type.equals("Scalar")
+                        ? 0
+                        : type.equals("Boolean")
+                            ? false
+                            : type.equals("Vector2")
+                                ? new double[] {0, 0}
+                                : new double[] {0, 0, 0});
+            n.sharedParameters.add(param);
+          }
+        ImGui.endPopup();
       }
     }
     if (!n.pinnedControls.isEmpty() && ImGui.collapsingHeader("Pinned Controls")) {
@@ -514,7 +536,7 @@ public final class PropertyPanel {
       ImGui.pushID(key);
       boolean overridden = op.overrides.containsKey(key);
       f.bool(
-          "Override " + key,
+          "Override " + AppMetadata.settingLabel(key),
           overridden,
           v -> {
             if (v) {
@@ -538,10 +560,24 @@ public final class PropertyPanel {
         if (ImGui.smallButton("Reset to Layer Default")) op.overrides.remove(key);
       } else {
         JsonNode node = ProjectIO.JSON.valueToTree(effective);
-        ImGui.textWrapped(key + ": " + node.get(key));
+        ImGui.textWrapped(AppMetadata.settingLabel(key) + ": " + settingValue(key, node.get(key)));
       }
       ImGui.popID();
     }
+  }
+
+  private String settingValue(String key, JsonNode value) {
+    if (value == null || value.isNull()) return "None";
+    if (key.equals("voxelTypeUuid")) {
+      try {
+        return idFor(state.project().voxelTypes, UUID.fromString(value.asText()));
+      } catch (Exception e) {
+        return "Unresolved type";
+      }
+    }
+    if (value.isObject()) return value.path("kind").asText("Configured condition");
+    if (value.isFloatingPointNumber()) return String.format(Locale.ROOT, "%.5f", value.asDouble());
+    return value.asText();
   }
 
   private void settings(Settings s) {
@@ -557,7 +593,7 @@ public final class PropertyPanel {
       var field = Settings.class.getField(key);
       if (field.getType() == double.class)
         f.number(
-            key,
+            AppMetadata.settingLabel(key),
             field.getDouble(s),
             v -> {
               try {
@@ -568,7 +604,7 @@ public final class PropertyPanel {
             });
       else if (field.getType() == int.class)
         f.integer(
-            key,
+            AppMetadata.settingLabel(key),
             field.getInt(s),
             v -> {
               try {
@@ -577,13 +613,22 @@ public final class PropertyPanel {
                 throw new IllegalStateException(e);
               }
             });
-      else if (key.equals("seedOffset")) longText(key, s.seedOffset, v -> s.seedOffset = v);
+      else if (key.equals("seedOffset"))
+        longText(AppMetadata.settingLabel(key), s.seedOffset, v -> s.seedOffset = v);
       else if (key.equals("action"))
-        f.choice(key, s.action, List.of("NO_CHANGE", "SET", "CLEAR"), v -> s.action = v);
+        f.choice(
+            AppMetadata.settingLabel(key),
+            s.action,
+            List.of("NO_CHANGE", "SET", "CLEAR"),
+            v -> s.action = v);
       else if (key.equals("rounding"))
-        f.choice(key, s.rounding, List.of("FLOOR", "CEIL", "ROUND"), v -> s.rounding = v);
+        f.choice(
+            AppMetadata.settingLabel(key),
+            s.rounding,
+            List.of("FLOOR", "CEIL", "ROUND"),
+            v -> s.rounding = v);
       else if (key.equals("voxelTypeUuid"))
-        typePicker(key, s.voxelTypeUuid, v -> s.voxelTypeUuid = v);
+        typePicker(AppMetadata.settingLabel(key), s.voxelTypeUuid, v -> s.voxelTypeUuid = v);
       else if (key.equals("voxelStatePredicate")) {
         if (ImGui.treeNode("Previous Voxel State")) {
           predicate(s.voxelStatePredicate, 0);

@@ -81,6 +81,17 @@ public final class Desktop extends Application {
         });
     if (Arrays.asList(launchArgs).contains("--smoke")) {
       smokeFrames = 360;
+      System.out.println(
+          "SMOKE_ENV java="
+              + System.getProperty("java.runtime.version")
+              + " os="
+              + System.getProperty("os.name")
+              + " arch="
+              + System.getProperty("os.arch")
+              + " gl="
+              + glGetString(GL_VERSION)
+              + " renderer="
+              + glGetString(GL_RENDERER));
       createSmokeProject();
       views.smokeSelections();
     } else if (launchArgs.length > 0 && !launchArgs[0].startsWith("--")) {
@@ -154,7 +165,8 @@ public final class Desktop extends Application {
       ImGui.renderPlatformWindowsDefault();
       glfwMakeContextCurrent(previous);
     }
-    if (smokeFrames > 0 && (frameCount == 110 || frameCount == 230 || frameCount == 350)) captureFrame();
+    if (smokeFrames > 0 && (frameCount == 110 || frameCount == 230 || frameCount == 350))
+      captureFrame();
     glfwSwapBuffers(handle);
     glfwPollEvents();
   }
@@ -162,13 +174,20 @@ public final class Desktop extends Application {
   @Override
   protected void dispose() {
     imGuiGl3.shutdown();
-    try { imGuiGlfw.shutdown(); }
-    catch (NullPointerException failure) {
+    try {
+      imGuiGlfw.shutdown();
+    } catch (NullPointerException failure) {
       // imgui-java 1.89 can pass an unavailable X11 standard cursor (0) to GLFW.
       // Window callback disposal and glfwTerminate below still release native ownership.
-      boolean missingCursor = java.util.Arrays.stream(failure.getStackTrace()).anyMatch(f -> f.getClassName().equals("org.lwjgl.glfw.GLFW") && f.getMethodName().equals("glfwDestroyCursor"));
+      boolean missingCursor =
+          java.util.Arrays.stream(failure.getStackTrace())
+              .anyMatch(
+                  f ->
+                      f.getClassName().equals("org.lwjgl.glfw.GLFW")
+                          && f.getMethodName().equals("glfwDestroyCursor"));
       if (!missingCursor) throw failure;
-      System.err.println("NATIVE_CURSOR_CLEANUP: unavailable platform cursor; completing GLFW shutdown");
+      System.err.println(
+          "NATIVE_CURSOR_CLEANUP: unavailable platform cursor; completing GLFW shutdown");
     }
     disposeImGui();
     disposeWindow();
@@ -192,6 +211,12 @@ public final class Desktop extends Application {
                   | Byte.toUnsignedInt(pixels.get(at + 2));
           image.setRGB(x, y, color);
         }
+      java.util.Set<Integer> distinct = new java.util.HashSet<>();
+      for (int y = 0; y < h[0]; y += 11)
+        for (int x = 0; x < w[0]; x += 11) distinct.add(image.getRGB(x, y));
+      if (distinct.size() < 16)
+        throw new IllegalStateException(
+            "Rendered frame is blank or has insufficient visual content");
       Path path = UserConfig.directory().resolve("smoke-" + frameCount + ".png");
       javax.imageio.ImageIO.write(image, "png", path.toFile());
       glReadBuffer(GL_BACK);
@@ -816,6 +841,9 @@ public final class Desktop extends Application {
 
   private void statusBar() {
     var vp = ImGui.getMainViewport();
+    ImGui.setNextWindowViewport(vp.getID());
+    ImGui.pushStyleVar(ImGuiStyleVar.WindowMinSize, 0, 0);
+    ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 8, 4);
     ImGui.setNextWindowPos(vp.getPosX(), vp.getPosY() + vp.getSizeY() - 28);
     ImGui.setNextWindowSize(vp.getSizeX(), 28);
     ImGui.begin(
@@ -834,6 +862,7 @@ public final class Desktop extends Application {
     long unread = state.notices.stream().filter(n -> !n.read()).count();
     if (ImGui.smallButton("Notifications " + unread)) notifications.set(true);
     ImGui.end();
+    ImGui.popStyleVar(2);
   }
 
   private void shortcuts() {
@@ -940,7 +969,9 @@ public final class Desktop extends Application {
 
   public static void main(String[] args) {
     launchArgs = args;
-    if (java.util.Arrays.asList(args).contains("--smoke")) System.setProperty("java.awt.headless", "true");
+    System.setProperty("joml.nounsafe", "true");
+    if (java.util.Arrays.asList(args).contains("--smoke"))
+      System.setProperty("java.awt.headless", "true");
     try {
       launch(new Desktop());
     } catch (Throwable e) {

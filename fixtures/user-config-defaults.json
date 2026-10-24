@@ -1,0 +1,43 @@
+{
+  "formatVersion" : 1,
+  "appearance" : {
+    "theme" : "Dark",
+    "globalScale" : 1.0,
+    "windowScales" : { },
+    "colors" : { }
+  },
+  "workspace" : {
+    "multiViewport" : true,
+    "width" : 1440,
+    "height" : 900,
+    "docking" : ""
+  },
+  "input" : {
+    "shortcuts" : {
+      "Redo" : "Ctrl+Y",
+      "Save" : "Ctrl+S",
+      "Undo" : "Ctrl+Z",
+      "Find" : "Ctrl+F"
+    }
+  },
+  "editor" : {
+    "autoRegenerate" : true,
+    "opportunitiesPerSecond" : 10
+  },
+  "visualization" : {
+    "grid" : true,
+    "unlit" : false,
+    "noise2DMode" : "Grayscale",
+    "threshold" : 0.0,
+    "previewSize" : 32
+  },
+  "performance" : {
+    "workers" : 4,
+    "maxPreviewDimension" : 96,
+    "previewCellBudget" : 884736,
+    "cacheMiB" : 128,
+    "profiler" : false,
+    "updateEndpoint" : "",
+    "trustedOrigins" : [ ]
+  }
+}

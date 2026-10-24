@@ -1,0 +1,12 @@
+{
+  "engineVersion": "0.1.0",
+  "projectFormatVersion": 2,
+  "calculation": "FNV-1a 64-bit over runtime voxel IDs (EMPTY=0, stone=1) in Z/Y/X order over [0,63]^3; fixture source settings and UUIDs in Benchmark.scene",
+  "sceneHashes": {
+    "empty": "9c735bed0a722325",
+    "sparse": "f19dfe066ad562ee",
+    "dense": "6d8c8ca240f62325",
+    "mixed": "16100621e72489b0",
+    "high_frequency": "82bd872790e8916c"
+  }
+}

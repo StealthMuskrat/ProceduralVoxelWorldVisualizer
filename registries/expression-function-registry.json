@@ -1,4 +1,5 @@
 {
+  "registryVersion" : 1,
   "functions" : {
     "sin" : {
       "invalidNumericPolicy" : "structured failure at executed boundary",
@@ -198,6 +199,5 @@
       "arity" : 3,
       "argumentTypes" : "Scalar"
     }
-  },
-  "registryVersion" : 1
+  }
 }

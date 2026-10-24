@@ -263,4 +263,161 @@ public class EngineContractTest {
     i.inputs.put("self", ref);
     assertTrue(NoiseCompiler.validate(p).stream().anyMatch(d -> d.code().equals("NOISE_CYCLE")));
   }
+
+  @Test
+  void previousStatePredicateMatrixAndSeparateNestedFieldGates() {
+    for (String kind :
+        List.of("ANY", "EMPTY", "OCCUPIED", "TYPE_IS", "TYPE_IS_NOT", "IN_SET", "NOT_IN_SET")) {
+      var p = fixture();
+      while (p.worldGenerator.layers.size() > 1) p.worldGenerator.layers.removeLast();
+      var set = new Membership();
+      set.id = "stone-set";
+      set.voxelTypeUuids.add(p.voxelTypes.getFirst().uuid);
+      p.voxelSets.add(set);
+      var layer = new Layer();
+      layer.id = "predicate";
+      layer.defaults.action = "SET";
+      layer.defaults.voxelTypeUuid = p.voxelTypes.get(1).uuid;
+      layer.defaults.minY = -1;
+      layer.defaults.maxY = 1;
+      layer.defaults.voxelStatePredicate.kind = kind;
+      if (kind.startsWith("TYPE_"))
+        layer.defaults.voxelStatePredicate.reference = p.voxelTypes.getFirst().uuid;
+      if (kind.endsWith("SET")) layer.defaults.voxelStatePredicate.reference = set.uuid;
+      var op = new Operation();
+      op.id = "test";
+      op.noiseGeneratorUuid = p.noise2D.getFirst().uuid;
+      op.interpretation = "SELECTION";
+      layer.operations.add(op);
+      p.worldGenerator.layers.add(layer);
+      try (var e = new NoiseGeneratorEngine();
+          var w = e.openWorld(new CompiledProject(p))) {
+        boolean occupiedMatch = Set.of("ANY", "OCCUPIED", "TYPE_IS", "IN_SET").contains(kind),
+            emptyMatch = Set.of("ANY", "EMPTY").contains(kind);
+        assertEquals(occupiedMatch ? 2 : 1, w.trace(new BlockPos(0, -1, 0)).finalType(), kind);
+        assertEquals(emptyMatch ? 2 : 0, w.trace(new BlockPos(0, 1, 0)).finalType(), kind);
+      }
+    }
+    var p = fixture();
+    var layer = p.worldGenerator.layers.getFirst();
+    layer.defaults.voxelStatePredicate.kind = "AND";
+    var empty = new ProjectData.Predicate();
+    empty.kind = "EMPTY";
+    var any = new ProjectData.Predicate();
+    any.kind = "ANY";
+    layer.defaults.voxelStatePredicate.children.addAll(List.of(empty, any));
+    layer.defaults.fieldGates.kind = "OR";
+    var reject = new Gate();
+    reject.kind = "COMPARE";
+    reject.threshold = 1;
+    var accept = new Gate();
+    accept.kind = "COMPARE";
+    accept.threshold = -1;
+    layer.defaults.fieldGates.children.addAll(List.of(reject, accept));
+    assertTrue(NoiseCompiler.validate(p).isEmpty());
+    try (var e = new NoiseGeneratorEngine();
+        var w = e.openWorld(new CompiledProject(p))) {
+      assertEquals(1, w.trace(new BlockPos(0, -1, 0)).finalType());
+    }
+  }
+
+  @Test
+  void generationFailureContinueAndFailFastAreNotCoordinatorFailures() throws Exception {
+    var p = fixture();
+    var n = p.noise2D.getFirst();
+    var expr = ProcessingRegistry.create("EXPRESSION", "failure");
+    expr.parameters.put("expression", ProjectIO.JSON.valueToTree("x == 0 ? 1/0 : 0"));
+    n.processing.add(expr);
+    n.outputBinding = Binding.earlier(expr.uuid);
+    try (var e = new NoiseGeneratorEngine(2, 16, 128L << 20);
+        var w =
+            e.openWorld(
+                new CompiledProject(p),
+                new WorldOptions(null, 2, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+      var r = new RegionBounds(new BlockPos(0, 0, 0), new BlockPos(3, 1, 1));
+      var summary =
+          w.streamRegion(RegionRequest.of(r), c -> CompletableFuture.completedFuture(null))
+              .completion()
+              .get(5, TimeUnit.SECONDS);
+      assertEquals(1, summary.progress().failed());
+      assertEquals(1, summary.progress().completed());
+      assertEquals("GENERATION", summary.failures().getFirst().phase());
+      var failfast =
+          w.streamRegion(
+                  new RegionRequest(
+                      r,
+                      RegionRequest.FailurePolicy.FAIL_FAST,
+                      RegionRequest.DeliveryOrder.COORDINATE,
+                      1),
+                  c -> CompletableFuture.completedFuture(null))
+              .completion()
+              .get(5, TimeUnit.SECONDS);
+      assertEquals(1, failfast.progress().failed());
+      assertEquals(1, failfast.progress().cancelled());
+    }
+  }
+
+  @Test
+  void actualChunksAgreeAcrossEveryRootSize() {
+    var p = fixture();
+    try (var e = new NoiseGeneratorEngine(1, 16, 512L << 20)) {
+      for (int size : new int[] {2, 4, 8, 16, 32, 64, 128, 256})
+        try (var w =
+            e.openWorld(
+                new CompiledProject(p),
+                new WorldOptions(null, size, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+          var c = w.generateChunk(new ChunkPos(-1, 0, -1));
+          assertEquals(2, c.getVoxelTypeId(size - 1, 0, size - 1), "Root " + size);
+          assertEquals(0, c.getVoxelTypeId(0, 1, 0));
+          assertTrue(
+              c.estimatedBytes() <= 32L * size * size + 1024,
+              "A plane should require O(size squared) storage");
+        }
+    }
+  }
+
+  @Test
+  void strictProjectShapeRejectsMissingIdsCoercionsAndUnknownFields() throws Exception {
+    var p = fixture();
+    var node = (com.fasterxml.jackson.databind.node.ObjectNode) ProjectIO.JSON.valueToTree(p);
+    var n = (com.fasterxml.jackson.databind.node.ObjectNode) node.path("noise2D").get(0);
+    n.remove("uuid");
+    assertFalse(new ProjectIO().parse(node.toString()).success());
+    node = ProjectIO.JSON.valueToTree(p);
+    ((com.fasterxml.jackson.databind.node.ObjectNode) node.path("project")).put("seed", "42");
+    assertFalse(new ProjectIO().parse(node.toString()).success());
+    node = ProjectIO.JSON.valueToTree(p);
+    node.put("unexpected", true);
+    assertFalse(new ProjectIO().parse(node.toString()).success());
+    node = ProjectIO.JSON.valueToTree(p);
+    ((com.fasterxml.jackson.databind.node.ObjectNode) node.path("project"))
+        .put("uuid", "1-1-1-1-1");
+    assertFalse(new ProjectIO().parse(node.toString()).success());
+  }
+
+  @Test
+  void cancelledConsumerAcknowledgementIsADeliveryFailure() throws Exception {
+    try (var engine = new NoiseGeneratorEngine();
+        var world =
+            engine.openWorld(
+                new CompiledProject(new ProjectData()),
+                new WorldOptions(null, 2, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+      var request =
+          RegionRequest.of(new RegionBounds(new BlockPos(0, 0, 0), new BlockPos(3, 1, 1)));
+      var summary =
+          world
+              .streamRegion(
+                  request,
+                  c -> {
+                    var ack = new CompletableFuture<Void>();
+                    ack.cancel(false);
+                    return ack;
+                  })
+              .completion()
+              .get(5, TimeUnit.SECONDS);
+      assertEquals(2, summary.progress().failed());
+      assertEquals(0, summary.progress().cancelled());
+      assertEquals("DELIVERY", summary.failures().getFirst().phase());
+    }
+  }
 }

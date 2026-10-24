@@ -161,4 +161,52 @@ public class MathContractTest {
     item.enabled = false;
     assertFalse(NoiseCompiler.validate(p).isEmpty());
   }
+
+  @Test
+  void vectorArithmeticIsExplicitAndCoordinatesAreNotVectors() {
+    var p = new io.voxelcreator.model.ProjectData();
+    var n = new Noise();
+    n.id = "vectors";
+    p.noise2D.add(n);
+    var compose = ProcessingRegistry.create("COMPOSE3", "vector");
+    compose.inputs.put("x", Binding.constant(1));
+    compose.inputs.put("y", Binding.constant(2));
+    compose.inputs.put("z", Binding.constant(3));
+    n.processing.add(compose);
+    var scale = ProcessingRegistry.create("MULTIPLY", "scale");
+    scale.resultType = "Vector3";
+    var a = Binding.earlier(compose.uuid);
+    a.type = "Vector3";
+    scale.inputs.put("a", a);
+    scale.inputs.put("b", Binding.constant(2));
+    n.processing.add(scale);
+    var length = ProcessingRegistry.create("LENGTH", "length");
+    var value = Binding.earlier(scale.uuid);
+    value.type = "Vector3";
+    length.inputs.put("a", value);
+    n.processing.add(length);
+    n.outputBinding = Binding.earlier(length.uuid);
+    assertTrue(NoiseCompiler.validate(p).isEmpty());
+    assertEquals(StrictMath.sqrt(56), new NoiseCompiler(p, 0).compile(n.uuid).sample(0, 0, 0));
+    a.type = "Coordinates3D";
+    assertFalse(NoiseCompiler.validate(p).isEmpty());
+  }
+
+  @Test
+  void unusedEnabledArithmeticIsValidatedButNotExecuted() {
+    var p = new io.voxelcreator.model.ProjectData();
+    var n = new Noise();
+    n.id = "source";
+    n.algorithm.key = "CONSTANT";
+    n.algorithm.parameters.put("value", 3.);
+    p.noise2D.add(n);
+    var item = ProcessingRegistry.create("DIVIDE", "unused");
+    item.inputs.put("b", Binding.constant(0));
+    n.processing.add(item);
+    assertTrue(NoiseCompiler.validate(p).isEmpty());
+    assertEquals(3, new NoiseCompiler(p, 0).compile(n.uuid).sample(0, 0, 0));
+    n.outputBinding = Binding.earlier(item.uuid);
+    assertThrows(
+        EvaluationFailure.class, () -> new NoiseCompiler(p, 0).compile(n.uuid).sample(0, 0, 0));
+  }
 }

@@ -345,7 +345,12 @@ public final class WorldContext implements AutoCloseable {
               ack.join();
               completed.incrementAndGet();
             } catch (CancellationException e) {
-              token.cancel();
+              if (token.isCancelled() || closed.get()) token.cancel();
+              else {
+                recordFailure(chosen.pos, phase, e);
+                if (request.failurePolicy() == RegionRequest.FailurePolicy.FAIL_FAST)
+                  token.cancel();
+              }
             } catch (Exception e) {
               recordFailure(chosen.pos, phase, e);
               if (request.failurePolicy() == RegionRequest.FailurePolicy.FAIL_FAST) token.cancel();

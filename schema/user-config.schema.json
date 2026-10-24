@@ -1,0 +1,177 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "urn:voxelcreator:user-config.schema.json:1",
+  "$ref" : "#/$defs/UserConfig",
+  "$defs" : {
+    "Appearance" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "theme" : {
+          "type" : "string"
+        },
+        "globalScale" : {
+          "type" : "number"
+        },
+        "windowScales" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "number"
+          }
+        },
+        "colors" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "type" : "number"
+            }
+          }
+        }
+      },
+      "required" : [ "theme", "globalScale", "windowScales", "colors" ]
+    },
+    "Editor" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "autoRegenerate" : {
+          "type" : "boolean"
+        },
+        "opportunitiesPerSecond" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        }
+      },
+      "required" : [ "autoRegenerate", "opportunitiesPerSecond" ]
+    },
+    "Input" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "shortcuts" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "shortcuts" ]
+    },
+    "Performance" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "workers" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "maxPreviewDimension" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "previewCellBudget" : {
+          "type" : "integer",
+          "minimum" : -9223372036854775808,
+          "maximum" : 9223372036854775807
+        },
+        "cacheMiB" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "profiler" : {
+          "type" : "boolean"
+        },
+        "updateEndpoint" : {
+          "type" : "string"
+        },
+        "trustedOrigins" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "workers", "maxPreviewDimension", "previewCellBudget", "cacheMiB", "profiler", "updateEndpoint", "trustedOrigins" ]
+    },
+    "UserConfig" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "formatVersion" : {
+          "const" : 1
+        },
+        "appearance" : {
+          "$ref" : "#/$defs/Appearance"
+        },
+        "workspace" : {
+          "$ref" : "#/$defs/Workspace"
+        },
+        "input" : {
+          "$ref" : "#/$defs/Input"
+        },
+        "editor" : {
+          "$ref" : "#/$defs/Editor"
+        },
+        "visualization" : {
+          "$ref" : "#/$defs/Visualization"
+        },
+        "performance" : {
+          "$ref" : "#/$defs/Performance"
+        }
+      },
+      "required" : [ "formatVersion", "appearance", "workspace", "input", "editor", "visualization", "performance" ]
+    },
+    "Visualization" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "grid" : {
+          "type" : "boolean"
+        },
+        "unlit" : {
+          "type" : "boolean"
+        },
+        "noise2DMode" : {
+          "type" : "string"
+        },
+        "threshold" : {
+          "type" : "number"
+        },
+        "previewSize" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        }
+      },
+      "required" : [ "grid", "unlit", "noise2DMode", "threshold", "previewSize" ]
+    },
+    "Workspace" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "multiViewport" : {
+          "type" : "boolean"
+        },
+        "width" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "height" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "docking" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "multiViewport", "width", "height", "docking" ]
+    }
+  }
+}

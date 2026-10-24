@@ -39,3 +39,23 @@ tasks.register('engineJar', Jar) {
  exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class', 'META-INF/versions/**/module-info.class'
 }
 tasks.register('releaseJars', Copy) { dependsOn 'engineJar', ':editor-ui:fatJar'; from project(':editor-ui').tasks.named('fatJar'); into layout.buildDirectory.dir('release/jars') }
+
+// Retain each dependency's bundled notices under its own name; fat-JAR duplicate
+// handling must not silently be the only copy of third-party licenses.
+tasks.register('dependencyNotices') {
+ dependsOn ':editor-ui:classes'
+ inputs.files(project(':editor-ui').configurations.runtimeClasspath)
+ outputs.dir(layout.projectDirectory.dir('docs/third-party'))
+ doLast {
+  def output = file('docs/third-party'); output.mkdirs()
+  project(':editor-ui').configurations.runtimeClasspath.files.findAll { it.name.endsWith('.jar') }.sort { it.name }.each { jar ->
+   def zip = new java.util.zip.ZipFile(jar)
+   try {
+    zip.entries().findAll { !it.directory && (it.name ==~ /(?i).*(LICENSE|NOTICE|COPYING)[^\/]*$/) }.each { entry ->
+     def destination = new File(output, jar.name.replace('.jar','') + '/' + entry.name.replaceAll('[^A-Za-z0-9._/-]', '_'))
+     destination.parentFile.mkdirs(); destination.bytes = zip.getInputStream(entry).bytes
+    }
+   } finally { zip.close() }
+  }
+ }
+}

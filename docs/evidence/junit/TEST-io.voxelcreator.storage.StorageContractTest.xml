@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.voxelcreator.storage.StorageContractTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T00:37:18.314Z" hostname="2c2368751ba8" time="0.279">
+  <properties/>
+  <testcase name="allRootsCoalesceAndSparse256UsesNoDenseArray()" classname="io.voxelcreator.storage.StorageContractTest" time="0.176"/>
+  <testcase name="adaptiveStorageAgainstDenseOracle()" classname="io.voxelcreator.storage.StorageContractTest" time="0.051"/>
+  <testcase name="floorCoordinatesAndInclusiveClip()" classname="io.voxelcreator.storage.StorageContractTest" time="0.012"/>
+  <testcase name="archiveSemanticRemapCoverageAndRandomAccess()" classname="io.voxelcreator.storage.StorageContractTest" time="0.025"/>
+  <testcase name="rejectsCorruptIndexAndPreservesPriorArchiveWhenWriterAborted()" classname="io.voxelcreator.storage.StorageContractTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

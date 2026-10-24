@@ -196,6 +196,17 @@ public final class Validator {
         id(item.id, itemNames, q + "/id");
         if (!TYPES.contains(item.resultType))
           error("INVALID_TYPE", q + "/resultType", "Unsupported type");
+        if (item.parameters.containsKey("noiseGeneratorUuid")) {
+          try {
+            reference(
+                UUID.fromString(item.parameters.get("noiseGeneratorUuid").asText()),
+                noises.keySet(),
+                q + "/parameters/noiseGeneratorUuid");
+          } catch (RuntimeException e) {
+            error(
+                "INVALID_REFERENCE", q + "/parameters/noiseGeneratorUuid", "Malformed noise UUID");
+          }
+        }
         for (var e : item.inputs.entrySet())
           binding(e.getValue(), params, earlier, item.enabled, q + "/inputs/" + e.getKey());
         earlier.put(item.uuid, item);
@@ -286,10 +297,17 @@ public final class Validator {
       return;
     }
     for (var list : List.of(n.coordinateTransforms, n.processing))
-      for (var item : list)
+      for (var item : list) {
+        if (item.parameters.containsKey("noiseGeneratorUuid"))
+          try {
+            UUID ref = UUID.fromString(item.parameters.get("noiseGeneratorUuid").asText());
+            if (noises.containsKey(ref)) cycle(noises.get(ref), path, done);
+          } catch (IllegalArgumentException ignored) {
+          }
         for (var b : item.inputs.values())
           if (b.noiseGeneratorUuid != null && noises.containsKey(b.noiseGeneratorUuid))
             cycle(noises.get(b.noiseGeneratorUuid), path, done);
+      }
     path.remove(n.uuid);
     done.add(n.uuid);
   }

@@ -85,9 +85,30 @@ public final class UserConfig {
         || visualization.previewSize < 2
         || visualization.previewSize > performance.maxPreviewDimension)
       throw new IllegalArgumentException("Invalid user preferences");
+    if (!Float.isFinite(appearance.globalScale)
+        || workspace.width < 400
+        || workspace.height < 300
+        || performance.maxPreviewDimension < 2
+        || performance.maxPreviewDimension > 256
+        || performance.previewCellBudget < 1
+        || performance.cacheMiB < 0)
+      throw new IllegalArgumentException("Invalid workspace/performance preferences");
+    for (float value : appearance.windowScales.values())
+      if (!Float.isFinite(value) || value < .5f || value > 2.5f)
+        throw new IllegalArgumentException("Window scale outside 50..250%");
+    for (var entry : appearance.colors.entrySet()) {
+      float[] color = entry.getValue();
+      if (entry.getKey() < 0
+          || entry.getKey() >= imgui.flag.ImGuiCol.COUNT
+          || color == null
+          || color.length != 4) throw new IllegalArgumentException("Invalid theme color");
+      for (float value : color)
+        if (!Float.isFinite(value) || value < 0 || value > 1)
+          throw new IllegalArgumentException("Theme components must be in [0,1]");
+    }
     var seen = new HashSet<String>();
     for (String chord : input.shortcuts.values())
-      if (chord.isBlank() || !seen.add(chord))
+      if (!chord.matches("(?:Ctrl\\+)?[A-Z]") || !seen.add(chord))
         throw new IllegalArgumentException("Shortcut conflict: " + chord);
   }
 

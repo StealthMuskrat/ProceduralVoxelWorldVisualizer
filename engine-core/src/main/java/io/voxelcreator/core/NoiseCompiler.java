@@ -105,6 +105,7 @@ public final class NoiseCompiler {
     long seed = CoordinateHash.seed(runtimeSeed, n.uuid, n.seedOffset);
     Field source = NoiseAlgorithms.compile(n.algorithm, n.dimension, seed);
     var steps = new ArrayList<Step>();
+    var stepIds = new ArrayList<UUID>();
     var transforms = new ArrayList<Step>();
     var inputs = new HashMap<UUID, Input>();
     var params = new HashMap<UUID, Input>();
@@ -178,6 +179,10 @@ public final class NoiseCompiler {
         if (!bound.containsKey(required))
           throw new IllegalArgumentException(item.id + ": missing input " + required);
       Input a = bound.get("a"), b = bound.get("b");
+      if (!Set.of("EXPRESSION", "SELECT", "NORMALIZE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE")
+              .contains(item.kind)
+          && !spec.result().equals(item.resultType))
+        throw new IllegalArgumentException(item.id + ": result type must be " + spec.result());
       String kind = item.kind;
       Number eval;
       if (kind.equals("EXPRESSION")) {
@@ -289,6 +294,7 @@ public final class NoiseCompiler {
       }
       int components = components(item.resultType);
       Number number = eval;
+      stepIds.add(item.uuid);
       steps.add(
           c -> {
             try {
@@ -308,7 +314,26 @@ public final class NoiseCompiler {
     if (!output.type.equals("Scalar")) throw new IllegalArgumentException("Output must be Scalar");
     final int slots = slot;
     ThreadLocal<Context> scratch = ThreadLocal.withInitial(() -> new Context(slots));
-    var frozen = List.copyOf(steps);
+    var needed = new HashSet<UUID>();
+    java.util.function.Consumer<UUID> visit =
+        new java.util.function.Consumer<>() {
+          public void accept(UUID id) {
+            if (id == null || !needed.add(id)) return;
+            n.processing.stream()
+                .filter(i -> i.uuid.equals(id))
+                .findFirst()
+                .ifPresent(
+                    i ->
+                        i.inputs.values().stream()
+                            .filter(b -> b.sourceKind.equals("Earlier Result"))
+                            .forEach(b -> accept(b.itemUuid)));
+          }
+        };
+    if (n.outputBinding.sourceKind.equals("Earlier Result")) visit.accept(n.outputBinding.itemUuid);
+    var requiredSteps = new ArrayList<Step>();
+    for (int i = 0; i < steps.size(); i++)
+      if (needed.contains(stepIds.get(i))) requiredSteps.add(steps.get(i));
+    var frozen = List.copyOf(requiredSteps);
     var frozenTransforms = List.copyOf(transforms);
     return (x, y, z) -> {
       if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z))
@@ -422,6 +447,18 @@ public final class NoiseCompiler {
     String k = i.kind;
     var a = in.get("a");
     var b = in.get("b");
+    if (Set.of("ADD", "SUBTRACT", "MULTIPLY", "DIVIDE").contains(k)) {
+      if (a == null || b == null || !Set.of("Scalar", "Vector2", "Vector3").contains(a.type))
+        throw new IllegalArgumentException(i.id + ": arithmetic requires Scalar or value Vector");
+      if (k.equals("ADD") || k.equals("SUBTRACT")) {
+        if (!a.type.equals(b.type))
+          throw new IllegalArgumentException("Addition/subtraction require matching types");
+      } else require(b, "Scalar", i);
+      if (!i.resultType.equals(a.type))
+        throw new IllegalArgumentException(
+            "Arithmetic result type must preserve the first input type");
+      return;
+    }
     if (Set.of("AND", "OR", "NOT", "BOOLEAN_TO_SCALAR").contains(k)) {
       require(a, "Boolean", i);
       if (b != null) require(b, "Boolean", i);
@@ -452,6 +489,16 @@ public final class NoiseCompiler {
     Input aa = in.get("a"), bb = in.get("b");
     if (k.equals("SELECT"))
       return in.get(in.get("condition").scalar(c) != 0 ? "true" : "false").number.get(c, component);
+    if (Set.of("ADD", "SUBTRACT", "MULTIPLY", "DIVIDE").contains(k)) {
+      double av = aa.number.get(c, component),
+          bv = bb.number.get(c, (k.equals("ADD") || k.equals("SUBTRACT")) ? component : 0);
+      return switch (k) {
+        case "ADD" -> av + bv;
+        case "SUBTRACT" -> av - bv;
+        case "MULTIPLY" -> av * bv;
+        default -> av / bv;
+      };
+    }
     double a = aa == null ? 0 : aa.scalar(c);
     if (k.equals("AND")) return a != 0 && bb.scalar(c) != 0 ? 1 : 0;
     if (k.equals("OR")) return a != 0 || bb.scalar(c) != 0 ? 1 : 0;

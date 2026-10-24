@@ -9,12 +9,13 @@
       "additionalProperties" : false,
       "properties" : {
         "key" : {
-          "type" : "string"
+          "type" : "string",
+          "enum" : [ "OPEN_SIMPLEX_2", "PERLIN", "VALUE", "VALUE_CUBIC", "CELLULAR", "WHITE_HASH", "CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF" ]
         },
         "parameters" : {
           "type" : "object",
           "additionalProperties" : {
-            "$ref" : "#/$defs/Double"
+            "type" : "number"
           }
         }
       },
@@ -25,13 +26,14 @@
       "additionalProperties" : false,
       "properties" : {
         "sourceKind" : {
-          "type" : "string"
+          "type" : "string",
+          "enum" : [ "Constant", "Shared Parameter", "Ambient Value", "Source Result", "Earlier Result", "Noise Generator Reference" ]
         },
         "type" : {
           "type" : "string"
         },
         "ambientKey" : {
-          "type" : "string"
+          "type" : [ "string", "null" ]
         },
         "value" : { },
         "parameterUuid" : {
@@ -115,27 +117,21 @@
       "properties" : {
         "r" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 0,
+          "maximum" : 255
         },
         "g" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 0,
+          "maximum" : 255
         },
         "b" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 0,
+          "maximum" : 255
         }
       },
       "required" : [ "r", "g", "b" ]
-    },
-    "Double" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : { },
-      "required" : [ ]
     },
     "Folder" : {
       "type" : "object",
@@ -202,7 +198,8 @@
           "type" : "string"
         },
         "resultType" : {
-          "type" : "string"
+          "type" : "string",
+          "enum" : [ "Scalar", "Boolean", "Vector2", "Vector3", "Coordinates2D", "Coordinates3D" ]
         },
         "enabled" : {
           "type" : "boolean"
@@ -281,7 +278,8 @@
         "dimension" : {
           "type" : "integer",
           "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "maximum" : 2147483647,
+          "enum" : [ 2, 3 ]
         },
         "parentFolderUuid" : {
           "format" : "uuid",
@@ -340,8 +338,8 @@
           "type" : "boolean"
         },
         "noiseGeneratorUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+          "type" : "string",
+          "format" : "uuid"
         },
         "interpretation" : {
           "type" : "string"
@@ -358,7 +356,7 @@
           "type" : "string"
         }
       },
-      "required" : [ "enabled", "interpretation", "overrides", "id", "uuid" ]
+      "required" : [ "enabled", "interpretation", "overrides", "id", "uuid", "noiseGeneratorUuid" ]
     },
     "Parameter" : {
       "type" : "object",
@@ -510,10 +508,14 @@
           "type" : "number"
         },
         "strength" : {
-          "type" : "number"
+          "type" : "number",
+          "minimum" : 0,
+          "maximum" : 1
         },
         "probability" : {
-          "type" : "number"
+          "type" : "number",
+          "minimum" : 0,
+          "maximum" : 1
         },
         "minY" : {
           "type" : "integer",
@@ -549,7 +551,8 @@
           "maximum" : 9223372036854775807
         },
         "action" : {
-          "type" : "string"
+          "type" : "string",
+          "enum" : [ "SET", "CLEAR", "NO_CHANGE" ]
         },
         "rounding" : {
           "type" : "string"

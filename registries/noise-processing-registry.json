@@ -1,4 +1,5 @@
 {
+  "registryVersion" : 1,
   "operations" : {
     "ADD" : {
       "category" : "Math",
@@ -310,6 +311,5 @@
       "result" : "Scalar",
       "inputs" : [ "a", "b" ]
     }
-  },
-  "registryVersion" : 1
+  }
 }

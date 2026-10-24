@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Local observed toolchain: Eclipse Temurin 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 23 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows smoke jobs are separate evidence, recorded by CI and screenshots; an unrun job is not a pass.
+Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 35 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -20,10 +20,10 @@ Local observed toolchain: Eclipse Temurin 25.0.5+8 x64, Gradle 9.2.1, Linux cont
 | A12 expression language | PASS | MathContractTest: every function, operators, precedence, types, short-circuiting, source spans, limits |
 | A13 curve editor | PARTIAL | Curve evaluator tests; complete tangent/multi-point GUI scenarios remain |
 | A14 voxel identities | PARTIAL | Registry/archive remapping tested; manager interactions remain |
-| A15 nested conditions | PARTIAL | Separate recursive evaluators; full predicate matrix still needed |
+| A15 nested conditions | PASS | Separate recursive field/voxel evaluators; all seven base predicates including EMPTY behavior and nested groups tested |
 | A16 inheritance/stages | PARTIAL | Three staged operations, zero override/live reset tests; complete operation inventory remains |
 | A17 coordinates/Y | PASS | EngineContractTest and StorageContractTest negative/inclusive/clipping cases |
-| A18 invariance | PARTIAL | Roots 2..256 traces, small-root chunks, sync/async/cache/seed tests; broader metamorphic matrix remains |
+| A18 invariance | PARTIAL | Actual chunks at every root 2..256; sync/async/cache/seed tests; 32/64 golden scene hashes; broader scheduling matrix remains |
 | A19 adaptive storage | PASS | Dense random oracle, sparse 256³, uniform/coalescence and occupied iteration |
 | A20 255/256 | PASS | Sparse final local 255 plus RendererContractTest.meshBoundary256DoesNotWrap |
 | A21 archives | PASS | Semantic remap, coverage, random read, unresolved IDs, invalid index and aborted write |
@@ -31,7 +31,7 @@ Local observed toolchain: Eclipse Temurin 25.0.5+8 x64, Gradle 9.2.1, Linux cont
 | A23 contexts | PASS | Context seed/cache isolation and independent closure test |
 | A24 cancellation | PARTIAL | Slow-consumer region cancellation tested; broader mid-stage cancellation stress remains |
 | A25 backpressure | PASS | Consumer future holds max-in-flight capacity; bounded scheduling assertion |
-| A26 failures/closure | PARTIAL | Delivery failures and context isolation tested; overload/generation failure stress remains |
+| A26 failures/closure | PARTIAL | Generation and delivery CONTINUE/FAIL_FAST tested, plus context isolation; overload stress remains |
 | A27 2D viewport | PARTIAL | Engine image sampling and modes implemented; tile cache/UI acceptance remains |
 | A28 3D viewport | PARTIAL | Threshold, marching tetrahedra, points, translucent points, Y slice; full volume/axes/streaming remains |
 | A29 world inspector | PARTIAL | Engine stage replay and links; stage preview UI/richer provenance remains |
@@ -39,8 +39,8 @@ Local observed toolchain: Eclipse Temurin 25.0.5+8 x64, Gradle 9.2.1, Linux cont
 | A31 rendering LOD | PENDING | Exact data separate from display; production LOD/fallback not implemented |
 | A32 appearance/workspace | PARTIAL | Theme/docking/scales/shortcuts persistence implemented; restart and DPI matrix remain |
 | A33 utilities | PARTIAL | Real Find/Validate/Logs/Help/metrics; full filters/navigation/profiling scope remains |
-| A34 desktop JAR | PENDING | Executable assembled; native platform smoke evidence required |
-| A35 Windows bundle | PENDING | Reproducible packaging workflow prepared; Windows runtime smoke must succeed |
+| A34 desktop JAR | PARTIAL | Linux and Windows Server native JAR smoke passed; complete Windows 11 GUI acceptance remains |
+| A35 Windows bundle | PARTIAL | Windows bundled runtime smoke and package passed; packaged launcher and full Windows 11 acceptance remain separate gates |
 | A36 final delivery | PARTIAL | Source/build/tests/fixtures/docs/checksum packaging; full release gates remain |
 
 ## Tree-to-test mapping
@@ -66,3 +66,5 @@ Local observed toolchain: Eclipse Temurin 25.0.5+8 x64, Gradle 9.2.1, Linux cont
 5. Copy/cut/folder moves, import dependency conflicts, Undo/Redo, rename/delete dependencies.
 6. Restart after theme/scale/layout/shortcut changes; verify preference changes never dirty project.
 7. Complete every outstanding requirement in DECISIONS.md, rerun the full A01–A36 list, then perform Windows 11 hardware certification before production release.
+
+Latest local raw evidence: [docs/evidence](evidence/README.md). Formal project/user/app schemas and positive/negative fixtures were validated with jsonschema 4.23.0.

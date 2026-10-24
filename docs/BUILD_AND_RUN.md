@@ -1,6 +1,6 @@
 # Build and run
 
-Pinned inputs: Eclipse Temurin 25.0.5+8 x64, Gradle 9.2.1, Jackson 2.18.3, JOML 1.10.8, LWJGL 3.3.4 and imgui-java 1.89.0. Tests use JUnit 5.11.4. FastNoiseLite source is vendored with its original MIT notice.
+Pinned inputs: Eclipse Temurin 25.0.4+7 x64, Gradle 9.2.1, Jackson 2.18.3, JOML 1.10.8, LWJGL 3.4.1 and imgui-java 1.89.0. Tests use JUnit 5.11.4. Gradle dependency verification records external artifact SHA-256 values; the wrapper distribution checksum is pinned. FastNoiseLite source is vendored with its original MIT notice.
 
 Run `gradlew.bat clean test build releaseJars` on Windows, or `./gradlew clean test build releaseJars` on Linux. JARs are in `build/release/jars`. Application launch: `java --enable-native-access=ALL-UNNAMED -jar build/release/jars/ProceduralVoxelCreator.jar`.
 
@@ -21,3 +21,5 @@ On Windows the classpath separator is `;`. This consumer uses only the engine JA
 The explicit `--smoke` application argument creates test resources, saves and reloads a test project, visits all three engine-backed tabs, writes screenshots and exits after 360 frames. It must print THREE_ENGINE_VIEWPORTS_PASS and DESKTOP_SMOKE_COMPLETED. Normal startup creates no resources. Smoke evidence is not a substitute for every interactive acceptance scenario.
 
 The `voxel.configDir` system property overrides the independent preference directory for testing. The normal directory is `.procedural-voxel-creator` under the user home. Projects save only on explicit commands; there is no autosave or recent-project history.
+
+Schema checks: install `scripts/requirements-validation.txt` and run `python scripts/verify_schemas.py`. Exact world regression hashes are checked with `scripts/verify_artifacts.py`. The CI reproducibility job compares independently built Linux and Windows JAR SHA-256 manifests.

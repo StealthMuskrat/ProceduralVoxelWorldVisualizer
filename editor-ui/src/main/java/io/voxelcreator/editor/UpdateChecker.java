@@ -27,6 +27,7 @@ public final class UpdateChecker {
       var n = ProjectIO.JSON.readTree(content);
       if (!n.isObject()
           || n.size() != 3
+          || !n.path("formatVersion").isIntegralNumber()
           || n.path("formatVersion").asInt() != 1
           || !n.has("version")
           || !n.has("releaseUrl"))

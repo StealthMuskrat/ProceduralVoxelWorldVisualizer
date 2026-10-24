@@ -48,7 +48,13 @@ public final class ContractGenerator {
       n.put("maximum", c == long.class ? Long.MAX_VALUE : Integer.MAX_VALUE);
       return n;
     }
-    if (c == double.class || c == float.class) return obj().put("type", "number");
+    if (c.isArray()) {
+      ObjectNode n = obj().put("type", "array");
+      n.set("items", type(c.getComponentType()));
+      return n;
+    }
+    if (c == Float.class || c == Double.class || c == double.class || c == float.class)
+      return obj().put("type", "number");
     if (c == java.util.UUID.class) {
       ObjectNode n = obj().put("format", "uuid");
       n.set("type", JSON.valueToTree(List.of("string", "null")));
@@ -96,7 +102,73 @@ public final class ContractGenerator {
     ((ObjectNode) defs.path("ProjectData").path("properties"))
         .set("formatVersion", obj().put("const", 2));
     schema.set("$defs", defs);
+    for (String channel : List.of("r", "g", "b"))
+      ((ObjectNode) defs.path("Color").path("properties").path(channel))
+          .put("minimum", 0)
+          .put("maximum", 255);
+    ((ObjectNode) defs.path("Noise").path("properties").path("dimension"))
+        .set("enum", JSON.valueToTree(List.of(2, 3)));
+    ((ObjectNode) defs.path("Algorithm").path("properties").path("key"))
+        .set("enum", JSON.valueToTree(NoiseAlgorithms.KEYS));
+    ((ObjectNode) defs.path("Binding").path("properties").path("sourceKind"))
+        .set(
+            "enum",
+            JSON.valueToTree(
+                List.of(
+                    "Constant",
+                    "Shared Parameter",
+                    "Ambient Value",
+                    "Source Result",
+                    "Earlier Result",
+                    "Noise Generator Reference")));
+    ((ObjectNode) defs.path("Item").path("properties").path("resultType"))
+        .set(
+            "enum",
+            JSON.valueToTree(
+                List.of(
+                    "Scalar", "Boolean", "Vector2", "Vector3", "Coordinates2D", "Coordinates3D")));
+    ((ObjectNode) defs.path("Settings").path("properties").path("action"))
+        .set("enum", JSON.valueToTree(List.of("SET", "CLEAR", "NO_CHANGE")));
+    for (String key : List.of("strength", "probability"))
+      ((ObjectNode) defs.path("Settings").path("properties").path(key))
+          .put("minimum", 0)
+          .put("maximum", 1);
+    ((ObjectNode) defs.path("Binding").path("properties").path("ambientKey"))
+        .set("type", JSON.valueToTree(List.of("string", "null")));
+    ((ObjectNode) defs.path("Operation").path("properties"))
+        .set("noiseGeneratorUuid", obj().put("type", "string").put("format", "uuid"));
+    ((ArrayNode) defs.path("Operation").path("required")).add("noiseGeneratorUuid");
     writeJSON(root.resolve("schema/project.schema.json"), schema);
+    for (String[] editor :
+        List.of(
+            new String[] {"UserConfig", "user-config.schema.json"},
+            new String[] {"AppMetadata", "app-config.schema.json"})) {
+      try {
+        var eg = new ContractGenerator();
+        Class<?> model = Class.forName("io.voxelcreator.editor." + editor[0]);
+        ObjectNode es =
+            obj()
+                .put("$schema", "https://json-schema.org/draft/2020-12/schema")
+                .put("$id", "urn:voxelcreator:" + editor[1] + ":1");
+        es.setAll((ObjectNode) eg.type(model));
+        ObjectNode ed = obj();
+        eg.definitions.forEach(ed::set);
+        ((ObjectNode) ed.path(editor[0]).path("properties"))
+            .set("formatVersion", obj().put("const", 1));
+        es.set("$defs", ed);
+        writeJSON(root.resolve("schema/" + editor[1]), es);
+        Object defaults =
+            editor[0].equals("AppMetadata")
+                ? model.getMethod("defaults").invoke(null)
+                : model.getConstructor().newInstance();
+        writeJSON(
+            root.resolve("fixtures/" + editor[1].replace(".schema.json", "-defaults.json")),
+            defaults);
+      } catch (ClassNotFoundException ignored) {
+        /* Independent clients do not load editor modules. */
+      }
+    }
+
     writeJSON(
         root.resolve("registries/algorithm-registry.json"),
         Map.of(

@@ -39,15 +39,17 @@ public final class Viewports implements AutoCloseable {
     final Camera camera = new Camera();
     UUID noise;
     String mode;
-    double panX = 0, panZ = 0, step = 1, threshold = 0;
+    double panX = 0, panZ = 0, panY = 16, step = 1, threshold = 0;
     int size = 32, slice = 0;
-    boolean fixed = false, dirty = true, activeJob = false;
-    long revision = -1, lastSubmit = 0, epoch = 0;
+    boolean fixed = false, dirty = true, activeJob = false, force = false;
+    long revision = -1, lastSubmit = 0;
+    volatile long epoch = 0;
     Future<?> job;
     final AtomicReference<Preview> ready = new AtomicReference<>();
     String message = "Ready";
     Vector3d origin = new Vector3d();
     double[] raw;
+    NoiseAlgorithms.Field hoverSampler;
     int[] colors;
     float[] histogram = new float[64];
     UUID selectedBookmark;
@@ -68,6 +70,7 @@ public final class Viewports implements AutoCloseable {
       Vector3d origin,
       int[] palette,
       float[] histogram,
+      NoiseAlgorithms.Field sampler,
       String error) {}
 
   public Viewports(EditorState state, PropertyPanel properties, long handle) {
@@ -112,6 +115,12 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void smokePhase(int frame) {
+    if (frame == 0 && !state.project().noise2D.isEmpty())
+      state.select("noise2D", state.project().noise2D.getFirst().uuid);
+    if (frame == 120 && !state.project().noise3D.isEmpty())
+      state.select("noise3D", state.project().noise3D.getFirst().uuid);
+    if (frame == 240 && !state.project().worldGenerator.layers.isEmpty())
+      state.select("layer", state.project().worldGenerator.layers.getFirst().uuid);
     if (frame < 120) smokeTab = 0;
     else if (frame < 240) smokeTab = 1;
     else smokeTab = 2;
@@ -141,6 +150,7 @@ public final class Viewports implements AutoCloseable {
     }
     if (ImGui.button("Regenerate")) {
       paused = false;
+      v.force = true;
       mark(v);
     }
     ImGui.sameLine();
@@ -204,6 +214,13 @@ public final class Viewports implements AutoCloseable {
           });
       if (v.fixed) {
         fields.number(
+            "Center Y",
+            v.panY,
+            x -> {
+              v.panY = x;
+              mark(v);
+            });
+        fields.number(
             "Center X",
             v.panX,
             x -> {
@@ -246,6 +263,7 @@ public final class Viewports implements AutoCloseable {
         v.origin.set(ready.origin);
         v.gl.setPalette(ready.palette);
         v.raw = ready.raw;
+        v.hoverSampler = ready.sampler;
         v.histogram = ready.histogram;
         v.message = "Ready";
         v.completed = true;
@@ -256,7 +274,7 @@ public final class Viewports implements AutoCloseable {
         && v.dirty
         && !v.activeJob
         && !paused
-        && (state.user.editor.autoRegenerate || v.lastSubmit == 0)
+        && (state.user.editor.autoRegenerate || v.force || v.lastSubmit == 0)
         && System.nanoTime() - v.lastSubmit
             > 1_000_000_000L / state.user.editor.opportunitiesPerSecond) submit(v);
     if (!source) {
@@ -292,6 +310,24 @@ public final class Viewports implements AutoCloseable {
     float px = ImGui.getCursorScreenPosX(), py = ImGui.getCursorScreenPosY();
     ImGui.image(v.gl.texture(), w, h, 0, v.image ? 0 : 1, 1, v.image ? 1 : 0);
     boolean hovered = ImGui.isItemHovered();
+    if (v.kind == 0 && state.user.visualization.grid) {
+      var draw = ImGui.getWindowDrawList();
+      draw.pushClipRect(px, py, px + w, py + h, true);
+      double extent = 256 * v.step,
+          spacing = Math.pow(10, Math.floor(Math.log10(Math.max(.00001, extent / 12)))),
+          minX = v.panX - extent / 2,
+          minZ = v.panZ - extent / 2;
+      for (double x = Math.ceil(minX / spacing) * spacing; x < minX + extent; x += spacing) {
+        float sx = (float) (px + (x - minX) / extent * w);
+        draw.addLine(sx, py, sx, py + h, 0x33434d5e);
+      }
+      for (double z = Math.ceil(minZ / spacing) * spacing; z < minZ + extent; z += spacing) {
+        float sz = (float) (py + (z - minZ) / extent * h);
+        draw.addLine(px, sz, px + w, sz, 0x33434d5e);
+      }
+      draw.popClipRect();
+    }
+
     var io = ImGui.getIO();
     if (hovered && ImGui.beginPopupContextItem("viewport-context")) {
       if (v.kind == 0) {
@@ -303,7 +339,10 @@ public final class Viewports implements AutoCloseable {
       }
       if (ImGui.menuItem("Teleport")) openTeleport(v);
       if (ImGui.menuItem("Add Bookmark")) openBookmark(v);
-      if (ImGui.menuItem("Regenerate")) mark(v);
+      if (ImGui.menuItem("Regenerate")) {
+        v.force = true;
+        mark(v);
+      }
       ImGui.endPopup();
     }
     if (hovered) {
@@ -323,10 +362,7 @@ public final class Viewports implements AutoCloseable {
         try {
           var n = state.project().noise2D.stream().filter(a -> a.uuid.equals(v.noise)).findFirst();
           if (n.isPresent()) {
-            double raw =
-                new NoiseCompiler(state.project(), state.project().project.seed)
-                    .compile(v.noise)
-                    .sample(x, 0, z);
+            double raw = v.hoverSampler.sample(x, 0, z);
             sample =
                 String.format(
                     Locale.ROOT,
@@ -357,7 +393,7 @@ public final class Viewports implements AutoCloseable {
             glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
           } else if (v.kind == 2
               && ImGui.isMouseReleased(0)
-              && ImGui.getMouseDragDeltaX(0) < 3
+              && Math.abs(ImGui.getMouseDragDeltaX(0)) < 3
               && Math.abs(ImGui.getMouseDragDeltaY(0)) < 3)
             pick(
                 v,
@@ -387,7 +423,9 @@ public final class Viewports implements AutoCloseable {
     if (v.kind != 0 && !v.fixed) {
       Vector3d center = v.camera.flying ? v.camera.position : v.camera.focus;
       double cx = Math.floor(center.x / 16) * 16, cz = Math.floor(center.z / 16) * 16;
-      if (cx != v.panX || cz != v.panZ) {
+      double cy = Math.floor(center.y / 16) * 16;
+      if (cx != v.panX || cz != v.panZ || cy != v.panY) {
+        v.panY = cy;
         v.panX = cx;
         v.panZ = cz;
         mark(v);
@@ -404,10 +442,17 @@ public final class Viewports implements AutoCloseable {
     glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   }
 
+  private void publish(View v, Preview result) {
+    v.ready.accumulateAndGet(
+        result,
+        (previous, next) -> previous == null || next.epoch >= previous.epoch ? next : previous);
+  }
+
   private void mark(View v) {
     v.dirty = true;
     v.epoch++;
     if (v.job != null) v.job.cancel(true);
+    state.background.purge();
     v.activeJob = false;
   }
 
@@ -426,8 +471,10 @@ public final class Viewports implements AutoCloseable {
     String mode = v.mode;
     double panX = v.panX, panZ = v.panZ, step = v.step, threshold = v.threshold;
     int slice = v.slice;
-    double centerY = v.camera.flying ? v.camera.position.y : v.camera.focus.y;
+    double centerY = v.fixed ? v.panY : v.camera.flying ? v.camera.position.y : v.camera.focus.y;
     boolean fixed = v.fixed;
+    final long cacheBudget = (long) state.user.performance.cacheMiB * 1024 * 1024;
+    v.force = false;
     v.dirty = false;
     v.activeJob = true;
     v.lastSubmit = System.nanoTime();
@@ -460,9 +507,11 @@ public final class Viewports implements AutoCloseable {
                         histogram[Math.max(0, Math.min(63, (int) ((value + 1) * 32)))]++;
                       }
                     }
-                    v.ready.set(
+                    publish(
+                        v,
                         new Preview(
-                            epoch, null, pixels, raw, side, origin, palette, histogram, null));
+                            epoch, null, pixels, raw, side, origin, palette, histogram, sampler,
+                            null));
                   } else {
                     int ox = (int) origin.x, oy = (int) origin.y, oz = (int) origin.z;
                     int[] cells = new int[n * n * n];
@@ -494,25 +543,64 @@ public final class Viewports implements AutoCloseable {
                       try (var world =
                           state.engine.openWorld(
                               compiled,
-                              new WorldOptions(null, 32, WorldOptions.CachePolicy.NO_CACHE, 0))) {
-                        for (int y = 0; y < n; y++) {
-                          if (Thread.currentThread().isInterrupted()) return;
+                              new WorldOptions(
+                                  null,
+                                  32,
+                                  WorldOptions.CachePolicy.BOUNDED_MEMORY_CACHE,
+                                  cacheBudget))) {
+                        int cx = Math.floorDiv(ox, 32),
+                            cy = Math.floorDiv(oy, 32),
+                            cz = Math.floorDiv(oz, 32),
+                            nx = Math.floorDiv(ox + n - 1, 32) - cx + 1,
+                            ny = Math.floorDiv(oy + n - 1, 32) - cy + 1,
+                            nz = Math.floorDiv(oz + n - 1, 32) - cz + 1;
+                        VoxelChunk[] chunks = new VoxelChunk[nx * ny * nz];
+                        for (int y = 0; y < ny; y++)
+                          for (int z = 0; z < nz; z++)
+                            for (int x = 0; x < nx; x++) {
+                              if (Thread.currentThread().isInterrupted()) return;
+                              chunks[(y * nz + z) * nx + x] =
+                                  world.generateChunk(new ChunkPos(cx + x, cy + y, cz + z));
+                            }
+                        for (int y = 0; y < n; y++)
                           for (int z = 0; z < n; z++)
-                            for (int x = 0; x < n; x++)
+                            for (int x = 0; x < n; x++) {
+                              int wx = ox + x, wy = oy + y, wz = oz + z;
+                              var chunk =
+                                  chunks[
+                                      ((Math.floorDiv(wy, 32) - cy) * nz
+                                                  + Math.floorDiv(wz, 32)
+                                                  - cz)
+                                              * nx
+                                          + Math.floorDiv(wx, 32)
+                                          - cx];
                               cells[(y * n + z) * n + x] =
-                                  world.sampleStage(
-                                      new BlockPos(ox + x, oy + y, oz + z), Integer.MAX_VALUE);
-                        }
+                                  chunk.getVoxelTypeId(
+                                      Math.floorMod(wx, 32),
+                                      Math.floorMod(wy, 32),
+                                      Math.floorMod(wz, 32));
+                            }
                       }
                       mesh = MeshBuilder.greedy(n, (x, y, z) -> cells[(y * n + z) * n + x]);
                     }
-                    v.ready.set(
+                    publish(
+                        v,
                         new Preview(
-                            epoch, mesh, null, null, 0, origin, palette, new float[64], null));
+                            epoch,
+                            mesh,
+                            null,
+                            null,
+                            0,
+                            origin,
+                            palette,
+                            new float[64],
+                            null,
+                            null));
                   }
                 } catch (Throwable e) {
                   if (!(e instanceof CancellationException))
-                    v.ready.set(
+                    publish(
+                        v,
                         new Preview(
                             epoch,
                             null,
@@ -522,6 +610,7 @@ public final class Viewports implements AutoCloseable {
                             new Vector3d(),
                             new int[256],
                             new float[64],
+                            null,
                             String.valueOf(e.getMessage())));
                 }
               });
@@ -688,28 +777,23 @@ public final class Viewports implements AutoCloseable {
                 state.engine.openWorld(
                     new CompiledProject(p),
                     new WorldOptions(null, 32, WorldOptions.CachePolicy.NO_CACHE, 0))) {
-              BlockPos previous = null;
-              for (double t = 0; t < 1000; t += .25) {
-                var point = new Vector3d(ray.direction()).mul(t).add(ray.origin());
-                var cell =
-                    new BlockPos(
-                        (int) Math.floor(point.x),
-                        (int) Math.floor(point.y),
-                        (int) Math.floor(point.z));
-                if (cell.equals(previous)) continue;
-                previous = cell;
-                if (world.sampleStage(cell, Integer.MAX_VALUE) > 0) {
-                  GenerationTrace found = world.trace(cell);
-                  state.uiQueue.offer(
-                      () -> {
-                        trace = found;
-                        inspect[0] = cell.x();
-                        inspect[1] = cell.y();
-                        inspect[2] = cell.z();
-                        inspector.set(true);
-                      });
-                  return;
-                }
+              var hit =
+                  io.voxelcreator.render.VoxelRaycast.firstOccupied(
+                      ray,
+                      1000,
+                      (x, y, z) -> world.sampleStage(new BlockPos(x, y, z), Integer.MAX_VALUE));
+              if (hit.isPresent()) {
+                BlockPos cell = hit.get();
+                GenerationTrace found = world.trace(cell);
+                state.uiQueue.offer(
+                    () -> {
+                      trace = found;
+                      inspect[0] = cell.x();
+                      inspect[1] = cell.y();
+                      inspect[2] = cell.z();
+                      inspector.set(true);
+                    });
+                return;
               }
               state.uiQueue.offer(
                   () -> {
@@ -783,6 +867,7 @@ public final class Viewports implements AutoCloseable {
   public void close() {
     for (var v : views) {
       if (v.job != null) v.job.cancel(true);
+      state.background.purge();
       v.gl.close();
     }
   }

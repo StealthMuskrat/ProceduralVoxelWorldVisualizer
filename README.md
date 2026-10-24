@@ -2,11 +2,13 @@
 
 A native Java 25 procedural-noise and voxel-world editor, with a separately usable headless engine.
 
+![World viewport](docs/evidence/world.png)
+
 This is a **development implementation** of the supplied specification, not a completed A01–A36 release. See [acceptance status](docs/REQUIREMENTS_AND_TESTS.md) for verified behavior and outstanding work.
 
 ## Build and run
 
-Install Eclipse Temurin **25.0.5+8** (x64). Gradle 9.2.1 is pinned by the wrapper.
+Install Eclipse Temurin **25.0.4+7** (x64). Gradle 9.2.1 is pinned by the wrapper.
 
 ```sh
 ./gradlew clean test build releaseJars

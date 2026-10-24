@@ -75,6 +75,7 @@ public final class CurveDialog {
         hi = lo + range / zoom,
         ylo = -.2 + panY - (1 / zoom - 1) / 2,
         yhi = ylo + 1.4 / zoom;
+    draw.pushClipRect(px, py, px + w, py + h, true);
     if (grid)
       for (int i = 0; i <= 10; i++) {
         float x = px + i * w / 10, y = py + i * h / 10;
@@ -160,6 +161,7 @@ public final class CurveDialog {
       }
     }
     if (ImGui.isMouseReleased(0)) dragging = false;
+    draw.popClipRect();
     var point = curve.points.stream().filter(p -> selected.contains(p.uuid)).findFirst();
     if (point.isPresent()) {
       var p = point.get();

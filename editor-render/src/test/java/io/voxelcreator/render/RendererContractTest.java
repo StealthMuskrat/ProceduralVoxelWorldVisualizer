@@ -36,4 +36,17 @@ public class RendererContractTest {
     c.leaveFly();
     assertFalse(c.flying);
   }
+
+  @Test
+  void raycastTraversesThinAndNegativeCellsExactly() {
+    var ray = new Camera.Ray(new org.joml.Vector3d(.5, .5, .5), new org.joml.Vector3d(1, 0, 0));
+    assertEquals(
+        new io.voxelcreator.storage.BlockPos(2, 0, 0),
+        VoxelRaycast.firstOccupied(ray, 10, (x, y, z) -> x == 2 ? 1 : 0).orElseThrow());
+    var back =
+        new Camera.Ray(new org.joml.Vector3d(.01, .5, .5), new org.joml.Vector3d(-1, .001, 0));
+    assertEquals(
+        -1, VoxelRaycast.firstOccupied(back, 10, (x, y, z) -> x == -1 ? 1 : 0).orElseThrow().x());
+    assertTrue(VoxelRaycast.firstOccupied(ray, 1, (x, y, z) -> x == 2 ? 1 : 0).isEmpty());
+  }
 }
