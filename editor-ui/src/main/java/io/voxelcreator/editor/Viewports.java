@@ -187,6 +187,10 @@ public final class Viewports implements AutoCloseable {
         compacting);
   }
 
+  public boolean flying() {
+    return Arrays.stream(views).anyMatch(v -> v.camera.flying);
+  }
+
   public int compactArenas() {
     int requested = 0;
     for (var view : views) {

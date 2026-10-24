@@ -18,6 +18,7 @@ public final class ResourcePanel {
   private UUID createParent, placementLayer;
   private boolean createPending = false;
   private ResourceClipboard clipboard;
+  private boolean focused;
 
   private UUID deleteId;
   private UUID replacement, renameId;
@@ -55,28 +56,45 @@ public final class ResourcePanel {
     ImGui.separator();
     if (ImGui.button("Voxel Manager")) manager.set(true);
     ImGui.textDisabled("Right-click a root to create resources");
-    if (ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows)
-        && !ImGui.getIO().getWantTextInput()) {
-      if (ImGui.isKeyPressed(ImGuiKey.F2) && state.selected != null) beginRename(state.selected);
-      if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.C) && state.selected != null)
-        copy(state.selected, "", false);
-      if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.X) && state.selected != null)
-        copy(state.selected, "", true);
-      if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.V) && clipboard != null) {
-        var target = ResourceGraph.find(state.project(), state.selected);
-        if (target != null)
-          paste(
-              target.root(), target.resource() instanceof Folder ? target.uuid() : target.parent());
-      }
-      if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
-        renameId = null;
-        renameError = "";
-      }
+    focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
+    if (focused && ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      renameId = null;
+      renameError = "";
     }
     ImGui.end();
     createDialog();
     deleteDialog();
     manager();
+  }
+
+  public boolean focused() {
+    return focused;
+  }
+
+  public void shortcut(String action) {
+    var target = ResourceGraph.find(state.project(), state.selected);
+    if (target == null) return;
+    switch (action) {
+      case "Rename" -> beginRename(target.uuid());
+      case "Copy", "Cut" -> copy(target.uuid(), target.root(), action.equals("Cut"));
+      case "Paste" -> {
+        if (clipboard != null) {
+          if (target.resource() instanceof Layer && clipboard.root().equals("operation"))
+            paste("operation", target.uuid());
+          else
+            paste(
+                target.root(),
+                target.resource() instanceof Folder ? target.uuid() : target.parent());
+        }
+      }
+      case "Duplicate" ->
+          duplicate(target.kind(), target.resource(), target.root(), target.parent());
+      case "Delete" -> {
+        deleteId = target.uuid();
+        replacement = null;
+      }
+      default -> {}
+    }
   }
 
   private void root(String label, String kind) {
@@ -216,12 +234,16 @@ public final class ResourcePanel {
           && ImGui.menuItem(
               "Paste Placements", clipboard != null && clipboard.root().equals("operation")))
         paste("operation", r.uuid);
-      if (ImGui.menuItem("Rename")) beginRename(r.uuid);
+      if (ImGui.menuItem("Rename", state.user.input.shortcuts.getOrDefault("Rename", "")))
+        beginRename(r.uuid);
       if (ImGui.menuItem("Properties")) state.select(kind, r.uuid);
-      if (ImGui.menuItem("Duplicate")) duplicate(kind, r, root, parent);
-      if (ImGui.menuItem("Copy")) copy(r.uuid, root, false);
-      if (ImGui.menuItem("Cut")) copy(r.uuid, root, true);
-      if (ImGui.menuItem("Delete")) {
+      if (ImGui.menuItem("Duplicate", state.user.input.shortcuts.getOrDefault("Duplicate", "")))
+        duplicate(kind, r, root, parent);
+      if (ImGui.menuItem("Copy", state.user.input.shortcuts.getOrDefault("Copy", "")))
+        copy(r.uuid, root, false);
+      if (ImGui.menuItem("Cut", state.user.input.shortcuts.getOrDefault("Cut", "")))
+        copy(r.uuid, root, true);
+      if (ImGui.menuItem("Delete", state.user.input.shortcuts.getOrDefault("Delete", ""))) {
         deleteId = r.uuid;
         replacement = null;
         ImGui.openPopup("Delete Resource");

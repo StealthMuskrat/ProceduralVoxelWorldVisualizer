@@ -25,6 +25,7 @@ public final class Desktop extends Application {
   private Viewports views;
   private DiagnosticsPanel diagnostics;
   private ProfilePanel captures;
+  private InputSettingsPanel inputSettings;
   private String smokeDiagnosticDocument;
   private long smokeDiagnosticEvent;
   private boolean smokeSchedulerDrawn;
@@ -83,6 +84,7 @@ public final class Desktop extends Application {
 
   @Override
   protected void preRun() {
+    inputSettings = new InputSettingsPanel(state.user);
     properties = new PropertyPanel(state);
     resources = new ResourcePanel(state, properties);
     diagnostics =
@@ -182,6 +184,16 @@ public final class Desktop extends Application {
       }
       if (runtimeFrame == 145) state.engine.profiler().stop();
       if (runtimeFrame == 150) profiler.set(false);
+      if (runtimeFrame == 153) {
+        openSettings("User Settings");
+        settingsCategory = "Input";
+        inputSettings.smokeDraft();
+      }
+      if (runtimeFrame == 176) {
+        inputSettings.assertSmokeDrawn();
+        settings.set(false);
+        System.out.println("SHORTCUT_DRAFT_CONFLICT_NATIVE_PASS");
+      }
       if (runtimeFrame == 462) {
         profiler.set(true);
         views.compactArenas();
@@ -364,51 +376,27 @@ public final class Desktop extends Application {
   private void menu() {
     if (ImGui.beginMainMenuBar()) {
       if (ImGui.beginMenu("File")) {
-        if (ImGui.menuItem("New"))
-          transition(
-              () -> {
-                state.newSession();
-                resources.reset();
-              });
-        if (ImGui.menuItem("Open Project")) transition(() -> openFile("Open"));
-        if (ImGui.menuItem("Save", "Ctrl+S")) save(false);
-        if (ImGui.menuItem("Save As")) save(true);
-        if (ImGui.menuItem("Import")) openFile("Import");
-        if (ImGui.menuItem("Export")) openFile("Export");
+        for (String action : List.of("New", "Open", "Save", "SaveAs", "Import", "Export"))
+          if (ImGui.menuItem(Shortcuts.action(action).label(), binding(action))) command(action);
         if (ImGui.menuItem("Exit")) transition(() -> glfwSetWindowShouldClose(handle, true));
         ImGui.endMenu();
       }
       if (ImGui.beginMenu("Edit")) {
-        if (ImGui.menuItem("Undo", "Ctrl+Z", false, state.document.canUndo())) {
-          state.document.undo();
-          state.revision++;
-          state.refreshDraft();
-        }
-        if (ImGui.menuItem("Redo", "Ctrl+Y", false, state.document.canRedo())) {
-          state.document.redo();
-          state.revision++;
-          state.refreshDraft();
-        }
+        if (ImGui.menuItem("Undo", binding("Undo"), false, state.document.canUndo()))
+          command("Undo");
+        if (ImGui.menuItem("Redo", binding("Redo"), false, state.document.canRedo()))
+          command("Redo");
         ImGui.endMenu();
       }
       if (ImGui.beginMenu("View")) {
-        if (ImGui.menuItem("Find", "Ctrl+F")) {
-          find.set(true);
-          findReference = null;
-        }
-        if (ImGui.menuItem("Find References", false, state.selected != null)) {
-          find.set(true);
-          findReference = state.selected;
-          search.set("");
-          searchKey = "";
-        }
-        if (ImGui.menuItem("Validate Project")) {
-          state.validateProject();
-          validation.set(true);
-        }
+        if (ImGui.menuItem("Find", binding("Find"))) command("Find");
+        if (ImGui.menuItem(
+            "Find References", binding("FindReferences"), false, state.selected != null))
+          command("FindReferences");
+        if (ImGui.menuItem("Validate Project", binding("Validate"))) command("Validate");
         if (ImGui.menuItem("Voxel Manager")) resources.showManager();
-        if (ImGui.menuItem("Profiler")) profiler.set(true);
-        if (ImGui.menuItem("Logs")) logs.set(true);
+        if (ImGui.menuItem("Profiler", binding("Profiler"))) command("Profiler");
+        if (ImGui.menuItem("Logs", binding("Logs"))) command("Logs");
         if (ImGui.menuItem("Themes")) themes.set(true);
         if (ImGui.menuItem("Reset Dock Layout")) {
           state.user.workspace.docking = "";
@@ -420,11 +408,12 @@ public final class Desktop extends Application {
         for (String page :
             List.of(
                 "Project Settings", "Application Settings", "User Settings", "Debug & Profiling"))
-          if (ImGui.menuItem(page)) openSettings(page);
+          if (ImGui.menuItem(page, page.equals("User Settings") ? binding("Settings") : ""))
+            openSettings(page);
         ImGui.endMenu();
       }
       if (ImGui.beginMenu("Help")) {
-        if (ImGui.menuItem("Help")) help.set(true);
+        if (ImGui.menuItem("Help", binding("Help"))) command("Help");
         if (ImGui.menuItem("About")) about.set(true);
         if (ImGui.menuItem("Check for Updates")) checkUpdates();
         ImGui.endMenu();
@@ -744,7 +733,12 @@ public final class Desktop extends Application {
   }
 
   private void drawSettings() {
-    if (!settings.get()) return;
+    if (!settings.get()) {
+      inputSettings.cancelCapture();
+      return;
+    }
+    if (!settingsPage.equals("User Settings") || !settingsCategory.equals("Input"))
+      inputSettings.cancelCapture();
     ImGui.setNextWindowSize(750, 650, ImGuiCond.FirstUseEver);
     ImGui.begin(settingsPage, settings);
     if (settingsPage.equals("Project Settings")) {
@@ -848,23 +842,7 @@ public final class Desktop extends Application {
             layout = false;
           }
         }
-        case "Input" -> {
-          for (var key : new ArrayList<>(state.user.input.shortcuts.keySet())) {
-            fields.text(
-                key,
-                state.user.input.shortcuts.get(key),
-                v -> {
-                  var old = state.user.input.shortcuts.put(key, v);
-                  try {
-                    state.user.validate();
-                  } catch (Exception e) {
-                    state.user.input.shortcuts.put(key, old);
-                    state.status = e.getMessage();
-                  }
-                });
-          }
-          ImGui.textWrapped("Use Ctrl+letter combinations. Mouse navigation gestures are fixed.");
-        }
+        case "Input" -> inputSettings.draw();
         case "Editor" -> {
           fields.bool(
               "Auto regenerate on changes",
@@ -1092,31 +1070,72 @@ public final class Desktop extends Application {
   }
 
   private void shortcuts() {
-    if (ImGui.getIO().getWantTextInput()) return;
-    if (chord("Save")) save(false);
-    if (chord("Undo")) {
-      state.document.undo();
-      state.revision++;
-      state.refreshDraft();
-    }
-    if (chord("Redo")) {
-      state.document.redo();
-      state.revision++;
-      state.refreshDraft();
-    }
-    if (chord("Find")) {
-      find.set(true);
-      findReference = null;
-    }
+    Shortcuts.Focus focus =
+        views.flying()
+            ? Shortcuts.Focus.FLYING
+            : properties.curveFocused()
+                ? Shortcuts.Focus.CURVE
+                : resources.focused() ? Shortcuts.Focus.RESOURCES : Shortcuts.Focus.GENERAL;
+    ShortcutKeys.match(state.user.input.shortcuts, focus, inputSettings.recording())
+        .ifPresent(a -> command(a.id()));
   }
 
-  private boolean chord(String action) {
-    String binding = state.user.input.shortcuts.getOrDefault(action, "");
-    boolean ctrl = binding.startsWith("Ctrl+");
-    String key = ctrl ? binding.substring(5) : binding;
-    if (key.length() != 1) return false;
-    int code = ImGuiKey.A + Character.toUpperCase(key.charAt(0)) - 'A';
-    return ImGui.getIO().getKeyCtrl() == ctrl && ImGui.isKeyPressed(code, false);
+  private String binding(String action) {
+    return Shortcuts.parse(state.user.input.shortcuts.getOrDefault(action, ""))
+        .map(Shortcuts.Chord::text)
+        .orElse("");
+  }
+
+  private void command(String action) {
+    switch (action) {
+      case "New" ->
+          transition(
+              () -> {
+                state.newSession();
+                resources.reset();
+              });
+      case "Open" -> transition(() -> openFile("Open"));
+      case "Save" -> save(false);
+      case "SaveAs" -> save(true);
+      case "Import", "Export" -> openFile(action);
+      case "Undo" -> {
+        if (state.document.canUndo()) {
+          state.document.undo();
+          state.revision++;
+          state.refreshDraft();
+        }
+      }
+      case "Redo" -> {
+        if (state.document.canRedo()) {
+          state.document.redo();
+          state.revision++;
+          state.refreshDraft();
+        }
+      }
+      case "Find" -> {
+        find.set(true);
+        findReference = null;
+      }
+      case "FindReferences" -> {
+        if (state.selected != null) {
+          find.set(true);
+          findReference = state.selected;
+          search.set("");
+          searchKey = "";
+        }
+      }
+      case "Validate" -> {
+        state.validateProject();
+        validation.set(true);
+      }
+      case "Settings" -> openSettings("User Settings");
+      case "Help" -> help.set(true);
+      case "Profiler" -> profiler.set(true);
+      case "Logs" -> logs.set(true);
+      case "Rename", "Copy", "Cut", "Paste", "Duplicate", "Delete" -> resources.shortcut(action);
+      case "CurveDelete", "CurveUndo", "CurveRedo" -> properties.curveShortcut(action);
+      default -> throw new IllegalArgumentException("Unknown editor command " + action);
+    }
   }
 
   private void checkUpdates() {

@@ -221,6 +221,21 @@ public final class ContractGenerator {
         eg.definitions.forEach(ed::set);
         ((ObjectNode) ed.path(editor[0]).path("properties"))
             .set("formatVersion", obj().put("const", 1));
+        if (editor[0].equals("UserConfig")) {
+          Class<?> shortcuts = Class.forName("io.voxelcreator.editor.Shortcuts");
+          @SuppressWarnings("unchecked")
+          Map<String, String> bindings =
+              (Map<String, String>) shortcuts.getMethod("defaults").invoke(null);
+          ObjectNode chordMap = (ObjectNode) ed.path("Input").path("properties").path("shortcuts");
+          chordMap.put("additionalProperties", false).put("maxProperties", bindings.size());
+          ObjectNode properties = obj();
+          for (String id : bindings.keySet())
+            properties.set(id, obj().put("type", "string").put("maxLength", 80));
+          chordMap.set("properties", properties);
+          writeJSON(
+              root.resolve("registries/keyboard-shortcuts.json"),
+              shortcuts.getMethod("registry").invoke(null));
+        }
         es.set("$defs", ed);
         writeJSON(root.resolve("schema/" + editor[1]), es);
         Object defaults =

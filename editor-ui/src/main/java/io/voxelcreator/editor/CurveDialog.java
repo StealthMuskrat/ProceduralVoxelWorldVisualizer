@@ -19,6 +19,7 @@ public final class CurveDialog {
   private final Set<UUID> selected = new LinkedHashSet<>();
   private boolean grid = true, snapX = false, snapY = false, dragging = false;
   private double stepX = .05, stepY = .05, zoom = 1, panX = 0, panY = 0, dragX, dragY;
+  private boolean focused;
   private UUID tangentPoint;
   private int tangentSide;
   private double tangentX;
@@ -26,6 +27,19 @@ public final class CurveDialog {
   public CurveDialog(Curve curve, Consumer<Curve> apply) {
     session = new CurveEditSession(curve);
     this.apply = apply;
+  }
+
+  public boolean focused() {
+    return open.get() && focused;
+  }
+
+  public void shortcut(String action) {
+    switch (action) {
+      case "CurveDelete" -> deleteSelected();
+      case "CurveUndo" -> session.undo();
+      case "CurveRedo" -> session.redo();
+      default -> {}
+    }
   }
 
   public void selectAll() {
@@ -40,6 +54,7 @@ public final class CurveDialog {
   public boolean draw() {
     ImGui.setNextWindowSize(840, 760, ImGuiCond.FirstUseEver);
     ImGui.begin("Curve Editor", open);
+    focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
     Curve curve = session.curve();
     fields.number(
         "Domain minimum",
@@ -230,7 +245,6 @@ public final class CurveDialog {
           selected.add(point.uuid);
         }
       }
-      if (ImGui.isKeyPressed(ImGuiKey.Delete)) deleteSelected();
     }
     if (dragging && ImGui.isMouseDown(0)) {
       if (tangentPoint != null) {

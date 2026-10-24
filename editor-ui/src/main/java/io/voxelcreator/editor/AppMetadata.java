@@ -104,6 +104,18 @@ public final class AppMetadata {
                 + " timings do not measure GPU completion. GPU arenas compact within their existing"
                 + " vertex budget and share upload write limits. Captures and navigation never"
                 + " dirty the project."));
+    m.controls.put(
+        "shortcuts",
+        new Control(
+            "Keyboard shortcuts",
+            "Context-aware remapping with conflict detection",
+            "User Settings > Input keeps a private binding draft. Type or record"
+                + " Ctrl/Shift/Alt/Super chords with letters, digits, F1-F12 or named keys. Apply"
+                + " validates conflicts and saves atomically before activation; Revert discards the"
+                + " draft, and Reset stages defaults. Resource clipboard keys require resource"
+                + " focus, curve undo affects its private history, and text/popups/free-fly retain"
+                + " their own input. Escape cancels recording. Preferences never dirty the"
+                + " project."));
     return m;
   }
 

@@ -52,8 +52,105 @@
       "properties" : {
         "shortcuts" : {
           "type" : "object",
-          "additionalProperties" : {
-            "type" : "string"
+          "additionalProperties" : false,
+          "maxProperties" : 24,
+          "properties" : {
+            "New" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Open" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Save" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "SaveAs" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Import" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Export" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Undo" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Redo" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Find" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "FindReferences" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Validate" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Settings" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Help" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Profiler" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Logs" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Rename" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Duplicate" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Copy" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Cut" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Paste" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "Delete" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "CurveDelete" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "CurveUndo" : {
+              "type" : "string",
+              "maxLength" : 80
+            },
+            "CurveRedo" : {
+              "type" : "string",
+              "maxLength" : 80
+            }
           }
         }
       },

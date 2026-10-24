@@ -140,6 +140,14 @@ public final class PropertyPanel {
           "Problem: " + Objects.requireNonNullElse(navigationTarget.parameter(), "control"));
   }
 
+  public boolean curveFocused() {
+    return curve != null && curve.focused();
+  }
+
+  public void curveShortcut(String action) {
+    if (curve != null) curve.shortcut(action);
+  }
+
   public PropertyPanel(EditorState s) {
     state = s;
   }

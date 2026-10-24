@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.SchedulerContractTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-24T21:02:26.577Z" hostname="715e00c143c7" time="0.042">
+<testsuite name="io.voxelcreator.api.SchedulerContractTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-24T21:37:43.877Z" hostname="715e00c143c7" time="0.051">
   <properties/>
-  <testcase name="explicitCancellationImmediatelyReleasesQueueCapacityAndKeepsOtherSubscribers()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.004"/>
-  <testcase name="fullQueueRejectsWithoutLeakingAndClosureCancelsOnlyItsWorld()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.005"/>
-  <testcase name="admittedWorldsInterleaveRatherThanDrainOneWorldFirst()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.005"/>
-  <testcase name="cancelledRunningFlightCannotCaptureALaterRequestAndParentRunsOutsideOwnershipLock()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.004"/>
+  <testcase name="explicitCancellationImmediatelyReleasesQueueCapacityAndKeepsOtherSubscribers()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.003"/>
+  <testcase name="fullQueueRejectsWithoutLeakingAndClosureCancelsOnlyItsWorld()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.004"/>
+  <testcase name="admittedWorldsInterleaveRatherThanDrainOneWorldFirst()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.007"/>
+  <testcase name="cancelledRunningFlightCannotCaptureALaterRequestAndParentRunsOutsideOwnershipLock()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.005"/>
   <testcase name="legacyRegionAndCacheStatsConstructorsRemainAvailable()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.001"/>
-  <testcase name="asyncCollectionCancellationReleasesItsLeaseWhileWorkerIsStillBusy()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.01"/>
-  <testcase name="throwingParentSupplierFailsItsSubscriberWithoutBreakingSharedGeneration()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.002"/>
+  <testcase name="asyncCollectionCancellationReleasesItsLeaseWhileWorkerIsStillBusy()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.011"/>
+  <testcase name="throwingParentSupplierFailsItsSubscriberWithoutBreakingSharedGeneration()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.007"/>
   <testcase name="interactiveSubscriberPromotesSharedBackgroundWorkWithoutDuplicatingIt()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.004"/>
-  <testcase name="registrationFailureAfterAdmissionLeavesNoQueuedOrOwnedJob()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.001"/>
+  <testcase name="registrationFailureAfterAdmissionLeavesNoQueuedOrOwnedJob()" classname="io.voxelcreator.api.SchedulerContractTest" time="0.003"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

@@ -1,0 +1,21 @@
+SMOKE_ENV java=25.0.4+7-LTS os=Linux arch=amd64 gl=4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 renderer=llvmpipe (LLVM 20.1.2, 256 bits)
+SMOKE_PROJECT_SAVE_OPEN_PASS /workspace/scratch/7b7fbf202fed/tools/input-smoke/smoke-project.json
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/input-smoke/smoke-70.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/input-smoke/smoke-110.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/input-smoke/smoke-140.png
+Dear ImGui Assertion Failed: 0 && "Code uses SetCursorPos()/SetCursorScreenPos() to extend window/parent boundaries. Please submit an item e.g. Dummy() to validate extent."
+Assertion Located At: /tmp/imgui/jni/imgui.cpp:9781
+java.lang.Exception: Stack trace
+	at java.base/java.lang.Thread.dumpStack(Thread.java:2018)
+	at imgui.ImGui$1.imAssertCallback(ImGui.java:63)
+	at imgui.assertion.ImAssertCallback.imAssert(ImAssertCallback.java:21)
+	at imgui.ImGui.nEndChild(Native Method)
+	at imgui.ImGui.endChild(ImGui.java:812)
+	at io.voxelcreator.editor.InputSettingsPanel.draw(InputSettingsPanel.java:101)
+	at io.voxelcreator.editor.Desktop.drawSettings(Desktop.java:845)
+	at io.voxelcreator.editor.Desktop.auxiliary(Desktop.java:629)
+	at io.voxelcreator.editor.Desktop.process(Desktop.java:163)
+	at imgui.app.Window.runFrame(Window.java:167)
+	at imgui.app.Window.run(Window.java:157)
+	at imgui.app.Application.launch(Application.java:84)
+	at io.voxelcreator.editor.Desktop.main(Desktop.java:1282)

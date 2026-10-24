@@ -1,6 +1,9 @@
 package io.voxelcreator.editor;
 
 import io.voxelcreator.model.ProjectIO;
+import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 
@@ -28,9 +31,7 @@ public final class UserConfig {
   }
 
   public static final class Input {
-    public Map<String, String> shortcuts =
-        new LinkedHashMap<>(
-            Map.of("Save", "Ctrl+S", "Undo", "Ctrl+Z", "Redo", "Ctrl+Y", "Find", "Ctrl+F"));
+    public Map<String, String> shortcuts = Shortcuts.defaults();
   }
 
   public static final class Editor {
@@ -78,14 +79,22 @@ public final class UserConfig {
 
   public static UserConfig load() {
     try {
-      var u =
-          ProjectIO.JSON.readValue(
-              directory().resolve("user-config.json").toFile(), UserConfig.class);
-      u.validate();
-      return u;
+      return read(directory().resolve("user-config.json"));
     } catch (Exception e) {
       return new UserConfig();
     }
+  }
+
+  /**
+   * Strict reader for validation/import/restart checks; normal startup retains its default
+   * fallback.
+   */
+  public static UserConfig read(Path path) throws IOException {
+    var user = ProjectIO.JSON.readValue(path.toFile(), UserConfig.class);
+    if (user.input == null) throw new IllegalArgumentException("Missing input preferences");
+    user.input.shortcuts = Shortcuts.upgrade(user.input.shortcuts);
+    user.validate();
+    return user;
   }
 
   public void validate() {
@@ -139,22 +148,54 @@ public final class UserConfig {
         if (!Float.isFinite(value) || value < 0 || value > 1)
           throw new IllegalArgumentException("Theme components must be in [0,1]");
     }
-    var seen = new HashSet<String>();
-    for (String chord : input.shortcuts.values())
-      if (!chord.matches("(?:Ctrl\\+)?[A-Z]") || !seen.add(chord))
-        throw new IllegalArgumentException("Shortcut conflict: " + chord);
+    if (input == null) throw new IllegalArgumentException("Missing input preferences");
+    Shortcuts.canonical(input.shortcuts);
   }
 
   public void save() {
+    save(directory().resolve("user-config.json"));
+  }
+
+  public void save(Path path) {
     validate();
+    var snapshot = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(this), UserConfig.class);
+    snapshot.input.shortcuts = Shortcuts.canonical(snapshot.input.shortcuts);
+    snapshot.writeSnapshot(path);
+  }
+
+  /** Publish new live bindings only after validation and the entire preference write succeed. */
+  public void applyShortcuts(Map<String, String> candidate, Path path) {
+    var canonical = Shortcuts.canonical(candidate);
+    var snapshot = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(this), UserConfig.class);
+    snapshot.input.shortcuts = canonical;
+    snapshot.validate();
+    snapshot.writeSnapshot(path);
+    input.shortcuts = new LinkedHashMap<>(canonical);
+  }
+
+  private void writeSnapshot(Path path) {
+    Path destination = path.toAbsolutePath(), temp = null;
     try {
-      Files.createDirectories(directory());
-      Path temp = directory().resolve("user-config.tmp");
-      Files.writeString(temp, ProjectIO.JSON.writeValueAsString(this));
-      Files.move(
-          temp, directory().resolve("user-config.json"), StandardCopyOption.REPLACE_EXISTING);
+      Files.createDirectories(destination.getParent());
+      temp = Files.createTempFile(destination.getParent(), ".user-config-", ".tmp");
+      Files.writeString(temp, ProjectIO.JSON.writeValueAsString(this), StandardCharsets.UTF_8);
+      try (var channel = FileChannel.open(temp, StandardOpenOption.WRITE)) {
+        channel.force(true);
+      }
+      try {
+        Files.move(
+            temp, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+      } catch (AtomicMoveNotSupportedException e) {
+        Files.move(temp, destination, StandardCopyOption.REPLACE_EXISTING);
+      }
     } catch (Exception e) {
       throw new IllegalStateException("Could not save preferences", e);
+    } finally {
+      if (temp != null)
+        try {
+          Files.deleteIfExists(temp);
+        } catch (IOException ignored) {
+        }
     }
   }
 }

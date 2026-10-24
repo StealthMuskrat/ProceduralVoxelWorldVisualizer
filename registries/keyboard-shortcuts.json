@@ -1,0 +1,131 @@
+{
+  "keys" : [ "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "Enter", "Tab", "Space", "Backspace", "Insert", "Delete", "Home", "End", "PageUp", "PageDown", "Left", "Right", "Up", "Down", "Minus", "Equal", "LeftBracket", "RightBracket", "Backslash", "Semicolon", "Apostrophe", "Comma", "Period", "Slash", "GraveAccent", "Keypad0", "Keypad1", "Keypad2", "Keypad3", "Keypad4", "Keypad5", "Keypad6", "Keypad7", "Keypad8", "Keypad9", "KeypadDecimal", "KeypadDivide", "KeypadMultiply", "KeypadSubtract", "KeypadAdd", "KeypadEnter", "KeypadEqual" ],
+  "maximumBindingUtf16Units" : 80,
+  "unbound" : "empty string",
+  "reserved" : "Escape cancels; mouse/free-fly gestures retain their own routing",
+  "scope" : "Global overlaps all; Document and Resources overlap; Curve is separate from Document/Resources. Text, popups, active widgets, recording and free-fly suppress commands.",
+  "migration" : "Existing authored chords win; conflicting newly introduced defaults remain unbound.",
+  "modifiers" : [ "Ctrl", "Shift", "Alt", "Super" ],
+  "formatVersion" : 1,
+  "actions" : [ {
+    "id" : "New",
+    "label" : "New Project",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "Ctrl+N"
+  }, {
+    "id" : "Open",
+    "label" : "Open Project",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "Ctrl+O"
+  }, {
+    "id" : "Save",
+    "label" : "Save",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "Ctrl+S"
+  }, {
+    "id" : "SaveAs",
+    "label" : "Save As",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "Ctrl+Shift+S"
+  }, {
+    "id" : "Import",
+    "label" : "Import Resources",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "Ctrl+I"
+  }, {
+    "id" : "Export",
+    "label" : "Export Resources",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "Ctrl+E"
+  }, {
+    "id" : "Undo",
+    "label" : "Undo Project Edit",
+    "scope" : "DOCUMENT",
+    "defaultBinding" : "Ctrl+Z"
+  }, {
+    "id" : "Redo",
+    "label" : "Redo Project Edit",
+    "scope" : "DOCUMENT",
+    "defaultBinding" : "Ctrl+Y"
+  }, {
+    "id" : "Find",
+    "label" : "Find Resources",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "Ctrl+F"
+  }, {
+    "id" : "FindReferences",
+    "label" : "Find References",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "Ctrl+Shift+F"
+  }, {
+    "id" : "Validate",
+    "label" : "Validate Project",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "F7"
+  }, {
+    "id" : "Settings",
+    "label" : "User Settings",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "Ctrl+Comma"
+  }, {
+    "id" : "Help",
+    "label" : "Help",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "F1"
+  }, {
+    "id" : "Profiler",
+    "label" : "Profiler",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "Ctrl+Shift+P"
+  }, {
+    "id" : "Logs",
+    "label" : "Logs",
+    "scope" : "GLOBAL",
+    "defaultBinding" : "Ctrl+Shift+L"
+  }, {
+    "id" : "Rename",
+    "label" : "Rename Resource",
+    "scope" : "RESOURCES",
+    "defaultBinding" : "F2"
+  }, {
+    "id" : "Duplicate",
+    "label" : "Duplicate Resource",
+    "scope" : "RESOURCES",
+    "defaultBinding" : "Ctrl+D"
+  }, {
+    "id" : "Copy",
+    "label" : "Copy Resources",
+    "scope" : "RESOURCES",
+    "defaultBinding" : "Ctrl+C"
+  }, {
+    "id" : "Cut",
+    "label" : "Cut Resources",
+    "scope" : "RESOURCES",
+    "defaultBinding" : "Ctrl+X"
+  }, {
+    "id" : "Paste",
+    "label" : "Paste Resources",
+    "scope" : "RESOURCES",
+    "defaultBinding" : "Ctrl+V"
+  }, {
+    "id" : "Delete",
+    "label" : "Delete Resource...",
+    "scope" : "RESOURCES",
+    "defaultBinding" : "Delete"
+  }, {
+    "id" : "CurveDelete",
+    "label" : "Delete Curve Points",
+    "scope" : "CURVE",
+    "defaultBinding" : "Delete"
+  }, {
+    "id" : "CurveUndo",
+    "label" : "Undo Curve Edit",
+    "scope" : "CURVE",
+    "defaultBinding" : "Ctrl+Z"
+  }, {
+    "id" : "CurveRedo",
+    "label" : "Redo Curve Edit",
+    "scope" : "CURVE",
+    "defaultBinding" : "Ctrl+Y"
+  } ]
+}

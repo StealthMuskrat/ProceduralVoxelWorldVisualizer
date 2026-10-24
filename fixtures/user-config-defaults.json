@@ -14,10 +14,30 @@
   },
   "input" : {
     "shortcuts" : {
+      "New" : "Ctrl+N",
+      "Open" : "Ctrl+O",
+      "Save" : "Ctrl+S",
+      "SaveAs" : "Ctrl+Shift+S",
+      "Import" : "Ctrl+I",
+      "Export" : "Ctrl+E",
+      "Undo" : "Ctrl+Z",
       "Redo" : "Ctrl+Y",
       "Find" : "Ctrl+F",
-      "Undo" : "Ctrl+Z",
-      "Save" : "Ctrl+S"
+      "FindReferences" : "Ctrl+Shift+F",
+      "Validate" : "F7",
+      "Settings" : "Ctrl+Comma",
+      "Help" : "F1",
+      "Profiler" : "Ctrl+Shift+P",
+      "Logs" : "Ctrl+Shift+L",
+      "Rename" : "F2",
+      "Duplicate" : "Ctrl+D",
+      "Copy" : "Ctrl+C",
+      "Cut" : "Ctrl+X",
+      "Paste" : "Ctrl+V",
+      "Delete" : "Delete",
+      "CurveDelete" : "Delete",
+      "CurveUndo" : "Ctrl+Z",
+      "CurveRedo" : "Ctrl+Y"
     }
   },
   "editor" : {

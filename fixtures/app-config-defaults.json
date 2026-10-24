@@ -45,6 +45,11 @@
       "label" : "Profiler captures",
       "tooltip" : "Opt-in bounded CPU timings and metrics",
       "description" : "View > Profiler starts an explicit capture with duration, sample, series and operation-sampling limits. Inspect counts, mean and P50/P95/P99, filter source/context series and navigate to existing resources. JSON/CSV export writes all retained measurements only when requested. CPU-side mesh/upload timings do not measure GPU completion. GPU arenas compact within their existing vertex budget and share upload write limits. Captures and navigation never dirty the project."
+    },
+    "shortcuts" : {
+      "label" : "Keyboard shortcuts",
+      "tooltip" : "Context-aware remapping with conflict detection",
+      "description" : "User Settings > Input keeps a private binding draft. Type or record Ctrl/Shift/Alt/Super chords with letters, digits, F1-F12 or named keys. Apply validates conflicts and saves atomically before activation; Revert discards the draft, and Reset stages defaults. Resource clipboard keys require resource focus, curve undo affects its private history, and text/popups/free-fly retain their own input. Escape cancels recording. Preferences never dirty the project."
     }
   }
 }
