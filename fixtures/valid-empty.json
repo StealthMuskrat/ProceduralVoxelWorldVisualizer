@@ -1,0 +1,24 @@
+{
+  "formatVersion" : 2,
+  "project" : {
+    "uuid" : "00000000-0000-4000-8000-000000000010",
+    "seed" : 0,
+    "minY" : -64,
+    "maxY" : 319
+  },
+  "voxelTypes" : [ ],
+  "voxelGroups" : [ ],
+  "voxelSets" : [ ],
+  "noise2D" : [ ],
+  "noise3D" : [ ],
+  "worldGenerator" : {
+    "uuid" : "00000000-0000-4000-8000-000000000011",
+    "layers" : [ ]
+  },
+  "folders" : [ ],
+  "bookmarks" : {
+    "noise2D" : [ ],
+    "noise3D" : [ ],
+    "world" : [ ]
+  }
+}

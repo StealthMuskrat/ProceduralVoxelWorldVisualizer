@@ -1,0 +1,605 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "urn:voxelcreator:project:2",
+  "title" : "Procedural Voxel Creator project format 2",
+  "$ref" : "#/$defs/ProjectData",
+  "$defs" : {
+    "Algorithm" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "key" : {
+          "type" : "string"
+        },
+        "parameters" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/Double"
+          }
+        }
+      },
+      "required" : [ "key", "parameters" ]
+    },
+    "Binding" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "sourceKind" : {
+          "type" : "string"
+        },
+        "type" : {
+          "type" : "string"
+        },
+        "ambientKey" : {
+          "type" : "string"
+        },
+        "value" : { },
+        "parameterUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "itemUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "noiseGeneratorUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "projection" : {
+          "type" : "string"
+        },
+        "slice" : {
+          "type" : "number"
+        }
+      },
+      "required" : [ "sourceKind", "type", "ambientKey", "projection", "slice" ]
+    },
+    "Bookmark" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "x" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "z" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "y" : {
+          "type" : [ "integer", "null" ],
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        }
+      },
+      "required" : [ "name", "x", "z", "uuid" ]
+    },
+    "Bookmarks" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "noise2D" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Bookmark"
+          }
+        },
+        "noise3D" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Bookmark"
+          }
+        },
+        "world" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Bookmark"
+          }
+        }
+      },
+      "required" : [ "noise2D", "noise3D", "world" ]
+    },
+    "Color" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "r" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "g" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "b" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        }
+      },
+      "required" : [ "r", "g", "b" ]
+    },
+    "Double" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : { },
+      "required" : [ ]
+    },
+    "Folder" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "rootKind" : {
+          "type" : "string"
+        },
+        "parentFolderUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "childOrder" : {
+          "type" : "array",
+          "items" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "id" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "rootKind", "childOrder", "id", "uuid" ]
+    },
+    "Gate" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "kind" : {
+          "type" : "string"
+        },
+        "comparison" : {
+          "type" : "string"
+        },
+        "threshold" : {
+          "type" : "number"
+        },
+        "max" : {
+          "type" : "number"
+        },
+        "noiseGeneratorUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "children" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Gate"
+          }
+        }
+      },
+      "required" : [ "kind", "comparison", "threshold", "max", "children" ]
+    },
+    "Item" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "kind" : {
+          "type" : "string"
+        },
+        "resultType" : {
+          "type" : "string"
+        },
+        "enabled" : {
+          "type" : "boolean"
+        },
+        "parameters" : {
+          "type" : "object",
+          "additionalProperties" : { }
+        },
+        "inputs" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/Binding"
+          }
+        },
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "id" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "kind", "resultType", "enabled", "parameters", "inputs", "id", "uuid" ]
+    },
+    "Layer" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "enabled" : {
+          "type" : "boolean"
+        },
+        "defaults" : {
+          "$ref" : "#/$defs/Settings"
+        },
+        "operations" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Operation"
+          }
+        },
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "id" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "enabled", "defaults", "operations", "id", "uuid" ]
+    },
+    "Membership" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "voxelTypeUuids" : {
+          "type" : "array",
+          "items" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "id" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "voxelTypeUuids", "id", "uuid" ]
+    },
+    "Noise" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "dimension" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "parentFolderUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "algorithm" : {
+          "$ref" : "#/$defs/Algorithm"
+        },
+        "seedOffset" : {
+          "type" : "integer",
+          "minimum" : -9223372036854775808,
+          "maximum" : 9223372036854775807
+        },
+        "coordinateTransforms" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Item"
+          }
+        },
+        "processing" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Item"
+          }
+        },
+        "sharedParameters" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Parameter"
+          }
+        },
+        "pinnedControls" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Pin"
+          }
+        },
+        "outputBinding" : {
+          "$ref" : "#/$defs/Binding"
+        },
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "id" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "dimension", "algorithm", "seedOffset", "coordinateTransforms", "processing", "sharedParameters", "pinnedControls", "outputBinding", "id", "uuid" ]
+    },
+    "Operation" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "enabled" : {
+          "type" : "boolean"
+        },
+        "noiseGeneratorUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "interpretation" : {
+          "type" : "string"
+        },
+        "overrides" : {
+          "type" : "object",
+          "additionalProperties" : { }
+        },
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "id" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "enabled", "interpretation", "overrides", "id", "uuid" ]
+    },
+    "Parameter" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "type" : {
+          "type" : "string"
+        },
+        "value" : { },
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "id" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "type", "id", "uuid" ]
+    },
+    "Pin" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "targetUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "label" : {
+          "type" : "string"
+        },
+        "group" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "label", "group" ]
+    },
+    "Predicate" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "kind" : {
+          "type" : "string"
+        },
+        "reference" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "children" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Predicate"
+          }
+        }
+      },
+      "required" : [ "kind", "children" ]
+    },
+    "Project" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "seed" : {
+          "type" : "integer",
+          "minimum" : -9223372036854775808,
+          "maximum" : 9223372036854775807
+        },
+        "minY" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "maxY" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        }
+      },
+      "required" : [ "seed", "minY", "maxY", "uuid" ]
+    },
+    "ProjectData" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "formatVersion" : {
+          "const" : 2
+        },
+        "project" : {
+          "$ref" : "#/$defs/Project"
+        },
+        "voxelTypes" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/VoxelType"
+          }
+        },
+        "voxelGroups" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Membership"
+          }
+        },
+        "voxelSets" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Membership"
+          }
+        },
+        "noise2D" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Noise"
+          }
+        },
+        "noise3D" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Noise"
+          }
+        },
+        "worldGenerator" : {
+          "$ref" : "#/$defs/World"
+        },
+        "folders" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Folder"
+          }
+        },
+        "bookmarks" : {
+          "$ref" : "#/$defs/Bookmarks"
+        }
+      },
+      "required" : [ "formatVersion", "project", "voxelTypes", "voxelGroups", "voxelSets", "noise2D", "noise3D", "worldGenerator", "folders", "bookmarks" ]
+    },
+    "Settings" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "baseHeight" : {
+          "type" : "number"
+        },
+        "heightScale" : {
+          "type" : "number"
+        },
+        "threshold" : {
+          "type" : "number"
+        },
+        "strength" : {
+          "type" : "number"
+        },
+        "probability" : {
+          "type" : "number"
+        },
+        "minY" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "maxY" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "scaleX" : {
+          "type" : "number"
+        },
+        "scaleY" : {
+          "type" : "number"
+        },
+        "scaleZ" : {
+          "type" : "number"
+        },
+        "offsetX" : {
+          "type" : "number"
+        },
+        "offsetY" : {
+          "type" : "number"
+        },
+        "offsetZ" : {
+          "type" : "number"
+        },
+        "seedOffset" : {
+          "type" : "integer",
+          "minimum" : -9223372036854775808,
+          "maximum" : 9223372036854775807
+        },
+        "action" : {
+          "type" : "string"
+        },
+        "rounding" : {
+          "type" : "string"
+        },
+        "voxelTypeUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "voxelStatePredicate" : {
+          "$ref" : "#/$defs/Predicate"
+        },
+        "fieldGates" : {
+          "$ref" : "#/$defs/Gate"
+        }
+      },
+      "required" : [ "baseHeight", "heightScale", "threshold", "strength", "probability", "minY", "maxY", "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ", "seedOffset", "action", "rounding", "voxelStatePredicate", "fieldGates" ]
+    },
+    "VoxelType" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "color" : {
+          "$ref" : "#/$defs/Color"
+        },
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "id" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "color", "id", "uuid" ]
+    },
+    "World" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "layers" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Layer"
+          }
+        }
+      },
+      "required" : [ "layers", "uuid" ]
+    }
+  }
+}

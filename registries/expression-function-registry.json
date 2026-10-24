@@ -1,0 +1,203 @@
+{
+  "functions" : {
+    "sin" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "cos" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "tan" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "asin" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "atan" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "sinh" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "cosh" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "tanh" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "abs" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "floor" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "ceil" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "round" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "fract" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "sqrt" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "cbrt" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "exp" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "log" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "log10" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "sign" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "saturate" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 1,
+      "argumentTypes" : "Scalar"
+    },
+    "min" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 2,
+      "argumentTypes" : "Scalar"
+    },
+    "max" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 2,
+      "argumentTypes" : "Scalar"
+    },
+    "pow" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 2,
+      "argumentTypes" : "Scalar"
+    },
+    "atan2" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 2,
+      "argumentTypes" : "Scalar"
+    },
+    "mod" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 2,
+      "argumentTypes" : "Scalar"
+    },
+    "step" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 2,
+      "argumentTypes" : "Scalar"
+    },
+    "pingPong" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 2,
+      "argumentTypes" : "Scalar"
+    },
+    "clamp" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 3,
+      "argumentTypes" : "Scalar"
+    },
+    "lerp" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 3,
+      "argumentTypes" : "Scalar"
+    },
+    "inverseLerp" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 3,
+      "argumentTypes" : "Scalar"
+    },
+    "smoothstep" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 3,
+      "argumentTypes" : "Scalar"
+    },
+    "remap" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 5,
+      "argumentTypes" : "Scalar"
+    },
+    "wrap" : {
+      "invalidNumericPolicy" : "structured failure at executed boundary",
+      "resultType" : "Scalar",
+      "arity" : 3,
+      "argumentTypes" : "Scalar"
+    }
+  },
+  "registryVersion" : 1
+}

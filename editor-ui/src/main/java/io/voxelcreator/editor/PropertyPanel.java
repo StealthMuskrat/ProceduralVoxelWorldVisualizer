@@ -1,0 +1,691 @@
+package io.voxelcreator.editor;
+
+import com.fasterxml.jackson.databind.*;
+import imgui.*;
+import imgui.flag.*;
+import imgui.type.*;
+import io.voxelcreator.core.*;
+import io.voxelcreator.model.*;
+import io.voxelcreator.model.ProjectData.*;
+import io.voxelcreator.model.ProjectData.Predicate;
+import java.util.*;
+import java.util.function.*;
+
+public final class PropertyPanel {
+  private final EditorState state;
+  private final UiFields f = new UiFields();
+  private UUID last;
+  private CurveDialog curve;
+
+  public PropertyPanel(EditorState s) {
+    state = s;
+  }
+
+  public void draw() {
+    ImGui.begin("Properties");
+    ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Properties", 1f));
+    if (!Objects.equals(last, state.selected)) {
+      last = state.selected;
+      f.clear();
+    }
+    if (state.multiSelection.size() > 1) {
+      ImGui.text(state.multiSelection.size() + " sibling resources selected");
+      ImGui.textWrapped("Select one resource to edit its properties.");
+    } else if (state.draft == null) {
+      ImGui.textDisabled("No resource selected");
+      ImGui.textWrapped(
+          "Create a noise generator from Resources, or add a layer to the World Generator.");
+    } else {
+      ImGui.textDisabled(state.selectedKind.toUpperCase(Locale.ROOT));
+      if (ImGui.button("Apply")) state.applyDraft();
+      ImGui.sameLine();
+      if (ImGui.button("Revert")) {
+        state.refreshDraft();
+        f.clear();
+      }
+      f.tooltip("Apply validates this edit and commits one undoable transaction.");
+      if (!state.issues.isEmpty()) {
+        ImGui.textColored(1, .4f, .35f, 1, "! " + state.issues.size() + " validation issue(s)");
+        for (var d : state.issues) ImGui.textWrapped(d.toString());
+      }
+      ImGui.separator();
+      if (state.draft instanceof Identity r) f.text("ID", r.id, v -> r.id = v);
+      if (state.draft instanceof Noise n) noise(n);
+      else if (state.draft instanceof Layer l) {
+        f.bool("Enabled", l.enabled, v -> l.enabled = v);
+        ImGui.textWrapped("Placements inherit every property below until explicitly overridden.");
+        settings(l.defaults);
+      } else if (state.draft instanceof Operation op) placement(op);
+      else if (state.draft instanceof VoxelType t) {
+        float[] rgb = {t.color.r / 255f, t.color.g / 255f, t.color.b / 255f};
+        if (ImGui.colorEdit3("Color", rgb)) {
+          t.color.r = Math.round(rgb[0] * 255);
+          t.color.g = Math.round(rgb[1] * 255);
+          t.color.b = Math.round(rgb[2] * 255);
+        }
+        ImGui.textWrapped(
+            "Palette edits affect appearance; semantic voxel identity remains the same.");
+      } else if (state.draft instanceof Membership m) {
+        for (var t : state.project().voxelTypes)
+          f.bool(
+              t.id,
+              m.voxelTypeUuids.contains(t.uuid),
+              v -> {
+                if (v) m.voxelTypeUuids.add(t.uuid);
+                else m.voxelTypeUuids.remove(t.uuid);
+              });
+      } else if (state.draft instanceof Folder folder) {
+        ImGui.text("Organizational folder: " + folder.rootKind);
+        ImGui.textWrapped(
+            "Folder placement never changes generation or adds resource inheritance.");
+      }
+    }
+    ImGui.end();
+    if (curve != null && curve.draw()) curve = null;
+  }
+
+  private void noise(Noise n) {
+    ImGui.text("Dimension: " + n.dimension + "D  |  Output: Scalar");
+    if (ImGui.collapsingHeader("Source", ImGuiTreeNodeFlags.DefaultOpen)) {
+      f.choice("Algorithm", n.algorithm.key, NoiseAlgorithms.KEYS, v -> n.algorithm.key = v);
+      longText("Seed offset", n.seedOffset, v -> n.seedOffset = v);
+      if (!Set.of("CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF").contains(n.algorithm.key)) {
+        algorithmNumber(n, "frequency", .01);
+        if (n.algorithm.key.equals("CELLULAR")) {
+          algorithmNumber(n, "cellularDistance", 1);
+          algorithmNumber(n, "cellularReturn", 1);
+          algorithmNumber(n, "jitter", 1);
+        }
+        algorithmNumber(n, "fractal", 0);
+        algorithmNumber(n, "octaves", 3);
+        algorithmNumber(n, "lacunarity", 2);
+        algorithmNumber(n, "gain", .5);
+      } else if (n.algorithm.key.equals("CONSTANT")) algorithmNumber(n, "value", 0);
+      else if (n.algorithm.key.equals("SPHERE_SDF")) algorithmNumber(n, "radius", 16);
+      else if (n.algorithm.key.equals("BOX_SDF")) {
+        for (String axis : List.of("X", "Y", "Z"))
+          if (!axis.equals("Y") || n.dimension == 3) algorithmNumber(n, "extent" + axis, 16);
+      }
+    }
+    if (ImGui.collapsingHeader("Coordinates & Transforms")) {
+      for (int i = 0; i < n.coordinateTransforms.size(); i++) {
+        var item = n.coordinateTransforms.get(i);
+        ImGui.pushID(item.uuid.toString());
+        if (ImGui.treeNode("[" + i + "] " + item.id + "  " + item.kind)) {
+          f.bool("Enabled", item.enabled, v -> item.enabled = v);
+          f.text("ID", item.id, v -> item.id = v);
+          if (item.kind.equals("ROTATE")) parameter(item, "angle", 0);
+          else if (item.kind.equals("DOMAIN_WARP")) {
+            parameter(item, "amplitude", 8);
+            parameter(item, "frequency", .01);
+            parameter(item, "seedOffset", 0);
+          } else
+            for (String axis : n.dimension == 2 ? List.of("x", "z") : List.of("x", "y", "z"))
+              parameter(item, axis, item.kind.equals("SCALE") ? 1 : 0);
+          itemActions(n.coordinateTransforms, i);
+          ImGui.treePop();
+        }
+        ImGui.popID();
+      }
+      if (ImGui.button("Add Transform")) ImGui.openPopup("transform-add");
+      if (ImGui.beginPopup("transform-add")) {
+        for (String k : List.of("TRANSLATE", "SCALE", "ROTATE", "DOMAIN_WARP"))
+          if (ImGui.menuItem(k)) {
+            var i = new Item();
+            i.kind = k;
+            i.resultType = n.dimension == 2 ? "Coordinates2D" : "Coordinates3D";
+            i.id = uniqueItem(n, k.toLowerCase(Locale.ROOT));
+            n.coordinateTransforms.add(i);
+          }
+        ImGui.endPopup();
+      }
+    }
+    if (ImGui.collapsingHeader("Ordered Processing", ImGuiTreeNodeFlags.DefaultOpen)) {
+      ImGui.textDisabled("Global evaluation order is shown in [brackets]");
+      for (int i = 0; i < n.processing.size(); i++) {
+        var item = n.processing.get(i);
+        ImGui.pushID(item.uuid.toString());
+        if (ImGui.treeNode(
+            "[" + i + "] " + item.id + "  " + item.kind + (item.enabled ? "" : " (disabled)"))) {
+          f.text("ID", item.id, v -> item.id = v);
+          f.bool("Enabled", item.enabled, v -> item.enabled = v);
+          ImGui.textDisabled(
+              ProcessingRegistry.ITEMS.containsKey(item.kind)
+                  ? ProcessingRegistry.ITEMS.get(item.kind).category()
+                  : "Unknown operation");
+          if (item.kind.equals("EXPRESSION")) {
+            f.choice(
+                "Result type",
+                item.resultType,
+                List.of("Scalar", "Boolean"),
+                v -> item.resultType = v);
+            String expr =
+                item.parameters.containsKey("expression")
+                    ? item.parameters.get("expression").asText()
+                    : "";
+            f.text(
+                "Expression",
+                expr,
+                v -> item.parameters.put("expression", ProjectIO.JSON.valueToTree(v)));
+          }
+          if (item.kind.equals("NORMALIZE"))
+            f.choice(
+                "Result type",
+                item.resultType,
+                List.of("Vector2", "Vector3"),
+                v -> item.resultType = v);
+          for (var e : new ArrayList<>(item.inputs.entrySet())) {
+            ImGui.pushID(e.getKey());
+            if (ImGui.treeNode("Input: " + e.getKey() + " [" + e.getValue().type + "]")) {
+              binding(n, item, i, e.getValue());
+              ImGui.treePop();
+            }
+            ImGui.popID();
+          }
+          if (item.kind.equals("EXPRESSION") && ImGui.button("Add Named Input")) {
+            String name = "input";
+            int count = 1;
+            while (item.inputs.containsKey(name)) name = "input" + (count++);
+            item.inputs.put(name, Binding.constant(0));
+          }
+          switch (item.kind) {
+            case "REMAP" -> {
+              parameter(item, "inputMin", -1);
+              parameter(item, "inputMax", 1);
+              parameter(item, "outputMin", 0);
+              parameter(item, "outputMax", 1);
+              f.bool(
+                  "Clamp output",
+                  item.parameters.containsKey("clamp") && item.parameters.get("clamp").asBoolean(),
+                  v -> item.parameters.put("clamp", ProjectIO.JSON.valueToTree(v)));
+            }
+            case "CLAMP" -> {
+              parameter(item, "min", 0);
+              parameter(item, "max", 1);
+            }
+            case "TERRACE" -> parameter(item, "levels", 8);
+            case "FALLOFF" -> parameter(item, "extent", 64);
+            case "CONSTANT" -> parameter(item, "value", 0);
+            case "SPHERE" -> parameter(item, "radius", 16);
+            case "BOX" -> {
+              parameter(item, "extentX", 16);
+              parameter(item, "extentY", 16);
+              parameter(item, "extentZ", 16);
+            }
+            case "SMOOTH_UNION" -> parameter(item, "smoothness", 1);
+            case "COMPONENT" -> parameter(item, "component", 0);
+            case "COORDINATE" -> {
+              String axis =
+                  item.parameters.containsKey("axis") ? item.parameters.get("axis").asText() : "x";
+              f.choice(
+                  "Axis",
+                  axis,
+                  n.dimension == 2 ? List.of("x", "z") : List.of("x", "y", "z"),
+                  v -> item.parameters.put("axis", ProjectIO.JSON.valueToTree(v)));
+            }
+            case "CURVE" -> {
+              if (ImGui.button("Edit Curve")) {
+                Curve c =
+                    item.parameters.containsKey("curve")
+                        ? ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class)
+                        : new Curve();
+                curve =
+                    new CurveDialog(
+                        c,
+                        applied ->
+                            item.parameters.put("curve", ProjectIO.JSON.valueToTree(applied)));
+              }
+            }
+            case "NOISE_REFERENCE",
+                "FBM",
+                "RIDGED",
+                "BILLOW",
+                "PING_PONG",
+                "OFFSET_SAMPLE",
+                "DERIVATIVE",
+                "SMOOTH_FILTER" -> {
+              UUID ref =
+                  item.parameters.containsKey("noiseGeneratorUuid")
+                      ? UUID.fromString(item.parameters.get("noiseGeneratorUuid").asText())
+                      : null;
+              noisePicker(
+                  "Sampled field (blank = source)",
+                  ref,
+                  u -> {
+                    if (u == null) item.parameters.remove("noiseGeneratorUuid");
+                    else
+                      item.parameters.put(
+                          "noiseGeneratorUuid", ProjectIO.JSON.valueToTree(u.toString()));
+                  });
+              if (Set.of("FBM", "RIDGED", "BILLOW", "PING_PONG").contains(item.kind)) {
+                parameter(item, "octaves", 4);
+                parameter(item, "lacunarity", 2);
+                parameter(item, "gain", .5);
+              }
+              if (item.kind.equals("OFFSET_SAMPLE")) {
+                parameter(item, "x", 0);
+                parameter(item, "y", 0);
+                parameter(item, "z", 0);
+              }
+              if (item.kind.equals("DERIVATIVE") || item.kind.equals("SMOOTH_FILTER"))
+                parameter(item, "spacing", 1);
+              if (item.kind.equals("SMOOTH_FILTER")) parameter(item, "radius", 1);
+            }
+            default -> {}
+          }
+          itemActions(n.processing, i);
+          ImGui.treePop();
+        }
+        ImGui.popID();
+      }
+      if (ImGui.button("Add Processing")) ImGui.openPopup("processing-add");
+      if (ImGui.beginPopup("processing-add")) {
+        for (var e : ProcessingRegistry.ITEMS.entrySet())
+          if (ImGui.menuItem(e.getKey() + " / " + e.getValue().category())) {
+            Item i =
+                ProcessingRegistry.create(
+                    e.getKey(), uniqueItem(n, e.getKey().toLowerCase(Locale.ROOT)));
+            n.processing.add(i);
+            if (i.resultType.equals("Scalar")) n.outputBinding = Binding.earlier(i.uuid);
+          }
+        ImGui.endPopup();
+      }
+    }
+    if (ImGui.collapsingHeader("Parameters")) {
+      for (var p : n.sharedParameters) {
+        ImGui.pushID(p.uuid.toString());
+        f.text("ID", p.id, v -> p.id = v);
+        ImGui.text(p.type);
+        constantEditor(p.type, p.value, v -> p.value = v);
+        if (ImGui.smallButton("Pin Control")) {
+          var pin = new Pin();
+          pin.targetUuid = p.uuid;
+          pin.label = p.id;
+          n.pinnedControls.add(pin);
+        }
+        ImGui.popID();
+      }
+      if (ImGui.button("Add Scalar Parameter")) {
+        var param = new Parameter();
+        param.id = "parameter-" + (n.sharedParameters.size() + 1);
+        param.value = ProjectIO.JSON.valueToTree(0);
+        n.sharedParameters.add(param);
+      }
+    }
+    if (!n.pinnedControls.isEmpty() && ImGui.collapsingHeader("Pinned Controls")) {
+      for (var pin : n.pinnedControls) {
+        var param =
+            n.sharedParameters.stream().filter(v -> v.uuid.equals(pin.targetUuid)).findFirst();
+        if (param.isPresent()) {
+          ImGui.text(pin.label);
+          constantEditor(param.get().type, param.get().value, v -> param.get().value = v);
+        }
+      }
+    }
+    if (ImGui.collapsingHeader("Output", ImGuiTreeNodeFlags.DefaultOpen)) {
+      String label =
+          n.outputBinding.sourceKind.equals("Source Result")
+              ? "Raw source"
+              : n.processing.stream()
+                  .filter(i -> i.uuid.equals(n.outputBinding.itemUuid))
+                  .map(i -> i.id)
+                  .findFirst()
+                  .orElse("Missing result");
+      if (ImGui.beginCombo("Scalar output", label)) {
+        if (ImGui.selectable("Raw source")) n.outputBinding = Binding.source();
+        for (var item : n.processing)
+          if (item.enabled && item.resultType.equals("Scalar") && ImGui.selectable(item.id))
+            n.outputBinding = Binding.earlier(item.uuid);
+        ImGui.endCombo();
+      }
+    }
+  }
+
+  private void algorithmNumber(Noise n, String key, double def) {
+    f.number(
+        key,
+        n.algorithm.parameters.getOrDefault(key, def),
+        v -> n.algorithm.parameters.put(key, v));
+  }
+
+  private void parameter(Item item, String key, double def) {
+    f.number(
+        key,
+        item.parameters.containsKey(key) ? item.parameters.get(key).asDouble() : def,
+        v -> item.parameters.put(key, ProjectIO.JSON.valueToTree(v)));
+  }
+
+  private String uniqueItem(Noise n, String base) {
+    var names = new ArrayList<String>();
+    n.processing.forEach(i -> names.add(i.id));
+    n.coordinateTransforms.forEach(i -> names.add(i.id));
+    return ResourceTransactions.unique(base, names);
+  }
+
+  private void itemActions(List<Item> list, int i) {
+    if (ImGui.smallButton("Up") && i > 0) Collections.swap(list, i, i - 1);
+    ImGui.sameLine();
+    if (ImGui.smallButton("Down") && i < list.size() - 1) Collections.swap(list, i, i + 1);
+    ImGui.sameLine();
+    if (ImGui.smallButton("Duplicate")) {
+      var copy = ResourceTransactions.duplicate(list.get(i), Item.class);
+      copy.id = ResourceTransactions.unique(copy.id, list.stream().map(x -> x.id).toList());
+      list.add(i + 1, copy);
+    }
+    ImGui.sameLine();
+    if (ImGui.smallButton("Delete")) list.remove(i);
+  }
+
+  private void binding(Noise n, Item item, int index, Binding b) {
+    f.choice(
+        "Type",
+        b.type,
+        List.of("Scalar", "Boolean", "Vector2", "Vector3", "Coordinates2D", "Coordinates3D"),
+        v -> {
+          b.type = v;
+          b.sourceKind = "Constant";
+          b.value =
+              ProjectIO.JSON.valueToTree(
+                  v.equals("Boolean")
+                      ? false
+                      : v.equals("Scalar")
+                          ? 0
+                          : v.endsWith("2") || v.endsWith("2D")
+                              ? new double[] {0, 0}
+                              : new double[] {0, 0, 0});
+        });
+    f.choice(
+        "Source",
+        b.sourceKind,
+        List.of(
+            "Constant",
+            "Shared Parameter",
+            "Ambient Value",
+            "Source Result",
+            "Earlier Result",
+            "Noise Generator Reference"),
+        v -> {
+          b.sourceKind = v;
+          if (v.equals("Constant") && b.value == null) b.value = ProjectIO.JSON.valueToTree(0);
+        });
+    switch (b.sourceKind) {
+      case "Constant" -> constantEditor(b.type, b.value, v -> b.value = v);
+      case "Shared Parameter" -> {
+        if (ImGui.beginCombo("Parameter", idFor(n.sharedParameters, b.parameterUuid))) {
+          for (var p : n.sharedParameters)
+            if (p.type.equals(b.type) && ImGui.selectable(p.id)) b.parameterUuid = p.uuid;
+          ImGui.endCombo();
+        }
+      }
+      case "Ambient Value" ->
+          f.choice(
+              "Ambient",
+              b.ambientKey == null ? "" : b.ambientKey,
+              new ArrayList<>(NoiseCompiler.AMBIENT),
+              v -> b.ambientKey = v);
+      case "Earlier Result" -> {
+        if (ImGui.beginCombo("Result", idFor(n.processing, b.itemUuid))) {
+          for (int i = 0; i < index; i++) {
+            var p = n.processing.get(i);
+            if (p.enabled && p.resultType.equals(b.type) && ImGui.selectable(p.id))
+              b.itemUuid = p.uuid;
+          }
+          ImGui.endCombo();
+        }
+      }
+      case "Noise Generator Reference" -> {
+        noisePicker("Resource", b.noiseGeneratorUuid, u -> b.noiseGeneratorUuid = u);
+        f.choice("Projection", b.projection, List.of("XZ", "XY", "YZ"), v -> b.projection = v);
+        f.number("Slice coordinate", b.slice, v -> b.slice = v);
+        if (b.noiseGeneratorUuid != null && ImGui.button("Open Referenced Noise Generator")) {
+          var obj = EditorState.find(state.project(), b.noiseGeneratorUuid);
+          if (obj instanceof Noise ref) state.select("noise" + ref.dimension + "D", ref.uuid);
+        }
+      }
+      default -> {}
+    }
+  }
+
+  private void constantEditor(String type, JsonNode value, Consumer<JsonNode> set) {
+    if (type.equals("Boolean"))
+      f.bool(
+          "Value",
+          value != null && value.asBoolean(),
+          v -> set.accept(ProjectIO.JSON.valueToTree(v)));
+    else if (type.equals("Scalar"))
+      f.number(
+          "Value",
+          value == null ? 0 : value.asDouble(),
+          v -> set.accept(ProjectIO.JSON.valueToTree(v)));
+    else {
+      int count = type.endsWith("2") || type.endsWith("2D") ? 2 : 3;
+      double[] vec = new double[count];
+      for (int i = 0; i < count; i++)
+        vec[i] = value != null && value.isArray() && value.size() > i ? value.get(i).asDouble() : 0;
+      for (int i = 0; i < count; i++) {
+        final int k = i;
+        f.number(
+            count == 2 ? (i == 0 ? "X" : "Z") : List.of("X", "Y", "Z").get(i),
+            vec[i],
+            v -> {
+              vec[k] = v;
+              set.accept(ProjectIO.JSON.valueToTree(vec));
+            });
+      }
+    }
+  }
+
+  private static String idFor(List<? extends Identity> list, UUID u) {
+    return list.stream()
+        .filter(p -> p.uuid.equals(u))
+        .map(p -> p.id)
+        .findFirst()
+        .orElse("Select...");
+  }
+
+  public void noisePicker(String label, UUID current, Consumer<UUID> set) {
+    var list = new ArrayList<Noise>();
+    list.addAll(state.project().noise2D);
+    list.addAll(state.project().noise3D);
+    if (ImGui.beginCombo(label, idFor(list, current))) {
+      if (ImGui.selectable("None")) set.accept(null);
+      for (var n : list) if (ImGui.selectable(n.id + " [" + n.dimension + "D]")) set.accept(n.uuid);
+      ImGui.endCombo();
+    }
+  }
+
+  private void placement(Operation op) {
+    f.bool("Enabled", op.enabled, v -> op.enabled = v);
+    noisePicker("Noise generator", op.noiseGeneratorUuid, v -> op.noiseGeneratorUuid = v);
+    f.choice(
+        "Interpretation",
+        op.interpretation,
+        List.of("HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY"),
+        v -> op.interpretation = v);
+    Layer layer = EditorState.layerFor(state.project(), op.uuid);
+    if (layer == null) return;
+    ImGui.text("Layer: " + layer.id);
+    if (ImGui.button("Go To Source") && op.noiseGeneratorUuid != null) {
+      var obj = EditorState.find(state.project(), op.noiseGeneratorUuid);
+      if (obj instanceof Noise n) state.select("noise" + n.dimension + "D", n.uuid);
+    }
+    ImGui.separator();
+    for (String key : SettingsResolver.PROPERTIES) {
+      ImGui.pushID(key);
+      boolean overridden = op.overrides.containsKey(key);
+      f.bool(
+          "Override " + key,
+          overridden,
+          v -> {
+            if (v) {
+              JsonNode node = ProjectIO.JSON.valueToTree(layer.defaults);
+              op.overrides.put(key, node.get(key).deepCopy());
+            } else op.overrides.remove(key);
+          });
+      Settings effective;
+      try {
+        effective = SettingsResolver.resolve(layer, op);
+      } catch (Exception e) {
+        ImGui.textWrapped(e.getMessage());
+        ImGui.popID();
+        continue;
+      }
+      ImGui.textDisabled(overridden ? "Placement override" : "Layer default (live)");
+      if (overridden) {
+        editSetting(effective, key);
+        JsonNode node = ProjectIO.JSON.valueToTree(effective);
+        op.overrides.put(key, node.get(key).deepCopy());
+        if (ImGui.smallButton("Reset to Layer Default")) op.overrides.remove(key);
+      } else {
+        JsonNode node = ProjectIO.JSON.valueToTree(effective);
+        ImGui.textWrapped(key + ": " + node.get(key));
+      }
+      ImGui.popID();
+    }
+  }
+
+  private void settings(Settings s) {
+    for (String key : SettingsResolver.PROPERTIES) {
+      ImGui.pushID(key);
+      editSetting(s, key);
+      ImGui.popID();
+    }
+  }
+
+  private void editSetting(Settings s, String key) {
+    try {
+      var field = Settings.class.getField(key);
+      if (field.getType() == double.class)
+        f.number(
+            key,
+            field.getDouble(s),
+            v -> {
+              try {
+                field.setDouble(s, v);
+              } catch (Exception e) {
+                throw new IllegalStateException(e);
+              }
+            });
+      else if (field.getType() == int.class)
+        f.integer(
+            key,
+            field.getInt(s),
+            v -> {
+              try {
+                field.setInt(s, v);
+              } catch (Exception e) {
+                throw new IllegalStateException(e);
+              }
+            });
+      else if (key.equals("seedOffset")) longText(key, s.seedOffset, v -> s.seedOffset = v);
+      else if (key.equals("action"))
+        f.choice(key, s.action, List.of("NO_CHANGE", "SET", "CLEAR"), v -> s.action = v);
+      else if (key.equals("rounding"))
+        f.choice(key, s.rounding, List.of("FLOOR", "CEIL", "ROUND"), v -> s.rounding = v);
+      else if (key.equals("voxelTypeUuid"))
+        typePicker(key, s.voxelTypeUuid, v -> s.voxelTypeUuid = v);
+      else if (key.equals("voxelStatePredicate")) {
+        if (ImGui.treeNode("Previous Voxel State")) {
+          predicate(s.voxelStatePredicate, 0);
+          ImGui.treePop();
+        }
+      } else if (key.equals("fieldGates")) {
+        if (ImGui.treeNode("Field Selection Gates")) {
+          gate(s.fieldGates, 0);
+          ImGui.treePop();
+        }
+      }
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private void typePicker(String label, UUID uuid, Consumer<UUID> set) {
+    if (ImGui.beginCombo(label, idFor(state.project().voxelTypes, uuid))) {
+      if (ImGui.selectable("None")) set.accept(null);
+      for (var t : state.project().voxelTypes) if (ImGui.selectable(t.id)) set.accept(t.uuid);
+      ImGui.endCombo();
+    }
+  }
+
+  private void predicate(Predicate p, int depth) {
+    if (depth > 16) {
+      ImGui.text("Maximum editor nesting reached");
+      return;
+    }
+    f.choice(
+        "Condition",
+        p.kind,
+        List.of(
+            "ANY",
+            "EMPTY",
+            "OCCUPIED",
+            "TYPE_IS",
+            "TYPE_IS_NOT",
+            "IN_SET",
+            "NOT_IN_SET",
+            "AND",
+            "OR"),
+        v -> p.kind = v);
+    if (p.kind.startsWith("TYPE_")) typePicker("Voxel type", p.reference, v -> p.reference = v);
+    else if (p.kind.equals("IN_SET") || p.kind.equals("NOT_IN_SET")) {
+      if (ImGui.beginCombo("Voxel set", idFor(state.project().voxelSets, p.reference))) {
+        for (var set : state.project().voxelSets)
+          if (ImGui.selectable(set.id)) p.reference = set.uuid;
+        ImGui.endCombo();
+      }
+    }
+    if (p.kind.equals("AND") || p.kind.equals("OR")) {
+      for (int i = 0; i < p.children.size(); i++) {
+        ImGui.pushID(i);
+        if (ImGui.treeNode("Clause " + (i + 1))) {
+          predicate(p.children.get(i), depth + 1);
+          if (ImGui.smallButton("Remove")) p.children.remove(i);
+          ImGui.treePop();
+        }
+        ImGui.popID();
+      }
+      if (ImGui.button("Add Clause")) p.children.add(new Predicate());
+    }
+  }
+
+  private void gate(Gate g, int depth) {
+    if (depth > 16) return;
+    f.choice(
+        "Gate", g.kind, List.of("ALWAYS", "COMPARE", "INTERVAL", "AND", "OR"), v -> g.kind = v);
+    if (g.kind.equals("COMPARE") || g.kind.equals("INTERVAL")) {
+      noisePicker("Field (none = placement)", g.noiseGeneratorUuid, v -> g.noiseGeneratorUuid = v);
+      f.choice(
+          "Comparison",
+          g.comparison,
+          List.of("GE", "GT", "LE", "LT", "EQ", "NE"),
+          v -> g.comparison = v);
+      f.number("Threshold / minimum", g.threshold, v -> g.threshold = v);
+      if (g.kind.equals("INTERVAL")) f.number("Maximum (inclusive)", g.max, v -> g.max = v);
+    }
+    if (g.kind.equals("AND") || g.kind.equals("OR")) {
+      for (int i = 0; i < g.children.size(); i++) {
+        ImGui.pushID(i);
+        if (ImGui.treeNode("Gate clause " + i)) {
+          gate(g.children.get(i), depth + 1);
+          if (ImGui.smallButton("Remove")) g.children.remove(i);
+          ImGui.treePop();
+        }
+        ImGui.popID();
+      }
+      if (ImGui.button("Add Gate")) g.children.add(new Gate());
+    }
+  }
+
+  private void longText(String label, long value, java.util.function.LongConsumer set) {
+    f.text(
+        label,
+        Long.toString(value),
+        v -> {
+          try {
+            set.accept(Long.parseLong(v));
+          } catch (NumberFormatException ignored) {
+          }
+        });
+  }
+}

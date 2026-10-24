@@ -1,0 +1,94 @@
+name: Build and native smoke
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: voxel-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25.0.5+8'
+      - name: Clean build and contracts
+        run: ./gradlew clean test build releaseJars
+      - name: Independent engine consumer
+        run: |
+          mkdir -p build/independent
+          javac -cp build/release/jars/noise-generator-engine.jar -d build/independent example-client/src/main/java/io/voxelcreator/example/*.java
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.Example build/independent/output
+      - name: Native editor smoke
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1-mesa-dri libxkbcommon0 libxrandr2 libxinerama1 libxcursor1 libxi6
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -Dvoxel.configDir="$PWD/build/smoke" -jar build/release/jars/ProceduralVoxelCreator.jar --smoke
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-evidence
+          path: |
+            **/build/test-results/
+            **/build/reports/tests/
+            build/smoke/
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25.0.5+8'
+      - name: Build and test
+        run: .\gradlew.bat clean test build releaseJars
+      - name: Independent engine consumer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build/independent | Out-Null
+          javac -cp build/release/jars/noise-generator-engine.jar -d build/independent (Get-ChildItem example-client/src/main/java/io/voxelcreator/example/*.java).FullName
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.Example build/independent/output
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Assemble runtime and software OpenGL
+        shell: pwsh
+        run: |
+          jlink --add-modules java.base,java.desktop,java.net.http,java.management,java.logging,jdk.unsupported --strip-debug --no-header-files --no-man-pages --output build/windows-runtime
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $archive = "$env:RUNNER_TEMP/mesa.7z"
+          Invoke-WebRequest 'https://github.com/pal1000/mesa-dist-win/releases/download/26.2.4/mesa3d-26.2.4-release-msvc.7z' -OutFile $archive
+          $expected = '351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695'
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'Mesa checksum mismatch' }
+          7z x $archive "-o$env:RUNNER_TEMP/mesa" -y | Out-Null
+          $driver = Get-ChildItem "$env:RUNNER_TEMP/mesa" -Recurse -Filter opengl32.dll | Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1
+          if (-not $driver) { throw 'Missing Mesa x64 OpenGL driver' }
+          Copy-Item "$($driver.DirectoryName)/*.dll" build/windows-runtime/bin/ -Force
+          New-Item -ItemType Directory -Force build/mesa-notices | Out-Null
+          Get-ChildItem "$env:RUNNER_TEMP/mesa" -Recurse -File | Where-Object { $_.Name -match 'license|copying|readme' } | Copy-Item -Destination build/mesa-notices -Force
+          "Mesa 26.2.4 release-msvc archive SHA256 $expected" | Out-File build/mesa-notices/INPUT.txt
+      - name: Bundled Windows desktop smoke
+        shell: pwsh
+        run: |
+          $env:GALLIUM_DRIVER = 'llvmpipe'
+          $env:LIBGL_ALWAYS_SOFTWARE = 'true'
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED "-Dvoxel.configDir=$PWD/build/smoke" -jar build/release/jars/ProceduralVoxelCreator.jar --smoke 2>&1 | Tee-Object build/windows-smoke.log
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path build/windows-smoke.log -Pattern 'THREE_ENGINE_VIEWPORTS_PASS')) { throw 'Viewport smoke did not complete' }
+      - name: Package development distribution
+        if: success()
+        run: python scripts/package_release.py --runtime build/windows-runtime --mesa-notices build/mesa-notices --output build/packages
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-development-build
+          path: |
+            build/packages/*
+            build/windows-smoke.log
+            build/smoke/
+            **/build/test-results/

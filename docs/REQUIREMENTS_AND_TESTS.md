@@ -1,0 +1,68 @@
+# Requirements and test evidence
+
+Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
+
+Local observed toolchain: Eclipse Temurin 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 23 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows smoke jobs are separate evidence, recorded by CI and screenshots; an unrun job is not a pass.
+
+| Acceptance | Status | Evidence / remaining scope |
+|---|---|---|
+| A01 empty startup | PARTIAL | Empty ProjectData defaults; normal GUI startup visual check remains |
+| A02 transactional open | PASS | EngineContractTest.transactionalLoadUndoAndAtomicSave |
+| A03 noise validation | PARTIAL | Enabled compiler validation and rejection tests; full control navigation remains |
+| A04 disabled drafts | PASS | EngineContractTest.rejectsCyclesBadBindingsAndAllowsDisabledDraft |
+| A05 save/transitions | PARTIAL | Atomic-save/document tests; all dirty dialog actions need GUI certification |
+| A06 UUID clipboard | PARTIAL | ResourceTransactions remaps internal identities; folder/multi-selection scenarios remain |
+| A07 import/export | PARTIAL | Dependency package + validated copy import; conflict policy breadth remains |
+| A08 undo/redo | PARTIAL | Document snapshot transactions tested; full gesture audit remains |
+| A09 noise families | PARTIAL | All adapters finite/repeatable; independent bit-vector matrix remains |
+| A10 manipulations | PARTIAL | Typed math/logic/vectors/remap/curves/sampling; complete registry and prefix semantics remain |
+| A11 canonical panel | PARTIAL | One definition and immutable compiler used by preview/API; pin/source navigation breadth remains |
+| A12 expression language | PASS | MathContractTest: every function, operators, precedence, types, short-circuiting, source spans, limits |
+| A13 curve editor | PARTIAL | Curve evaluator tests; complete tangent/multi-point GUI scenarios remain |
+| A14 voxel identities | PARTIAL | Registry/archive remapping tested; manager interactions remain |
+| A15 nested conditions | PARTIAL | Separate recursive evaluators; full predicate matrix still needed |
+| A16 inheritance/stages | PARTIAL | Three staged operations, zero override/live reset tests; complete operation inventory remains |
+| A17 coordinates/Y | PASS | EngineContractTest and StorageContractTest negative/inclusive/clipping cases |
+| A18 invariance | PARTIAL | Roots 2..256 traces, small-root chunks, sync/async/cache/seed tests; broader metamorphic matrix remains |
+| A19 adaptive storage | PASS | Dense random oracle, sparse 256³, uniform/coalescence and occupied iteration |
+| A20 255/256 | PASS | Sparse final local 255 plus RendererContractTest.meshBoundary256DoesNotWrap |
+| A21 archives | PASS | Semantic remap, coverage, random read, unresolved IDs, invalid index and aborted write |
+| A22 independent engine | PASS | External javac/java with engine JAR only; Example prints PASS |
+| A23 contexts | PASS | Context seed/cache isolation and independent closure test |
+| A24 cancellation | PARTIAL | Slow-consumer region cancellation tested; broader mid-stage cancellation stress remains |
+| A25 backpressure | PASS | Consumer future holds max-in-flight capacity; bounded scheduling assertion |
+| A26 failures/closure | PARTIAL | Delivery failures and context isolation tested; overload/generation failure stress remains |
+| A27 2D viewport | PARTIAL | Engine image sampling and modes implemented; tile cache/UI acceptance remains |
+| A28 3D viewport | PARTIAL | Threshold, marching tetrahedra, points, translucent points, Y slice; full volume/axes/streaming remains |
+| A29 world inspector | PARTIAL | Engine stage replay and links; stage preview UI/richer provenance remains |
+| A30 bookmarks | PARTIAL | Independent coordinate lists and navigation; rename/full gesture audit remains |
+| A31 rendering LOD | PENDING | Exact data separate from display; production LOD/fallback not implemented |
+| A32 appearance/workspace | PARTIAL | Theme/docking/scales/shortcuts persistence implemented; restart and DPI matrix remain |
+| A33 utilities | PARTIAL | Real Find/Validate/Logs/Help/metrics; full filters/navigation/profiling scope remains |
+| A34 desktop JAR | PENDING | Executable assembled; native platform smoke evidence required |
+| A35 Windows bundle | PENDING | Reproducible packaging workflow prepared; Windows runtime smoke must succeed |
+| A36 final delivery | PARTIAL | Source/build/tests/fixtures/docs/checksum packaging; full release gates remain |
+
+## Tree-to-test mapping
+
+| Principal trees | Tests / checks |
+|---|---|
+| 0–4, 20 | EngineContractTest transactional persistence, validation, IDs; document and schema review |
+| 5–8 | MathContractTest expression inventory, noise adapter repetition, curve policies, immutable compile |
+| 9–10 | EngineContractTest layered fixtures and explicit override resolution |
+| 11–12 | StorageContractTest coordinates, dense oracle, coalescence, sparse 256³ |
+| 13–14 | EngineContractTest async/contexts/backpressure; independent Example; StorageContractTest archives |
+| 15–16 | Native `--smoke` visits all tabs; RendererContractTest camera; remaining manual scenarios |
+| 17 | RendererContractTest greedy faces and vertex 256; full LOD/performance pending |
+| 18–19 | Editor service tests and native smoke; manual full UI routing pending |
+| 21–22 | `clean test build releaseJars`, external javac/java, platform smoke, deterministic package checks |
+
+## Reproducible GUI checks still required
+
+1. Normal launch: only protected roots; create noise, edit and Apply; reject invalid expression without changing the document.
+2. Save/Don't Save/Cancel across New/Open/Exit; failed save aborts transition; failed open retains document and dirty state.
+3. Create voxel types/sets, layer and repeated placements; override/reset settings; reorder actions and inspect exact EMPTY and occupied coordinates.
+4. Pan/zoom and all display modes; orbit/free-fly/Inspector focus; independent coordinate bookmarks across tabs.
+5. Copy/cut/folder moves, import dependency conflicts, Undo/Redo, rename/delete dependencies.
+6. Restart after theme/scale/layout/shortcut changes; verify preference changes never dirty project.
+7. Complete every outstanding requirement in DECISIONS.md, rerun the full A01–A36 list, then perform Windows 11 hardware certification before production release.

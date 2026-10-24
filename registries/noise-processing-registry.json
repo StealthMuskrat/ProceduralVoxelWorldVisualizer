@@ -1,0 +1,315 @@
+{
+  "operations" : {
+    "ADD" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "SUBTRACT" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "MULTIPLY" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "DIVIDE" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "POWER" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "MODULO" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "MIN" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "MAX" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "ABS" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "FLOOR" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "CEIL" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "ROUND" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "SIN" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "COS" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "TAN" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "SQRT" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "LOG" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "EXP" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "SIGN" : {
+      "category" : "Math",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "LESS" : {
+      "category" : "Logic & Selection",
+      "result" : "Boolean",
+      "inputs" : [ "a", "b" ]
+    },
+    "LESS_EQUAL" : {
+      "category" : "Logic & Selection",
+      "result" : "Boolean",
+      "inputs" : [ "a", "b" ]
+    },
+    "GREATER" : {
+      "category" : "Logic & Selection",
+      "result" : "Boolean",
+      "inputs" : [ "a", "b" ]
+    },
+    "GREATER_EQUAL" : {
+      "category" : "Logic & Selection",
+      "result" : "Boolean",
+      "inputs" : [ "a", "b" ]
+    },
+    "EQUAL" : {
+      "category" : "Logic & Selection",
+      "result" : "Boolean",
+      "inputs" : [ "a", "b" ]
+    },
+    "NOT_EQUAL" : {
+      "category" : "Logic & Selection",
+      "result" : "Boolean",
+      "inputs" : [ "a", "b" ]
+    },
+    "AND" : {
+      "category" : "Logic & Selection",
+      "result" : "Boolean",
+      "inputs" : [ "a", "b" ]
+    },
+    "OR" : {
+      "category" : "Logic & Selection",
+      "result" : "Boolean",
+      "inputs" : [ "a", "b" ]
+    },
+    "NOT" : {
+      "category" : "Logic & Selection",
+      "result" : "Boolean",
+      "inputs" : [ "a" ]
+    },
+    "SELECT" : {
+      "category" : "Logic & Selection",
+      "result" : "Scalar",
+      "inputs" : [ "condition", "true", "false" ]
+    },
+    "REMAP" : {
+      "category" : "Remapping & Curves",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "CURVE" : {
+      "category" : "Remapping & Curves",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "TERRACE" : {
+      "category" : "Remapping & Curves",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "FALLOFF" : {
+      "category" : "Remapping & Curves",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "CLAMP" : {
+      "category" : "Remapping & Curves",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "COMPOSE3" : {
+      "category" : "Vectors",
+      "result" : "Vector3",
+      "inputs" : [ "x", "y", "z" ]
+    },
+    "COMPOSE2" : {
+      "category" : "Vectors",
+      "result" : "Vector2",
+      "inputs" : [ "x", "z" ]
+    },
+    "DOT" : {
+      "category" : "Vectors",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "CROSS" : {
+      "category" : "Vectors",
+      "result" : "Vector3",
+      "inputs" : [ "a", "b" ]
+    },
+    "LENGTH" : {
+      "category" : "Vectors",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "COMPONENT" : {
+      "category" : "Vectors",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "NORMALIZE" : {
+      "category" : "Vectors",
+      "result" : "Vector3",
+      "inputs" : [ "a" ]
+    },
+    "REPLICATE3" : {
+      "category" : "Vectors",
+      "result" : "Vector3",
+      "inputs" : [ "a" ]
+    },
+    "BOOLEAN_TO_SCALAR" : {
+      "category" : "Vectors",
+      "result" : "Scalar",
+      "inputs" : [ "a" ]
+    },
+    "SCALAR_TO_BOOLEAN" : {
+      "category" : "Vectors",
+      "result" : "Boolean",
+      "inputs" : [ "a" ]
+    },
+    "CONSTANT" : {
+      "category" : "Random & Utility",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "COORDINATE_HASH" : {
+      "category" : "Random & Utility",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "COORDINATE" : {
+      "category" : "Random & Utility",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "EXPRESSION" : {
+      "category" : "Expression",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "NOISE_REFERENCE" : {
+      "category" : "Noise Generators",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "FBM" : {
+      "category" : "Noise Generators",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "RIDGED" : {
+      "category" : "Noise Generators",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "BILLOW" : {
+      "category" : "Noise Generators",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "PING_PONG" : {
+      "category" : "Noise Generators",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "OFFSET_SAMPLE" : {
+      "category" : "Sampling & Filters",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "DERIVATIVE" : {
+      "category" : "Sampling & Filters",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "SMOOTH_FILTER" : {
+      "category" : "Sampling & Filters",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "SPHERE" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "BOX" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "UNION" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "INTERSECTION" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "SUBTRACTION" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "SMOOTH_UNION" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    }
+  },
+  "registryVersion" : 1
+}

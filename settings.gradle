@@ -1,0 +1,2 @@
+rootProject.name = 'ProceduralVoxelCreator'
+include 'project-model', 'engine-core', 'voxel-storage', 'engine-api', 'editor-render', 'editor-ui', 'example-client', 'desktop-package'

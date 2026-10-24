@@ -1,0 +1,41 @@
+allprojects { group = 'io.voxelcreator'; version = '0.1.0'; repositories { mavenCentral() } }
+subprojects {
+ apply plugin: 'java-library'
+ java { toolchain { languageVersion = JavaLanguageVersion.of(25) }; withSourcesJar() }
+ tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.compilerArgs += ['-Xlint:unchecked'] }
+ tasks.withType(AbstractArchiveTask).configureEach { preserveFileTimestamps = false; reproducibleFileOrder = true }
+ dependencies { testImplementation platform('org.junit:junit-bom:5.11.4'); testImplementation 'org.junit.jupiter:junit-jupiter'; testRuntimeOnly 'org.junit.platform:junit-platform-launcher' }
+ test { useJUnitPlatform(); maxHeapSize = '1g'; testLogging { events 'failed', 'skipped' } }
+}
+project(':project-model') { dependencies { api 'com.fasterxml.jackson.core:jackson-databind:2.18.3' } }
+project(':engine-core') { dependencies { api project(':project-model') } }
+project(':voxel-storage') { dependencies { api project(':project-model') } }
+project(':engine-api') { dependencies { api project(':engine-core'); api project(':voxel-storage') } }
+project(':editor-render') { dependencies { api project(':engine-api'); api 'org.joml:joml:1.10.8'; api enforcedPlatform('org.lwjgl:lwjgl-bom:3.4.1'); api 'org.lwjgl:lwjgl:3.4.1'; api 'org.lwjgl:lwjgl-opengl:3.4.1'; api 'org.lwjgl:lwjgl-stb:3.4.1'; runtimeOnly 'org.lwjgl:lwjgl-stb:3.4.1:natives-linux'; runtimeOnly 'org.lwjgl:lwjgl-stb:3.4.1:natives-windows' } }
+project(':editor-ui') {
+ apply plugin: 'application'
+ application { mainClass = 'io.voxelcreator.editor.Desktop' }
+ dependencies { implementation project(':editor-render'); implementation 'io.github.spair:imgui-java-app:1.89.0' }
+ tasks.register('fatJar', Jar) {
+  archiveFileName = 'ProceduralVoxelCreator.jar'
+  manifest { attributes 'Main-Class': application.mainClass.get(), 'Multi-Release': 'true', 'Enable-Native-Access': 'ALL-UNNAMED' }
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  from sourceSets.main.output
+  dependsOn configurations.runtimeClasspath
+  from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+  exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class', 'META-INF/versions/**/module-info.class'
+ }
+}
+project(':example-client') { apply plugin: 'application'; application { mainClass = 'io.voxelcreator.example.Example' }; dependencies { implementation project(':engine-api') } }
+project(':desktop-package') { dependencies { implementation project(':editor-ui') } }
+tasks.register('engineJar', Jar) {
+ archiveFileName = 'noise-generator-engine.jar'
+ manifest { attributes 'Multi-Release': 'true' }
+ destinationDirectory = layout.buildDirectory.dir('release/jars')
+ duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+ dependsOn ':engine-api:classes', ':project-model:jar', ':engine-core:jar', ':voxel-storage:jar'
+ from { project(':engine-api').configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+ from project(':engine-api').sourceSets.main.output
+ exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class', 'META-INF/versions/**/module-info.class'
+}
+tasks.register('releaseJars', Copy) { dependsOn 'engineJar', ':editor-ui:fatJar'; from project(':editor-ui').tasks.named('fatJar'); into layout.buildDirectory.dir('release/jars') }
