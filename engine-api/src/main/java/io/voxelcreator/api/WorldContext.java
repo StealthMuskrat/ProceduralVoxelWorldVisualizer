@@ -22,6 +22,19 @@ public final class WorldContext implements AutoCloseable {
   private long bytes = 0, hits = 0, misses = 0;
   private final Set<CompletableFuture<VoxelChunk>> futures = ConcurrentHashMap.newKeySet();
   private final Set<StreamingTask> regions = ConcurrentHashMap.newKeySet();
+  private final AtomicInteger activeRegions = new AtomicInteger();
+  private final Map<ChunkPos, SharedGeneration> inFlight = new HashMap<>();
+  private final AtomicLong sharedRequests = new AtomicLong();
+
+  public long sharedRequests() {
+    return sharedRequests.get();
+  }
+
+  public int inFlightChunks() {
+    synchronized (inFlight) {
+      return inFlight.size();
+    }
+  }
 
   WorldContext(NoiseGeneratorEngine e, CompiledProject p, WorldOptions o) {
     engine = e;
@@ -43,10 +56,15 @@ public final class WorldContext implements AutoCloseable {
   }
 
   public VoxelChunk generateChunk(ChunkPos pos) {
-    return generate(pos, new CancellationToken());
+    try {
+      return request(pos, new CancellationToken(), false).join();
+    } catch (CompletionException failure) {
+      if (failure.getCause() instanceof RuntimeException runtime) throw runtime;
+      throw failure;
+    }
   }
 
-  private VoxelChunk generate(ChunkPos pos, CancellationToken token) {
+  private VoxelChunk generateUnshared(ChunkPos pos, CancellationToken token) {
     check();
     token.throwIfCancelled();
     synchronized (cache) {
@@ -96,30 +114,137 @@ public final class WorldContext implements AutoCloseable {
   }
 
   public CompletableFuture<VoxelChunk> generateChunkAsync(ChunkPos pos) {
-    return generateChunkAsync(pos, new CancellationToken());
+    return request(pos, new CancellationToken(), true);
   }
 
   public CompletableFuture<VoxelChunk> generateChunkAsync(ChunkPos pos, CancellationToken token) {
-    check();
-    Objects.requireNonNull(token);
-    var future = new CompletableFuture<VoxelChunk>();
-    futures.add(future);
-    future.whenComplete((v, e) -> futures.remove(future));
-    try {
-      engine.workers.execute(
-          () -> {
-            if (future.isDone()) return;
-            try {
-              future.complete(generate(pos, token));
-            } catch (Throwable e) {
-              future.completeExceptionally(e);
-            }
-          });
-    } catch (RejectedExecutionException e) {
-      future.completeExceptionally(e);
-      engine.report("QUEUE_OVERLOAD", e.getMessage());
+    return request(pos, token, true);
+  }
+
+  private void position(ChunkPos pos) {
+    Objects.requireNonNull(pos);
+    for (int axis : new int[] {pos.x(), pos.y(), pos.z()}) {
+      long origin = (long) axis * chunkSize();
+      if (origin < Integer.MIN_VALUE || origin + chunkSize() - 1 > Integer.MAX_VALUE)
+        throw new IllegalArgumentException(
+            "COORDINATE_RANGE: chunk extends outside signed 32-bit block coordinates");
     }
-    return future;
+  }
+
+  private CompletableFuture<VoxelChunk> request(
+      ChunkPos pos, CancellationToken token, boolean async) {
+    check();
+    position(pos);
+    Objects.requireNonNull(token);
+    try {
+      token.throwIfCancelled();
+    } catch (CancellationException cancelled) {
+      if (async) return CompletableFuture.failedFuture(cancelled);
+      throw cancelled;
+    }
+    synchronized (cache) {
+      var found = cache.get(pos);
+      if (found != null) {
+        hits++;
+        return CompletableFuture.completedFuture(found);
+      }
+    }
+    var waiter = new Waiter(token);
+    SharedGeneration flight;
+    boolean leader = false;
+    synchronized (inFlight) {
+      if (futures.size() >= 8192)
+        throw new RejectedExecutionException("Too many pending chunk subscribers");
+      flight = inFlight.get(pos);
+      if (flight == null) {
+        flight = new SharedGeneration(pos);
+        inFlight.put(pos, flight);
+        leader = true;
+      } else sharedRequests.incrementAndGet();
+      flight.waiters.add(waiter);
+      futures.add(waiter.future);
+    }
+    SharedGeneration owner = flight;
+    waiter.future.whenComplete(
+        (v, error) -> {
+          futures.remove(waiter.future);
+          synchronized (inFlight) {
+            owner.waiters.remove(waiter);
+            if (owner.waiters.isEmpty() && !owner.started.get()) {
+              inFlight.remove(pos, owner);
+              engine.workers.remove(owner);
+            }
+          }
+        });
+    if (leader && async) {
+      try {
+        engine.workers.execute(flight);
+      } catch (RejectedExecutionException rejected) {
+        flight.fail(rejected);
+        engine.report("QUEUE_OVERLOAD", rejected.getMessage());
+      }
+    } else if (!async) {
+      engine.workers.remove(flight);
+      flight.run();
+    }
+    if (closed.get())
+      waiter.future.completeExceptionally(new CancellationException("World context closed"));
+    return waiter.future;
+  }
+
+  private static final class Waiter {
+    final CancellationToken token;
+    final CompletableFuture<VoxelChunk> future = new CompletableFuture<>();
+
+    Waiter(CancellationToken token) {
+      this.token = token;
+    }
+  }
+
+  private final class SharedGeneration implements Runnable {
+    final ChunkPos position;
+    final List<Waiter> waiters = new ArrayList<>();
+    final AtomicBoolean started = new AtomicBoolean();
+
+    SharedGeneration(ChunkPos position) {
+      this.position = position;
+    }
+
+    boolean abandoned() {
+      synchronized (inFlight) {
+        return closed.get()
+            || waiters.stream().noneMatch(w -> !w.future.isDone() && !w.token.isCancelled());
+      }
+    }
+
+    public void run() {
+      if (!started.compareAndSet(false, true)) return;
+      try {
+        var result = generateUnshared(position, new CancellationToken(this::abandoned));
+        finish(result, null);
+      } catch (Throwable failure) {
+        finish(null, failure);
+      }
+    }
+
+    void fail(Throwable failure) {
+      if (started.compareAndSet(false, true)) finish(null, failure);
+    }
+
+    void finish(VoxelChunk result, Throwable failure) {
+      List<Waiter> subscribers;
+      synchronized (inFlight) {
+        inFlight.remove(position, this);
+        subscribers = List.copyOf(waiters);
+        waiters.clear();
+      }
+      for (var waiter : subscribers) {
+        if (closed.get() || waiter.token.isCancelled())
+          waiter.future.completeExceptionally(new CancellationException("Chunk request cancelled"));
+        else if (failure != null) waiter.future.completeExceptionally(failure);
+        else waiter.future.complete(result);
+      }
+    }
   }
 
   public int getVoxelTypeId(BlockPos p) {
@@ -155,6 +280,7 @@ public final class WorldContext implements AutoCloseable {
     check();
     Objects.requireNonNull(token);
     plan.stage(stage);
+    position(position);
     long reserved = Math.multiplyExact(2, plan.stagingEstimate(chunkSize()));
     if (!engine.reserveStaging(reserved))
       throw new RejectedExecutionException("Stage preview memory budget reached");
@@ -218,9 +344,17 @@ public final class WorldContext implements AutoCloseable {
   public RegionTask streamRegion(RegionRequest request, ChunkConsumer consumer) {
     check();
     Objects.requireNonNull(consumer);
-    if (regions.size() >= 16)
+    if (activeRegions.incrementAndGet() > 16) {
+      activeRegions.decrementAndGet();
       throw new RejectedExecutionException("Too many active region streams");
-    var task = new StreamingTask(request, consumer);
+    }
+    StreamingTask task;
+    try {
+      task = new StreamingTask(request, consumer);
+    } catch (RuntimeException failure) {
+      activeRegions.decrementAndGet();
+      throw failure;
+    }
     regions.add(task);
     Thread.ofVirtual().name("voxel-region-coordinator").start(task::run);
     return task;
@@ -234,20 +368,34 @@ public final class WorldContext implements AutoCloseable {
             .clipY(compiled.minY(), compiled.maxY())
             .map(r -> r.chunkCount(chunkSize()))
             .orElse(0L);
-    long worst = Math.multiplyExact(count, 128L + 5L * chunkSize() * chunkSize() * chunkSize());
-    if (worst > engine.memoryBudget / 2)
+    long worst;
+    try {
+      worst = Math.multiplyExact(count, 128L + 5L * chunkSize() * chunkSize() * chunkSize());
+    } catch (ArithmeticException overflow) {
       throw new RejectedExecutionException(
-          "Collected region exceeds memory budget; use streamRegion");
-    var chunks = new ArrayList<VoxelChunk>();
-    var task =
-        streamRegion(
-            request,
-            c -> {
-              chunks.add(c);
-              return CompletableFuture.completedFuture(null);
-            });
-    var summary = task.completion().join();
-    return new RegionResult(List.copyOf(chunks), summary);
+          "REGION_TOO_LARGE: collection estimate exceeds signed 64-bit capacity");
+    }
+    if (!engine.reserveCollection(worst))
+      throw new RejectedExecutionException(
+          "Collected regions exceed shared memory budget; use streamRegion");
+    boolean transferred = false;
+    try {
+      var chunks = new ArrayList<VoxelChunk>();
+      var task =
+          streamRegion(
+              request,
+              c -> {
+                chunks.add(c);
+                return CompletableFuture.completedFuture(null);
+              });
+      var summary = task.completion().join();
+      var counter = engine.collectionBytes;
+      var result = new RegionResult(List.copyOf(chunks), summary, () -> counter.addAndGet(-worst));
+      transferred = true;
+      return result;
+    } finally {
+      if (!transferred) engine.collectionBytes.addAndGet(-worst);
+    }
   }
 
   public CompletableFuture<RegionResult> collectRegionAsync(RegionRequest request) {
@@ -257,7 +405,8 @@ public final class WorldContext implements AutoCloseable {
         .start(
             () -> {
               try {
-                future.complete(collectRegion(request));
+                var result = collectRegion(request);
+                if (!future.complete(result)) result.close();
               } catch (Throwable e) {
                 future.completeExceptionally(e);
               }
@@ -399,6 +548,7 @@ public final class WorldContext implements AutoCloseable {
         token.cancel();
         for (var p : pending) p.future.cancel(false);
         regions.remove(this);
+        activeRegions.decrementAndGet();
       }
     }
 

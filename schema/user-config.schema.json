@@ -83,6 +83,51 @@
           "minimum" : -2147483648,
           "maximum" : 2147483647
         },
+        "sceneCpuMiB" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "sceneGpuMiB" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "uploadKiB" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "renderDistance" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "verticalDistance" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "lodStart" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "lodQuality" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "streamChunks" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "engineMiB" : {
+          "type" : "integer",
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
         "profiler" : {
           "type" : "boolean"
         },
@@ -96,7 +141,7 @@
           }
         }
       },
-      "required" : [ "workers", "maxPreviewDimension", "previewCellBudget", "cacheMiB", "profiler", "updateEndpoint", "trustedOrigins" ]
+      "required" : [ "workers", "maxPreviewDimension", "previewCellBudget", "cacheMiB", "sceneCpuMiB", "sceneGpuMiB", "uploadKiB", "renderDistance", "verticalDistance", "lodStart", "lodQuality", "streamChunks", "engineMiB", "profiler", "updateEndpoint", "trustedOrigins" ]
     },
     "UserConfig" : {
       "type" : "object",
@@ -136,6 +181,18 @@
         "unlit" : {
           "type" : "boolean"
         },
+        "streaming" : {
+          "type" : "boolean"
+        },
+        "ambientOcclusion" : {
+          "type" : "boolean"
+        },
+        "fog" : {
+          "type" : "boolean"
+        },
+        "indirectDrawing" : {
+          "type" : "boolean"
+        },
         "noise2DMode" : {
           "type" : "string"
         },
@@ -148,7 +205,7 @@
           "maximum" : 2147483647
         }
       },
-      "required" : [ "grid", "unlit", "noise2DMode", "threshold", "previewSize" ]
+      "required" : [ "grid", "unlit", "streaming", "ambientOcclusion", "fog", "indirectDrawing", "noise2DMode", "threshold", "previewSize" ]
     },
     "Workspace" : {
       "type" : "object",

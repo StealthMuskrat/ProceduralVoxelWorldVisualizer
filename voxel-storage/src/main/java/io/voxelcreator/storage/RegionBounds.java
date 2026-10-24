@@ -16,10 +16,16 @@ public record RegionBounds(BlockPos min, BlockPos max) {
   }
 
   public long chunkCount(int size) {
+    VoxelChunk.validateSize(size);
     long x = (long) Math.floorDiv(max.x(), size) - Math.floorDiv(min.x(), size) + 1,
         y = (long) Math.floorDiv(max.y(), size) - Math.floorDiv(min.y(), size) + 1,
         z = (long) Math.floorDiv(max.z(), size) - Math.floorDiv(min.z(), size) + 1;
-    return Math.multiplyExact(Math.multiplyExact(x, y), z);
+    try {
+      return Math.multiplyExact(Math.multiplyExact(x, y), z);
+    } catch (ArithmeticException overflow) {
+      throw new IllegalArgumentException(
+          "REGION_TOO_LARGE: chunk count exceeds signed 64-bit capacity", overflow);
+    }
   }
 
   public boolean contains(BlockPos p) {

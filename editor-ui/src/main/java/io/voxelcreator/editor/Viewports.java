@@ -40,7 +40,21 @@ public final class Viewports implements AutoCloseable {
     final int kind;
     final GlViewport gl = new GlViewport();
     final Camera camera = new Camera();
-    UUID noise, stage;
+    UUID noise, stage, keyNoise;
+    long keyRevision = -1, rebuildSerial = 0, compileId = 0;
+    String geometryKey = "",
+        fingerprint = "",
+        requestedKey = "",
+        activeSceneKey = "",
+        failedKey = "";
+    ChunkScene scene;
+    final RenderPressure pressure = new RenderPressure();
+    Future<?> compiler;
+    final AtomicReference<SceneSetup> setup = new AtomicReference<>();
+    int gpuBudget;
+    boolean streamingObserved;
+    double frameMillis = 16;
+
     String stageMode = "Final";
     String mode;
     double panX = 0, panZ = 0, panY = 16, step = 1, threshold = 0;
@@ -62,12 +76,53 @@ public final class Viewports implements AutoCloseable {
     int[] colors;
     float[] histogram = new float[64];
     UUID selectedBookmark;
-    boolean image = false, completed = false;
+    boolean image = false, completed = false, failedPreview = false;
 
     View(int k) {
       kind = k;
       mode = k == 0 ? "Grayscale" : "Threshold Voxels";
     }
+  }
+
+  private record SceneSetup(
+      long id, String key, ChunkScene.Source source, int[] palette, String error) {}
+
+  public record StreamingStatistics(
+      long cpuBytes,
+      long reserved,
+      long gpuBytes,
+      long uploadedBytes,
+      int chunks,
+      int jobs,
+      int visible,
+      int culled,
+      int drawCalls,
+      boolean indirect) {}
+
+  public StreamingStatistics streamingStatistics() {
+    long cpu = 0, reserved = 0, gpu = 0, uploads = 0;
+    int chunks = 0, jobs = 0, visible = 0, culled = 0, draws = 0;
+    boolean indirect = false;
+    for (var v : views) {
+      if (v.scene != null) {
+        var s = v.scene.statistics();
+        cpu += s.cpuBytes();
+        reserved += s.reserved();
+        chunks += s.resident();
+        jobs += s.activeJobs();
+      }
+      if (v.gl.sceneRenderer() != null) {
+        var g = v.gl.sceneRenderer().statistics();
+        gpu += g.gpuBytes();
+        uploads += g.uploadedBytes();
+        visible += g.visible();
+        culled += g.culled();
+        draws += g.draws();
+        indirect |= g.indirect();
+      }
+    }
+    return new StreamingStatistics(
+        cpu, reserved, gpu, uploads, chunks, jobs, visible, culled, draws, indirect);
   }
 
   private record Preview(
@@ -133,6 +188,11 @@ public final class Viewports implements AutoCloseable {
           "Missing volume/slice smoke modes " + views[1].completedModes);
     if (!views[2].completedModes.containsAll(Set.of("Final", "Before", "After", "Only Changes")))
       throw new IllegalStateException("Missing stage modes " + views[2].completedModes);
+    if (!views[2].streamingObserved
+        || views[2].scene == null
+        || views[2].scene.statistics().generated() < 2)
+      throw new IllegalStateException("Incremental world streaming did not complete");
+    System.out.println("CAMERA_DRIVEN_STREAMING_PASS " + streamingStatistics());
     properties.assertSmokeCurveRendered();
     System.out.println("EXACT_WORLD_STAGE_PREVIEWS_PASS");
     System.out.println("THREE_ENGINE_VIEWPORTS_PASS");
@@ -140,6 +200,8 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void smokeSelections() {
+    views[1].fixed = true;
+    views[2].fixed = true;
     if (!state.project().noise2D.isEmpty())
       views[0].noise = state.project().noise2D.getFirst().uuid;
     if (!state.project().noise3D.isEmpty())
@@ -147,6 +209,12 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void smokePhase(int frame) {
+    if (frame == 360) {
+      views[2].fixed = false;
+      mark(views[2]);
+    }
+    if (frame == 420) views[2].camera.focus.x += 64;
+    if (frame == 445) views[2].camera.focus.z -= 64;
     if (frame == 30) properties.smokeCurve(true);
     if (frame == 90) properties.smokeCurve(false);
     if (frame == 240 || frame == 275 || frame == 300 || frame == 325) {
@@ -180,10 +248,13 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void drawView(View v) {
-    if (v.revision != state.revision) {
-      v.revision = state.revision;
+    String identity = fingerprint(v);
+    if (!identity.equals(v.geometryKey)) {
+      v.geometryKey = identity;
       mark(v);
-    }
+    } else if (v.revision != state.revision && v.kind == 2)
+      v.gl.setPalette(palette(state.project(), 2));
+    v.revision = state.revision;
     if (v.kind < 2) {
       List<Noise> list = v.kind == 0 ? state.project().noise2D : state.project().noise3D;
       String label =
@@ -204,6 +275,7 @@ public final class Viewports implements AutoCloseable {
     if (ImGui.button("Regenerate")) {
       paused = false;
       v.force = true;
+      v.rebuildSerial++;
       mark(v);
     }
     ImGui.sameLine();
@@ -373,11 +445,15 @@ public final class Viewports implements AutoCloseable {
       ImGui.sameLine();
       ImGui.textDisabled("Read-only procedural world");
     }
+    boolean streaming = wantsStreaming(v);
+    if (streaming) streaming = stream(v);
+    else stopStream(v);
     Preview ready = v.ready.getAndSet(null);
-    if (ready != null && ready.epoch == v.epoch) {
+    if (ready != null && ready.epoch == v.epoch && !streaming) {
       v.activeJob = false;
       if (ready.error != null) {
         v.message = "Failed; previous display retained";
+        v.failedPreview = true;
         state.notify("Error", ready.error);
       } else {
         if (ready.image != null) {
@@ -408,6 +484,8 @@ public final class Viewports implements AutoCloseable {
     }
     boolean source = v.kind == 2 || v.noise != null;
     if (source
+        && !streaming
+        && (!v.failedPreview || v.force)
         && v.dirty
         && !v.activeJob
         && !paused
@@ -476,6 +554,7 @@ public final class Viewports implements AutoCloseable {
       if (ImGui.menuItem("Add Bookmark")) openBookmark(v);
       if (ImGui.menuItem("Regenerate")) {
         v.force = true;
+        v.rebuildSerial++;
         mark(v);
       }
       ImGui.endPopup();
@@ -612,9 +691,255 @@ public final class Viewports implements AutoCloseable {
         v.panY = cy;
         v.panX = cx;
         v.panZ = cz;
-        mark(v);
+        if (!wantsStreaming(v)) mark(v);
       }
     }
+  }
+
+  private String fingerprint(View v) {
+    if (v.keyRevision != state.revision || !Objects.equals(v.keyNoise, v.noise)) {
+      v.fingerprint = PreviewIdentity.of(state.project(), v.kind, v.noise);
+      v.keyRevision = state.revision;
+      v.keyNoise = v.noise;
+    }
+    return v.fingerprint;
+  }
+
+  private boolean wantsStreaming(View v) {
+    return state.user.visualization.streaming
+        && !v.fixed
+        && (v.kind == 2
+            || v.kind == 1 && (v.mode.equals("Threshold Voxels") || v.mode.equals("Point Cloud")));
+  }
+
+  private ChunkScene.Config sceneConfig(View v, boolean points) {
+    var p = state.user.performance;
+    return new ChunkScene.Config(
+        32,
+        p.renderDistance,
+        p.verticalDistance,
+        p.lodStart,
+        p.lodQuality,
+        Math.min(2, p.workers),
+        (long) p.sceneCpuMiB << 20,
+        points,
+        p.streamChunks);
+  }
+
+  private String sceneKey(View v) {
+    return fingerprint(v)
+        + "|"
+        + v.noise
+        + "|"
+        + v.mode
+        + "|"
+        + v.threshold
+        + "|"
+        + v.stageMode
+        + "|"
+        + v.stage
+        + "|"
+        + v.rebuildSerial;
+  }
+
+  private void stopStream(View v) {
+    if (v.compiler != null) {
+      v.compileId++;
+      v.compiler.cancel(true);
+      v.compiler = null;
+    }
+    var setup = v.setup.getAndSet(null);
+    if (setup != null && setup.source != null) setup.source.close();
+    if (v.scene != null) {
+      v.scene.close();
+      v.scene = null;
+    }
+    v.requestedKey = "";
+  }
+
+  private boolean stream(View v) {
+    if (v.kind == 1 && v.noise == null) return true;
+    String key = sceneKey(v);
+    if (key.equals(v.failedKey)) return false;
+    long now = System.nanoTime();
+    if ((v.scene == null || !v.activeSceneKey.equals(key))
+        && !v.requestedKey.equals(key)
+        && (state.user.editor.autoRegenerate || v.force || v.lastSubmit == 0)
+        && now - v.lastSubmit > 1_000_000_000L / state.user.editor.opportunitiesPerSecond) {
+      if (v.pressure.acceptExpensive() && !v.pressure.paused()) {
+        if (v.compiler != null) v.compiler.cancel(true);
+        long id = ++v.compileId;
+        var snapshot = ProjectIO.copy(state.project());
+        int kind = v.kind;
+        UUID noise = v.noise, stage = v.stage;
+        double threshold = v.threshold;
+        String mode = v.stageMode;
+        v.requestedKey = key;
+        v.lastSubmit = now;
+        try {
+          v.compiler =
+              state.background.submit(
+                  () -> {
+                    SceneSetup result;
+                    try {
+                      var source =
+                          PreviewSources.create(
+                              snapshot, state.engine, kind, noise, threshold, mode, stage);
+                      result = new SceneSetup(id, key, source, palette(snapshot, kind), null);
+                    } catch (Throwable failure) {
+                      result =
+                          new SceneSetup(id, key, null, null, String.valueOf(failure.getMessage()));
+                    }
+                    SceneSetup ready = result;
+                    state.uiQueue.offer(
+                        () -> {
+                          if (id != v.compileId) {
+                            if (ready.source != null) ready.source.close();
+                            return;
+                          }
+                          var old = v.setup.getAndSet(ready);
+                          if (old != null && old.source != null) old.source.close();
+                        });
+                  });
+          v.message = "Compiling streaming source...";
+        } catch (RejectedExecutionException full) {
+          v.requestedKey = "";
+          v.message = "Background queue full; retrying when capacity returns";
+        }
+      } else v.message = v.pressure.message();
+    }
+    SceneSetup setup = v.setup.getAndSet(null);
+    if (setup != null) {
+      v.compiler = null;
+      if (!setup.key.equals(key)) {
+        if (setup.source != null) setup.source.close();
+        v.requestedKey = "";
+      } else if (setup.error != null) {
+        v.failedKey = key;
+        v.requestedKey = "";
+        v.dirty = true;
+        state.notify("Error", "Streaming source failed: " + setup.error);
+        return false;
+      } else {
+        if (v.scene != null) v.scene.close();
+        v.scene =
+            new ChunkScene(
+                setup.source,
+                state.background,
+                sceneConfig(v, v.mode.equals("Point Cloud")),
+                v.pressure);
+        v.activeSceneKey = key;
+        v.requestedKey = "";
+        v.force = false;
+        v.dirty = false;
+        v.completed = false;
+        try {
+          v.gl.scene(v.scene.epoch(), state.user.performance.sceneGpuMiB << 20);
+          v.gpuBudget = state.user.performance.sceneGpuMiB;
+          v.gl.setPalette(setup.palette);
+        } catch (RuntimeException gpu) {
+          v.scene.close();
+          v.scene = null;
+          v.gl.sceneDisabled();
+          v.failedKey = key;
+          v.dirty = true;
+          state.notify(
+              "Error", "Streaming renderer unavailable; using fixed preview: " + gpu.getMessage());
+          return false;
+        }
+      }
+    }
+    if (v.scene != null) {
+      v.scene.configure(sceneConfig(v, v.scene.points()));
+      Vector3d center = v.camera.flying ? v.camera.position : v.camera.focus;
+      v.scene.tick(center, v.camera.eye(), 4);
+      try {
+        boolean resized = v.gpuBudget != state.user.performance.sceneGpuMiB;
+        var gpu = v.gl.scene(v.scene.epoch(), state.user.performance.sceneGpuMiB << 20);
+        if (resized) {
+          v.scene.invalidateUploads();
+          v.gpuBudget = state.user.performance.sceneGpuMiB;
+        }
+        gpu.beginFrame();
+        for (var removed : v.scene.removed()) gpu.remove(removed);
+        int budget = state.user.performance.uploadKiB * 1024;
+        long before = gpu.statistics().uploadedBytes();
+        for (int batch = 0;
+            batch < 4 && gpu.statistics().uploadedBytes() - before < budget;
+            batch++) {
+          if (!gpu.pending()) {
+            var uploads = v.scene.uploads(1, budget);
+            if (uploads.isEmpty()) break;
+            if (gpu.contains(uploads.getFirst())) {
+              v.scene.uploaded(uploads.getFirst());
+              continue;
+            }
+            if (!gpu.stage(uploads.getFirst())) {
+              v.scene.reject();
+              break;
+            }
+          }
+          var completed = gpu.advance((int) (budget - (gpu.statistics().uploadedBytes() - before)));
+          if (completed != null) v.scene.uploaded(completed);
+          else break;
+        }
+        v.origin.set(
+            Math.floor(center.x / 32) * 32,
+            Math.floor(center.y / 32) * 32,
+            Math.floor(center.z / 32) * 32);
+        var view = state.user.visualization;
+        v.gl.sceneView(
+            v.origin,
+            v.scene.displaySet(),
+            view.indirectDrawing,
+            view.ambientOcclusion,
+            view.fog
+                ? (float)
+                    (v.camera.distance
+                        + (v.pressure.radius(state.user.performance.renderDistance) + 1) * 32)
+                : 0);
+        if (gpu.hasData()) {
+          v.image = false;
+          v.completed = true;
+          v.streamingObserved = true;
+          v.completedModes.add(v.kind == 2 ? v.stageMode : v.mode);
+        }
+        var cpu = v.scene.statistics();
+        v.frameMillis = v.frameMillis * .9 + ImGui.getIO().getDeltaTime() * 1000 * .1;
+        v.pressure.observe(
+            now,
+            (cpu.cpuBytes() + cpu.reserved())
+                / ((double) state.user.performance.sceneCpuMiB * 1024 * 1024),
+            gpu.statistics().gpuBytes()
+                / ((double) state.user.performance.sceneGpuMiB * 1024 * 1024),
+            v.frameMillis,
+            v.scene.rejected());
+        if (v.compiler == null)
+          v.message =
+              (v.activeSceneKey.equals(key)
+                      ? cpu.status()
+                      : "Definition changed; Regenerate to apply")
+                  + " | "
+                  + cpu.meshed()
+                  + "/"
+                  + cpu.wanted()
+                  + " meshes; "
+                  + cpu.activeJobs()
+                  + " jobs";
+      } catch (RuntimeException gpu) {
+        v.scene.close();
+        v.scene = null;
+        v.gl.sceneDisabled();
+        v.failedKey = key;
+        v.dirty = true;
+        state.notify("Error", "Streaming stopped; fixed preview retained: " + gpu.getMessage());
+        return false;
+      }
+    }
+    if (v.pressure.paused()) {
+      if (ImGui.smallButton("Resume Streaming")) v.pressure.resume(now);
+    }
+    return true;
   }
 
   private static boolean glfwGetWindowAttribBoolean(long h, int key) {
@@ -634,6 +959,7 @@ public final class Viewports implements AutoCloseable {
 
   private void mark(View v) {
     v.dirty = true;
+    v.failedPreview = false;
     v.epoch++;
     if (v.job != null) v.job.cancel(true);
     state.background.purge();
@@ -645,6 +971,17 @@ public final class Viewports implements AutoCloseable {
     if ((long) n * n * (v.kind == 0 ? 1 : n) > state.user.performance.previewCellBudget
         || n > state.user.performance.maxPreviewDimension && v.kind != 0) {
       v.message = "Preview exceeds configured budget; reduce extent";
+      paused = true;
+      return;
+    }
+    long working =
+        (v.kind == 0
+            ? 64L * n * n
+            : v.mode.equals("Volume")
+                ? 12L * n * n * n
+                : v.mode.equals("Point Cloud") ? 96L * n * n * n : 3024L * n * n * n);
+    if (working > ((long) state.user.performance.sceneCpuMiB << 20)) {
+      v.message = "Preview exceeds working-memory budget; reduce extent or raise CPU MiB";
       paused = true;
       return;
     }
@@ -1008,6 +1345,16 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void pick(View v, float nx, float ny, float aspect) {
+    if (wantsStreaming(v)
+        ? v.scene == null
+            || !v.activeSceneKey.equals(sceneKey(v))
+            || v.gl.sceneRenderer() == null
+            || !v.gl.sceneRenderer().hasData()
+        : v.dirty || v.activeJob || v.failedPreview) {
+      state.status =
+          "Preview is rebuilding or outdated; use Inspect Coordinate or Regenerate before picking";
+      return;
+    }
     var ray = v.camera.ray(nx, ny, aspect, v.origin);
     ProjectData p = ProjectIO.copy(state.project());
     long request = ++traceSerial, revision = state.revision;
@@ -1205,6 +1552,7 @@ public final class Viewports implements AutoCloseable {
     for (var v : views) {
       if (v.job != null) v.job.cancel(true);
       state.background.purge();
+      stopStream(v);
       v.gl.close();
     }
   }

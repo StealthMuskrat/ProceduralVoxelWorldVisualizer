@@ -47,6 +47,8 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -Dvoxel.configDir="$PWD/build/smoke" -jar build/release/jars/ProceduralVoxelCreator.jar --smoke
       - name: Native volume numerical reference
         run: LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.VolumeRenderProbe
+      - name: Packed streaming renderer reference
+        run: LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -126,6 +128,11 @@ jobs:
         shell: pwsh
         run: |
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.VolumeRenderProbe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows packed streaming renderer reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Package development distribution
         if: success()

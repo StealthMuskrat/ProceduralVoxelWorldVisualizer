@@ -38,7 +38,9 @@ public final class EditorState implements AutoCloseable {
 
   public EditorState() {
     document.setValidator(NoiseCompiler::validate);
-    engine = new NoiseGeneratorEngine(user.performance.workers, 128, 512L << 20);
+    engine =
+        new NoiseGeneratorEngine(
+            user.performance.workers, 128, (long) user.performance.engineMiB << 20);
     engine.addDiagnosticListener(d -> uiQueue.offer(() -> notify("Error", d.toString())));
   }
 

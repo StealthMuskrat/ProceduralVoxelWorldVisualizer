@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 79 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
+Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 95 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -29,14 +29,14 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 | A21 archives | PASS | Semantic remap, coverage, random read, unresolved IDs, invalid index and aborted write |
 | A22 independent engine | PASS | External javac/java with engine JAR only; Example prints PASS |
 | A23 contexts | PASS | Context seed/cache isolation and independent closure test |
-| A24 cancellation | PARTIAL | Slow-consumer region cancellation tested; broader mid-stage cancellation stress remains |
+| A24 cancellation | PARTIAL | Independent shared-request cancellation and slow-consumer region cancellation tested; broader mid-stage stress remains |
 | A25 backpressure | PASS | Consumer future holds max-in-flight capacity; bounded scheduling assertion |
-| A26 failures/closure | PARTIAL | Generation and delivery CONTINUE/FAIL_FAST tested, plus context isolation; overload stress remains |
+| A26 failures/closure | PARTIAL | Generation/delivery CONTINUE/FAIL_FAST, context isolation and aggregate collection budgets tested; broader overload stress remains |
 | A27 2D viewport | PARTIAL | Engine image sampling and modes implemented; tile cache/UI acceptance remains |
-| A28 3D viewport | PARTIAL | Threshold, marching tetrahedra, points, ray-marched volume and X/Y/Z slices; numerical native volume probe; full streaming remains |
-| A29 world inspector | PARTIAL | Exact stage pairs and four preview modes, removal ghosts, richer snapshot-correct trace/links; streaming and full GUI scenarios remain |
+| A28 3D viewport | PARTIAL | Threshold, marching tetrahedra, points, ray-marched volume and X/Y/Z slices; numerical native volume probe; streamed threshold/point display implemented; volume/isosurface streaming remains |
+| A29 world inspector | PARTIAL | Exact stage pairs and four preview modes, removal ghosts, richer snapshot-correct trace/links; camera-driven stage/final streaming implemented; full GUI scenarios remain |
 | A30 bookmarks | PARTIAL | Independent coordinate lists and navigation; rename/full gesture audit remains |
-| A31 rendering LOD | PENDING | Exact data separate from display; production LOD/fallback not implemented |
+| A31 rendering LOD | PARTIAL | Exact shell seams, majority/tie aggregation, nearest-AABB hysteresis, AO, frustum, packed arena uploads, indirect/fallback parity and pressure tests; hardware/full GUI acceptance remains |
 | A32 appearance/workspace | PARTIAL | Theme/docking/scales/shortcuts persistence implemented; restart and DPI matrix remain |
 | A33 utilities | PARTIAL | Real Find/Validate/Logs/Help/metrics; full filters/navigation/profiling scope remains |
 | A34 desktop JAR | PARTIAL | Linux and Windows Server native JAR smoke passed; complete Windows 11 GUI acceptance remains |
@@ -53,7 +53,7 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 | 11–12 | StorageContractTest coordinates, dense oracle, coalescence, sparse 256³ |
 | 13–14 | EngineContractTest async/contexts/backpressure; independent Example; StorageContractTest archives |
 | 15–16 | Native `--smoke` visits all tabs; RendererContractTest camera; remaining manual scenarios |
-| 17 | RendererContractTest greedy faces and vertex 256; full LOD/performance pending |
+| 17 | RendererContractTest, StreamingContractTest, ChunkSceneTest and native StreamingRenderProbe; representative hardware/full GUI performance pending |
 | 18–19 | Editor service tests and native smoke; manual full UI routing pending |
 | 21–22 | `clean test build releaseJars`, external javac/java, platform smoke, deterministic package checks |
 
@@ -74,3 +74,5 @@ The typed-field extension passed 56 local JUnit tests, formal schemas including 
 The volume/slice extension passes 60 local JUnit tests. Native Linux smoke now asserts volume and all three slice planes completed; VolumeRenderProbe separately matches rendered center pixels to analytical absorption values. This adds renderer evidence without certifying the complete Tree 17 streaming/LOD requirements.
 
 Authoring/stage batch validation adds CurveContractTest, CurveGestureTest, ResourceTransactionTest and StagePreviewTest. Native smoke visits Curve Editor and Final/Before/After/Only Changes in addition to volume and X/Y/Z slices. See the raw evidence for this batch; these scoped checks do not certify every A01–A36 scenario.
+
+The streaming/runtime batch passes 95 JUnit tests. Added coverage includes same-context sync/async sharing, independent cancellation, collection ownership/admission and coordinate/count overflow; display aggregation/ties/boundary shells, packed 256 coordinates/material IDs, AO/seams, arena coalescing, hysteresis, pressure order, camera travel and stale-source publication. Native StreamingRenderProbe verifies bounded upload publication, frustum counts, multirow palettes, palette-only updates and pixel-identical indirect/fallback rendering. Desktop smoke additionally pans the streamed world. See [streaming design and limits](STREAMING_AND_LOD.md).

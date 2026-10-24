@@ -88,7 +88,7 @@ public final class Desktop extends Application {
           transition(() -> glfwSetWindowShouldClose(handle, true));
         });
     if (Arrays.asList(launchArgs).contains("--smoke")) {
-      smokeFrames = 360;
+      smokeFrames = 480;
       System.out.println(
           "SMOKE_ENV java="
               + System.getProperty("java.runtime.version")
@@ -153,7 +153,7 @@ public final class Desktop extends Application {
       }
     }
     if (smokeFrames > 0) {
-      views.smokePhase(360 - smokeFrames);
+      views.smokePhase(480 - smokeFrames);
       if (--smokeFrames == 0) {
         views.assertSmokeCompleted();
         System.out.println(
@@ -183,7 +183,8 @@ public final class Desktop extends Application {
             || frameCount == 195
             || frameCount == 215
             || frameCount == 230
-            || frameCount == 350)) captureFrame();
+            || frameCount == 350
+            || frameCount == 470)) captureFrame();
     glfwSwapBuffers(handle);
     glfwPollEvents();
   }
@@ -677,6 +678,7 @@ public final class Desktop extends Application {
         if (ImGui.collapsingHeader(category)) {
           var m = state.engine.metrics();
           ImGui.textWrapped(m.toString());
+          ImGui.textWrapped(views.streamingStatistics().toString());
         }
       fields.bool(
           "Enable targeted profiling",
@@ -753,6 +755,20 @@ public final class Desktop extends Application {
               "Grid", state.user.visualization.grid, v -> state.user.visualization.grid = v);
           fields.bool(
               "Unlit", state.user.visualization.unlit, v -> state.user.visualization.unlit = v);
+          fields.bool(
+              "Camera-driven chunk streaming",
+              state.user.visualization.streaming,
+              v -> state.user.visualization.streaming = v);
+          fields.bool(
+              "Ambient occlusion",
+              state.user.visualization.ambientOcclusion,
+              v -> state.user.visualization.ambientOcclusion = v);
+          fields.bool(
+              "Distance fog", state.user.visualization.fog, v -> state.user.visualization.fog = v);
+          fields.bool(
+              "Indirect drawing when supported",
+              state.user.visualization.indirectDrawing,
+              v -> state.user.visualization.indirectDrawing = v);
           fields.integer(
               "Default preview extent",
               state.user.visualization.previewSize,
@@ -773,6 +789,42 @@ public final class Desktop extends Application {
               "Cache MiB",
               state.user.performance.cacheMiB,
               v -> state.user.performance.cacheMiB = Math.max(0, v));
+          fields.integer(
+              "Engine memory MiB (restart)",
+              state.user.performance.engineMiB,
+              v -> state.user.performance.engineMiB = Math.max(64, Math.min(4096, v)));
+          fields.integer(
+              "Streaming CPU MiB per view",
+              state.user.performance.sceneCpuMiB,
+              v -> state.user.performance.sceneCpuMiB = Math.max(16, Math.min(4096, v)));
+          fields.integer(
+              "Streaming GPU MiB per view",
+              state.user.performance.sceneGpuMiB,
+              v -> state.user.performance.sceneGpuMiB = Math.max(8, Math.min(256, v)));
+          fields.integer(
+              "Upload KiB per frame",
+              state.user.performance.uploadKiB,
+              v -> state.user.performance.uploadKiB = Math.max(64, Math.min(16384, v)));
+          fields.integer(
+              "Render distance in chunks",
+              state.user.performance.renderDistance,
+              v -> state.user.performance.renderDistance = Math.max(0, Math.min(4, v)));
+          fields.integer(
+              "Vertical distance in chunks",
+              state.user.performance.verticalDistance,
+              v -> state.user.performance.verticalDistance = Math.max(0, Math.min(2, v)));
+          fields.integer(
+              "LOD start distance in chunks",
+              state.user.performance.lodStart,
+              v -> state.user.performance.lodStart = Math.max(1, Math.min(16, v)));
+          fields.integer(
+              "LOD quality (0 low, 2 high)",
+              state.user.performance.lodQuality,
+              v -> state.user.performance.lodQuality = Math.max(0, Math.min(2, v)));
+          fields.integer(
+              "Resident streaming chunk limit",
+              state.user.performance.streamChunks,
+              v -> state.user.performance.streamChunks = Math.max(27, Math.min(2048, v)));
           ImGui.inputText("Manual update endpoint", endpoint);
           ImGui.inputTextMultiline("Approved HTTPS origins (one per line)", origins, 500, 90);
           if (ImGui.button("Apply Update Trust")) {
@@ -895,6 +947,7 @@ public final class Desktop extends Application {
       frameAt = 0;
       Arrays.fill(frames, 0);
     }
+    ImGui.textWrapped(views.streamingStatistics().toString());
     ImGui.end();
   }
 

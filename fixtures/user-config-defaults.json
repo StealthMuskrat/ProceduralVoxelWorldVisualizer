@@ -14,10 +14,10 @@
   },
   "input" : {
     "shortcuts" : {
-      "Find" : "Ctrl+F",
       "Redo" : "Ctrl+Y",
-      "Save" : "Ctrl+S",
-      "Undo" : "Ctrl+Z"
+      "Find" : "Ctrl+F",
+      "Undo" : "Ctrl+Z",
+      "Save" : "Ctrl+S"
     }
   },
   "editor" : {
@@ -27,6 +27,10 @@
   "visualization" : {
     "grid" : true,
     "unlit" : false,
+    "streaming" : true,
+    "ambientOcclusion" : true,
+    "fog" : false,
+    "indirectDrawing" : true,
     "noise2DMode" : "Grayscale",
     "threshold" : 0.0,
     "previewSize" : 32
@@ -36,6 +40,15 @@
     "maxPreviewDimension" : 96,
     "previewCellBudget" : 884736,
     "cacheMiB" : 128,
+    "sceneCpuMiB" : 128,
+    "sceneGpuMiB" : 32,
+    "uploadKiB" : 2048,
+    "renderDistance" : 1,
+    "verticalDistance" : 1,
+    "lodStart" : 2,
+    "lodQuality" : 1,
+    "streamChunks" : 343,
+    "engineMiB" : 512,
     "profiler" : false,
     "updateEndpoint" : "",
     "trustedOrigins" : [ ]

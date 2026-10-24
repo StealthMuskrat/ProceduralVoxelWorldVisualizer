@@ -36,3 +36,17 @@ Numeric semantics: source noise uses vendored FastNoiseLite 1.1.1 with double co
 `WorldContext.stages()` lists stable layer/operation UUIDs and enabled before/after boundaries. `generateStageChunk(ChunkPos, UUID[, CancellationToken])` returns an immutable `StageChunk` containing exact `before()` and `after()` chunks; `changed(x,y,z)` includes removal to EMPTY. This does not change the final generation cache. Both snapshots finish before publication and remain usable after context closure. Stage memory uses bounded engine staging admission.
 
 `GenerationTrace.Step.details()` exposes effective setting values, evaluated field-gate branches, nullable gate/predicate outcomes (null means not reached), probability/draw and selection state. The previous Step constructor remains available. See [authoring and stage semantics](AUTHORING_AND_STAGES.md).
+
+## Shared requests and collected ownership
+
+Concurrent sync/async requests for the same chunk share generation within one WorldContext. Futures and CancellationTokens remain per subscriber. Cancelling one subscriber preserves other requests; abandoning every subscriber cancels the shared computation at its cancellation boundaries. `sharedRequests()` and `inFlightChunks()` expose diagnostics. A synchronous call can run queued shared work inline, including from an engine worker. Context/seed boundaries never share requests.
+
+`collectRegion` reserves from a shared engine collection budget (at most half the engine budget across all live results), alongside generation/cache accounting. Use owned results in a try-with-resources block:
+
+```java
+try (RegionResult result = world.collectRegion(RegionRequest.of(bounds))) {
+    consume(result.chunks());
+}
+```
+
+Closing releases admission; immutable snapshots remain valid. A Cleaner releases abandoned result leases as a fallback. RegionResult retains its two-argument constructor, accessors and value equality, but is now a class rather than a record: record patterns/reflection require migration. `EngineMetrics.collectionBytes()` reports these reservations. Prefer streaming for large regions. Contexts admit at most 16 region streams and 8192 pending chunk subscribers. Region counts beyond signed-long capacity fail with REGION_TOO_LARGE; chunk generation rejects block-coordinate overflow with COORDINATE_RANGE.

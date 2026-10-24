@@ -1,6 +1,6 @@
 # Verification evidence
 
-- `clean test build dependencyNotices releaseJars`: PASS with 79 JUnit tests on Temurin 25.0.4+7 x64.
+- `clean test build dependencyNotices releaseJars`: PASS with 95 JUnit tests on Temurin 25.0.4+7 x64.
 - Independent javac/java consumer using only `noise-generator-engine.jar`: PASS.
 - Local native smoke: all three engine-backed viewports, explicit save/reload, screenshots with nonblank-frame checks, and exit: PASS on Temurin 25.0.5+8; OpenGL 4.5 Mesa llvmpipe.
 - Draft 2020-12 project/user/app schema verification and fixtures: PASS using jsonschema 4.23.0.
@@ -21,3 +21,7 @@ The authoring/stage batch passes 79 JUnit tests, strict schema/curve fixtures, u
 ![Curve editor with selected points and tangent handles](curve-editor.png)
 
 ![Only Changes preview showing removed cells](stage-changes.png)
+
+The streaming/runtime batch passes 95 JUnit tests on pinned Temurin 25.0.4+7. `streaming-build.log`, `streaming-artifacts.log` and `streaming-independent-consumer.log` record the final build, exact regression hashes, schemas, engine isolation and external consumer. `linux-streaming-probe.log` records bounded packed uploads, culling, multirow palette updates and indirect/fallback pixel parity. `linux-streaming-smoke.log` includes streamed camera movement, stage/volume/slice modes and save/reload on Mesa llvmpipe OpenGL 4.5. The paired input for the image is `streaming-smoke-project.json`. Pressure controls reduced effective distance during this software-rendered run; this is functional evidence, not representative hardware performance certification.
+
+![Camera-driven streamed world after panning](streaming-world.png)

@@ -1,0 +1,139 @@
+{
+  "formatVersion" : 2,
+  "project" : {
+    "uuid" : "20bddd76-9590-4aac-a395-497641488422",
+    "seed" : 0,
+    "minY" : -16,
+    "maxY" : 63
+  },
+  "voxelTypes" : [ {
+    "uuid" : "11a211f0-96d6-4827-9996-931901f65e12",
+    "id" : "stone",
+    "color" : {
+      "r" : 114,
+      "g" : 164,
+      "b" : 143
+    }
+  } ],
+  "voxelGroups" : [ ],
+  "voxelSets" : [ ],
+  "noise2D" : [ {
+    "uuid" : "dff85117-5b43-46ea-b641-77fd78902db0",
+    "id" : "terrain",
+    "dimension" : 2,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "OPEN_SIMPLEX_2",
+      "parameters" : {
+        "frequency" : 0.035
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Source Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : null,
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  } ],
+  "noise3D" : [ {
+    "uuid" : "58e9f187-11b8-4b5c-a02d-6d7c5d39e2c2",
+    "id" : "caves",
+    "dimension" : 3,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "OPEN_SIMPLEX_2",
+      "parameters" : {
+        "frequency" : 0.08
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Source Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : null,
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  } ],
+  "worldGenerator" : {
+    "uuid" : "6df745ce-d66d-4590-bfa0-f58f72995262",
+    "layers" : [ {
+      "uuid" : "6dd2e6e2-b7eb-4643-b60d-aeedc96d7b07",
+      "id" : "terrain-layer",
+      "enabled" : true,
+      "defaults" : {
+        "baseHeight" : 12.0,
+        "heightScale" : 14.0,
+        "threshold" : 0.0,
+        "strength" : 1.0,
+        "probability" : 1.0,
+        "minY" : -2147483648,
+        "maxY" : 2147483647,
+        "scaleX" : 1.0,
+        "scaleY" : 1.0,
+        "scaleZ" : 1.0,
+        "offsetX" : 0.0,
+        "offsetY" : 0.0,
+        "offsetZ" : 0.0,
+        "seedOffset" : 0,
+        "action" : "SET",
+        "rounding" : "FLOOR",
+        "voxelTypeUuid" : "11a211f0-96d6-4827-9996-931901f65e12",
+        "voxelStatePredicate" : {
+          "kind" : "ANY",
+          "reference" : null,
+          "children" : [ ]
+        },
+        "fieldGates" : {
+          "kind" : "ALWAYS",
+          "comparison" : "GE",
+          "threshold" : 0.0,
+          "max" : 1.0,
+          "noiseGeneratorUuid" : null,
+          "children" : [ ]
+        }
+      },
+      "operations" : [ {
+        "uuid" : "b6eb6176-0299-43e4-8efa-4c5b48c912ab",
+        "id" : "height",
+        "enabled" : true,
+        "noiseGeneratorUuid" : "dff85117-5b43-46ea-b641-77fd78902db0",
+        "interpretation" : "HEIGHT_BELOW",
+        "overrides" : { }
+      }, {
+        "uuid" : "be413f2a-4038-4fec-80e8-3e8755deda70",
+        "id" : "carve-caves",
+        "enabled" : true,
+        "noiseGeneratorUuid" : "58e9f187-11b8-4b5c-a02d-6d7c5d39e2c2",
+        "interpretation" : "DENSITY",
+        "overrides" : {
+          "action" : "CLEAR"
+        }
+      } ]
+    } ]
+  },
+  "folders" : [ ],
+  "bookmarks" : {
+    "noise2D" : [ ],
+    "noise3D" : [ ],
+    "world" : [ ]
+  }
+}

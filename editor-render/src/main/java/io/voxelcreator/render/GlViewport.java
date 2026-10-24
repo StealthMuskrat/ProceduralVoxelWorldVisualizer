@@ -12,6 +12,49 @@ public final class GlViewport implements AutoCloseable {
   private Mesh mesh = new Mesh(new float[0], false);
   private boolean image = false, volume = false;
   private int volumeTexture, volumeProgram, volumeSize;
+  private SceneGpuRenderer sceneRenderer;
+  private int sceneBudget, paletteWidth = 256;
+  private boolean sceneActive, sceneIndirect = true, sceneAo = true;
+  private float sceneFog;
+  private org.joml.Vector3d sceneOrigin = new org.joml.Vector3d();
+  private java.util.Set<io.voxelcreator.storage.ChunkPos> sceneWanted = java.util.Set.of();
+  private int[] lastPalette;
+
+  public SceneGpuRenderer scene(long epoch, int bytes) {
+    if (sceneRenderer == null || sceneBudget != bytes) {
+      if (sceneRenderer != null) sceneRenderer.close();
+      sceneRenderer = null;
+      sceneRenderer = new SceneGpuRenderer(bytes);
+      sceneBudget = bytes;
+    }
+    sceneRenderer.epoch(epoch);
+    sceneActive = true;
+    image = false;
+    volume = false;
+    return sceneRenderer;
+  }
+
+  public SceneGpuRenderer sceneRenderer() {
+    return sceneRenderer;
+  }
+
+  public void sceneView(
+      org.joml.Vector3d origin,
+      java.util.Set<io.voxelcreator.storage.ChunkPos> wanted,
+      boolean indirect,
+      boolean ao,
+      float fog) {
+    sceneOrigin.set(origin);
+    sceneWanted = wanted;
+    sceneIndirect = indirect;
+    sceneAo = ao;
+    sceneFog = fog;
+  }
+
+  public void sceneDisabled() {
+    sceneActive = false;
+  }
+
   private float displayMin = -1, displayMax = 1, volumeOpacity = .12f, volumeThreshold = 0;
   private int volumeSteps = 192;
 
@@ -33,6 +76,7 @@ public final class GlViewport implements AutoCloseable {
 
   public void setImage(int w, int h, int[] rgba) {
     image = true;
+    sceneActive = false;
     volume = false;
     width = height = 0;
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -46,6 +90,7 @@ public final class GlViewport implements AutoCloseable {
 
   public void setMesh(Mesh next) {
     image = false;
+    sceneActive = false;
     volume = false;
     mesh = next;
     glBindVertexArray(vao);
@@ -62,6 +107,7 @@ public final class GlViewport implements AutoCloseable {
   public void setVolume(VolumeData data) {
     image = false;
     volume = true;
+    sceneActive = false;
     volumeSize = data.size();
     glBindTexture(GL_TEXTURE_3D, volumeTexture);
     glTexImage3D(
@@ -102,17 +148,24 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void setPalette(int[] colors) {
+    if (java.util.Arrays.equals(lastPalette, colors)) return;
+    lastPalette = colors.clone();
     glBindTexture(GL_TEXTURE_2D, palette);
-    IntBuffer buf = BufferUtils.createIntBuffer(colors.length);
-    buf.put(colors).flip();
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, colors.length, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+    paletteWidth = Math.min(glGetInteger(GL_MAX_TEXTURE_SIZE), Math.max(1, colors.length));
+    int rows = (colors.length + paletteWidth - 1) / paletteWidth;
+    IntBuffer data = BufferUtils.createIntBuffer(paletteWidth * rows);
+    data.put(colors);
+    while (data.hasRemaining()) data.put(0);
+    data.flip();
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA8, paletteWidth, rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D, 0);
   }
 
   public void render(int w, int h, Matrix4f matrix, boolean unlit, float alpha) {
-    if (image) return;
+    if (image || sceneActive && !sceneRenderer.hasData()) return;
     w = Math.max(16, Math.min(4096, w));
     h = Math.max(16, Math.min(4096, h));
     int oldFbo = glGetInteger(GL_FRAMEBUFFER_BINDING);
@@ -138,7 +191,19 @@ public final class GlViewport implements AutoCloseable {
     glViewport(0, 0, w, h);
     glClearColor(.055f, .075f, .1f, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    if (volume) {
+    if (sceneActive) {
+      sceneRenderer.render(
+          matrix,
+          sceneOrigin,
+          32,
+          sceneWanted,
+          palette,
+          paletteWidth,
+          unlit,
+          sceneIndirect,
+          sceneAo,
+          sceneFog);
+    } else if (volume) {
       glDisable(GL_DEPTH_TEST);
       glDisable(GL_CULL_FACE);
       glDisable(GL_BLEND);
@@ -173,6 +238,7 @@ public final class GlViewport implements AutoCloseable {
       glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D, palette);
       glUniform1i(glGetUniformLocation(program, "palette"), 0);
+      glUniform1i(glGetUniformLocation(program, "paletteWidth"), paletteWidth);
       glBindVertexArray(vao);
       if (alpha < 1) {
         glEnable(GL_BLEND);
@@ -197,9 +263,10 @@ public final class GlViewport implements AutoCloseable {
             + " main(){N=normal;type=typeId;gl_Position=matrix*vec4(position,1.0);}";
     String fragment =
         "#version 130\n"
-            + "in vec3 N;flat in float type;uniform sampler2D palette;uniform float unlit;uniform"
-            + " float alpha;out vec4 color;void main(){vec3"
-            + " base=texelFetch(palette,ivec2(int(type),0),0).rgb;float"
+            + "in vec3 N;flat in float type;uniform sampler2D palette;uniform int"
+            + " paletteWidth;uniform float unlit;uniform float alpha;out vec4 color;void"
+            + " main(){vec3"
+            + " base=texelFetch(palette,ivec2(int(type)%paletteWidth,int(type)/paletteWidth),0).rgb;float"
             + " light=mix(0.35+0.65*max(0.0,dot(normalize(N),normalize(vec3(0.4,1.0,0.3)))),1.0,unlit);color=vec4(base*light,alpha);}";
     int vs = shader(GL_VERTEX_SHADER, vertex),
         fs = shader(GL_FRAGMENT_SHADER, fragment),
@@ -271,6 +338,7 @@ public final class GlViewport implements AutoCloseable {
 
   @Override
   public void close() {
+    if (sceneRenderer != null) sceneRenderer.close();
     glDeleteProgram(program);
     glDeleteProgram(volumeProgram);
     glDeleteTextures(volumeTexture);

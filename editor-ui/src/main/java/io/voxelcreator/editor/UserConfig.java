@@ -39,7 +39,12 @@ public final class UserConfig {
   }
 
   public static final class Visualization {
-    public boolean grid = true, unlit = false;
+    public boolean grid = true,
+        unlit = false,
+        streaming = true,
+        ambientOcclusion = true,
+        fog = false,
+        indirectDrawing = true;
     public String noise2DMode = "Grayscale";
     public double threshold = 0;
     public int previewSize = 32;
@@ -49,7 +54,16 @@ public final class UserConfig {
     public int workers = Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors() - 1));
     public int maxPreviewDimension = 96;
     public long previewCellBudget = 96L * 96 * 96;
-    public int cacheMiB = 128;
+    public int cacheMiB = 128,
+        sceneCpuMiB = 128,
+        sceneGpuMiB = 32,
+        uploadKiB = 2048,
+        renderDistance = 1,
+        verticalDistance = 1,
+        lodStart = 2,
+        lodQuality = 1,
+        streamChunks = 343,
+        engineMiB = 512;
     public boolean profiler = false;
     public String updateEndpoint = "";
     public List<String> trustedOrigins = new ArrayList<>();
@@ -93,6 +107,25 @@ public final class UserConfig {
         || performance.previewCellBudget < 1
         || performance.cacheMiB < 0)
       throw new IllegalArgumentException("Invalid workspace/performance preferences");
+    if (performance.sceneCpuMiB < 16
+        || performance.sceneCpuMiB > 4096
+        || performance.sceneGpuMiB < 8
+        || performance.sceneGpuMiB > 256
+        || performance.uploadKiB < 64
+        || performance.uploadKiB > 16384
+        || performance.renderDistance < 0
+        || performance.renderDistance > 4
+        || performance.verticalDistance < 0
+        || performance.verticalDistance > 2
+        || performance.lodStart < 1
+        || performance.lodStart > 16
+        || performance.lodQuality < 0
+        || performance.lodQuality > 2
+        || performance.streamChunks < 27
+        || performance.streamChunks > 2048
+        || performance.engineMiB < 64
+        || performance.engineMiB > 4096)
+      throw new IllegalArgumentException("Invalid streaming/render budgets");
     for (float value : appearance.windowScales.values())
       if (!Float.isFinite(value) || value < .5f || value > 2.5f)
         throw new IllegalArgumentException("Window scale outside 50..250%");

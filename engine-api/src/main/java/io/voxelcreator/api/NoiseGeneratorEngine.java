@@ -15,6 +15,7 @@ public final class NoiseGeneratorEngine implements AutoCloseable {
   final long memoryBudget;
   final AtomicLong cacheBytes = new AtomicLong(),
       stagingBytes = new AtomicLong(),
+      collectionBytes = new AtomicLong(),
       nanos = new AtomicLong(),
       completed = new AtomicLong();
   private final Set<WorldContext> contexts = ConcurrentHashMap.newKeySet();
@@ -72,14 +73,27 @@ public final class NoiseGeneratorEngine implements AutoCloseable {
   }
 
   synchronized boolean reserveStaging(long bytes) {
-    if (bytes + stagingBytes.get() + cacheBytes.get() > memoryBudget) return false;
+    if (bytes < 0
+        || bytes > memoryBudget - stagingBytes.get() - cacheBytes.get() - collectionBytes.get())
+      return false;
     stagingBytes.addAndGet(bytes);
     return true;
   }
 
   synchronized boolean reserveCache(long bytes) {
-    if (bytes + stagingBytes.get() + cacheBytes.get() > memoryBudget) return false;
+    if (bytes < 0
+        || bytes > memoryBudget - stagingBytes.get() - cacheBytes.get() - collectionBytes.get())
+      return false;
     cacheBytes.addAndGet(bytes);
+    return true;
+  }
+
+  synchronized boolean reserveCollection(long bytes) {
+    if (bytes < 0
+        || bytes > memoryBudget / 2 - collectionBytes.get()
+        || bytes > memoryBudget - stagingBytes.get() - cacheBytes.get() - collectionBytes.get())
+      return false;
+    collectionBytes.addAndGet(bytes);
     return true;
   }
 
@@ -96,7 +110,8 @@ public final class NoiseGeneratorEngine implements AutoCloseable {
         nanos.get(),
         cacheBytes.get(),
         stagingBytes.get(),
-        memoryBudget);
+        memoryBudget,
+        collectionBytes.get());
   }
 
   @Override
