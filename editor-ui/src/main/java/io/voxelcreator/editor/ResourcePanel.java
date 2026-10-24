@@ -17,11 +17,18 @@ public final class ResourcePanel {
   private String createKind = "noise2D", createRoot = "noise2D";
   private UUID createParent, placementLayer;
   private boolean createPending = false;
-  private ProjectData clipboard;
-  private boolean cut = false;
-  private String clipboardRoot = "";
+  private ResourceClipboard clipboard;
+
   private UUID deleteId;
-  private UUID replacement;
+  private UUID replacement, renameId;
+  private final ImString renameText = new ImString(256);
+  private boolean renameFocus;
+  private String renameError = "";
+  private final List<UUID> visibleRows = new ArrayList<>();
+  private UUID rangeAnchor;
+  private String dragRoot = "";
+  private List<UUID> dragSelection = List.of();
+  public final Set<UUID> exportSelection = new LinkedHashSet<>();
 
   public ResourcePanel(EditorState s, PropertyPanel properties) {
     state = s;
@@ -30,13 +37,17 @@ public final class ResourcePanel {
 
   public void reset() {
     clipboard = null;
-    cut = false;
+
     filter.set("");
+    renameId = null;
+    rangeAnchor = null;
+    exportSelection.clear();
   }
 
   public void draw() {
     ImGui.begin("Resources");
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Resources", 1f));
+    visibleRows.clear();
     ImGui.inputTextWithHint("##filter", "Filter resources...", filter);
     root("2D Noise", "noise2D");
     root("3D Noise", "noise3D");
@@ -44,9 +55,23 @@ public final class ResourcePanel {
     ImGui.separator();
     if (ImGui.button("Voxel Manager")) manager.set(true);
     ImGui.textDisabled("Right-click a root to create resources");
-    if (ImGui.isKeyPressed(ImGuiKey.F2) && state.selected != null) {
-      state.refreshDraft();
-      state.status = "Edit ID in Properties, then Apply";
+    if (ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows)
+        && !ImGui.getIO().getWantTextInput()) {
+      if (ImGui.isKeyPressed(ImGuiKey.F2) && state.selected != null) beginRename(state.selected);
+      if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.C) && state.selected != null)
+        copy(state.selected, "", false);
+      if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.X) && state.selected != null)
+        copy(state.selected, "", true);
+      if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.V) && clipboard != null) {
+        var target = ResourceGraph.find(state.project(), state.selected);
+        if (target != null)
+          paste(
+              target.root(), target.resource() instanceof Folder ? target.uuid() : target.parent());
+      }
+      if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+        renameId = null;
+        renameError = "";
+      }
     }
     ImGui.end();
     createDialog();
@@ -65,32 +90,30 @@ public final class ResourcePanel {
   }
 
   private void folderContents(String kind, UUID parent, Set<UUID> visited) {
-    var folders =
-        state.project().folders.stream()
-            .filter(x -> x.rootKind.equals(kind) && Objects.equals(x.parentFolderUuid, parent))
-            .toList();
-    for (var folder : folders) {
-      if (!visited.add(folder.uuid)) continue;
-      boolean open =
-          ImGui.treeNodeEx(
-              folder.id + "###" + folder.uuid,
-              ImGuiTreeNodeFlags.OpenOnArrow
-                  | (state.multiSelection.contains(folder.uuid) ? ImGuiTreeNodeFlags.Selected : 0));
-      if (ImGui.isItemClicked())
-        state.select("folder", folder.uuid, kind + parent, ImGui.getIO().getKeyCtrl());
-      rowMenu("folder", folder, kind, parent);
-      drag(folder.uuid, kind);
-      rootMenu(kind, folder.uuid);
-      dropTarget(kind, folder.uuid);
-      if (open) {
-        folderContents(kind, folder.uuid, visited);
-        ImGui.treePop();
-      }
-    }
-    List<Noise> list = kind.equals("noise2D") ? state.project().noise2D : state.project().noise3D;
-    for (var noise : list)
-      if (Objects.equals(noise.parentFolderUuid, parent) && matches(noise.id))
+    for (var entry : ResourceGraph.children(state.project(), kind, parent)) {
+      if (entry.resource() instanceof Folder folder) {
+        if (!visited.add(folder.uuid)) continue;
+        boolean open =
+            ImGui.treeNodeEx(
+                folder.id + "###" + folder.uuid,
+                ImGuiTreeNodeFlags.OpenOnArrow
+                    | (state.multiSelection.contains(folder.uuid)
+                        ? ImGuiTreeNodeFlags.Selected
+                        : 0));
+        visibleRows.add(folder.uuid);
+        if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen())
+          select("folder", folder.uuid, kind + ":" + parent);
+        if (folder.uuid.equals(renameId)) inlineRename(folder);
+        rowMenu("folder", folder, kind, parent);
+        drag(folder.uuid, kind);
+        dropTarget(kind, folder.uuid);
+        if (open) {
+          folderContents(kind, folder.uuid, visited);
+          ImGui.treePop();
+        }
+      } else if (entry.resource() instanceof Noise noise && matches(noise.id))
         row(kind, noise, kind, parent);
+    }
   }
 
   private boolean matches(String value) {
@@ -100,10 +123,13 @@ public final class ResourcePanel {
 
   private void row(String kind, Identity resource, String root, UUID parent) {
     ImGui.pushID(resource.uuid.toString());
-    if (ImGui.selectable(resource.id, state.multiSelection.contains(resource.uuid)))
-      state.select(kind, resource.uuid, root + parent, ImGui.getIO().getKeyCtrl());
+    visibleRows.add(resource.uuid);
+    if (resource.uuid.equals(renameId)) inlineRename(resource);
+    else if (ImGui.selectable(resource.id, state.multiSelection.contains(resource.uuid)))
+      select(kind, resource.uuid, root + ":" + parent);
     rowMenu(kind, resource, root, parent);
     drag(resource.uuid, root);
+    dropBefore(resource.uuid);
     ImGui.popID();
   }
 
@@ -121,9 +147,14 @@ public final class ResourcePanel {
                     | (state.selected != null && state.selected.equals(layer.uuid)
                         ? ImGuiTreeNodeFlags.Selected
                         : 0));
-        if (ImGui.isItemClicked())
-          state.select("layer", layer.uuid, "world", ImGui.getIO().getKeyCtrl());
+        visibleRows.add(layer.uuid);
+        if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen())
+          select("layer", layer.uuid, "world:null");
+        if (layer.uuid.equals(renameId)) inlineRename(layer);
         rowMenu("layer", layer, "world", null);
+        drag(layer.uuid, "world");
+        dropBefore(layer.uuid);
+        dropTarget("operation", layer.uuid);
         if (expanded) {
           for (var op : layer.operations) row("operation", op, "operation", layer.uuid);
           ImGui.pushID(layer.uuid.toString());
@@ -167,14 +198,26 @@ public final class ResourcePanel {
       if (ImGui.menuItem(kind.equals("world") ? "Create Layer" : "Create Noise Generator"))
         create(kind.equals("world") ? "layer" : kind, kind, parent);
       if (!kind.equals("world") && ImGui.menuItem("Create Folder")) create("folder", kind, parent);
-      if (ImGui.menuItem("Paste", clipboard != null)) paste(kind, parent);
+      if (ImGui.menuItem("Paste", clipboard != null && clipboard.root().equals(kind)))
+        paste(kind, parent);
       ImGui.endPopup();
     }
   }
 
   private void rowMenu(String kind, Identity r, String root, UUID parent) {
     if (ImGui.beginPopupContextItem("resource-menu" + r.uuid)) {
-      if (ImGui.menuItem("Rename / Properties")) state.select(kind, r.uuid);
+      if (r instanceof Folder) {
+        if (ImGui.menuItem("Create Noise Generator")) create(root, root, r.uuid);
+        if (ImGui.menuItem("Create Folder")) create("folder", root, r.uuid);
+        if (ImGui.menuItem("Paste", clipboard != null && clipboard.root().equals(root)))
+          paste(root, r.uuid);
+      }
+      if (r instanceof Layer
+          && ImGui.menuItem(
+              "Paste Placements", clipboard != null && clipboard.root().equals("operation")))
+        paste("operation", r.uuid);
+      if (ImGui.menuItem("Rename")) beginRename(r.uuid);
+      if (ImGui.menuItem("Properties")) state.select(kind, r.uuid);
       if (ImGui.menuItem("Duplicate")) duplicate(kind, r, root, parent);
       if (ImGui.menuItem("Copy")) copy(r.uuid, root, false);
       if (ImGui.menuItem("Cut")) copy(r.uuid, root, true);
@@ -193,8 +236,14 @@ public final class ResourcePanel {
 
   private void drag(UUID id, String root) {
     if (ImGui.beginDragDropSource()) {
+      if (!state.multiSelection.contains(id)) {
+        var e = ResourceGraph.find(state.project(), id);
+        state.select(e.kind(), id, e.scope(), false);
+      }
+      dragRoot = root;
+      dragSelection = List.copyOf(state.multiSelection);
       ImGui.setDragDropPayload("resource", id.toString());
-      ImGui.text("Move resource");
+      ImGui.text("Move " + dragSelection.size() + " selected resource(s)");
       ImGui.endDragDropSource();
     }
   }
@@ -202,24 +251,65 @@ public final class ResourcePanel {
   private void dropTarget(String root, UUID parent) {
     if (ImGui.beginDragDropTarget()) {
       String value = ImGui.acceptDragDropPayload("resource", String.class);
-      if (value != null) {
-        UUID id = UUID.fromString(value);
-        state.change(
-            p -> {
-              Object obj = EditorState.find(p, id);
-              if (obj instanceof Noise n) {
-                if (!root.equals("noise" + n.dimension + "D"))
-                  throw new IllegalArgumentException("Cannot move noise across dimension roots");
-                n.parentFolderUuid = parent;
-              } else if (obj instanceof Folder folder) {
-                if (!folder.rootKind.equals(root))
-                  throw new IllegalArgumentException("Cannot move folders across roots");
-                folder.parentFolderUuid = parent;
-              }
-            });
+      if (value != null && !dragSelection.isEmpty()) {
+        var ids = List.copyOf(dragSelection);
+        state.change(p -> ResourceGraph.move(p, ids, root, parent));
+        state.refreshDraft();
       }
       ImGui.endDragDropTarget();
     }
+  }
+
+  private void beginRename(UUID id) {
+    var e = ResourceGraph.find(state.project(), id);
+    if (e == null) return;
+    renameId = id;
+    renameText.set(e.resource().id);
+    renameFocus = true;
+    renameError = "";
+  }
+
+  private void inlineRename(Identity resource) {
+    ImGui.pushID("rename" + resource.uuid);
+    if (renameFocus) {
+      ImGui.setKeyboardFocusHere();
+      renameFocus = false;
+    }
+    boolean entered =
+        ImGui.inputText("##inline-id", renameText, ImGuiInputTextFlags.EnterReturnsTrue);
+    if (entered) {
+      UUID id = resource.uuid;
+      String name = renameText.get();
+      if (state.change(p -> ResourceGraph.rename(p, id, name))) {
+        renameId = null;
+        renameError = "";
+        state.refreshDraft();
+      } else renameError = "ID rejected; correct it or press Escape";
+    }
+    if (!renameError.isEmpty()) ImGui.textWrapped("! " + renameError);
+    ImGui.popID();
+  }
+
+  private void select(String kind, UUID id, String scope) {
+    if (ImGui.getIO().getKeyShift() && rangeAnchor != null) {
+      var anchor = ResourceGraph.find(state.project(), rangeAnchor);
+      var target = ResourceGraph.find(state.project(), id);
+      if (anchor != null && target != null && anchor.scope().equals(target.scope())) {
+        var siblings =
+            ResourceGraph.entries(state.project()).stream()
+                .filter(e -> e.scope().equals(target.scope()))
+                .map(ResourceGraph.Entry::uuid)
+                .toList();
+        int a = siblings.indexOf(rangeAnchor), b = siblings.indexOf(id);
+        state.select(kind, id, scope, false);
+        state.multiSelection.clear();
+        for (int i = Math.min(a, b); i <= Math.max(a, b); i++)
+          state.multiSelection.add(siblings.get(i));
+        return;
+      }
+    }
+    state.select(kind, id, scope, ImGui.getIO().getKeyCtrl());
+    rangeAnchor = id;
   }
 
   private void create(String kind, String root, UUID parent) {
@@ -294,20 +384,24 @@ public final class ResourcePanel {
   }
 
   private void reorder(UUID uuid, int direction) {
-    state.change(
-        p -> {
-          for (var list : EditorState.lists(p))
-            for (int i = 0; i < list.size(); i++)
-              if (list.get(i) instanceof Identity r && r.uuid.equals(uuid)) {
-                int to = i + direction;
-                if (to >= 0 && to < list.size()) Collections.swap(list, i, to);
-                return;
-              }
-        });
+    Set<UUID> selection =
+        state.multiSelection.contains(uuid) ? Set.copyOf(state.multiSelection) : Set.of(uuid);
+    state.change(p -> ResourceGraph.shift(p, selection, direction));
+  }
+
+  private void dropBefore(UUID target) {
+    if (ImGui.beginDragDropTarget()) {
+      String value = ImGui.acceptDragDropPayload("resource", String.class);
+      if (value != null && !dragSelection.isEmpty()) {
+        var ids = List.copyOf(dragSelection);
+        state.change(p -> ResourceGraph.reorderBefore(p, ids, target));
+      }
+      ImGui.endDragDropTarget();
+    }
   }
 
   private void duplicate(String kind, Identity r, String root, UUID parent) {
-    if (r instanceof Folder) {
+    if (r instanceof Folder || state.multiSelection.size() > 1) {
       copy(r.uuid, root, false);
       paste(root, parent);
       return;
@@ -336,160 +430,114 @@ public final class ResourcePanel {
   }
 
   public ProjectData selection(boolean dependencies) {
-    var p = state.project();
-    var subset = new ProjectData();
-    Object obj = EditorState.find(p, state.selected);
-    if (obj instanceof Noise n) (n.dimension == 2 ? subset.noise2D : subset.noise3D).add(n);
-    else if (obj instanceof Layer l) subset.worldGenerator.layers.add(l);
-    else if (obj instanceof VoxelType t) subset.voxelTypes.add(t);
-    else if (obj instanceof Membership m) {
-      if (p.voxelSets.contains(m)) subset.voxelSets.add(m);
-      else subset.voxelGroups.add(m);
-    } else if (obj instanceof Folder f) {
-      collectFolder(p, subset, f.uuid);
-    }
-    if (dependencies) {
-      Set<UUID> added = new HashSet<>();
-      for (int pass = 0; pass < 32; pass++) {
-        String json = ProjectIO.JSON.valueToTree(subset).toString();
-        boolean changed = false;
-        for (var list :
-            List.of(p.noise2D, p.noise3D, p.voxelTypes, p.voxelSets, p.voxelGroups, p.folders))
-          for (var r : list)
-            if (json.contains(r.uuid.toString()) && !contains(subset, r.uuid)) {
-              if (r instanceof Noise n) (n.dimension == 2 ? subset.noise2D : subset.noise3D).add(n);
-              else if (r instanceof VoxelType t) subset.voxelTypes.add(t);
-              else if (r instanceof Membership m)
-                (p.voxelSets.contains(m) ? subset.voxelSets : subset.voxelGroups).add(m);
-              else if (r instanceof Folder f) subset.folders.add(f);
-              changed = true;
-            }
-        if (!changed) break;
+    Set<UUID> ids =
+        state.multiSelection.isEmpty() && state.selected != null
+            ? Set.of(state.selected)
+            : Set.copyOf(state.multiSelection);
+    return ResourceGraph.selection(state.project(), ids, dependencies);
+  }
+
+  public ProjectData exportSelection() {
+    return ResourceGraph.selection(state.project(), exportSelection, true);
+  }
+
+  public void beginExport() {
+    exportSelection.clear();
+    exportSelection.addAll(state.multiSelection);
+    if (exportSelection.isEmpty() && state.selected != null) exportSelection.add(state.selected);
+  }
+
+  public void drawExportSelection() {
+    ImGui.textWrapped(
+        "Choose resources. Required references and folder ancestors are included automatically.");
+    for (var e : ResourceGraph.entries(state.project())) {
+      ImGui.pushID("export" + e.uuid());
+      var selected = new ImBoolean(exportSelection.contains(e.uuid()));
+      if (ImGui.checkbox(e.kind() + " / " + e.resource().id, selected)) {
+        if (selected.get()) exportSelection.add(e.uuid());
+        else exportSelection.remove(e.uuid());
       }
+      ImGui.popID();
     }
-    return ProjectIO.copy(subset);
-  }
-
-  private boolean contains(ProjectData p, UUID uuid) {
-    return EditorState.find(p, uuid) != null;
-  }
-
-  private void collectFolder(ProjectData p, ProjectData subset, UUID id) {
-    var folder = p.folders.stream().filter(f -> f.uuid.equals(id)).findFirst().orElseThrow();
-    subset.folders.add(folder);
-    for (var f : p.folders) if (id.equals(f.parentFolderUuid)) collectFolder(p, subset, f.uuid);
-    for (var list : List.of(p.noise2D, p.noise3D))
-      for (var n : list)
-        if (id.equals(n.parentFolderUuid))
-          (n.dimension == 2 ? subset.noise2D : subset.noise3D).add(n);
+    if (!exportSelection.isEmpty()) {
+      var included = ResourceGraph.entries(exportSelection());
+      ImGui.separator();
+      ImGui.text("Package contains " + included.size() + " resources (including dependencies):");
+      for (var e : included) ImGui.bulletText(e.kind() + " / " + e.resource().id);
+    }
   }
 
   private void copy(UUID id, String root, boolean cut) {
-    state.selected = id;
-    clipboard = selection(false);
-    clipboardRoot = root;
-    this.cut = cut;
-    state.status = cut ? "Resource cut; paste to move" : "Resource copied";
+    try {
+      if (!state.multiSelection.contains(id)) {
+        var entry = ResourceGraph.find(state.project(), id);
+        state.select(entry.kind(), id, entry.scope(), false);
+      }
+      clipboard = new ResourceClipboard(state.project(), state.multiSelection, cut);
+      state.status =
+          state.multiSelection.size() + " resource(s) " + (cut ? "cut; paste to move" : "copied");
+    } catch (RuntimeException invalid) {
+      state.notify("Error", invalid.getMessage());
+    }
   }
 
   private void paste(String root, UUID parent) {
     if (clipboard == null) return;
-    if (!root.equals(clipboardRoot)) {
-      state.notify("Warning", "Paste requires a compatible root");
-      return;
-    }
-    ProjectData payload = ProjectIO.copy(clipboard);
-    boolean move = cut;
-    boolean ok =
-        state.change(
-            p -> {
-              if (move) {
-                for (var list : EditorState.lists(payload))
-                  for (var obj : list) if (obj instanceof Identity r) remove(p, r.uuid);
-              } else payloadResetParents(payload);
-              for (var list : List.of(payload.noise2D, payload.noise3D))
-                for (var n : list)
-                  if (n.parentFolderUuid == null
-                      || payload.folders.stream().noneMatch(f -> f.uuid.equals(n.parentFolderUuid)))
-                    n.parentFolderUuid = parent;
-              for (var folder : payload.folders)
-                if (payload.folders.stream().noneMatch(f -> f.uuid.equals(folder.parentFolderUuid)))
-                  folder.parentFolderUuid = parent;
-              if (move) mergeExisting(p, payload);
-              else ResourceTransactions.mergeCopies(p, payload);
-            });
-    if (ok && move) {
-      clipboard = null;
-      cut = false;
+    ResourceClipboard content = clipboard;
+    if (state.change(p -> content.paste(p, root, parent))) {
+      if (content.cut()) clipboard = null;
+      state.refreshDraft();
     }
   }
 
-  private void payloadResetParents(ProjectData p) {}
-
-  private void mergeExisting(ProjectData into, ProjectData from) {
-    into.noise2D.addAll(from.noise2D);
-    into.noise3D.addAll(from.noise3D);
-    into.folders.addAll(from.folders);
-    into.worldGenerator.layers.addAll(from.worldGenerator.layers);
-  }
-
-  private static void remove(ProjectData p, UUID id) {
-    for (var list : EditorState.lists(p))
-      list.removeIf(o -> o instanceof Identity r && r.uuid.equals(id));
-  }
-
-  public List<Identity> dependents(UUID uuid) {
-    var result = new ArrayList<Identity>();
-    for (var list : EditorState.lists(state.project()))
-      for (var o : list)
-        if (o instanceof Identity r
-            && !r.uuid.equals(uuid)
-            && references(ProjectIO.JSON.valueToTree(r), uuid.toString())) result.add(r);
-    return result;
-  }
-
-  private static boolean references(JsonNode node, String uuid) {
-    if (node.isObject()) {
-      var it = node.fields();
-      while (it.hasNext()) {
-        var e = it.next();
-        if (!e.getKey().equals("uuid") && references(e.getValue(), uuid)) return true;
-      }
-      return false;
-    }
-    if (node.isArray()) {
-      for (var c : node) if (references(c, uuid)) return true;
-      return false;
-    }
-    return node.isTextual() && node.asText().equals(uuid);
+  public List<Identity> dependents(UUID id) {
+    return ResourceGraph.dependents(
+            state.project(), ResourceGraph.subtree(state.project(), List.of(id)))
+        .stream()
+        .map(ResourceGraph.Entry::resource)
+        .toList();
   }
 
   private void deleteDialog() {
     if (deleteId != null && !ImGui.isPopupOpen("Delete Resource"))
       ImGui.openPopup("Delete Resource");
     if (ImGui.beginPopupModal("Delete Resource", ImGuiWindowFlags.AlwaysAutoResize)) {
-      var deps = dependents(deleteId);
-      if (deps.isEmpty()) ImGui.text("Delete this resource? This can be undone.");
-      else {
-        ImGui.text("Referenced by:");
-        for (var d : deps) ImGui.bulletText(d.id);
-        ImGui.textWrapped(
-            "Deletion is blocked until these references are explicitly changed in Properties.");
+      var source = ResourceGraph.find(state.project(), deleteId);
+      var deleted = ResourceGraph.subtree(state.project(), List.of(deleteId));
+      var deps = ResourceGraph.dependents(state.project(), deleted);
+      ImGui.textWrapped(
+          "Delete "
+              + (source == null ? "resource" : source.resource().id)
+              + " and "
+              + (deleted.size() - 1)
+              + " contained resource(s)?");
+      if (!deps.isEmpty()) {
+        ImGui.text("External dependents:");
+        for (var d : deps) ImGui.bulletText(d.kind() + " / " + d.resource().id);
+        if (source != null && !(source.resource() instanceof Folder)) {
+          if (ImGui.beginCombo(
+              "Replace references with",
+              replacement == null
+                  ? "Choose compatible resource"
+                  : Optional.ofNullable(ResourceGraph.find(state.project(), replacement))
+                      .map(e -> e.resource().id)
+                      .orElse("Missing"))) {
+            for (var e : ResourceGraph.entries(state.project()))
+              if (e.kind().equals(source.kind())
+                  && !deleted.contains(e.uuid())
+                  && ImGui.selectable(e.resource().id)) replacement = e.uuid();
+            ImGui.endCombo();
+          }
+          ImGui.textWrapped("References and deletion commit together as one undoable edit.");
+        } else
+          ImGui.textWrapped("Edit the external references before deleting this folder subtree.");
       }
-      if (deps.isEmpty() && ImGui.button("Delete")) {
-        UUID id = deleteId;
-        if (state.change(
-            p -> {
-              Object obj = EditorState.find(p, id);
-              if (obj instanceof Folder) {
-                var subtree = new ProjectData();
-                collectFolder(p, subtree, id);
-                for (var list : EditorState.lists(subtree))
-                  for (var o : list) if (o instanceof Identity r) remove(p, r.uuid);
-              } else remove(p, id);
-            })) {
+      if ((deps.isEmpty() || replacement != null) && ImGui.button("Delete")) {
+        UUID id = deleteId, target = replacement;
+        if (state.change(p -> ResourceGraph.delete(p, id, target))) {
           state.selected = null;
           state.draft = null;
+          state.multiSelection.clear();
           deleteId = null;
           ImGui.closeCurrentPopup();
         }

@@ -5,12 +5,18 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.function.Consumer;
 
-/** Atomic, bounded snapshot transactions; view navigation never enters this history. */
+/** Atomic, bounded structural-delta transactions; view navigation never enters this history. */
 public final class DocumentSession {
   private ProjectData active = new ProjectData();
   private Path path;
   private String saved = serialize(active);
-  private final Deque<String> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
+  private final Deque<ProjectDelta> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
+  private long historyBytes;
+
+  public long historyBytes() {
+    return historyBytes;
+  }
+
   private java.util.function.Function<ProjectData, List<Diagnostic>> validator =
       Validator::validate;
 
@@ -35,11 +41,16 @@ public final class DocumentSession {
     change.accept(candidate);
     var issues = validator.apply(candidate);
     if (!issues.isEmpty()) return issues;
-    String before = serialize(active);
-    if (!before.equals(serialize(candidate))) {
-      undo.push(before);
-      while (undo.size() > 100) undo.removeLast();
+    var delta =
+        ProjectDelta.between(
+            ProjectIO.JSON.valueToTree(active), ProjectIO.JSON.valueToTree(candidate));
+    if (!delta.empty()) {
+      for (var removed : redo) historyBytes -= removed.bytes();
       redo.clear();
+      undo.push(delta);
+      historyBytes += delta.bytes();
+      while (undo.size() > 100 || historyBytes > (32L << 20) && undo.size() > 1)
+        historyBytes -= undo.removeLast().bytes();
       active = candidate;
     }
     return List.of();
@@ -47,15 +58,17 @@ public final class DocumentSession {
 
   public void undo() {
     if (!undo.isEmpty()) {
-      redo.push(serialize(active));
-      active = parse(undo.pop());
+      var delta = undo.pop();
+      active = delta.apply(active, false);
+      redo.push(delta);
     }
   }
 
   public void redo() {
     if (!redo.isEmpty()) {
-      undo.push(serialize(active));
-      active = parse(redo.pop());
+      var delta = redo.pop();
+      active = delta.apply(active, true);
+      undo.push(delta);
     }
   }
 
@@ -86,6 +99,7 @@ public final class DocumentSession {
     saved = serialize(p);
     undo.clear();
     redo.clear();
+    historyBytes = 0;
   }
 
   public void save(Path file) throws IOException {

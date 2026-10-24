@@ -122,6 +122,16 @@ public final class Validator {
         if (parent == null || !parent.rootKind.equals(f.rootKind))
           error("INVALID_REFERENCE", "/folders/" + f.uuid, "Missing or incompatible parent");
       }
+      var children = new HashSet<UUID>();
+      for (var e : ResourceGraph.entries(p))
+        if (Objects.equals(e.parent(), f.uuid)) children.add(e.uuid());
+      var ordered = new HashSet<UUID>();
+      for (UUID child : f.childOrder)
+        if (!children.contains(child) || !ordered.add(child))
+          error(
+              "INVALID_ORDER",
+              "/folders/" + f.uuid + "/childOrder",
+              "Order entries must identify distinct direct children");
       var visited = new HashSet<UUID>();
       Folder at = f;
       while (at != null) {
@@ -199,6 +209,8 @@ public final class Validator {
         id(item.id, itemNames, q + "/id");
         if (!TYPES.contains(item.resultType))
           error("INVALID_TYPE", q + "/resultType", "Unsupported type");
+        if (item.parameters.containsKey("curve"))
+          curveIdentities(item.parameters.get("curve"), q + "/parameters/curve");
         if (item.parameters.containsKey("noiseGeneratorUuid")) {
           try {
             reference(
@@ -267,6 +279,39 @@ public final class Validator {
         for (var c : v)
           if (!c.isNumber() || !Double.isFinite(c.doubleValue()))
             error("TYPE_ERROR", path, "Finite components required");
+    }
+  }
+
+  private void curveIdentities(com.fasterxml.jackson.databind.JsonNode curve, String path) {
+    if (curve == null || !curve.isObject()) {
+      error("INVALID_CURVE", path, "Curve object required");
+      return;
+    }
+    try {
+      ProjectIO.JSON.convertValue(curve, Curve.class);
+    } catch (IllegalArgumentException invalid) {
+      error(
+          "INVALID_CURVE",
+          path,
+          "Unknown fields or invalid serialized curve types: " + invalid.getMessage());
+      return;
+    }
+    rawIdentity(curve.get("uuid"), path + "/uuid");
+    var points = curve.get("points");
+    if (points == null || !points.isArray()) {
+      error("INVALID_CURVE", path + "/points", "Point array required");
+      return;
+    }
+    for (int i = 0; i < points.size(); i++)
+      rawIdentity(points.get(i).get("uuid"), path + "/points/" + i + "/uuid");
+  }
+
+  private void rawIdentity(com.fasterxml.jackson.databind.JsonNode node, String path) {
+    try {
+      if (node == null || !node.isTextual()) throw new IllegalArgumentException();
+      uuid(UUID.fromString(node.textValue()), path);
+    } catch (IllegalArgumentException invalid) {
+      error("MISSING_UUID", path, "Explicit valid UUID required");
     }
   }
 

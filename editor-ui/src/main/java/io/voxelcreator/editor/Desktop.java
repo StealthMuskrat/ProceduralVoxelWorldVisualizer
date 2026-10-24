@@ -43,6 +43,14 @@ public final class Desktop extends Application {
   private Runnable pendingTransition;
   private ProjectData projectDraft;
   private ProjectData importCandidate;
+  private ResourceImport.Plan importPlan;
+  private final Map<UUID, ResourceImport.Choice> importChoices = new LinkedHashMap<>();
+  private long importRevision = -1;
+  private ResourceSearchIndex searchIndex;
+  private long searchRevision = -1, searchChangedAt;
+  private String searchKind = "All", searchState = "All", searchKey = "";
+  private UUID findReference;
+  private List<ResourceSearchIndex.Hit> searchResults = List.of();
   private final float[] frames = new float[1200];
   private int frameAt = 0, frameCount = 0;
   private long preferenceSave = 0;
@@ -166,7 +174,11 @@ public final class Desktop extends Application {
       glfwMakeContextCurrent(previous);
     }
     if (smokeFrames > 0
-        && (frameCount == 110
+        && (frameCount == 70
+            || frameCount == 265
+            || frameCount == 290
+            || frameCount == 315
+            || frameCount == 110
             || frameCount == 170
             || frameCount == 195
             || frameCount == 215
@@ -262,10 +274,15 @@ public final class Desktop extends Application {
         ImGui.endMenu();
       }
       if (ImGui.beginMenu("View")) {
-        if (ImGui.menuItem("Find", "Ctrl+F")) find.set(true);
+        if (ImGui.menuItem("Find", "Ctrl+F")) {
+          find.set(true);
+          findReference = null;
+        }
         if (ImGui.menuItem("Find References", false, state.selected != null)) {
           find.set(true);
-          search.set(state.selected == null ? "" : state.selected.toString());
+          findReference = state.selected;
+          search.set("");
+          searchKey = "";
         }
         if (ImGui.menuItem("Validate Project")) {
           state.issues = NoiseCompiler.validate(state.project());
@@ -357,6 +374,7 @@ public final class Desktop extends Application {
 
   private void openFile(String action) {
     fileAction = action;
+    if (action.equals("Export")) resources.beginExport();
     filePending = true;
     pathInput.set(
         state.document.path() != null ? state.document.path().toString() : "project.pvproj.json");
@@ -371,10 +389,11 @@ public final class Desktop extends Application {
       ImGui.text(fileAction + " file");
       ImGui.setNextItemWidth(600);
       ImGui.inputText("Path", pathInput);
-      if (fileAction.equals("Export"))
-        ImGui.textWrapped(
-            "Exports the selected resource and its dependencies as a portable resource package."
-                + " Select a resource before exporting.");
+      if (fileAction.equals("Export")) {
+        ImGui.beginChild("export-resources", 650, 300, true);
+        resources.drawExportSelection();
+        ImGui.endChild();
+      }
       if (ImGui.button(fileAction)) {
         Path path = Path.of(pathInput.get());
         try {
@@ -393,9 +412,10 @@ public final class Desktop extends Application {
               state.notify("Information", "Project saved");
             }
             case "Export" -> {
-              if (state.selected == null) throw new IOException("Select a resource to export");
+              if (resources.exportSelection.isEmpty())
+                throw new IOException("Select resources to export");
               var pack = new PortablePackage();
-              pack.resources = resources.selection(true);
+              pack.resources = resources.exportSelection();
               var issues = NoiseCompiler.validate(pack.resources);
               if (!issues.isEmpty()) throw new IOException(issues.toString());
               Files.writeString(path, ProjectIO.JSON.writeValueAsString(pack));
@@ -407,6 +427,9 @@ public final class Desktop extends Application {
               var issues = NoiseCompiler.validate(pack.resources);
               if (!issues.isEmpty()) throw new IOException(issues.toString());
               importCandidate = pack.resources;
+              importChoices.clear();
+              importPlan = null;
+              importRevision = -1;
             }
           }
           ImGui.closeCurrentPopup();
@@ -425,13 +448,45 @@ public final class Desktop extends Application {
     if (importCandidate != null && !ImGui.isPopupOpen("Import Resources"))
       ImGui.openPopup("Import Resources");
     if (ImGui.beginPopupModal("Import Resources", ImGuiWindowFlags.AlwaysAutoResize)) {
+      if (importPlan == null || importRevision != state.revision) {
+        importPlan = ResourceImport.plan(state.project(), importCandidate, importChoices);
+        importRevision = state.revision;
+      }
       ImGui.textWrapped(
-          "Import these resources as independent copies? Every imported UUID is remapped;"
-              + " visible-ID collisions receive -copy suffixes. Existing resources are retained.");
-      if (ImGui.button("Import Copies")) {
-        ProjectData candidate = importCandidate;
-        if (state.change(p -> ResourceTransactions.mergeCopies(p, candidate))) {
+          "Preview the entire import. Copies receive new UUIDs and collision-safe IDs. Reuse is"
+              + " offered only for semantically identical definitions. Skips also exclude invalid"
+              + " dependents.");
+      ImGui.beginChild("import-resources", 720, 360, true);
+      for (var row : importPlan.rows()) {
+        ImGui.pushID(row.uuid().toString());
+        ImGui.text(row.kind() + " / " + row.id());
+        if (row.existing() != null)
+          ImGui.textDisabled(
+              "Existing identity/ID conflict: "
+                  + row.existing()
+                  + "; compatible: "
+                  + row.compatible());
+        var choice = importChoices.getOrDefault(row.uuid(), ResourceImport.Choice.COPY);
+        fields.choice(
+            "Resolution",
+            choice.name(),
+            row.compatible() ? List.of("COPY", "REUSE", "SKIP") : List.of("COPY", "SKIP"),
+            v -> {
+              importChoices.put(row.uuid(), ResourceImport.Choice.valueOf(v));
+              importRevision = -1;
+            });
+        ImGui.textDisabled(
+            row.resolution() + (row.targetId() == null ? "" : " -> " + row.targetId()));
+        ImGui.separator();
+        ImGui.popID();
+      }
+      for (var issue : importPlan.diagnostics()) ImGui.textWrapped("! " + issue);
+      ImGui.endChild();
+      if (importPlan.valid() && ImGui.button("Import Previewed Transaction")) {
+        var candidate = importPlan.candidate();
+        if (state.change(p -> ResourceGraph.assign(p, ProjectIO.copy(candidate)))) {
           importCandidate = null;
+          importPlan = null;
           ImGui.closeCurrentPopup();
         }
       }
@@ -482,30 +537,86 @@ public final class Desktop extends Application {
 
   private void drawFind() {
     if (!find.get()) return;
-    ImGui.setNextWindowSize(700, 500, ImGuiCond.FirstUseEver);
+    ImGui.setNextWindowSize(760, 560, ImGuiCond.FirstUseEver);
     ImGui.begin("Find", find);
-    ImGui.inputText("ID, UUID or reference", search);
-    String query = search.get().toLowerCase(Locale.ROOT);
-    for (var list : EditorState.lists(state.project()))
-      for (var obj : list)
-        if (obj instanceof Identity r) {
-          String json = ProjectIO.JSON.valueToTree(r).toString().toLowerCase(Locale.ROOT);
-          if (r.id.toLowerCase(Locale.ROOT).contains(query) || json.contains(query))
-            if (ImGui.selectable(
-                r.getClass().getSimpleName() + " / " + r.id + "###find" + r.uuid)) {
-              String kind =
-                  r instanceof Noise n
-                      ? "noise" + n.dimension + "D"
-                      : r instanceof Layer
-                          ? "layer"
-                          : r instanceof Operation
-                              ? "operation"
-                              : r instanceof VoxelType
-                                  ? "voxel"
-                                  : r instanceof Membership ? "set" : "folder";
-              state.select(kind, r.uuid);
-            }
+    if (ImGui.inputText("ID, UUID, value or reference", search)) {
+      findReference = null;
+      searchChangedAt = System.nanoTime();
+    }
+    fields.choice(
+        "Kind",
+        searchKind,
+        List.of(
+            "All",
+            "noise2D",
+            "noise3D",
+            "folder",
+            "layer",
+            "operation",
+            "voxel",
+            "group",
+            "set",
+            "transform",
+            "processing",
+            "parameter",
+            "curve point"),
+        v -> {
+          searchKind = v;
+          searchKey = "";
+        });
+    fields.choice(
+        "State",
+        searchState,
+        List.of("All", "Enabled", "Disabled"),
+        v -> {
+          searchState = v;
+          searchKey = "";
+        });
+    if (findReference != null) {
+      ImGui.textDisabled("References to " + findReference);
+      if (ImGui.smallButton("Clear Reference Filter")) {
+        findReference = null;
+        searchKey = "";
+      }
+    }
+    boolean revisionChanged = searchRevision != state.revision;
+    if (revisionChanged || searchIndex == null) {
+      searchIndex = new ResourceSearchIndex(state.project());
+      searchRevision = state.revision;
+      searchKey = "";
+    }
+    String key = search.get() + "|" + searchKind + "|" + searchState + "|" + findReference;
+    if (!key.equals(searchKey)
+        && (revisionChanged
+            || searchKey.isEmpty()
+            || System.nanoTime() - searchChangedAt > 150_000_000L)) {
+      searchResults = searchIndex.search(search.get(), searchKind, searchState, findReference);
+      searchKey = key;
+    }
+    ImGui.text(searchResults.size() + " result(s)");
+    ImGui.beginChild("search-results", 0, 0, true);
+    var clipper = new ImGuiListClipper();
+    try {
+      clipper.begin(searchResults.size());
+      while (clipper.step())
+        for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
+          var result = searchResults.get(i);
+          if (ImGui.selectable(
+              result.kind()
+                  + " / "
+                  + result.label()
+                  + (result.enabled() ? "" : " [disabled]")
+                  + "###result"
+                  + result.uuid())) {
+            if (result.owner() != null) properties.goToControl(result.owner(), result.uuid());
+            else state.select(result.kind(), result.uuid());
+          }
         }
+      clipper.end();
+    } finally {
+      clipper.destroy();
+    }
+    ImGui.endChild();
     ImGui.end();
   }
 
@@ -883,7 +994,10 @@ public final class Desktop extends Application {
       state.revision++;
       state.refreshDraft();
     }
-    if (chord("Find")) find.set(true);
+    if (chord("Find")) {
+      find.set(true);
+      findReference = null;
+    }
   }
 
   private boolean chord(String action) {
@@ -952,6 +1066,12 @@ public final class Desktop extends Application {
           op.id = "height";
           op.noiseGeneratorUuid = n.uuid;
           l.operations.add(op);
+          var clear = new Operation();
+          clear.id = "carve-caves";
+          clear.noiseGeneratorUuid = volume.uuid;
+          clear.interpretation = "DENSITY";
+          clear.overrides.put("action", ProjectIO.JSON.valueToTree("CLEAR"));
+          l.operations.add(clear);
           p.worldGenerator.layers.add(l);
         });
     try {

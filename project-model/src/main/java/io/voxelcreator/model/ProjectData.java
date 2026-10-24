@@ -187,7 +187,7 @@ public final class ProjectData {
 
   public static final class Curve {
     public UUID uuid = UUID.randomUUID();
-    public double min = 0, max = 1;
+    public double min = 0, max = 1, displayMin = -.2, displayMax = 1.2;
     public String outsideDomain = "CLAMP";
     public List<Point> points = new ArrayList<>(List.of(new Point(0, 0), new Point(1, 1)));
   }

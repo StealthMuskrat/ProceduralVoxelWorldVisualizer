@@ -68,8 +68,12 @@ public final class EditorState implements AutoCloseable {
     if (toggle && multiSelection.contains(uuid)) multiSelection.remove(uuid);
     else multiSelection.add(uuid);
     selectionParent = parent;
-    selected = uuid;
-    selectedKind = kind;
+    selected =
+        multiSelection.contains(uuid)
+            ? uuid
+            : multiSelection.stream().reduce((a, b) -> b).orElse(null);
+    var entry = ResourceGraph.find(project(), selected);
+    selectedKind = entry == null ? "" : entry.kind();
     refreshDraft();
   }
 

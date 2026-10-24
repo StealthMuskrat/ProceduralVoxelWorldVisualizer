@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 60 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
+Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 79 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -11,14 +11,14 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 | A03 noise validation | PARTIAL | Enabled compiler validation and rejection tests; full control navigation remains |
 | A04 disabled drafts | PASS | EngineContractTest.rejectsCyclesBadBindingsAndAllowsDisabledDraft |
 | A05 save/transitions | PARTIAL | Atomic-save/document tests; all dirty dialog actions need GUI certification |
-| A06 UUID clipboard | PARTIAL | ResourceTransactions remaps internal identities; folder/multi-selection scenarios remain |
-| A07 import/export | PARTIAL | Dependency package + validated copy import; conflict policy breadth remains |
-| A08 undo/redo | PARTIAL | Document snapshot transactions tested; full gesture audit remains |
+| A06 UUID clipboard | PARTIAL | Sibling/folder clipboard, internal/external reference and live cut identity tests; complete gesture GUI matrix remains |
+| A07 import/export | PARTIAL | Dependency checkbox export and COPY/compatible REUSE/SKIP preview; conservative semantic reuse and dependent-closure tests |
+| A08 undo/redo | PARTIAL | Structural delta transactions, bounded history, array reorder, undo/redo, curve gesture coalescing tests; full GUI audit remains |
 | A09 noise families | PARTIAL | All adapters finite/repeatable; independent bit-vector matrix remains |
 | A10 manipulations | PARTIAL | Typed math/logic/vectors/remap/curves/sampling; prefix resampling, six types, conversions and typed coordinate stages tested; broader registry/GUI acceptance remains |
 | A11 canonical panel | PARTIAL | One definition and immutable compiler used by preview/API; pin/source navigation breadth remains |
 | A12 expression language | PASS | MathContractTest: every function, operators, precedence, types, short-circuiting, source spans, limits |
-| A13 curve editor | PARTIAL | Curve evaluator tests; complete tangent/multi-point GUI scenarios remain |
+| A13 curve editor | PARTIAL | Auto/Aligned/Free coefficient and identity tests; group snapping/tangent/local history; native curve render; complete GUI gesture matrix remains |
 | A14 voxel identities | PARTIAL | Registry/archive remapping tested; manager interactions remain |
 | A15 nested conditions | PASS | Separate recursive field/voxel evaluators; all seven base predicates including EMPTY behavior and nested groups tested |
 | A16 inheritance/stages | PARTIAL | Three staged operations, zero override/live reset tests; complete operation inventory remains |
@@ -34,7 +34,7 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 | A26 failures/closure | PARTIAL | Generation and delivery CONTINUE/FAIL_FAST tested, plus context isolation; overload stress remains |
 | A27 2D viewport | PARTIAL | Engine image sampling and modes implemented; tile cache/UI acceptance remains |
 | A28 3D viewport | PARTIAL | Threshold, marching tetrahedra, points, ray-marched volume and X/Y/Z slices; numerical native volume probe; full streaming remains |
-| A29 world inspector | PARTIAL | Engine stage replay and links; stage preview UI/richer provenance remains |
+| A29 world inspector | PARTIAL | Exact stage pairs and four preview modes, removal ghosts, richer snapshot-correct trace/links; streaming and full GUI scenarios remain |
 | A30 bookmarks | PARTIAL | Independent coordinate lists and navigation; rename/full gesture audit remains |
 | A31 rendering LOD | PENDING | Exact data separate from display; production LOD/fallback not implemented |
 | A32 appearance/workspace | PARTIAL | Theme/docking/scales/shortcuts persistence implemented; restart and DPI matrix remain |
@@ -72,3 +72,5 @@ Latest local raw evidence: [docs/evidence](evidence/README.md). Formal project/u
 The typed-field extension passed 56 local JUnit tests, formal schemas including sampled-fields.json, the external engine-only consumer, unchanged exact voxel regression hashes, and a native Linux three-viewport/save-open smoke run. The previous baseline Actions run 40048968302 passed both platform builds, bundled launcher and cross-platform identical JAR hashes. The typed-field extension subsequently passed the same cross-platform pipeline in run 40050919102.
 
 The volume/slice extension passes 60 local JUnit tests. Native Linux smoke now asserts volume and all three slice planes completed; VolumeRenderProbe separately matches rendered center pixels to analytical absorption values. This adds renderer evidence without certifying the complete Tree 17 streaming/LOD requirements.
+
+Authoring/stage batch validation adds CurveContractTest, CurveGestureTest, ResourceTransactionTest and StagePreviewTest. Native smoke visits Curve Editor and Final/Before/After/Only Changes in addition to volume and X/Y/Z slices. See the raw evidence for this batch; these scoped checks do not certify every A01–A36 scenario.

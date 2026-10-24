@@ -25,6 +25,18 @@ public final class ResourceTransactions {
     return ProjectIO.JSON.convertValue(node, type);
   }
 
+  public record Copy(ProjectData project, Map<UUID, UUID> identities) {}
+
+  public static Copy duplicateMapped(ProjectData selection) {
+    JsonNode tree = ProjectIO.JSON.valueToTree(selection);
+    Map<String, String> mapping = new LinkedHashMap<>();
+    collectIds(tree, mapping);
+    remap(tree, mapping);
+    var ids = new LinkedHashMap<UUID, UUID>();
+    mapping.forEach((a, b) -> ids.put(UUID.fromString(a), UUID.fromString(b)));
+    return new Copy(ProjectIO.JSON.convertValue(tree, ProjectData.class), Map.copyOf(ids));
+  }
+
   public static ProjectData duplicateSelection(ProjectData selection) {
     return duplicate(selection, ProjectData.class);
   }
@@ -38,24 +50,20 @@ public final class ResourceTransactions {
   }
 
   private static void remap(JsonNode node, Map<String, String> mapping) {
-    if (node.isObject()) {
-      var o = (ObjectNode) node;
-      var fields = new ArrayList<String>();
-      node.fieldNames().forEachRemaining(fields::add);
-      for (String key : fields) {
-        var v = node.get(key);
-        if (v.isTextual() && mapping.containsKey(v.asText())) o.put(key, mapping.get(v.asText()));
-        else remap(v, mapping);
+    remapOwnIds(node, mapping);
+    var references = new HashMap<UUID, UUID>();
+    mapping.forEach((from, to) -> references.put(UUID.fromString(from), UUID.fromString(to)));
+    ResourceGraph.rewriteReferences(node, references);
+  }
+
+  private static void remapOwnIds(JsonNode node, Map<String, String> mapping) {
+    if (node instanceof ObjectNode object) {
+      if (object.hasNonNull("uuid")) {
+        String value = mapping.get(object.get("uuid").asText());
+        if (value != null) object.put("uuid", value);
       }
-    } else if (node.isArray()) {
-      var a = (ArrayNode) node;
-      for (int i = 0; i < a.size(); i++) {
-        var v = a.get(i);
-        if (v.isTextual() && mapping.containsKey(v.asText()))
-          a.set(i, TextNode.valueOf(mapping.get(v.asText())));
-        else remap(v, mapping);
-      }
-    }
+      object.elements().forEachRemaining(child -> remapOwnIds(child, mapping));
+    } else if (node.isArray()) node.forEach(child -> remapOwnIds(child, mapping));
   }
 
   /**

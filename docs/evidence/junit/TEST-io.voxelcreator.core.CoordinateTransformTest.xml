@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.core.CoordinateTransformTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T01:38:27.721Z" hostname="2c2368751ba8" time="0.358">
+<testsuite name="io.voxelcreator.core.CoordinateTransformTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T02:23:56.597Z" hostname="2c2368751ba8" time="0.566">
   <properties/>
-  <testcase name="rotationsHavePivotsAndExplicitNoncommutingAxisOrder()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.335"/>
-  <testcase name="sharedAndAmbientInputsUseIncomingCoordinateStage()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.005"/>
-  <testcase name="stageRestrictionsAreCheckedBeforeSourceSampling()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.004"/>
-  <testcase name="warpDisplacementsCanSampleReferencedFields()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.006"/>
-  <testcase name="earlierCoordinateSnapshotsAreNotRecomputedAfterLaterTransforms()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.003"/>
-  <testcase name="prefixesAllocateCoordinateStageScratchAndKeepTransforms()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.004"/>
+  <testcase name="rotationsHavePivotsAndExplicitNoncommutingAxisOrder()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.48"/>
+  <testcase name="sharedAndAmbientInputsUseIncomingCoordinateStage()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.017"/>
+  <testcase name="stageRestrictionsAreCheckedBeforeSourceSampling()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.013"/>
+  <testcase name="warpDisplacementsCanSampleReferencedFields()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.018"/>
+  <testcase name="earlierCoordinateSnapshotsAreNotRecomputedAfterLaterTransforms()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.006"/>
+  <testcase name="prefixesAllocateCoordinateStageScratchAndKeepTransforms()" classname="io.voxelcreator.core.CoordinateTransformTest" time="0.006"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

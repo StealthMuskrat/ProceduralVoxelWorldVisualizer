@@ -26,6 +26,9 @@ public final class Viewports implements AutoCloseable {
   private int smokeTab = -1;
   private boolean paused = false;
   private GenerationTrace trace;
+  private long traceSerial = 0, traceRevision = -1;
+  private Map<Integer, String> traceNames = Map.of();
+  private Map<Integer, UUID> traceTypes = Map.of();
   private final ImBoolean inspector = new ImBoolean(false);
   private final int[] inspect = {0, 0, 0};
   private String bookmarkAction = "";
@@ -37,7 +40,8 @@ public final class Viewports implements AutoCloseable {
     final int kind;
     final GlViewport gl = new GlViewport();
     final Camera camera = new Camera();
-    UUID noise;
+    UUID noise, stage;
+    String stageMode = "Final";
     String mode;
     double panX = 0, panZ = 0, panY = 16, step = 1, threshold = 0;
     int size = 32, slice = 0, volumeSteps = 192;
@@ -127,6 +131,10 @@ public final class Viewports implements AutoCloseable {
     if (!views[1].completedModes.containsAll(Set.of("Volume", "Slices X", "Slices Y", "Slices Z")))
       throw new IllegalStateException(
           "Missing volume/slice smoke modes " + views[1].completedModes);
+    if (!views[2].completedModes.containsAll(Set.of("Final", "Before", "After", "Only Changes")))
+      throw new IllegalStateException("Missing stage modes " + views[2].completedModes);
+    properties.assertSmokeCurveRendered();
+    System.out.println("EXACT_WORLD_STAGE_PREVIEWS_PASS");
     System.out.println("THREE_ENGINE_VIEWPORTS_PASS");
     System.out.println("RAYMARCHED_VOLUME_AND_XYZ_SLICES_PASS");
   }
@@ -139,6 +147,17 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void smokePhase(int frame) {
+    if (frame == 30) properties.smokeCurve(true);
+    if (frame == 90) properties.smokeCurve(false);
+    if (frame == 240 || frame == 275 || frame == 300 || frame == 325) {
+      views[2].stageMode =
+          frame == 240
+              ? "Only Changes"
+              : frame == 275 ? "Before" : frame == 300 ? "After" : "Final";
+      if (!state.project().worldGenerator.layers.isEmpty())
+        views[2].stage = state.project().worldGenerator.layers.getFirst().operations.getLast().uuid;
+      mark(views[2]);
+    }
     if (frame == 0 && !state.project().noise2D.isEmpty())
       state.select("noise2D", state.project().noise2D.getFirst().uuid);
     if (frame == 120) {
@@ -310,6 +329,46 @@ public final class Viewports implements AutoCloseable {
     }
     bookmarks(v);
     if (v.kind == 2) {
+      fields.choice(
+          "Stage preview",
+          v.stageMode,
+          List.of("Final", "Before", "After", "Only Changes"),
+          mode -> {
+            v.stageMode = mode;
+            mark(v);
+          });
+      if (!v.stageMode.equals("Final")) {
+        var stages =
+            ResourceGraph.entries(state.project()).stream()
+                .filter(e -> e.kind().equals("layer") || e.kind().equals("operation"))
+                .toList();
+        if (v.stage == null && !stages.isEmpty()) {
+          v.stage =
+              stages.stream()
+                  .filter(e -> e.uuid().equals(state.selected))
+                  .findFirst()
+                  .orElse(stages.getFirst())
+                  .uuid();
+          mark(v);
+        }
+        String label =
+            stages.stream()
+                .filter(e -> e.uuid().equals(v.stage))
+                .map(e -> e.kind() + " / " + e.resource().id)
+                .findFirst()
+                .orElse("Choose stage");
+        if (ImGui.beginCombo("Boundary", label)) {
+          for (var entry : stages)
+            if (ImGui.selectable(
+                entry.kind() + " / " + entry.resource().id + "###stage" + entry.uuid())) {
+              v.stage = entry.uuid();
+              mark(v);
+            }
+          ImGui.endCombo();
+        }
+        if (v.stageMode.equals("Only Changes"))
+          ImGui.textDisabled("SET: voxel palette | CLEAR: red removal ghosts | unchanged: hidden");
+      }
       if (ImGui.button("Inspect Coordinate")) inspector.set(true);
       ImGui.sameLine();
       ImGui.textDisabled("Read-only procedural world");
@@ -334,7 +393,10 @@ public final class Viewports implements AutoCloseable {
           v.displayedSlice = v.slice;
           v.displayedStep = v.step;
         }
-        v.completedModes.add(v.mode + (v.mode.equals("Slices") ? " " + v.slicePlane.name() : ""));
+        v.completedModes.add(
+            v.kind == 2
+                ? v.stageMode
+                : v.mode + (v.mode.equals("Slices") ? " " + v.slicePlane.name() : ""));
         v.origin.set(ready.origin);
         v.gl.setPalette(ready.palette);
         v.raw = ready.raw;
@@ -589,7 +651,8 @@ public final class Viewports implements AutoCloseable {
     var snapshot = ProjectIO.copy(state.project());
     long epoch = v.epoch;
     int kind = v.kind;
-    UUID noise = v.noise;
+    UUID noise = v.noise, stageId = v.stage;
+    String stageMode = v.stageMode;
     String mode = v.mode;
     double panX = v.panX, panZ = v.panZ, step = v.step, threshold = v.threshold;
     int slice = v.slice;
@@ -705,12 +768,23 @@ public final class Viewports implements AutoCloseable {
                             ny = Math.floorDiv(oy + n - 1, 32) - cy + 1,
                             nz = Math.floorDiv(oz + n - 1, 32) - cz + 1;
                         VoxelChunk[] chunks = new VoxelChunk[nx * ny * nz];
+                        StageChunk[] stageChunks =
+                            !stageMode.equals("Final") && stageId != null
+                                ? new StageChunk[chunks.length]
+                                : null;
                         for (int y = 0; y < ny; y++)
                           for (int z = 0; z < nz; z++)
                             for (int x = 0; x < nx; x++) {
                               if (Thread.currentThread().isInterrupted()) return;
-                              chunks[(y * nz + z) * nx + x] =
-                                  world.generateChunk(new ChunkPos(cx + x, cy + y, cz + z));
+                              int at = (y * nz + z) * nx + x;
+                              var position = new ChunkPos(cx + x, cy + y, cz + z);
+                              if (stageChunks == null) chunks[at] = world.generateChunk(position);
+                              else {
+                                var pair = world.generateStageChunk(position, stageId);
+                                stageChunks[at] = pair;
+                                chunks[at] =
+                                    stageMode.equals("Before") ? pair.before() : pair.after();
+                              }
                             }
                         for (int y = 0; y < n; y++)
                           for (int z = 0; z < n; z++)
@@ -724,11 +798,25 @@ public final class Viewports implements AutoCloseable {
                                               * nx
                                           + Math.floorDiv(wx, 32)
                                           - cx];
-                              cells[(y * n + z) * n + x] =
-                                  chunk.getVoxelTypeId(
-                                      Math.floorMod(wx, 32),
-                                      Math.floorMod(wy, 32),
-                                      Math.floorMod(wz, 32));
+                              int lx = Math.floorMod(wx, 32),
+                                  ly = Math.floorMod(wy, 32),
+                                  lz = Math.floorMod(wz, 32),
+                                  type = chunk.getVoxelTypeId(lx, ly, lz);
+                              if (stageChunks != null && stageMode.equals("Only Changes")) {
+                                int at =
+                                    ((Math.floorDiv(wy, 32) - cy) * nz + Math.floorDiv(wz, 32) - cz)
+                                            * nx
+                                        + Math.floorDiv(wx, 32)
+                                        - cx;
+                                var pair = stageChunks[at];
+                                int before = pair.before().getVoxelTypeId(lx, ly, lz),
+                                    after = pair.after().getVoxelTypeId(lx, ly, lz);
+                                type =
+                                    before == after
+                                        ? 0
+                                        : after > 0 ? after : snapshot.voxelTypes.size() + before;
+                              }
+                              cells[(y * n + z) * n + x] = type;
                             }
                       }
                       mesh = MeshBuilder.greedy(n, (x, y, z) -> cells[(y * n + z) * n + x]);
@@ -772,12 +860,14 @@ public final class Viewports implements AutoCloseable {
   }
 
   private static int[] palette(ProjectData p, int kind) {
-    int[] palette = new int[Math.max(256, p.voxelTypes.size() + 1)];
+    int[] palette = new int[kind == 2 ? Math.max(256, 2 * p.voxelTypes.size() + 1) : 256];
     for (int i = 0; i < palette.length; i++) palette[i] = color(i / 127.5 - 1, "Heatmap", 0);
     if (kind == 2)
       for (int i = 0; i < p.voxelTypes.size(); i++) {
         var c = p.voxelTypes.get(i).color;
         palette[i + 1] = rgba(c.r, c.g, c.b);
+        palette[p.voxelTypes.size() + i + 1] =
+            rgba(235, Math.max(30, c.g / 3), Math.max(45, c.b / 3));
       }
     return palette;
   }
@@ -920,6 +1010,9 @@ public final class Viewports implements AutoCloseable {
   private void pick(View v, float nx, float ny, float aspect) {
     var ray = v.camera.ray(nx, ny, aspect, v.origin);
     ProjectData p = ProjectIO.copy(state.project());
+    long request = ++traceSerial, revision = state.revision;
+    UUID selectedStage = v.stage;
+    String selectedMode = v.stageMode;
     try {
       state.background.execute(
           () -> {
@@ -927,17 +1020,34 @@ public final class Viewports implements AutoCloseable {
                 state.engine.openWorld(
                     new CompiledProject(p),
                     new WorldOptions(null, 32, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+              GenerationStage boundary =
+                  selectedMode.equals("Final") || selectedStage == null
+                      ? null
+                      : world.stages().stream()
+                          .filter(stage -> stage.uuid().equals(selectedStage))
+                          .findFirst()
+                          .orElse(null);
               var hit =
                   io.voxelcreator.render.VoxelRaycast.firstOccupied(
                       ray,
                       1000,
-                      (x, y, z) -> world.sampleStage(new BlockPos(x, y, z), Integer.MAX_VALUE));
+                      (x, y, z) -> {
+                        var position = new BlockPos(x, y, z);
+                        if (boundary == null) return world.sampleStage(position, Integer.MAX_VALUE);
+                        int before = world.sampleStage(position, boundary.before());
+                        if (selectedMode.equals("Before")) return before;
+                        int after = world.sampleStage(position, boundary.after());
+                        return selectedMode.equals("Only Changes")
+                            ? (before == after ? 0 : after > 0 ? after : before)
+                            : after;
+                      });
               if (hit.isPresent()) {
                 BlockPos cell = hit.get();
                 GenerationTrace found = world.trace(cell);
                 state.uiQueue.offer(
                     () -> {
-                      trace = found;
+                      if (request != traceSerial || revision != state.revision) return;
+                      acceptTrace(found, p, revision);
                       inspect[0] = cell.x();
                       inspect[1] = cell.y();
                       inspect[2] = cell.z();
@@ -947,6 +1057,7 @@ public final class Viewports implements AutoCloseable {
               }
               state.uiQueue.offer(
                   () -> {
+                    if (request != traceSerial || revision != state.revision) return;
                     inspector.set(true);
                     state.status = "No occupied voxel hit; enter a coordinate to inspect EMPTY";
                   });
@@ -959,6 +1070,24 @@ public final class Viewports implements AutoCloseable {
     }
   }
 
+  private void acceptTrace(GenerationTrace result, ProjectData snapshot, long revision) {
+    trace = result;
+    traceRevision = revision;
+    var names = new HashMap<Integer, String>();
+    var types = new HashMap<Integer, UUID>();
+    names.put(0, "EMPTY");
+    for (int i = 0; i < snapshot.voxelTypes.size(); i++) {
+      names.put(i + 1, snapshot.voxelTypes.get(i).id);
+      types.put(i + 1, snapshot.voxelTypes.get(i).uuid);
+    }
+    traceNames = Map.copyOf(names);
+    traceTypes = Map.copyOf(types);
+  }
+
+  private static String outcome(Boolean value) {
+    return value == null ? "not reached" : value ? "passed" : "rejected";
+  }
+
   private void drawInspector() {
     if (!inspector.get()) return;
     ImGui.setNextWindowSize(600, 600, ImGuiCond.FirstUseEver);
@@ -966,13 +1095,18 @@ public final class Viewports implements AutoCloseable {
     ImGui.inputInt3("XYZ", inspect);
     if (ImGui.button("Trace Coordinate")) {
       var p = ProjectIO.copy(state.project());
+      long request = ++traceSerial, revision = state.revision;
       BlockPos pos = new BlockPos(inspect[0], inspect[1], inspect[2]);
       try {
         state.background.execute(
             () -> {
               try (var world = state.engine.openWorld(new CompiledProject(p))) {
                 var result = world.trace(pos);
-                state.uiQueue.offer(() -> trace = result);
+                state.uiQueue.offer(
+                    () -> {
+                      if (request == traceSerial && revision == state.revision)
+                        acceptTrace(result, p, revision);
+                    });
               } catch (Exception e) {
                 state.uiQueue.offer(() -> state.notify("Error", e.getMessage()));
               }
@@ -983,18 +1117,71 @@ public final class Viewports implements AutoCloseable {
     }
     if (trace != null) {
       ImGui.text("Coordinate: " + trace.position());
-      String semantic =
-          trace.finalType() == 0
-              ? "EMPTY"
-              : state.project().voxelTypes.size() >= trace.finalType()
-                  ? state.project().voxelTypes.get(trace.finalType() - 1).id
-                  : "Registry changed; retrace";
+      String semantic = traceNames.getOrDefault(trace.finalType(), "Unknown snapshot type");
       ImGui.text("Final: " + semantic + "  Runtime ID " + trace.finalType());
+      if (traceRevision != state.revision)
+        ImGui.textWrapped(
+            "! The project changed after this trace. Retrace to inspect current generation.");
+      var deciding =
+          trace.steps().stream()
+              .filter(step -> !step.action().equals("NO_CHANGE"))
+              .reduce((a, b) -> b);
+      deciding.ifPresent(
+          step ->
+              ImGui.textWrapped(
+                  "Last deciding stage: "
+                      + step.layerId()
+                      + " / "
+                      + step.operationId()
+                      + " ("
+                      + step.action()
+                      + ")"));
+      UUID finalType = traceTypes.get(trace.finalType());
+      if (finalType != null && ImGui.button("Go To Voxel Type")) state.select("voxel", finalType);
       for (var step : trace.steps())
         if (ImGui.treeNode(step.layerId() + " / " + step.operationId() + "  " + step.action())) {
-          ImGui.text("Field: " + step.field());
-          ImGui.text("Previous: " + step.previous() + " -> " + step.result());
+          ImGui.text("Field: " + (Double.isNaN(step.field()) ? "not sampled" : step.field()));
+          ImGui.text(
+              "Previous: "
+                  + traceNames.getOrDefault(step.previous(), "?")
+                  + " -> "
+                  + traceNames.getOrDefault(step.result(), "?"));
+          if (step.details() != null) {
+            var details = step.details();
+            ImGui.text(
+                "Selected: "
+                    + details.selected()
+                    + " | Gate: "
+                    + outcome(details.gatePassed())
+                    + " | Previous-state predicate: "
+                    + outcome(details.predicatePassed()));
+            ImGui.text(
+                "Probability "
+                    + details.probability()
+                    + "; deterministic draw "
+                    + details.random());
+            if (ImGui.treeNode("Effective values")) {
+              details
+                  .effectiveSettings()
+                  .forEach((k, value) -> ImGui.textWrapped(k + " = " + value));
+              ImGui.treePop();
+            }
+            if (ImGui.treeNode("Field gates (executed branches)")) {
+              for (var gate : details.gates())
+                ImGui.textWrapped(
+                    gate.path()
+                        + " "
+                        + gate.kind()
+                        + " value="
+                        + (gate.value() == null ? "not sampled" : gate.value())
+                        + " passed="
+                        + gate.passed());
+              ImGui.treePop();
+            }
+          }
           ImGui.textWrapped(step.reason());
+          if (ImGui.button("Go To Layer")) state.select("layer", step.layerUuid());
+          ImGui.sameLine();
           if (ImGui.button("Go To Operation")) {
             state.select("operation", step.operationUuid());
           }

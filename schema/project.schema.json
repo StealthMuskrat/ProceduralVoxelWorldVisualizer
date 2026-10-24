@@ -133,6 +133,39 @@
       },
       "required" : [ "r", "g", "b" ]
     },
+    "Curve" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "min" : {
+          "type" : "number"
+        },
+        "max" : {
+          "type" : "number"
+        },
+        "displayMin" : {
+          "type" : "number"
+        },
+        "displayMax" : {
+          "type" : "number"
+        },
+        "outsideDomain" : {
+          "type" : "string",
+          "enum" : [ "CLAMP", "EXTEND", "REPEAT", "MIRROR" ]
+        },
+        "points" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Point"
+          }
+        }
+      },
+      "required" : [ "uuid", "min", "max", "outsideDomain", "points" ]
+    },
     "Folder" : {
       "type" : "object",
       "additionalProperties" : false,
@@ -206,7 +239,12 @@
         },
         "parameters" : {
           "type" : "object",
-          "additionalProperties" : { }
+          "additionalProperties" : { },
+          "properties" : {
+            "curve" : {
+              "$ref" : "#/$defs/Curve"
+            }
+          }
         },
         "inputs" : {
           "type" : "object",
@@ -392,6 +430,37 @@
         }
       },
       "required" : [ "label", "group" ]
+    },
+    "Point" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "x" : {
+          "type" : "number"
+        },
+        "y" : {
+          "type" : "number"
+        },
+        "inTangent" : {
+          "type" : "number"
+        },
+        "outTangent" : {
+          "type" : "number"
+        },
+        "segmentInterpolation" : {
+          "type" : "string",
+          "enum" : [ "STEP", "LINEAR", "SMOOTH", "BEZIER" ]
+        },
+        "handleMode" : {
+          "type" : "string",
+          "enum" : [ "AUTO", "ALIGNED", "FREE" ]
+        }
+      },
+      "required" : [ "x", "y", "inTangent", "outTangent", "segmentInterpolation", "handleMode", "uuid" ]
     },
     "Predicate" : {
       "type" : "object",

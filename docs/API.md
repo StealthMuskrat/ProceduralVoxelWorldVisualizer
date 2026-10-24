@@ -30,3 +30,9 @@ Callbacks run on a separate region coordinator, never a generation worker. A cal
 Runtime voxel IDs are context-local: 0 is EMPTY. Project references use UUIDs. Archives use semantic voxel string IDs, explicit chunk coverage, independently compressed adaptive trees, and a checked random-access index. An omitted payload inside coverage is EMPTY; a position outside coverage returns Optional.empty(). Reader mappings never mutate the supplied registry.
 
 Numeric semantics: source noise uses vendored FastNoiseLite 1.1.1 with double coordinate declarations and float outputs widened to double. StrictMath is used in authored expressions/curves. Hashing uses SplitMix64 finalization and high 53 bits divided by 2^53 for [0,1). Division by zero, invalid domains and executed nonfinite values raise failures; there is no implicit clamp. Expression power is right associative and binds above unary minus. Booleans have no implicit numeric coercion. `normalizedY` is `(y-minY)/(maxY-minY)`, or 0 for a degenerate interval; worldHeight is maxY-minY+1. Seed expression variables convert signed long to double; CoordinateHash retains all seed bits.
+
+## Stage analysis
+
+`WorldContext.stages()` lists stable layer/operation UUIDs and enabled before/after boundaries. `generateStageChunk(ChunkPos, UUID[, CancellationToken])` returns an immutable `StageChunk` containing exact `before()` and `after()` chunks; `changed(x,y,z)` includes removal to EMPTY. This does not change the final generation cache. Both snapshots finish before publication and remain usable after context closure. Stage memory uses bounded engine staging admission.
+
+`GenerationTrace.Step.details()` exposes effective setting values, evaluated field-gate branches, nullable gate/predicate outcomes (null means not reached), probability/draw and selection state. The previous Step constructor remains available. See [authoring and stage semantics](AUTHORING_AND_STAGES.md).

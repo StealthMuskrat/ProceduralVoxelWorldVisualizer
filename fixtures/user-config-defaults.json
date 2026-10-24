@@ -14,9 +14,9 @@
   },
   "input" : {
     "shortcuts" : {
-      "Save" : "Ctrl+S",
-      "Redo" : "Ctrl+Y",
       "Find" : "Ctrl+F",
+      "Redo" : "Ctrl+Y",
+      "Save" : "Ctrl+S",
       "Undo" : "Ctrl+Z"
     }
   },

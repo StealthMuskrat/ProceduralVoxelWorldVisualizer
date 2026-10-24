@@ -8,6 +8,8 @@ for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fie
  validator=jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker())
  for fixture in fixtures:validator.validate(json.loads((root/'fixtures'/fixture).read_text()))
  if name=='project':
+  curve_schema={'$ref':'#/$defs/Curve','$defs':schema['$defs']}
+  jsonschema.Draft202012Validator(curve_schema,format_checker=jsonschema.FormatChecker()).validate(json.loads((root/'fixtures/curve.json').read_text()))
   try:validator.validate(json.loads((root/'fixtures/invalid-format-version.json').read_text()))
   except jsonschema.ValidationError:pass
   else:raise AssertionError('Unsupported format fixture was accepted')

@@ -3,6 +3,7 @@
 The authoritative assignment is `docs/SPECIFICATION.md`. This repository is currently a development implementation. Read `docs/DECISIONS.md` and `docs/REQUIREMENTS_AND_TESTS.md` before changing scope or claiming conformance.
 
 - Java 25; pinned CI toolchain Temurin 25.0.4+7; Gradle wrapper 9.2.1.
+- Implement substantial, coherent batches; defer automated and native testing until the batch is implemented, then fix failures and finish validation before delivery.
 - Run `./gradlew clean test build dependencyNotices releaseJars` (Windows: `gradlew.bat`).
 - Keep engine/model/storage independent of editor, native, ImGui and OpenGL dependencies.
 - Preserve deterministic results across chunks, contexts, worker order and visual settings.

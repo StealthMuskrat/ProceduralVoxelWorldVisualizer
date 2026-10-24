@@ -97,11 +97,24 @@ public final class ContractGenerator {
             .put("$id", "urn:voxelcreator:project:2")
             .put("title", "Procedural Voxel Creator project format 2");
     schema.setAll((ObjectNode) g.type(ProjectData.class));
+    g.type(ProjectData.Curve.class);
     ObjectNode defs = obj();
     g.definitions.forEach(defs::set);
     ((ObjectNode) defs.path("ProjectData").path("properties"))
         .set("formatVersion", obj().put("const", 2));
     schema.set("$defs", defs);
+    ((ObjectNode) defs.path("Item").path("properties").path("parameters"))
+        .set("properties", obj().set("curve", obj().put("$ref", "#/$defs/Curve")));
+    ((ArrayNode) defs.path("Curve").path("required")).removeAll();
+    for (String field : List.of("uuid", "min", "max", "outsideDomain", "points"))
+      ((ArrayNode) defs.path("Curve").path("required")).add(field);
+    ((ObjectNode) defs.path("Curve").path("properties").path("outsideDomain"))
+        .set("enum", JSON.valueToTree(List.of("CLAMP", "EXTEND", "REPEAT", "MIRROR")));
+    ((ObjectNode) defs.path("Point").path("properties").path("handleMode"))
+        .set("enum", JSON.valueToTree(List.of("AUTO", "ALIGNED", "FREE")));
+    ((ObjectNode) defs.path("Point").path("properties").path("segmentInterpolation"))
+        .set("enum", JSON.valueToTree(List.of("STEP", "LINEAR", "SMOOTH", "BEZIER")));
+
     for (String channel : List.of("r", "g", "b"))
       ((ObjectNode) defs.path("Color").path("properties").path(channel))
           .put("minimum", 0)
@@ -222,6 +235,11 @@ public final class ContractGenerator {
             List.of("HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY"),
             "inheritableProperties",
             SettingsResolver.PROPERTIES));
+    var curve = new ProjectData.Curve();
+    curve.uuid = UUID.fromString("00000000-0000-4000-8000-000000000030");
+    curve.points.getFirst().uuid = UUID.fromString("00000000-0000-4000-8000-000000000031");
+    curve.points.getLast().uuid = UUID.fromString("00000000-0000-4000-8000-000000000032");
+    writeJSON(root.resolve("fixtures/curve.json"), curve);
     ProjectData empty = new ProjectData();
     empty.project.uuid = UUID.fromString("00000000-0000-4000-8000-000000000010");
     empty.worldGenerator.uuid = UUID.fromString("00000000-0000-4000-8000-000000000011");

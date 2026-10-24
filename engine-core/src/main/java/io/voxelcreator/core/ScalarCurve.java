@@ -10,10 +10,20 @@ public final class ScalarCurve {
   private final double[] x, y, in, out, slope;
   private final String[] interpolation;
   private final String outside;
+  private final double[] a, b, c, d;
 
   public ScalarCurve(Curve c) {
     int n = c.points.size();
-    if (n < 2 || !(c.min < c.max))
+    if (c.uuid == null
+        || n < 2
+        || !Double.isFinite(c.min)
+        || !Double.isFinite(c.max)
+        || !Double.isFinite(c.max - c.min)
+        || !(c.min < c.max)
+        || !Double.isFinite(c.displayMin)
+        || !Double.isFinite(c.displayMax)
+        || !Double.isFinite(c.displayMax - c.displayMin)
+        || !(c.displayMin < c.displayMax))
       throw new IllegalArgumentException("Curve needs a positive domain and two endpoints");
     x = new double[n];
     y = new double[n];
@@ -22,10 +32,18 @@ public final class ScalarCurve {
     slope = new double[n];
     interpolation = new String[n];
     outside = c.outsideDomain;
+    var identities = new java.util.HashSet<java.util.UUID>();
+    identities.add(c.uuid);
     if (!java.util.Set.of("CLAMP", "EXTEND", "REPEAT", "MIRROR").contains(outside))
       throw new IllegalArgumentException("Outside domain policy");
     for (int i = 0; i < n; i++) {
       var p = c.points.get(i);
+      if (p.uuid == null || !identities.add(p.uuid))
+        throw new IllegalArgumentException("Curve/point identities must be unique and non-null");
+      if (!java.util.Set.of("AUTO", "ALIGNED", "FREE").contains(p.handleMode))
+        throw new IllegalArgumentException("Handle mode");
+      if (p.handleMode.equals("ALIGNED") && p.inTangent != p.outTangent)
+        throw new IllegalArgumentException("Aligned handles require matching slopes");
       x[i] = p.x;
       y[i] = p.y;
       in[i] = p.inTangent;
@@ -61,6 +79,40 @@ public final class ScalarCurve {
         }
       }
     }
+    for (int i = 0; i < n; i++)
+      if (c.points.get(i).handleMode.equals("AUTO")) {
+        in[i] = slope[i];
+        out[i] = slope[i];
+      }
+    a = new double[n - 1];
+    b = new double[n - 1];
+    this.c = new double[n - 1];
+    this.d = new double[n - 1];
+    for (int i = 0; i < n - 1; i++) {
+      double h = x[i + 1] - x[i], delta = y[i + 1] - y[i];
+      this.d[i] = y[i];
+      if (interpolation[i].equals("LINEAR")) this.c[i] = delta;
+      else if (!interpolation[i].equals("STEP")) {
+        double m0 = (interpolation[i].equals("SMOOTH") ? slope[i] : out[i]) * h,
+            m1 = (interpolation[i].equals("SMOOTH") ? slope[i + 1] : in[i + 1]) * h;
+        a[i] = m0 + m1 - 2 * delta;
+        b[i] = 3 * delta - 2 * m0 - m1;
+        this.c[i] = m0;
+      }
+      if (!Double.isFinite(a[i])
+          || !Double.isFinite(b[i])
+          || !Double.isFinite(this.c[i])
+          || !Double.isFinite(this.d[i]))
+        throw new IllegalArgumentException("Nonfinite curve coefficients");
+    }
+  }
+
+  public double incomingSlope(int point) {
+    return in[point];
+  }
+
+  public double outgoingSlope(int point) {
+    return out[point];
   }
 
   public double sample(double v) {
@@ -86,18 +138,13 @@ public final class ScalarCurve {
           throw new AssertionError();
       }
     }
+    if (!Double.isFinite(v)) throw new ArithmeticException("Curve outside-domain mapping overflow");
     if (v == hi) return y[last];
     int i = java.util.Arrays.binarySearch(x, v);
     if (i >= 0) return y[i];
     i = -i - 2;
     double h = x[i + 1] - x[i], t = (v - x[i]) / h;
-    return switch (interpolation[i]) {
-      case "STEP" -> y[i];
-      case "LINEAR" -> y[i] + t * (y[i + 1] - y[i]);
-      case "SMOOTH" -> hermite(y[i], y[i + 1], slope[i] * h, slope[i + 1] * h, t);
-      case "BEZIER" -> hermite(y[i], y[i + 1], out[i] * h, in[i + 1] * h, t);
-      default -> throw new AssertionError();
-    };
+    return ((a[i] * t + b[i]) * t + c[i]) * t + d[i];
   }
 
   private double endpointSlope(int i) {

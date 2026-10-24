@@ -1,7 +1,7 @@
 {
-  "sampledFieldOperations" : [ "BILLOW", "DERIVATIVE", "FBM", "NOISE_REFERENCE", "OFFSET_SAMPLE", "PING_PONG", "RIDGED", "SMOOTH_FILTER", "WARP_SAMPLE" ],
-  "sampledFieldSources" : [ "Source Field", "Earlier Field Prefix", "Noise Generator Field" ],
   "registryVersion" : 2,
+  "sampledFieldSources" : [ "Source Field", "Earlier Field Prefix", "Noise Generator Field" ],
+  "sampledFieldOperations" : [ "BILLOW", "DERIVATIVE", "FBM", "NOISE_REFERENCE", "OFFSET_SAMPLE", "PING_PONG", "RIDGED", "SMOOTH_FILTER", "WARP_SAMPLE" ],
   "operations" : {
     "ADD" : {
       "category" : "Math",

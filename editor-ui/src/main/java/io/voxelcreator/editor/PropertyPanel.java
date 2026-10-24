@@ -16,6 +16,45 @@ public final class PropertyPanel {
   private final UiFields f = new UiFields();
   private UUID last;
   private CurveDialog curve;
+  private boolean smokeCurveDrawn;
+
+  public void smokeCurve(boolean visible) {
+    if (visible) {
+      var c = new Curve();
+      c.points.add(1, new Point(.5, .8));
+      c.points.forEach(p -> p.segmentInterpolation = "BEZIER");
+      curve = new CurveDialog(c, ignored -> {});
+      curve.selectAll();
+    } else if (curve != null) curve.cancel();
+  }
+
+  public void assertSmokeCurveRendered() {
+    if (!smokeCurveDrawn) throw new IllegalStateException("Curve editor did not render");
+    System.out.println("CURVE_EDITOR_NATIVE_PASS");
+  }
+
+  private UUID focusedControl;
+
+  public void goToControl(UUID resource, UUID control) {
+    Object object = EditorState.find(state.project(), resource);
+    if (object instanceof Noise n) {
+      state.select("noise" + n.dimension + "D", resource);
+      focusedControl = control;
+    }
+  }
+
+  private void focusRow(UUID uuid) {
+    if (uuid.equals(focusedControl)) {
+      ImGui.setNextItemOpen(true, ImGuiCond.Always);
+    }
+  }
+
+  private void revealRow(UUID uuid) {
+    if (uuid.equals(focusedControl)) {
+      ImGui.setScrollHereY(.2f);
+      focusedControl = null;
+    }
+  }
 
   public PropertyPanel(EditorState s) {
     state = s;
@@ -81,7 +120,10 @@ public final class PropertyPanel {
       }
     }
     ImGui.end();
-    if (curve != null && curve.draw()) curve = null;
+    if (curve != null) {
+      smokeCurveDrawn = true;
+      if (curve.draw()) curve = null;
+    }
   }
 
   private void noise(Noise n) {
@@ -107,11 +149,16 @@ public final class PropertyPanel {
           if (!axis.equals("Y") || n.dimension == 3) algorithmNumber(n, "extent" + axis, 16);
       }
     }
+    if (focusedControl != null
+        && n.coordinateTransforms.stream().anyMatch(i -> i.uuid.equals(focusedControl)))
+      ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Coordinates & Transforms")) {
       for (int i = 0; i < n.coordinateTransforms.size(); i++) {
         var item = n.coordinateTransforms.get(i);
         ImGui.pushID(item.uuid.toString());
+        focusRow(item.uuid);
         if (ImGui.treeNode("[" + i + "] " + item.id + "  " + item.kind)) {
+          revealRow(item.uuid);
           f.bool("Enabled", item.enabled, v -> item.enabled = v);
           f.text("ID", item.id, v -> item.id = v);
           boolean explicit = item.inputs.containsKey("coordinates");
@@ -197,13 +244,21 @@ public final class PropertyPanel {
         ImGui.endPopup();
       }
     }
+    if (focusedControl != null
+        && n.processing.stream()
+            .anyMatch(i -> i.uuid.equals(focusedControl) || curveContains(i, focusedControl)))
+      ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Ordered Processing", ImGuiTreeNodeFlags.DefaultOpen)) {
       ImGui.textDisabled("Global evaluation order is shown in [brackets]");
       for (int i = 0; i < n.processing.size(); i++) {
         var item = n.processing.get(i);
         ImGui.pushID(item.uuid.toString());
+        if (focusedControl != null && curveContains(item, focusedControl))
+          focusedControl = item.uuid;
+        focusRow(item.uuid);
         if (ImGui.treeNode(
             "[" + i + "] " + item.id + "  " + item.kind + (item.enabled ? "" : " (disabled)"))) {
+          revealRow(item.uuid);
           f.text("ID", item.id, v -> item.id = v);
           f.bool("Enabled", item.enabled, v -> item.enabled = v);
           ImGui.textDisabled(
@@ -359,17 +414,27 @@ public final class PropertyPanel {
                   v -> item.parameters.put("axis", ProjectIO.JSON.valueToTree(v)));
             }
             case "CURVE" -> {
-              if (ImGui.button("Edit Curve")) {
-                Curve c =
-                    item.parameters.containsKey("curve")
-                        ? ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class)
-                        : new Curve();
-                curve =
-                    new CurveDialog(
-                        c,
-                        applied ->
-                            item.parameters.put("curve", ProjectIO.JSON.valueToTree(applied)));
-              }
+              if (ImGui.button("Edit Curve"))
+                try {
+                  Curve c =
+                      item.parameters.containsKey("curve")
+                          ? ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class)
+                          : new Curve();
+                  curve =
+                      new CurveDialog(
+                          c,
+                          applied ->
+                              item.parameters.put("curve", ProjectIO.JSON.valueToTree(applied)));
+                } catch (RuntimeException invalid) {
+                  state.notify(
+                      "Error",
+                      "Curve cannot open: "
+                          + invalid.getMessage()
+                          + ". Correct the definition or reset the curve.");
+                }
+              ImGui.sameLine();
+              if (ImGui.button("Reset Curve"))
+                item.parameters.put("curve", ProjectIO.JSON.valueToTree(new Curve()));
             }
             case "NOISE_REFERENCE",
                 "FBM",
@@ -463,9 +528,13 @@ public final class PropertyPanel {
         ImGui.endPopup();
       }
     }
+    if (focusedControl != null
+        && n.sharedParameters.stream().anyMatch(p -> p.uuid.equals(focusedControl)))
+      ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Parameters")) {
       for (var p : n.sharedParameters) {
         ImGui.pushID(p.uuid.toString());
+        revealRow(p.uuid);
         f.text("ID", p.id, v -> p.id = v);
         ImGui.text(p.type);
         constantEditor(p.type, p.value, v -> p.value = v);
@@ -527,6 +596,15 @@ public final class PropertyPanel {
         ImGui.endCombo();
       }
     }
+  }
+
+  private boolean curveContains(Item item, UUID uuid) {
+    if (uuid == null || !item.parameters.containsKey("curve")) return false;
+    var points = item.parameters.get("curve").get("points");
+    if (points == null) return false;
+    for (var point : points)
+      if (point.has("uuid") && uuid.toString().equals(point.get("uuid").asText())) return true;
+    return false;
   }
 
   private void algorithmNumber(Noise n, String key, double def) {

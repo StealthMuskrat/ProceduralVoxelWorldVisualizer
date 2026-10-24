@@ -23,15 +23,22 @@ final class WorldPlan {
       Map<String, String> sources) {}
 
   private final List<Op> operations;
+  private final List<GenerationStage> stages;
   private final int minY, maxY;
   private final VoxelRegistry registry;
   private final Map<UUID, Set<Integer>> sets;
+  private final Map<UUID, Integer> fieldDimensions;
 
   WorldPlan(ProjectData p, VoxelRegistry registry, long seed) {
     this.registry = registry;
+    var dimensions = new HashMap<UUID, Integer>();
+    java.util.stream.Stream.concat(p.noise2D.stream(), p.noise3D.stream())
+        .forEach(n -> dimensions.put(n.uuid, n.dimension));
+    fieldDimensions = Map.copyOf(dimensions);
     minY = p.project.minY;
     maxY = p.project.maxY;
     var compiled = new ArrayList<Op>();
+    var stageList = new ArrayList<GenerationStage>();
     var memberships = new HashMap<UUID, Set<Integer>>();
     for (var set : p.voxelSets) {
       var member = new HashSet<Integer>();
@@ -40,9 +47,19 @@ final class WorldPlan {
     }
     sets = Map.copyOf(memberships);
     for (var layer : p.worldGenerator.layers) {
-      if (!layer.enabled) continue;
+      int layerStart = compiled.size();
       for (var op : layer.operations) {
-        if (!op.enabled) continue;
+        int opStart = compiled.size();
+        stageList.add(
+            new GenerationStage(
+                op.uuid,
+                layer.uuid,
+                "operation",
+                layer.id + " / " + op.id,
+                opStart,
+                opStart + (layer.enabled && op.enabled ? 1 : 0),
+                layer.enabled && op.enabled));
+        if (!layer.enabled || !op.enabled) continue;
         Settings s = SettingsResolver.resolve(layer, op);
         long opSeed = s.seedOffset == 0 ? seed : CoordinateHash.mix(seed ^ s.seedOffset);
         var compiler = new NoiseCompiler(p, opSeed);
@@ -73,13 +90,40 @@ final class WorldPlan {
                 Map.copyOf(gates),
                 Map.copyOf(sources)));
       }
+      stageList.add(
+          new GenerationStage(
+              layer.uuid,
+              layer.uuid,
+              "layer",
+              layer.id,
+              layerStart,
+              compiled.size(),
+              layer.enabled));
     }
     operations = List.copyOf(compiled);
+    stages = List.copyOf(stageList);
+  }
+
+  List<GenerationStage> stages() {
+    return stages;
+  }
+
+  GenerationStage stage(UUID id) {
+    return stages.stream()
+        .filter(s -> s.uuid().equals(id))
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("Unknown stage " + id));
   }
 
   private void collectGates(Gate g, Map<UUID, NoiseAlgorithms.Field> map, NoiseCompiler c) {
-    if (g.noiseGeneratorUuid != null)
-      map.put(g.noiseGeneratorUuid, c.compile(g.noiseGeneratorUuid));
+    if (g.noiseGeneratorUuid != null) {
+      var field = c.compile(g.noiseGeneratorUuid);
+      map.put(
+          g.noiseGeneratorUuid,
+          fieldDimensions.get(g.noiseGeneratorUuid) == 2
+              ? (x, y, z) -> field.sample(x, 0, z)
+              : field);
+    }
     for (var child : g.children) collectGates(child, map, c);
   }
 
@@ -110,10 +154,30 @@ final class WorldPlan {
   }
 
   VoxelChunk generate(ChunkPos pos, int size, CancellationToken token) {
-    if (empty() || (long) pos.y() * size > maxY || (long) pos.y() * size + size - 1 < minY)
-      return VoxelChunk.uniform(pos, size, 0);
-    int ox = pos.x() * size, oy = pos.y() * size, oz = pos.z() * size;
-    double[][] fields = new double[operations.size()][];
+    return generate(pos, size, token, Integer.MAX_VALUE, null);
+  }
+
+  StageChunk generateStage(ChunkPos pos, int size, CancellationToken token, UUID id) {
+    GenerationStage stage = stage(id);
+    if (stage.after() == 0
+        || (long) pos.y() * size > maxY
+        || (long) pos.y() * size + size - 1 < minY) {
+      var empty = VoxelChunk.uniform(pos, size, 0);
+      return new StageChunk(stage, empty, empty);
+    }
+    double[][] fields = fields(pos, size, token, stage.after());
+    VoxelChunk before = generate(pos, size, token, stage.before(), fields),
+        after =
+            stage.before() == stage.after()
+                ? before
+                : generate(pos, size, token, stage.after(), fields);
+    token.throwIfCancelled();
+    return new StageChunk(stage, before, after);
+  }
+
+  private double[][] fields(ChunkPos pos, int size, CancellationToken token, int limit) {
+    int ox = pos.x() * size, oz = pos.z() * size;
+    double[][] fields = new double[Math.min(limit, operations.size())][];
     for (int i = 0; i < fields.length; i++) {
       Op op = operations.get(i);
       if (op.dimension == 2) {
@@ -124,12 +188,23 @@ final class WorldPlan {
         }
       }
     }
+    return fields;
+  }
+
+  private VoxelChunk generate(
+      ChunkPos pos, int size, CancellationToken token, int limit, double[][] values) {
+    if (empty()
+        || limit == 0
+        || (long) pos.y() * size > maxY
+        || (long) pos.y() * size + size - 1 < minY) return VoxelChunk.uniform(pos, size, 0);
+    int ox = pos.x() * size, oy = pos.y() * size, oz = pos.z() * size;
+    double[][] fields = values == null ? fields(pos, size, token, limit) : values;
     return VoxelChunk.generate(
         pos,
         size,
         (x, y, z) -> {
           token.throwIfCancelled();
-          return sample(ox + x, oy + y, oz + z, null, Integer.MAX_VALUE, fields, z * size + x);
+          return sample(ox + x, oy + y, oz + z, null, limit, fields, z * size + x);
         });
   }
 
@@ -152,6 +227,9 @@ final class WorldPlan {
       double f = Double.NaN;
       int previous = state;
       String reason = "Selected";
+      boolean gatePassed = true, predicatePassed = true;
+      boolean gateReached = false, predicateReached = false;
+      var gateTrace = trace == null ? null : new ArrayList<GenerationTrace.GateEvaluation>();
       boolean choose = true;
       if (y < Math.max(minY, s.minY) || y > Math.min(maxY, s.maxY)) {
         choose = false;
@@ -180,11 +258,19 @@ final class WorldPlan {
             };
         if (!choose) reason = "Field interpretation rejected sample";
       }
-      if (choose && !gate(s.fieldGates, op, f, x, y, z)) {
+      if (choose) {
+        gateReached = true;
+        gatePassed = gate(s.fieldGates, op, f, x, y, z, gateTrace, "fieldGates");
+      }
+      if (choose && !gatePassed) {
         choose = false;
         reason = "Field gate rejected sample";
       }
-      if (choose && !predicate(s.voxelStatePredicate, previous)) {
+      if (choose) {
+        predicateReached = true;
+        predicatePassed = predicate(s.voxelStatePredicate, previous);
+      }
+      if (choose && !predicatePassed) {
         choose = false;
         reason =
             "Previous committed voxel predicate rejected state " + registry.semanticId(previous);
@@ -218,7 +304,15 @@ final class WorldPlan {
                 state,
                 choose ? s.action : "NO_CHANGE",
                 reason,
-                op.sources));
+                op.sources,
+                new GenerationTrace.Details(
+                    settingsValues(s),
+                    List.copyOf(gateTrace),
+                    gateReached ? gatePassed : null,
+                    predicateReached ? predicatePassed : null,
+                    probability,
+                    random,
+                    choose)));
       index++;
     }
     return state;
@@ -255,49 +349,67 @@ final class WorldPlan {
     };
   }
 
-  private boolean gate(Gate g, Op op, double original, int x, int y, int z) {
-    return switch (g.kind) {
-      case "ALWAYS" -> true;
-      case "AND" -> {
-        boolean match = true;
-        for (var c : g.children)
-          if (!gate(c, op, original, x, y, z)) {
-            match = false;
-            break;
-          }
-        yield match;
+  private static Map<String, String> settingsValues(Settings settings) {
+    var values = new LinkedHashMap<String, String>();
+    ProjectIO.JSON
+        .valueToTree(settings)
+        .fields()
+        .forEachRemaining(e -> values.put(e.getKey(), e.getValue().toString()));
+    return Collections.unmodifiableMap(values);
+  }
+
+  private boolean gate(
+      Gate g,
+      Op op,
+      double original,
+      int x,
+      int y,
+      int z,
+      List<GenerationTrace.GateEvaluation> report,
+      String path) {
+    double value = Double.NaN;
+    boolean result;
+    if (g.kind.equals("ALWAYS")) result = true;
+    else if (g.kind.equals("AND") || g.kind.equals("OR")) {
+      result = g.kind.equals("AND");
+      for (int i = 0; i < g.children.size(); i++) {
+        boolean child = gate(g.children.get(i), op, original, x, y, z, report, path + "/" + i);
+        if (g.kind.equals("AND") && !child) {
+          result = false;
+          break;
+        }
+        if (g.kind.equals("OR") && child) {
+          result = true;
+          break;
+        }
       }
-      case "OR" -> {
-        boolean match = false;
-        for (var c : g.children)
-          if (gate(c, op, original, x, y, z)) {
-            match = true;
-            break;
-          }
-        yield match;
-      }
-      default -> {
-        double value =
-            g.noiseGeneratorUuid == null
-                ? original
-                : op.gates
-                    .get(g.noiseGeneratorUuid)
-                    .sample(
-                        x * op.settings.scaleX + op.settings.offsetX,
-                        y * op.settings.scaleY + op.settings.offsetY,
-                        z * op.settings.scaleZ + op.settings.offsetZ);
-        yield g.kind.equals("INTERVAL")
-            ? value >= g.threshold && value <= g.max
-            : switch (g.comparison) {
-              case "GE" -> value >= g.threshold;
-              case "GT" -> value > g.threshold;
-              case "LE" -> value <= g.threshold;
-              case "LT" -> value < g.threshold;
-              case "EQ" -> value == g.threshold;
-              case "NE" -> value != g.threshold;
-              default -> throw new AssertionError();
-            };
-      }
-    };
+    } else {
+      value =
+          g.noiseGeneratorUuid == null
+              ? original
+              : op.gates
+                  .get(g.noiseGeneratorUuid)
+                  .sample(
+                      x * op.settings.scaleX + op.settings.offsetX,
+                      y * op.settings.scaleY + op.settings.offsetY,
+                      z * op.settings.scaleZ + op.settings.offsetZ);
+      result =
+          g.kind.equals("INTERVAL")
+              ? value >= g.threshold && value <= g.max
+              : switch (g.comparison) {
+                case "GE" -> value >= g.threshold;
+                case "GT" -> value > g.threshold;
+                case "LE" -> value <= g.threshold;
+                case "LT" -> value < g.threshold;
+                case "EQ" -> value == g.threshold;
+                case "NE" -> value != g.threshold;
+                default -> throw new AssertionError();
+              };
+    }
+    if (report != null)
+      report.add(
+          new GenerationTrace.GateEvaluation(
+              path, g.kind, g.noiseGeneratorUuid, Double.isNaN(value) ? null : value, result));
+    return result;
   }
 }

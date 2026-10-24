@@ -1,0 +1,18 @@
+SMOKE_ENV java=25.0.5+8-LTS os=Linux arch=amd64 gl=4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 renderer=llvmpipe (LLVM 20.1.2, 256 bits)
+SMOKE_PROJECT_SAVE_OPEN_PASS /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-project.json
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-70.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-110.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-170.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-195.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-215.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-230.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-265.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-290.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-315.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-350.png
+CURVE_EDITOR_NATIVE_PASS
+EXACT_WORLD_STAGE_PREVIEWS_PASS
+THREE_ENGINE_VIEWPORTS_PASS
+RAYMARCHED_VOLUME_AND_XYZ_SLICES_PASS
+DESKTOP_SMOKE_COMPLETED frames=360 engine=EngineMetrics[workers=4, active=0, queued=0, completed=4, generationNanos=32217450, cacheBytes=0, stagingBytes=0, memoryBudget=536870912]
+NATIVE_CURSOR_CLEANUP: unavailable platform cursor; completing GLFW shutdown

@@ -155,6 +155,7 @@ public final class ProcessingRegistry {
       }
       item.inputs.put(name, b);
     }
+    if (key.equals("CURVE")) item.parameters.put("curve", ProjectIO.JSON.valueToTree(new Curve()));
     if (SAMPLED.contains(key)) item.inputs.put("field", Binding.sourceField());
     if (key.equals("EXPRESSION"))
       item.parameters.put("expression", ProjectIO.JSON.valueToTree("source"));

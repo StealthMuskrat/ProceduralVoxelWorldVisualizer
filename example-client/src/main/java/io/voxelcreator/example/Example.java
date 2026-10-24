@@ -108,6 +108,15 @@ public final class Example {
       sampler.sampleGrid(-4, -4, 8, 8, 1, grid);
       System.out.println("Direct sample: " + sampler.sample(-1, 3));
       VoxelChunk chunk = world.generateChunk(new ChunkPos(-1, 0, 0));
+      var stage =
+          world.generateStageChunk(chunk.position(), p.worldGenerator.layers.getFirst().uuid);
+      for (int y = 0; y < 16; y++)
+        for (int z = 0; z < 16; z++)
+          for (int x = 0; x < 16; x++)
+            if (stage.before().getVoxelTypeId(x, y, z) != 0
+                || stage.after().getVoxelTypeId(x, y, z) != chunk.getVoxelTypeId(x, y, z))
+              throw new AssertionError("Independent stage snapshot mismatch");
+      System.out.println("Independent exact stage snapshots PASS");
       var asynchronous = world.generateChunkAsync(new ChunkPos(0, 0, 0)).get(5, TimeUnit.SECONDS);
       System.out.println("Async chunk: " + asynchronous.representation());
       var request =

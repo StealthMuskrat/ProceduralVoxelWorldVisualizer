@@ -142,6 +142,33 @@ public final class WorldContext implements AutoCloseable {
     return plan.stageSample(p.x(), p.y(), p.z(), operationCount);
   }
 
+  public List<GenerationStage> stages() {
+    check();
+    return plan.stages();
+  }
+
+  public StageChunk generateStageChunk(ChunkPos position, UUID stage) {
+    return generateStageChunk(position, stage, new CancellationToken());
+  }
+
+  public StageChunk generateStageChunk(ChunkPos position, UUID stage, CancellationToken token) {
+    check();
+    Objects.requireNonNull(token);
+    plan.stage(stage);
+    long reserved = Math.multiplyExact(2, plan.stagingEstimate(chunkSize()));
+    if (!engine.reserveStaging(reserved))
+      throw new RejectedExecutionException("Stage preview memory budget reached");
+    try {
+      var scope = new CancellationToken(() -> closed.get() || token.isCancelled());
+      var result = plan.generateStage(position, chunkSize(), scope, stage);
+      token.throwIfCancelled();
+      check();
+      return result;
+    } finally {
+      engine.stagingBytes.addAndGet(-reserved);
+    }
+  }
+
   public CacheStats cacheStats() {
     synchronized (cache) {
       return new CacheStats(hits, misses, cache.size(), bytes, pinned.size());
