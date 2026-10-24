@@ -80,3 +80,9 @@ Archives default to packed version 2. Readers accept versions 1 and 2 and expose
 ## Structured validation and compilation failures
 
 `Validator.validate` now enriches available Diagnostic source/item UUIDs and parameter keys against the validated candidate. `DiagnosticLocations.enrich(project, diagnostics)` supports existing index and UUID-style paths without mutating the model. `CompilationFailure` extends IllegalArgumentException, exposes `diagnostic()` and retains the original cause, including Expression.Problem spans. Referenced failures preserve the innermost definition's identity. The public Diagnostic record shape remains unchanged. Editor event retention and source-navigation scope are documented in [DIAGNOSTICS_AND_RECOVERY.md](DIAGNOSTICS_AND_RECOVERY.md).
+
+## Numeric parameter drivers
+
+`Settings.parameterDrivers` is an ordered atomic-inheritance list of `NumericDriver` values. Set `enabled`, `destination` (threshold/baseHeight/heightScale), `combination` (REPLACE/ADD/MULTIPLY), optional `noiseGeneratorUuid` and mapping endpoints. Numeric output endpoints can be any finite signed doubles. `WorldSemantics` publishes the whitelist and mapping/composition helpers. FieldDriver is now sealed with NumericDriver as its canonical subtype; probability/strength properties retain their base shape and [0,1] output constraints.
+
+`GenerationTrace.Details.parameters()` returns immutable ParameterEvaluation records containing row, destination, combination, source UUID, sample, mapped, previous and effective values. Previous seven- and eleven-argument Details constructors remain available and supply an empty list; record patterns/reflection require updating for the new component. The exact ordering, projection/cache behavior, failure policy and format-2 defaults are in [NUMERIC_PARAMETER_DRIVERS.md](NUMERIC_PARAMETER_DRIVERS.md).

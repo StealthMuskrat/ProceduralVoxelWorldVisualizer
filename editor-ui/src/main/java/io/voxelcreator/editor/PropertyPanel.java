@@ -50,9 +50,11 @@ public final class PropertyPanel {
   }
 
   public void assertSmokeWorldControlsRendered() {
-    if (!smokeWorldDrawn.containsAll(Set.of("Transforms", "Types", "Drivers and gates")))
+    if (!smokeWorldDrawn.containsAll(
+        Set.of("Transforms", "Types", "Drivers and gates", "Numeric parameters")))
       throw new IllegalStateException("World-use controls were not rendered: " + smokeWorldDrawn);
     System.out.println("WORLD_USE_CONTROLS_NATIVE_PASS");
+    System.out.println("NUMERIC_PARAMETER_CONTROLS_NATIVE_PASS");
   }
 
   private void drawSmokeWorldControls() {
@@ -66,6 +68,7 @@ public final class PropertyPanel {
       switch (smokeWorldSection) {
         case "Transforms" -> samplingTransforms(smokeWorldSettings.samplingTransforms);
         case "Types" -> typeIntervals(smokeWorldSettings.typeIntervals);
+        case "Numeric parameters" -> parameterDrivers(smokeWorldSettings.parameterDrivers);
         default -> {
           ImGui.pushID("probability");
           fieldDriver(smokeWorldSettings.probabilityDriver);
@@ -1101,6 +1104,11 @@ public final class PropertyPanel {
           samplingTransforms(s.samplingTransforms);
           ImGui.treePop();
         }
+      } else if (key.equals("parameterDrivers")) {
+        if (ImGui.treeNode("Numeric Parameter Drivers")) {
+          parameterDrivers(s.parameterDrivers);
+          ImGui.treePop();
+        }
       } else if (key.equals("typeIntervals")) {
         if (ImGui.treeNode("Voxel Type Intervals")) {
           typeIntervals(s.typeIntervals);
@@ -1226,17 +1234,64 @@ public final class PropertyPanel {
   }
 
   private void fieldDriver(FieldDriver d) {
+    fieldDriver(d, true);
+  }
+
+  private void fieldDriver(FieldDriver d, boolean unitOutput) {
     f.bool("Enabled", d.enabled, v -> d.enabled = v);
     fieldPicker("Field", d.noiseGeneratorUuid, v -> d.noiseGeneratorUuid = v);
     f.choice("Mapping", d.mapping, WorldSemantics.MAPPINGS, v -> d.mapping = v);
     f.number("Input minimum", d.inputMin, v -> d.inputMin = v);
     f.number("Input maximum", d.inputMax, v -> d.inputMax = v);
-    f.number("Output at minimum [0,1]", d.outputMin, v -> d.outputMin = v);
-    f.number("Output at maximum [0,1]", d.outputMax, v -> d.outputMax = v);
+    f.number("Output at minimum" + (unitOutput ? " [0,1]" : ""), d.outputMin, v -> d.outputMin = v);
+    f.number("Output at maximum" + (unitOutput ? " [0,1]" : ""), d.outputMax, v -> d.outputMax = v);
+    if (unitOutput)
+      ImGui.textWrapped(
+          "Samples use the placement coordinates. Input clamps to the declared range; the mapped"
+              + " factor multiplies the constant. Disabled factor = 1. Use ALL interpretation for a"
+              + " parameter-only input.");
+  }
+
+  private void parameterDrivers(List<NumericDriver> drivers) {
     ImGui.textWrapped(
-        "Samples use the placement coordinates. Input clamps to the declared range; the mapped"
-            + " factor multiplies the constant. Disabled factor = 1. Use ALL interpretation for a"
-            + " parameter-only input.");
+        "Entries run in stored order before interpretation. Replace, add to, or multiply the"
+            + " current numeric value. Input clamps to its range; finite signed output endpoints"
+            + " are allowed.");
+    ImGui.textWrapped(
+        "Threshold applies to Density/Selection; Base Height and Height Scale apply to height"
+            + " interpretations. Other destinations are not sampled.");
+    int remove = -1, up = -1, down = -1;
+    for (int i = 0; i < drivers.size(); i++) {
+      ImGui.pushID(i);
+      var d = drivers.get(i);
+      if (smokeWorldSettings != null) ImGui.setNextItemOpen(true, ImGuiCond.Always);
+      if (ImGui.treeNode("Driver " + (i + 1) + " : " + AppMetadata.settingLabel(d.destination))) {
+        if (ImGui.beginCombo("Destination", AppMetadata.settingLabel(d.destination))) {
+          for (String destination : WorldSemantics.PARAMETER_TARGETS)
+            if (ImGui.selectable(
+                AppMetadata.settingLabel(destination), d.destination.equals(destination)))
+              d.destination = destination;
+          ImGui.endCombo();
+        }
+        f.choice("Combination", d.combination, WorldSemantics.COMBINATIONS, v -> d.combination = v);
+        fieldDriver(d, false);
+        if (i > 0 && ImGui.smallButton("Move Up")) up = i;
+        if (i > 0) ImGui.sameLine();
+        if (i + 1 < drivers.size() && ImGui.smallButton("Move Down")) down = i;
+        if (i + 1 < drivers.size()) ImGui.sameLine();
+        if (ImGui.smallButton("Remove")) remove = i;
+        ImGui.treePop();
+      }
+      ImGui.popID();
+    }
+    if (remove >= 0) drivers.remove(remove);
+    else if (up >= 0) Collections.swap(drivers, up, up - 1);
+    else if (down >= 0) Collections.swap(drivers, down, down + 1);
+    if (drivers.size() < 32 && ImGui.button("Add Parameter Driver")) {
+      var d = new NumericDriver();
+      d.enabled = true;
+      drivers.add(d);
+    }
   }
 
   private void typeIntervals(List<TypeInterval> intervals) {

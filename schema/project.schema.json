@@ -419,6 +419,44 @@
       },
       "required" : [ "dimension", "algorithm", "seedOffset", "coordinateTransforms", "processing", "sharedParameters", "pinnedControls", "outputBinding", "id", "uuid" ]
     },
+    "NumericDriver" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "destination" : {
+          "type" : "string",
+          "enum" : [ "threshold", "baseHeight", "heightScale" ]
+        },
+        "combination" : {
+          "type" : "string",
+          "enum" : [ "REPLACE", "ADD", "MULTIPLY" ]
+        },
+        "enabled" : {
+          "type" : "boolean"
+        },
+        "noiseGeneratorUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
+        "inputMin" : {
+          "type" : "number"
+        },
+        "inputMax" : {
+          "type" : "number"
+        },
+        "outputMin" : {
+          "type" : "number"
+        },
+        "outputMax" : {
+          "type" : "number"
+        },
+        "mapping" : {
+          "type" : "string",
+          "enum" : [ "LINEAR", "SMOOTHSTEP" ]
+        }
+      },
+      "required" : [ "destination", "combination", "enabled", "inputMin", "inputMax", "outputMin", "outputMax", "mapping" ]
+    },
     "Operation" : {
       "type" : "object",
       "additionalProperties" : false,
@@ -753,6 +791,13 @@
         },
         "strengthDriver" : {
           "$ref" : "#/$defs/FieldDriver"
+        },
+        "parameterDrivers" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/NumericDriver"
+          },
+          "maxItems" : 32
         },
         "voxelStatePredicate" : {
           "$ref" : "#/$defs/Predicate"

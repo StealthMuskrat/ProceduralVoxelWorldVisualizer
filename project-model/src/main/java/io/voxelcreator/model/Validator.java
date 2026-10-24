@@ -430,6 +430,17 @@ public final class Validator {
     }
     driver(s.probabilityDriver, path + "/probabilityDriver");
     driver(s.strengthDriver, path + "/strengthDriver");
+    if (s.parameterDrivers.size() > 32)
+      error("COMPLEXITY_LIMIT", path + "/parameterDrivers", "At most 32 parameter drivers");
+    for (int i = 0; i < s.parameterDrivers.size(); i++) {
+      var d = s.parameterDrivers.get(i);
+      String q = path + "/parameterDrivers/" + i;
+      driver(d, q, false);
+      if (!WorldSemantics.PARAMETER_TARGETS.contains(d.destination))
+        error("INVALID_DRIVER_TARGET", q + "/destination", "Unsupported numeric destination");
+      if (!WorldSemantics.COMBINATIONS.contains(d.combination))
+        error("INVALID_COMBINATION", q + "/combination", "Unknown combination");
+    }
     if (!Set.of("FLOOR", "CEIL", "ROUND").contains(s.rounding))
       error("INVALID_ROUNDING", path, "Unknown rounding");
     predicate(s.voxelStatePredicate, path + "/voxelStatePredicate", 0);
@@ -437,13 +448,22 @@ public final class Validator {
   }
 
   private void driver(FieldDriver d, String path) {
+    driver(d, path, true);
+  }
+
+  private void driver(FieldDriver d, String path, boolean unitOutput) {
+    if (unitOutput && d instanceof NumericDriver)
+      error(
+          "INVALID_DRIVER_SHAPE",
+          path,
+          "Probability/strength use FieldDriver; numeric rows belong in parameterDrivers");
     finite(d.inputMin, path + "/inputMin");
     finite(d.inputMax, path + "/inputMax");
     finite(d.outputMin, path + "/outputMin");
     finite(d.outputMax, path + "/outputMax");
     if (!(d.inputMin < d.inputMax))
       error("INVALID_DRIVER_RANGE", path, "Input minimum must be smaller than maximum");
-    if (d.outputMin < 0 || d.outputMin > 1 || d.outputMax < 0 || d.outputMax > 1)
+    if (unitOutput && (d.outputMin < 0 || d.outputMin > 1 || d.outputMax < 0 || d.outputMax > 1))
       error("INVALID_PROBABILITY", path, "Driver output endpoints must be in [0,1]");
     if (!WorldSemantics.MAPPINGS.contains(d.mapping))
       error("INVALID_MAPPING", path, "Unknown driver mapping");

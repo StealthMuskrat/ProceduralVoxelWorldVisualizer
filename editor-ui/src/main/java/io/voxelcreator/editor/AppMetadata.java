@@ -38,8 +38,9 @@ public final class AppMetadata {
             "Ordered layers and independent placements",
             "Generation starts EMPTY. Layers run from top to bottom. Each placement inherits absent"
                 + " properties live; Override stores only that placement's property, and Reset"
-                + " removes it. SET, CLEAR and NO_CHANGE evaluate previous committed voxel"
-                + " state."));
+                + " removes it. SET, CLEAR and NO_CHANGE evaluate previous committed voxel state."
+                + " Ordered numeric parameter drivers can replace, add to or multiply thresholds,"
+                + " base height and height scale before interpretation."));
     m.controls.put(
         "navigation",
         new Control(
@@ -136,6 +137,7 @@ public final class AppMetadata {
       case "typeIntervals" -> "Voxel Type Intervals";
       case "probabilityDriver" -> "Probability Field Driver";
       case "strengthDriver" -> "Strength Field Driver";
+      case "parameterDrivers" -> "Numeric Parameter Drivers";
       case "scaleX" -> "Scale X";
       case "scaleY" -> "Scale Y";
       case "scaleZ" -> "Scale Z";

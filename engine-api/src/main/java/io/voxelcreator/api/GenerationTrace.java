@@ -21,6 +21,16 @@ public record GenerationTrace(BlockPos position, int finalType, List<Step> steps
       double constant,
       double effective) {}
 
+  public record ParameterEvaluation(
+      int row,
+      String destination,
+      String combination,
+      UUID noiseUuid,
+      double sample,
+      double mapped,
+      double previous,
+      double effective) {}
+
   public record Details(
       Map<String, String> effectiveSettings,
       List<GateEvaluation> gates,
@@ -32,11 +42,40 @@ public record GenerationTrace(BlockPos position, int finalType, List<Step> steps
       SampleCoordinates sampleCoordinates,
       Integer matchedInterval,
       int candidateType,
-      List<DriverEvaluation> drivers) {
+      List<DriverEvaluation> drivers,
+      List<ParameterEvaluation> parameters) {
     public Details {
       effectiveSettings = Map.copyOf(effectiveSettings);
       gates = List.copyOf(gates);
       drivers = List.copyOf(drivers);
+      parameters = List.copyOf(parameters);
+    }
+
+    public Details(
+        Map<String, String> effectiveSettings,
+        List<GateEvaluation> gates,
+        Boolean gatePassed,
+        Boolean predicatePassed,
+        double probability,
+        double random,
+        boolean selected,
+        SampleCoordinates sampleCoordinates,
+        Integer matchedInterval,
+        int candidateType,
+        List<DriverEvaluation> drivers) {
+      this(
+          effectiveSettings,
+          gates,
+          gatePassed,
+          predicatePassed,
+          probability,
+          random,
+          selected,
+          sampleCoordinates,
+          matchedInterval,
+          candidateType,
+          drivers,
+          List.of());
     }
 
     public Details(

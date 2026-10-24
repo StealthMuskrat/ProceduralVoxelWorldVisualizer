@@ -7,6 +7,11 @@ import io.voxelcreator.storage.*;
 import java.util.*;
 
 final class WorldPlan {
+  private record NumericUse(
+      int row, int slot, NumericDriver mapping, NoiseAlgorithms.Field field, int dimension) {}
+
+  private final ThreadLocal<double[]> numericScratch = ThreadLocal.withInitial(() -> new double[3]);
+
   private record Op(
       UUID layerUuid,
       UUID uuid,
@@ -22,7 +27,8 @@ final class WorldPlan {
       Map<UUID, NoiseAlgorithms.Field> inputs,
       Map<String, String> sources,
       WorldSampling sampling,
-      List<Integer> intervalTargets) {
+      List<Integer> intervalTargets,
+      List<NumericUse> numeric) {
     boolean columnCached() {
       return dimension == 2 && sampling.columnInvariant();
     }
@@ -101,7 +107,8 @@ final class WorldPlan {
                 Map.copyOf(gates),
                 Map.copyOf(sources),
                 new WorldSampling(s),
-                s.typeIntervals.stream().map(r -> registry.runtimeId(r.voxelTypeUuid)).toList()));
+                s.typeIntervals.stream().map(r -> registry.runtimeId(r.voxelTypeUuid)).toList(),
+                numericUses(s, op.interpretation, compiler)));
       }
       stageList.add(
           new GenerationStage(
@@ -131,6 +138,66 @@ final class WorldPlan {
   private NoiseAlgorithms.Field compileField(UUID id, NoiseCompiler compiler) {
     var field = compiler.compile(id);
     return fieldDimensions.get(id) == 2 ? (x, y, z) -> field.sample(x, 0, z) : field;
+  }
+
+  private List<NumericUse> numericUses(
+      Settings settings, String interpretation, NoiseCompiler compiler) {
+    var uses = new ArrayList<NumericUse>();
+    for (int row = 0; row < settings.parameterDrivers.size(); row++) {
+      var d = settings.parameterDrivers.get(row);
+      if (!d.enabled || !WorldSemantics.parameterUsed(interpretation, d.destination)) continue;
+      uses.add(
+          new NumericUse(
+              row,
+              WorldSemantics.PARAMETER_TARGETS.indexOf(d.destination),
+              d,
+              d.noiseGeneratorUuid == null ? null : compileField(d.noiseGeneratorUuid, compiler),
+              d.noiseGeneratorUuid == null ? 0 : fieldDimensions.get(d.noiseGeneratorUuid)));
+    }
+    return List.copyOf(uses);
+  }
+
+  private double[] numericValues(
+      Op op, double primary, int x, int y, int z, List<GenerationTrace.ParameterEvaluation> trace) {
+    var values = numericScratch.get();
+    var s = op.settings;
+    values[0] = s.threshold;
+    values[1] = s.baseHeight;
+    values[2] = s.heightScale;
+    for (var use : op.numeric) {
+      var d = use.mapping;
+      double sample =
+          use.field == null ? primary : sampleField(op, use.field, use.dimension, x, y, z);
+      double mapped = WorldSemantics.mapNumeric(d, sample), previous = values[use.slot];
+      double next = WorldSemantics.combine(d.combination, previous, mapped);
+      if (!Double.isFinite(next))
+        throw new EvaluationFailure(
+            op.noiseUuid,
+            op.uuid,
+            x,
+            y,
+            z,
+            "parameterDrivers["
+                + use.row
+                + "] "
+                + d.destination
+                + " "
+                + d.combination
+                + " produced a nonfinite value");
+      values[use.slot] = next;
+      if (trace != null)
+        trace.add(
+            new GenerationTrace.ParameterEvaluation(
+                use.row,
+                d.destination,
+                d.combination,
+                d.noiseGeneratorUuid,
+                sample,
+                mapped,
+                previous,
+                next));
+    }
+    return values;
   }
 
   private void collectGates(Gate g, Map<UUID, NoiseAlgorithms.Field> map, NoiseCompiler c) {
@@ -281,6 +348,8 @@ final class WorldPlan {
       boolean gateReached = false, predicateReached = false;
       var gateTrace = trace == null ? null : new ArrayList<GenerationTrace.GateEvaluation>();
       var driverTrace = trace == null ? null : new ArrayList<GenerationTrace.DriverEvaluation>();
+      var parameterTrace =
+          trace == null ? null : new ArrayList<GenerationTrace.ParameterEvaluation>();
       int target = op.target, matchedInterval = -1;
       boolean choose = true;
       if (y < Math.max(minY, s.minY) || y > Math.min(maxY, s.maxY)) {
@@ -289,7 +358,14 @@ final class WorldPlan {
       }
       if (choose) {
         f = cached != null && cached[index] != null ? cached[index][at] : field(op, x, y, z);
-        double height = s.baseHeight + f * s.heightScale;
+        double threshold = s.threshold, baseHeight = s.baseHeight, heightScale = s.heightScale;
+        if (!op.numeric.isEmpty()) {
+          var resolved = numericValues(op, f, x, y, z, parameterTrace);
+          threshold = resolved[0];
+          baseHeight = resolved[1];
+          heightScale = resolved[2];
+        }
+        double height = baseHeight + f * heightScale;
         if (op.interpretation.startsWith("HEIGHT") && !Double.isFinite(height))
           throw new EvaluationFailure(
               op.noiseUuid, op.uuid, x, y, z, "Nonfinite height interpretation");
@@ -305,7 +381,7 @@ final class WorldPlan {
               case "HEIGHT_BELOW" -> y <= rounded;
               case "HEIGHT_ABOVE" -> y >= rounded;
               case "HEIGHT_BOUNDARY" -> y == rounded;
-              case "SELECTION", "DENSITY" -> f >= s.threshold;
+              case "SELECTION", "DENSITY" -> f >= threshold;
               case "TYPE_SELECTION", "ALL" -> true;
               default -> throw new AssertionError();
             };
@@ -380,7 +456,8 @@ final class WorldPlan {
                     Double.isNaN(f) ? null : op.sampling.coordinates(x, y, z, op.dimension),
                     matchedInterval < 0 ? null : matchedInterval,
                     target,
-                    List.copyOf(driverTrace))));
+                    List.copyOf(driverTrace),
+                    List.copyOf(parameterTrace))));
       index++;
     }
     return state;

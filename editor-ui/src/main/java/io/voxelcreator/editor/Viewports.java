@@ -211,6 +211,8 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void smokePhase(int frame) {
+    if (frame == 335 || frame == 355)
+      properties.smokeWorldControls(frame == 335 ? "Numeric parameters" : null);
     if (frame == 365 || frame == 385 || frame == 400 || frame == 415)
       properties.smokeWorldControls(
           frame == 365
@@ -1541,6 +1543,22 @@ public final class Viewports implements AutoCloseable {
                       + driver.constant()
                       + ", effective="
                       + driver.effective());
+            for (var parameter : details.parameters())
+              ImGui.textWrapped(
+                  "Parameter row "
+                      + (parameter.row() + 1)
+                      + " "
+                      + AppMetadata.settingLabel(parameter.destination())
+                      + " "
+                      + parameter.combination()
+                      + ": sample="
+                      + parameter.sample()
+                      + ", mapped="
+                      + parameter.mapped()
+                      + ", previous="
+                      + parameter.previous()
+                      + ", effective="
+                      + parameter.effective());
             if (ImGui.treeNode("Effective values")) {
               details
                   .effectiveSettings()

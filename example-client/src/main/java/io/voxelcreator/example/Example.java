@@ -122,6 +122,47 @@ public final class Example {
     return p;
   }
 
+  public static ProjectData parameterDriversDemo() {
+    var p = demo();
+    p.project.minY = -8;
+    p.project.maxY = 8;
+    var n = p.noise2D.getFirst();
+    n.algorithm.key = "CONSTANT";
+    n.algorithm.parameters.clear();
+    n.algorithm.parameters.put("value", .5);
+    var source = new Noise();
+    source.id = "height-control";
+    source.dimension = 3;
+    source.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000061");
+    source.algorithm.key = "CONSTANT";
+    var expression = ProcessingRegistry.create("EXPRESSION", "coordinate");
+    expression.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000062");
+    expression.parameters.put("expression", ProjectIO.JSON.valueToTree("x"));
+    source.processing.add(expression);
+    source.outputBinding = Binding.earlier(expression.uuid);
+    p.noise3D.add(source);
+    var s = p.worldGenerator.layers.getFirst().defaults;
+    s.baseHeight = 0;
+    s.heightScale = 0;
+    var d = new NumericDriver();
+    d.enabled = true;
+    d.destination = "baseHeight";
+    d.noiseGeneratorUuid = source.uuid;
+    d.inputMin = -4;
+    d.inputMax = 4;
+    d.outputMin = -4;
+    d.outputMax = 4;
+    s.parameterDrivers.add(d);
+    var add = new NumericDriver();
+    add.enabled = true;
+    add.destination = "baseHeight";
+    add.combination = "ADD";
+    add.outputMin = 1;
+    add.outputMax = 1;
+    s.parameterDrivers.add(add);
+    return p;
+  }
+
   public static ProjectData compiledExpressionsDemo() {
     var p = sampledFieldsDemo();
     var n = p.noise2D.getFirst();
@@ -195,6 +236,27 @@ public final class Example {
     System.out.println(
         "Independent world-use intervals / driver / sampling / NOT probability gate / owned"
             + " collection PASS");
+    var parameterData = parameterDriversDemo();
+    Path parameterFile = working.resolve("parameter-drivers.pvproj.json");
+    new ProjectIO().save(parameterFile, parameterData);
+    var loadedParameters = new ProjectLoader().load(parameterFile);
+    if (!loadedParameters.success()) throw new AssertionError(loadedParameters.diagnostics());
+    try (var parameterEngine = new NoiseGeneratorEngine();
+        var parameterWorld =
+            parameterEngine.openWorld(
+                new CompiledProject(loadedParameters.project()),
+                new WorldOptions(null, 4, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+      for (int x = -4; x <= 4; x++)
+        for (int y = -6; y <= 6; y++)
+          if (parameterWorld.getVoxelTypeId(new BlockPos(x, y, 0)) != (y <= x + 1 ? 1 : 0))
+            throw new AssertionError("Driven height mismatch");
+      var report =
+          parameterWorld.trace(new BlockPos(2, 3, 0)).steps().getFirst().details().parameters();
+      if (report.size() != 2 || report.getLast().effective() != 3)
+        throw new AssertionError("Numeric driver trace");
+    }
+    System.out.println(
+        "Independent ordered numeric parameter drivers / trace / JSON roundtrip PASS");
     var expressionData = compiledExpressionsDemo();
     Path expressionsFile = working.resolve("compiled-expressions.pvproj.json");
     new ProjectIO().save(expressionsFile, expressionData);

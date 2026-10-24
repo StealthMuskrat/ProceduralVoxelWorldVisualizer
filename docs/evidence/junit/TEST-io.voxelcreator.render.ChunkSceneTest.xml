@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.render.ChunkSceneTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T18:10:16.831Z" hostname="715e00c143c7" time="0.754">
+<testsuite name="io.voxelcreator.render.ChunkSceneTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T18:41:16.343Z" hostname="715e00c143c7" time="0.513">
   <properties/>
-  <testcase name="cancelledEpochDoesNotPublishAnOldSource()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.228"/>
-  <testcase name="runtimeFailureIsReportedAndNotRetriedEveryFrame()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.17"/>
-  <testcase name="cameraTravelReusesEpochAndEvictsObsoleteData()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.341"/>
+  <testcase name="cancelledEpochDoesNotPublishAnOldSource()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.119"/>
+  <testcase name="runtimeFailureIsReportedAndNotRetriedEveryFrame()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.114"/>
+  <testcase name="cameraTravelReusesEpochAndEvictsObsoleteData()" classname="io.voxelcreator.render.ChunkSceneTest" time="0.265"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

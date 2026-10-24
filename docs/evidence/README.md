@@ -1,6 +1,6 @@
 # Verification evidence
 
-- `clean test build dependencyNotices releaseJars`: PASS with 176 JUnit tests on Temurin 25.0.4+7 x64.
+- `clean test build dependencyNotices releaseJars`: PASS with 195 JUnit tests on Temurin 25.0.4+7 x64.
 - Independent javac/java consumer using only `noise-generator-engine.jar`: PASS.
 - Local native smoke: all three engine-backed viewports, explicit save/reload, screenshots with nonblank-frame checks, and exit: PASS on Temurin 25.0.5+8; OpenGL 4.5 Mesa llvmpipe.
 - Draft 2020-12 project/user/app schema verification and fixtures: PASS using jsonschema 4.23.0.
@@ -51,3 +51,7 @@ Final native checks ran separately from the CPU regression benchmark. One overla
 ![Independent unread and action-required notification state](diagnostics-notifications.png)
 
 ![Read-only validation results for a rejected edit](diagnostics-validation.png)
+
+The numeric-parameter extension passes 195 JUnit tests on pinned Temurin 25.0.4+7. `parameters-build.log` and raw JUnit XML record the clean build. `parameters-artifacts.log` records the engine-only numeric mapping/trace/JSON consumer, unchanged exact voxel hashes, schema family and engine isolation. `linux-parameters-smoke.log` adds the actual ordered numeric controls to the existing diagnostics, curve, world-use, stage, streaming, volume and slice scenarios and both renderer probes. The inspected screenshot is paired with `parameters-smoke-project.json`; its isolated control window edits a settings copy. Normal startup creates no demonstration resources. Broader GUI gestures, arbitrary destinations and representative hardware performance remain outside these checks.
+
+![Ordered numeric placement driver controls](numeric-parameter-drivers.png)

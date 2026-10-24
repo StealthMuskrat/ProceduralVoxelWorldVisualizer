@@ -196,6 +196,7 @@ public final class Desktop extends Application {
             || frameCount == 195
             || frameCount == 215
             || frameCount == 230
+            || frameCount == 345
             || frameCount == 350
             || frameCount == 375
             || frameCount == 395
@@ -1176,6 +1177,15 @@ public final class Desktop extends Application {
           l.defaults.voxelTypeUuid = type.uuid;
           l.defaults.baseHeight = 12;
           l.defaults.heightScale = 14;
+          var parameter = new NumericDriver();
+          parameter.enabled = true;
+          parameter.destination = "baseHeight";
+          parameter.combination = "ADD";
+          parameter.inputMin = -1;
+          parameter.inputMax = 1;
+          parameter.outputMin = 0;
+          parameter.outputMax = 2;
+          l.defaults.parameterDrivers.add(parameter);
           var op = new Operation();
           op.id = "height";
           op.noiseGeneratorUuid = n.uuid;

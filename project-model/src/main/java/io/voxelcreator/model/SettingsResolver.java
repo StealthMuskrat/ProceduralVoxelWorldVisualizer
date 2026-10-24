@@ -37,6 +37,7 @@ public final class SettingsResolver {
                     "typeIntervals",
                     "probabilityDriver",
                     "strengthDriver",
+                    "parameterDrivers",
                     "voxelStatePredicate",
                     "fieldGates")));
   }

@@ -160,6 +160,7 @@ public final class ProjectData {
     public String typeSource = "FIXED";
     public List<TypeInterval> typeIntervals = new ArrayList<>();
     public FieldDriver probabilityDriver = new FieldDriver(), strengthDriver = new FieldDriver();
+    public List<NumericDriver> parameterDrivers = new ArrayList<>();
     public Predicate voxelStatePredicate = new Predicate();
     public Gate fieldGates = new Gate();
   }
@@ -176,11 +177,15 @@ public final class ProjectData {
     public UUID voxelTypeUuid;
   }
 
-  public static final class FieldDriver {
+  public static sealed class FieldDriver permits NumericDriver {
     public boolean enabled = false;
     public UUID noiseGeneratorUuid;
     public double inputMin = 0, inputMax = 1, outputMin = 0, outputMax = 1;
     public String mapping = "LINEAR";
+  }
+
+  public static final class NumericDriver extends FieldDriver {
+    public String destination = "threshold", combination = "REPLACE";
   }
 
   public static final class Predicate {
