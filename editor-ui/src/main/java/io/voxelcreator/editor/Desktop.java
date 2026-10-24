@@ -23,10 +23,14 @@ public final class Desktop extends Application {
   private PropertyPanel properties;
   private ResourcePanel resources;
   private Viewports views;
+  private DiagnosticsPanel diagnostics;
+  private String smokeDiagnosticDocument;
+  private long smokeDiagnosticEvent;
   private final UiFields fields = new UiFields();
   private boolean layout = false;
   private final ImBoolean find = new ImBoolean(false),
       logs = new ImBoolean(false),
+      validation = new ImBoolean(false),
       help = new ImBoolean(false),
       about = new ImBoolean(false),
       profiler = new ImBoolean(false),
@@ -36,8 +40,7 @@ public final class Desktop extends Application {
   private final ImString search = new ImString(1024),
       pathInput = new ImString(4096),
       endpoint = new ImString(2048),
-      origins = new ImString(2048),
-      logFilter = new ImString(256);
+      origins = new ImString(2048);
   private String settingsPage = "User Settings", settingsCategory = "Appearance", fileAction = "";
   private boolean filePending = false, guardPending = false;
   private Runnable pendingTransition;
@@ -80,6 +83,14 @@ public final class Desktop extends Application {
   protected void preRun() {
     properties = new PropertyPanel(state);
     resources = new ResourcePanel(state, properties);
+    diagnostics =
+        new DiagnosticsPanel(
+            state,
+            target -> {
+              if (!state.canNavigate(target)) return;
+              if (target.settings()) openSettings("Project Settings");
+              else if (properties.goToProblem(target)) ImGui.setWindowFocus("Properties");
+            });
     views = new Viewports(state, properties, handle);
     glfwSetWindowCloseCallback(
         handle,
@@ -154,8 +165,10 @@ public final class Desktop extends Application {
     }
     if (smokeFrames > 0) {
       views.smokePhase(480 - smokeFrames);
+      smokeDiagnostics(480 - smokeFrames);
       if (--smokeFrames == 0) {
         views.assertSmokeCompleted();
+        diagnostics.assertSmokeDrawn();
         System.out.println(
             "DESKTOP_SMOKE_COMPLETED frames=" + frameCount + " engine=" + state.engine.metrics());
         glfwSetWindowShouldClose(handle, true);
@@ -187,6 +200,9 @@ public final class Desktop extends Application {
             || frameCount == 375
             || frameCount == 395
             || frameCount == 410
+            || frameCount == 435
+            || frameCount == 450
+            || frameCount == 455
             || frameCount == 470)) captureFrame();
     glfwSwapBuffers(handle);
     glfwPollEvents();
@@ -212,6 +228,61 @@ public final class Desktop extends Application {
     }
     disposeImGui();
     disposeWindow();
+  }
+
+  private void smokeDiagnostics(int frame) {
+    if (frame == 425) {
+      smokeDiagnosticDocument = ProjectIO.JSON.valueToTree(state.project()).toString();
+      var n = state.project().noise2D.getFirst();
+      state.select("noise2D", n.uuid);
+      var draft = (Noise) state.draft;
+      var item =
+          draft.processing.stream()
+              .filter(i -> i.kind.equals("EXPRESSION"))
+              .findFirst()
+              .orElseThrow();
+      item.parameters.put("expression", ProjectIO.JSON.valueToTree("sin("));
+      if (state.applyDraft() || state.issues.isEmpty())
+        throw new IllegalStateException("Invalid smoke draft committed");
+      var issue = state.issues.getFirst();
+      if (!Objects.equals(issue.itemUuid(), item.uuid))
+        throw new IllegalStateException("Missing compiler control context");
+      state.reportDiagnostic(issue, EditorEvents.Subsystem.PROJECT, true);
+      state.reportDiagnostic(issue, EditorEvents.Subsystem.PROJECT, true);
+      smokeDiagnosticEvent = state.events.snapshot().getFirst().id();
+      diagnostics.reveal(smokeDiagnosticEvent);
+      var target = state.events.get(smokeDiagnosticEvent).orElseThrow().target();
+      if (!properties.goToProblem(target)
+          || !((Noise) state.draft)
+              .processing.stream()
+                  .filter(i -> i.uuid.equals(item.uuid))
+                  .findFirst()
+                  .orElseThrow()
+                  .parameters
+                  .get("expression")
+                  .asText()
+                  .equals("sin("))
+        throw new IllegalStateException("Problem navigation discarded draft");
+      logs.set(true);
+    }
+    if (frame == 442) {
+      logs.set(false);
+      notifications.set(true);
+    }
+    if (frame == 452) {
+      notifications.set(false);
+      validation.set(true);
+    }
+    if (frame == 458) {
+      validation.set(false);
+      state.refreshDraft();
+      state.issues = List.of();
+      if (!smokeDiagnosticDocument.equals(ProjectIO.JSON.valueToTree(state.project()).toString()))
+        throw new IllegalStateException("Diagnostics changed project");
+      if (state.events.get(smokeDiagnosticEvent).orElseThrow().count() != 3)
+        throw new IllegalStateException("Notifications did not group");
+      System.out.println("DIAGNOSTIC_NAVIGATION_PRESERVES_DRAFT_AND_DOCUMENT_PASS");
+    }
   }
 
   private void captureFrame() {
@@ -289,10 +360,8 @@ public final class Desktop extends Application {
           searchKey = "";
         }
         if (ImGui.menuItem("Validate Project")) {
-          state.issues = NoiseCompiler.validate(state.project());
-          state.notify(
-              state.issues.isEmpty() ? "Information" : "Error",
-              state.issues.isEmpty() ? "Project is valid" : state.issues.toString());
+          state.validateProject();
+          validation.set(true);
         }
         if (ImGui.menuItem("Voxel Manager")) resources.showManager();
         if (ImGui.menuItem("Profiler")) profiler.set(true);
@@ -365,7 +434,8 @@ public final class Desktop extends Application {
       state.notify("Information", "Project saved");
       completeTransition();
     } catch (Exception e) {
-      state.notify("Error", "Save failed: " + e.getMessage());
+      state.error(
+          "PROJECT_SAVE_FAILED", EditorEvents.Subsystem.PROJECT, "Save failed: " + e.getMessage());
       pendingTransition = null;
     }
   }
@@ -439,7 +509,12 @@ public final class Desktop extends Application {
           ImGui.closeCurrentPopup();
           if (fileAction.equals("Save")) completeTransition();
         } catch (Exception e) {
-          state.notify("Error", fileAction + " failed: " + e.getMessage());
+          state.error(
+              "FILE_" + fileAction.toUpperCase(Locale.ROOT) + "_FAILED",
+              Set.of("Import", "Export").contains(fileAction)
+                  ? EditorEvents.Subsystem.IMPORT_EXPORT
+                  : EditorEvents.Subsystem.PROJECT,
+              fileAction + " failed: " + e.getMessage());
         }
       }
       ImGui.sameLine();
@@ -520,11 +595,12 @@ public final class Desktop extends Application {
   private void auxiliary() {
     drawFind();
     drawSettings();
-    drawLogs();
+    diagnostics.drawLogs(logs);
+    diagnostics.drawValidation(validation);
     drawHelp();
     drawProfiler();
     drawThemes();
-    drawNotifications();
+    diagnostics.drawNotifications(notifications, () -> logs.set(true));
     if (about.get()) {
       ImGui.begin("About", about);
       ImGui.text("Procedural Voxel Creator 0.1.0");
@@ -859,39 +935,6 @@ public final class Desktop extends Application {
     ImGui.end();
   }
 
-  private void drawLogs() {
-    if (!logs.get()) return;
-    ImGui.setNextWindowSize(800, 500, ImGuiCond.FirstUseEver);
-    ImGui.begin("Logs & Error Center", logs);
-    ImGui.inputText("Filter", logFilter);
-    for (String entry : state.logs)
-      if (logFilter.get().isBlank()
-          || entry.toLowerCase(Locale.ROOT).contains(logFilter.get().toLowerCase(Locale.ROOT)))
-        ImGui.textWrapped(entry);
-    if (ImGui.button("Copy Details")) ImGui.setClipboardText(String.join("\n", state.logs));
-    ImGui.end();
-  }
-
-  private void drawNotifications() {
-    if (!notifications.get()) return;
-    ImGui.setNextWindowSize(600, 400, ImGuiCond.FirstUseEver);
-    ImGui.begin("Notifications", notifications);
-    if (ImGui.button("Mark All Read"))
-      for (int i = 0; i < state.notices.size(); i++) {
-        var n = state.notices.get(i);
-        state.notices.set(
-            i, new EditorState.Notice(n.severity(), n.message(), n.time(), n.count(), true));
-      }
-    for (var notice : state.notices) {
-      ImGui.separator();
-      ImGui.text(notice.severity() + "  x" + notice.count() + "  " + notice.time());
-      ImGui.textWrapped(notice.message());
-      if (notice.severity().equals("Error") && ImGui.smallButton("View Error##" + notice.time()))
-        logs.set(true);
-    }
-    ImGui.end();
-  }
-
   private void drawHelp() {
     if (!help.get()) return;
     ImGui.setNextWindowSize(750, 550, ImGuiCond.FirstUseEver);
@@ -1031,8 +1074,12 @@ public final class Desktop extends Application {
     ImGui.sameLine(Math.max(200, vp.getSizeX() - 260));
     if (ImGui.smallButton("Settings")) openSettings("User Settings");
     ImGui.sameLine();
-    long unread = state.notices.stream().filter(n -> !n.read()).count();
-    if (ImGui.smallButton("Notifications " + unread)) notifications.set(true);
+    var attention = state.events.counts();
+    if (ImGui.smallButton(
+        "Notifications "
+            + attention.unread()
+            + (attention.actionRequired() > 0 ? "  !" + attention.actionRequired() : "")))
+      notifications.set(true);
     ImGui.end();
     ImGui.popStyleVar(2);
   }
@@ -1086,7 +1133,11 @@ public final class Desktop extends Application {
                           "Release " + release.version() + ": " + release.releaseUrl()));
             } catch (Exception e) {
               state.uiQueue.offer(
-                  () -> state.notify("Error", "Update check failed: " + e.getMessage()));
+                  () ->
+                      state.error(
+                          "UPDATE_CHECK_FAILED",
+                          EditorEvents.Subsystem.APPLICATION,
+                          "Update check failed: " + e.getMessage()));
             }
           });
     } catch (Exception e) {

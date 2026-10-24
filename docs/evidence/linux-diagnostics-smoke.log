@@ -1,0 +1,32 @@
+SMOKE_ENV java=25.0.4+7-LTS os=Linux arch=amd64 gl=4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 renderer=llvmpipe (LLVM 20.1.2, 256 bits)
+SMOKE_PROJECT_SAVE_OPEN_PASS /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-project.json
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-70.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-110.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-170.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-195.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-215.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-230.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-265.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-290.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-315.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-350.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-375.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-395.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-410.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-435.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-450.png
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-455.png
+DIAGNOSTIC_NAVIGATION_PRESERVES_DRAFT_AND_DOCUMENT_PASS
+SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/diagnostics-smoke-final/smoke-470.png
+CAMERA_DRIVEN_STREAMING_PASS StreamingStatistics[cpuBytes=28992, reserved=0, gpuBytes=0, uploadedBytes=0, chunks=9, jobs=0, visible=1, culled=0, drawCalls=1, indirect=true]
+CURVE_EDITOR_NATIVE_PASS
+WORLD_USE_CONTROLS_NATIVE_PASS
+COMPILED_EXPRESSION_FEEDBACK_NATIVE_PASS
+EXACT_WORLD_STAGE_PREVIEWS_PASS
+THREE_ENGINE_VIEWPORTS_PASS
+RAYMARCHED_VOLUME_AND_XYZ_SLICES_PASS
+DIAGNOSTICS_AND_NOTIFICATION_NATIVE_PASS
+DESKTOP_SMOKE_COMPLETED frames=480 engine=EngineMetrics[workers=4, active=0, queued=0, completed=65, generationNanos=3653553457, cacheBytes=0, stagingBytes=0, memoryBudget=536870912, collectionBytes=0]
+NATIVE_CURSOR_CLEANUP: unavailable platform cursor; completing GLFW shutdown
+VOLUME_NUMERICAL_NATIVE_PASS homogeneous / threshold / gradient / framebuffer transition
+STREAMING_RENDER_NATIVE_PASS packed / budgeted upload / culling / palette / indirect=true

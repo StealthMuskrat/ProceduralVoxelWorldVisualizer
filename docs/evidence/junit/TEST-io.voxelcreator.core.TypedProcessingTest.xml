@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.core.TypedProcessingTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T17:37:19.567Z" hostname="715e00c143c7" time="0.084">
+<testsuite name="io.voxelcreator.core.TypedProcessingTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T18:10:56.570Z" hostname="715e00c143c7" time="0.068">
   <properties/>
-  <testcase name="coordinateValuesRequireExplicitConversion()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.01"/>
-  <testcase name="equalityRequiresMatchingTypesAndComparesEveryComponent()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.006"/>
-  <testcase name="malformedNumericParametersAreRejectedAndTerraceTransitionIsExplicit()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.006"/>
-  <testcase name="vectorRotationAndZeroNormalization()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.003"/>
-  <testcase name="explicitProjectionExpansionCoordinateConversionAndBoolean()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.005"/>
-  <testcase name="selectAndExpressionDoNotEvaluateUnselectedEarlierResults()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.048"/>
+  <testcase name="coordinateValuesRequireExplicitConversion()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.005"/>
+  <testcase name="equalityRequiresMatchingTypesAndComparesEveryComponent()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.007"/>
+  <testcase name="malformedNumericParametersAreRejectedAndTerraceTransitionIsExplicit()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.022"/>
+  <testcase name="vectorRotationAndZeroNormalization()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.006"/>
+  <testcase name="explicitProjectionExpansionCoordinateConversionAndBoolean()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.006"/>
+  <testcase name="selectAndExpressionDoNotEvaluateUnselectedEarlierResults()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.019"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

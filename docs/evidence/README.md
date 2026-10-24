@@ -1,6 +1,6 @@
 # Verification evidence
 
-- `clean test build dependencyNotices releaseJars`: PASS with 156 JUnit tests on Temurin 25.0.4+7 x64.
+- `clean test build dependencyNotices releaseJars`: PASS with 176 JUnit tests on Temurin 25.0.4+7 x64.
 - Independent javac/java consumer using only `noise-generator-engine.jar`: PASS.
 - Local native smoke: all three engine-backed viewports, explicit save/reload, screenshots with nonblank-frame checks, and exit: PASS on Temurin 25.0.5+8; OpenGL 4.5 Mesa llvmpipe.
 - Draft 2020-12 project/user/app schema verification and fixtures: PASS using jsonschema 4.23.0.
@@ -41,3 +41,13 @@ The compiler/batch extension passes 138 JUnit tests on pinned Temurin 25.0.4+7. 
 The exact-storage extension passes 156 JUnit tests on pinned Temurin 25.0.4+7. `storage-build.log` and the latest raw JUnit XML record the clean build. `storage-independent-consumer.log` exercises immutable bulk replacement and default v2/explicit v1 archives using only the engine JAR. `storage-artifacts.log` records schema family, unchanged exact voxel hashes and engine isolation. `storage-benchmark.csv` measures current palette storage and v1/v2 raw-tree bytes; `storage-world-benchmark.csv` retains exact generation hashes. See [storage design and scope](../EXACT_STORAGE.md).
 
 For the measured 64³ checkerboard, the current snapshot estimate is 119,456 bytes; raw v1/v2 trees are 1,053,257 / 74,313 bytes respectively. The many-type fixture has 4,097 chunk palette entries and still uses one-bit local leaves. These raw-tree comparisons exclude zlib compression and archive headers. Timing rows are local container observations, not a representative hardware certification or a prior implementation speed comparison.
+
+The diagnostics/recovery extension passes 176 JUnit tests on pinned Temurin 25.0.4+7. `diagnostics-build.log` and the latest raw JUnit XML record the clean build. `diagnostics-artifacts.log` records the external engine-only consumer, unchanged exact voxel hashes, schema family and engine isolation. `linux-diagnostics-smoke.log` records three new native panels, a rejected expression draft, grouped events, source navigation and unchanged document state, plus the existing viewport/stage/volume/slice/streaming and numerical rendering checks. The screenshots below are paired with `diagnostics-smoke-project.json`; the invalid expression is an intentionally rejected unsaved draft and is absent from that valid project file.
+
+Final native checks ran separately from the CPU regression benchmark. One overlapping local run reached the existing critical-pressure pause and failed the complete-preview smoke assertion; the standalone final run passed with the same pressure and explicit-resume policy. This evidence does not certify responsiveness under arbitrary CPU contention, every recovery gesture or Windows 11 hardware.
+
+![Grouped error with source control and preserved draft](diagnostics-logs.png)
+
+![Independent unread and action-required notification state](diagnostics-notifications.png)
+
+![Read-only validation results for a rejected edit](diagnostics-validation.png)

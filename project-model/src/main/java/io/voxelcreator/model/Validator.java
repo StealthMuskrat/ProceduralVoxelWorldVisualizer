@@ -21,7 +21,7 @@ public final class Validator {
           "/",
           e.getMessage() == null ? "Null or malformed value" : e.getMessage());
     }
-    return List.copyOf(v.errors);
+    return DiagnosticLocations.enrich(p, v.errors);
   }
 
   private void error(String code, String path, String message) {

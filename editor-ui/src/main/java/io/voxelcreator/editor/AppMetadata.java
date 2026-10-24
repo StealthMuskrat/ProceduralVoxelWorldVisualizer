@@ -80,6 +80,17 @@ public final class AppMetadata {
             "Separate coordinate lists for each tab",
             "Bookmarks store only coordinates and a name. Adding, renaming, updating or deleting is"
                 + " an undoable project edit; teleporting never dirties the document."));
+    m.controls.put(
+        "diagnostics",
+        new Control(
+            "Validation, logs and notifications",
+            "Inspect grouped events and navigate to their source",
+            "View > Validate Project checks the committed document without changing it. Logs"
+                + " support severity, subsystem and text filters. Go To Problem opens the stored"
+                + " UUID resource or control when available in the current project or draft."
+                + " Reading a notification does not resolve an action. Mark Action Resolved"
+                + " acknowledges the action; it does not repair project data. Dismiss hides a"
+                + " resolved notification while retaining its grouped log history."));
     return m;
   }
 

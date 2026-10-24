@@ -112,15 +112,17 @@ public final class NoiseCompiler {
       try {
         c.compile(n.uuid);
       } catch (RuntimeException e) {
-        result.add(
-            new Diagnostic(
-                "INVALID_NOISE",
-                Diagnostic.Severity.ERROR,
-                e.getMessage(),
-                "/noise/" + n.uuid,
-                n.uuid,
-                null,
-                null));
+        if (e instanceof CompilationFailure failure) result.add(failure.diagnostic());
+        else
+          result.add(
+              new Diagnostic(
+                  "INVALID_NOISE",
+                  Diagnostic.Severity.ERROR,
+                  e.getMessage(),
+                  "/noise/" + n.uuid,
+                  n.uuid,
+                  null,
+                  null));
       }
     return List.copyOf(result);
   }
@@ -201,11 +203,22 @@ public final class NoiseCompiler {
   private Field build(Noise n) {
     long seed = CoordinateHash.seed(runtimeSeed, n.uuid, n.seedOffset);
     final int dimension = n.dimension;
-    Field source = NoiseAlgorithms.compile(n.algorithm, n.dimension, seed);
+    Field source;
+    try {
+      source = NoiseAlgorithms.compile(n.algorithm, n.dimension, seed);
+    } catch (RuntimeException failure) {
+      throw new CompilationFailure(n.uuid, null, "algorithm", failure);
+    }
 
     var inputs = new HashMap<UUID, Input>();
     var params = new HashMap<UUID, Input>();
-    for (var p : n.sharedParameters) params.put(p.uuid, constant(p.type, p.value));
+    for (var p : n.sharedParameters) {
+      try {
+        params.put(p.uuid, constant(p.type, p.value));
+      } catch (RuntimeException failure) {
+        throw new CompilationFailure(n.uuid, p.uuid, "value", failure);
+      }
+    }
     TransformPlan transforms = compileTransforms(n, source, params, seed);
     var prefixes = new HashMap<UUID, FieldPlan>();
     Input rawResult = new Input("Scalar", SOURCE_VALUE, 0, 16);
@@ -215,364 +228,382 @@ public final class NoiseCompiler {
     long expressionInstructions = 0;
     var commonOperations = new HashMap<OperationKey, Integer>();
     for (var item : n.processing) {
-      var spec = ProcessingRegistry.ITEMS.get(item.kind);
-      if (spec == null)
-        throw new IllegalArgumentException(
-            "Unsupported processing kind " + item.kind + " in " + item.id);
-      if (!item.enabled) {
-        continue;
-      }
-      enabledItems++;
-      final int index = slot;
-      slot += 3;
-      var bound = new HashMap<String, Input>();
-      for (var e : item.inputs.entrySet()) {
-        if (e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind)) {
-          if (!ProcessingRegistry.isFieldBinding(e.getValue()))
-            throw new IllegalArgumentException(
-                "A sampled-field input requires Source Field, Earlier Field Prefix or Noise"
-                    + " Generator Field");
+      try {
+        var spec = ProcessingRegistry.ITEMS.get(item.kind);
+        if (spec == null)
+          throw new IllegalArgumentException(
+              "Unsupported processing kind " + item.kind + " in " + item.id);
+        if (!item.enabled) {
           continue;
         }
-        bound.put(e.getKey(), binding(e.getValue(), inputs, params, n, seed));
-      }
-      for (String required : spec.inputs())
-        if (!bound.containsKey(required))
-          throw new IllegalArgumentException(item.id + ": missing input " + required);
-      Input a = bound.get("a"), b = bound.get("b");
-      if (!Set.of(
-                  "EXPRESSION",
-                  "SELECT",
-                  "NORMALIZE",
-                  "ADD",
-                  "SUBTRACT",
-                  "MULTIPLY",
-                  "DIVIDE",
-                  "CONSTANT",
-                  "COORDINATES_TO_VECTOR",
-                  "VECTOR_TO_COORDINATES",
-                  "VECTOR_ROTATE")
-              .contains(item.kind)
-          && !spec.result().equals(item.resultType))
-        throw new IllegalArgumentException(item.id + ": result type must be " + spec.result());
-      String kind = item.kind;
-      Number eval;
-      Input expressionConstant = null;
-      long sampleWork = 0;
-      int sampleDepth = 0;
-      if (kind.equals("CONSTANT")) {
-        if (!Set.of("Scalar", "Boolean", "Vector2", "Vector3").contains(item.resultType))
-          throw new IllegalArgumentException(
-              "Constant results are Scalar, Boolean or value Vector");
-        var literal = item.parameters.get("value");
-        if (literal == null)
-          literal =
-              ProjectIO.JSON.valueToTree(
-                  item.resultType.equals("Boolean")
-                      ? false
-                      : item.resultType.equals("Scalar")
-                          ? 0
-                          : components(item.resultType) == 2
-                              ? new double[] {0, 0}
-                              : new double[] {0, 0, 0});
-        Input value = constant(item.resultType, literal);
-        eval = value.number;
-      } else if (kind.equals("EXPRESSION")) {
-        var types = new LinkedHashMap<String, Expression.Type>();
-        for (var e : bound.entrySet()) {
-          if (!Set.of("Scalar", "Boolean").contains(e.getValue().type))
-            throw new IllegalArgumentException("Expression inputs must be Scalar or Boolean");
-          types.put(e.getKey(), Expression.Type.valueOf(e.getValue().type));
-        }
-        for (String key : AMBIENT) types.putIfAbsent(key, Expression.Type.Scalar);
-        types.putIfAbsent("source", Expression.Type.Scalar);
-        var constants = new LinkedHashMap<String, Double>();
-        for (var entry : bound.entrySet())
-          if (entry.getValue().literal != null)
-            constants.put(entry.getKey(), entry.getValue().literal[0]);
-        for (String key :
-            List.of("worldMinY", "worldMaxY", "worldHeight", "projectSeed", "noiseGeneratorSeed"))
-          if (!bound.containsKey(key)) constants.put(key, ambient(key, null, seed));
-        var program = Expression.compile(text(item, "expression", ""), types, constants);
-        if (!program.type().name().equals(item.resultType))
-          throw new IllegalArgumentException("Expression result type mismatch in " + item.id);
-        var resolved = new LinkedHashMap<String, Input>();
-        for (String name : program.inputs()) {
-          Input input = bound.get(name);
-          if (input == null)
-            input =
-                name.equals("source")
-                    ? rawResult
-                    : new Input("Scalar", (c, k) -> ambient(name, c, seed));
-          resolved.put(name, input);
-        }
-        // Only executed-expression dependencies contribute to work/depth; every authored binding
-        // was still resolved and type checked before dead branches were removed.
-        bound.clear();
-        bound.putAll(resolved);
-        Input[] arguments = resolved.values().toArray(Input[]::new);
-        final class Access implements Expression.IndexedVariables {
-          Context current;
-
-          public double get(int index) {
-            return arguments[index].scalar(current);
-          }
-        }
-        ThreadLocal<Access> access = ThreadLocal.withInitial(Access::new);
-        eval =
-            (c, k) -> {
-              var variables = access.get();
-              var previous = variables.current;
-              variables.current = c;
-              try {
-                return program.type() == Expression.Type.Scalar
-                    ? program.scalarIndexed(variables)
-                    : program.boolIndexed(variables) ? 1 : 0;
-              } finally {
-                variables.current = previous;
-              }
-            };
-        sampleWork = program.statistics().instructions();
-        expressionInstructions += program.statistics().instructions();
-        if (program.constantValue().isPresent()) {
-          double[] value = {program.constantValue().getAsDouble()};
-          expressionConstant = new Input(item.resultType, (c, k) -> value[k], 0, 0, value);
-        }
-      } else if (ProcessingRegistry.SAMPLED.contains(kind)) {
-        Binding selected = item.inputs.get("field");
-        if (selected == null) {
-          String legacy = text(item, "noiseGeneratorUuid", "");
-          selected =
-              legacy.isEmpty()
-                  ? Binding.sourceField()
-                  : Binding.noiseField(UUID.fromString(legacy));
-        }
-        FieldPlan sampled;
-        switch (selected.sourceKind) {
-          case "Source Field" -> sampled = sourceField;
-          case "Earlier Field Prefix" -> {
-            Input target = inputs.get(selected.itemUuid);
-            if (target == null || !target.type.equals("Scalar"))
+        enabledItems++;
+        final int index = slot;
+        slot += 3;
+        var bound = new HashMap<String, Input>();
+        for (var e : item.inputs.entrySet()) {
+          if (e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind)) {
+            if (!ProcessingRegistry.isFieldBinding(e.getValue()))
               throw new IllegalArgumentException(
-                  "Earlier field prefix must select an enabled earlier Scalar result");
-            sampled = prefixes.get(selected.itemUuid);
-            if (sampled == null) {
-              sampled = executable(n, source, transforms, target, slot);
-              prefixes.put(selected.itemUuid, sampled);
-            }
+                  "A sampled-field input requires Source Field, Earlier Field Prefix or Noise"
+                      + " Generator Field");
+            continue;
           }
-          case "Noise Generator Field" -> {
-            Field ref = projectedReference(selected, n.dimension);
-            sampled =
-                new FieldPlan(
-                    ref,
-                    resourceWork.get(selected.noiseGeneratorUuid),
-                    resourceDepth.get(selected.noiseGeneratorUuid));
-          }
-          default -> throw new IllegalArgumentException("Unsupported sampled-field selector");
+          bound.put(e.getKey(), binding(e.getValue(), inputs, params, n, seed));
         }
-        Field field = sampled.field;
-        int oct = integer(item, "octaves", 4, 1, 16), radius = integer(item, "radius", 1, 0, 4);
-        double lac = param(item, "lacunarity", 2),
-            gain = param(item, "gain", .5),
-            spacing = param(item, "spacing", 1),
-            dx = param(item, "x", 0),
-            dy = param(item, "y", 0),
-            dz = param(item, "z", 0),
-            strength = param(item, "strength", 1);
-        String axis = text(item, "axis", "x"), kernel = text(item, "kernel", "BOX");
-        if (spacing <= 0
-            || lac <= 0
-            || !Set.of("x", "y", "z").contains(axis)
-            || dimension == 2 && axis.equals("y")
-            || !Set.of("BOX", "GAUSSIAN").contains(kernel)
-            || strength < 0
-            || strength > 1) throw new IllegalArgumentException("Invalid field sampling controls");
-        Input coordinates = bound.get("coordinates");
-        if (coordinates != null
-            && !coordinates.type.equals(dimension == 2 ? "Coordinates2D" : "Coordinates3D"))
-          throw new IllegalArgumentException(
-              "Explicit sample locations require matching Coordinates values");
-        int width = 2 * radius + 1, count = dimension == 2 ? width * width : width * width * width;
-        long samples =
-            kind.equals("DERIVATIVE")
-                ? 2
-                : kind.equals("SMOOTH_FILTER")
-                    ? count + 1
-                    : Set.of("FBM", "RIDGED", "BILLOW", "PING_PONG").contains(kind)
-                        ? oct
-                        : kind.equals("WARP_SAMPLE") ? 4 : 1;
-        sampleWork = boundedWork(sampled.work, samples);
-        sampleDepth = sampled.depth;
-        Field warp;
-        if (kind.equals("WARP_SAMPLE")) {
-          var algorithm = new Algorithm();
-          algorithm.parameters.put("frequency", param(item, "frequency", .01));
-          warp =
-              NoiseAlgorithms.compile(
-                  algorithm,
-                  dimension,
-                  CoordinateHash.mix(seed + Double.doubleToLongBits(param(item, "seedOffset", 0))));
-        } else warp = null;
-        double amplitude = param(item, "amplitude", 8),
-            baseFrequency = param(item, "frequency", kind.equals("WARP_SAMPLE") ? .01 : 1);
-        if (baseFrequency <= 0)
-          throw new IllegalArgumentException("Sampling frequency must be positive");
-        double[] weights = new double[count];
-        double total = 0;
-        int wi = 0;
-        for (int y = dimension == 2 ? 0 : -radius; y <= (dimension == 2 ? 0 : radius); y++)
-          for (int z = -radius; z <= radius; z++)
-            for (int x = -radius; x <= radius; x++) {
-              double value =
-                  kernel.equals("GAUSSIAN")
-                      ? StrictMath.exp(
-                          -(x * x + y * y + z * z) / StrictMath.max(.5, radius * radius / 2.))
-                      : 1;
-              weights[wi++] = value;
-              total += value;
-            }
-        for (int i = 0; i < weights.length; i++) weights[i] /= total;
-        eval =
-            (c, k) -> {
-              double x = coordinates == null ? c.worldX : coordinates.number.get(c, 0),
-                  y =
-                      coordinates == null
-                          ? c.worldY
-                          : dimension == 2 ? 0 : coordinates.number.get(c, 1),
-                  z =
-                      coordinates == null
-                          ? c.worldZ
-                          : coordinates.number.get(c, dimension == 2 ? 1 : 2);
-              if (kind.equals("NOISE_REFERENCE")) return field.sample(x, y, z);
-              if (kind.equals("OFFSET_SAMPLE")) return field.sample(x + dx, y + dy, z + dz);
-              if (kind.equals("DERIVATIVE")) {
-                double ax = axis.equals("x") ? spacing : 0,
-                    ay = axis.equals("y") ? spacing : 0,
-                    az = axis.equals("z") ? spacing : 0;
-                return (field.sample(x + ax, y + ay, z + az) - field.sample(x - ax, y - ay, z - az))
-                    / (2 * spacing);
-              }
-              if (kind.equals("SMOOTH_FILTER")) {
-                double sum = 0;
-                int indexWeight = 0;
-                for (int yy = dimension == 2 ? 0 : -radius;
-                    yy <= (dimension == 2 ? 0 : radius);
-                    yy++)
-                  for (int zz = -radius; zz <= radius; zz++)
-                    for (int xx = -radius; xx <= radius; xx++)
-                      sum +=
-                          weights[indexWeight++]
-                              * field.sample(x + xx * spacing, y + yy * spacing, z + zz * spacing);
-                double original = field.sample(x, y, z);
-                return original + (sum - original) * strength;
-              }
-              if (kind.equals("WARP_SAMPLE"))
-                return field.sample(
-                    x + amplitude * warp.sample(x, y, z),
-                    y + (dimension == 2 ? 0 : amplitude * warp.sample(x + 31.1, y - 17.3, z + 7.7)),
-                    z + amplitude * warp.sample(x - 11.2, y + 43.8, z - 19.4));
-              double sum = 0, amp = 1, freq = baseFrequency;
-              for (int i = 0; i < oct; i++) {
-                double value = field.sample(x * freq, y * freq, z * freq);
-                value =
-                    switch (kind) {
-                      case "RIDGED" -> 1 - StrictMath.abs(value);
-                      case "BILLOW" -> 2 * StrictMath.abs(value) - 1;
-                      case "PING_PONG" -> {
-                        double t = value + 1;
-                        t -= 2 * StrictMath.floor(t / 2);
-                        yield 1 - StrictMath.abs(t - 1);
-                      }
-                      default -> value;
-                    };
-                sum += amp * value;
-                amp *= gain;
-                freq *= lac;
-              }
-              return sum;
-            };
-      } else if (kind.equals("CURVE")) {
-        require(a, "Scalar", item);
-        var curve = ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class);
-        var cc = new ScalarCurve(curve);
-        eval = (c, k) -> cc.sample(a.scalar(c));
-      } else {
-        validateSignature(item, bound);
-        Parameters parameters = Parameters.compile(item);
-        eval = (c, k) -> evaluate(kind, parameters, bound, c, k, seed, dimension);
-      }
-      int components = components(item.resultType);
-      Input folded = expressionConstant;
-      if (expressionConstant != null) {
-        // A valid complete expression constant has no runtime dependencies.
-      } else if (kind.equals("SELECT") && bound.get("condition").literal != null)
-        folded = bound.get(bound.get("condition").literal[0] != 0 ? "true" : "false");
-      else if ((kind.equals("AND") || kind.equals("OR"))
-          && a.literal != null
-          && ((kind.equals("AND") && a.literal[0] == 0)
-              || (kind.equals("OR") && a.literal[0] != 0)))
-        folded = constant("Boolean", ProjectIO.JSON.valueToTree(kind.equals("OR")));
-      else if (!Set.of("EXPRESSION", "FALLOFF", "SPHERE", "BOX", "COORDINATE_HASH", "COORDINATE")
-              .contains(kind)
-          && !ProcessingRegistry.SAMPLED.contains(kind)
-          && bound.values().stream().allMatch(input -> input.literal != null)) {
-        try {
-          double[] values = new double[components];
-          Context scratch = new Context(0, source, n.uuid);
-          for (int k = 0; k < components; k++) {
-            values[k] = eval.get(scratch, k);
-            if (!Double.isFinite(values[k])) throw new ArithmeticException();
+        for (String required : spec.inputs())
+          if (!bound.containsKey(required))
+            throw new IllegalArgumentException(item.id + ": missing input " + required);
+        Input a = bound.get("a"), b = bound.get("b");
+        if (!Set.of(
+                    "EXPRESSION",
+                    "SELECT",
+                    "NORMALIZE",
+                    "ADD",
+                    "SUBTRACT",
+                    "MULTIPLY",
+                    "DIVIDE",
+                    "CONSTANT",
+                    "COORDINATES_TO_VECTOR",
+                    "VECTOR_TO_COORDINATES",
+                    "VECTOR_ROTATE")
+                .contains(item.kind)
+            && !spec.result().equals(item.resultType))
+          throw new IllegalArgumentException(item.id + ": result type must be " + spec.result());
+        String kind = item.kind;
+        Number eval;
+        Input expressionConstant = null;
+        long sampleWork = 0;
+        int sampleDepth = 0;
+        if (kind.equals("CONSTANT")) {
+          if (!Set.of("Scalar", "Boolean", "Vector2", "Vector3").contains(item.resultType))
+            throw new IllegalArgumentException(
+                "Constant results are Scalar, Boolean or value Vector");
+          var literal = item.parameters.get("value");
+          if (literal == null)
+            literal =
+                ProjectIO.JSON.valueToTree(
+                    item.resultType.equals("Boolean")
+                        ? false
+                        : item.resultType.equals("Scalar")
+                            ? 0
+                            : components(item.resultType) == 2
+                                ? new double[] {0, 0}
+                                : new double[] {0, 0, 0});
+          Input value = constant(item.resultType, literal);
+          eval = value.number;
+        } else if (kind.equals("EXPRESSION")) {
+          var types = new LinkedHashMap<String, Expression.Type>();
+          for (var e : bound.entrySet()) {
+            if (!Set.of("Scalar", "Boolean").contains(e.getValue().type))
+              throw new IllegalArgumentException("Expression inputs must be Scalar or Boolean");
+            types.put(e.getKey(), Expression.Type.valueOf(e.getValue().type));
           }
-          folded = new Input(item.resultType, (c, k) -> values[k], 0, 0, values);
-        } catch (RuntimeException invalidConstant) {
-          /* Keep the executed runtime boundary; an unselected invalid constant branch is legal. */
-        }
-      }
-      if (folded != null) {
-        if (folded.literal != null) constantItems++;
-        inputs.put(item.uuid, folded);
-        continue;
-      }
-      var key = commonKey(item, bound);
-      Integer previousSlot = key == null ? null : commonOperations.putIfAbsent(key, index);
-      final int sharedIndex = previousSlot == null ? index : previousSlot;
-      if (previousSlot != null) sharedItems++;
-      Number number = eval;
-      Step instruction =
-          c -> {
-            try {
-              for (int k = 0; k < components; k++) {
-                double value = number.get(c, k);
-                if (!Double.isFinite(value)) throw new ArithmeticException("Nonfinite result");
-                c.values[index + k] = value;
-              }
-            } catch (RuntimeException e) {
-              if (e instanceof EvaluationFailure) throw e;
-              throw new EvaluationFailure(n.uuid, item.uuid, c.x, c.y, c.z, e.getMessage(), e);
+          for (String key : AMBIENT) types.putIfAbsent(key, Expression.Type.Scalar);
+          types.putIfAbsent("source", Expression.Type.Scalar);
+          var constants = new LinkedHashMap<String, Double>();
+          for (var entry : bound.entrySet())
+            if (entry.getValue().literal != null)
+              constants.put(entry.getKey(), entry.getValue().literal[0]);
+          for (String key :
+              List.of("worldMinY", "worldMaxY", "worldHeight", "projectSeed", "noiseGeneratorSeed"))
+            if (!bound.containsKey(key)) constants.put(key, ambient(key, null, seed));
+          var program = Expression.compile(text(item, "expression", ""), types, constants);
+          if (!program.type().name().equals(item.resultType))
+            throw new IllegalArgumentException("Expression result type mismatch in " + item.id);
+          var resolved = new LinkedHashMap<String, Input>();
+          for (String name : program.inputs()) {
+            Input input = bound.get(name);
+            if (input == null)
+              input =
+                  name.equals("source")
+                      ? rawResult
+                      : new Input("Scalar", (c, k) -> ambient(name, c, seed));
+            resolved.put(name, input);
+          }
+          // Only executed-expression dependencies contribute to work/depth; every authored binding
+          // was still resolved and type checked before dead branches were removed.
+          bound.clear();
+          bound.putAll(resolved);
+          Input[] arguments = resolved.values().toArray(Input[]::new);
+          final class Access implements Expression.IndexedVariables {
+            Context current;
+
+            public double get(int index) {
+              return arguments[index].scalar(current);
             }
-          };
-      int depth =
-          1 + Math.max(sampleDepth, bound.values().stream().mapToInt(Input::depth).max().orElse(0));
-      if (depth > 128)
-        throw new IllegalArgumentException(
-            "COMPLEXITY_LIMIT: processing dependency depth exceeds 128");
-      inputs.put(
-          item.uuid,
-          new Input(
-              item.resultType,
+          }
+          ThreadLocal<Access> access = ThreadLocal.withInitial(Access::new);
+          eval =
               (c, k) -> {
-                int cell = sharedIndex / 3;
-                if (c.stamps[cell] != c.epoch) {
-                  instruction.run(c);
-                  if (sharedIndex != index)
-                    System.arraycopy(c.values, index, c.values, sharedIndex, components);
-                  c.stamps[cell] = c.epoch;
+                var variables = access.get();
+                var previous = variables.current;
+                variables.current = c;
+                try {
+                  return program.type() == Expression.Type.Scalar
+                      ? program.scalarIndexed(variables)
+                      : program.boolIndexed(variables) ? 1 : 0;
+                } finally {
+                  variables.current = previous;
                 }
-                return c.values[sharedIndex + k];
-              },
-              depth,
-              Math.addExact(1 + sampleWork, bound.values().stream().mapToLong(Input::work).sum())));
+              };
+          sampleWork = program.statistics().instructions();
+          expressionInstructions += program.statistics().instructions();
+          if (program.constantValue().isPresent()) {
+            double[] value = {program.constantValue().getAsDouble()};
+            expressionConstant = new Input(item.resultType, (c, k) -> value[k], 0, 0, value);
+          }
+        } else if (ProcessingRegistry.SAMPLED.contains(kind)) {
+          Binding selected = item.inputs.get("field");
+          if (selected == null) {
+            String legacy = text(item, "noiseGeneratorUuid", "");
+            selected =
+                legacy.isEmpty()
+                    ? Binding.sourceField()
+                    : Binding.noiseField(UUID.fromString(legacy));
+          }
+          FieldPlan sampled;
+          switch (selected.sourceKind) {
+            case "Source Field" -> sampled = sourceField;
+            case "Earlier Field Prefix" -> {
+              Input target = inputs.get(selected.itemUuid);
+              if (target == null || !target.type.equals("Scalar"))
+                throw new IllegalArgumentException(
+                    "Earlier field prefix must select an enabled earlier Scalar result");
+              sampled = prefixes.get(selected.itemUuid);
+              if (sampled == null) {
+                sampled = executable(n, source, transforms, target, slot);
+                prefixes.put(selected.itemUuid, sampled);
+              }
+            }
+            case "Noise Generator Field" -> {
+              Field ref = projectedReference(selected, n.dimension);
+              sampled =
+                  new FieldPlan(
+                      ref,
+                      resourceWork.get(selected.noiseGeneratorUuid),
+                      resourceDepth.get(selected.noiseGeneratorUuid));
+            }
+            default -> throw new IllegalArgumentException("Unsupported sampled-field selector");
+          }
+          Field field = sampled.field;
+          int oct = integer(item, "octaves", 4, 1, 16), radius = integer(item, "radius", 1, 0, 4);
+          double lac = param(item, "lacunarity", 2),
+              gain = param(item, "gain", .5),
+              spacing = param(item, "spacing", 1),
+              dx = param(item, "x", 0),
+              dy = param(item, "y", 0),
+              dz = param(item, "z", 0),
+              strength = param(item, "strength", 1);
+          String axis = text(item, "axis", "x"), kernel = text(item, "kernel", "BOX");
+          if (spacing <= 0
+              || lac <= 0
+              || !Set.of("x", "y", "z").contains(axis)
+              || dimension == 2 && axis.equals("y")
+              || !Set.of("BOX", "GAUSSIAN").contains(kernel)
+              || strength < 0
+              || strength > 1)
+            throw new IllegalArgumentException("Invalid field sampling controls");
+          Input coordinates = bound.get("coordinates");
+          if (coordinates != null
+              && !coordinates.type.equals(dimension == 2 ? "Coordinates2D" : "Coordinates3D"))
+            throw new IllegalArgumentException(
+                "Explicit sample locations require matching Coordinates values");
+          int width = 2 * radius + 1,
+              count = dimension == 2 ? width * width : width * width * width;
+          long samples =
+              kind.equals("DERIVATIVE")
+                  ? 2
+                  : kind.equals("SMOOTH_FILTER")
+                      ? count + 1
+                      : Set.of("FBM", "RIDGED", "BILLOW", "PING_PONG").contains(kind)
+                          ? oct
+                          : kind.equals("WARP_SAMPLE") ? 4 : 1;
+          sampleWork = boundedWork(sampled.work, samples);
+          sampleDepth = sampled.depth;
+          Field warp;
+          if (kind.equals("WARP_SAMPLE")) {
+            var algorithm = new Algorithm();
+            algorithm.parameters.put("frequency", param(item, "frequency", .01));
+            warp =
+                NoiseAlgorithms.compile(
+                    algorithm,
+                    dimension,
+                    CoordinateHash.mix(
+                        seed + Double.doubleToLongBits(param(item, "seedOffset", 0))));
+          } else warp = null;
+          double amplitude = param(item, "amplitude", 8),
+              baseFrequency = param(item, "frequency", kind.equals("WARP_SAMPLE") ? .01 : 1);
+          if (baseFrequency <= 0)
+            throw new IllegalArgumentException("Sampling frequency must be positive");
+          double[] weights = new double[count];
+          double total = 0;
+          int wi = 0;
+          for (int y = dimension == 2 ? 0 : -radius; y <= (dimension == 2 ? 0 : radius); y++)
+            for (int z = -radius; z <= radius; z++)
+              for (int x = -radius; x <= radius; x++) {
+                double value =
+                    kernel.equals("GAUSSIAN")
+                        ? StrictMath.exp(
+                            -(x * x + y * y + z * z) / StrictMath.max(.5, radius * radius / 2.))
+                        : 1;
+                weights[wi++] = value;
+                total += value;
+              }
+          for (int i = 0; i < weights.length; i++) weights[i] /= total;
+          eval =
+              (c, k) -> {
+                double x = coordinates == null ? c.worldX : coordinates.number.get(c, 0),
+                    y =
+                        coordinates == null
+                            ? c.worldY
+                            : dimension == 2 ? 0 : coordinates.number.get(c, 1),
+                    z =
+                        coordinates == null
+                            ? c.worldZ
+                            : coordinates.number.get(c, dimension == 2 ? 1 : 2);
+                if (kind.equals("NOISE_REFERENCE")) return field.sample(x, y, z);
+                if (kind.equals("OFFSET_SAMPLE")) return field.sample(x + dx, y + dy, z + dz);
+                if (kind.equals("DERIVATIVE")) {
+                  double ax = axis.equals("x") ? spacing : 0,
+                      ay = axis.equals("y") ? spacing : 0,
+                      az = axis.equals("z") ? spacing : 0;
+                  return (field.sample(x + ax, y + ay, z + az)
+                          - field.sample(x - ax, y - ay, z - az))
+                      / (2 * spacing);
+                }
+                if (kind.equals("SMOOTH_FILTER")) {
+                  double sum = 0;
+                  int indexWeight = 0;
+                  for (int yy = dimension == 2 ? 0 : -radius;
+                      yy <= (dimension == 2 ? 0 : radius);
+                      yy++)
+                    for (int zz = -radius; zz <= radius; zz++)
+                      for (int xx = -radius; xx <= radius; xx++)
+                        sum +=
+                            weights[indexWeight++]
+                                * field.sample(
+                                    x + xx * spacing, y + yy * spacing, z + zz * spacing);
+                  double original = field.sample(x, y, z);
+                  return original + (sum - original) * strength;
+                }
+                if (kind.equals("WARP_SAMPLE"))
+                  return field.sample(
+                      x + amplitude * warp.sample(x, y, z),
+                      y
+                          + (dimension == 2
+                              ? 0
+                              : amplitude * warp.sample(x + 31.1, y - 17.3, z + 7.7)),
+                      z + amplitude * warp.sample(x - 11.2, y + 43.8, z - 19.4));
+                double sum = 0, amp = 1, freq = baseFrequency;
+                for (int i = 0; i < oct; i++) {
+                  double value = field.sample(x * freq, y * freq, z * freq);
+                  value =
+                      switch (kind) {
+                        case "RIDGED" -> 1 - StrictMath.abs(value);
+                        case "BILLOW" -> 2 * StrictMath.abs(value) - 1;
+                        case "PING_PONG" -> {
+                          double t = value + 1;
+                          t -= 2 * StrictMath.floor(t / 2);
+                          yield 1 - StrictMath.abs(t - 1);
+                        }
+                        default -> value;
+                      };
+                  sum += amp * value;
+                  amp *= gain;
+                  freq *= lac;
+                }
+                return sum;
+              };
+        } else if (kind.equals("CURVE")) {
+          require(a, "Scalar", item);
+          var curve = ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class);
+          var cc = new ScalarCurve(curve);
+          eval = (c, k) -> cc.sample(a.scalar(c));
+        } else {
+          validateSignature(item, bound);
+          Parameters parameters = Parameters.compile(item);
+          eval = (c, k) -> evaluate(kind, parameters, bound, c, k, seed, dimension);
+        }
+        int components = components(item.resultType);
+        Input folded = expressionConstant;
+        if (expressionConstant != null) {
+          // A valid complete expression constant has no runtime dependencies.
+        } else if (kind.equals("SELECT") && bound.get("condition").literal != null)
+          folded = bound.get(bound.get("condition").literal[0] != 0 ? "true" : "false");
+        else if ((kind.equals("AND") || kind.equals("OR"))
+            && a.literal != null
+            && ((kind.equals("AND") && a.literal[0] == 0)
+                || (kind.equals("OR") && a.literal[0] != 0)))
+          folded = constant("Boolean", ProjectIO.JSON.valueToTree(kind.equals("OR")));
+        else if (!Set.of("EXPRESSION", "FALLOFF", "SPHERE", "BOX", "COORDINATE_HASH", "COORDINATE")
+                .contains(kind)
+            && !ProcessingRegistry.SAMPLED.contains(kind)
+            && bound.values().stream().allMatch(input -> input.literal != null)) {
+          try {
+            double[] values = new double[components];
+            Context scratch = new Context(0, source, n.uuid);
+            for (int k = 0; k < components; k++) {
+              values[k] = eval.get(scratch, k);
+              if (!Double.isFinite(values[k])) throw new ArithmeticException();
+            }
+            folded = new Input(item.resultType, (c, k) -> values[k], 0, 0, values);
+          } catch (RuntimeException invalidConstant) {
+            /* Keep the executed runtime boundary; an unselected invalid constant branch is legal. */
+          }
+        }
+        if (folded != null) {
+          if (folded.literal != null) constantItems++;
+          inputs.put(item.uuid, folded);
+          continue;
+        }
+        var key = commonKey(item, bound);
+        Integer previousSlot = key == null ? null : commonOperations.putIfAbsent(key, index);
+        final int sharedIndex = previousSlot == null ? index : previousSlot;
+        if (previousSlot != null) sharedItems++;
+        Number number = eval;
+        Step instruction =
+            c -> {
+              try {
+                for (int k = 0; k < components; k++) {
+                  double value = number.get(c, k);
+                  if (!Double.isFinite(value)) throw new ArithmeticException("Nonfinite result");
+                  c.values[index + k] = value;
+                }
+              } catch (RuntimeException e) {
+                if (e instanceof EvaluationFailure) throw e;
+                throw new EvaluationFailure(n.uuid, item.uuid, c.x, c.y, c.z, e.getMessage(), e);
+              }
+            };
+        int depth =
+            1
+                + Math.max(
+                    sampleDepth, bound.values().stream().mapToInt(Input::depth).max().orElse(0));
+        if (depth > 128)
+          throw new IllegalArgumentException(
+              "COMPLEXITY_LIMIT: processing dependency depth exceeds 128");
+        inputs.put(
+            item.uuid,
+            new Input(
+                item.resultType,
+                (c, k) -> {
+                  int cell = sharedIndex / 3;
+                  if (c.stamps[cell] != c.epoch) {
+                    instruction.run(c);
+                    if (sharedIndex != index)
+                      System.arraycopy(c.values, index, c.values, sharedIndex, components);
+                    c.stamps[cell] = c.epoch;
+                  }
+                  return c.values[sharedIndex + k];
+                },
+                depth,
+                Math.addExact(
+                    1 + sampleWork, bound.values().stream().mapToLong(Input::work).sum())));
+      } catch (CompilationFailure failure) {
+        throw failure;
+      } catch (RuntimeException failure) {
+        throw new CompilationFailure(
+            n.uuid, item.uuid, "EXPRESSION".equals(item.kind) ? "expression" : null, failure);
+      }
     }
     var output = binding(n.outputBinding, inputs, params, n, seed);
     if (!output.type.equals("Scalar")) throw new IllegalArgumentException("Output must be Scalar");
@@ -621,164 +652,175 @@ public final class NoiseCompiler {
     int slots = 0, depth = 0;
     long work = 0;
     for (Item item : n.coordinateTransforms) {
-      if (!Set.of("TRANSLATE", "SCALE", "ROTATE", "DOMAIN_WARP").contains(item.kind))
-        throw new IllegalArgumentException("Unsupported transform " + item.kind);
-      String coordinatesType = n.dimension == 2 ? "Coordinates2D" : "Coordinates3D";
-      if (!item.resultType.equals(coordinatesType))
-        throw new IllegalArgumentException("Transform result must be " + coordinatesType);
-      if (!item.enabled) continue;
-      var bound = new HashMap<String, Input>();
-      var allowed =
-          Set.of(
-              "coordinates",
-              "x",
-              "y",
-              "z",
-              "angle",
-              "angleX",
-              "angleY",
-              "angleZ",
-              "pivotX",
-              "pivotY",
-              "pivotZ",
-              "amplitude",
-              "warpX",
-              "warpY",
-              "warpZ");
-      for (var e : item.inputs.entrySet()) {
-        if (!allowed.contains(e.getKey()))
-          throw new IllegalArgumentException("Unknown transform input " + e.getKey());
-        if (Set.of("Source Result", "Source Field", "Earlier Field Prefix", "Noise Generator Field")
-            .contains(e.getValue().sourceKind))
-          throw new IllegalArgumentException(
-              "Coordinate transforms cannot use source/processing results or field selectors");
-        Input input = binding(e.getValue(), earlier, parameters, n, seed);
-        String expected = e.getKey().equals("coordinates") ? coordinatesType : "Scalar";
-        require(input, expected, item);
-        bound.put(e.getKey(), input);
-      }
-      int index = slots;
-      slots += 3;
-      String kind = item.kind;
-      final int dimension = n.dimension;
-      UUID resource = n.uuid, id = item.uuid;
-      Input coordinates = bound.get("coordinates");
-      Input x = control(bound, item, "x", kind.equals("SCALE") ? 1 : 0),
-          y = control(bound, item, "y", kind.equals("SCALE") ? 1 : 0),
-          z = control(bound, item, "z", kind.equals("SCALE") ? 1 : 0);
-      Input px = control(bound, item, "pivotX", 0),
-          py = control(bound, item, "pivotY", 0),
-          pz = control(bound, item, "pivotZ", 0),
-          angle = control(bound, item, "angle", 0),
-          ax = control(bound, item, "angleX", 0),
-          ay =
-              bound.containsKey("angleY") || item.parameters.containsKey("angleY")
-                  ? control(bound, item, "angleY", 0)
-                  : angle,
-          az = control(bound, item, "angleZ", 0),
-          amplitude = control(bound, item, "amplitude", 8);
-      String order = text(item, "rotationOrder", "XYZ");
-      if (!Set.of("XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX").contains(order))
-        throw new IllegalArgumentException("Explicit rotation axis order required");
-      Field warp;
-      if (kind.equals("DOMAIN_WARP")) {
-        var algorithm = new Algorithm();
-        algorithm.parameters.put("frequency", param(item, "frequency", .01));
-        warp =
-            NoiseAlgorithms.compile(
-                algorithm,
-                dimension,
-                CoordinateHash.mix(seed + Double.doubleToLongBits(param(item, "seedOffset", 0))));
-      } else warp = null;
-      Input wx = bound.get("warpX"), wy = bound.get("warpY"), wz = bound.get("warpZ");
-      Step step =
-          c -> {
-            try {
-              double xx = coordinates == null ? c.x : coordinates.number.get(c, 0),
-                  yy =
-                      coordinates == null ? c.y : dimension == 2 ? 0 : coordinates.number.get(c, 1),
-                  zz =
-                      coordinates == null ? c.z : coordinates.number.get(c, dimension == 2 ? 1 : 2);
-              if (kind.equals("TRANSLATE")) {
-                xx += x.scalar(c);
-                yy += dimension == 2 ? 0 : y.scalar(c);
-                zz += z.scalar(c);
-              } else if (kind.equals("SCALE")) {
-                double pivotX = px.scalar(c), pivotY = py.scalar(c), pivotZ = pz.scalar(c);
-                xx = pivotX + (xx - pivotX) * x.scalar(c);
-                yy = dimension == 2 ? 0 : pivotY + (yy - pivotY) * y.scalar(c);
-                zz = pivotZ + (zz - pivotZ) * z.scalar(c);
-              } else if (kind.equals("ROTATE")) {
-                double pivotX = px.scalar(c), pivotY = py.scalar(c), pivotZ = pz.scalar(c);
-                xx -= pivotX;
-                yy -= pivotY;
-                zz -= pivotZ;
-                double rx = ax.scalar(c) * StrictMath.PI / 180,
-                    ry = (dimension == 2 ? angle : ay).scalar(c) * StrictMath.PI / 180,
-                    rz = az.scalar(c) * StrictMath.PI / 180;
-                for (int i = 0; i < (dimension == 2 ? 1 : 3); i++) {
-                  char axis = dimension == 2 ? 'Y' : order.charAt(i);
-                  double radians = axis == 'X' ? rx : axis == 'Y' ? ry : rz,
-                      co = StrictMath.cos(radians),
-                      si = StrictMath.sin(radians),
-                      old;
-                  if (axis == 'X') {
-                    old = yy;
-                    yy = old * co - zz * si;
-                    zz = old * si + zz * co;
-                  } else if (axis == 'Y') {
-                    old = xx;
-                    xx = old * co - zz * si;
-                    zz = old * si + zz * co;
-                  } else {
-                    old = xx;
-                    xx = old * co - yy * si;
-                    yy = old * si + yy * co;
+      try {
+        if (!Set.of("TRANSLATE", "SCALE", "ROTATE", "DOMAIN_WARP").contains(item.kind))
+          throw new IllegalArgumentException("Unsupported transform " + item.kind);
+        String coordinatesType = n.dimension == 2 ? "Coordinates2D" : "Coordinates3D";
+        if (!item.resultType.equals(coordinatesType))
+          throw new IllegalArgumentException("Transform result must be " + coordinatesType);
+        if (!item.enabled) continue;
+        var bound = new HashMap<String, Input>();
+        var allowed =
+            Set.of(
+                "coordinates",
+                "x",
+                "y",
+                "z",
+                "angle",
+                "angleX",
+                "angleY",
+                "angleZ",
+                "pivotX",
+                "pivotY",
+                "pivotZ",
+                "amplitude",
+                "warpX",
+                "warpY",
+                "warpZ");
+        for (var e : item.inputs.entrySet()) {
+          if (!allowed.contains(e.getKey()))
+            throw new IllegalArgumentException("Unknown transform input " + e.getKey());
+          if (Set.of(
+                  "Source Result", "Source Field", "Earlier Field Prefix", "Noise Generator Field")
+              .contains(e.getValue().sourceKind))
+            throw new IllegalArgumentException(
+                "Coordinate transforms cannot use source/processing results or field selectors");
+          Input input = binding(e.getValue(), earlier, parameters, n, seed);
+          String expected = e.getKey().equals("coordinates") ? coordinatesType : "Scalar";
+          require(input, expected, item);
+          bound.put(e.getKey(), input);
+        }
+        int index = slots;
+        slots += 3;
+        String kind = item.kind;
+        final int dimension = n.dimension;
+        UUID resource = n.uuid, id = item.uuid;
+        Input coordinates = bound.get("coordinates");
+        Input x = control(bound, item, "x", kind.equals("SCALE") ? 1 : 0),
+            y = control(bound, item, "y", kind.equals("SCALE") ? 1 : 0),
+            z = control(bound, item, "z", kind.equals("SCALE") ? 1 : 0);
+        Input px = control(bound, item, "pivotX", 0),
+            py = control(bound, item, "pivotY", 0),
+            pz = control(bound, item, "pivotZ", 0),
+            angle = control(bound, item, "angle", 0),
+            ax = control(bound, item, "angleX", 0),
+            ay =
+                bound.containsKey("angleY") || item.parameters.containsKey("angleY")
+                    ? control(bound, item, "angleY", 0)
+                    : angle,
+            az = control(bound, item, "angleZ", 0),
+            amplitude = control(bound, item, "amplitude", 8);
+        String order = text(item, "rotationOrder", "XYZ");
+        if (!Set.of("XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX").contains(order))
+          throw new IllegalArgumentException("Explicit rotation axis order required");
+        Field warp;
+        if (kind.equals("DOMAIN_WARP")) {
+          var algorithm = new Algorithm();
+          algorithm.parameters.put("frequency", param(item, "frequency", .01));
+          warp =
+              NoiseAlgorithms.compile(
+                  algorithm,
+                  dimension,
+                  CoordinateHash.mix(seed + Double.doubleToLongBits(param(item, "seedOffset", 0))));
+        } else warp = null;
+        Input wx = bound.get("warpX"), wy = bound.get("warpY"), wz = bound.get("warpZ");
+        Step step =
+            c -> {
+              try {
+                double xx = coordinates == null ? c.x : coordinates.number.get(c, 0),
+                    yy =
+                        coordinates == null
+                            ? c.y
+                            : dimension == 2 ? 0 : coordinates.number.get(c, 1),
+                    zz =
+                        coordinates == null
+                            ? c.z
+                            : coordinates.number.get(c, dimension == 2 ? 1 : 2);
+                if (kind.equals("TRANSLATE")) {
+                  xx += x.scalar(c);
+                  yy += dimension == 2 ? 0 : y.scalar(c);
+                  zz += z.scalar(c);
+                } else if (kind.equals("SCALE")) {
+                  double pivotX = px.scalar(c), pivotY = py.scalar(c), pivotZ = pz.scalar(c);
+                  xx = pivotX + (xx - pivotX) * x.scalar(c);
+                  yy = dimension == 2 ? 0 : pivotY + (yy - pivotY) * y.scalar(c);
+                  zz = pivotZ + (zz - pivotZ) * z.scalar(c);
+                } else if (kind.equals("ROTATE")) {
+                  double pivotX = px.scalar(c), pivotY = py.scalar(c), pivotZ = pz.scalar(c);
+                  xx -= pivotX;
+                  yy -= pivotY;
+                  zz -= pivotZ;
+                  double rx = ax.scalar(c) * StrictMath.PI / 180,
+                      ry = (dimension == 2 ? angle : ay).scalar(c) * StrictMath.PI / 180,
+                      rz = az.scalar(c) * StrictMath.PI / 180;
+                  for (int i = 0; i < (dimension == 2 ? 1 : 3); i++) {
+                    char axis = dimension == 2 ? 'Y' : order.charAt(i);
+                    double radians = axis == 'X' ? rx : axis == 'Y' ? ry : rz,
+                        co = StrictMath.cos(radians),
+                        si = StrictMath.sin(radians),
+                        old;
+                    if (axis == 'X') {
+                      old = yy;
+                      yy = old * co - zz * si;
+                      zz = old * si + zz * co;
+                    } else if (axis == 'Y') {
+                      old = xx;
+                      xx = old * co - zz * si;
+                      zz = old * si + zz * co;
+                    } else {
+                      old = xx;
+                      xx = old * co - yy * si;
+                      yy = old * si + yy * co;
+                    }
                   }
+                  xx += pivotX;
+                  yy = dimension == 2 ? 0 : yy + pivotY;
+                  zz += pivotZ;
+                } else {
+                  double amount = amplitude.scalar(c),
+                      dx = wx == null ? warp.sample(xx, yy, zz) : wx.scalar(c),
+                      dy =
+                          dimension == 2
+                              ? 0
+                              : wy == null
+                                  ? warp.sample(xx + 31.1, yy - 17.3, zz + 7.7)
+                                  : wy.scalar(c),
+                      dz = wz == null ? warp.sample(xx - 11.2, yy + 43.8, zz - 19.4) : wz.scalar(c);
+                  xx += amount * dx;
+                  yy += amount * dy;
+                  zz += amount * dz;
                 }
-                xx += pivotX;
-                yy = dimension == 2 ? 0 : yy + pivotY;
-                zz += pivotZ;
-              } else {
-                double amount = amplitude.scalar(c),
-                    dx = wx == null ? warp.sample(xx, yy, zz) : wx.scalar(c),
-                    dy =
-                        dimension == 2
-                            ? 0
-                            : wy == null
-                                ? warp.sample(xx + 31.1, yy - 17.3, zz + 7.7)
-                                : wy.scalar(c),
-                    dz = wz == null ? warp.sample(xx - 11.2, yy + 43.8, zz - 19.4) : wz.scalar(c);
-                xx += amount * dx;
-                yy += amount * dy;
-                zz += amount * dz;
+                if (!Double.isFinite(xx) || !Double.isFinite(yy) || !Double.isFinite(zz))
+                  throw new ArithmeticException("Nonfinite transformed coordinates");
+                c.x = xx;
+                c.y = dimension == 2 ? 0 : yy;
+                c.z = zz;
+                c.values[index] = xx;
+                c.values[index + 1] = dimension == 2 ? zz : yy;
+                c.values[index + 2] = dimension == 2 ? 0 : zz;
+              } catch (RuntimeException failure) {
+                if (failure instanceof EvaluationFailure) throw failure;
+                throw new EvaluationFailure(
+                    resource, id, c.worldX, c.worldY, c.worldZ, failure.getMessage(), failure);
               }
-              if (!Double.isFinite(xx) || !Double.isFinite(yy) || !Double.isFinite(zz))
-                throw new ArithmeticException("Nonfinite transformed coordinates");
-              c.x = xx;
-              c.y = dimension == 2 ? 0 : yy;
-              c.z = zz;
-              c.values[index] = xx;
-              c.values[index + 1] = dimension == 2 ? zz : yy;
-              c.values[index + 2] = dimension == 2 ? 0 : zz;
-            } catch (RuntimeException failure) {
-              if (failure instanceof EvaluationFailure) throw failure;
-              throw new EvaluationFailure(
-                  resource, id, c.worldX, c.worldY, c.worldZ, failure.getMessage(), failure);
-            }
-          };
-      steps.add(step);
-      long stepWork = kind.equals("DOMAIN_WARP") ? 48 : 1;
-      for (Input in : bound.values()) {
-        stepWork = Math.addExact(stepWork, in.work);
-        depth = Math.max(depth, in.depth);
+            };
+        steps.add(step);
+        long stepWork = kind.equals("DOMAIN_WARP") ? 48 : 1;
+        for (Input in : bound.values()) {
+          stepWork = Math.addExact(stepWork, in.work);
+          depth = Math.max(depth, in.depth);
+        }
+        work = Math.addExact(work, stepWork);
+        boundedWork(work, 1);
+        if (depth >= 128)
+          throw new IllegalArgumentException(
+              "COMPLEXITY_LIMIT: transform dependency depth exceeds 128");
+        earlier.put(id, new Input(coordinatesType, (c, k) -> c.values[index + k], depth + 1, 0));
+      } catch (CompilationFailure failure) {
+        throw failure;
+      } catch (RuntimeException failure) {
+        throw new CompilationFailure(n.uuid, item.uuid, null, failure);
       }
-      work = Math.addExact(work, stepWork);
-      boundedWork(work, 1);
-      if (depth >= 128)
-        throw new IllegalArgumentException(
-            "COMPLEXITY_LIMIT: transform dependency depth exceeds 128");
-      earlier.put(id, new Input(coordinatesType, (c, k) -> c.values[index + k], depth + 1, 0));
     }
     return new TransformPlan(List.copyOf(steps), slots, work, depth);
   }

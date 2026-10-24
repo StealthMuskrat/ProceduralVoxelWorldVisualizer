@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.StagePreviewTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-24T17:37:14.337Z" hostname="715e00c143c7" time="0.064">
+<testsuite name="io.voxelcreator.api.StagePreviewTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-24T18:10:47.111Z" hostname="715e00c143c7" time="0.075">
   <properties/>
-  <testcase name="disabledAndEmptyStagesHaveEqualBoundaries()" classname="io.voxelcreator.api.StagePreviewTest" time="0.021"/>
-  <testcase name="beforeAfterAndFinalFollowExactCommittedPipeline()" classname="io.voxelcreator.api.StagePreviewTest" time="0.011"/>
-  <testcase name="traceContainsEffectiveValuesAndOnlyExecutedGateResults()" classname="io.voxelcreator.api.StagePreviewTest" time="0.015"/>
-  <testcase name="stageSnapshotsSurviveClosureAndCancellationNeverPublishesPartialPairs()" classname="io.voxelcreator.api.StagePreviewTest" time="0.015"/>
+  <testcase name="disabledAndEmptyStagesHaveEqualBoundaries()" classname="io.voxelcreator.api.StagePreviewTest" time="0.031"/>
+  <testcase name="beforeAfterAndFinalFollowExactCommittedPipeline()" classname="io.voxelcreator.api.StagePreviewTest" time="0.012"/>
+  <testcase name="traceContainsEffectiveValuesAndOnlyExecutedGateResults()" classname="io.voxelcreator.api.StagePreviewTest" time="0.016"/>
+  <testcase name="stageSnapshotsSurviveClosureAndCancellationNeverPublishesPartialPairs()" classname="io.voxelcreator.api.StagePreviewTest" time="0.012"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

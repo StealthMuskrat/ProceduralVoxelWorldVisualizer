@@ -463,7 +463,7 @@ public final class Viewports implements AutoCloseable {
       if (ready.error != null) {
         v.message = "Failed; previous display retained";
         v.failedPreview = true;
-        state.notify("Error", ready.error);
+        state.error("PREVIEW_FAILED", EditorEvents.Subsystem.RENDERING, ready.error);
       } else {
         if (ready.image != null) {
           v.gl.setImage(ready.width, ready.width, ready.image);
@@ -827,7 +827,10 @@ public final class Viewports implements AutoCloseable {
         v.failedKey = key;
         v.requestedKey = "";
         v.dirty = true;
-        state.notify("Error", "Streaming source failed: " + setup.error);
+        state.error(
+            "STREAM_SOURCE_FAILED",
+            EditorEvents.Subsystem.RENDERING,
+            "Streaming source failed: " + setup.error);
         return false;
       } else {
         if (v.scene != null) v.scene.close();
@@ -941,7 +944,10 @@ public final class Viewports implements AutoCloseable {
         v.gl.sceneDisabled();
         v.failedKey = key;
         v.dirty = true;
-        state.notify("Error", "Streaming stopped; fixed preview retained: " + gpu.getMessage());
+        state.error(
+            "STREAM_RENDER_FAILED",
+            EditorEvents.Subsystem.RENDERING,
+            "Streaming stopped; fixed preview retained: " + gpu.getMessage());
         return false;
       }
     }

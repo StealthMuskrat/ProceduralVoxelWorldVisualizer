@@ -1,0 +1,228 @@
+{
+  "formatVersion" : 2,
+  "project" : {
+    "uuid" : "1705b571-bf27-49d7-8219-aa05cda580b8",
+    "seed" : 0,
+    "minY" : -16,
+    "maxY" : 63
+  },
+  "voxelTypes" : [ {
+    "uuid" : "b63369c2-a880-4731-a238-0c49fd0f7ec5",
+    "id" : "stone",
+    "color" : {
+      "r" : 114,
+      "g" : 164,
+      "b" : 143
+    }
+  }, {
+    "uuid" : "e931ad83-f6c8-4151-ba9e-4f108ea76986",
+    "id" : "clay",
+    "color" : {
+      "r" : 184,
+      "g" : 130,
+      "b" : 89
+    }
+  } ],
+  "voxelGroups" : [ ],
+  "voxelSets" : [ ],
+  "noise2D" : [ {
+    "uuid" : "79944231-b576-4296-9919-b6878cc780fe",
+    "id" : "terrain",
+    "dimension" : 2,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "OPEN_SIMPLEX_2",
+      "parameters" : {
+        "frequency" : 0.035
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ {
+      "uuid" : "855550cb-f14e-4eeb-a885-09b228350ac7",
+      "id" : "compiled-expression",
+      "kind" : "EXPRESSION",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "expression" : "source+(sin(x*0.01)+sin(x*0.01))*0.05+(true ? 2^3 : 1/0)*0.001"
+      },
+      "inputs" : { }
+    } ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Earlier Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : "855550cb-f14e-4eeb-a885-09b228350ac7",
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  } ],
+  "noise3D" : [ {
+    "uuid" : "414fca17-67d0-462d-b1d3-e098c08a0814",
+    "id" : "caves",
+    "dimension" : 3,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "OPEN_SIMPLEX_2",
+      "parameters" : {
+        "frequency" : 0.08
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Source Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : null,
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  } ],
+  "worldGenerator" : {
+    "uuid" : "382c5d7b-619e-4b52-b2b9-6e81f8921888",
+    "layers" : [ {
+      "uuid" : "ccc18939-d01b-4824-8824-6ee0c58e7c0a",
+      "id" : "terrain-layer",
+      "enabled" : true,
+      "defaults" : {
+        "baseHeight" : 12.0,
+        "heightScale" : 14.0,
+        "threshold" : 0.0,
+        "strength" : 1.0,
+        "probability" : 1.0,
+        "minY" : -2147483648,
+        "maxY" : 2147483647,
+        "scaleX" : 1.0,
+        "scaleY" : 1.0,
+        "scaleZ" : 1.0,
+        "offsetX" : 0.0,
+        "offsetY" : 0.0,
+        "offsetZ" : 0.0,
+        "axisX" : "X",
+        "axisY" : "Y",
+        "axisZ" : "Z",
+        "samplingTransforms" : [ {
+          "enabled" : true,
+          "kind" : "TRANSLATE",
+          "rotationOrder" : "XYZ",
+          "x" : 3.0,
+          "y" : 0.0,
+          "z" : 0.0,
+          "pivotX" : 0.0,
+          "pivotY" : 0.0,
+          "pivotZ" : 0.0
+        }, {
+          "enabled" : true,
+          "kind" : "ROTATE",
+          "rotationOrder" : "XYZ",
+          "x" : 0.0,
+          "y" : 15.0,
+          "z" : 0.0,
+          "pivotX" : 0.0,
+          "pivotY" : 0.0,
+          "pivotZ" : 0.0
+        } ],
+        "seedOffset" : 0,
+        "action" : "SET",
+        "rounding" : "FLOOR",
+        "voxelTypeUuid" : null,
+        "typeSource" : "INTERVALS",
+        "typeIntervals" : [ {
+          "min" : -2.0,
+          "max" : 0.0,
+          "includeMin" : true,
+          "includeMax" : false,
+          "voxelTypeUuid" : "b63369c2-a880-4731-a238-0c49fd0f7ec5"
+        }, {
+          "min" : 0.0,
+          "max" : 2.0,
+          "includeMin" : true,
+          "includeMax" : true,
+          "voxelTypeUuid" : "e931ad83-f6c8-4151-ba9e-4f108ea76986"
+        } ],
+        "probabilityDriver" : {
+          "enabled" : true,
+          "noiseGeneratorUuid" : null,
+          "inputMin" : -1.0,
+          "inputMax" : 1.0,
+          "outputMin" : 1.0,
+          "outputMax" : 1.0,
+          "mapping" : "LINEAR"
+        },
+        "strengthDriver" : {
+          "enabled" : false,
+          "noiseGeneratorUuid" : null,
+          "inputMin" : 0.0,
+          "inputMax" : 1.0,
+          "outputMin" : 0.0,
+          "outputMax" : 1.0,
+          "mapping" : "LINEAR"
+        },
+        "voxelStatePredicate" : {
+          "kind" : "ANY",
+          "reference" : null,
+          "children" : [ ]
+        },
+        "fieldGates" : {
+          "kind" : "NOT",
+          "comparison" : "GE",
+          "threshold" : 0.0,
+          "max" : 1.0,
+          "includeMin" : true,
+          "includeMax" : true,
+          "probability" : 1.0,
+          "seedOffset" : 0,
+          "noiseGeneratorUuid" : null,
+          "children" : [ {
+            "kind" : "PROBABILITY",
+            "comparison" : "GE",
+            "threshold" : 0.0,
+            "max" : 1.0,
+            "includeMin" : true,
+            "includeMax" : true,
+            "probability" : 0.0,
+            "seedOffset" : 0,
+            "noiseGeneratorUuid" : null,
+            "children" : [ ]
+          } ]
+        }
+      },
+      "operations" : [ {
+        "uuid" : "dee412d9-1c6a-4818-8e5c-a599711a5cf2",
+        "id" : "height",
+        "enabled" : true,
+        "noiseGeneratorUuid" : "79944231-b576-4296-9919-b6878cc780fe",
+        "interpretation" : "HEIGHT_BELOW",
+        "overrides" : { }
+      }, {
+        "uuid" : "3a6ec4cd-446f-4b6f-83a7-f5438b74e09b",
+        "id" : "carve-caves",
+        "enabled" : true,
+        "noiseGeneratorUuid" : "414fca17-67d0-462d-b1d3-e098c08a0814",
+        "interpretation" : "DENSITY",
+        "overrides" : {
+          "action" : "CLEAR"
+        }
+      } ]
+    } ]
+  },
+  "folders" : [ ],
+  "bookmarks" : {
+    "noise2D" : [ ],
+    "noise3D" : [ ],
+    "world" : [ ]
+  }
+}

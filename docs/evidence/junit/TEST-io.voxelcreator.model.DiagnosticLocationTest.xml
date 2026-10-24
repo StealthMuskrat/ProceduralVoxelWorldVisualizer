@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.voxelcreator.model.DiagnosticLocationTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T18:11:01.520Z" hostname="715e00c143c7" time="1.252">
+  <properties/>
+  <testcase name="explicitCompilerContextIsNeverOverwrittenByPointerFallback()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="1.04"/>
+  <testcase name="normalValidatorRetainsUuidContextWithoutMutatingCandidate()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.082"/>
+  <testcase name="processingInputsAndEscapedParameterKeysResolveBeforeReorder()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.003"/>
+  <testcase name="rejectedCandidatePathsIdentifyNestedOperationRatherThanItsLayer()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.058"/>
+  <testcase name="uuidArrayPathsAndHistoricalNoiseMembershipAliasesResolve()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.017"/>
+  <testcase name="curvePointLocationKeepsTheOwningNoiseAndPointIdentity()" classname="io.voxelcreator.model.DiagnosticLocationTest" time="0.034"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "retention": {"defaultGroups": 1000, "maximumGroups": 10000, "messageUtf16Units": 8192, "codeUtf16Units": 96, "parameterUtf16Units": 256, "pathUtf16Units": 2048},
+  "subsystems": ["APPLICATION", "PROJECT", "GENERATION", "RENDERING", "IMPORT_EXPORT", "SCHEDULER", "ENGINE"],
+  "states": {"read": "independent of action resolution", "actionRequired": "explicit publisher/user acknowledgement", "dismissed": "notification hidden; log history retained"},
+  "codes": {
+    "APPLICATION_MESSAGE": "Legacy application notice without structured source",
+    "PROJECT_VALID": "Committed project validated successfully",
+    "INVALID_NOISE": "Canonical compiler failure with innermost available source/control",
+    "PROJECT_SAVE_FAILED": "Explicit save failed; previous document/file retained",
+    "FILE_OPEN_FAILED": "Open failed; previous document retained",
+    "FILE_SAVE_FAILED": "Save dialog operation failed",
+    "FILE_IMPORT_FAILED": "Import staging failed",
+    "FILE_EXPORT_FAILED": "Resource export failed",
+    "PREVIEW_FAILED": "Preview computation failed",
+    "STREAM_SOURCE_FAILED": "Streaming source setup failed",
+    "STREAM_RENDER_FAILED": "Streaming display stopped; fixed preview retained",
+    "UPDATE_CHECK_FAILED": "Manual update check failed"
+  },
+  "additionalCodes": "Semantic validator and headless runtime codes are retained unchanged"
+}

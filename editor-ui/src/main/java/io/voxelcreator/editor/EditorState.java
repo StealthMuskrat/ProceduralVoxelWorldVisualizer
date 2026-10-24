@@ -11,7 +11,8 @@ import java.util.function.*;
 
 public final class EditorState implements AutoCloseable {
   public final DocumentSession document = new DocumentSession();
-  public final UserConfig user = UserConfig.load();
+  public final UserConfig user;
+  private final boolean persistPreferences;
   public AppMetadata metadata = AppMetadata.load();
   public final NoiseGeneratorEngine engine;
   public final ThreadPoolExecutor background =
@@ -27,21 +28,35 @@ public final class EditorState implements AutoCloseable {
   public long revision = 0;
   public UUID selected;
   public String selectedKind = "", status = "Ready";
+  private final java.util.concurrent.atomic.AtomicReference<String> eventStatus =
+      new java.util.concurrent.atomic.AtomicReference<>();
+  public String validationScope = "Committed project";
   public Object draft;
   public List<Diagnostic> issues = List.of();
   public final Set<UUID> multiSelection = new LinkedHashSet<>();
   private String selectionParent = "";
-  public final List<Notice> notices = new ArrayList<>();
-  public final Deque<String> logs = new ArrayDeque<>();
-
-  public record Notice(String severity, String message, Instant time, int count, boolean read) {}
+  public final EditorEvents events = new EditorEvents();
 
   public EditorState() {
+    this(UserConfig.load(), true);
+  }
+
+  EditorState(UserConfig user, boolean persistPreferences) {
+    this.user = Objects.requireNonNull(user);
+    this.persistPreferences = persistPreferences;
     document.setValidator(NoiseCompiler::validate);
     engine =
         new NoiseGeneratorEngine(
             user.performance.workers, 128, (long) user.performance.engineMiB << 20);
-    engine.addDiagnosticListener(d -> uiQueue.offer(() -> notify("Error", d.toString())));
+    engine.addDiagnosticListener(
+        d ->
+            post(
+                d.code(),
+                d.severity(),
+                EditorEvents.Subsystem.ENGINE,
+                d.message(),
+                EditorEvents.Target.diagnostic(null, d),
+                d.severity() == Diagnostic.Severity.CRITICAL));
   }
 
   public ProjectData project() {
@@ -52,12 +67,14 @@ public final class EditorState implements AutoCloseable {
     try {
       var result = document.edit(edit);
       issues = result;
+      validationScope = result.isEmpty() ? "Committed project" : "Rejected edit";
       if (result.isEmpty()) {
         revision++;
         status = "Project modified";
         return true;
       }
-      notify("Error", result.getFirst().toString());
+      for (var diagnostic : result)
+        reportDiagnostic(diagnostic, EditorEvents.Subsystem.PROJECT, true);
       return false;
     } catch (RuntimeException e) {
       notify("Error", String.valueOf(e.getMessage()));
@@ -84,6 +101,10 @@ public final class EditorState implements AutoCloseable {
   }
 
   public void refreshDraft() {
+    if (validationScope.equals("Rejected edit")) {
+      issues = List.of();
+      validationScope = "Committed project";
+    }
     Object obj = find(project(), selected);
     draft =
         obj == null
@@ -143,19 +164,76 @@ public final class EditorState implements AutoCloseable {
   }
 
   public void notify(String severity, String message) {
-    status = message;
-    String log = Instant.now() + " " + severity + " " + message;
-    logs.addFirst(log);
-    while (logs.size() > 1000) logs.removeLast();
-    for (int i = 0; i < notices.size(); i++) {
-      var n = notices.get(i);
-      if (n.message.equals(message) && n.severity.equals(severity)) {
-        notices.set(i, new Notice(severity, message, Instant.now(), n.count + 1, false));
-        return;
-      }
+    Diagnostic.Severity level;
+    try {
+      level = Diagnostic.Severity.valueOf(severity.toUpperCase(Locale.ROOT));
+    } catch (RuntimeException unknown) {
+      level = Diagnostic.Severity.INFORMATION;
     }
-    notices.addFirst(new Notice(severity, message, Instant.now(), 1, false));
-    while (notices.size() > 1000) notices.removeLast();
+    post(
+        "APPLICATION_MESSAGE",
+        level,
+        EditorEvents.Subsystem.APPLICATION,
+        message,
+        null,
+        level == Diagnostic.Severity.CRITICAL);
+  }
+
+  public EditorEvents.Entry post(
+      String code,
+      Diagnostic.Severity severity,
+      EditorEvents.Subsystem subsystem,
+      String message,
+      EditorEvents.Target target,
+      boolean actionRequired) {
+    var entry = events.publish(code, severity, subsystem, message, target, actionRequired);
+    eventStatus.set(entry.message());
+    return entry;
+  }
+
+  public void error(String code, EditorEvents.Subsystem subsystem, String message) {
+    post(code, Diagnostic.Severity.ERROR, subsystem, message, null, true);
+  }
+
+  public void reportDiagnostic(
+      Diagnostic diagnostic, EditorEvents.Subsystem subsystem, boolean actionRequired) {
+    post(
+        diagnostic.code(),
+        diagnostic.severity(),
+        subsystem,
+        diagnostic.message(),
+        EditorEvents.Target.diagnostic(project().project.uuid, diagnostic),
+        actionRequired);
+  }
+
+  public List<Diagnostic> validateProject() {
+    issues = NoiseCompiler.validate(project());
+    validationScope = "Committed project";
+    if (issues.isEmpty())
+      post(
+          "PROJECT_VALID",
+          Diagnostic.Severity.INFORMATION,
+          EditorEvents.Subsystem.PROJECT,
+          "Project is valid",
+          null,
+          false);
+    else for (var issue : issues) reportDiagnostic(issue, EditorEvents.Subsystem.PROJECT, true);
+    return issues;
+  }
+
+  public boolean canNavigate(EditorEvents.Target target) {
+    return DiagnosticNavigation.available(project(), selected, draft, target);
+  }
+
+  public boolean navigate(EditorEvents.Target target) {
+    if (!canNavigate(target) || target.settings()) return false;
+    if (!Objects.equals(selected, target.resource()) || draft == null) {
+      var entry = ResourceGraph.find(project(), target.resource());
+      select(entry.kind(), entry.uuid());
+    }
+    multiSelection.clear();
+    multiSelection.add(target.resource());
+    return true;
   }
 
   public void newSession() {
@@ -166,16 +244,19 @@ public final class EditorState implements AutoCloseable {
     multiSelection.clear();
     revision++;
     issues = List.of();
+    validationScope = "Committed project";
   }
 
   public void drain() {
     for (Runnable r; (r = uiQueue.poll()) != null; ) r.run();
+    String latest = eventStatus.getAndSet(null);
+    if (latest != null) status = latest;
   }
 
   @Override
   public void close() {
     background.shutdownNow();
     engine.close();
-    user.save();
+    if (persistPreferences) user.save();
   }
 }

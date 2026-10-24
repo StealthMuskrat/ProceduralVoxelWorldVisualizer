@@ -97,11 +97,22 @@ public final class PropertyPanel {
   }
 
   private UUID focusedControl;
+  private EditorEvents.Target navigationTarget;
+
+  public boolean goToProblem(EditorEvents.Target target) {
+    if (!state.navigate(target)) return false;
+    focusedControl = target.control();
+    navigationTarget = target;
+    return true;
+  }
 
   public void goToControl(UUID resource, UUID control) {
     Object object = EditorState.find(state.project(), resource);
     if (object instanceof Noise n) {
-      state.select("noise" + n.dimension + "D", resource);
+      if (!Objects.equals(state.selected, resource) || state.draft == null)
+        state.select("noise" + n.dimension + "D", resource);
+      state.multiSelection.clear();
+      state.multiSelection.add(resource);
       focusedControl = control;
     }
   }
@@ -117,6 +128,13 @@ public final class PropertyPanel {
       ImGui.setScrollHereY(.2f);
       focusedControl = null;
     }
+    if (navigationTarget != null && uuid.equals(navigationTarget.control()))
+      ImGui.textColored(
+          .45f,
+          .8f,
+          1f,
+          1,
+          "Problem: " + Objects.requireNonNullElse(navigationTarget.parameter(), "control"));
   }
 
   public PropertyPanel(EditorState s) {
@@ -139,6 +157,14 @@ public final class PropertyPanel {
           "Create a noise generator from Resources, or add a layer to the World Generator.");
     } else {
       ImGui.textDisabled(state.selectedKind.toUpperCase(Locale.ROOT));
+      if (navigationTarget != null && Objects.equals(navigationTarget.resource(), state.selected)) {
+        ImGui.textColored(.45f, .8f, 1f, 1, "Problem location");
+        ImGui.textWrapped(
+            Objects.requireNonNullElse(navigationTarget.parameter(), "Resource")
+                + "  "
+                + navigationTarget.pointer());
+        if (ImGui.smallButton("Clear Location")) navigationTarget = null;
+      }
       if (ImGui.button("Apply")) state.applyDraft();
       ImGui.sameLine();
       if (ImGui.button("Revert")) {
@@ -148,7 +174,16 @@ public final class PropertyPanel {
       f.tooltip("Apply validates this edit and commits one undoable transaction.");
       if (!state.issues.isEmpty()) {
         ImGui.textColored(1, .4f, .35f, 1, "! " + state.issues.size() + " validation issue(s)");
-        for (var d : state.issues) ImGui.textWrapped(d.toString());
+        for (int i = 0; i < Math.min(8, state.issues.size()); i++) {
+          var d = state.issues.get(i);
+          ImGui.textWrapped(d.toString());
+          var target = EditorEvents.Target.diagnostic(state.project().project.uuid, d);
+          if (state.canNavigate(target)
+              && !target.settings()
+              && ImGui.smallButton("Go To Problem##inline" + i)) goToProblem(target);
+        }
+        if (state.issues.size() > 8)
+          ImGui.textDisabled("More results are available in View > Validate Project.");
       }
       ImGui.separator();
       if (state.draft instanceof Identity r) f.text("ID", r.id, v -> r.id = v);
