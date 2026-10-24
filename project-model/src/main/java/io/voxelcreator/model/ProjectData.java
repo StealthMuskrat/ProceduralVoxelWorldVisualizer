@@ -102,6 +102,26 @@ public final class ProjectData {
       return b;
     }
 
+    public static Binding sourceField() {
+      var b = new Binding();
+      b.sourceKind = "Source Field";
+      return b;
+    }
+
+    public static Binding earlierField(UUID id) {
+      var b = sourceField();
+      b.sourceKind = "Earlier Field Prefix";
+      b.itemUuid = id;
+      return b;
+    }
+
+    public static Binding noiseField(UUID id) {
+      var b = sourceField();
+      b.sourceKind = "Noise Generator Field";
+      b.noiseGeneratorUuid = id;
+      return b;
+    }
+
     public static Binding earlier(UUID id) {
       var b = new Binding();
       b.sourceKind = "Earlier Result";

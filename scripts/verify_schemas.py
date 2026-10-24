@@ -2,7 +2,7 @@
 from pathlib import Path
 import json,jsonschema
 root=Path(__file__).resolve().parent.parent
-for name,fixtures in [('project',['valid-empty.json','terrain.json']),('user-config',['user-config-defaults.json']),('app-config',['app-config-defaults.json'])]:
+for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json']),('user-config',['user-config-defaults.json']),('app-config',['app-config-defaults.json'])]:
  schema=json.loads((root/'schema'/f'{name}.schema.json').read_text())
  jsonschema.Draft202012Validator.check_schema(schema)
  validator=jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker())

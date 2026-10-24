@@ -114,14 +114,71 @@ public final class PropertyPanel {
         if (ImGui.treeNode("[" + i + "] " + item.id + "  " + item.kind)) {
           f.bool("Enabled", item.enabled, v -> item.enabled = v);
           f.text("ID", item.id, v -> item.id = v);
-          if (item.kind.equals("ROTATE")) parameter(item, "angle", 0);
-          else if (item.kind.equals("DOMAIN_WARP")) {
-            parameter(item, "amplitude", 8);
+          boolean explicit = item.inputs.containsKey("coordinates");
+          f.bool(
+              "Explicit input coordinates",
+              explicit,
+              v -> {
+                if (v) {
+                  var value = Binding.constant(0);
+                  value.type = n.dimension == 2 ? "Coordinates2D" : "Coordinates3D";
+                  value.value =
+                      ProjectIO.JSON.valueToTree(
+                          n.dimension == 2 ? new double[] {0, 0} : new double[] {0, 0, 0});
+                  item.inputs.put("coordinates", value);
+                } else item.inputs.remove("coordinates");
+              });
+          if (item.inputs.containsKey("coordinates")) {
+            ImGui.pushID("coordinates");
+            binding(n, item, i, item.inputs.get("coordinates"));
+            ImGui.popID();
+          }
+          if (item.kind.equals("ROTATE")) {
+            if (n.dimension == 2) transformControl(n, item, i, "angle", 0);
+            else {
+              for (String axis : List.of("X", "Y", "Z"))
+                transformControl(
+                    n,
+                    item,
+                    i,
+                    "angle" + axis,
+                    item.parameters.containsKey("angle") && axis.equals("Y")
+                        ? item.parameters.get("angle").asDouble()
+                        : 0);
+              f.choice(
+                  "Rotation order",
+                  item.parameters.containsKey("rotationOrder")
+                      ? item.parameters.get("rotationOrder").asText()
+                      : "XYZ",
+                  List.of("XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX"),
+                  v -> item.parameters.put("rotationOrder", ProjectIO.JSON.valueToTree(v)));
+            }
+            ImGui.textWrapped("Angles are degrees; positive Y rotation turns +X toward +Z.");
+          } else if (item.kind.equals("DOMAIN_WARP")) {
+            transformControl(n, item, i, "amplitude", 8);
             parameter(item, "frequency", .01);
             parameter(item, "seedOffset", 0);
+            for (String axis : n.dimension == 2 ? List.of("X", "Z") : List.of("X", "Y", "Z")) {
+              String name = "warp" + axis;
+              f.bool(
+                  "External " + name,
+                  item.inputs.containsKey(name),
+                  v -> {
+                    if (v) item.inputs.put(name, Binding.constant(0));
+                    else item.inputs.remove(name);
+                  });
+              if (item.inputs.containsKey(name)) {
+                ImGui.pushID(name);
+                binding(n, item, i, item.inputs.get(name));
+                ImGui.popID();
+              }
+            }
           } else
             for (String axis : n.dimension == 2 ? List.of("x", "z") : List.of("x", "y", "z"))
-              parameter(item, axis, item.kind.equals("SCALE") ? 1 : 0);
+              transformControl(n, item, i, axis, item.kind.equals("SCALE") ? 1 : 0);
+          if (Set.of("ROTATE", "SCALE").contains(item.kind))
+            for (String axis : n.dimension == 2 ? List.of("X", "Z") : List.of("X", "Y", "Z"))
+              transformControl(n, item, i, "pivot" + axis, 0);
           itemActions(n.coordinateTransforms, i);
           ImGui.treePop();
         }
@@ -153,6 +210,43 @@ public final class PropertyPanel {
               ProcessingRegistry.ITEMS.containsKey(item.kind)
                   ? ProcessingRegistry.ITEMS.get(item.kind).category()
                   : "Unknown operation");
+          if (item.kind.equals("CONSTANT"))
+            f.choice(
+                "Result type",
+                item.resultType,
+                List.of("Scalar", "Boolean", "Vector2", "Vector3"),
+                v -> {
+                  item.resultType = v;
+                  item.parameters.put(
+                      "value",
+                      ProjectIO.JSON.valueToTree(
+                          v.equals("Scalar")
+                              ? 0
+                              : v.equals("Boolean")
+                                  ? false
+                                  : v.equals("Vector2")
+                                      ? new double[] {0, 0}
+                                      : new double[] {0, 0, 0}));
+                });
+          if (item.kind.equals("SELECT"))
+            f.choice(
+                "Result type",
+                item.resultType,
+                List.of(
+                    "Scalar", "Boolean", "Vector2", "Vector3", "Coordinates2D", "Coordinates3D"),
+                v -> item.resultType = v);
+          if (Set.of("COORDINATES_TO_VECTOR", "VECTOR_ROTATE").contains(item.kind))
+            f.choice(
+                "Result type",
+                item.resultType,
+                List.of("Vector2", "Vector3"),
+                v -> item.resultType = v);
+          if (item.kind.equals("VECTOR_TO_COORDINATES"))
+            f.choice(
+                "Result type",
+                item.resultType,
+                List.of("Coordinates2D", "Coordinates3D"),
+                v -> item.resultType = v);
           if (item.kind.equals("EXPRESSION")) {
             f.choice(
                 "Result type",
@@ -183,7 +277,9 @@ public final class PropertyPanel {
           for (var e : new ArrayList<>(item.inputs.entrySet())) {
             ImGui.pushID(e.getKey());
             if (ImGui.treeNode("Input: " + e.getKey() + " [" + e.getValue().type + "]")) {
-              binding(n, item, i, e.getValue());
+              if (e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind))
+                fieldBinding(n, i, e.getValue());
+              else binding(n, item, i, e.getValue());
               ImGui.treePop();
             }
             ImGui.popID();
@@ -209,10 +305,27 @@ public final class PropertyPanel {
               parameter(item, "min", 0);
               parameter(item, "max", 1);
             }
-            case "TERRACE" -> parameter(item, "levels", 8);
-            case "FALLOFF" -> parameter(item, "extent", 64);
-            case "CONSTANT" -> parameter(item, "value", 0);
-            case "SPHERE" -> parameter(item, "radius", 16);
+            case "TERRACE" -> {
+              parameter(item, "levels", 8);
+              parameter(item, "transition", 0);
+            }
+            case "FALLOFF" -> {
+              parameter(item, "extent", 64);
+              parameter(item, "centerX", 0);
+              if (n.dimension == 3) parameter(item, "centerY", 0);
+              parameter(item, "centerZ", 0);
+            }
+            case "CONSTANT" ->
+                constantEditor(
+                    item.resultType,
+                    item.parameters.get("value"),
+                    v -> item.parameters.put("value", v));
+            case "SPHERE" -> {
+              parameter(item, "radius", 16);
+              parameter(item, "centerX", 0);
+              if (n.dimension == 3) parameter(item, "centerY", 0);
+              parameter(item, "centerZ", 0);
+            }
             case "BOX" -> {
               parameter(item, "extentX", 16);
               parameter(item, "extentY", 16);
@@ -220,6 +333,22 @@ public final class PropertyPanel {
             }
             case "SMOOTH_UNION" -> parameter(item, "smoothness", 1);
             case "COMPONENT" -> parameter(item, "component", 0);
+            case "PROJECT_VECTOR", "PROJECT_COORDINATES", "EXPAND_VECTOR", "EXPAND_COORDINATES" ->
+                f.choice(
+                    "Retained axes",
+                    item.parameters.containsKey("axes")
+                        ? item.parameters.get("axes").asText()
+                        : "XZ",
+                    List.of("XZ", "XY", "YZ"),
+                    v -> item.parameters.put("axes", ProjectIO.JSON.valueToTree(v)));
+            case "VECTOR_ROTATE" -> {
+              parameter(item, "angle", 0);
+              f.choice(
+                  "Rotation axis",
+                  item.parameters.containsKey("axis") ? item.parameters.get("axis").asText() : "x",
+                  List.of("x", "y", "z"),
+                  v -> item.parameters.put("axis", ProjectIO.JSON.valueToTree(v)));
+            }
             case "COORDINATE" -> {
               String axis =
                   item.parameters.containsKey("axis") ? item.parameters.get("axis").asText() : "x";
@@ -249,33 +378,70 @@ public final class PropertyPanel {
                 "PING_PONG",
                 "OFFSET_SAMPLE",
                 "DERIVATIVE",
-                "SMOOTH_FILTER" -> {
-              UUID ref =
-                  item.parameters.containsKey("noiseGeneratorUuid")
-                      ? UUID.fromString(item.parameters.get("noiseGeneratorUuid").asText())
-                      : null;
-              noisePicker(
-                  "Sampled field (blank = source)",
-                  ref,
-                  u -> {
-                    if (u == null) item.parameters.remove("noiseGeneratorUuid");
-                    else
-                      item.parameters.put(
-                          "noiseGeneratorUuid", ProjectIO.JSON.valueToTree(u.toString()));
+                "SMOOTH_FILTER",
+                "WARP_SAMPLE" -> {
+              if (!item.inputs.containsKey("field")) {
+                UUID legacy =
+                    item.parameters.containsKey("noiseGeneratorUuid")
+                        ? UUID.fromString(item.parameters.remove("noiseGeneratorUuid").asText())
+                        : null;
+                item.inputs.put(
+                    "field", legacy == null ? Binding.sourceField() : Binding.noiseField(legacy));
+              }
+              f.bool(
+                  "Explicit sample coordinates",
+                  item.inputs.containsKey("coordinates"),
+                  v -> {
+                    if (v) {
+                      Binding b = Binding.constant(0);
+                      b.type = n.dimension == 2 ? "Coordinates2D" : "Coordinates3D";
+                      b.value =
+                          ProjectIO.JSON.valueToTree(
+                              n.dimension == 2 ? new double[] {0, 0} : new double[] {0, 0, 0});
+                      item.inputs.put("coordinates", b);
+                    } else item.inputs.remove("coordinates");
                   });
+              ImGui.textWrapped(
+                  "Default sampling uses incoming coordinates; the selected field applies its own"
+                      + " transforms once.");
               if (Set.of("FBM", "RIDGED", "BILLOW", "PING_PONG").contains(item.kind)) {
                 parameter(item, "octaves", 4);
+                parameter(item, "frequency", 1);
                 parameter(item, "lacunarity", 2);
                 parameter(item, "gain", .5);
+                ImGui.textWrapped(
+                    "Octaves reuse the selected field's canonical seed at increasing coordinate"
+                        + " frequencies.");
               }
-              if (item.kind.equals("OFFSET_SAMPLE")) {
-                parameter(item, "x", 0);
-                parameter(item, "y", 0);
-                parameter(item, "z", 0);
-              }
+              if (item.kind.equals("OFFSET_SAMPLE"))
+                for (String axis : n.dimension == 2 ? List.of("x", "z") : List.of("x", "y", "z"))
+                  parameter(item, axis, 0);
               if (item.kind.equals("DERIVATIVE") || item.kind.equals("SMOOTH_FILTER"))
                 parameter(item, "spacing", 1);
-              if (item.kind.equals("SMOOTH_FILTER")) parameter(item, "radius", 1);
+              if (item.kind.equals("DERIVATIVE"))
+                f.choice(
+                    "Axis",
+                    item.parameters.containsKey("axis")
+                        ? item.parameters.get("axis").asText()
+                        : "x",
+                    n.dimension == 2 ? List.of("x", "z") : List.of("x", "y", "z"),
+                    v -> item.parameters.put("axis", ProjectIO.JSON.valueToTree(v)));
+              if (item.kind.equals("SMOOTH_FILTER")) {
+                parameter(item, "radius", 1);
+                parameter(item, "strength", 1);
+                f.choice(
+                    "Kernel",
+                    item.parameters.containsKey("kernel")
+                        ? item.parameters.get("kernel").asText()
+                        : "BOX",
+                    List.of("BOX", "GAUSSIAN"),
+                    v -> item.parameters.put("kernel", ProjectIO.JSON.valueToTree(v)));
+              }
+              if (item.kind.equals("WARP_SAMPLE")) {
+                parameter(item, "amplitude", 8);
+                parameter(item, "frequency", .01);
+                parameter(item, "seedOffset", 0);
+              }
             }
             default -> {}
           }
@@ -398,6 +564,60 @@ public final class PropertyPanel {
     if (ImGui.smallButton("Delete")) list.remove(i);
   }
 
+  private void transformControl(Noise noise, Item item, int index, String name, double fallback) {
+    ImGui.pushID(name);
+    f.bool(
+        "Bind " + name,
+        item.inputs.containsKey(name),
+        v -> {
+          if (v)
+            item.inputs.put(
+                name,
+                Binding.constant(
+                    item.parameters.containsKey(name)
+                        ? item.parameters.get(name).asDouble()
+                        : fallback));
+          else item.inputs.remove(name);
+        });
+    if (item.inputs.containsKey(name)) binding(noise, item, index, item.inputs.get(name));
+    else parameter(item, name, fallback);
+    ImGui.popID();
+  }
+
+  private void fieldBinding(Noise n, int index, Binding b) {
+    f.choice(
+        "Sampled field",
+        b.sourceKind,
+        List.of("Source Field", "Earlier Field Prefix", "Noise Generator Field"),
+        v -> {
+          b.sourceKind = v;
+          b.type = "Scalar";
+          b.itemUuid = null;
+          b.noiseGeneratorUuid = null;
+        });
+    if (b.sourceKind.equals("Earlier Field Prefix")) {
+      if (ImGui.beginCombo("Prefix ends at", idFor(n.processing, b.itemUuid))) {
+        for (int i = 0; i < index; i++) {
+          Item previous = n.processing.get(i);
+          if (previous.enabled
+              && previous.resultType.equals("Scalar")
+              && ImGui.selectable(previous.id)) b.itemUuid = previous.uuid;
+        }
+        ImGui.endCombo();
+      }
+      ImGui.textWrapped(
+          "Reevaluates this earlier result and its dependencies at each requested location.");
+    } else if (b.sourceKind.equals("Noise Generator Field")) {
+      noisePicker("Field resource", b.noiseGeneratorUuid, u -> b.noiseGeneratorUuid = u);
+      f.choice("Projection", b.projection, List.of("XZ", "XY", "YZ"), v -> b.projection = v);
+      f.number("Inserted slice coordinate", b.slice, v -> b.slice = v);
+      if (b.noiseGeneratorUuid != null && ImGui.button("Open Referenced Noise Generator")) {
+        var obj = EditorState.find(state.project(), b.noiseGeneratorUuid);
+        if (obj instanceof Noise ref) state.select("noise" + ref.dimension + "D", ref.uuid);
+      }
+    }
+  }
+
   private void binding(Noise n, Item item, int index, Binding b) {
     f.choice(
         "Type",
@@ -416,16 +636,24 @@ public final class PropertyPanel {
                               ? new double[] {0, 0}
                               : new double[] {0, 0, 0});
         });
+    boolean coordinateStage = n.coordinateTransforms.contains(item);
     f.choice(
         "Source",
         b.sourceKind,
-        List.of(
-            "Constant",
-            "Shared Parameter",
-            "Ambient Value",
-            "Source Result",
-            "Earlier Result",
-            "Noise Generator Reference"),
+        coordinateStage
+            ? List.of(
+                "Constant",
+                "Shared Parameter",
+                "Ambient Value",
+                "Earlier Result",
+                "Noise Generator Reference")
+            : List.of(
+                "Constant",
+                "Shared Parameter",
+                "Ambient Value",
+                "Source Result",
+                "Earlier Result",
+                "Noise Generator Reference"),
         v -> {
           b.sourceKind = v;
           if (v.equals("Constant") && b.value == null) b.value = ProjectIO.JSON.valueToTree(0);
@@ -446,9 +674,10 @@ public final class PropertyPanel {
               new ArrayList<>(NoiseCompiler.AMBIENT),
               v -> b.ambientKey = v);
       case "Earlier Result" -> {
-        if (ImGui.beginCombo("Result", idFor(n.processing, b.itemUuid))) {
+        if (ImGui.beginCombo(
+            "Result", idFor(coordinateStage ? n.coordinateTransforms : n.processing, b.itemUuid))) {
           for (int i = 0; i < index; i++) {
-            var p = n.processing.get(i);
+            var p = (coordinateStage ? n.coordinateTransforms : n.processing).get(i);
             if (p.enabled && p.resultType.equals(b.type) && ImGui.selectable(p.id))
               b.itemUuid = p.uuid;
           }

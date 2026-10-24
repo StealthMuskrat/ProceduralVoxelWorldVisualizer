@@ -1,6 +1,6 @@
 {
-  "inheritableProperties" : [ "baseHeight", "heightScale", "threshold", "strength", "probability", "minY", "maxY", "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ", "seedOffset", "action", "rounding", "voxelTypeUuid", "voxelStatePredicate", "fieldGates" ],
   "actions" : [ "SET", "CLEAR", "NO_CHANGE" ],
-  "interpretations" : [ "HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY" ],
-  "registryVersion" : 1
+  "inheritableProperties" : [ "baseHeight", "heightScale", "threshold", "strength", "probability", "minY", "maxY", "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ", "seedOffset", "action", "rounding", "voxelTypeUuid", "voxelStatePredicate", "fieldGates" ],
+  "registryVersion" : 1,
+  "interpretations" : [ "HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY" ]
 }

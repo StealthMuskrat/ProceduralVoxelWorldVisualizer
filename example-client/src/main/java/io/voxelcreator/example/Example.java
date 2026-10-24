@@ -1,6 +1,7 @@
 package io.voxelcreator.example;
 
 import io.voxelcreator.api.*;
+import io.voxelcreator.core.ProcessingRegistry;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
 import io.voxelcreator.storage.*;
@@ -43,6 +44,35 @@ public final class Example {
     return p;
   }
 
+  public static ProjectData sampledFieldsDemo() {
+    var p = new ProjectData();
+    p.project.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000020");
+    p.worldGenerator.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000021");
+    var n = new Noise();
+    n.id = "sampled-derivative";
+    n.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000022");
+    n.algorithm.key = "CONSTANT";
+    var translate = new Item();
+    translate.id = "translate";
+    translate.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000023");
+    translate.kind = "TRANSLATE";
+    translate.resultType = "Coordinates2D";
+    translate.inputs.put("x", Binding.constant(3));
+    n.coordinateTransforms.add(translate);
+    var quadratic = ProcessingRegistry.create("EXPRESSION", "quadratic");
+    quadratic.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000024");
+    quadratic.parameters.put("expression", ProjectIO.JSON.valueToTree("x*x+z*z"));
+    n.processing.add(quadratic);
+    var derivative = ProcessingRegistry.create("DERIVATIVE", "derivative");
+    derivative.uuid = java.util.UUID.fromString("00000000-0000-4000-8000-000000000025");
+    derivative.inputs.put("field", Binding.earlierField(quadratic.uuid));
+    derivative.parameters.put("spacing", ProjectIO.JSON.valueToTree(.25));
+    n.processing.add(derivative);
+    n.outputBinding = Binding.earlier(derivative.uuid);
+    p.noise2D.add(n);
+    return p;
+  }
+
   public static void main(String[] args) throws Exception {
     if (args.length > 0 && args[0].equals("--contracts")) {
       ContractGenerator.write(Path.of(args.length > 1 ? args[1] : "."));
@@ -50,6 +80,17 @@ public final class Example {
     }
     Path working = Path.of(args.length > 0 ? args[0] : "example-output");
     Files.createDirectories(working);
+    var sampled = sampledFieldsDemo();
+    Path fieldFile = working.resolve("sampled-fields.pvproj.json");
+    new ProjectIO().save(fieldFile, sampled);
+    var fieldLoad = new ProjectLoader().load(fieldFile);
+    if (!fieldLoad.success()) throw new IllegalStateException(fieldLoad.diagnostics().toString());
+    var sampledProject = new ProjectCompiler().compileWorld(fieldLoad.project()).compiled();
+    var derivative = sampledProject.noise2D("sampled-derivative", 42);
+    for (int x = -33; x <= 33; x++)
+      if (derivative.sample(x, 31) != 2. * (x + 3))
+        throw new AssertionError("Field-prefix derivative mismatch at " + x);
+    System.out.println("Independent sampled-field prefix PASS");
     var p = demo();
     Path file = working.resolve("terrain.pvproj.json");
     new ProjectIO().save(file, p);

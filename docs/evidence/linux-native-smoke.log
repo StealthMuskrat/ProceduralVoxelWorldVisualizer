@@ -4,5 +4,5 @@ SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-110.png
 SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-230.png
 SMOKE_SCREENSHOT /workspace/scratch/7b7fbf202fed/tools/ui-smoke/smoke-350.png
 THREE_ENGINE_VIEWPORTS_PASS
-DESKTOP_SMOKE_COMPLETED frames=360 engine=EngineMetrics[workers=4, active=0, queued=0, completed=4, generationNanos=32031563, cacheBytes=0, stagingBytes=0, memoryBudget=536870912]
+DESKTOP_SMOKE_COMPLETED frames=360 engine=EngineMetrics[workers=4, active=0, queued=0, completed=4, generationNanos=22507719, cacheBytes=0, stagingBytes=0, memoryBudget=536870912]
 NATIVE_CURSOR_CLEANUP: unavailable platform cursor; completing GLFW shutdown

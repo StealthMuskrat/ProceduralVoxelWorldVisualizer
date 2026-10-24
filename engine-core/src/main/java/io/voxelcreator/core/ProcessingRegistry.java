@@ -5,6 +5,24 @@ import io.voxelcreator.model.ProjectIO;
 import java.util.*;
 
 public final class ProcessingRegistry {
+  public static final Set<String> SAMPLED =
+      Set.of(
+          "NOISE_REFERENCE",
+          "FBM",
+          "RIDGED",
+          "BILLOW",
+          "PING_PONG",
+          "OFFSET_SAMPLE",
+          "DERIVATIVE",
+          "SMOOTH_FILTER",
+          "WARP_SAMPLE");
+
+  public static boolean isFieldBinding(Binding b) {
+    return b != null
+        && Set.of("Source Field", "Earlier Field Prefix", "Noise Generator Field")
+            .contains(b.sourceKind);
+  }
+
   public record Spec(String category, String result, List<String> inputs) {}
 
   public static final Map<String, Spec> ITEMS;
@@ -74,6 +92,15 @@ public final class ProcessingRegistry {
         "INTERSECTION",
         "SUBTRACTION",
         "SMOOTH_UNION");
+    add(m, "Coordinates & Transforms", "Coordinates2D", "x,z", "COORDINATES2");
+    add(m, "Coordinates & Transforms", "Coordinates3D", "x,y,z", "COORDINATES3");
+    add(m, "Vectors", "Vector2", "a", "REPLICATE2", "PROJECT_VECTOR");
+    add(m, "Vectors", "Vector3", "a,b", "EXPAND_VECTOR");
+    add(m, "Vectors", "Vector3", "a", "COORDINATES_TO_VECTOR", "VECTOR_ROTATE");
+    add(m, "Coordinates & Transforms", "Coordinates3D", "a", "VECTOR_TO_COORDINATES");
+    add(m, "Coordinates & Transforms", "Coordinates2D", "a", "PROJECT_COORDINATES");
+    add(m, "Coordinates & Transforms", "Coordinates3D", "a,b", "EXPAND_COORDINATES");
+    add(m, "Coordinates & Transforms", "Scalar", "", "WARP_SAMPLE");
     ITEMS = Collections.unmodifiableMap(m);
   }
 
@@ -100,8 +127,35 @@ public final class ProcessingRegistry {
         b.type = "Boolean";
         b.value = ProjectIO.JSON.valueToTree(false);
       }
+      String vectorType =
+          switch (key) {
+            case "DOT",
+                "CROSS",
+                "LENGTH",
+                "NORMALIZE",
+                "COMPONENT",
+                "PROJECT_VECTOR",
+                "VECTOR_TO_COORDINATES",
+                "VECTOR_ROTATE" ->
+                "Vector3";
+            case "EXPAND_VECTOR" -> "Vector2";
+            case "COORDINATES_TO_VECTOR", "PROJECT_COORDINATES" -> "Coordinates3D";
+            case "EXPAND_COORDINATES" -> "Coordinates2D";
+            default -> null;
+          };
+      if (vectorType != null
+          && (name.equals("a") || name.equals("b") && !key.startsWith("EXPAND"))) {
+        b = Binding.constant(0);
+        b.type = vectorType;
+        b.value =
+            ProjectIO.JSON.valueToTree(
+                vectorType.endsWith("2") || vectorType.endsWith("2D")
+                    ? new double[] {0, 0}
+                    : new double[] {0, 0, 0});
+      }
       item.inputs.put(name, b);
     }
+    if (SAMPLED.contains(key)) item.inputs.put("field", Binding.sourceField());
     if (key.equals("EXPRESSION"))
       item.parameters.put("expression", ProjectIO.JSON.valueToTree("source"));
     return item;

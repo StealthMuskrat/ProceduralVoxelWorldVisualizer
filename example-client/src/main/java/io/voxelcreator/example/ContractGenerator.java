@@ -120,7 +120,10 @@ public final class ContractGenerator {
                     "Ambient Value",
                     "Source Result",
                     "Earlier Result",
-                    "Noise Generator Reference")));
+                    "Noise Generator Reference",
+                    "Source Field",
+                    "Earlier Field Prefix",
+                    "Noise Generator Field")));
     ((ObjectNode) defs.path("Item").path("properties").path("resultType"))
         .set(
             "enum",
@@ -182,7 +185,15 @@ public final class ContractGenerator {
             "FastNoiseLite 1.1.1, double marked coordinates; float output widened to double"));
     writeJSON(
         root.resolve("registries/noise-processing-registry.json"),
-        Map.of("registryVersion", 1, "operations", ProcessingRegistry.ITEMS));
+        Map.of(
+            "registryVersion",
+            2,
+            "operations",
+            ProcessingRegistry.ITEMS,
+            "sampledFieldOperations",
+            new TreeSet<>(ProcessingRegistry.SAMPLED),
+            "sampledFieldSources",
+            List.of("Source Field", "Earlier Field Prefix", "Noise Generator Field")));
     var funcs = new LinkedHashMap<String, Object>();
     Expression.FUNCTIONS.forEach(
         (name, fn) ->
@@ -216,6 +227,7 @@ public final class ContractGenerator {
     empty.worldGenerator.uuid = UUID.fromString("00000000-0000-4000-8000-000000000011");
     new ProjectIO().save(root.resolve("fixtures/valid-empty.json"), empty);
     new ProjectIO().save(root.resolve("fixtures/terrain.json"), Example.demo());
+    new ProjectIO().save(root.resolve("fixtures/sampled-fields.json"), Example.sampledFieldsDemo());
     ObjectNode invalid = JSON.valueToTree(empty);
     invalid.put("formatVersion", 999);
     writeJSON(root.resolve("fixtures/invalid-format-version.json"), invalid);

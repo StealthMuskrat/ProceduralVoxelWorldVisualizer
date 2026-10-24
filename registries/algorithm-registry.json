@@ -1,6 +1,6 @@
 {
-  "engineVersion" : "0.1.0",
   "sourceImplementation" : "FastNoiseLite 1.1.1, double marked coordinates; float output widened to double",
-  "algorithms" : [ "OPEN_SIMPLEX_2", "PERLIN", "VALUE", "VALUE_CUBIC", "CELLULAR", "WHITE_HASH", "CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF" ],
-  "registryVersion" : 1
+  "engineVersion" : "0.1.0",
+  "registryVersion" : 1,
+  "algorithms" : [ "OPEN_SIMPLEX_2", "PERLIN", "VALUE", "VALUE_CUBIC", "CELLULAR", "WHITE_HASH", "CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF" ]
 }

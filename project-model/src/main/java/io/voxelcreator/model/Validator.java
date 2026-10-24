@@ -188,9 +188,12 @@ public final class Validator {
     }
     var itemNames = new HashSet<String>();
     var earlier = new HashMap<UUID, Item>();
+    var allItems = new HashSet<UUID>();
     for (var list : List.of(n.coordinateTransforms, n.processing)) {
+      earlier.clear();
       for (int i = 0; i < list.size(); i++) {
         var item = list.get(i);
+        allItems.add(item.uuid);
         String q = path + (list == n.processing ? "/processing/" : "/coordinateTransforms/") + i;
         uuid(item.uuid, q + "/uuid");
         id(item.id, itemNames, q + "/id");
@@ -207,16 +210,35 @@ public final class Validator {
                 "INVALID_REFERENCE", q + "/parameters/noiseGeneratorUuid", "Malformed noise UUID");
           }
         }
-        for (var e : item.inputs.entrySet())
+        for (var e : item.inputs.entrySet()) {
           binding(e.getValue(), params, earlier, item.enabled, q + "/inputs/" + e.getKey());
+          if (list == n.coordinateTransforms
+              && e.getValue() != null
+              && Set.of(
+                      "Source Result",
+                      "Source Field",
+                      "Earlier Field Prefix",
+                      "Noise Generator Field")
+                  .contains(e.getValue().sourceKind))
+            error(
+                "INVALID_STAGE",
+                q + "/inputs/" + e.getKey(),
+                "Coordinate stage cannot use source or processing results");
+        }
         earlier.put(item.uuid, item);
       }
     }
     binding(n.outputBinding, params, earlier, true, path + "/outputBinding");
-    if (!"Scalar".equals(n.outputBinding.type))
+    if (n.outputBinding != null
+        && !Set.of("Source Result", "Earlier Result").contains(n.outputBinding.sourceKind))
+      error(
+          "INVALID_OUTPUT",
+          path + "/outputBinding",
+          "Select raw source or an enabled Scalar processing result");
+    if (n.outputBinding != null && !"Scalar".equals(n.outputBinding.type))
       error("INVALID_OUTPUT", path + "/outputBinding", "Noise output must be Scalar");
     for (var pin : n.pinnedControls)
-      if (!params.contains(pin.targetUuid) && !earlier.containsKey(pin.targetUuid))
+      if (!params.contains(pin.targetUuid) && !allItems.contains(pin.targetUuid))
         error("INVALID_REFERENCE", path + "/pinnedControls", "Unknown pinned control");
   }
 
@@ -254,13 +276,20 @@ public final class Validator {
       error("MISSING_INPUT", path, "Binding required");
       return;
     }
+    finite(b.slice, path + "/slice");
+    if (!Set.of("XZ", "XY", "YZ").contains(b.projection))
+      error("INVALID_PROJECTION", path + "/projection", "Expected XZ, XY or YZ");
+    if (Set.of("Source Field", "Earlier Field Prefix", "Noise Generator Field")
+            .contains(b.sourceKind)
+        && !b.type.equals("Scalar"))
+      error("TYPE_ERROR", path, "Sampled fields must have Scalar results");
     switch (b.sourceKind) {
       case "Constant" -> valueType(b.type, b.value, path);
       case "Shared Parameter" -> reference(b.parameterUuid, params, path);
-      case "Source Result" -> {
+      case "Source Result", "Source Field" -> {
         if (!"Scalar".equals(b.type)) error("TYPE_ERROR", path, "Source is Scalar");
       }
-      case "Earlier Result" -> {
+      case "Earlier Result", "Earlier Field Prefix" -> {
         var item = earlier.get(b.itemUuid);
         if (item == null) error("INVALID_ORDER", path, "Earlier result must precede this item");
         else {
@@ -269,7 +298,7 @@ public final class Validator {
           if (!b.type.equals(item.resultType)) error("TYPE_ERROR", path, "Result type mismatch");
         }
       }
-      case "Noise Generator Reference" -> {
+      case "Noise Generator Reference", "Noise Generator Field" -> {
         reference(b.noiseGeneratorUuid, noises.keySet(), path);
         if (!b.type.equals("Scalar")) error("TYPE_ERROR", path, "Noise output is Scalar");
       }

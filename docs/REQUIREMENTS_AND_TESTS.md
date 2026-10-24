@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 37 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
+Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2.1, Linux container. `clean test build releaseJars` passed with 56 JUnit tests. The independent javac/java engine consumer also passed. Native Linux and Windows Server 2025 smoke passed in Actions run 40045036266; screenshots and logs provide narrower native launch evidence, not full Windows 11 GUI acceptance.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -15,7 +15,7 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 | A07 import/export | PARTIAL | Dependency package + validated copy import; conflict policy breadth remains |
 | A08 undo/redo | PARTIAL | Document snapshot transactions tested; full gesture audit remains |
 | A09 noise families | PARTIAL | All adapters finite/repeatable; independent bit-vector matrix remains |
-| A10 manipulations | PARTIAL | Typed math/logic/vectors/remap/curves/sampling; complete registry and prefix semantics remain |
+| A10 manipulations | PARTIAL | Typed math/logic/vectors/remap/curves/sampling; prefix resampling, six types, conversions and typed coordinate stages tested; broader registry/GUI acceptance remains |
 | A11 canonical panel | PARTIAL | One definition and immutable compiler used by preview/API; pin/source navigation breadth remains |
 | A12 expression language | PASS | MathContractTest: every function, operators, precedence, types, short-circuiting, source spans, limits |
 | A13 curve editor | PARTIAL | Curve evaluator tests; complete tangent/multi-point GUI scenarios remain |
@@ -48,7 +48,7 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 | Principal trees | Tests / checks |
 |---|---|
 | 0–4, 20 | EngineContractTest transactional persistence, validation, IDs; document and schema review |
-| 5–8 | MathContractTest expression inventory, noise adapter repetition, curve policies, immutable compile |
+| 5–8 | MathContractTest expression inventory, noise adapter repetition, curve policies; TypedProcessingTest, FieldSamplingTest and CoordinateTransformTest typed/lazy/prefix/immutable contracts |
 | 9–10 | EngineContractTest layered fixtures and explicit override resolution |
 | 11–12 | StorageContractTest coordinates, dense oracle, coalescence, sparse 256³ |
 | 13–14 | EngineContractTest async/contexts/backpressure; independent Example; StorageContractTest archives |
@@ -68,3 +68,5 @@ Local observed toolchains: Eclipse Temurin 25.0.4+7 and 25.0.5+8 x64, Gradle 9.2
 7. Complete every outstanding requirement in DECISIONS.md, rerun the full A01–A36 list, then perform Windows 11 hardware certification before production release.
 
 Latest local raw evidence: [docs/evidence](evidence/README.md). Formal project/user/app schemas and positive/negative fixtures were validated with jsonschema 4.23.0.
+
+The typed-field extension passes 56 local JUnit tests, formal schemas including sampled-fields.json, the external engine-only consumer, unchanged exact voxel regression hashes, and a native Linux three-viewport/save-open smoke run. The previous baseline Actions run 40048968302 passed both platform builds, bundled launcher and cross-platform identical JAR hashes; the new extension requires its own CI run.

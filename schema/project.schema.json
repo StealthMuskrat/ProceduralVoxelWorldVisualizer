@@ -27,7 +27,7 @@
       "properties" : {
         "sourceKind" : {
           "type" : "string",
-          "enum" : [ "Constant", "Shared Parameter", "Ambient Value", "Source Result", "Earlier Result", "Noise Generator Reference" ]
+          "enum" : [ "Constant", "Shared Parameter", "Ambient Value", "Source Result", "Earlier Result", "Noise Generator Reference", "Source Field", "Earlier Field Prefix", "Noise Generator Field" ]
         },
         "type" : {
           "type" : "string"

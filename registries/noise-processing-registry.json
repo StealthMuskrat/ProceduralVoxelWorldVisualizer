@@ -1,5 +1,7 @@
 {
-  "registryVersion" : 1,
+  "sampledFieldOperations" : [ "BILLOW", "DERIVATIVE", "FBM", "NOISE_REFERENCE", "OFFSET_SAMPLE", "PING_PONG", "RIDGED", "SMOOTH_FILTER", "WARP_SAMPLE" ],
+  "sampledFieldSources" : [ "Source Field", "Earlier Field Prefix", "Noise Generator Field" ],
+  "registryVersion" : 2,
   "operations" : {
     "ADD" : {
       "category" : "Math",
@@ -310,6 +312,61 @@
       "category" : "Shapes & Distance",
       "result" : "Scalar",
       "inputs" : [ "a", "b" ]
+    },
+    "COORDINATES2" : {
+      "category" : "Coordinates & Transforms",
+      "result" : "Coordinates2D",
+      "inputs" : [ "x", "z" ]
+    },
+    "COORDINATES3" : {
+      "category" : "Coordinates & Transforms",
+      "result" : "Coordinates3D",
+      "inputs" : [ "x", "y", "z" ]
+    },
+    "REPLICATE2" : {
+      "category" : "Vectors",
+      "result" : "Vector2",
+      "inputs" : [ "a" ]
+    },
+    "PROJECT_VECTOR" : {
+      "category" : "Vectors",
+      "result" : "Vector2",
+      "inputs" : [ "a" ]
+    },
+    "EXPAND_VECTOR" : {
+      "category" : "Vectors",
+      "result" : "Vector3",
+      "inputs" : [ "a", "b" ]
+    },
+    "COORDINATES_TO_VECTOR" : {
+      "category" : "Vectors",
+      "result" : "Vector3",
+      "inputs" : [ "a" ]
+    },
+    "VECTOR_ROTATE" : {
+      "category" : "Vectors",
+      "result" : "Vector3",
+      "inputs" : [ "a" ]
+    },
+    "VECTOR_TO_COORDINATES" : {
+      "category" : "Coordinates & Transforms",
+      "result" : "Coordinates3D",
+      "inputs" : [ "a" ]
+    },
+    "PROJECT_COORDINATES" : {
+      "category" : "Coordinates & Transforms",
+      "result" : "Coordinates2D",
+      "inputs" : [ "a" ]
+    },
+    "EXPAND_COORDINATES" : {
+      "category" : "Coordinates & Transforms",
+      "result" : "Coordinates3D",
+      "inputs" : [ "a", "b" ]
+    },
+    "WARP_SAMPLE" : {
+      "category" : "Coordinates & Transforms",
+      "result" : "Scalar",
+      "inputs" : [ ]
     }
   }
 }

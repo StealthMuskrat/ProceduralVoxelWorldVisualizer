@@ -14,10 +14,10 @@
   },
   "input" : {
     "shortcuts" : {
-      "Redo" : "Ctrl+Y",
       "Save" : "Ctrl+S",
-      "Undo" : "Ctrl+Z",
-      "Find" : "Ctrl+F"
+      "Redo" : "Ctrl+Y",
+      "Find" : "Ctrl+F",
+      "Undo" : "Ctrl+Z"
     }
   },
   "editor" : {

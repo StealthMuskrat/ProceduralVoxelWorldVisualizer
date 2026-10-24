@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.render.RendererContractTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-24T01:12:21.624Z" hostname="2c2368751ba8" time="0.136">
+<testsuite name="io.voxelcreator.render.RendererContractTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-24T01:38:27.537Z" hostname="2c2368751ba8" time="0.384">
   <properties/>
-  <testcase name="cameraTeleportPreservesOrientationAndOffset()" classname="io.voxelcreator.render.RendererContractTest" time="0.026"/>
-  <testcase name="meshBoundary256DoesNotWrap()" classname="io.voxelcreator.render.RendererContractTest" time="0.092"/>
-  <testcase name="greedyCubeAndDifferentTypeInternalFaceCulling()" classname="io.voxelcreator.render.RendererContractTest" time="0.004"/>
-  <testcase name="raycastTraversesThinAndNegativeCellsExactly()" classname="io.voxelcreator.render.RendererContractTest" time="0.01"/>
+  <testcase name="cameraTeleportPreservesOrientationAndOffset()" classname="io.voxelcreator.render.RendererContractTest" time="0.033"/>
+  <testcase name="meshBoundary256DoesNotWrap()" classname="io.voxelcreator.render.RendererContractTest" time="0.321"/>
+  <testcase name="greedyCubeAndDifferentTypeInternalFaceCulling()" classname="io.voxelcreator.render.RendererContractTest" time="0.008"/>
+  <testcase name="raycastTraversesThinAndNegativeCellsExactly()" classname="io.voxelcreator.render.RendererContractTest" time="0.014"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

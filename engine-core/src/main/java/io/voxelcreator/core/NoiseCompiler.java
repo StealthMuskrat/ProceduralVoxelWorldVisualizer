@@ -16,6 +16,12 @@ public final class NoiseCompiler {
   private final Map<UUID, Noise> resources = new LinkedHashMap<>();
   private final Map<UUID, Field> compiled = new HashMap<>();
   private final Set<UUID> building = new LinkedHashSet<>();
+  private final Map<UUID, Long> resourceWork = new HashMap<>();
+  private final Map<UUID, Integer> resourceDepth = new HashMap<>();
+
+  private record FieldPlan(Field field, long work, int depth) {}
+
+  public static final long MAX_SAMPLE_WORK = 1_000_000;
 
   public NoiseCompiler(ProjectData data, long seed) {
     project = ProjectIO.copy(data);
@@ -29,6 +35,8 @@ public final class NoiseCompiler {
     if (old != null) return old;
     var n = resources.get(uuid);
     if (n == null) throw new IllegalArgumentException("Unknown noise UUID " + uuid);
+    if (building.size() >= 64)
+      throw new IllegalArgumentException("COMPLEXITY_LIMIT: noise reference depth exceeds 64");
     if (!building.add(uuid))
       throw new IllegalArgumentException("Noise dependency cycle " + building + " -> " + uuid);
     try {
@@ -75,7 +83,15 @@ public final class NoiseCompiler {
     double get(Context c, int component);
   }
 
-  private record Input(String type, Number number) {
+  private record Input(String type, Number number, int depth, long work, double[] literal) {
+    Input(String type, Number number) {
+      this(type, number, 0, 0, null);
+    }
+
+    Input(String type, Number number, int depth, long work) {
+      this(type, number, depth, work, null);
+    }
+
     double scalar(Context c) {
       return number.get(c, 0);
     }
@@ -93,75 +109,59 @@ public final class NoiseCompiler {
   }
 
   private static final class Context {
-    double x, y, z, source;
+    double x, y, z, worldX, worldY, worldZ, source;
+    boolean sourceComputed;
+    int epoch;
     final double[] values;
+    final int[] stamps;
+    final Field rawSource;
+    final UUID resource;
 
-    Context(int size) {
+    double sourceValue() {
+      if (!sourceComputed) {
+        if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z))
+          throw new EvaluationFailure(
+              resource, null, worldX, worldY, worldZ, "Nonfinite sampling coordinates");
+        source = rawSource.sample(x, y, z);
+        if (!Double.isFinite(source))
+          throw new EvaluationFailure(resource, null, worldX, worldY, worldZ, "Nonfinite source");
+        sourceComputed = true;
+      }
+      return source;
+    }
+
+    void begin(double x, double y, double z) {
+      this.x = worldX = x;
+      this.y = worldY = y;
+      this.z = worldZ = z;
+      sourceComputed = false;
+      if (++epoch == 0) {
+        Arrays.fill(stamps, 0);
+        epoch = 1;
+      }
+    }
+
+    Context(int size, Field source, UUID resource) {
       values = new double[size];
+      stamps = new int[size / 3];
+      rawSource = source;
+      this.resource = resource;
     }
   }
 
   private Field build(Noise n) {
     long seed = CoordinateHash.seed(runtimeSeed, n.uuid, n.seedOffset);
+    final int dimension = n.dimension;
     Field source = NoiseAlgorithms.compile(n.algorithm, n.dimension, seed);
-    var steps = new ArrayList<Step>();
-    var stepIds = new ArrayList<UUID>();
-    var transforms = new ArrayList<Step>();
+
     var inputs = new HashMap<UUID, Input>();
     var params = new HashMap<UUID, Input>();
     for (var p : n.sharedParameters) params.put(p.uuid, constant(p.type, p.value));
-    for (var t : n.coordinateTransforms) {
-      if (!Set.of("TRANSLATE", "SCALE", "ROTATE", "DOMAIN_WARP").contains(t.kind))
-        throw new IllegalArgumentException("Unsupported transform " + t.kind);
-      if (!t.resultType.equals(n.dimension == 2 ? "Coordinates2D" : "Coordinates3D"))
-        throw new IllegalArgumentException(
-            "Transform result must be dimension-matched Coordinates");
-      if (!t.enabled) continue;
-      double a = param(t, "x", t.kind.equals("SCALE") ? 1 : 0),
-          b = param(t, "y", t.kind.equals("SCALE") ? 1 : 0),
-          d = param(t, "z", t.kind.equals("SCALE") ? 1 : 0),
-          angle = param(t, "angle", 0) * StrictMath.PI / 180;
-      if (t.kind.equals("TRANSLATE"))
-        transforms.add(
-            c -> {
-              c.x += a;
-              c.y += b;
-              c.z += d;
-            });
-      else if (t.kind.equals("SCALE"))
-        transforms.add(
-            c -> {
-              c.x *= a;
-              c.y *= b;
-              c.z *= d;
-            });
-      else if (t.kind.equals("ROTATE")) {
-        double co = StrictMath.cos(angle), si = StrictMath.sin(angle);
-        transforms.add(
-            c -> {
-              double x = c.x;
-              c.x = x * co - c.z * si;
-              c.z = x * si + c.z * co;
-            });
-      } else {
-        double amplitude = param(t, "amplitude", 8), freq = param(t, "frequency", .01);
-        var alg = new Algorithm();
-        alg.parameters.put("frequency", freq);
-        Field warp =
-            NoiseAlgorithms.compile(
-                alg,
-                n.dimension,
-                CoordinateHash.mix(seed + Double.doubleToLongBits(param(t, "seedOffset", 0))));
-        transforms.add(
-            c -> {
-              double x = c.x, y = c.y, z = c.z;
-              c.x += amplitude * warp.sample(x, y, z);
-              c.y += n.dimension == 2 ? 0 : amplitude * warp.sample(x + 31.1, y - 17.3, z + 7.7);
-              c.z += amplitude * warp.sample(x - 11.2, y + 43.8, z - 19.4);
-            });
-      }
-    }
-    int slot = 0;
+    TransformPlan transforms = compileTransforms(n, source, params, seed);
+    var prefixes = new HashMap<UUID, FieldPlan>();
+    Input rawResult = new Input("Scalar", (c, k) -> c.sourceValue(), 0, 16);
+    FieldPlan sourceField = executable(n, source, transforms, rawResult, transforms.slots);
+    int slot = transforms.slots;
     for (var item : n.processing) {
       var spec = ProcessingRegistry.ITEMS.get(item.kind);
       if (spec == null)
@@ -173,19 +173,57 @@ public final class NoiseCompiler {
       final int index = slot;
       slot += 3;
       var bound = new HashMap<String, Input>();
-      for (var e : item.inputs.entrySet())
+      for (var e : item.inputs.entrySet()) {
+        if (e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind)) {
+          if (!ProcessingRegistry.isFieldBinding(e.getValue()))
+            throw new IllegalArgumentException(
+                "A sampled-field input requires Source Field, Earlier Field Prefix or Noise"
+                    + " Generator Field");
+          continue;
+        }
         bound.put(e.getKey(), binding(e.getValue(), inputs, params, n, seed));
+      }
       for (String required : spec.inputs())
         if (!bound.containsKey(required))
           throw new IllegalArgumentException(item.id + ": missing input " + required);
       Input a = bound.get("a"), b = bound.get("b");
-      if (!Set.of("EXPRESSION", "SELECT", "NORMALIZE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE")
+      if (!Set.of(
+                  "EXPRESSION",
+                  "SELECT",
+                  "NORMALIZE",
+                  "ADD",
+                  "SUBTRACT",
+                  "MULTIPLY",
+                  "DIVIDE",
+                  "CONSTANT",
+                  "COORDINATES_TO_VECTOR",
+                  "VECTOR_TO_COORDINATES",
+                  "VECTOR_ROTATE")
               .contains(item.kind)
           && !spec.result().equals(item.resultType))
         throw new IllegalArgumentException(item.id + ": result type must be " + spec.result());
       String kind = item.kind;
       Number eval;
-      if (kind.equals("EXPRESSION")) {
+      long sampleWork = 0;
+      int sampleDepth = 0;
+      if (kind.equals("CONSTANT")) {
+        if (!Set.of("Scalar", "Boolean", "Vector2", "Vector3").contains(item.resultType))
+          throw new IllegalArgumentException(
+              "Constant results are Scalar, Boolean or value Vector");
+        var literal = item.parameters.get("value");
+        if (literal == null)
+          literal =
+              ProjectIO.JSON.valueToTree(
+                  item.resultType.equals("Boolean")
+                      ? false
+                      : item.resultType.equals("Scalar")
+                          ? 0
+                          : components(item.resultType) == 2
+                              ? new double[] {0, 0}
+                              : new double[] {0, 0, 0});
+        Input value = constant(item.resultType, literal);
+        eval = value.number;
+      } else if (kind.equals("EXPRESSION")) {
         var types = new LinkedHashMap<String, Expression.Type>();
         for (var e : bound.entrySet()) {
           if (!Set.of("Scalar", "Boolean").contains(e.getValue().type))
@@ -210,7 +248,7 @@ public final class NoiseCompiler {
                       var in = bound.get(name);
                       return in != null
                           ? in.scalar(ctx)
-                          : name.equals("source") ? ctx.source : ambient(name, ctx, seed);
+                          : name.equals("source") ? ctx.sourceValue() : ambient(name, ctx, seed);
                     };
                 vars.set(v);
               }
@@ -218,66 +256,155 @@ public final class NoiseCompiler {
                   ? program.scalar(v)
                   : program.bool(v) ? 1 : 0;
             };
-      } else if (Set.of(
-              "NOISE_REFERENCE",
-              "FBM",
-              "RIDGED",
-              "BILLOW",
-              "PING_PONG",
-              "OFFSET_SAMPLE",
-              "DERIVATIVE",
-              "SMOOTH_FILTER")
-          .contains(kind)) {
-        Field field = source;
-        String ref = text(item, "noiseGeneratorUuid", "");
-        if (!ref.isEmpty()) field = compile(UUID.fromString(ref));
-        final Field sampled = field;
-        int oct = (int) param(item, "octaves", 4), radius = (int) param(item, "radius", 1);
-        if (oct < 1 || oct > 16 || radius < 0 || radius > 4)
-          throw new IllegalArgumentException("Sampling budget exceeded");
+      } else if (ProcessingRegistry.SAMPLED.contains(kind)) {
+        Binding selected = item.inputs.get("field");
+        if (selected == null) {
+          String legacy = text(item, "noiseGeneratorUuid", "");
+          selected =
+              legacy.isEmpty()
+                  ? Binding.sourceField()
+                  : Binding.noiseField(UUID.fromString(legacy));
+        }
+        FieldPlan sampled;
+        switch (selected.sourceKind) {
+          case "Source Field" -> sampled = sourceField;
+          case "Earlier Field Prefix" -> {
+            Input target = inputs.get(selected.itemUuid);
+            if (target == null || !target.type.equals("Scalar"))
+              throw new IllegalArgumentException(
+                  "Earlier field prefix must select an enabled earlier Scalar result");
+            sampled = prefixes.get(selected.itemUuid);
+            if (sampled == null) {
+              sampled = executable(n, source, transforms, target, slot);
+              prefixes.put(selected.itemUuid, sampled);
+            }
+          }
+          case "Noise Generator Field" -> {
+            Field ref = projectedReference(selected, n.dimension);
+            sampled =
+                new FieldPlan(
+                    ref,
+                    resourceWork.get(selected.noiseGeneratorUuid),
+                    resourceDepth.get(selected.noiseGeneratorUuid));
+          }
+          default -> throw new IllegalArgumentException("Unsupported sampled-field selector");
+        }
+        Field field = sampled.field;
+        int oct = integer(item, "octaves", 4, 1, 16), radius = integer(item, "radius", 1, 0, 4);
         double lac = param(item, "lacunarity", 2),
             gain = param(item, "gain", .5),
             spacing = param(item, "spacing", 1),
             dx = param(item, "x", 0),
             dy = param(item, "y", 0),
-            dz = param(item, "z", 0);
-        if (spacing <= 0) throw new IllegalArgumentException("Positive stencil spacing required");
+            dz = param(item, "z", 0),
+            strength = param(item, "strength", 1);
+        String axis = text(item, "axis", "x"), kernel = text(item, "kernel", "BOX");
+        if (spacing <= 0
+            || lac <= 0
+            || !Set.of("x", "y", "z").contains(axis)
+            || dimension == 2 && axis.equals("y")
+            || !Set.of("BOX", "GAUSSIAN").contains(kernel)
+            || strength < 0
+            || strength > 1) throw new IllegalArgumentException("Invalid field sampling controls");
+        Input coordinates = bound.get("coordinates");
+        if (coordinates != null
+            && !coordinates.type.equals(dimension == 2 ? "Coordinates2D" : "Coordinates3D"))
+          throw new IllegalArgumentException(
+              "Explicit sample locations require matching Coordinates values");
+        int width = 2 * radius + 1, count = dimension == 2 ? width * width : width * width * width;
+        long samples =
+            kind.equals("DERIVATIVE")
+                ? 2
+                : kind.equals("SMOOTH_FILTER")
+                    ? count + 1
+                    : Set.of("FBM", "RIDGED", "BILLOW", "PING_PONG").contains(kind)
+                        ? oct
+                        : kind.equals("WARP_SAMPLE") ? 4 : 1;
+        sampleWork = boundedWork(sampled.work, samples);
+        sampleDepth = sampled.depth;
+        Field warp;
+        if (kind.equals("WARP_SAMPLE")) {
+          var algorithm = new Algorithm();
+          algorithm.parameters.put("frequency", param(item, "frequency", .01));
+          warp =
+              NoiseAlgorithms.compile(
+                  algorithm,
+                  dimension,
+                  CoordinateHash.mix(seed + Double.doubleToLongBits(param(item, "seedOffset", 0))));
+        } else warp = null;
+        double amplitude = param(item, "amplitude", 8),
+            baseFrequency = param(item, "frequency", kind.equals("WARP_SAMPLE") ? .01 : 1);
+        if (baseFrequency <= 0)
+          throw new IllegalArgumentException("Sampling frequency must be positive");
+        double[] weights = new double[count];
+        double total = 0;
+        int wi = 0;
+        for (int y = dimension == 2 ? 0 : -radius; y <= (dimension == 2 ? 0 : radius); y++)
+          for (int z = -radius; z <= radius; z++)
+            for (int x = -radius; x <= radius; x++) {
+              double value =
+                  kernel.equals("GAUSSIAN")
+                      ? StrictMath.exp(
+                          -(x * x + y * y + z * z) / StrictMath.max(.5, radius * radius / 2.))
+                      : 1;
+              weights[wi++] = value;
+              total += value;
+            }
+        for (int i = 0; i < weights.length; i++) weights[i] /= total;
         eval =
             (c, k) -> {
-              if (kind.equals("NOISE_REFERENCE")) return sampled.sample(c.x, c.y, c.z);
-              if (kind.equals("OFFSET_SAMPLE")) return sampled.sample(c.x + dx, c.y + dy, c.z + dz);
-              if (kind.equals("DERIVATIVE"))
-                return (sampled.sample(c.x + spacing, c.y, c.z)
-                        - sampled.sample(c.x - spacing, c.y, c.z))
+              double x = coordinates == null ? c.worldX : coordinates.number.get(c, 0),
+                  y =
+                      coordinates == null
+                          ? c.worldY
+                          : dimension == 2 ? 0 : coordinates.number.get(c, 1),
+                  z =
+                      coordinates == null
+                          ? c.worldZ
+                          : coordinates.number.get(c, dimension == 2 ? 1 : 2);
+              if (kind.equals("NOISE_REFERENCE")) return field.sample(x, y, z);
+              if (kind.equals("OFFSET_SAMPLE")) return field.sample(x + dx, y + dy, z + dz);
+              if (kind.equals("DERIVATIVE")) {
+                double ax = axis.equals("x") ? spacing : 0,
+                    ay = axis.equals("y") ? spacing : 0,
+                    az = axis.equals("z") ? spacing : 0;
+                return (field.sample(x + ax, y + ay, z + az) - field.sample(x - ax, y - ay, z - az))
                     / (2 * spacing);
+              }
               if (kind.equals("SMOOTH_FILTER")) {
                 double sum = 0;
-                int count = 0;
-                for (int y = n.dimension == 2 ? 0 : -radius;
-                    y <= (n.dimension == 2 ? 0 : radius);
-                    y++)
-                  for (int z = -radius; z <= radius; z++)
-                    for (int x = -radius; x <= radius; x++) {
+                int indexWeight = 0;
+                for (int yy = dimension == 2 ? 0 : -radius;
+                    yy <= (dimension == 2 ? 0 : radius);
+                    yy++)
+                  for (int zz = -radius; zz <= radius; zz++)
+                    for (int xx = -radius; xx <= radius; xx++)
                       sum +=
-                          sampled.sample(c.x + x * spacing, c.y + y * spacing, c.z + z * spacing);
-                      count++;
-                    }
-                return sum / count;
+                          weights[indexWeight++]
+                              * field.sample(x + xx * spacing, y + yy * spacing, z + zz * spacing);
+                double original = field.sample(x, y, z);
+                return original + (sum - original) * strength;
               }
-              double sum = 0, amp = 1, freq = 1;
+              if (kind.equals("WARP_SAMPLE"))
+                return field.sample(
+                    x + amplitude * warp.sample(x, y, z),
+                    y + (dimension == 2 ? 0 : amplitude * warp.sample(x + 31.1, y - 17.3, z + 7.7)),
+                    z + amplitude * warp.sample(x - 11.2, y + 43.8, z - 19.4));
+              double sum = 0, amp = 1, freq = baseFrequency;
               for (int i = 0; i < oct; i++) {
-                double v = sampled.sample(c.x * freq, c.y * freq, c.z * freq);
-                v =
+                double value = field.sample(x * freq, y * freq, z * freq);
+                value =
                     switch (kind) {
-                      case "RIDGED" -> 1 - StrictMath.abs(v);
-                      case "BILLOW" -> 2 * StrictMath.abs(v) - 1;
+                      case "RIDGED" -> 1 - StrictMath.abs(value);
+                      case "BILLOW" -> 2 * StrictMath.abs(value) - 1;
                       case "PING_PONG" -> {
-                        double t = (v + 1) % 2;
+                        double t = value + 1;
+                        t -= 2 * StrictMath.floor(t / 2);
                         yield 1 - StrictMath.abs(t - 1);
                       }
-                      default -> v;
+                      default -> value;
                     };
-                sum += amp * v;
+                sum += amp * value;
                 amp *= gain;
                 freq *= lac;
               }
@@ -290,12 +417,40 @@ public final class NoiseCompiler {
         eval = (c, k) -> cc.sample(a.scalar(c));
       } else {
         validateSignature(item, bound);
-        eval = (c, k) -> evaluate(kind, item, bound, c, k, seed, n.dimension);
+        Parameters parameters = Parameters.compile(item);
+        eval = (c, k) -> evaluate(kind, parameters, bound, c, k, seed, dimension);
       }
       int components = components(item.resultType);
+      Input folded = null;
+      if (kind.equals("SELECT") && bound.get("condition").literal != null)
+        folded = bound.get(bound.get("condition").literal[0] != 0 ? "true" : "false");
+      else if ((kind.equals("AND") || kind.equals("OR"))
+          && a.literal != null
+          && ((kind.equals("AND") && a.literal[0] == 0)
+              || (kind.equals("OR") && a.literal[0] != 0)))
+        folded = constant("Boolean", ProjectIO.JSON.valueToTree(kind.equals("OR")));
+      else if (!Set.of("EXPRESSION", "FALLOFF", "SPHERE", "BOX", "COORDINATE_HASH", "COORDINATE")
+              .contains(kind)
+          && !ProcessingRegistry.SAMPLED.contains(kind)
+          && bound.values().stream().allMatch(input -> input.literal != null)) {
+        try {
+          double[] values = new double[components];
+          Context scratch = new Context(0, source, n.uuid);
+          for (int k = 0; k < components; k++) {
+            values[k] = eval.get(scratch, k);
+            if (!Double.isFinite(values[k])) throw new ArithmeticException();
+          }
+          folded = new Input(item.resultType, (c, k) -> values[k], 0, 0, values);
+        } catch (RuntimeException invalidConstant) {
+          /* Keep the executed runtime boundary; an unselected invalid constant branch is legal. */
+        }
+      }
+      if (folded != null) {
+        inputs.put(item.uuid, folded);
+        continue;
+      }
       Number number = eval;
-      stepIds.add(item.uuid);
-      steps.add(
+      Step instruction =
           c -> {
             try {
               for (int k = 0; k < components; k++) {
@@ -307,51 +462,278 @@ public final class NoiseCompiler {
               if (e instanceof EvaluationFailure) throw e;
               throw new EvaluationFailure(n.uuid, item.uuid, c.x, c.y, c.z, e.getMessage());
             }
-          });
-      inputs.put(item.uuid, new Input(item.resultType, (c, k) -> c.values[index + k]));
+          };
+      int depth =
+          1 + Math.max(sampleDepth, bound.values().stream().mapToInt(Input::depth).max().orElse(0));
+      if (depth > 128)
+        throw new IllegalArgumentException(
+            "COMPLEXITY_LIMIT: processing dependency depth exceeds 128");
+      inputs.put(
+          item.uuid,
+          new Input(
+              item.resultType,
+              (c, k) -> {
+                int cell = index / 3;
+                if (c.stamps[cell] != c.epoch) {
+                  instruction.run(c);
+                  c.stamps[cell] = c.epoch;
+                }
+                return c.values[index + k];
+              },
+              depth,
+              Math.addExact(1 + sampleWork, bound.values().stream().mapToLong(Input::work).sum())));
     }
     var output = binding(n.outputBinding, inputs, params, n, seed);
     if (!output.type.equals("Scalar")) throw new IllegalArgumentException("Output must be Scalar");
-    final int slots = slot;
-    ThreadLocal<Context> scratch = ThreadLocal.withInitial(() -> new Context(slots));
-    var needed = new HashSet<UUID>();
-    java.util.function.Consumer<UUID> visit =
-        new java.util.function.Consumer<>() {
-          public void accept(UUID id) {
-            if (id == null || !needed.add(id)) return;
-            n.processing.stream()
-                .filter(i -> i.uuid.equals(id))
-                .findFirst()
-                .ifPresent(
-                    i ->
-                        i.inputs.values().stream()
-                            .filter(b -> b.sourceKind.equals("Earlier Result"))
-                            .forEach(b -> accept(b.itemUuid)));
-          }
+    FieldPlan result = executable(n, source, transforms, output, slot);
+    resourceWork.put(n.uuid, result.work);
+    resourceDepth.put(n.uuid, result.depth);
+    return result.field;
+  }
+
+  private static long boundedWork(long work, long samples) {
+    try {
+      long value = Math.multiplyExact(work, samples);
+      if (value > MAX_SAMPLE_WORK)
+        throw new IllegalArgumentException(
+            "COMPLEXITY_LIMIT: sampled-field work exceeds " + MAX_SAMPLE_WORK);
+      return value;
+    } catch (ArithmeticException e) {
+      throw new IllegalArgumentException("COMPLEXITY_LIMIT: sampled-field work overflow");
+    }
+  }
+
+  private static int integer(Item item, String name, int fallback, int min, int max) {
+    double value = param(item, name, fallback);
+    if (value != StrictMath.rint(value) || value < min || value > max)
+      throw new IllegalArgumentException(
+          item.id + ": " + name + " must be an integer in [" + min + "," + max + "]");
+    return (int) value;
+  }
+
+  private record TransformPlan(List<Step> steps, int slots, long work, int depth) {}
+
+  private TransformPlan compileTransforms(
+      Noise n, Field source, Map<UUID, Input> parameters, long seed) {
+    var steps = new ArrayList<Step>();
+    var earlier = new HashMap<UUID, Input>();
+    int slots = 0, depth = 0;
+    long work = 0;
+    for (Item item : n.coordinateTransforms) {
+      if (!Set.of("TRANSLATE", "SCALE", "ROTATE", "DOMAIN_WARP").contains(item.kind))
+        throw new IllegalArgumentException("Unsupported transform " + item.kind);
+      String coordinatesType = n.dimension == 2 ? "Coordinates2D" : "Coordinates3D";
+      if (!item.resultType.equals(coordinatesType))
+        throw new IllegalArgumentException("Transform result must be " + coordinatesType);
+      if (!item.enabled) continue;
+      var bound = new HashMap<String, Input>();
+      var allowed =
+          Set.of(
+              "coordinates",
+              "x",
+              "y",
+              "z",
+              "angle",
+              "angleX",
+              "angleY",
+              "angleZ",
+              "pivotX",
+              "pivotY",
+              "pivotZ",
+              "amplitude",
+              "warpX",
+              "warpY",
+              "warpZ");
+      for (var e : item.inputs.entrySet()) {
+        if (!allowed.contains(e.getKey()))
+          throw new IllegalArgumentException("Unknown transform input " + e.getKey());
+        if (Set.of("Source Result", "Source Field", "Earlier Field Prefix", "Noise Generator Field")
+            .contains(e.getValue().sourceKind))
+          throw new IllegalArgumentException(
+              "Coordinate transforms cannot use source/processing results or field selectors");
+        Input input = binding(e.getValue(), earlier, parameters, n, seed);
+        String expected = e.getKey().equals("coordinates") ? coordinatesType : "Scalar";
+        require(input, expected, item);
+        bound.put(e.getKey(), input);
+      }
+      int index = slots;
+      slots += 3;
+      String kind = item.kind;
+      final int dimension = n.dimension;
+      UUID resource = n.uuid, id = item.uuid;
+      Input coordinates = bound.get("coordinates");
+      Input x = control(bound, item, "x", kind.equals("SCALE") ? 1 : 0),
+          y = control(bound, item, "y", kind.equals("SCALE") ? 1 : 0),
+          z = control(bound, item, "z", kind.equals("SCALE") ? 1 : 0);
+      Input px = control(bound, item, "pivotX", 0),
+          py = control(bound, item, "pivotY", 0),
+          pz = control(bound, item, "pivotZ", 0),
+          angle = control(bound, item, "angle", 0),
+          ax = control(bound, item, "angleX", 0),
+          ay =
+              bound.containsKey("angleY") || item.parameters.containsKey("angleY")
+                  ? control(bound, item, "angleY", 0)
+                  : angle,
+          az = control(bound, item, "angleZ", 0),
+          amplitude = control(bound, item, "amplitude", 8);
+      String order = text(item, "rotationOrder", "XYZ");
+      if (!Set.of("XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX").contains(order))
+        throw new IllegalArgumentException("Explicit rotation axis order required");
+      Field warp;
+      if (kind.equals("DOMAIN_WARP")) {
+        var algorithm = new Algorithm();
+        algorithm.parameters.put("frequency", param(item, "frequency", .01));
+        warp =
+            NoiseAlgorithms.compile(
+                algorithm,
+                dimension,
+                CoordinateHash.mix(seed + Double.doubleToLongBits(param(item, "seedOffset", 0))));
+      } else warp = null;
+      Input wx = bound.get("warpX"), wy = bound.get("warpY"), wz = bound.get("warpZ");
+      Step step =
+          c -> {
+            try {
+              double xx = coordinates == null ? c.x : coordinates.number.get(c, 0),
+                  yy =
+                      coordinates == null ? c.y : dimension == 2 ? 0 : coordinates.number.get(c, 1),
+                  zz =
+                      coordinates == null ? c.z : coordinates.number.get(c, dimension == 2 ? 1 : 2);
+              if (kind.equals("TRANSLATE")) {
+                xx += x.scalar(c);
+                yy += dimension == 2 ? 0 : y.scalar(c);
+                zz += z.scalar(c);
+              } else if (kind.equals("SCALE")) {
+                double pivotX = px.scalar(c), pivotY = py.scalar(c), pivotZ = pz.scalar(c);
+                xx = pivotX + (xx - pivotX) * x.scalar(c);
+                yy = dimension == 2 ? 0 : pivotY + (yy - pivotY) * y.scalar(c);
+                zz = pivotZ + (zz - pivotZ) * z.scalar(c);
+              } else if (kind.equals("ROTATE")) {
+                double pivotX = px.scalar(c), pivotY = py.scalar(c), pivotZ = pz.scalar(c);
+                xx -= pivotX;
+                yy -= pivotY;
+                zz -= pivotZ;
+                double rx = ax.scalar(c) * StrictMath.PI / 180,
+                    ry = (dimension == 2 ? angle : ay).scalar(c) * StrictMath.PI / 180,
+                    rz = az.scalar(c) * StrictMath.PI / 180;
+                for (int i = 0; i < (dimension == 2 ? 1 : 3); i++) {
+                  char axis = dimension == 2 ? 'Y' : order.charAt(i);
+                  double radians = axis == 'X' ? rx : axis == 'Y' ? ry : rz,
+                      co = StrictMath.cos(radians),
+                      si = StrictMath.sin(radians),
+                      old;
+                  if (axis == 'X') {
+                    old = yy;
+                    yy = old * co - zz * si;
+                    zz = old * si + zz * co;
+                  } else if (axis == 'Y') {
+                    old = xx;
+                    xx = old * co - zz * si;
+                    zz = old * si + zz * co;
+                  } else {
+                    old = xx;
+                    xx = old * co - yy * si;
+                    yy = old * si + yy * co;
+                  }
+                }
+                xx += pivotX;
+                yy = dimension == 2 ? 0 : yy + pivotY;
+                zz += pivotZ;
+              } else {
+                double amount = amplitude.scalar(c),
+                    dx = wx == null ? warp.sample(xx, yy, zz) : wx.scalar(c),
+                    dy =
+                        dimension == 2
+                            ? 0
+                            : wy == null
+                                ? warp.sample(xx + 31.1, yy - 17.3, zz + 7.7)
+                                : wy.scalar(c),
+                    dz = wz == null ? warp.sample(xx - 11.2, yy + 43.8, zz - 19.4) : wz.scalar(c);
+                xx += amount * dx;
+                yy += amount * dy;
+                zz += amount * dz;
+              }
+              if (!Double.isFinite(xx) || !Double.isFinite(yy) || !Double.isFinite(zz))
+                throw new ArithmeticException("Nonfinite transformed coordinates");
+              c.x = xx;
+              c.y = dimension == 2 ? 0 : yy;
+              c.z = zz;
+              c.values[index] = xx;
+              c.values[index + 1] = dimension == 2 ? zz : yy;
+              c.values[index + 2] = dimension == 2 ? 0 : zz;
+            } catch (RuntimeException failure) {
+              if (failure instanceof EvaluationFailure) throw failure;
+              throw new EvaluationFailure(
+                  resource, id, c.worldX, c.worldY, c.worldZ, failure.getMessage());
+            }
+          };
+      steps.add(step);
+      long stepWork = kind.equals("DOMAIN_WARP") ? 48 : 1;
+      for (Input in : bound.values()) {
+        stepWork = Math.addExact(stepWork, in.work);
+        depth = Math.max(depth, in.depth);
+      }
+      work = Math.addExact(work, stepWork);
+      boundedWork(work, 1);
+      if (depth >= 128)
+        throw new IllegalArgumentException(
+            "COMPLEXITY_LIMIT: transform dependency depth exceeds 128");
+      earlier.put(id, new Input(coordinatesType, (c, k) -> c.values[index + k], depth + 1, 0));
+    }
+    return new TransformPlan(List.copyOf(steps), slots, work, depth);
+  }
+
+  private static Input control(Map<String, Input> inputs, Item item, String key, double fallback) {
+    Input value = inputs.get(key);
+    return value != null
+        ? value
+        : constant("Scalar", ProjectIO.JSON.valueToTree(param(item, key, fallback)));
+  }
+
+  private static FieldPlan executable(
+      Noise n, Field source, TransformPlan transforms, Input output, int slots) {
+    long work = Math.addExact(output.work, transforms.work);
+    boundedWork(work, 1);
+    UUID resource = n.uuid;
+    ThreadLocal<Context> scratch =
+        ThreadLocal.withInitial(() -> new Context(slots, source, resource));
+    Field field =
+        (x, y, z) -> {
+          if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z))
+            throw new EvaluationFailure(
+                resource, null, x, y, z, "Finite sample coordinates required");
+          Context c = scratch.get();
+          c.begin(x, y, z);
+          for (var step : transforms.steps) step.run(c);
+          double value = output.scalar(c);
+          if (!Double.isFinite(value))
+            throw new EvaluationFailure(resource, null, x, y, z, "Nonfinite output");
+          return value;
         };
-    if (n.outputBinding.sourceKind.equals("Earlier Result")) visit.accept(n.outputBinding.itemUuid);
-    var requiredSteps = new ArrayList<Step>();
-    for (int i = 0; i < steps.size(); i++)
-      if (needed.contains(stepIds.get(i))) requiredSteps.add(steps.get(i));
-    var frozen = List.copyOf(requiredSteps);
-    var frozenTransforms = List.copyOf(transforms);
-    return (x, y, z) -> {
-      if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z))
-        throw new EvaluationFailure(n.uuid, null, x, y, z, "Finite sample coordinates required");
-      Context c = scratch.get();
-      c.x = x;
-      c.y = y;
-      c.z = z;
-      for (var t : frozenTransforms) t.run(c);
-      c.source = source.sample(c.x, c.y, c.z);
-      if (!Double.isFinite(c.source))
-        throw new EvaluationFailure(n.uuid, null, x, y, z, "Nonfinite source");
-      for (var s : frozen) s.run(c);
-      double result = output.scalar(c);
-      if (!Double.isFinite(result))
-        throw new EvaluationFailure(n.uuid, null, x, y, z, "Nonfinite output");
-      return result;
-    };
+    return new FieldPlan(field, work, Math.max(output.depth, transforms.depth));
+  }
+
+  private Field projectedReference(Binding binding, int fromDimension) {
+    Noise target = resources.get(binding.noiseGeneratorUuid);
+    if (target == null) throw new IllegalArgumentException("Unknown noise reference");
+    Field field = compile(binding.noiseGeneratorUuid);
+    String projection = binding.projection;
+    double slice = binding.slice;
+    if (!Set.of("XZ", "XY", "YZ").contains(projection) || !Double.isFinite(slice))
+      throw new IllegalArgumentException("Explicit finite projection/slice required");
+    if (target.dimension == fromDimension) return field;
+    if (target.dimension == 2)
+      return (x, y, z) ->
+          switch (projection) {
+            case "XY" -> field.sample(x, 0, y);
+            case "YZ" -> field.sample(y, 0, z);
+            default -> field.sample(x, 0, z);
+          };
+    return (x, y, z) ->
+        switch (projection) {
+          case "XY" -> field.sample(x, z, slice);
+          case "YZ" -> field.sample(slice, x, z);
+          default -> field.sample(x, slice, z);
+        };
   }
 
   private static int components(String t) {
@@ -359,12 +741,27 @@ public final class NoiseCompiler {
   }
 
   private static Input constant(String type, com.fasterxml.jackson.databind.JsonNode n) {
-    if (n == null) throw new IllegalArgumentException("Constant required");
+    if (n == null || n.isNull()) throw new IllegalArgumentException("Constant required");
+    if (!Validator.TYPES.contains(type))
+      throw new IllegalArgumentException("Unsupported constant type " + type);
     double[] values = new double[components(type)];
-    if (type.equals("Boolean")) values[0] = n.booleanValue() ? 1 : 0;
-    else if (values.length == 1) values[0] = n.doubleValue();
-    else for (int k = 0; k < values.length; k++) values[k] = n.get(k).doubleValue();
-    return new Input(type, (c, k) -> values[k]);
+    if (type.equals("Boolean")) {
+      if (!n.isBoolean()) throw new IllegalArgumentException("Boolean literal required");
+      values[0] = n.booleanValue() ? 1 : 0;
+    } else if (values.length == 1) {
+      if (!n.isNumber() || !Double.isFinite(n.doubleValue()))
+        throw new IllegalArgumentException("Finite Scalar literal required");
+      values[0] = n.doubleValue();
+    } else {
+      if (!n.isArray() || n.size() != values.length)
+        throw new IllegalArgumentException(type + " requires " + values.length + " components");
+      for (int k = 0; k < values.length; k++) {
+        if (!n.get(k).isNumber() || !Double.isFinite(n.get(k).doubleValue()))
+          throw new IllegalArgumentException("Finite components required");
+        values[k] = n.get(k).doubleValue();
+      }
+    }
+    return new Input(type, (c, k) -> values[k], 0, 0, values);
   }
 
   private Input binding(
@@ -373,7 +770,7 @@ public final class NoiseCompiler {
     Input in =
         switch (b.sourceKind) {
           case "Constant" -> constant(b.type, b.value);
-          case "Source Result" -> new Input("Scalar", (c, k) -> c.source);
+          case "Source Result" -> new Input("Scalar", (c, k) -> c.sourceValue(), 0, 16);
           case "Earlier Result" -> earlier.get(b.itemUuid);
           case "Shared Parameter" -> params.get(b.parameterUuid);
           case "Ambient Value" -> {
@@ -382,22 +779,12 @@ public final class NoiseCompiler {
             yield new Input("Scalar", (c, k) -> ambient(b.ambientKey, c, seed));
           }
           case "Noise Generator Reference" -> {
-            var target = resources.get(b.noiseGeneratorUuid);
-            var f = compile(b.noiseGeneratorUuid);
-            String projection = b.projection;
-            double slice = b.slice;
-            if (target.dimension != n.dimension && !Set.of("XZ", "XY", "YZ").contains(projection))
-              throw new IllegalArgumentException("Explicit projection required");
+            Field field = projectedReference(b, n.dimension);
             yield new Input(
                 "Scalar",
-                (c, k) ->
-                    target.dimension == 2
-                        ? switch (projection) {
-                          case "XY" -> f.sample(c.x, 0, c.y);
-                          case "YZ" -> f.sample(c.y, 0, c.z);
-                          default -> f.sample(c.x, 0, c.z);
-                        }
-                        : n.dimension == 2 ? f.sample(c.x, slice, c.z) : f.sample(c.x, c.y, c.z));
+                (c, k) -> field.sample(c.x, c.y, c.z),
+                resourceDepth.get(b.noiseGeneratorUuid),
+                resourceWork.get(b.noiseGeneratorUuid));
           }
           default -> throw new IllegalArgumentException("Unknown binding " + b.sourceKind);
         };
@@ -447,7 +834,42 @@ public final class NoiseCompiler {
     String k = i.kind;
     var a = in.get("a");
     var b = in.get("b");
-    if (Set.of("ADD", "SUBTRACT", "MULTIPLY", "DIVIDE").contains(k)) {
+    if (k.equals("EQUAL") || k.equals("NOT_EQUAL")) {
+      if (a == null || b == null || !a.type.equals(b.type))
+        throw new IllegalArgumentException("Equality requires matching computational types");
+      return;
+    }
+    if (Set.of(
+            "COORDINATES_TO_VECTOR",
+            "VECTOR_TO_COORDINATES",
+            "PROJECT_VECTOR",
+            "EXPAND_VECTOR",
+            "PROJECT_COORDINATES",
+            "EXPAND_COORDINATES",
+            "VECTOR_ROTATE")
+        .contains(k)) {
+      String expected =
+          switch (k) {
+            case "COORDINATES_TO_VECTOR" ->
+                i.resultType.equals("Vector2") ? "Coordinates2D" : "Coordinates3D";
+            case "VECTOR_TO_COORDINATES" ->
+                i.resultType.equals("Coordinates2D") ? "Vector2" : "Vector3";
+            case "PROJECT_VECTOR" -> "Vector3";
+            case "EXPAND_VECTOR" -> "Vector2";
+            case "PROJECT_COORDINATES" -> "Coordinates3D";
+            case "EXPAND_COORDINATES" -> "Coordinates2D";
+            default -> i.resultType;
+          };
+      require(a, expected, i);
+      if (k.equals("COORDINATES_TO_VECTOR") && !Set.of("Vector2", "Vector3").contains(i.resultType)
+          || k.equals("VECTOR_TO_COORDINATES")
+              && !Set.of("Coordinates2D", "Coordinates3D").contains(i.resultType)
+          || k.equals("VECTOR_ROTATE") && !Set.of("Vector2", "Vector3").contains(i.resultType))
+        throw new IllegalArgumentException("Conversion result type mismatch");
+      if (k.startsWith("EXPAND")) require(b, "Scalar", i);
+      return;
+    }
+    if (k.equals("ADD") || k.equals("SUBTRACT") || k.equals("MULTIPLY") || k.equals("DIVIDE")) {
       if (a == null || b == null || !Set.of("Scalar", "Vector2", "Vector3").contains(a.type))
         throw new IllegalArgumentException(i.id + ": arithmetic requires Scalar or value Vector");
       if (k.equals("ADD") || k.equals("SUBTRACT")) {
@@ -485,11 +907,11 @@ public final class NoiseCompiler {
   }
 
   private static double evaluate(
-      String k, Item i, Map<String, Input> in, Context c, int component, long seed, int dim) {
+      String k, Parameters p, Map<String, Input> in, Context c, int component, long seed, int dim) {
     Input aa = in.get("a"), bb = in.get("b");
     if (k.equals("SELECT"))
       return in.get(in.get("condition").scalar(c) != 0 ? "true" : "false").number.get(c, component);
-    if (Set.of("ADD", "SUBTRACT", "MULTIPLY", "DIVIDE").contains(k)) {
+    if (k.equals("ADD") || k.equals("SUBTRACT") || k.equals("MULTIPLY") || k.equals("DIVIDE")) {
       double av = aa.number.get(c, component),
           bv = bb.number.get(c, (k.equals("ADD") || k.equals("SUBTRACT")) ? component : 0);
       return switch (k) {
@@ -498,6 +920,15 @@ public final class NoiseCompiler {
         case "MULTIPLY" -> av * bv;
         default -> av / bv;
       };
+    }
+    if (k.equals("EQUAL") || k.equals("NOT_EQUAL")) {
+      boolean equal = true;
+      for (int j = 0; j < aa.components(); j++)
+        if (aa.number.get(c, j) != bb.number.get(c, j)) {
+          equal = false;
+          break;
+        }
+      return equal == k.equals("EQUAL") ? 1 : 0;
     }
     double a = aa == null ? 0 : aa.scalar(c);
     if (k.equals("AND")) return a != 0 && bb.scalar(c) != 0 ? 1 : 0;
@@ -531,27 +962,40 @@ public final class NoiseCompiler {
       case "EQUAL" -> a == b ? 1 : 0;
       case "NOT_EQUAL" -> a != b ? 1 : 0;
       case "NOT" -> a == 0 ? 1 : 0;
-      case "CLAMP" -> Expression.clamp(a, param(i, "min", 0), param(i, "max", 1));
+      case "CLAMP" -> Expression.clamp(a, p.value(Parameter.MIN), p.value(Parameter.MAX));
       case "REMAP" -> {
         double t =
-            (a - param(i, "inputMin", -1)) / (param(i, "inputMax", 1) - param(i, "inputMin", -1));
+            (a - p.value(Parameter.INPUT_MIN))
+                / (p.value(Parameter.INPUT_MAX) - p.value(Parameter.INPUT_MIN));
         double v =
-            param(i, "outputMin", 0) + t * (param(i, "outputMax", 1) - param(i, "outputMin", 0));
-        yield i.parameters.containsKey("clamp") && i.parameters.get("clamp").asBoolean()
-            ? Expression.clamp(v, param(i, "outputMin", 0), param(i, "outputMax", 1))
+            p.value(Parameter.OUTPUT_MIN)
+                + t * (p.value(Parameter.OUTPUT_MAX) - p.value(Parameter.OUTPUT_MIN));
+        yield p.clamp
+            ? Expression.clamp(v, p.value(Parameter.OUTPUT_MIN), p.value(Parameter.OUTPUT_MAX))
             : v;
       }
       case "TERRACE" -> {
-        double levels = param(i, "levels", 8);
-        yield StrictMath.floor(a * levels) / levels;
+        double levels = p.value(Parameter.LEVELS);
+        double cell = StrictMath.floor(a * levels),
+            fraction = a * levels - cell,
+            transition = p.value(Parameter.TRANSITION);
+        double blend =
+            transition == 0 ? 0 : Expression.clamp((fraction - 1 + transition) / transition, 0, 1);
+        blend = blend * blend * (3 - 2 * blend);
+        yield (cell + blend) / levels;
       }
       case "FALLOFF" -> {
-        double extent = param(i, "extent", 64),
-            d = StrictMath.sqrt(c.x * c.x + (dim == 2 ? 0 : c.y * c.y) + c.z * c.z);
+        double extent = p.value(Parameter.EXTENT),
+            d =
+                StrictMath.sqrt(
+                    StrictMath.pow(c.x - p.value(Parameter.CENTER_X), 2)
+                        + (dim == 2 ? 0 : StrictMath.pow(c.y - p.value(Parameter.CENTER_Y), 2))
+                        + StrictMath.pow(c.z - p.value(Parameter.CENTER_Z), 2));
         yield a * (1 - Expression.clamp(d / extent, 0, 1));
       }
-      case "COMPOSE3" -> in.get(component == 0 ? "x" : component == 1 ? "y" : "z").scalar(c);
-      case "COMPOSE2" -> in.get(component == 0 ? "x" : "z").scalar(c);
+      case "COMPOSE3", "COORDINATES3" ->
+          in.get(component == 0 ? "x" : component == 1 ? "y" : "z").scalar(c);
+      case "COMPOSE2", "COORDINATES2" -> in.get(component == 0 ? "x" : "z").scalar(c);
       case "DOT" -> {
         double v = 0;
         for (int j = 0; j < aa.components(); j++) v += aa.number.get(c, j) * bb.number.get(c, j);
@@ -571,13 +1015,35 @@ public final class NoiseCompiler {
         yield k.equals("LENGTH") ? len : len == 0 ? 0 : aa.number.get(c, component) / len;
       }
       case "COMPONENT" -> {
-        int j = (int) param(i, "component", 0);
+        int j = (int) p.value(Parameter.COMPONENT);
         if (j < 0 || j >= aa.components()) throw new IllegalArgumentException("Component index");
         yield aa.number.get(c, j);
       }
-      case "REPLICATE3", "BOOLEAN_TO_SCALAR" -> a;
+      case "REPLICATE2", "REPLICATE3", "BOOLEAN_TO_SCALAR" -> a;
+      case "COORDINATES_TO_VECTOR", "VECTOR_TO_COORDINATES" -> aa.number.get(c, component);
+      case "PROJECT_VECTOR", "PROJECT_COORDINATES" -> aa.number.get(c, p.projectAxis(component));
+      case "EXPAND_VECTOR", "EXPAND_COORDINATES" ->
+          component == p.insertedAxis() ? b : aa.number.get(c, p.expandedComponent(component));
+      case "VECTOR_ROTATE" -> {
+        double angle = p.value(Parameter.ANGLE) * StrictMath.PI / 180,
+            co = StrictMath.cos(angle),
+            si = StrictMath.sin(angle);
+        if (aa.components() == 2)
+          yield component == 0
+              ? aa.number.get(c, 0) * co - aa.number.get(c, 1) * si
+              : aa.number.get(c, 0) * si + aa.number.get(c, 1) * co;
+        int axis = p.axis.equals("x") ? 0 : p.axis.equals("y") ? 1 : 2,
+            u = (axis + 1) % 3,
+            v = (axis + 2) % 3;
+        yield component == axis
+            ? aa.number.get(c, axis)
+            : component == u
+                ? aa.number.get(c, u) * co - aa.number.get(c, v) * si
+                : aa.number.get(c, u) * si + aa.number.get(c, v) * co;
+      }
+
       case "SCALAR_TO_BOOLEAN" -> a != 0 ? 1 : 0;
-      case "CONSTANT" -> param(i, "value", 0);
+      case "CONSTANT" -> p.value(Parameter.VALUE);
       case "COORDINATE_HASH" ->
           CoordinateHash.probability(
               seed,
@@ -585,18 +1051,25 @@ public final class NoiseCompiler {
               (int) StrictMath.floor(c.y),
               (int) StrictMath.floor(c.z));
       case "COORDINATE" ->
-          switch (text(i, "axis", "x")) {
+          switch (p.axis) {
             case "y" -> c.y;
             case "z" -> c.z;
             default -> c.x;
           };
       case "SPHERE" ->
-          StrictMath.sqrt(c.x * c.x + (dim == 2 ? 0 : c.y * c.y) + c.z * c.z)
-              - param(i, "radius", 16);
+          StrictMath.sqrt(
+                  StrictMath.pow(c.x - p.value(Parameter.CENTER_X), 2)
+                      + (dim == 2 ? 0 : StrictMath.pow(c.y - p.value(Parameter.CENTER_Y), 2))
+                      + StrictMath.pow(c.z - p.value(Parameter.CENTER_Z), 2))
+              - p.value(Parameter.RADIUS);
       case "BOX" -> {
-        double x = StrictMath.abs(c.x) - param(i, "extentX", 16),
-            y = dim == 2 ? Double.NEGATIVE_INFINITY : StrictMath.abs(c.y) - param(i, "extentY", 16),
-            z = StrictMath.abs(c.z) - param(i, "extentZ", 16);
+        double x = StrictMath.abs(c.x - p.value(Parameter.CENTER_X)) - p.value(Parameter.EXTENT_X),
+            y =
+                dim == 2
+                    ? Double.NEGATIVE_INFINITY
+                    : StrictMath.abs(c.y - p.value(Parameter.CENTER_Y))
+                        - p.value(Parameter.EXTENT_Y),
+            z = StrictMath.abs(c.z - p.value(Parameter.CENTER_Z)) - p.value(Parameter.EXTENT_Z);
         yield StrictMath.sqrt(
                 StrictMath.pow(StrictMath.max(x, 0), 2)
                     + StrictMath.pow(StrictMath.max(y, 0), 2)
@@ -604,7 +1077,7 @@ public final class NoiseCompiler {
             + StrictMath.min(StrictMath.max(x, StrictMath.max(y, z)), 0);
       }
       case "SMOOTH_UNION" -> {
-        double smooth = param(i, "smoothness", 1),
+        double smooth = p.value(Parameter.SMOOTHNESS),
             h = Expression.clamp(.5 + .5 * (b - a) / smooth, 0, 1);
         yield b + (a - b) * h - smooth * h * (1 - h);
       }
@@ -612,9 +1085,98 @@ public final class NoiseCompiler {
     };
   }
 
+  private enum Parameter {
+    VALUE("value", 0),
+    MIN("min", 0),
+    MAX("max", 1),
+    INPUT_MIN("inputMin", -1),
+    INPUT_MAX("inputMax", 1),
+    OUTPUT_MIN("outputMin", 0),
+    OUTPUT_MAX("outputMax", 1),
+    LEVELS("levels", 8),
+    TRANSITION("transition", 0),
+    EXTENT("extent", 64),
+    COMPONENT("component", 0),
+    RADIUS("radius", 16),
+    EXTENT_X("extentX", 16),
+    EXTENT_Y("extentY", 16),
+    EXTENT_Z("extentZ", 16),
+    SMOOTHNESS("smoothness", 1),
+    CENTER_X("centerX", 0),
+    CENTER_Y("centerY", 0),
+    CENTER_Z("centerZ", 0),
+    ANGLE("angle", 0);
+    final String key;
+    final double defaultValue;
+
+    Parameter(String key, double value) {
+      this.key = key;
+      defaultValue = value;
+    }
+  }
+
+  private static final class Parameters {
+    final double[] values;
+    final boolean clamp;
+    final String axis, pair;
+
+    private Parameters(double[] values, boolean clamp, String axis, String pair) {
+      this.values = values;
+      this.clamp = clamp;
+      this.axis = axis;
+      this.pair = pair;
+    }
+
+    double value(Parameter p) {
+      return values[p.ordinal()];
+    }
+
+    int projectAxis(int k) {
+      return pair.equals("XY") ? k : pair.equals("YZ") ? k + 1 : k == 0 ? 0 : 2;
+    }
+
+    int insertedAxis() {
+      return pair.equals("XY") ? 2 : pair.equals("YZ") ? 0 : 1;
+    }
+
+    int expandedComponent(int k) {
+      return k == projectAxis(0) ? 0 : 1;
+    }
+
+    static Parameters compile(Item item) {
+      double[] values = new double[Parameter.values().length];
+      for (Parameter p : Parameter.values())
+        values[p.ordinal()] = param(item, p.key, p.defaultValue);
+      var clamp = item.parameters.get("clamp");
+      if (clamp != null && !clamp.isBoolean())
+        throw new IllegalArgumentException("Clamp parameter must be Boolean");
+      String axis = text(item, "axis", "x"), pair = text(item, "axes", "XZ");
+      if (!Set.of("x", "y", "z").contains(axis) || !Set.of("XY", "XZ", "YZ").contains(pair))
+        throw new IllegalArgumentException("Explicit valid axis/projection required");
+      if (item.kind.equals("TERRACE")
+          && (values[Parameter.LEVELS.ordinal()] < 1
+              || values[Parameter.LEVELS.ordinal()]
+                  != StrictMath.rint(values[Parameter.LEVELS.ordinal()])
+              || values[Parameter.TRANSITION.ordinal()] < 0
+              || values[Parameter.TRANSITION.ordinal()] > 1))
+        throw new IllegalArgumentException(
+            "Terrace requires integer levels >=1 and transition in [0,1]");
+      if (item.kind.equals("REMAP")
+          && values[Parameter.INPUT_MIN.ordinal()] == values[Parameter.INPUT_MAX.ordinal()])
+        throw new IllegalArgumentException("Remap input endpoints must differ");
+      if (item.kind.equals("FALLOFF") && values[Parameter.EXTENT.ordinal()] <= 0
+          || item.kind.equals("SMOOTH_UNION") && values[Parameter.SMOOTHNESS.ordinal()] <= 0)
+        throw new IllegalArgumentException("Extent/smoothness must be positive");
+      return new Parameters(values, clamp != null && clamp.booleanValue(), axis, pair);
+    }
+  }
+
   private static double param(Item i, String name, double fallback) {
     var n = i.parameters.get(name);
-    return n == null ? fallback : n.asDouble();
+    if (n == null) return fallback;
+    if (!n.isNumber() || !Double.isFinite(n.doubleValue()))
+      throw new IllegalArgumentException(i.id + ": finite numeric parameter required: " + name);
+    return n.doubleValue();
   }
 
   private static String text(Item i, String name, String fallback) {
