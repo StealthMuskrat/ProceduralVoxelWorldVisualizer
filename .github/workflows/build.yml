@@ -33,6 +33,8 @@ jobs:
           javac -cp build/release/jars/noise-generator-engine.jar -d build/independent example-client/src/main/java/io/voxelcreator/example/*.java
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.Example build/independent/output
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
+          java -cp build/independent:build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.example.Example --contracts build/field-operations/contracts
+          python scripts/sync_field_contracts.py build/field-operations/contracts --bootstrap
       - name: Independent import transaction reference
         run: java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ImportSessionConsumer
       - name: Exact storage measurements
@@ -97,7 +99,6 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.FieldOperationsProbe build/field-operations
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.FieldOperationsConsumer build/field-operations/field-operations-project.json 37.5 build/field-operations
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.FieldOperationsConsumer fixtures/field-operations.json 57
-          java -cp build/independent:build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.example.Example --contracts build/field-operations/contracts
           python scripts/verify_field_operations.py build/field-operations
       - name: Native keyboard input and preference reference
         run: |
@@ -149,6 +150,10 @@ jobs:
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.Example build/independent/output
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/ProceduralVoxelCreator.jar' io.voxelcreator.example.Example --contracts build/field-operations/contracts
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/sync_field_contracts.py build/field-operations/contracts --bootstrap
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Exact storage measurements
         shell: pwsh
@@ -285,8 +290,6 @@ jobs:
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.FieldOperationsConsumer build/field-operations/field-operations-project.json 37.5 build/field-operations
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.FieldOperationsConsumer fixtures/field-operations.json 57
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          java -cp 'build/independent;build/release/jars/ProceduralVoxelCreator.jar' io.voxelcreator.example.Example --contracts build/field-operations/contracts
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_field_operations.py build/field-operations
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
