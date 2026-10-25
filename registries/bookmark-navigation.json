@@ -1,0 +1,14 @@
+{
+  "registryVersion": 1,
+  "projectFormatVersion": 2,
+  "collections": [
+    "noise2D",
+    "noise3D",
+    "world"
+  ],
+  "coordinateType": "signed 32-bit integer cells",
+  "captureRule": "floor; reject nonfinite or out-of-range coordinates",
+  "coordinatesOnly": true,
+  "duplicateNamesAllowed": true,
+  "navigationAffectsProject": false
+}

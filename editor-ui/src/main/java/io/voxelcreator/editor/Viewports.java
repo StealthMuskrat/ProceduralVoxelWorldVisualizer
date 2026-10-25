@@ -9,6 +9,8 @@ import io.voxelcreator.api.*;
 import io.voxelcreator.core.*;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
+import io.voxelcreator.model.BookmarkTransactions.Coordinates;
+import io.voxelcreator.model.BookmarkTransactions.Tab;
 import io.voxelcreator.render.*;
 import io.voxelcreator.storage.*;
 import java.util.*;
@@ -31,10 +33,7 @@ public final class Viewports implements AutoCloseable {
   private Map<Integer, UUID> traceTypes = Map.of();
   private final ImBoolean inspector = new ImBoolean(false);
   private final int[] inspect = {0, 0, 0};
-  private String bookmarkAction = "";
-  private boolean coordinatesPending = false;
-  private final ImString bookmarkName = new ImString(256);
-  private final int[] teleport = {0, 0, 0};
+  private final BookmarkPanel bookmarkPanel;
 
   private static final class View {
     final int kind;
@@ -75,7 +74,7 @@ public final class Viewports implements AutoCloseable {
     NoiseAlgorithms.Field hoverSampler;
     int[] colors;
     float[] histogram = new float[64];
-    UUID selectedBookmark;
+    Coordinates pickedBookmark;
     boolean image = false, completed = false, failedPreview = false;
 
     View(int k) {
@@ -231,6 +230,24 @@ public final class Viewports implements AutoCloseable {
     this.state = state;
     this.properties = properties;
     this.handle = handle;
+    bookmarkPanel = new BookmarkPanel(state, new BookmarkPanel.Navigation() {
+      @Override
+      public Coordinates current(Tab tab) {
+        var c = center(views[tab.ordinal()]);
+        return BookmarkTransactions.capture(tab, c.x, c.y, c.z);
+      }
+
+      @Override
+      public Coordinates picked(Tab tab) {
+        return views[tab.ordinal()].pickedBookmark;
+      }
+
+      @Override
+      public void teleport(Tab tab, Coordinates coordinates) {
+        Viewports.this.teleport(views[tab.ordinal()], coordinates.x(),
+            coordinates.y() == null ? 0 : coordinates.y(), coordinates.z());
+      }
+    });
     for (var v : views) v.size = state.user.visualization.previewSize;
   }
 
@@ -250,7 +267,7 @@ public final class Viewports implements AutoCloseable {
     }
     ImGui.end();
     drawInspector();
-    drawBookmarkDialogs();
+    bookmarkPanel.drawDialogs();
   }
 
   public void assertSmokeCompleted() {
@@ -500,7 +517,7 @@ public final class Viewports implements AutoCloseable {
               ? "Free-fly: WASD / Space / Shift; Esc to release"
               : "Orbit: drag left; pan right; wheel zoom; Ctrl+click free-fly");
     }
-    bookmarks(v);
+    bookmarkPanel.draw(Tab.values()[v.kind]);
     if (v.kind == 2) {
       fields.choice(
           "Stage preview",
@@ -643,7 +660,11 @@ public final class Viewports implements AutoCloseable {
     }
 
     var io = ImGui.getIO();
-    if (hovered && ImGui.beginPopupContextItem("viewport-context")) {
+    if (hovered && (ImGui.isMouseClicked(1)
+        || ImGui.isMouseReleased(0) && Math.abs(ImGui.getMouseDragDeltaX(0)) < 3
+            && Math.abs(ImGui.getMouseDragDeltaY(0)) < 3))
+      rememberPicked(v, px, py, w, h);
+    if (ImGui.beginPopupContextItem("viewport-context")) {
       if (v.kind == 0) {
         for (String mode : List.of("Grayscale", "Heatmap", "Contour", "Threshold", "Histogram"))
           if (ImGui.menuItem(mode)) {
@@ -651,8 +672,9 @@ public final class Viewports implements AutoCloseable {
             mark(v);
           }
       }
-      if (ImGui.menuItem("Teleport")) openTeleport(v);
-      if (ImGui.menuItem("Add Bookmark")) openBookmark(v);
+      if (ImGui.menuItem("Teleport")) bookmarkPanel.openTeleport(Tab.values()[v.kind]);
+      if (ImGui.menuItem("Add Bookmark"))
+        bookmarkPanel.openAdd(Tab.values()[v.kind], v.pickedBookmark);
       if (ImGui.menuItem("Regenerate")) {
         v.force = true;
         v.rebuildSerial++;
@@ -1393,114 +1415,48 @@ public final class Viewports implements AutoCloseable {
     return r | (g << 8) | (b << 16) | 0xff000000;
   }
 
-  private List<Bookmark> list(ProjectData p, View v) {
-    return v.kind == 0
-        ? p.bookmarks.noise2D
-        : v.kind == 1 ? p.bookmarks.noise3D : p.bookmarks.world;
-  }
-
-  private void bookmarks(View v) {
-    if (ImGui.beginCombo(
-        "Bookmark",
-        list(state.project(), v).stream()
-            .filter(b -> b.uuid.equals(v.selectedBookmark))
-            .map(b -> b.name)
-            .findFirst()
-            .orElse("Choose coordinates..."))) {
-      for (var b : list(state.project(), v))
-        if (ImGui.selectable(b.name)) {
-          v.selectedBookmark = b.uuid;
-          teleport(v, b.x, b.y == null ? 0 : b.y, b.z);
-        }
-      ImGui.endCombo();
-    }
-    if (ImGui.smallButton("Add Bookmark")) openBookmark(v);
-    ImGui.sameLine();
-    if (ImGui.smallButton("Teleport")) openTeleport(v);
-    if (v.selectedBookmark != null) {
-      ImGui.sameLine();
-      if (ImGui.smallButton("Update Coordinates")) {
-        Vector3d center = center(v);
-        UUID id = v.selectedBookmark;
-        state.change(
-            p ->
-                list(p, v).stream()
-                    .filter(b -> b.uuid.equals(id))
-                    .findFirst()
-                    .ifPresent(
-                        b -> {
-                          b.x = (int) center.x;
-                          b.z = (int) center.z;
-                          if (v.kind > 0) b.y = (int) center.y;
-                        }));
-      }
-      ImGui.sameLine();
-      if (ImGui.smallButton("Delete Bookmark")) {
-        UUID id = v.selectedBookmark;
-        state.change(p -> list(p, v).removeIf(b -> b.uuid.equals(id)));
-        v.selectedBookmark = null;
-      }
-    }
-  }
-
   private Vector3d center(View v) {
-    return v.kind == 0
-        ? new Vector3d(v.panX, 0, v.panZ)
-        : v.camera.flying ? new Vector3d(v.camera.position) : new Vector3d(v.camera.focus);
+    if (v.kind == 0) return new Vector3d(v.panX, 0, v.panZ);
+    if (v.kind == 1 && v.mode.equals("Slices"))
+      return new Vector3d(v.slicePlane.x(v.slicePlane == SlicePlane.X ? v.panY : v.panX,
+              v.slicePlane == SlicePlane.Z ? v.panY : v.panZ, v.slice),
+          v.slicePlane.y(v.slicePlane == SlicePlane.X ? v.panY : v.panX,
+              v.slicePlane == SlicePlane.Z ? v.panY : v.panZ, v.slice),
+          v.slicePlane.z(v.slicePlane == SlicePlane.X ? v.panY : v.panX,
+              v.slicePlane == SlicePlane.Z ? v.panY : v.panZ, v.slice));
+    return v.camera.flying ? new Vector3d(v.camera.position) : new Vector3d(v.camera.focus);
   }
 
-  private void openBookmark(View v) {
-    bookmarkAction = "add";
-    bookmarkName.set("");
-    Vector3d c = center(v);
-    teleport[0] = (int) c.x;
-    teleport[1] = (int) c.y;
-    teleport[2] = (int) c.z;
-    coordinatesPending = true;
-  }
-
-  private void openTeleport(View v) {
-    bookmarkAction = "teleport";
-    Vector3d c = center(v);
-    teleport[0] = (int) c.x;
-    teleport[1] = (int) c.y;
-    teleport[2] = (int) c.z;
-    coordinatesPending = true;
-  }
-
-  private void drawBookmarkDialogs() {
-    if (coordinatesPending) {
-      ImGui.openPopup("Coordinates");
-      coordinatesPending = false;
-    }
-    if (ImGui.beginPopupModal("Coordinates", ImGuiWindowFlags.AlwaysAutoResize)) {
-      View v = views[active];
-      if (bookmarkAction.equals("add")) ImGui.inputText("Name", bookmarkName);
-      fields.integer("X", teleport[0], x -> teleport[0] = x);
-      if (v.kind > 0) fields.integer("Y", teleport[1], x -> teleport[1] = x);
-      fields.integer("Z", teleport[2], x -> teleport[2] = x);
-      if (ImGui.button("Apply")) {
-        if (bookmarkAction.equals("add")) {
-          var b = new Bookmark();
-          b.name = bookmarkName.get();
-          b.x = teleport[0];
-          b.z = teleport[2];
-          if (v.kind > 0) b.y = teleport[1];
-          if (state.change(p -> list(p, v).add(b))) ImGui.closeCurrentPopup();
-        } else {
-          teleport(v, teleport[0], teleport[1], teleport[2]);
-          ImGui.closeCurrentPopup();
-        }
+  private void rememberPicked(View v, float px, float py, float width, float height) {
+    var io = ImGui.getIO();
+    try {
+      if (v.kind == 0) {
+        double x = v.panX + (io.getMousePosX() - px - width / 2) / width * 256 * v.step,
+            z = v.panZ + (io.getMousePosY() - py - height / 2) / height * 256 * v.step;
+        v.pickedBookmark = BookmarkTransactions.capture(Tab.NOISE_2D, x, 0, z);
+      } else if (v.kind == 1 && v.mode.equals("Slices") && v.image) {
+        var plane = v.displayedSlicePlane;
+        double u = (plane == SlicePlane.X ? v.origin.y : v.origin.x)
+                + (io.getMousePosX() - px) / width * v.size * v.displayedStep,
+            vertical = (plane == SlicePlane.Z ? v.origin.y : v.origin.z)
+                + (io.getMousePosY() - py) / height * v.size * v.displayedStep;
+        v.pickedBookmark = BookmarkTransactions.capture(Tab.NOISE_3D,
+            plane.x(u, vertical, v.displayedSlice), plane.y(u, vertical, v.displayedSlice),
+            plane.z(u, vertical, v.displayedSlice));
       }
-      ImGui.sameLine();
-      if (ImGui.button("Cancel")) ImGui.closeCurrentPopup();
-      ImGui.endPopup();
+    } catch (IllegalArgumentException failure) {
+      v.pickedBookmark = null;
+      state.status = failure.getMessage();
     }
   }
 
   private void teleport(View v, int x, int y, int z) {
     v.panX = x;
     v.panZ = z;
+    if (v.kind > 0) {
+      v.panY = y;
+      v.slice = v.slicePlane == SlicePlane.X ? x : v.slicePlane == SlicePlane.Y ? y : z;
+    }
     v.camera.teleport(x, y, z);
     mark(v);
   }
@@ -1559,6 +1515,7 @@ public final class Viewports implements AutoCloseable {
                       inspect[0] = cell.x();
                       inspect[1] = cell.y();
                       inspect[2] = cell.z();
+                      v.pickedBookmark = new Coordinates(cell.x(), cell.y(), cell.z());
                       inspector.set(true);
                     });
                 return;
@@ -1601,6 +1558,8 @@ public final class Viewports implements AutoCloseable {
     ImGui.setNextWindowSize(600, 600, ImGuiCond.FirstUseEver);
     ImGui.begin("Voxel Inspector", inspector);
     ImGui.inputInt3("XYZ", inspect);
+    if (ImGui.smallButton("Add Bookmark at Coordinate"))
+      bookmarkPanel.openAdd(Tab.WORLD, new Coordinates(inspect[0], inspect[1], inspect[2]));
     if (ImGui.button("Trace Coordinate")) {
       var p = ProjectIO.copy(state.project());
       long request = ++traceSerial, revision = state.revision;

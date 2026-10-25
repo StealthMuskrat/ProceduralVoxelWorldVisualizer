@@ -86,6 +86,31 @@
       },
       "required" : [ "name", "x", "z", "uuid" ]
     },
+    "Bookmark2D" : {
+      "allOf" : [ {
+        "$ref" : "#/$defs/Bookmark"
+      }, {
+        "properties" : {
+          "y" : {
+            "const" : null
+          }
+        }
+      } ]
+    },
+    "Bookmark3D" : {
+      "allOf" : [ {
+        "$ref" : "#/$defs/Bookmark"
+      }, {
+        "properties" : {
+          "y" : {
+            "type" : "integer",
+            "minimum" : -2147483648,
+            "maximum" : 2147483647
+          }
+        },
+        "required" : [ "y" ]
+      } ]
+    },
     "Bookmarks" : {
       "type" : "object",
       "additionalProperties" : false,
@@ -93,19 +118,19 @@
         "noise2D" : {
           "type" : "array",
           "items" : {
-            "$ref" : "#/$defs/Bookmark"
+            "$ref" : "#/$defs/Bookmark2D"
           }
         },
         "noise3D" : {
           "type" : "array",
           "items" : {
-            "$ref" : "#/$defs/Bookmark"
+            "$ref" : "#/$defs/Bookmark3D"
           }
         },
         "world" : {
           "type" : "array",
           "items" : {
-            "$ref" : "#/$defs/Bookmark"
+            "$ref" : "#/$defs/Bookmark3D"
           }
         }
       },

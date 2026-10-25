@@ -1,0 +1,47 @@
+{
+  "formatVersion": 2,
+  "project": {
+    "uuid": "00000000-0000-4000-8000-000000000010",
+    "seed": 0,
+    "minY": -64,
+    "maxY": 319
+  },
+  "voxelTypes": [],
+  "voxelGroups": [],
+  "voxelSets": [],
+  "noise2D": [],
+  "noise3D": [],
+  "worldGenerator": {
+    "uuid": "00000000-0000-4000-8000-000000000011",
+    "layers": []
+  },
+  "folders": [],
+  "bookmarks": {
+    "noise2D": [
+      {
+        "uuid": "00000000-0000-4000-8000-000000001101",
+        "name": "duplicate",
+        "x": -3,
+        "z": 7
+      }
+    ],
+    "noise3D": [
+      {
+        "uuid": "00000000-0000-4000-8000-000000001102",
+        "name": "duplicate",
+        "x": -11,
+        "y": 13,
+        "z": -17
+      }
+    ],
+    "world": [
+      {
+        "uuid": "00000000-0000-4000-8000-000000001103",
+        "name": "duplicate",
+        "x": 19,
+        "y": -23,
+        "z": 29
+      }
+    ]
+  }
+}

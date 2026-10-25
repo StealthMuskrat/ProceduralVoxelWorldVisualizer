@@ -198,16 +198,19 @@ public final class Validator {
         }
       }
     }
-    for (var list : List.of(p.bookmarks.noise2D, p.bookmarks.noise3D, p.bookmarks.world))
-      for (var b : list) {
-        uuid(b.uuid, "/bookmarks/uuid");
-        if (b.name == null || b.name.isBlank())
-          error("INVALID_ID", "/bookmarks/name", "Name required");
-        if (list == p.bookmarks.noise2D && b.y != null)
-          error("INVALID_BOOKMARK", "/bookmarks/noise2D", "2D bookmark has no Y");
-        if (list != p.bookmarks.noise2D && b.y == null)
-          error("INVALID_BOOKMARK", "/bookmarks", "3D bookmark requires Y");
+    for (var tab : BookmarkTransactions.Tab.values()) {
+      var bookmarks = BookmarkTransactions.list(p, tab);
+      for (int i = 0; i < bookmarks.size(); i++) {
+        var bookmark = bookmarks.get(i);
+        String path = "/bookmarks/" + tab.key() + "/" + i;
+        uuid(bookmark.uuid, path + "/uuid");
+        if (bookmark.name == null || bookmark.name.isBlank())
+          error("INVALID_ID", path + "/name", "Name required");
+        if (tab.threeDimensional() != (bookmark.y != null))
+          error("INVALID_BOOKMARK", path + "/y",
+              tab.threeDimensional() ? "3D bookmark requires Y" : "2D bookmark has no Y");
       }
+    }
   }
 
   private void noise(Noise n, String path) {

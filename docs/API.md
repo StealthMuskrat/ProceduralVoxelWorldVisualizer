@@ -115,3 +115,7 @@ Resource hierarchy extension (project format 2): `Project.rootOrder` is an optio
 ## Portable import drafts
 
 `ResourceImport.Session(destination, incoming)` owns its inputs and caches COPY/REUSE/SKIP previews with stable copied UUIDs. `choose` invalidates the preview; `preview` returns an immutable plan whose `candidate()` accessor returns an owned copy. Use `document.edit(session::applyTo)` with the complete application validator. Publication rejects a changed destination before mutation. Plan's existing constructor/accessors remain available; mutating a returned candidate no longer changes the plan. See [import transaction rules](IMPORT_TRANSACTIONS.md).
+
+## Coordinate bookmarks
+
+`BookmarkTransactions` exposes three `Tab` scopes and immutable `Coordinates`. `capture(tab, x, y, z)` floors used axes and rejects nonfinite/out-of-range cells. Use `Draft.add` or `Draft.rename`, edit their provisional values, and commit with `document.edit(draft::applyTo)`. Rename rejects changed/deleted/cross-tab targets while merging unrelated edits; `update` and `delete` remain explicit document transactions. Names may repeat; UUID and tab identify the target. No helper changes generation or camera state. See [bookmark contracts](BOOKMARKS_AND_NAVIGATION.md).

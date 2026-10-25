@@ -103,8 +103,25 @@ public final class ContractGenerator {
     ((ObjectNode) defs.path("ProjectData").path("properties"))
         .set("formatVersion", obj().put("const", 2));
     schema.set("$defs", defs);
+    for (var tab : BookmarkTransactions.Tab.values()) {
+      String type = tab.threeDimensional() ? "Bookmark3D" : "Bookmark2D";
+      var refinement = obj();
+      var properties = obj();
+      properties.set("y", tab.threeDimensional()
+          ? obj().put("type", "integer").put("minimum", Integer.MIN_VALUE).put("maximum", Integer.MAX_VALUE)
+          : obj().putNull("const"));
+      refinement.set("properties", properties);
+      if (tab.threeDimensional()) refinement.set("required", JSON.valueToTree(List.of("y")));
+      var specialized = obj();
+      specialized.set("allOf", JSON.valueToTree(List.of(obj().put("$ref", "#/$defs/Bookmark"), refinement)));
+      defs.set(type, specialized);
+      ((ObjectNode) defs.path("Bookmarks").path("properties").path(tab.key()))
+          .set("items", obj().put("$ref", "#/$defs/" + type));
+    }
+
     writeJSON(
         root.resolve("registries/resource-hierarchy.json"), ResourceGraph.hierarchyRegistry());
+    writeJSON(root.resolve("registries/bookmark-navigation.json"), BookmarkTransactions.registry());
     ((ObjectNode) defs.path("Item").path("properties").path("parameters"))
         .set("properties", obj().set("curve", obj().put("$ref", "#/$defs/Curve")));
     ((ArrayNode) defs.path("Curve").path("required")).removeAll();

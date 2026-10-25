@@ -83,8 +83,24 @@ public final class ProjectIO {
       if (!tree.path("project").hasNonNull(key)) return "/project/" + key;
     if (!tree.path("worldGenerator").hasNonNull("uuid")
         || !tree.path("worldGenerator").path("layers").isArray()) return "/worldGenerator";
-    for (String key : List.of("noise2D", "noise3D", "world"))
-      if (!tree.path("bookmarks").path(key).isArray()) return "/bookmarks/" + key;
+    for (String key : List.of("noise2D", "noise3D", "world")) {
+      JsonNode bookmarks = tree.path("bookmarks").path(key);
+      if (!bookmarks.isArray()) return "/bookmarks/" + key;
+      for (int i = 0; i < bookmarks.size(); i++) {
+        JsonNode bookmark = bookmarks.get(i);
+        String path = "/bookmarks/" + key + "/" + i;
+        if (!bookmark.isObject()) return path;
+        if (!bookmark.hasNonNull("uuid")) return path + "/uuid";
+        if (!bookmark.path("name").isTextual()) return path + "/name";
+        for (String axis : List.of("x", "z"))
+          if (!bookmark.path(axis).isIntegralNumber() || !bookmark.path(axis).canConvertToInt())
+            return path + "/" + axis;
+        if (key.equals("noise2D")) {
+          if (bookmark.hasNonNull("y")) return path + "/y";
+        } else if (!bookmark.path("y").isIntegralNumber() || !bookmark.path("y").canConvertToInt())
+          return path + "/y";
+      }
+    }
     for (String key :
         List.of("voxelTypes", "voxelGroups", "voxelSets", "noise2D", "noise3D", "folders")) {
       if (!tree.path(key).isArray()) return "/" + key;

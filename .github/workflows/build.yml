@@ -82,6 +82,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.HierarchyReferenceProbe build/hierarchy-probe
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.HierarchyConsumer build/hierarchy-probe/organized-project.json
           python scripts/verify_hierarchy.py build/hierarchy-probe/organized-project.json build/hierarchy-probe/hierarchy-reference.json
+      - name: Bookmark native workflow and independent consumer
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.BookmarkReferenceProbe build/bookmark-probe
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.BookmarkConsumer build/bookmark-probe/bookmarks-project.json
+          python scripts/verify_bookmarks.py build/bookmark-probe/bookmarks-project.json build/bookmark-probe/bookmarks-reference.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -101,6 +106,7 @@ jobs:
             build/workflow-probe/
             build/find-probe/
             build/hierarchy-probe/
+            build/bookmark-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -239,6 +245,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_hierarchy.py build/hierarchy-probe/organized-project.json build/hierarchy-probe/hierarchy-reference.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows bookmark native workflow and independent consumer
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.BookmarkReferenceProbe build/bookmark-probe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.BookmarkConsumer build/bookmark-probe/bookmarks-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_bookmarks.py build/bookmark-probe/bookmarks-project.json build/bookmark-probe/bookmarks-reference.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -282,6 +297,7 @@ jobs:
             build/workflow-probe/
             build/find-probe/
             build/hierarchy-probe/
+            build/bookmark-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/
