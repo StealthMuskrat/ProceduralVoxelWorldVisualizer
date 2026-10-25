@@ -2,7 +2,7 @@
 from pathlib import Path
 import json,jsonschema
 root=Path(__file__).resolve().parent.parent
-for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json','creation-defaults-project.json','hierarchy.json','bookmarks.json','noise-authoring.json','field-operations.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json','user-theme-custom.json']),('app-config',['app-config-defaults.json','app-config-legacy.json','app-config-creation.json']),('profile-capture',['profile-capture.json'])]:
+for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json','creation-defaults-project.json','hierarchy.json','bookmarks.json','noise-authoring.json','field-operations.json','trace-workflow.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json','user-theme-custom.json']),('app-config',['app-config-defaults.json','app-config-legacy.json','app-config-creation.json']),('profile-capture',['profile-capture.json'])]:
  schema=json.loads((root/'schema'/f'{name}.schema.json').read_text())
  jsonschema.Draft202012Validator.check_schema(schema)
  validator=jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker())

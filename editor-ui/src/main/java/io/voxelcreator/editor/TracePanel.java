@@ -15,6 +15,8 @@ public final class TracePanel {
   private List<Integer> filtered = List.of();
   private int indexedStep = -1;
   private float[] goToCenter;
+  private TraceSnapshot.Row pagedRow;
+  private int page;
 
   public TracePanel(EditorState state, GuardedNavigation navigation) {
     this.state = state;
@@ -33,7 +35,7 @@ public final class TracePanel {
       ImGui.textDisabled("No retained trace selected.");
       return;
     }
-    ImGui.textWrapped(value.summary());
+    ImGui.textWrapped(shortText(value.summary(), 1024));
     if (!value.project().equals(state.project().project.uuid))
       ImGui.textWrapped("Historical project: source links are unavailable.");
     else if (value.revision() != state.revision)
@@ -107,7 +109,11 @@ public final class TracePanel {
           submittedRows++;
           var r = rows.get(filtered.get(i));
           if (ImGui.selectable(
-              shortText(r.label() + " : " + r.value(), 180) + "###trace-value-" + filtered.get(i),
+              shortText(r.label(), 80)
+                  + " : "
+                  + shortText(r.value(), 100)
+                  + "###trace-value-"
+                  + filtered.get(i),
               row == i)) row = i;
         }
       values.end();
@@ -119,7 +125,21 @@ public final class TracePanel {
     if (!filtered.isEmpty()) {
       row = Math.min(row, filtered.size() - 1);
       var selected = rows.get(filtered.get(row));
-      ImGui.textWrapped(selected.label() + ": " + selected.value());
+      if (pagedRow != selected) {
+        pagedRow = selected;
+        page = 0;
+      }
+      ImGui.textWrapped(shortText(selected.label(), 512));
+      int pages = TraceText.count(selected.value());
+      if (pages > 1) {
+        if (ImGui.smallButton("Previous Page") && page > 0) page--;
+        ImGui.sameLine();
+        if (ImGui.smallButton("Next Page") && page + 1 < pages) page++;
+        ImGui.sameLine();
+        ImGui.text("Page " + (page + 1) + " / " + pages);
+      }
+      ImGui.textWrapped(TraceText.page(selected.value(), page));
+      if (ImGui.smallButton("Copy Selected Value")) ImGui.setClipboardText(selected.value());
       if (selected.target() != null && state.canNavigate(selected.target())) {
         boolean clicked = ImGui.button("Go To Control");
         var a = ImGui.getItemRectMin();
@@ -140,8 +160,8 @@ public final class TracePanel {
   }
 
   private static String shortText(String text, int length) {
-    text = AppMetadata.uiText(text.replace('\n', ' ').replace('\r', ' '));
-    return text.length() > length ? text.substring(0, length - 1) + "…" : text;
+    String visible = text.length() > length ? text.substring(0, length - 1) + "…" : text;
+    return AppMetadata.uiText(visible.replace('\n', ' ').replace('\r', ' '));
   }
 
   void filter(String text) {

@@ -18,7 +18,7 @@ World `trace()` uses these same canonical primary-field values and includes thei
 
 ## Native workflow
 
-Trace Coordinate still accepts any signed integer XYZ, including EMPTY. Ordered operation summaries and observation rows are clipped, with one expanded step and one selected row. Search is cached for the selected snapshot/step/query. Full selected-row values remain readable; Copy Trace Details copies the same structured text from Inspector or Logs.
+Trace Coordinate still accepts any signed integer XYZ, including EMPTY. Ordered operation summaries and observation rows are clipped, with one expanded step and one selected row. Search is cached for the selected snapshot/step/query. Selected values use 4096-unit pages that preserve surrogate pairs, with full-value copying; headers and summary rows have bounded visible text. Copy Trace Details copies the same structured text from Inspector or Logs.
 
 Go To Control targets resource/item UUIDs and logical property keys. Layer and placement links reveal the current property container, including inherited setting origins; nested gate/driver/interval rows never replay historical array indices. Noise links reveal the source algorithm, selected output or exact processing/transform UUID.
 
