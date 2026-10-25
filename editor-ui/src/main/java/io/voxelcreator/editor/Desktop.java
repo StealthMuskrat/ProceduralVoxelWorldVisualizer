@@ -53,6 +53,7 @@ public final class Desktop extends Application {
   private ProjectData projectDraft;
   private ProjectData importCandidate;
   private ResourceImport.Plan importPlan;
+  private ResourceImport.Session importSession;
   private final ImString importFilter = new ImString(256);
   private List<ResourceImport.Row> filteredImportRows = List.of();
   private ResourceImport.Plan filteredImportPlan;
@@ -586,6 +587,7 @@ public final class Desktop extends Application {
               importCandidate = pack.resources;
               importChoices.clear();
               importPlan = null;
+              importSession = null;
               importRevision = -1;
             }
           }
@@ -613,7 +615,11 @@ public final class Desktop extends Application {
       ImGui.openPopup("Import Resources");
     if (ImGui.beginPopupModal("Import Resources", ImGuiWindowFlags.AlwaysAutoResize)) {
       if (importPlan == null || importRevision != state.revision) {
-        importPlan = ResourceImport.plan(state.project(), importCandidate, importChoices);
+        if (importSession == null || !importSession.current(state.project())) {
+          importSession = new ResourceImport.Session(state.project(), importCandidate);
+          importChoices.forEach(importSession::choose);
+        }
+        importPlan = importSession.preview();
         importRevision = state.revision;
       }
       ImGui.textWrapped(
@@ -663,7 +669,9 @@ public final class Desktop extends Application {
                 choice.name(),
                 row.compatible() ? List.of("COPY", "REUSE", "SKIP") : List.of("COPY", "SKIP"),
                 v -> {
-                  importChoices.put(row.uuid(), ResourceImport.Choice.valueOf(v));
+                  var resolution = ResourceImport.Choice.valueOf(v);
+                  importSession.choose(row.uuid(), resolution);
+                  importChoices.put(row.uuid(), resolution);
                   importRevision = -1;
                 });
             ImGui.textDisabled(
@@ -676,17 +684,22 @@ public final class Desktop extends Application {
       }
       for (var issue : importPlan.diagnostics()) ImGui.textWrapped("! " + issue);
       ImGui.endChild();
-      if (importPlan.valid() && ImGui.button("Import Previewed Transaction")) {
-        var candidate = importPlan.candidate();
-        if (state.change(p -> ResourceGraph.assign(p, ProjectIO.copy(candidate)))) {
+      // A choice made while drawing rows must be previewed before it can be committed.
+      ImGui.beginDisabled(importRevision != state.revision || !importPlan.valid());
+      if (ImGui.button("Import Previewed Transaction")) {
+        if (state.change(importSession::applyTo)) {
           importCandidate = null;
           importPlan = null;
+          importSession = null;
           ImGui.closeCurrentPopup();
         }
       }
+      ImGui.endDisabled();
       ImGui.sameLine();
       if (ImGui.button("Cancel")) {
         importCandidate = null;
+        importPlan = null;
+        importSession = null;
         ImGui.closeCurrentPopup();
       }
       ImGui.endPopup();

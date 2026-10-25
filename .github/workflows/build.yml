@@ -33,6 +33,8 @@ jobs:
           javac -cp build/release/jars/noise-generator-engine.jar -d build/independent example-client/src/main/java/io/voxelcreator/example/*.java
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.Example build/independent/output
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
+      - name: Independent import transaction reference
+        run: java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ImportSessionConsumer
       - name: Exact storage measurements
         shell: bash
         run: java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.StorageBenchmark > build/storage-benchmark.csv
@@ -174,6 +176,11 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED "-Dvoxel.configDir=$PWD/build/smoke" -jar build/release/jars/ProceduralVoxelCreator.jar --smoke 2>&1 | Tee-Object build/windows-smoke.log
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           if (-not (Select-String -Path build/windows-smoke.log -Pattern 'THREE_ENGINE_VIEWPORTS_PASS')) { throw 'Viewport smoke did not complete' }
+      - name: Windows independent import transaction reference
+        shell: pwsh
+        run: |
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ImportSessionConsumer
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows volume numerical reference
         shell: pwsh
         run: |
