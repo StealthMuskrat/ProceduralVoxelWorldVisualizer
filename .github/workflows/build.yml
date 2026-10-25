@@ -71,6 +71,10 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceWorkflowProbe build/workflow-probe
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ResourceSelectionConsumer build/workflow-probe/selection.pvresources.json
           python scripts/verify_resource_workflows.py build/workflow-probe/resource-workflows.json build/workflow-probe/selection.pvresources.json
+      - name: Unified Find and protected navigation reference
+        run: |
+          java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UnifiedFindProbe build/find-probe
+          python scripts/verify_unified_find.py build/find-probe/unified-find.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -88,6 +92,7 @@ jobs:
             build/theme-probe/
             build/browser-probe/
             build/workflow-probe/
+            build/find-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -205,6 +210,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_resource_workflows.py build/workflow-probe/resource-workflows.json build/workflow-probe/selection.pvresources.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows Unified Find and protected navigation reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UnifiedFindProbe build/find-probe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_unified_find.py build/find-probe/unified-find.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -246,6 +258,7 @@ jobs:
             build/theme-probe/
             build/browser-probe/
             build/workflow-probe/
+            build/find-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/

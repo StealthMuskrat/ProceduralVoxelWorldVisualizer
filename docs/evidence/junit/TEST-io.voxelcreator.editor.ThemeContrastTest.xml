@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.ThemeContrastTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:26:40.240Z" hostname="715e00c143c7" time="0.034">
+<testsuite name="io.voxelcreator.editor.ThemeContrastTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:56:58.258Z" hostname="715e00c143c7" time="0.027">
   <properties/>
-  <testcase name="gammaTransferAndIndependentMidGrayVector()" classname="io.voxelcreator.editor.ThemeContrastTest" time="0.002"/>
-  <testcase name="randomizedSymmetryRangeAndCompositionMetamorphisms()" classname="io.voxelcreator.editor.ThemeContrastTest" time="0.015"/>
-  <testcase name="analyticalBlackWhiteEqualAndPrimaryVectors()" classname="io.voxelcreator.editor.ThemeContrastTest" time="0.0"/>
-  <testcase name="completeAuditRetainsNamedTextAndControlTargetsAndDetectsBadColors()" classname="io.voxelcreator.editor.ThemeContrastTest" time="0.009"/>
-  <testcase name="transparencyUsesDeclaredBackdropAndAlphaTextCannotMasqueradeAsOpaque()" classname="io.voxelcreator.editor.ThemeContrastTest" time="0.002"/>
+  <testcase name="gammaTransferAndIndependentMidGrayVector()" classname="io.voxelcreator.editor.ThemeContrastTest" time="0.001"/>
+  <testcase name="randomizedSymmetryRangeAndCompositionMetamorphisms()" classname="io.voxelcreator.editor.ThemeContrastTest" time="0.013"/>
+  <testcase name="analyticalBlackWhiteEqualAndPrimaryVectors()" classname="io.voxelcreator.editor.ThemeContrastTest" time="0.001"/>
+  <testcase name="completeAuditRetainsNamedTextAndControlTargetsAndDetectsBadColors()" classname="io.voxelcreator.editor.ThemeContrastTest" time="0.007"/>
+  <testcase name="transparencyUsesDeclaredBackdropAndAlphaTextCannotMasqueradeAsOpaque()" classname="io.voxelcreator.editor.ThemeContrastTest" time="0.001"/>
   <testcase name="sourceOverUsesAlphaBeforeGammaAndPreservesBackgroundAtZeroAlpha()" classname="io.voxelcreator.editor.ThemeContrastTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

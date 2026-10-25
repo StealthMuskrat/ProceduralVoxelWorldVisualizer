@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.CancellationRegistrationTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:26:44.979Z" hostname="715e00c143c7" time="0.029">
+<testsuite name="io.voxelcreator.api.CancellationRegistrationTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:53:09.731Z" hostname="715e00c143c7" time="0.038">
   <properties/>
-  <testcase name="cancellationAndRegistrationRaceNeverLosesOrDuplicatesCallback()" classname="io.voxelcreator.api.CancellationRegistrationTest" time="0.02"/>
-  <testcase name="registrationsAreIndependentDisposableAndCalledOnce()" classname="io.voxelcreator.api.CancellationRegistrationTest" time="0.002"/>
-  <testcase name="parentSuppliersRemainCooperativeAndInitialCancellationIsObserved()" classname="io.voxelcreator.api.CancellationRegistrationTest" time="0.004"/>
-  <testcase name="listenerFailureDoesNotPreventOtherCancellationCallbacks()" classname="io.voxelcreator.api.CancellationRegistrationTest" time="0.001"/>
+  <testcase name="cancellationAndRegistrationRaceNeverLosesOrDuplicatesCallback()" classname="io.voxelcreator.api.CancellationRegistrationTest" time="0.03"/>
+  <testcase name="registrationsAreIndependentDisposableAndCalledOnce()" classname="io.voxelcreator.api.CancellationRegistrationTest" time="0.003"/>
+  <testcase name="parentSuppliersRemainCooperativeAndInitialCancellationIsObserved()" classname="io.voxelcreator.api.CancellationRegistrationTest" time="0.001"/>
+  <testcase name="listenerFailureDoesNotPreventOtherCancellationCallbacks()" classname="io.voxelcreator.api.CancellationRegistrationTest" time="0.002"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

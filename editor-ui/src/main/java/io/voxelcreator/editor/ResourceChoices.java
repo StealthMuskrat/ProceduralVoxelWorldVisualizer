@@ -13,7 +13,12 @@ public final class ResourceChoices {
       ResourceTreeIndex current, String resourceKind, String filter) {
     String text = filter.strip().toLowerCase(Locale.ROOT);
     if (index != current || !Objects.equals(kind, resourceKind) || !Objects.equals(query, text)) {
-      rows = resourceKind.equals("noise") ? current.noises(text) : current.kind(resourceKind, text);
+      rows =
+          resourceKind.equals("directory")
+              ? directories(current, text)
+              : resourceKind.equals("noise")
+                  ? current.noises(text)
+                  : current.kind(resourceKind, text);
       index = current;
       kind = resourceKind;
       query = text;
@@ -32,14 +37,27 @@ public final class ResourceChoices {
     rows = List.of();
   }
 
+  private static List<ResourceTreeIndex.Node> directories(ResourceTreeIndex index, String query) {
+    var rows = new ArrayList<ResourceTreeIndex.Node>();
+    rows.addAll(index.kind("folder", query));
+    rows.addAll(index.kind("layer", query));
+    return List.copyOf(rows);
+  }
+
   public static boolean accepts(ResourceTreeIndex.Node node, String kind) {
     return node != null
-        && (node.kind().equals(kind) || kind.equals("noise") && node.kind().startsWith("noise"));
+        && (kind.equals("directory") && node.container()
+            || node.kind().equals(kind)
+            || kind.equals("noise") && node.kind().startsWith("noise"));
   }
 
   public static String label(ResourceTreeIndex.Node node) {
     return node.id()
-        + (node.kind().equals("noise2D") ? " [2D]" : node.kind().equals("noise3D") ? " [3D]" : "");
+        + (node.kind().equals("noise2D")
+            ? " [2D]"
+            : node.kind().equals("noise3D")
+                ? " [3D]"
+                : node.kind().equals("folder") ? " [" + node.root() + "]" : "");
   }
 
   public static UUID choose(ResourceTreeIndex index, String kind, UUID id, boolean allowNull) {

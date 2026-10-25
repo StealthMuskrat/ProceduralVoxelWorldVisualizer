@@ -103,12 +103,68 @@ public final class PropertyPanel {
 
   private UUID focusedControl;
   private EditorEvents.Target navigationTarget;
+  private boolean searchScroll;
 
   public boolean goToProblem(EditorEvents.Target target) {
     if (!state.navigate(target)) return false;
     focusedControl = target.control();
     navigationTarget = target;
     return true;
+  }
+
+  public boolean searchBlocked() {
+    return curve != null || membershipDialog != null;
+  }
+
+  public boolean revealSearch(EditorEvents.Target target) {
+    if (!goToProblem(target)) return false;
+    searchScroll = true;
+    if (state.draft instanceof Noise noise && target.control() != null) {
+      for (var item : noise.processing)
+        if (curveContains(item, target.control())) {
+          try {
+            openCurve(item, target.control());
+          } catch (RuntimeException invalid) {
+            state.status = "Curve target cannot be opened: " + invalid.getMessage();
+            return false;
+          }
+          break;
+        }
+    }
+    return true;
+  }
+
+  private void openCurve(Item item, UUID point) {
+    var value =
+        item.parameters.containsKey("curve")
+            ? ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class)
+            : new Curve();
+    var dialog =
+        new CurveDialog(value, v -> item.parameters.put("curve", ProjectIO.JSON.valueToTree(v)));
+    if (point != null && !dialog.selectPoint(point))
+      throw new IllegalArgumentException("Curve point no longer exists");
+    curve = dialog;
+  }
+
+  Set<UUID> searchCurveSelection() {
+    return curve == null ? Set.of() : curve.selectedPoints();
+  }
+
+  void closeSearchCurve() {
+    if (curve != null) curve.cancel();
+    curve = null;
+  }
+
+  private void revealSearchField(UUID control, String parameter) {
+    if (searchScroll
+        && navigationTarget != null
+        && Objects.equals(navigationTarget.resource(), state.selected)
+        && Objects.equals(navigationTarget.control(), control)
+        && Objects.equals(navigationTarget.parameter(), parameter)) {
+      ImGui.setScrollHereY(.25f);
+      searchScroll = false;
+      ThemeStyle.text("Information", "Search target: " + parameter);
+    }
   }
 
   public void goToControl(UUID resource, UUID control) {
@@ -236,6 +292,11 @@ public final class PropertyPanel {
 
   private void noise(Noise n) {
     ImGui.text("Dimension: " + n.dimension + "D  |  Output: Scalar");
+    if (navigationTarget != null
+        && navigationTarget.control() == null
+        && Objects.equals(navigationTarget.resource(), state.selected)
+        && !Objects.equals(navigationTarget.parameter(), "outputBinding"))
+      ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Source", ImGuiTreeNodeFlags.DefaultOpen)) {
       if (ImGui.beginCombo(
           state.metadata.label("noise.algorithm", "Algorithm"),
@@ -246,11 +307,13 @@ public final class PropertyPanel {
         ImGui.endCombo();
       }
       metadataTooltip("noise.algorithm");
+      revealSearchField(null, "algorithm");
       longText(
           state.metadata.label("noise.seedOffset", "Seed offset"),
           n.seedOffset,
           v -> n.seedOffset = v);
       metadataTooltip("noise.seedOffset");
+      revealSearchField(null, "seedOffset");
       if (!Set.of("CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF").contains(n.algorithm.key)) {
         algorithmNumber(n, "frequency", .01);
         if (n.algorithm.key.equals("CELLULAR")) {
@@ -492,7 +555,12 @@ public final class PropertyPanel {
                 v -> item.resultType = v);
           for (var e : new ArrayList<>(item.inputs.entrySet())) {
             ImGui.pushID(e.getKey());
+            if (navigationTarget != null
+                && item.uuid.equals(navigationTarget.control())
+                && ("inputs/" + e.getKey()).equals(navigationTarget.parameter()))
+              ImGui.setNextItemOpen(true, ImGuiCond.Always);
             if (ImGui.treeNode("Input: " + e.getKey() + " [" + e.getValue().type + "]")) {
+              revealSearchField(item.uuid, "inputs/" + e.getKey());
               if (e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind))
                 fieldBinding(n, i, e.getValue());
               else binding(n, item, i, e.getValue());
@@ -745,7 +813,12 @@ public final class PropertyPanel {
         }
       }
     }
+    if (navigationTarget != null
+        && Objects.equals(navigationTarget.resource(), state.selected)
+        && "outputBinding".equals(navigationTarget.parameter()))
+      ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Output", ImGuiTreeNodeFlags.DefaultOpen)) {
+      revealSearchField(null, "outputBinding");
       String label =
           n.outputBinding.sourceKind.equals("Source Result")
               ? "Raw source"
@@ -792,6 +865,7 @@ public final class PropertyPanel {
         n.algorithm.parameters.getOrDefault(key, def),
         v -> n.algorithm.parameters.put(key, v));
     metadataTooltip("noise" + n.dimension + "D.algorithm." + n.algorithm.key + "." + key);
+    revealSearchField(null, "algorithm/parameters/" + key);
   }
 
   private void parameter(Item item, String key, double def) {
@@ -800,6 +874,7 @@ public final class PropertyPanel {
         item.parameters.containsKey(key) ? item.parameters.get(key).asDouble() : def,
         v -> item.parameters.put(key, ProjectIO.JSON.valueToTree(v)));
     metadataTooltip("processing." + item.kind + ".parameter." + key);
+    revealSearchField(item.uuid, "parameters/" + key);
   }
 
   private String uniqueItem(Noise n, String base) {

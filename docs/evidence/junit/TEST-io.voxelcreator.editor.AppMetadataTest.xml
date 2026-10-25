@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.AppMetadataTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:26:36.227Z" hostname="715e00c143c7" time="1.784">
+<testsuite name="io.voxelcreator.editor.AppMetadataTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:56:54.244Z" hostname="715e00c143c7" time="1.568">
   <properties/>
-  <testcase name="labelsAreEscapedForUiIdentityButPreservedInStoredMetadata()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.835"/>
-  <testcase name="copiedMetadataIsIndependentAndOrderingNeverReordersComputation()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.405"/>
-  <testcase name="creationProfileAndPresentationOptionsSurviveStrictRoundTrip()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.121"/>
-  <testcase name="historicalTopicsAndMissingFieldsMergeWithoutLosingAuthoredTextOrRewritingFile()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.016"/>
-  <testcase name="privateDraftAndAtomicApplyPreserveCleanProjectAndExistingPropertyDraft()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.06"/>
-  <testcase name="strictReaderRejectsMalformedNullUnknownVersionAndOversizedProfiles()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.202"/>
-  <testcase name="invalidDefaultApplyPreservesFileAndActiveMetadata()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.056"/>
-  <testcase name="failedReplacementPreservesDestinationAndCurrentProfile()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.027"/>
-  <testcase name="staleSessionCannotOverwriteAnotherAppliedProfile()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.038"/>
-  <testcase name="presentationCannotIntroduceUnknownIdsOptionsOrUnsafeClippedLabels()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.009"/>
+  <testcase name="labelsAreEscapedForUiIdentityButPreservedInStoredMetadata()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.684"/>
+  <testcase name="copiedMetadataIsIndependentAndOrderingNeverReordersComputation()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.392"/>
+  <testcase name="creationProfileAndPresentationOptionsSurviveStrictRoundTrip()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.111"/>
+  <testcase name="historicalTopicsAndMissingFieldsMergeWithoutLosingAuthoredTextOrRewritingFile()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.018"/>
+  <testcase name="privateDraftAndAtomicApplyPreserveCleanProjectAndExistingPropertyDraft()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.053"/>
+  <testcase name="strictReaderRejectsMalformedNullUnknownVersionAndOversizedProfiles()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.192"/>
+  <testcase name="invalidDefaultApplyPreservesFileAndActiveMetadata()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.043"/>
+  <testcase name="failedReplacementPreservesDestinationAndCurrentProfile()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.021"/>
+  <testcase name="staleSessionCannotOverwriteAnotherAppliedProfile()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.026"/>
+  <testcase name="presentationCannotIntroduceUnknownIdsOptionsOrUnsafeClippedLabels()" classname="io.voxelcreator.editor.AppMetadataTest" time="0.008"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

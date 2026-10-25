@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.ShortcutCaptureTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:26:40.016Z" hostname="715e00c143c7" time="0.004">
+<testsuite name="io.voxelcreator.editor.ShortcutCaptureTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:56:58.069Z" hostname="715e00c143c7" time="0.005">
   <properties/>
   <testcase name="escapeCancelsBothWaitingAndArmedStatesWithoutProducingBinding()" classname="io.voxelcreator.editor.ShortcutCaptureTest" time="0.001"/>
-  <testcase name="captureWaitsForReleaseAndConsumesOnlyOneFreshChord()" classname="io.voxelcreator.editor.ShortcutCaptureTest" time="0.001"/>
-  <testcase name="restartingOrLeavingCaptureDiscardsHeldKeyState()" classname="io.voxelcreator.editor.ShortcutCaptureTest" time="0.001"/>
+  <testcase name="captureWaitsForReleaseAndConsumesOnlyOneFreshChord()" classname="io.voxelcreator.editor.ShortcutCaptureTest" time="0.0"/>
+  <testcase name="restartingOrLeavingCaptureDiscardsHeldKeyState()" classname="io.voxelcreator.editor.ShortcutCaptureTest" time="0.002"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

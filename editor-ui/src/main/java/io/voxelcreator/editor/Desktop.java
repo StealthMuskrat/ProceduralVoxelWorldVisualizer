@@ -27,6 +27,7 @@ public final class Desktop extends Application {
   private ProfilePanel captures;
   private InputSettingsPanel inputSettings;
   private ApplicationSettingsPanel applicationSettings;
+  private ResourceFindPanel findPanel;
   private ThemePanel themePanel;
   private String smokeDiagnosticDocument;
   private long smokeDiagnosticEvent;
@@ -59,11 +60,6 @@ public final class Desktop extends Application {
   private boolean smokeExportDrawn;
   private final Map<UUID, ResourceImport.Choice> importChoices = new LinkedHashMap<>();
   private long importRevision = -1;
-  private ResourceSearchIndex searchIndex;
-  private long searchRevision = -1, searchChangedAt;
-  private String searchKind = "All", searchState = "All", searchKey = "";
-  private UUID findReference;
-  private List<ResourceSearchIndex.Hit> searchResults = List.of();
   private int frameCount = 0;
   private long preferenceSave = 0;
   private static String[] launchArgs = new String[0];
@@ -96,12 +92,11 @@ public final class Desktop extends Application {
     themePanel = new ThemePanel(state.user);
     properties = new PropertyPanel(state);
     resources = new ResourcePanel(state, properties);
+    findPanel = new ResourceFindPanel(state, properties);
     resources.findReferences =
         id -> {
-          findReference = id;
+          findPanel.references(id);
           find.set(true);
-          search.set("");
-          searchKey = "";
         };
     diagnostics =
         new DiagnosticsPanel(
@@ -235,6 +230,15 @@ public final class Desktop extends Application {
         System.out.println("RESOURCE_BROWSER_NATIVE_PASS");
         if (!smokeExportDrawn) throw new AssertionError("Export preview was not rendered");
         System.out.println("RESOURCE_EXPORT_PREVIEW_NATIVE_PASS");
+      }
+      if (runtimeFrame == 244) {
+        findPanel.smoke(true);
+        find.set(true);
+      }
+      if (runtimeFrame == 273) {
+        findPanel.smoke(false);
+        find.set(false);
+        System.out.println("UNIFIED_FIND_DESKTOP_NATIVE_PASS");
       }
       if (runtimeFrame == 462) {
         profiler.set(true);
@@ -723,88 +727,7 @@ public final class Desktop extends Application {
   }
 
   private void drawFind() {
-    if (!find.get()) return;
-    ImGui.setNextWindowSize(760, 560, ImGuiCond.FirstUseEver);
-    ImGui.begin("Find", find);
-    if (ImGui.inputText("ID, UUID, value or reference", search)) {
-      findReference = null;
-      searchChangedAt = System.nanoTime();
-    }
-    fields.choice(
-        "Kind",
-        searchKind,
-        List.of(
-            "All",
-            "noise2D",
-            "noise3D",
-            "folder",
-            "layer",
-            "operation",
-            "voxel",
-            "group",
-            "set",
-            "transform",
-            "processing",
-            "parameter",
-            "curve point"),
-        v -> {
-          searchKind = v;
-          searchKey = "";
-        });
-    fields.choice(
-        "State",
-        searchState,
-        List.of("All", "Enabled", "Disabled"),
-        v -> {
-          searchState = v;
-          searchKey = "";
-        });
-    if (findReference != null) {
-      ImGui.textDisabled("References to " + findReference);
-      if (ImGui.smallButton("Clear Reference Filter")) {
-        findReference = null;
-        searchKey = "";
-      }
-    }
-    boolean revisionChanged = searchRevision != state.revision;
-    if (revisionChanged || searchIndex == null) {
-      searchIndex = new ResourceSearchIndex(state.project());
-      searchRevision = state.revision;
-      searchKey = "";
-    }
-    String key = search.get() + "|" + searchKind + "|" + searchState + "|" + findReference;
-    if (!key.equals(searchKey)
-        && (revisionChanged
-            || searchKey.isEmpty()
-            || System.nanoTime() - searchChangedAt > 150_000_000L)) {
-      searchResults = searchIndex.search(search.get(), searchKind, searchState, findReference);
-      searchKey = key;
-    }
-    ImGui.text(searchResults.size() + " result(s)");
-    ImGui.beginChild("search-results", 0, 0, true);
-    var clipper = new ImGuiListClipper();
-    try {
-      clipper.begin(searchResults.size());
-      while (clipper.step())
-        for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
-          var result = searchResults.get(i);
-          if (ImGui.selectable(
-              result.kind()
-                  + " / "
-                  + result.label()
-                  + (result.enabled() ? "" : " [disabled]")
-                  + "###result"
-                  + result.uuid())) {
-            if (result.owner() != null) properties.goToControl(result.owner(), result.uuid());
-            else state.select(result.kind(), result.uuid());
-          }
-        }
-      clipper.end();
-    } finally {
-      clipper.destroy();
-    }
-    ImGui.endChild();
-    ImGui.end();
+    findPanel.draw(find);
   }
 
   private void drawSettings() {
@@ -1124,14 +1047,12 @@ public final class Desktop extends Application {
       }
       case "Find" -> {
         find.set(true);
-        findReference = null;
+        findPanel.clearReferences();
       }
       case "FindReferences" -> {
         if (state.selected != null) {
           find.set(true);
-          findReference = state.selected;
-          search.set("");
-          searchKey = "";
+          findPanel.references(state.selected);
         }
       }
       case "Validate" -> {

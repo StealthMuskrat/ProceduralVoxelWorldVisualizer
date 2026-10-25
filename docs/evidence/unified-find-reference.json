@@ -1,0 +1,16 @@
+{
+  "formatVersion" : 1,
+  "resources" : 1000,
+  "topRows" : 11,
+  "scrollRows" : 12,
+  "builds" : 1,
+  "queriesBeforeScroll" : 1,
+  "queriesAfterScroll" : 1,
+  "filteredRows" : 1,
+  "breadcrumb" : "noise2D / continent / mountains / needle",
+  "referenceCount" : 1,
+  "referencePointer" : "/noise2D/999/processing/0/inputs/linked",
+  "curvePoints" : 2,
+  "selectedPoint" : "9d2c6919-1084-4640-a404-de5412933bdb",
+  "sample" : 0.75
+}

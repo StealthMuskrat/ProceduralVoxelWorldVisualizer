@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.model.NumericDriverSettingsTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:26:55.502Z" hostname="715e00c143c7" time="0.107">
+<testsuite name="io.voxelcreator.model.NumericDriverSettingsTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:53:22.371Z" hostname="715e00c143c7" time="0.185">
   <properties/>
-  <testcase name="semanticValidationRejectsBadTargetsCombinationsRangesReferencesAndLimits()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.022"/>
-  <testcase name="atomicListInheritanceDistinguishesAbsentEmptyAndExplicitZero()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.068"/>
-  <testcase name="numericRowsCannotMasqueradeAsUnitProbabilityDrivers()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.004"/>
-  <testcase name="arbitraryMappedEndpointsClampAndInterpolateInEitherDirection()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.002"/>
-  <testcase name="unitProbabilityDriverRangeRemainsRestricted()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.004"/>
-  <testcase name="extremeFiniteEndpointsNeverProduceInfiniteInterpolation()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.003"/>
+  <testcase name="semanticValidationRejectsBadTargetsCombinationsRangesReferencesAndLimits()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.036"/>
+  <testcase name="atomicListInheritanceDistinguishesAbsentEmptyAndExplicitZero()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.122"/>
+  <testcase name="numericRowsCannotMasqueradeAsUnitProbabilityDrivers()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.007"/>
+  <testcase name="arbitraryMappedEndpointsClampAndInterpolateInEitherDirection()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.003"/>
+  <testcase name="unitProbabilityDriverRangeRemainsRestricted()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.006"/>
+  <testcase name="extremeFiniteEndpointsNeverProduceInfiniteInterpolation()" classname="io.voxelcreator.model.NumericDriverSettingsTest" time="0.004"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

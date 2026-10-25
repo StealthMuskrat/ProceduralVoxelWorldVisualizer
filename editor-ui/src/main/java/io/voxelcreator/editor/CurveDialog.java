@@ -42,6 +42,21 @@ public final class CurveDialog {
     }
   }
 
+  public boolean selectPoint(UUID id) {
+    var point = session.curve().points.stream().filter(p -> p.uuid.equals(id)).findFirst();
+    if (point.isEmpty()) return false;
+    selected.clear();
+    selected.add(id);
+    var c = session.curve();
+    panX = point.get().x - (c.min / 2 + c.max / 2);
+    panY = point.get().y - (c.displayMin / 2 + c.displayMax / 2);
+    return true;
+  }
+
+  Set<UUID> selectedPoints() {
+    return Set.copyOf(selected);
+  }
+
   public void selectAll() {
     selected.clear();
     session.curve().points.forEach(p -> selected.add(p.uuid));
