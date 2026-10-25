@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The field-calculus/distance-shape batch passed `clean test build dependencyNotices releaseJars` with **502 tests across 66 suites, no failures/errors/skips**, native workflows, independent engine-only consumers, Windows packaging/launcher smoke and byte-identical cross-platform JARs in [Actions run 40231322715](https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40231322715). Local schema-family and generated-contract checks also passed. These scoped checks do not certify full Windows 11 hardware or GUI acceptance. Earlier local observed toolchains include Temurin 25.0.4+7 and 25.0.5+8 x64.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The trace-explanation batch passed `clean test build dependencyNotices releaseJars` with **544 tests across 70 suites, no failures/errors/skips**, native workflows, engine-only consumers, Windows packaging/launcher smoke and byte-identical cross-platform JARs in [Actions run 40234954738](https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40234954738). Local schema-family and independent saved-trace checks also passed. These scoped checks do not certify full Windows 11 hardware or GUI acceptance. Earlier local observed toolchains include Temurin 25.0.4+7 and 25.0.5+8 x64.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -34,11 +34,11 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 | A26 failures/closure | PARTIAL | Generation/delivery policies, bounded fair priorities, overload/closure cleanup, global cache reclamation and protected user-managed policy tested; broader stress remains |
 | A27 2D viewport | PARTIAL | Engine image sampling and modes implemented; tile cache/UI acceptance remains |
 | A28 3D viewport | PARTIAL | Threshold, marching tetrahedra, points, ray-marched volume and X/Y/Z slices; numerical native volume probe; streamed threshold/point display implemented; volume/isosurface streaming remains |
-| A29 world inspector | PARTIAL | Exact stage pairs and four preview modes, removal ghosts, richer snapshot-correct trace/links; camera-driven stage/final streaming implemented; full GUI scenarios remain |
+| A29 world inspector | PARTIAL | Exact stage pairs and four preview modes, removal ghosts, bounded canonical noise explanations, actual comparisons/provenance and guarded snapshot-scoped control links; full GUI scenarios remain |
 | A30 bookmarks | PARTIAL | Independent coordinate lists, searchable clipped choices, owned Add/Rename, Update/Delete and tab-owned navigation; native mouse/text/Cancel/Undo probe added; full gesture/hardware matrix remains |
 | A31 rendering LOD | PARTIAL | Exact shell seams, majority/tie aggregation, nearest-AABB hysteresis, AO, frustum, packed arena uploads, indirect/fallback parity and pressure controls and bounded arena compaction tests; hardware/full GUI acceptance remains |
 | A32 appearance/workspace | PARTIAL | Theme/docking/scales, transactional shortcuts/application profiles and live theme contrast feedback implemented; full gesture/restart and DPI matrix remain |
-| A33 utilities | PARTIAL | Structured grouped logs, filters, validation results and notification actions; UUID source navigation tested; bounded profiler captures and exports implemented; broader trace/manual recovery and GPU timing scope remains |
+| A33 utilities | PARTIAL | Structured grouped logs/notifications/validation and shared retained trace view with guarded control links; bounded profiler captures/exports; full manual recovery and GPU timing remain |
 | A34 desktop JAR | PARTIAL | Linux and Windows Server native JAR smoke passed; complete Windows 11 GUI acceptance remains |
 | A35 Windows bundle | PARTIAL | Windows bundled runtime smoke and package passed; packaged launcher smoke passed in run 40047610767; full Windows 11 acceptance remains a separate gate |
 | A36 final delivery | PARTIAL | Source/build/tests/fixtures/docs/checksum packaging; full release gates remain |
@@ -48,7 +48,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 | Principal trees | Tests / checks |
 |---|---|
 | 0–4, 20 | EngineContractTest transactional persistence, validation, IDs; document and schema review |
-| 5–8 | MathContractTest expression inventory, noise adapter repetition, curve policies; TypedProcessingTest, FieldSamplingTest, FieldOperationsTest, CoordinateTransformTest, ExpressionPlanTest, CompilerOptimizationTest and SamplingBatchTest typed/lazy/prefix/folding/sharing/buffer contracts |
+| 5–8 | MathContractTest expression inventory, noise adapter repetition, curve policies; TypedProcessingTest, FieldSamplingTest, FieldOperationsTest, CoordinateTransformTest, ExpressionPlanTest, NoiseTraceTest, TraceExplanationTest, CompilerOptimizationTest and SamplingBatchTest typed/lazy/prefix/folding/sharing/buffer contracts |
 | 9–10 | EngineContractTest, WorldSettingsTest, WorldUseTest and WorldResourceTest: intervals, transformations, drivers, short-circuit gates, independent probability vectors, root/worker/stage invariance, imports and atomic replacement |
 | 11–12 | StorageContractTest, PaletteStorageTest and PackedArchiveTest: coordinates, dense oracle, coalescence, sparse 256³, primitive palettes, bulk replacement and independent v1/v2 binary vectors |
 | 13–14 | EngineContractTest async/contexts/backpressure; independent Example; StorageContractTest archives |
@@ -115,4 +115,4 @@ The typed-authoring batch implements the connected Properties workflows in [NOIS
 
 The sampled-calculus and distance-shape extension adds twelve dimension-aware operations, canonical control metadata and creation defaults. See [field operation semantics](FIELD_CALCULUS_AND_DISTANCE.md). All 38 new regressions, native numeric editing and Undo/Redo, portable engine-only vectors, generated contracts and cross-platform packaging passed after implementation; see [validation evidence](evidence/FIELD_OPERATIONS_VALIDATION.md). Full GUI/hardware acceptance remains separate.
 
-The trace-explanation extension adds bounded canonical noise observations, actual comparison/provenance records, one clipped Inspector/Logs view, bounded retained payloads and guarded UUID/control navigation. See [trace contracts](TRACE_EXPLANATIONS_AND_NAVIGATION.md). Final validation follows the complete implementation batch; full GUI/hardware certification remains separate.
+The trace-explanation extension adds bounded canonical noise observations, actual comparison/provenance records, one clipped Inspector/Logs view, bounded retained payloads and guarded UUID/control navigation. See [trace contracts](TRACE_EXPLANATIONS_AND_NAVIGATION.md). All 42 new regressions, native navigation/log workflows, portable engine-only replay and cross-platform packaging passed after implementation; see [trace evidence](evidence/TRACE_EXPLANATIONS_VALIDATION.md). Full GUI/hardware certification remains separate.

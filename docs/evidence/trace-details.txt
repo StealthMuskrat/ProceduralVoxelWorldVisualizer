@@ -1,0 +1,94 @@
+Coordinate BlockPos[x=2, y=0, z=3] | Final solid | 2 operations | snapshot revision 1 | Last deciding stage: layer / selected (SET)
+
+layer / selected
+Outcome: Selected
+Layer: layer
+Operation: selected / SET
+Primary field: 22.0
+Voxel state: EMPTY → solid
+Compare minY: 0.0 >= -8.0 : passed
+Compare maxY: 0.0 <= 8.0 : passed
+Compare threshold: 22.0 >= 10.0 : passed
+Selection: selected=true | gate=passed | previous-state predicate=passed
+Probability: 1.0 | deterministic draw=0.1315567822797441
+Sample coordinates: SampleCoordinates[x=2.0, y=0.0, z=3.0]
+Setting baseHeight: 0.0 | Layer default
+Setting heightScale: 64.0 | Layer default
+Setting threshold: 10.0 | Layer default
+Setting strength: 1.0 | Layer default
+Setting probability: 1.0 | Layer default
+Setting minY: -2147483648 | Layer default
+Setting maxY: 2147483647 | Layer default
+Setting axisX: "X" | Layer default
+Setting axisY: "Y" | Layer default
+Setting axisZ: "Z" | Layer default
+Setting scaleX: 1.0 | Layer default
+Setting scaleY: 1.0 | Layer default
+Setting scaleZ: 1.0 | Layer default
+Setting offsetX: 0.0 | Layer default
+Setting offsetY: 0.0 | Layer default
+Setting offsetZ: 0.0 | Layer default
+Setting samplingTransforms: [] | Layer default
+Setting seedOffset: 0 | Layer default
+Setting action: "SET" | Layer default
+Setting rounding: "FLOOR" | Layer default
+Setting typeSource: "FIXED" | Layer default
+Setting voxelTypeUuid: "a360a169-0529-412d-b50e-a00e54085549" | Layer default
+Setting typeIntervals: [] | Layer default
+Setting probabilityDriver: {"enabled":false,"noiseGeneratorUuid":null,"inputMin":0.0,"inputMax":1.0,"outputMin":0.0,"outputMax":1.0,"mapping":"LINEAR"} | Layer default
+Setting strengthDriver: {"enabled":false,"noiseGeneratorUuid":null,"inputMin":0.0,"inputMax":1.0,"outputMin":0.0,"outputMax":1.0,"mapping":"LINEAR"} | Layer default
+Setting parameterDrivers: [] | Layer default
+Setting voxelStatePredicate: {"kind":"ANY","reference":null,"children":[]} | Layer default
+Setting fieldGates: {"kind":"ALWAYS","comparison":"GE","threshold":0.0,"max":1.0,"includeMin":true,"includeMax":true,"probability":1.0,"seedOffset":0,"noiseGeneratorUuid":null,"children":[]} | Layer default
+Gate fieldGates: ALWAYS | value=null | passed=true | draw=null
+Noise TRANSFORM / translate: TRANSLATE Coordinates2D [3.0, 3.0] @ 2.0,0.0,3.0
+Noise SOURCE / field: CONSTANT Scalar [2.0] @ 3.0,0.0,3.0
+Noise PROCESSING / expression: EXPRESSION Scalar [11.0] @ 3.0,0.0,3.0
+Noise PROCESSING / multiply: MULTIPLY Scalar [22.0] @ 3.0,0.0,3.0
+Noise OUTPUT / field: OUTPUT Scalar [22.0] @ 2.0,0.0,3.0
+
+layer / rejected
+Outcome: Field interpretation rejected sample
+Layer: layer
+Operation: rejected / NO_CHANGE
+Primary field: 22.0
+Voxel state: solid → solid
+Compare minY: 0.0 >= -8.0 : passed
+Compare maxY: 0.0 <= 8.0 : passed
+Compare threshold: 22.0 >= 30.0 : rejected
+Selection: selected=false | gate=not reached | previous-state predicate=not reached
+Probability: 1.0 | deterministic draw=0.10238078856579214
+Sample coordinates: SampleCoordinates[x=2.0, y=0.0, z=3.0]
+Setting baseHeight: 0.0 | Layer default
+Setting heightScale: 64.0 | Layer default
+Setting threshold: 30.0 | Placement override
+Setting strength: 1.0 | Layer default
+Setting probability: 1.0 | Layer default
+Setting minY: -2147483648 | Layer default
+Setting maxY: 2147483647 | Layer default
+Setting axisX: "X" | Layer default
+Setting axisY: "Y" | Layer default
+Setting axisZ: "Z" | Layer default
+Setting scaleX: 1.0 | Layer default
+Setting scaleY: 1.0 | Layer default
+Setting scaleZ: 1.0 | Layer default
+Setting offsetX: 0.0 | Layer default
+Setting offsetY: 0.0 | Layer default
+Setting offsetZ: 0.0 | Layer default
+Setting samplingTransforms: [] | Layer default
+Setting seedOffset: 0 | Layer default
+Setting action: "SET" | Layer default
+Setting rounding: "FLOOR" | Layer default
+Setting typeSource: "FIXED" | Layer default
+Setting voxelTypeUuid: "a360a169-0529-412d-b50e-a00e54085549" | Layer default
+Setting typeIntervals: [] | Layer default
+Setting probabilityDriver: {"enabled":false,"noiseGeneratorUuid":null,"inputMin":0.0,"inputMax":1.0,"outputMin":0.0,"outputMax":1.0,"mapping":"LINEAR"} | Layer default
+Setting strengthDriver: {"enabled":false,"noiseGeneratorUuid":null,"inputMin":0.0,"inputMax":1.0,"outputMin":0.0,"outputMax":1.0,"mapping":"LINEAR"} | Layer default
+Setting parameterDrivers: [] | Layer default
+Setting voxelStatePredicate: {"kind":"ANY","reference":null,"children":[]} | Layer default
+Setting fieldGates: {"kind":"ALWAYS","comparison":"GE","threshold":0.0,"max":1.0,"includeMin":true,"includeMax":true,"probability":1.0,"seedOffset":0,"noiseGeneratorUuid":null,"children":[]} | Layer default
+Noise TRANSFORM / translate: TRANSLATE Coordinates2D [3.0, 3.0] @ 2.0,0.0,3.0
+Noise SOURCE / field: CONSTANT Scalar [2.0] @ 3.0,0.0,3.0
+Noise PROCESSING / expression: EXPRESSION Scalar [11.0] @ 3.0,0.0,3.0
+Noise PROCESSING / multiply: MULTIPLY Scalar [22.0] @ 3.0,0.0,3.0
+Noise OUTPUT / field: OUTPUT Scalar [22.0] @ 2.0,0.0,3.0

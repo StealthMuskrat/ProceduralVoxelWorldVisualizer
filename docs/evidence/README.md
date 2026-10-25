@@ -139,3 +139,5 @@ The bookmark/navigation batch passed 428 tests and both platform/native/package/
 The larger typed-authoring batch passed 464 tests and both platform/native/package/reproducibility jobs. See [NOISE_AUTHORING_VALIDATION.md](NOISE_AUTHORING_VALIDATION.md) and [noise-authoring-reference.json](noise-authoring-reference.json).
 
 The sampled-calculus/distance-shape batch passes 502 tests and platform CI, including 22 native production item details, actual filter-strength editing, private Apply/Undo/Redo and independent mathematical/saved-fixture consumers. See [field operation evidence](FIELD_OPERATIONS_VALIDATION.md) for scope, toolchain, raw reports and remaining acceptance limits.
+
+The trace-explanation batch passes 544 tests and platform CI, including canonical typed observations, actual comparisons/setting origins, bounded shared Inspector/Logs presentation, stale-source and draft guards, Unicode-safe text pages, portable engine-only replay and binary reproducibility. See [trace evidence](TRACE_EXPLANATIONS_VALIDATION.md) for raw reports, toolchains and remaining acceptance scope.

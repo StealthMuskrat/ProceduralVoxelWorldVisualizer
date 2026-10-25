@@ -1,0 +1,11 @@
+{
+  "guardedNavigation" : true,
+  "valueRows" : 11,
+  "filteredRows" : 1,
+  "worldValue" : 1,
+  "syntheticSteps" : 2000,
+  "logRows" : 3,
+  "primaryField" : 22.0,
+  "stepRows" : 7,
+  "formatVersion" : 1
+}
