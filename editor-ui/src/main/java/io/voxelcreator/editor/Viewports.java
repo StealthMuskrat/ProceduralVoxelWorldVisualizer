@@ -8,9 +8,9 @@ import imgui.type.*;
 import io.voxelcreator.api.*;
 import io.voxelcreator.core.*;
 import io.voxelcreator.model.*;
-import io.voxelcreator.model.ProjectData.*;
 import io.voxelcreator.model.BookmarkTransactions.Coordinates;
 import io.voxelcreator.model.BookmarkTransactions.Tab;
+import io.voxelcreator.model.ProjectData.*;
 import io.voxelcreator.render.*;
 import io.voxelcreator.storage.*;
 import java.util.*;
@@ -21,16 +21,20 @@ import org.joml.Vector3d;
 public final class Viewports implements AutoCloseable {
   private final EditorState state;
   private final PropertyPanel properties;
+  private TracePanel tracePanel;
+  private TraceSnapshot traceSnapshot;
+
+  public void tracePanel(TracePanel panel) {
+    tracePanel = panel;
+  }
+
   private final long handle;
   private final View[] views = {new View(0), new View(1), new View(2)};
   private final UiFields fields = new UiFields();
   private int active = 0;
   private int smokeTab = -1;
   private boolean paused = false;
-  private GenerationTrace trace;
-  private long traceSerial = 0, traceRevision = -1;
-  private Map<Integer, String> traceNames = Map.of();
-  private Map<Integer, UUID> traceTypes = Map.of();
+  private long traceSerial = 0;
   private final ImBoolean inspector = new ImBoolean(false);
   private final int[] inspect = {0, 0, 0};
   private final BookmarkPanel bookmarkPanel;
@@ -230,24 +234,30 @@ public final class Viewports implements AutoCloseable {
     this.state = state;
     this.properties = properties;
     this.handle = handle;
-    bookmarkPanel = new BookmarkPanel(state, new BookmarkPanel.Navigation() {
-      @Override
-      public Coordinates current(Tab tab) {
-        var c = center(views[tab.ordinal()]);
-        return BookmarkTransactions.capture(tab, c.x, c.y, c.z);
-      }
+    bookmarkPanel =
+        new BookmarkPanel(
+            state,
+            new BookmarkPanel.Navigation() {
+              @Override
+              public Coordinates current(Tab tab) {
+                var c = center(views[tab.ordinal()]);
+                return BookmarkTransactions.capture(tab, c.x, c.y, c.z);
+              }
 
-      @Override
-      public Coordinates picked(Tab tab) {
-        return views[tab.ordinal()].pickedBookmark;
-      }
+              @Override
+              public Coordinates picked(Tab tab) {
+                return views[tab.ordinal()].pickedBookmark;
+              }
 
-      @Override
-      public void teleport(Tab tab, Coordinates coordinates) {
-        Viewports.this.teleport(views[tab.ordinal()], coordinates.x(),
-            coordinates.y() == null ? 0 : coordinates.y(), coordinates.z());
-      }
-    });
+              @Override
+              public void teleport(Tab tab, Coordinates coordinates) {
+                Viewports.this.teleport(
+                    views[tab.ordinal()],
+                    coordinates.x(),
+                    coordinates.y() == null ? 0 : coordinates.y(),
+                    coordinates.z());
+              }
+            });
     for (var v : views) v.size = state.user.visualization.previewSize;
   }
 
@@ -660,10 +670,11 @@ public final class Viewports implements AutoCloseable {
     }
 
     var io = ImGui.getIO();
-    if (hovered && (ImGui.isMouseClicked(1)
-        || ImGui.isMouseReleased(0) && Math.abs(ImGui.getMouseDragDeltaX(0)) < 3
-            && Math.abs(ImGui.getMouseDragDeltaY(0)) < 3))
-      rememberPicked(v, px, py, w, h);
+    if (hovered
+        && (ImGui.isMouseClicked(1)
+            || ImGui.isMouseReleased(0)
+                && Math.abs(ImGui.getMouseDragDeltaX(0)) < 3
+                && Math.abs(ImGui.getMouseDragDeltaY(0)) < 3)) rememberPicked(v, px, py, w, h);
     if (ImGui.beginPopupContextItem("viewport-context")) {
       if (v.kind == 0) {
         for (String mode : List.of("Grayscale", "Heatmap", "Contour", "Threshold", "Histogram"))
@@ -1418,12 +1429,19 @@ public final class Viewports implements AutoCloseable {
   private Vector3d center(View v) {
     if (v.kind == 0) return new Vector3d(v.panX, 0, v.panZ);
     if (v.kind == 1 && v.mode.equals("Slices"))
-      return new Vector3d(v.slicePlane.x(v.slicePlane == SlicePlane.X ? v.panY : v.panX,
-              v.slicePlane == SlicePlane.Z ? v.panY : v.panZ, v.slice),
-          v.slicePlane.y(v.slicePlane == SlicePlane.X ? v.panY : v.panX,
-              v.slicePlane == SlicePlane.Z ? v.panY : v.panZ, v.slice),
-          v.slicePlane.z(v.slicePlane == SlicePlane.X ? v.panY : v.panX,
-              v.slicePlane == SlicePlane.Z ? v.panY : v.panZ, v.slice));
+      return new Vector3d(
+          v.slicePlane.x(
+              v.slicePlane == SlicePlane.X ? v.panY : v.panX,
+              v.slicePlane == SlicePlane.Z ? v.panY : v.panZ,
+              v.slice),
+          v.slicePlane.y(
+              v.slicePlane == SlicePlane.X ? v.panY : v.panX,
+              v.slicePlane == SlicePlane.Z ? v.panY : v.panZ,
+              v.slice),
+          v.slicePlane.z(
+              v.slicePlane == SlicePlane.X ? v.panY : v.panX,
+              v.slicePlane == SlicePlane.Z ? v.panY : v.panZ,
+              v.slice));
     return v.camera.flying ? new Vector3d(v.camera.position) : new Vector3d(v.camera.focus);
   }
 
@@ -1436,13 +1454,19 @@ public final class Viewports implements AutoCloseable {
         v.pickedBookmark = BookmarkTransactions.capture(Tab.NOISE_2D, x, 0, z);
       } else if (v.kind == 1 && v.mode.equals("Slices") && v.image) {
         var plane = v.displayedSlicePlane;
-        double u = (plane == SlicePlane.X ? v.origin.y : v.origin.x)
-                + (io.getMousePosX() - px) / width * v.size * v.displayedStep,
-            vertical = (plane == SlicePlane.Z ? v.origin.y : v.origin.z)
-                + (io.getMousePosY() - py) / height * v.size * v.displayedStep;
-        v.pickedBookmark = BookmarkTransactions.capture(Tab.NOISE_3D,
-            plane.x(u, vertical, v.displayedSlice), plane.y(u, vertical, v.displayedSlice),
-            plane.z(u, vertical, v.displayedSlice));
+        double
+            u =
+                (plane == SlicePlane.X ? v.origin.y : v.origin.x)
+                    + (io.getMousePosX() - px) / width * v.size * v.displayedStep,
+            vertical =
+                (plane == SlicePlane.Z ? v.origin.y : v.origin.z)
+                    + (io.getMousePosY() - py) / height * v.size * v.displayedStep;
+        v.pickedBookmark =
+            BookmarkTransactions.capture(
+                Tab.NOISE_3D,
+                plane.x(u, vertical, v.displayedSlice),
+                plane.y(u, vertical, v.displayedSlice),
+                plane.z(u, vertical, v.displayedSlice));
       }
     } catch (IllegalArgumentException failure) {
       v.pickedBookmark = null;
@@ -1536,21 +1560,8 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void acceptTrace(GenerationTrace result, ProjectData snapshot, long revision) {
-    trace = result;
-    traceRevision = revision;
-    var names = new HashMap<Integer, String>();
-    var types = new HashMap<Integer, UUID>();
-    names.put(0, "EMPTY");
-    for (int i = 0; i < snapshot.voxelTypes.size(); i++) {
-      names.put(i + 1, snapshot.voxelTypes.get(i).id);
-      types.put(i + 1, snapshot.voxelTypes.get(i).uuid);
-    }
-    traceNames = Map.copyOf(names);
-    traceTypes = Map.copyOf(types);
-  }
-
-  private static String outcome(Boolean value) {
-    return value == null ? "not reached" : value ? "passed" : "rejected";
+    traceSnapshot = new TraceSnapshot(snapshot, revision, result);
+    state.publishTrace(traceSnapshot);
   }
 
   private void drawInspector() {
@@ -1582,124 +1593,7 @@ public final class Viewports implements AutoCloseable {
         state.notify("Warning", "Inspector queue is full");
       }
     }
-    if (trace != null) {
-      ImGui.text("Coordinate: " + trace.position());
-      String semantic = traceNames.getOrDefault(trace.finalType(), "Unknown snapshot type");
-      ImGui.text("Final: " + semantic + "  Runtime ID " + trace.finalType());
-      if (traceRevision != state.revision)
-        ImGui.textWrapped(
-            "! The project changed after this trace. Retrace to inspect current generation.");
-      var deciding =
-          trace.steps().stream()
-              .filter(step -> !step.action().equals("NO_CHANGE"))
-              .reduce((a, b) -> b);
-      deciding.ifPresent(
-          step ->
-              ImGui.textWrapped(
-                  "Last deciding stage: "
-                      + step.layerId()
-                      + " / "
-                      + step.operationId()
-                      + " ("
-                      + step.action()
-                      + ")"));
-      UUID finalType = traceTypes.get(trace.finalType());
-      if (finalType != null && ImGui.button("Go To Voxel Type")) state.select("voxel", finalType);
-      for (var step : trace.steps())
-        if (ImGui.treeNode(step.layerId() + " / " + step.operationId() + "  " + step.action())) {
-          ImGui.text("Field: " + (Double.isNaN(step.field()) ? "not sampled" : step.field()));
-          ImGui.text(
-              "Previous: "
-                  + traceNames.getOrDefault(step.previous(), "?")
-                  + " -> "
-                  + traceNames.getOrDefault(step.result(), "?"));
-          if (step.details() != null) {
-            var details = step.details();
-            ImGui.text(
-                "Selected: "
-                    + details.selected()
-                    + " | Gate: "
-                    + outcome(details.gatePassed())
-                    + " | Previous-state predicate: "
-                    + outcome(details.predicatePassed()));
-            ImGui.text(
-                "Probability "
-                    + details.probability()
-                    + "; deterministic draw "
-                    + details.random());
-            if (details.sampleCoordinates() != null)
-              ImGui.textWrapped("Sample coordinates: " + details.sampleCoordinates());
-            if (details.matchedInterval() != null)
-              ImGui.text(
-                  "Type interval "
-                      + (details.matchedInterval() + 1)
-                      + " -> "
-                      + traceNames.getOrDefault(details.candidateType(), "Unknown snapshot type"));
-            for (var driver : details.drivers())
-              ImGui.textWrapped(
-                  driver.property()
-                      + " driver: sample="
-                      + driver.sample()
-                      + ", mapped="
-                      + driver.mapped()
-                      + ", constant="
-                      + driver.constant()
-                      + ", effective="
-                      + driver.effective());
-            for (var parameter : details.parameters())
-              ImGui.textWrapped(
-                  "Parameter row "
-                      + (parameter.row() + 1)
-                      + " "
-                      + AppMetadata.settingLabel(parameter.destination())
-                      + " "
-                      + parameter.combination()
-                      + ": sample="
-                      + parameter.sample()
-                      + ", mapped="
-                      + parameter.mapped()
-                      + ", previous="
-                      + parameter.previous()
-                      + ", effective="
-                      + parameter.effective());
-            if (ImGui.treeNode("Effective values")) {
-              details
-                  .effectiveSettings()
-                  .forEach((k, value) -> ImGui.textWrapped(k + " = " + value));
-              ImGui.treePop();
-            }
-            if (ImGui.treeNode("Field gates (executed branches)")) {
-              for (var gate : details.gates())
-                ImGui.textWrapped(
-                    gate.path()
-                        + " "
-                        + gate.kind()
-                        + " value="
-                        + (gate.value() == null ? "not sampled" : gate.value())
-                        + " passed="
-                        + gate.passed()
-                        + (gate.random() == null ? "" : " draw=" + gate.random()));
-              ImGui.treePop();
-            }
-          }
-          ImGui.textWrapped(step.reason());
-          if (ImGui.button("Go To Layer")) state.select("layer", step.layerUuid());
-          ImGui.sameLine();
-          if (ImGui.button("Go To Operation")) {
-            state.select("operation", step.operationUuid());
-          }
-          ImGui.sameLine();
-          if (ImGui.button("Go To Resource")) {
-            var resource = EditorState.find(state.project(), step.noiseUuid());
-            if (resource instanceof Noise n) state.select("noise" + n.dimension + "D", n.uuid);
-          }
-          if (ImGui.treeNode("Resolved setting sources")) {
-            step.settingsSources().forEach((k, value) -> ImGui.textWrapped(k + ": " + value));
-            ImGui.treePop();
-          }
-          ImGui.treePop();
-        }
-    }
+    if (traceSnapshot != null && tracePanel != null) tracePanel.draw(traceSnapshot);
     ImGui.end();
   }
 

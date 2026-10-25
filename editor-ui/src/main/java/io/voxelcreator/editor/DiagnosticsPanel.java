@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 public final class DiagnosticsPanel {
   private final EditorState state;
   private final Consumer<EditorEvents.Target> navigate;
+  private TracePanel tracePanel;
   private final ImString filter = new ImString(512);
   private final UiFields fields = new UiFields();
   private String severity = "All", subsystem = "All";
@@ -21,6 +22,10 @@ public final class DiagnosticsPanel {
   public DiagnosticsPanel(EditorState state, Consumer<EditorEvents.Target> navigate) {
     this.state = state;
     this.navigate = navigate;
+  }
+
+  public void tracePanel(TracePanel panel) {
+    tracePanel = panel;
   }
 
   public void reveal(long id) {
@@ -137,6 +142,17 @@ public final class DiagnosticsPanel {
         if (ImGui.button("Dismiss Notification")) state.events.dismiss(e.id());
       }
     }
+    var trace = state.traces.get(e.id());
+    if (tracePanel != null && trace.isPresent()) {
+      ImGui.beginChild("retained-trace", 0, 0, true);
+      tracePanel.draw(trace.get());
+      ImGui.endChild();
+      return;
+    }
+    if (e.code().equals("GENERATION_TRACE"))
+      ImGui.textWrapped(
+          "Detailed trace payload is no longer retained. Trace the coordinate again for source"
+              + " links.");
     ImGui.beginChild("event-details", 0, 0, true);
     ThemeStyle.text("Information", e.code() + " / " + e.subsystem());
     if (e.actionRequired())

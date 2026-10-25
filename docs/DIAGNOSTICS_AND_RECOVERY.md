@@ -18,7 +18,7 @@ CompilationFailure is an IllegalArgumentException with diagnostic() and the orig
 
 Go To Problem uses stored UUIDs, scoped to the originating project UUID. It never resolves an old array index against a newer document. It becomes unavailable when the resource/control is deleted, belongs to a different project, or is absent from the current selected draft. For a current draft, navigation preserves the draft object and provisional text; it collapses a multi-selection to the target resource without committing or creating undo history. Noise items expand and scroll using the existing control-row navigation, with a visible parameter/path location banner. Project-bound diagnostics without a resource can open Project Settings. Global/runtime problems without a supported destination retain details without an inert navigation button.
 
-Opening a problem in another resource follows the existing resource-selection draft lifecycle. This extension does not add a cross-resource unsaved-draft workspace or promise exact keyboard focus for every parameter widget. Search breadth, full trace-to-control routing, detailed profiler captures and the complete manual GUI acceptance matrix remain separate work.
+Source actions in Inspector, Logs, Notifications and Profiler now share Apply/Discard/Cancel draft protection. Trace targets retain snapshot fingerprints, resource/item UUIDs and logical setting keys; changed targets require a retrace. See [trace explanations](TRACE_EXPLANATIONS_AND_NAVIGATION.md). Full expression-input routing and the complete manual GUI acceptance matrix remain separate work.
 
 ## Validation evidence
 

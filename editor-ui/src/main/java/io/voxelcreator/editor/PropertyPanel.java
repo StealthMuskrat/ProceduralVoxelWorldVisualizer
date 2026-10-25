@@ -1577,13 +1577,12 @@ public final class PropertyPanel {
     Layer layer = EditorState.layerFor(state.project(), op.uuid);
     if (layer == null) return;
     ImGui.text("Layer: " + layer.id);
-    if (ImGui.button("Go To Source") && op.noiseGeneratorUuid != null) {
-      var obj = EditorState.find(state.project(), op.noiseGeneratorUuid);
-      if (obj instanceof Noise n) state.select("noise" + n.dimension + "D", n.uuid);
-    }
+    if (ImGui.button("Go To Source") && op.noiseGeneratorUuid != null)
+      openReference(op.noiseGeneratorUuid);
     ImGui.separator();
     for (String key : SettingsResolver.PROPERTIES) {
       ImGui.pushID(key);
+      revealSetting(key);
       boolean overridden = op.overrides.containsKey(key);
       f.bool(
           "Override " + AppMetadata.settingLabel(key),
@@ -1636,6 +1635,18 @@ public final class PropertyPanel {
     return value.asText();
   }
 
+  private void revealSetting(String key) {
+    if (navigationTarget != null
+        && Objects.equals(navigationTarget.resource(), state.selected)
+        && Objects.equals(navigationTarget.parameter(), "settings/" + key)) {
+      if (searchScroll) {
+        ImGui.setScrollHereY(.25f);
+        searchScroll = false;
+      }
+      ThemeStyle.text("Information", "Source control: " + AppMetadata.settingLabel(key));
+    }
+  }
+
   private void settings(Settings s) {
     for (String key : SettingsResolver.PROPERTIES) {
       ImGui.pushID(key);
@@ -1645,6 +1656,19 @@ public final class PropertyPanel {
   }
 
   private void editSetting(Settings s, String key) {
+    revealSetting(key);
+    if (navigationTarget != null
+        && Objects.equals(navigationTarget.resource(), state.selected)
+        && Objects.equals(navigationTarget.parameter(), "settings/" + key)
+        && Set.of(
+                "samplingTransforms",
+                "parameterDrivers",
+                "typeIntervals",
+                "probabilityDriver",
+                "strengthDriver",
+                "voxelStatePredicate",
+                "fieldGates")
+            .contains(key)) ImGui.setNextItemOpen(true, ImGuiCond.Always);
     try {
       var field = Settings.class.getField(key);
       if (field.getType() == double.class)

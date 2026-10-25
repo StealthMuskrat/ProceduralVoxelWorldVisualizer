@@ -67,6 +67,15 @@ public final class CompiledProject {
         seed);
   }
 
+  /**
+   * Low-volume diagnostic replay; does not populate a world/chunk cache or mutate this snapshot.
+   */
+  public io.voxelcreator.core.NoiseTrace explainNoise(
+      UUID id, long seed, double x, double y, double z, int limit) {
+    find(id);
+    return new NoiseCompiler(snapshot, seed).explain(id, x, y, z, limit);
+  }
+
   private Noise find(UUID uuid) {
     return java.util.stream.Stream.concat(snapshot.noise2D.stream(), snapshot.noise3D.stream())
         .filter(n -> n.uuid.equals(uuid))

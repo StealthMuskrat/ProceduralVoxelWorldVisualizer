@@ -100,6 +100,11 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.FieldOperationsConsumer build/field-operations/field-operations-project.json 37.5 build/field-operations
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.FieldOperationsConsumer fixtures/field-operations.json 57
           python scripts/verify_field_operations.py build/field-operations
+      - name: Trace explanations and guarded native navigation
+        run: |
+          java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.TraceWorkflowProbe build/trace-workflow
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.TraceConsumer build/trace-workflow/trace-project.json
+          python scripts/verify_trace_workflow.py build/trace-workflow
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -122,6 +127,7 @@ jobs:
             build/bookmark-probe/
             build/noise-authoring-probe/
             build/field-operations/
+            build/trace-workflow/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -293,6 +299,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_field_operations.py build/field-operations
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows trace explanations and guarded native navigation
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.TraceWorkflowProbe build/trace-workflow
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.TraceConsumer build/trace-workflow/trace-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_trace_workflow.py build/trace-workflow
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -339,6 +354,7 @@ jobs:
             build/bookmark-probe/
             build/noise-authoring-probe/
             build/field-operations/
+            build/trace-workflow/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/

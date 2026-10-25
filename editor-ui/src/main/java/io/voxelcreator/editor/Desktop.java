@@ -86,6 +86,8 @@ public final class Desktop extends Application {
     applyTheme();
   }
 
+  private GuardedNavigation sourceNavigation;
+
   @Override
   protected void preRun() {
     inputSettings = new InputSettingsPanel(state.user);
@@ -100,22 +102,24 @@ public final class Desktop extends Application {
           find.set(true);
         };
     properties.findReferences = resources.findReferences;
+    sourceNavigation = new GuardedNavigation(state, properties);
     diagnostics =
         new DiagnosticsPanel(
             state,
             target -> {
               if (!state.canNavigate(target)) return;
               if (target.settings()) openSettings("Project Settings");
-              else if (properties.goToProblem(target)) ImGui.setWindowFocus("Properties");
+              else sourceNavigation.request(target);
             });
     captures =
         new ProfilePanel(
             state,
             target -> {
-              if (state.canNavigate(target) && properties.goToProblem(target))
-                ImGui.setWindowFocus("Properties");
+              if (state.canNavigate(target)) sourceNavigation.request(target);
             });
     views = new Viewports(state, properties, handle);
+    views.tracePanel(new TracePanel(state, sourceNavigation));
+    diagnostics.tracePanel(new TracePanel(state, sourceNavigation));
     glfwSetWindowCloseCallback(
         handle,
         window -> {
@@ -173,6 +177,7 @@ public final class Desktop extends Application {
     resources.draw();
     properties.draw();
     views.draw();
+    sourceNavigation.draw();
     auxiliary();
     fileDialogs();
     guardDialog();

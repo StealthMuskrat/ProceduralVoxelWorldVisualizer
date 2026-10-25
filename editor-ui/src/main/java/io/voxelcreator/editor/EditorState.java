@@ -36,6 +36,21 @@ public final class EditorState implements AutoCloseable {
   public final Set<UUID> multiSelection = new LinkedHashSet<>();
   private String selectionParent = "";
   public final EditorEvents events = new EditorEvents();
+  public final TraceHistory traces = new TraceHistory();
+
+  public long publishTrace(TraceSnapshot trace) {
+    var entry =
+        events.publish(
+            "GENERATION_TRACE",
+            Diagnostic.Severity.INFORMATION,
+            EditorEvents.Subsystem.GENERATION,
+            trace.summary(),
+            new EditorEvents.Target(trace.project(), null, null, null, "", false),
+            false);
+    if (!traces.put(entry.id(), trace))
+      status = "Trace is too large for retained log details; Inspector still shows the result.";
+    return entry.id();
+  }
 
   public EditorState() {
     this(UserConfig.load(), true);
@@ -237,6 +252,7 @@ public final class EditorState implements AutoCloseable {
   }
 
   public void newSession() {
+    traces.clear();
     document.newProject();
     selected = null;
     draft = null;
@@ -255,6 +271,7 @@ public final class EditorState implements AutoCloseable {
 
   @Override
   public void close() {
+    traces.clear();
     background.shutdownNow();
     engine.close();
     if (persistPreferences) user.save();

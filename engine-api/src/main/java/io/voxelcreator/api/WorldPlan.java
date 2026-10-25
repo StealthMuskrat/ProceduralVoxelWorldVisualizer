@@ -28,7 +28,9 @@ final class WorldPlan {
       Map<String, String> sources,
       WorldSampling sampling,
       List<Integer> intervalTargets,
-      List<NumericUse> numeric) {
+      List<NumericUse> numeric,
+      NoiseCompiler compiler,
+      Map<String, GenerationTrace.SettingSource> settingTargets) {
     boolean columnCached() {
       return dimension == 2 && sampling.columnInvariant();
     }
@@ -88,6 +90,13 @@ final class WorldPlan {
         var sources = new LinkedHashMap<String, String>();
         for (String key : SettingsResolver.PROPERTIES)
           sources.put(key, SettingsResolver.source(op, key));
+        var targets = new LinkedHashMap<String, GenerationTrace.SettingSource>();
+        for (String key : SettingsResolver.PROPERTIES) {
+          boolean override = op.overrides.containsKey(key);
+          targets.put(
+              key,
+              new GenerationTrace.SettingSource(override ? op.uuid : layer.uuid, key, override));
+        }
         compiled.add(
             new Op(
                 layer.uuid,
@@ -108,7 +117,9 @@ final class WorldPlan {
                 Map.copyOf(sources),
                 new WorldSampling(s),
                 s.typeIntervals.stream().map(r -> registry.runtimeId(r.voxelTypeUuid)).toList(),
-                numericUses(s, op.interpretation, compiler)));
+                numericUses(s, op.interpretation, compiler),
+                compiler,
+                Map.copyOf(targets)));
       }
       stageList.add(
           new GenerationStage(
@@ -372,6 +383,7 @@ final class WorldPlan {
     if (y < minY || y > maxY) return 0;
     int state = 0;
     int index = 0;
+    int traceRemaining = 1024;
     for (Op op : operations) {
       if (index >= limit) break;
       long profileStamp = profile == null ? 0 : profile.beginOperation();
@@ -387,6 +399,16 @@ final class WorldPlan {
         var driverTrace = trace == null ? null : new ArrayList<GenerationTrace.DriverEvaluation>();
         var parameterTrace =
             trace == null ? null : new ArrayList<GenerationTrace.ParameterEvaluation>();
+        NoiseTrace primaryTrace = null;
+        var comparisons = trace == null ? null : new ArrayList<GenerationTrace.Comparison>();
+        if (comparisons != null) {
+          comparisons.add(
+              new GenerationTrace.Comparison(
+                  "minY", y, ">=", Math.max(minY, s.minY), y >= Math.max(minY, s.minY)));
+          comparisons.add(
+              new GenerationTrace.Comparison(
+                  "maxY", y, "<=", Math.min(maxY, s.maxY), y <= Math.min(maxY, s.maxY)));
+        }
         int target = op.target, matchedInterval = -1;
         boolean choose = true;
         if (y < Math.max(minY, s.minY) || y > Math.min(maxY, s.maxY)) {
@@ -394,7 +416,15 @@ final class WorldPlan {
           reason = "Outside effective Y interval";
         }
         if (choose) {
-          f = cached != null && cached[index] != null ? cached[index][at] : field(op, x, y, z);
+          if (trace != null) {
+            var location = op.sampling.coordinates(x, y, z, op.dimension);
+            primaryTrace =
+                op.compiler.explain(
+                    op.noiseUuid, location.x(), location.y(), location.z(), traceRemaining);
+            traceRemaining -= primaryTrace.events().size();
+            f = primaryTrace.value();
+          } else
+            f = cached != null && cached[index] != null ? cached[index][at] : field(op, x, y, z);
           double threshold = s.threshold, baseHeight = s.baseHeight, heightScale = s.heightScale;
           if (!op.numeric.isEmpty()) {
             var resolved = numericValues(op, f, x, y, z, parameterTrace);
@@ -422,6 +452,21 @@ final class WorldPlan {
                 case "TYPE_SELECTION", "ALL" -> true;
                 default -> throw new AssertionError();
               };
+          if (comparisons != null) {
+            if (op.interpretation.startsWith("HEIGHT"))
+              comparisons.add(
+                  new GenerationTrace.Comparison(
+                      "baseHeight",
+                      y,
+                      op.interpretation.equals("HEIGHT_BELOW")
+                          ? "<="
+                          : op.interpretation.equals("HEIGHT_ABOVE") ? ">=" : "==",
+                      rounded,
+                      choose));
+            else if (Set.of("SELECTION", "DENSITY").contains(op.interpretation))
+              comparisons.add(
+                  new GenerationTrace.Comparison("threshold", f, ">=", threshold, choose));
+          }
           if (!choose) reason = "Field interpretation rejected sample";
           if (choose && s.typeSource.equals("INTERVALS")) {
             matchedInterval = WorldSemantics.interval(s.typeIntervals, f);
@@ -494,7 +539,10 @@ final class WorldPlan {
                       matchedInterval < 0 ? null : matchedInterval,
                       target,
                       List.copyOf(driverTrace),
-                      List.copyOf(parameterTrace))));
+                      List.copyOf(parameterTrace),
+                      op.settingTargets,
+                      List.copyOf(comparisons),
+                      primaryTrace)));
         index++;
         profileOutcome = Profiler.Outcome.SUCCESS;
       } finally {

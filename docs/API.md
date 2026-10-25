@@ -129,3 +129,11 @@ Resource hierarchy extension (project format 2): `Project.rootOrder` is an optio
 `ProcessingRegistry.create(key, id, dimension)` validates dimension eligibility and creates the matching result signature. The existing two-argument factory retains its 3D default. `ProcessingExtensions.DETAILS` exposes immutable dimensions, per-dimension result types, control signatures and descriptions for GRADIENT, LAPLACIAN, MIN_FILTER, MAX_FILTER, MEDIAN_FILTER, PLANE, CAPSULE, CYLINDER, TORUS, ROUNDED_BOX, SMOOTH_INTERSECTION and SMOOTH_SUBTRACTION. Numeric values and Coordinates are distinct; gradients require an explicit Scalar consumer for final output.
 
 See [field semantics](FIELD_CALCULUS_AND_DISTANCE.md) for exact stencils, shape formulas, median order, bounded scratch/work, parameter validation and compatibility. Format 2 remains unchanged; processing registry version 3 describes the added signatures.
+
+## Noise explanations and trace provenance
+
+`NoiseCompiler.explain(uuid,x,y,z[,limit])` returns an owned `NoiseTrace` with the exact sampled value, immutable typed events and omitted-observation count. Limits are 0..4096 (default 256); limits affect retention, never computation. `CompiledProject.explainNoise(uuid,seed,x,y,z,limit)` exposes the same low-volume diagnostic path. Ordinary compiled sampling has no observation hooks.
+
+`GenerationTrace.Details` adds `settingTargets()` (actual layer/override UUID and logical key), `comparisons()` (effective reached comparisons) and `primaryField()` (bounded canonical primary-noise observations). Existing 7-, 11- and 12-argument constructors supply empty metadata. Record-pattern/reflection clients must migrate. World trace shares a 1024-event allowance across primary samples; other sampled fields retain their existing gate/driver/parameter values and UUID links. Top-level trace/step collections are now defensively copied.
+
+See [trace semantics and limits](TRACE_EXPLANATIONS_AND_NAVIGATION.md) and `registries/trace-navigation.json`. Project/user/app schema shapes remain unchanged.

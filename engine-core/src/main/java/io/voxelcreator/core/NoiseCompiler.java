@@ -13,6 +13,8 @@ import java.util.*;
 public final class NoiseCompiler {
   private final ProjectData project;
   private final long runtimeSeed;
+  private final boolean tracing;
+  private final ThreadLocal<NoiseTrace.Capture> capture = new ThreadLocal<>();
   private final Map<UUID, Noise> resources = new LinkedHashMap<>();
   private final Map<UUID, Field> compiled = new HashMap<>();
   private final Set<UUID> building = new LinkedHashSet<>();
@@ -72,10 +74,50 @@ public final class NoiseCompiler {
   public static final long MAX_SAMPLE_WORK = 1_000_000;
 
   public NoiseCompiler(ProjectData data, long seed) {
+    this(data, seed, false);
+  }
+
+  private NoiseCompiler(ProjectData data, long seed, boolean tracing) {
+    this.tracing = tracing;
     project = ProjectIO.copy(data);
     runtimeSeed = seed;
     for (var n : project.noise2D) resources.put(n.uuid, n);
     for (var n : project.noise3D) resources.put(n.uuid, n);
+  }
+
+  /** Explicit diagnostic replay. Ordinary compiled samplers contain no capture hooks. */
+  public NoiseTrace explain(UUID uuid, double x, double y, double z) {
+    return explain(uuid, x, y, z, NoiseTrace.DEFAULT_LIMIT);
+  }
+
+  public NoiseTrace explain(UUID uuid, double x, double y, double z, int limit) {
+    if (limit < 0 || limit > NoiseTrace.MAX_LIMIT)
+      throw new IllegalArgumentException("Trace event limit 0.." + NoiseTrace.MAX_LIMIT);
+    var replay = new NoiseCompiler(project, runtimeSeed, true);
+    var field = replay.compile(uuid);
+    var observations = new NoiseTrace.Capture(limit);
+    replay.capture.set(observations);
+    try {
+      double value = field.sample(x, y, z);
+      return new NoiseTrace(uuid, x, y, z, value, observations.events, observations.omitted);
+    } finally {
+      replay.capture.remove();
+    }
+  }
+
+  private void observe(
+      UUID resource,
+      UUID item,
+      String id,
+      String phase,
+      String kind,
+      String type,
+      double x,
+      double y,
+      double z,
+      double... values) {
+    var current = capture.get();
+    if (current != null) current.add(resource, item, id, phase, kind, type, x, y, z, values);
   }
 
   public Field compile(UUID uuid) {
@@ -219,6 +261,15 @@ public final class NoiseCompiler {
       } catch (RuntimeException failure) {
         throw new CompilationFailure(n.uuid, p.uuid, "value", failure);
       }
+    }
+    if (tracing) {
+      Field raw = source;
+      source =
+          (x, y, z) -> {
+            double value = raw.sample(x, y, z);
+            observe(n.uuid, null, n.id, "SOURCE", n.algorithm.key, "Scalar", x, y, z, value);
+            return value;
+          };
     }
     TransformPlan transforms = compileTransforms(n, source, params, seed);
     var prefixes = new HashMap<UUID, FieldPlan>();
@@ -607,6 +658,30 @@ public final class NoiseCompiler {
         }
         if (folded != null) {
           if (folded.literal != null) constantItems++;
+          if (tracing && folded.literal != null) {
+            Input constant = folded;
+            folded =
+                new Input(
+                    item.resultType,
+                    (c, k) -> {
+                      if (k == 0)
+                        observe(
+                            n.uuid,
+                            item.uuid,
+                            item.id,
+                            "FOLDED",
+                            kind,
+                            item.resultType,
+                            c.x,
+                            c.y,
+                            c.z,
+                            constant.literal);
+                      return constant.number.get(c, k);
+                    },
+                    constant.depth,
+                    constant.work,
+                    constant.literal);
+          }
           inputs.put(item.uuid, folded);
           continue;
         }
@@ -628,6 +703,25 @@ public final class NoiseCompiler {
                 throw new EvaluationFailure(n.uuid, item.uuid, c.x, c.y, c.z, e.getMessage(), e);
               }
             };
+        Step normalInstruction = instruction;
+        Step observedInstruction =
+            tracing
+                ? c -> {
+                  normalInstruction.run(c);
+                  double[] values = Arrays.copyOfRange(c.values, index, index + components);
+                  observe(
+                      n.uuid,
+                      item.uuid,
+                      item.id,
+                      "PROCESSING",
+                      kind,
+                      item.resultType,
+                      c.x,
+                      c.y,
+                      c.z,
+                      values);
+                }
+                : normalInstruction;
         int depth =
             1
                 + Math.max(
@@ -642,7 +736,7 @@ public final class NoiseCompiler {
                 (c, k) -> {
                   int cell = sharedIndex / 3;
                   if (c.stamps[cell] != c.epoch) {
-                    instruction.run(c);
+                    observedInstruction.run(c);
                     if (sharedIndex != index)
                       System.arraycopy(c.values, index, c.values, sharedIndex, components);
                     c.stamps[cell] = c.epoch;
@@ -679,7 +773,12 @@ public final class NoiseCompiler {
             slot,
             result.work,
             result.depth));
-    return result.field;
+    if (!tracing) return result.field;
+    return (x, y, z) -> {
+      double value = result.field.sample(x, y, z);
+      observe(n.uuid, n.outputBinding.itemUuid, n.id, "OUTPUT", "OUTPUT", "Scalar", x, y, z, value);
+      return value;
+    };
   }
 
   private static long boundedWork(long work, long samples) {
@@ -863,7 +962,24 @@ public final class NoiseCompiler {
                     resource, id, c.worldX, c.worldY, c.worldZ, failure.getMessage(), failure);
               }
             };
-        steps.add(step);
+        Step normalStep = step;
+        steps.add(
+            tracing
+                ? c -> {
+                  normalStep.run(c);
+                  observe(
+                      resource,
+                      id,
+                      item.id,
+                      "TRANSFORM",
+                      kind,
+                      coordinatesType,
+                      c.worldX,
+                      c.worldY,
+                      c.worldZ,
+                      Arrays.copyOfRange(c.values, index, index + dimension));
+                }
+                : normalStep);
         long stepWork = kind.equals("DOMAIN_WARP") ? 48 : 1;
         for (Input in : bound.values()) {
           stepWork = Math.addExact(stepWork, in.work);

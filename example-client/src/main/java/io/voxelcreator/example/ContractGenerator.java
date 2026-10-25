@@ -129,6 +129,24 @@ public final class ContractGenerator {
         root.resolve("registries/resource-hierarchy.json"), ResourceGraph.hierarchyRegistry());
     writeJSON(root.resolve("registries/bookmark-navigation.json"), BookmarkTransactions.registry());
     writeJSON(root.resolve("registries/noise-authoring.json"), NoiseAuthoring.registry());
+    writeJSON(
+        root.resolve("registries/trace-navigation.json"),
+        Map.of(
+            "registryVersion",
+            1,
+            "noiseDefaultEvents",
+            NoiseTrace.DEFAULT_LIMIT,
+            "noiseMaximumEvents",
+            NoiseTrace.MAX_LIMIT,
+            "worldPrimaryEventBudget",
+            1024,
+            "phases",
+            List.of("SOURCE", "TRANSFORM", "PROCESSING", "FOLDED", "OUTPUT"),
+            "logicalSettingKeys",
+            SettingsResolver.PROPERTIES,
+            "navigationIdentity",
+            "project/resource/item UUIDs and logical property; historical nested array indices are"
+                + " not replayed"));
     ((ObjectNode) defs.path("Item").path("properties").path("parameters"))
         .set("properties", obj().set("curve", obj().put("$ref", "#/$defs/Curve")));
     ((ArrayNode) defs.path("Curve").path("required")).removeAll();
