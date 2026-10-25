@@ -119,3 +119,7 @@ Resource hierarchy extension (project format 2): `Project.rootOrder` is an optio
 ## Coordinate bookmarks
 
 `BookmarkTransactions` exposes three `Tab` scopes and immutable `Coordinates`. `capture(tab, x, y, z)` floors used axes and rejects nonfinite/out-of-range cells. Use `Draft.add` or `Draft.rename`, edit their provisional values, and commit with `document.edit(draft::applyTo)`. Rename rejects changed/deleted/cross-tab targets while merging unrelated edits; `update` and `delete` remain explicit document transactions. Names may repeat; UUID and tab identify the target. No helper changes generation or camera state. See [bookmark contracts](BOOKMARKS_AND_NAVIGATION.md).
+
+## Private noise authoring plans
+
+`NoiseAuthoring.plan(project, draft, Request)` prepares an owned compiler-validated structural edit. Requests cover move, duplicate, enable/disable, item delete and parameter duplicate/delete. Explicit resolutions retain a replacement reference, select Raw Source, or inline a parameter's current value. Invalid plans preserve the draft; `applyTo` rejects a changed draft base. Use the owning document transaction with the complete compiler validator for parent publication. `candidate()` returns an owned copy. No GUI classes are required. See [authoring workflows](NOISE_AUTHORING_WORKFLOWS.md).

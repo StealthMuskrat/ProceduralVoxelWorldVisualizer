@@ -99,6 +99,7 @@ public final class Desktop extends Application {
           findPanel.references(id);
           find.set(true);
         };
+    properties.findReferences = resources.findReferences;
     diagnostics =
         new DiagnosticsPanel(
             state,

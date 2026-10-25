@@ -13,7 +13,45 @@ import java.util.function.*;
 
 public final class PropertyPanel {
   private final EditorState state;
-  private final UiFields f = new UiFields();
+  private final UiFields f = new UiFields(this::noiseChanged);
+  private long noiseVersion;
+  private final NoiseDraftIndex.Cache noiseIndex = new NoiseDraftIndex.Cache();
+  private final NoiseItemBrowser noiseBrowser = new NoiseItemBrowser();
+  private final DraftChoicePicker draftChoices = new DraftChoicePicker();
+  private NoiseEditDialog noiseEdit;
+  private SearchNavigation referenceNavigation;
+  private boolean referencePrompt;
+  private String authoringMessage = "";
+  private final Map<String, String> inputNames = new HashMap<>();
+  private final Map<String, List<DraftChoicePicker.Choice>> catalogues = new HashMap<>();
+  private final Map<String, float[]> referenceButtons = new HashMap<>();
+  public Consumer<UUID> findReferences = ignored -> {};
+  private static final List<DraftChoicePicker.Choice> ALGORITHMS =
+      NoiseAlgorithms.KEYS.stream()
+          .map(key -> new DraftChoicePicker.Choice(key, key, "Source algorithm"))
+          .toList();
+  private static final List<DraftChoicePicker.Choice> OPERATIONS =
+      ProcessingRegistry.ITEMS.entrySet().stream()
+          .map(
+              e ->
+                  new DraftChoicePicker.Choice(
+                      e.getKey(),
+                      e.getKey(),
+                      e.getValue().category() + " / " + e.getValue().result()))
+          .toList();
+  private static final List<DraftChoicePicker.Choice> TRANSFORMS =
+      CreationRegistry.TRANSFORMS.stream()
+          .map(key -> new DraftChoicePicker.Choice(key, key, "Coordinates & Transforms"))
+          .toList();
+
+  private void noiseChanged() {
+    noiseVersion++;
+  }
+
+  private NoiseDraftIndex index(Noise noise) {
+    return noiseIndex.get(noise, noiseVersion);
+  }
+
   private final ResourcePicker resourcePicker;
   private MembershipDialog membershipDialog;
   private final ExpressionFeedback expressionFeedback = new ExpressionFeedback();
@@ -113,7 +151,10 @@ public final class PropertyPanel {
   }
 
   public boolean searchBlocked() {
-    return curve != null || membershipDialog != null;
+    return curve != null
+        || membershipDialog != null
+        || noiseEdit != null
+        || referenceNavigation.pending();
   }
 
   public boolean revealSearch(EditorEvents.Target target) {
@@ -140,7 +181,12 @@ public final class PropertyPanel {
             ? ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class)
             : new Curve();
     var dialog =
-        new CurveDialog(value, v -> item.parameters.put("curve", ProjectIO.JSON.valueToTree(v)));
+        new CurveDialog(
+            value,
+            v -> {
+              item.parameters.put("curve", ProjectIO.JSON.valueToTree(v));
+              noiseChanged();
+            });
     if (point != null && !dialog.selectPoint(point))
       throw new IllegalArgumentException("Curve point no longer exists");
     curve = dialog;
@@ -206,6 +252,7 @@ public final class PropertyPanel {
   public PropertyPanel(EditorState s) {
     state = s;
     resourcePicker = new ResourcePicker(s);
+    referenceNavigation = new SearchNavigation(s);
   }
 
   public void draw() {
@@ -294,25 +341,29 @@ public final class PropertyPanel {
       if (curve.draw()) curve = null;
     }
     if (membershipDialog != null && membershipDialog.draw()) membershipDialog = null;
+    if (noiseEdit != null && noiseEdit.draw()) noiseEdit = null;
+    drawReferenceGuard();
     drawSmokeWorldControls();
   }
 
   private void noise(Noise n) {
     ImGui.text("Dimension: " + n.dimension + "D  |  Output: Scalar");
+    if (!authoringMessage.isEmpty()) ImGui.textWrapped(authoringMessage);
     if (navigationTarget != null
         && navigationTarget.control() == null
         && Objects.equals(navigationTarget.resource(), state.selected)
         && !Objects.equals(navigationTarget.parameter(), "outputBinding"))
       ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Source", ImGuiTreeNodeFlags.DefaultOpen)) {
-      if (ImGui.beginCombo(
+      draftChoices.draw(
           state.metadata.label("noise.algorithm", "Algorithm"),
-          algorithmLabel(n.dimension, n.algorithm.key))) {
-        for (String key : NoiseAlgorithms.KEYS)
-          if (ImGui.selectable(algorithmLabel(n.dimension, key) + "###algorithm" + key))
-            n.algorithm.key = key;
-        ImGui.endCombo();
-      }
+          n.algorithm.key,
+          catalogue(n, "algorithm", ALGORITHMS),
+          null,
+          value -> {
+            n.algorithm.key = value;
+            noiseChanged();
+          });
       metadataTooltip("noise.algorithm");
       revealSearchField(null, "algorithm");
       longText(
@@ -343,7 +394,22 @@ public final class PropertyPanel {
         && n.coordinateTransforms.stream().anyMatch(i -> i.uuid.equals(focusedControl)))
       ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Coordinates & Transforms")) {
-      for (int i = 0; i < n.coordinateTransforms.size(); i++) {
+      for (int i :
+          noiseBrowser.draw(
+              n.uuid,
+              index(n),
+              NoiseDraftIndex.Section.TRANSFORMS,
+              focusedControl,
+              (row, enabled) ->
+                  requestNoiseEdit(
+                      n,
+                      NoiseAuthoring.Request.simple(
+                          enabled ? NoiseAuthoring.Action.ENABLE : NoiseAuthoring.Action.DISABLE,
+                          row.uuid())))) {
+        if (noiseBrowser.consumeSelectionChanged()) {
+          f.clear();
+          inputNames.clear();
+        }
         var item = n.coordinateTransforms.get(i);
         ImGui.pushID(item.uuid.toString());
         focusRow(item.uuid);
@@ -353,9 +419,18 @@ public final class PropertyPanel {
                 + "] "
                 + item.id
                 + "  "
-                + state.metadata.label("transform." + item.kind, item.kind))) {
+                + state.metadata.label("transform." + item.kind, item.kind)
+                + "###item-properties")) {
           revealRow(item.uuid);
-          f.bool("Enabled", item.enabled, v -> item.enabled = v);
+          f.bool(
+              "Enabled",
+              item.enabled,
+              v ->
+                  requestNoiseEdit(
+                      n,
+                      NoiseAuthoring.Request.simple(
+                          v ? NoiseAuthoring.Action.ENABLE : NoiseAuthoring.Action.DISABLE,
+                          item.uuid)));
           f.text("ID", item.id, v -> item.id = v);
           boolean explicit = item.inputs.containsKey("coordinates");
           f.bool(
@@ -422,22 +497,24 @@ public final class PropertyPanel {
           if (Set.of("ROTATE", "SCALE").contains(item.kind))
             for (String axis : n.dimension == 2 ? List.of("X", "Z") : List.of("X", "Y", "Z"))
               transformControl(n, item, i, "pivot" + axis, 0);
-          itemActions(n.coordinateTransforms, i);
+          itemActions(n, n.coordinateTransforms, i);
           ImGui.treePop();
         }
         ImGui.popID();
       }
-      if (ImGui.button("Add Transform")) ImGui.openPopup("transform-add");
-      if (ImGui.beginPopup("transform-add")) {
-        for (String k : List.of("TRANSLATE", "SCALE", "ROTATE", "DOMAIN_WARP"))
-          if (ImGui.menuItem(state.metadata.label("transform." + k, k) + "###transform" + k)) {
-            var i =
+      draftChoices.draw(
+          "Add Transform",
+          null,
+          catalogue(n, "transform", TRANSFORMS),
+          null,
+          key -> {
+            var item =
                 EditorCreations.transform(
-                    state.metadata, n.dimension, k, uniqueItem(n, k.toLowerCase(Locale.ROOT)));
-            n.coordinateTransforms.add(i);
-          }
-        ImGui.endPopup();
-      }
+                    state.metadata, n.dimension, key, uniqueItem(n, key.toLowerCase(Locale.ROOT)));
+            n.coordinateTransforms.add(item);
+            noiseChanged();
+            noiseBrowser.select(NoiseDraftIndex.Section.TRANSFORMS, item.uuid);
+          });
     }
     if (focusedControl != null
         && n.processing.stream()
@@ -445,7 +522,29 @@ public final class PropertyPanel {
       ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Ordered Processing", ImGuiTreeNodeFlags.DefaultOpen)) {
       ImGui.textDisabled("Global evaluation order is shown in [brackets]");
-      for (int i = 0; i < n.processing.size(); i++) {
+      UUID itemFocus = focusedControl;
+      if (itemFocus != null)
+        for (var item : n.processing)
+          if (curveContains(item, itemFocus)) {
+            itemFocus = item.uuid;
+            break;
+          }
+      for (int i :
+          noiseBrowser.draw(
+              n.uuid,
+              index(n),
+              NoiseDraftIndex.Section.PROCESSING,
+              itemFocus,
+              (row, enabled) ->
+                  requestNoiseEdit(
+                      n,
+                      NoiseAuthoring.Request.simple(
+                          enabled ? NoiseAuthoring.Action.ENABLE : NoiseAuthoring.Action.DISABLE,
+                          row.uuid())))) {
+        if (noiseBrowser.consumeSelectionChanged()) {
+          f.clear();
+          inputNames.clear();
+        }
         var item = n.processing.get(i);
         ImGui.pushID(item.uuid.toString());
         if (focusedControl != null && curveContains(item, focusedControl))
@@ -458,10 +557,19 @@ public final class PropertyPanel {
                 + item.id
                 + "  "
                 + state.metadata.label("processing." + item.kind, item.kind)
-                + (item.enabled ? "" : " (disabled)"))) {
+                + (item.enabled ? "" : " (disabled)")
+                + "###item-properties")) {
           revealRow(item.uuid);
           f.text("ID", item.id, v -> item.id = v);
-          f.bool("Enabled", item.enabled, v -> item.enabled = v);
+          f.bool(
+              "Enabled",
+              item.enabled,
+              v ->
+                  requestNoiseEdit(
+                      n,
+                      NoiseAuthoring.Request.simple(
+                          v ? NoiseAuthoring.Action.ENABLE : NoiseAuthoring.Action.DISABLE,
+                          item.uuid)));
           ImGui.textDisabled(
               ProcessingRegistry.ITEMS.containsKey(item.kind)
                   ? ProcessingRegistry.ITEMS.get(item.kind).category()
@@ -560,17 +668,23 @@ public final class PropertyPanel {
                 item.resultType,
                 List.of("Vector2", "Vector3"),
                 v -> item.resultType = v);
-          for (var e : new ArrayList<>(item.inputs.entrySet())) {
+          for (var e : selectedInputs(item)) {
             ImGui.pushID(e.getKey());
             if (navigationTarget != null
                 && item.uuid.equals(navigationTarget.control())
                 && ("inputs/" + e.getKey()).equals(navigationTarget.parameter()))
               ImGui.setNextItemOpen(true, ImGuiCond.Always);
-            if (ImGui.treeNode("Input: " + e.getKey() + " [" + e.getValue().type + "]")) {
+            if (ImGui.treeNode(
+                "Input: " + e.getKey() + " [" + e.getValue().type + "]###input-properties")) {
               revealSearchField(item.uuid, "inputs/" + e.getKey());
               if (e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind))
                 fieldBinding(n, i, e.getValue());
               else binding(n, item, i, e.getValue());
+              if (item.kind.equals("EXPRESSION")) namedInput(item, e.getKey());
+              if (item.kind.equals("EXPRESSION") && ImGui.smallButton("Remove Named Input")) {
+                item.inputs.remove(e.getKey());
+                noiseChanged();
+              }
               ImGui.treePop();
             }
             ImGui.popID();
@@ -580,6 +694,7 @@ public final class PropertyPanel {
             int count = 1;
             while (item.inputs.containsKey(name)) name = "input" + (count++);
             item.inputs.put(name, Binding.constant(0));
+            noiseChanged();
           }
           switch (item.kind) {
             case "REMAP" -> {
@@ -746,34 +861,37 @@ public final class PropertyPanel {
             }
             default -> {}
           }
-          itemActions(n.processing, i);
+          itemActions(n, n.processing, i);
           ImGui.treePop();
         }
         ImGui.popID();
       }
-      if (ImGui.button("Add Processing")) ImGui.openPopup("processing-add");
-      if (ImGui.beginPopup("processing-add")) {
-        for (var e : ProcessingRegistry.ITEMS.entrySet())
-          if (ImGui.menuItem(
-              state.metadata.label("processing." + e.getKey(), e.getKey())
-                  + " / "
-                  + e.getValue().category()
-                  + "###operation"
-                  + e.getKey())) {
-            Item i =
+      draftChoices.draw(
+          "Add Processing",
+          null,
+          catalogue(n, "processing", OPERATIONS),
+          null,
+          key -> {
+            var item =
                 EditorCreations.processing(
-                    state.metadata, e.getKey(), uniqueItem(n, e.getKey().toLowerCase(Locale.ROOT)));
-            n.processing.add(i);
-            if (i.resultType.equals("Scalar")) n.outputBinding = Binding.earlier(i.uuid);
-          }
-        ImGui.endPopup();
-      }
+                    state.metadata, key, uniqueItem(n, key.toLowerCase(Locale.ROOT)));
+            n.processing.add(item);
+            if (item.resultType.equals("Scalar")) n.outputBinding = Binding.earlier(item.uuid);
+            noiseChanged();
+            noiseBrowser.select(NoiseDraftIndex.Section.PROCESSING, item.uuid);
+          });
     }
     if (focusedControl != null
         && n.sharedParameters.stream().anyMatch(p -> p.uuid.equals(focusedControl)))
       ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Parameters")) {
-      for (var p : n.sharedParameters) {
+      for (int parameterIndex :
+          noiseBrowser.draw(n.uuid, index(n), NoiseDraftIndex.Section.PARAMETERS, focusedControl)) {
+        if (noiseBrowser.consumeSelectionChanged()) {
+          f.clear();
+          inputNames.clear();
+        }
+        var p = n.sharedParameters.get(parameterIndex);
         ImGui.pushID(p.uuid.toString());
         revealRow(p.uuid);
         f.text("ID", p.id, v -> p.id = v);
@@ -783,8 +901,19 @@ public final class PropertyPanel {
           var pin = new Pin();
           pin.targetUuid = p.uuid;
           pin.label = p.id;
-          n.pinnedControls.add(pin);
+          if (n.pinnedControls.stream().noneMatch(existing -> existing.targetUuid.equals(p.uuid)))
+            n.pinnedControls.add(pin);
+          noiseChanged();
         }
+        ImGui.sameLine();
+        if (ImGui.smallButton("Duplicate Parameter"))
+          requestNoiseEdit(
+              n, NoiseAuthoring.Request.simple(NoiseAuthoring.Action.DUPLICATE_PARAMETER, p.uuid));
+        ImGui.sameLine();
+        if (ImGui.smallButton("Delete Parameter..."))
+          requestNoiseEdit(
+              n, NoiseAuthoring.Request.simple(NoiseAuthoring.Action.DELETE_PARAMETER, p.uuid));
+        dependencies(n, p.uuid);
         ImGui.popID();
       }
       if (ImGui.button("Add Parameter")) ImGui.openPopup("new-parameter");
@@ -806,42 +935,342 @@ public final class PropertyPanel {
                                 ? new double[] {0, 0}
                                 : new double[] {0, 0, 0});
             n.sharedParameters.add(param);
+            noiseChanged();
+            noiseBrowser.select(NoiseDraftIndex.Section.PARAMETERS, param.uuid);
           }
         ImGui.endPopup();
       }
     }
-    if (!n.pinnedControls.isEmpty() && ImGui.collapsingHeader("Pinned Controls")) {
-      for (var pin : n.pinnedControls) {
-        var param =
-            n.sharedParameters.stream().filter(v -> v.uuid.equals(pin.targetUuid)).findFirst();
-        if (param.isPresent()) {
-          ImGui.text(pin.label);
-          constantEditor(param.get().type, param.get().value, v -> param.get().value = v);
-        }
-      }
-    }
+    pinnedControls(n);
     if (navigationTarget != null
         && Objects.equals(navigationTarget.resource(), state.selected)
         && "outputBinding".equals(navigationTarget.parameter()))
       ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Output", ImGuiTreeNodeFlags.DefaultOpen)) {
       revealSearchField(null, "outputBinding");
-      String label =
+      draftChoices.draw(
+          "Scalar output",
           n.outputBinding.sourceKind.equals("Source Result")
-              ? "Raw source"
-              : n.processing.stream()
-                  .filter(i -> i.uuid.equals(n.outputBinding.itemUuid))
-                  .map(i -> i.id)
-                  .findFirst()
-                  .orElse("Missing result");
-      if (ImGui.beginCombo("Scalar output", label)) {
-        if (ImGui.selectable("Raw source")) n.outputBinding = Binding.source();
-        for (var item : n.processing)
-          if (item.enabled && item.resultType.equals("Scalar") && ImGui.selectable(item.id))
-            n.outputBinding = Binding.earlier(item.uuid);
-        ImGui.endCombo();
+              ? null
+              : Objects.toString(n.outputBinding.itemUuid, null),
+          index(n).choices("output", null, "Scalar"),
+          "Raw source",
+          value -> {
+            n.outputBinding =
+                value == null ? Binding.source() : Binding.earlier(UUID.fromString(value));
+            noiseChanged();
+          });
+    }
+  }
+
+  private List<DraftChoicePicker.Choice> catalogue(
+      Noise noise, String kind, List<DraftChoicePicker.Choice> builtIn) {
+    String key = noise.dimension + ":" + kind;
+    var values =
+        builtIn.stream()
+            .map(
+                choice ->
+                    new DraftChoicePicker.Choice(
+                        choice.key(),
+                        kind.equals("algorithm")
+                            ? algorithmLabel(noise.dimension, choice.key())
+                            : state.metadata.label(kind + "." + choice.key(), choice.label()),
+                        choice.detail()))
+            .toList();
+    var previous = catalogues.get(key);
+    if (values.equals(previous)) return previous;
+    catalogues.put(key, values);
+    return values;
+  }
+
+  private void requestNoiseEdit(Noise noise, NoiseAuthoring.Request request) {
+    var plan = NoiseAuthoring.plan(state.project(), noise, request);
+    if (!plan.valid()) {
+      if (Set.of(
+              NoiseAuthoring.Action.DELETE,
+              NoiseAuthoring.Action.DISABLE,
+              NoiseAuthoring.Action.DELETE_PARAMETER)
+          .contains(request.action())) {
+        noiseEdit =
+            new NoiseEditDialog(state, noise, request, selected -> afterNoiseEdit(noise, selected));
+      } else
+        authoringMessage =
+            "! Edit rejected ("
+                + plan.diagnostics().size()
+                + " issue(s)): "
+                + plan.diagnostics().stream().limit(4).toList();
+      return;
+    }
+    plan.applyTo(noise);
+    afterNoiseEdit(noise, plan.selected());
+  }
+
+  private void afterNoiseEdit(Noise noise, UUID selected) {
+    noiseChanged();
+    f.clear();
+    authoringMessage = "";
+    var row = index(noise).get(selected);
+    if (row != null) noiseBrowser.select(row.section(), selected);
+  }
+
+  private void localChoice(
+      Noise noise,
+      String label,
+      String mode,
+      UUID owner,
+      String type,
+      UUID current,
+      Consumer<UUID> change) {
+    var choices = index(noise).choices(mode, owner, type);
+    if (choices.isEmpty())
+      ImGui.textDisabled(
+          mode.equals("parameter")
+              ? "No shared parameter with type " + type
+              : "No enabled compatible " + type + " choices before this stage");
+    draftChoices.draw(
+        label,
+        current == null ? null : current.toString(),
+        choices,
+        null,
+        value -> {
+          change.accept(UUID.fromString(value));
+          noiseChanged();
+        });
+  }
+
+  private void localLink(Noise noise, UUID uuid) {
+    var row = index(noise).get(uuid);
+    if (row != null && ImGui.smallButton("Go To Control")) focusLocal(noise, uuid, null);
+  }
+
+  private void focusLocal(Noise noise, UUID uuid, String path) {
+    focusedControl = uuid;
+    navigationTarget =
+        new EditorEvents.Target(state.project().project.uuid, noise.uuid, uuid, path, "", false);
+    searchScroll = true;
+  }
+
+  private void dependencies(Noise noise, UUID uuid) {
+    var users = index(noise).users(uuid);
+    if (!ImGui.treeNode("Used By (" + users.size() + ")###uses")) return;
+    ImGui.beginChild("local-users", 0, 120, true);
+    var clipper = new ImGuiListClipper();
+    try {
+      clipper.begin(users.size(), ImGui.getTextLineHeightWithSpacing());
+      while (clipper.step())
+        for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
+          var use = users.get(i);
+          if (ImGui.selectable(AppMetadata.uiText(use.label() + " / " + use.path()) + "###use" + i))
+            focusLocal(noise, use.owner(), use.path());
+        }
+      clipper.end();
+    } finally {
+      clipper.destroy();
+    }
+    ImGui.endChild();
+    ImGui.treePop();
+  }
+
+  private int selectedPin;
+  private Noise pinOwner;
+  private long pinVersion = -1;
+  private List<DraftChoicePicker.Choice> pinChoices = List.of();
+
+  private void pinnedControls(Noise noise) {
+    if (noise.pinnedControls.isEmpty() || !ImGui.collapsingHeader("Pinned Controls")) return;
+    if (pinOwner != noise || pinVersion != noiseVersion) {
+      pinOwner = noise;
+      pinVersion = noiseVersion;
+      var choices = new ArrayList<DraftChoicePicker.Choice>();
+      for (int i = 0; i < noise.pinnedControls.size(); i++) {
+        var pin = noise.pinnedControls.get(i);
+        var row = index(noise).get(pin.targetUuid);
+        choices.add(
+            new DraftChoicePicker.Choice(
+                Integer.toString(i),
+                pin.label,
+                (Objects.requireNonNullElse(pin.group, "").isBlank() ? "Ungrouped" : pin.group)
+                    + " / "
+                    + (row == null ? "Missing control" : row.type())));
+      }
+      pinChoices = List.copyOf(choices);
+    }
+    selectedPin = Math.max(0, Math.min(selectedPin, noise.pinnedControls.size() - 1));
+    draftChoices.draw(
+        "Pinned control",
+        Integer.toString(selectedPin),
+        pinChoices,
+        null,
+        value -> {
+          selectedPin = Integer.parseInt(value);
+          f.clear();
+        });
+    var pin = noise.pinnedControls.get(selectedPin);
+    ImGui.pushID("pin" + selectedPin);
+    f.text("Label", pin.label, value -> pin.label = value);
+    f.text("Group", pin.group, value -> pin.group = value);
+    var row = index(noise).get(pin.targetUuid);
+    if (row != null) {
+      ImGui.text("Source: " + row.id() + " / " + row.type());
+      if (row.section() == NoiseDraftIndex.Section.PARAMETERS) {
+        var parameter = noise.sharedParameters.get(row.position());
+        constantEditor(
+            parameter.type,
+            parameter.value,
+            value -> {
+              parameter.value = value;
+              noiseChanged();
+            });
+      } else
+        ImGui.textWrapped(
+            "This pin references an item. Edit its original inputs and settings with Go To"
+                + " Control.");
+      localLink(noise, pin.targetUuid);
+    }
+    if (ImGui.smallButton("Move Pin Up") && selectedPin > 0) {
+      Collections.swap(noise.pinnedControls, selectedPin, selectedPin - 1);
+      selectedPin--;
+      noiseChanged();
+      f.clear();
+    }
+    ImGui.sameLine();
+    if (ImGui.smallButton("Move Pin Down") && selectedPin < noise.pinnedControls.size() - 1) {
+      Collections.swap(noise.pinnedControls, selectedPin, selectedPin + 1);
+      selectedPin++;
+      noiseChanged();
+      f.clear();
+    }
+    ImGui.sameLine();
+    if (ImGui.smallButton("Unpin")) {
+      noise.pinnedControls.remove(selectedPin);
+      noiseChanged();
+      f.clear();
+    }
+    ImGui.popID();
+  }
+
+  private Item inputOwner;
+  private long inputVersion = -1;
+  private String inputKey;
+  private List<DraftChoicePicker.Choice> inputChoices = List.of();
+
+  private List<Map.Entry<String, Binding>> selectedInputs(Item item) {
+    if (item.inputs.isEmpty()) return List.of();
+    if (inputOwner != item || inputVersion != noiseVersion) {
+      inputOwner = item;
+      inputVersion = noiseVersion;
+      inputChoices =
+          item.inputs.entrySet().stream()
+              .map(
+                  entry ->
+                      new DraftChoicePicker.Choice(
+                          entry.getKey(),
+                          entry.getKey(),
+                          entry.getValue().type + " / " + entry.getValue().sourceKind))
+              .toList();
+    }
+    if (navigationTarget != null && item.uuid.equals(navigationTarget.control())) {
+      String path = Objects.requireNonNullElse(navigationTarget.parameter(), "");
+      for (String name : item.inputs.keySet())
+        if (path.equals("inputs/" + name) || path.startsWith("inputs/" + name + "/"))
+          inputKey = name;
+    }
+    if (!item.inputs.containsKey(inputKey)) inputKey = item.inputs.keySet().iterator().next();
+    draftChoices.draw(
+        "Input control",
+        inputKey,
+        inputChoices,
+        null,
+        value -> {
+          inputKey = value;
+          f.clear();
+        });
+    ImGui.setNextItemOpen(true, ImGuiCond.Once);
+    return List.of(Map.entry(inputKey, item.inputs.get(inputKey)));
+  }
+
+  private void namedInput(Item item, String key) {
+    String token = item.uuid + ":" + key;
+    f.text("New input name", key, value -> inputNames.put(token, value));
+    if (ImGui.smallButton("Rename Named Input")) {
+      String value = inputNames.getOrDefault(token, key);
+      if (!value.matches("[A-Za-z_][A-Za-z0-9_]*")
+          || !value.equals(key) && item.inputs.containsKey(value)) {
+        authoringMessage = "! Input names must be distinct identifiers.";
+      } else {
+        var renamed = new LinkedHashMap<String, Binding>();
+        item.inputs.forEach(
+            (name, binding) -> renamed.put(name.equals(key) ? value : name, binding));
+        item.inputs = renamed;
+        inputNames.remove(token);
+        noiseChanged();
+        f.clear();
+        authoringMessage = "Input renamed. Update its uses in Expression text before Apply.";
       }
     }
+  }
+
+  void probeOpenReference(UUID uuid) {
+    openReference(uuid);
+  }
+
+  float[] probeReferenceButton(String id) {
+    return referenceButtons.get(id).clone();
+  }
+
+  int probeItemRows() {
+    return noiseBrowser.submitted();
+  }
+
+  int probeIndexBuilds() {
+    return noiseIndex.builds();
+  }
+
+  private void referenceLinks(UUID uuid) {
+    if (uuid == null) return;
+    if (ImGui.button("Open Referenced Noise Generator")) openReference(uuid);
+    ImGui.sameLine();
+    if (ImGui.smallButton("Find References")) findReferences.accept(uuid);
+    if (ImGui.smallButton("Select Resource in Tree")) openReference(uuid);
+  }
+
+  private void openReference(UUID uuid) {
+    if (searchBlocked()) {
+      authoringMessage = "Close the private edit before navigating.";
+      return;
+    }
+    var target = new EditorEvents.Target(state.project().project.uuid, uuid, null, null, "", false);
+    var result = referenceNavigation.request(target);
+    if (result == SearchNavigation.Result.NEEDS_DECISION) referencePrompt = true;
+    else if (result == SearchNavigation.Result.UNAVAILABLE)
+      authoringMessage = "Referenced resource no longer exists.";
+  }
+
+  private void drawReferenceGuard() {
+    if (referencePrompt) {
+      ImGui.openPopup("Leave Noise Property Draft");
+      referencePrompt = false;
+    }
+    if (!ImGui.beginPopupModal("Leave Noise Property Draft", ImGuiWindowFlags.AlwaysAutoResize))
+      return;
+    ImGui.textWrapped("Apply the current draft, discard it for this navigation, or cancel.");
+    for (var decision : SearchNavigation.Decision.values()) {
+      if (decision != SearchNavigation.Decision.APPLY) ImGui.sameLine();
+      boolean clicked = ImGui.button(decision.name());
+      var a = ImGui.getItemRectMin();
+      var b = ImGui.getItemRectMax();
+      referenceButtons.put(decision.name(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
+      if (clicked) {
+        var result = referenceNavigation.decide(decision);
+        if (result != SearchNavigation.Result.NEEDS_DECISION) ImGui.closeCurrentPopup();
+        else ImGui.textWrapped("Apply failed. Correct the draft or choose Discard/Cancel.");
+      }
+    }
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      referenceNavigation.decide(SearchNavigation.Decision.CANCEL);
+      ImGui.closeCurrentPopup();
+    }
+    ImGui.endPopup();
   }
 
   private boolean curveContains(Item item, UUID uuid) {
@@ -891,18 +1320,30 @@ public final class PropertyPanel {
     return ResourceTransactions.unique(base, names);
   }
 
-  private void itemActions(List<Item> list, int i) {
-    if (ImGui.smallButton("Up") && i > 0) Collections.swap(list, i, i - 1);
+  private void itemActions(Noise noise, List<Item> list, int i) {
+    UUID uuid = list.get(i).uuid;
+    if (ImGui.smallButton("Up") && i > 0)
+      requestNoiseEdit(noise, NoiseAuthoring.Request.simple(NoiseAuthoring.Action.UP, uuid));
     ImGui.sameLine();
-    if (ImGui.smallButton("Down") && i < list.size() - 1) Collections.swap(list, i, i + 1);
+    if (ImGui.smallButton("Down") && i < list.size() - 1)
+      requestNoiseEdit(noise, NoiseAuthoring.Request.simple(NoiseAuthoring.Action.DOWN, uuid));
     ImGui.sameLine();
-    if (ImGui.smallButton("Duplicate")) {
-      var copy = ResourceTransactions.duplicate(list.get(i), Item.class);
-      copy.id = ResourceTransactions.unique(copy.id, list.stream().map(x -> x.id).toList());
-      list.add(i + 1, copy);
+    if (ImGui.smallButton("Duplicate"))
+      requestNoiseEdit(noise, NoiseAuthoring.Request.simple(NoiseAuthoring.Action.DUPLICATE, uuid));
+    ImGui.sameLine();
+    if (ImGui.smallButton("Delete..."))
+      requestNoiseEdit(noise, NoiseAuthoring.Request.simple(NoiseAuthoring.Action.DELETE, uuid));
+    ImGui.sameLine();
+    if (ImGui.smallButton("Pin Item")) {
+      if (noise.pinnedControls.stream().noneMatch(pin -> pin.targetUuid.equals(uuid))) {
+        var pin = new Pin();
+        pin.targetUuid = uuid;
+        pin.label = list.get(i).id;
+        noise.pinnedControls.add(pin);
+        noiseChanged();
+      }
     }
-    ImGui.sameLine();
-    if (ImGui.smallButton("Delete")) list.remove(i);
+    dependencies(noise, uuid);
   }
 
   private void transformControl(Noise noise, Item item, int index, String name, double fallback) {
@@ -931,82 +1372,49 @@ public final class PropertyPanel {
         b.sourceKind,
         List.of("Source Field", "Earlier Field Prefix", "Noise Generator Field"),
         v -> {
-          b.sourceKind = v;
+          NoiseAuthoring.source(b, v);
           b.type = "Scalar";
-          b.itemUuid = null;
-          b.noiseGeneratorUuid = null;
         });
     if (b.sourceKind.equals("Earlier Field Prefix")) {
-      if (ImGui.beginCombo("Prefix ends at", idFor(n.processing, b.itemUuid))) {
-        for (int i = 0; i < index; i++) {
-          Item previous = n.processing.get(i);
-          if (previous.enabled
-              && previous.resultType.equals("Scalar")
-              && ImGui.selectable(previous.id)) b.itemUuid = previous.uuid;
-        }
-        ImGui.endCombo();
-      }
+      localChoice(
+          n,
+          "Prefix ends at",
+          "prefix",
+          n.processing.get(index).uuid,
+          "Scalar",
+          b.itemUuid,
+          value -> b.itemUuid = value);
+      localLink(n, b.itemUuid);
       ImGui.textWrapped(
           "Reevaluates this earlier result and its dependencies at each requested location.");
     } else if (b.sourceKind.equals("Noise Generator Field")) {
       noisePicker("Field resource", b.noiseGeneratorUuid, u -> b.noiseGeneratorUuid = u);
       f.choice("Projection", b.projection, List.of("XZ", "XY", "YZ"), v -> b.projection = v);
       f.number("Inserted slice coordinate", b.slice, v -> b.slice = v);
-      if (b.noiseGeneratorUuid != null && ImGui.button("Open Referenced Noise Generator")) {
-        var obj = EditorState.find(state.project(), b.noiseGeneratorUuid);
-        if (obj instanceof Noise ref) state.select("noise" + ref.dimension + "D", ref.uuid);
-      }
+      referenceLinks(b.noiseGeneratorUuid);
     }
   }
 
   private void binding(Noise n, Item item, int index, Binding b) {
-    f.choice(
-        "Type",
-        b.type,
-        List.of("Scalar", "Boolean", "Vector2", "Vector3", "Coordinates2D", "Coordinates3D"),
-        v -> {
-          b.type = v;
-          b.sourceKind = "Constant";
-          b.value =
-              ProjectIO.JSON.valueToTree(
-                  v.equals("Boolean")
-                      ? false
-                      : v.equals("Scalar")
-                          ? 0
-                          : v.endsWith("2") || v.endsWith("2D")
-                              ? new double[] {0, 0}
-                              : new double[] {0, 0, 0});
-        });
+    f.choice("Type", b.type, NoiseAuthoring.TYPES, v -> NoiseAuthoring.type(b, v));
     boolean coordinateStage = n.coordinateTransforms.contains(item);
     f.choice(
         "Source",
         b.sourceKind,
-        coordinateStage
-            ? List.of(
-                "Constant",
-                "Shared Parameter",
-                "Ambient Value",
-                "Earlier Result",
-                "Noise Generator Reference")
-            : List.of(
-                "Constant",
-                "Shared Parameter",
-                "Ambient Value",
-                "Source Result",
-                "Earlier Result",
-                "Noise Generator Reference"),
-        v -> {
-          b.sourceKind = v;
-          if (v.equals("Constant") && b.value == null) b.value = ProjectIO.JSON.valueToTree(0);
-        });
+        NoiseDraftIndex.sources(b.type, coordinateStage),
+        v -> NoiseAuthoring.source(b, v));
     switch (b.sourceKind) {
       case "Constant" -> constantEditor(b.type, b.value, v -> b.value = v);
       case "Shared Parameter" -> {
-        if (ImGui.beginCombo("Parameter", idFor(n.sharedParameters, b.parameterUuid))) {
-          for (var p : n.sharedParameters)
-            if (p.type.equals(b.type) && ImGui.selectable(p.id)) b.parameterUuid = p.uuid;
-          ImGui.endCombo();
-        }
+        localChoice(
+            n,
+            "Parameter",
+            "parameter",
+            item.uuid,
+            b.type,
+            b.parameterUuid,
+            value -> b.parameterUuid = value);
+        localLink(n, b.parameterUuid);
       }
       case "Ambient Value" ->
           f.choice(
@@ -1015,24 +1423,18 @@ public final class PropertyPanel {
               new ArrayList<>(NoiseCompiler.AMBIENT),
               v -> b.ambientKey = v);
       case "Earlier Result" -> {
-        if (ImGui.beginCombo(
-            "Result", idFor(coordinateStage ? n.coordinateTransforms : n.processing, b.itemUuid))) {
-          for (int i = 0; i < index; i++) {
-            var p = (coordinateStage ? n.coordinateTransforms : n.processing).get(i);
-            if (p.enabled && p.resultType.equals(b.type) && ImGui.selectable(p.id))
-              b.itemUuid = p.uuid;
-          }
-          ImGui.endCombo();
-        }
+        localChoice(
+            n, "Result", "earlier", item.uuid, b.type, b.itemUuid, value -> b.itemUuid = value);
+        localLink(n, b.itemUuid);
+      }
+      case "Source Result" -> {
+        if (ImGui.smallButton("Go To Source Control")) focusLocal(n, null, "algorithm");
       }
       case "Noise Generator Reference" -> {
         noisePicker("Resource", b.noiseGeneratorUuid, u -> b.noiseGeneratorUuid = u);
         f.choice("Projection", b.projection, List.of("XZ", "XY", "YZ"), v -> b.projection = v);
         f.number("Slice coordinate", b.slice, v -> b.slice = v);
-        if (b.noiseGeneratorUuid != null && ImGui.button("Open Referenced Noise Generator")) {
-          var obj = EditorState.find(state.project(), b.noiseGeneratorUuid);
-          if (obj instanceof Noise ref) state.select("noise" + ref.dimension + "D", ref.uuid);
-        }
+        referenceLinks(b.noiseGeneratorUuid);
       }
       default -> {}
     }
@@ -1076,7 +1478,15 @@ public final class PropertyPanel {
   }
 
   public void noisePicker(String label, UUID current, Consumer<UUID> set) {
-    resourcePicker.draw(label, "noise", current, "None", set);
+    resourcePicker.draw(
+        label,
+        "noise",
+        current,
+        "None",
+        value -> {
+          set.accept(value);
+          noiseChanged();
+        });
   }
 
   private void fieldPicker(String label, UUID current, Consumer<UUID> set) {

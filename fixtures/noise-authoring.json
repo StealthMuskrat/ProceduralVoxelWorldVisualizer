@@ -1,0 +1,131 @@
+{
+  "formatVersion": 2,
+  "project": {
+    "uuid": "00000000-0000-4000-8000-000000000010",
+    "seed": 0,
+    "minY": -64,
+    "maxY": 319
+  },
+  "voxelTypes": [],
+  "voxelGroups": [],
+  "voxelSets": [],
+  "noise2D": [
+    {
+      "uuid": "10000000-0000-4000-8000-000000000001",
+      "id": "authoring",
+      "dimension": 2,
+      "parentFolderUuid": null,
+      "algorithm": {
+        "key": "CONSTANT",
+        "parameters": {
+          "value": 1
+        }
+      },
+      "seedOffset": 0,
+      "coordinateTransforms": [],
+      "processing": [
+        {
+          "uuid": "10000000-0000-4000-8000-000000000003",
+          "id": "add",
+          "kind": "ADD",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "a": {
+              "sourceKind": "Source Result",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": null,
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            },
+            "b": {
+              "sourceKind": "Shared Parameter",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": "10000000-0000-4000-8000-000000000002",
+              "itemUuid": null,
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "10000000-0000-4000-8000-000000000004",
+          "id": "multiply",
+          "kind": "MULTIPLY",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "a": {
+              "sourceKind": "Earlier Result",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": "10000000-0000-4000-8000-000000000003",
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            },
+            "b": {
+              "sourceKind": "Constant",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": 4,
+              "parameterUuid": null,
+              "itemUuid": null,
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        }
+      ],
+      "sharedParameters": [
+        {
+          "uuid": "10000000-0000-4000-8000-000000000002",
+          "id": "gain",
+          "type": "Scalar",
+          "value": 2
+        }
+      ],
+      "pinnedControls": [
+        {
+          "targetUuid": "10000000-0000-4000-8000-000000000002",
+          "label": "Gain",
+          "group": "Common"
+        }
+      ],
+      "outputBinding": {
+        "sourceKind": "Earlier Result",
+        "type": "Scalar",
+        "ambientKey": null,
+        "value": null,
+        "parameterUuid": null,
+        "itemUuid": "10000000-0000-4000-8000-000000000004",
+        "noiseGeneratorUuid": null,
+        "projection": "XZ",
+        "slice": 0
+      }
+    }
+  ],
+  "noise3D": [],
+  "worldGenerator": {
+    "uuid": "00000000-0000-4000-8000-000000000011",
+    "layers": []
+  },
+  "folders": [],
+  "bookmarks": {
+    "noise2D": [],
+    "noise3D": [],
+    "world": []
+  }
+}
