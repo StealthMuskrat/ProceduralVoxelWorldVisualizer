@@ -41,6 +41,15 @@ public final class TracePanel {
           "Project changed after this trace. Values belong to its snapshot; changed source links"
               + " require a new trace.");
     if (ImGui.button("Copy Trace Details")) ImGui.setClipboardText(value.details());
+    if (value.finalTypeTarget() != null && state.canNavigate(value.finalTypeTarget())) {
+      ImGui.sameLine();
+      if (ImGui.button("Go To Voxel Type")) {
+        var target = value.finalTypeTarget();
+        if (navigation.request(target, () -> value.available(state, target))
+            == SearchNavigation.Result.UNAVAILABLE)
+          message = "Voxel type changed since this trace; retrace before navigating.";
+      }
+    }
     if (!message.isEmpty()) ImGui.textWrapped(message);
     var steps = value.trace().steps();
     submittedSteps = 0;
@@ -122,7 +131,7 @@ public final class TracePanel {
           message =
               result == SearchNavigation.Result.UNAVAILABLE
                   ? "Source changed, was deleted, or an editor is open. Retrace or finish the"
-                        + " current edit before navigating."
+                      + " current edit before navigating."
                   : "";
         }
       } else if (selected.target() != null)

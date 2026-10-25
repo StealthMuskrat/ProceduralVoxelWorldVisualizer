@@ -17,6 +17,7 @@ public final class TraceSnapshot {
   private final long revision;
   private final GenerationTrace trace;
   private final Map<Integer, String> names;
+  private final Map<Integer, UUID> voxelTypes;
   private final Map<UUID, String> fingerprints;
   private final List<List<Row>> rows;
   private final String summary;
@@ -28,8 +29,12 @@ public final class TraceSnapshot {
     this.trace = Objects.requireNonNull(trace);
     var names = new LinkedHashMap<Integer, String>();
     names.put(0, "EMPTY");
-    for (int i = 0; i < source.voxelTypes.size(); i++)
+    var types = new LinkedHashMap<Integer, UUID>();
+    for (int i = 0; i < source.voxelTypes.size(); i++) {
       names.put(i + 1, source.voxelTypes.get(i).id);
+      types.put(i + 1, source.voxelTypes.get(i).uuid);
+    }
+    voxelTypes = Map.copyOf(types);
     this.names = Map.copyOf(names);
     var all = new ArrayList<List<Row>>();
     for (var step : trace.steps()) all.add(build(step));
@@ -53,7 +58,20 @@ public final class TraceSnapshot {
             + " | "
             + trace.steps().size()
             + " operations | snapshot revision "
-            + revision;
+            + revision
+            + trace.steps().stream()
+                .filter(step -> !step.action().equals("NO_CHANGE"))
+                .reduce((a, b) -> b)
+                .map(
+                    step ->
+                        " | Last deciding stage: "
+                            + step.layerId()
+                            + " / "
+                            + step.operationId()
+                            + " ("
+                            + step.action()
+                            + ")")
+                .orElse("");
     long estimate =
         summary.length() * 2L + 256 + fingerprints.size() * 160L + trace.steps().size() * 256L;
     for (var name : names.values()) estimate += 96L + name.length() * 2L;
@@ -80,6 +98,10 @@ public final class TraceSnapshot {
 
   public String type(int id) {
     return names.getOrDefault(id, "Unknown snapshot type " + id);
+  }
+
+  public EditorEvents.Target finalTypeTarget() {
+    return target(voxelTypes.get(trace.finalType()), null, null);
   }
 
   public List<Row> rows(int step) {
@@ -117,7 +139,11 @@ public final class TraceSnapshot {
             "Primary field",
             Double.isNaN(step.field()) ? "not sampled" : Double.toString(step.field()),
             target(step.noiseUuid(), null, "outputBinding")));
-    rows.add(new Row("Voxel state", type(step.previous()) + " → " + type(step.result()), null));
+    rows.add(
+        new Row(
+            "Voxel state",
+            type(step.previous()) + " → " + type(step.result()),
+            target(voxelTypes.get(step.result()), null, null)));
     var d = step.details();
     if (d == null) return List.copyOf(rows);
     for (var c : d.comparisons())

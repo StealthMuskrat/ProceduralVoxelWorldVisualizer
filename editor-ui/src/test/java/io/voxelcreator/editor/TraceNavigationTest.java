@@ -32,6 +32,16 @@ class TraceNavigationTest {
   }
 
   @Test
+  void finalVoxelLinkAndLastDecidingStageRetainTheOriginalInspectorBehavior() {
+    try (var state = state()) {
+      var trace = snapshot(state);
+      assertEquals(state.project().voxelTypes.getFirst().uuid, trace.finalTypeTarget().resource());
+      assertTrue(trace.available(state, trace.finalTypeTarget()));
+      assertTrue(trace.summary().contains("Last deciding stage: layer / selected (SET)"));
+    }
+  }
+
+  @Test
   void provenanceTargetsTheLiveDefaultAndExplicitOverrideWithoutHistoricalIndices() {
     try (var state = state()) {
       var trace = snapshot(state);
