@@ -97,6 +97,7 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.FieldOperationsProbe build/field-operations
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.FieldOperationsConsumer build/field-operations/field-operations-project.json 37.5 build/field-operations
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.FieldOperationsConsumer fixtures/field-operations.json 57
+          java -cp build/independent:build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.example.Example --contracts build/field-operations/contracts
           python scripts/verify_field_operations.py build/field-operations
       - name: Native keyboard input and preference reference
         run: |
@@ -284,6 +285,8 @@ jobs:
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.FieldOperationsConsumer build/field-operations/field-operations-project.json 37.5 build/field-operations
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.FieldOperationsConsumer fixtures/field-operations.json 57
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/ProceduralVoxelCreator.jar' io.voxelcreator.example.Example --contracts build/field-operations/contracts
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_field_operations.py build/field-operations
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

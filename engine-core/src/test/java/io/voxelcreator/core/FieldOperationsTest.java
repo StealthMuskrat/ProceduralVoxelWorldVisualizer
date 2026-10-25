@@ -327,7 +327,7 @@ class FieldOperationsTest {
     set(c, "centerZ", 30);
     set(c, "radius", 3);
     set(c, "halfHeight", 2);
-    assertEquals(5, field(n).sample(16, 23, 30));
+    assertEquals(5, field(n).sample(16, 26, 30));
   }
 
   @Test
