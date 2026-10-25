@@ -201,7 +201,7 @@ class BookmarkTransactionsTest {
 
   @Test void nonintegerAndOutOfRangeBookmarkCoordinatesRejectBeforePublication() {
     var p = new ProjectData(); var b = new Bookmark(); b.name = "point"; b.y = 0; p.bookmarks.world.add(b);
-    for (var invalid : List.of(ProjectIO.JSON.valueToTree(2147483648L), ProjectIO.JSON.valueToTree(1.5), ProjectIO.JSON.valueToTree("1"))) {
+    for (var invalid : List.<com.fasterxml.jackson.databind.JsonNode>of(ProjectIO.JSON.valueToTree(2147483648L), ProjectIO.JSON.valueToTree(1.5), ProjectIO.JSON.valueToTree("1"))) {
       var tree = ProjectIO.JSON.valueToTree(p);
       ((com.fasterxml.jackson.databind.node.ObjectNode) tree.path("bookmarks").path("world").get(0)).set("y", invalid);
       var result = new ProjectIO().parse(tree.toString());
