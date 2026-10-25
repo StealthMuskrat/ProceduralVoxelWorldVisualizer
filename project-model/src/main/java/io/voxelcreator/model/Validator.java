@@ -150,10 +150,30 @@ public final class Validator {
               "INVALID_REFERENCE", "/noise/" + n.uuid + "/parentFolderUuid", "Incompatible folder");
       }
     for (var n : noises.values()) cycle(n, new LinkedHashSet<>(), new HashSet<>());
+    for (var order : p.project.rootOrder.entrySet()) {
+      String path = "/project/rootOrder/" + order.getKey().replace("~", "~0").replace("/", "~1");
+      if (!ResourceGraph.ORGANIZATIONAL_ROOTS.contains(order.getKey())) {
+        error("INVALID_ORDER", path, "Unknown protected root");
+        continue;
+      }
+      var children = new HashSet<UUID>();
+      for (var entry : ResourceGraph.entries(p))
+        if (entry.root().equals(order.getKey()) && entry.parent() == null)
+          children.add(entry.uuid());
+      var seen = new HashSet<UUID>();
+      for (UUID id : order.getValue())
+        if (!children.contains(id) || !seen.add(id))
+          error("INVALID_ORDER", path, "Root order entries must be distinct direct children");
+    }
     resources(p.worldGenerator.layers, "/worldGenerator/layers");
     int li = 0;
     for (var layer : p.worldGenerator.layers) {
       String path = "/worldGenerator/layers/" + li++;
+      if (layer.parentFolderUuid != null) {
+        var parent = folders.get(layer.parentFolderUuid);
+        if (parent == null || !parent.rootKind.equals("world"))
+          error("INVALID_REFERENCE", path + "/parentFolderUuid", "Layer requires a World folder");
+      }
       settings(layer.defaults, path + "/defaults");
       resources(layer.operations, path + "/operations");
       int oi = 0;

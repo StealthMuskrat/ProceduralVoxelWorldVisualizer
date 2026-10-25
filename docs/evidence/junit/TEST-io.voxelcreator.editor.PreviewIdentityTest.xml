@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.PreviewIdentityTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:56:56.988Z" hostname="715e00c143c7" time="0.008">
+<testsuite name="io.voxelcreator.editor.PreviewIdentityTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-25T01:32:17.072Z" hostname="715e00c143c7" time="0.007">
   <properties/>
-  <testcase name="paletteBookmarksAndFoldersDoNotChangeWorldGeometryIdentity()" classname="io.voxelcreator.editor.PreviewIdentityTest" time="0.003"/>
+  <testcase name="paletteBookmarksAndFoldersDoNotChangeWorldGeometryIdentity()" classname="io.voxelcreator.editor.PreviewIdentityTest" time="0.002"/>
   <testcase name="unrelatedFieldsDoNotInvalidateSelectedNoise()" classname="io.voxelcreator.editor.PreviewIdentityTest" time="0.004"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

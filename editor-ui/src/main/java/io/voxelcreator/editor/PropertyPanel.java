@@ -257,6 +257,13 @@ public final class PropertyPanel {
       if (state.draft instanceof Identity r) f.text("ID", r.id, v -> r.id = v);
       if (state.draft instanceof Noise n) noise(n);
       else if (state.draft instanceof Layer l) {
+        int stage = 0;
+        for (int i = 0; i < state.project().worldGenerator.layers.size(); i++)
+          if (state.project().worldGenerator.layers.get(i).uuid.equals(l.uuid)) stage = i + 1;
+        ImGui.text("Layer execution order: " + stage);
+        ImGui.textWrapped(
+            "Folder placement and tree order are organizational. Use Run Layer Earlier/Later in"
+                + " Resources to change execution.");
         f.bool("Enabled", l.enabled, v -> l.enabled = v);
         ImGui.textWrapped("Placements inherit every property below until explicitly overridden.");
         settings(l.defaults);

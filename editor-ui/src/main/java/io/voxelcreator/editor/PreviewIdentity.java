@@ -59,6 +59,7 @@ public final class PreviewIdentity {
   private static void stripPresentation(JsonNode n) {
     if (n instanceof ObjectNode object) {
       object.remove("parentFolderUuid");
+      object.remove("rootOrder");
       object.remove("pinnedControls");
       if (object.has("points")) {
         object.remove("displayMin");

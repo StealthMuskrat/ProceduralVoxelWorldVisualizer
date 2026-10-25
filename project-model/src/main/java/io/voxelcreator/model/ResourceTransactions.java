@@ -71,25 +71,7 @@ public final class ResourceTransactions {
    * destination.
    */
   public static void mergeCopies(ProjectData into, ProjectData selection) {
-    ProjectData copy = duplicateSelection(selection);
-    merge(into.noise2D, copy.noise2D);
-    merge(into.noise3D, copy.noise3D);
-    merge(into.voxelTypes, copy.voxelTypes);
-    merge(into.voxelGroups, copy.voxelGroups);
-    merge(into.voxelSets, copy.voxelSets);
-    merge(into.worldGenerator.layers, copy.worldGenerator.layers);
-    for (var folder : copy.folders) {
-      var existing =
-          into.folders.stream()
-              .filter(
-                  f ->
-                      Objects.equals(f.parentFolderUuid, folder.parentFolderUuid)
-                          && f.rootKind.equals(folder.rootKind))
-              .map(f -> f.id)
-              .toList();
-      folder.id = unique(folder.id, existing);
-      into.folders.add(folder);
-    }
+    ResourceGraph.append(into, duplicateSelection(selection));
   }
 
   private static <T extends Identity> void merge(List<T> to, List<T> from) {

@@ -161,7 +161,7 @@ public final class ResourcePanel {
     boolean open = ImGui.treeNodeEx(label, ImGuiTreeNodeFlags.DefaultOpen);
     if (filter.get().isBlank()) rootExpansion.put(kind, open);
     rootMenu(kind, null);
-    if (!kind.equals("world")) dropTarget(kind, null);
+    dropTarget(kind, null);
     if (open) {
       var rows = treeView.rows(kind, filter.get());
       selectionRows = rows;
@@ -194,7 +194,10 @@ public final class ResourcePanel {
       ImGui.setNextItemOpen(row.open(), ImGuiCond.Always);
       boolean expanded =
           ImGui.treeNodeEx(
-              (node.enabled() ? "" : "[off] ") + AppMetadata.uiText(node.id()) + "###container",
+              (node.enabled() ? "" : "[off] ")
+                  + (node.kind().equals("layer") ? "[run " + browser.stage(node.uuid()) + "] " : "")
+                  + AppMetadata.uiText(node.id())
+                  + "###container",
               ImGuiTreeNodeFlags.OpenOnArrow
                   | ImGuiTreeNodeFlags.NoTreePushOnOpen
                   | ImGuiTreeNodeFlags.FramePadding
@@ -211,8 +214,10 @@ public final class ResourcePanel {
       select(node.kind(), node.uuid(), node.root() + ":" + node.parent());
     rowMenu(node.kind(), resource, node.root(), node.parent());
     drag(node.uuid(), node.root());
-    if (node.kind().equals("folder")) dropTarget(node.root(), node.uuid());
-    else if (node.kind().equals("layer") && dragRoot.equals("operation"))
+    if (node.kind().equals("folder")) {
+      if (ImGui.getIO().getKeyShift()) dropBefore(node.uuid());
+      else dropTarget(node.root(), node.uuid());
+    } else if (node.kind().equals("layer") && dragRoot.equals("operation"))
       dropTarget("operation", node.uuid());
     else dropBefore(node.uuid());
     if (indent > 0) ImGui.unindent(indent);
@@ -311,7 +316,7 @@ public final class ResourcePanel {
     if (ImGui.beginPopupContextItem("root-menu" + kind + parent)) {
       if (ImGui.menuItem(kind.equals("world") ? "Create Layer" : "Create Noise Generator"))
         create(kind.equals("world") ? "layer" : kind, kind, parent);
-      if (!kind.equals("world") && ImGui.menuItem("Create Folder")) create("folder", kind, parent);
+      if (ImGui.menuItem("Create Folder")) create("folder", kind, parent);
       if (ImGui.menuItem("Paste", clipboard != null && clipboard.root().equals(kind)))
         paste(kind, parent);
       ImGui.endPopup();
@@ -321,7 +326,8 @@ public final class ResourcePanel {
   private void rowMenu(String kind, Identity r, String root, UUID parent) {
     if (ImGui.beginPopupContextItem("resource-menu" + r.uuid)) {
       if (r instanceof Folder) {
-        if (ImGui.menuItem("Create Noise Generator")) create(root, root, r.uuid);
+        if (ImGui.menuItem(root.equals("world") ? "Create Layer" : "Create Noise Generator"))
+          create(root.equals("world") ? "layer" : root, root, r.uuid);
         if (ImGui.menuItem("Create Folder")) create("folder", root, r.uuid);
         if (ImGui.menuItem("Paste", clipboard != null && clipboard.root().equals(root)))
           paste(root, r.uuid);
@@ -345,10 +351,32 @@ public final class ResourcePanel {
         replacement = null;
         ImGui.openPopup("Delete Resource");
       }
-      if (ImGui.menuItem("Move Up")) reorder(r.uuid, -1);
-      if (ImGui.menuItem("Move Down")) reorder(r.uuid, 1);
-      if (ImGui.menuItem("Move to Root") && r instanceof Noise)
-        state.change(p -> ((Noise) EditorState.find(p, r.uuid)).parentFolderUuid = null);
+      if (ImGui.menuItem(root.equals("operation") ? "Run Placement Earlier" : "Move Up in Tree"))
+        reorder(r.uuid, -1);
+      if (ImGui.menuItem(root.equals("operation") ? "Run Placement Later" : "Move Down in Tree"))
+        reorder(r.uuid, 1);
+      if (r instanceof Layer) {
+        var selected =
+            state.multiSelection.contains(r.uuid)
+                ? Set.copyOf(state.multiSelection)
+                : Set.of(r.uuid);
+        boolean layersOnly =
+            selected.stream()
+                .allMatch(
+                    id -> {
+                      var entry = ResourceGraph.find(state.project(), id);
+                      return entry != null && entry.resource() instanceof Layer;
+                    });
+        if (ImGui.menuItem("Run Layer Earlier", "", false, layersOnly))
+          state.change(p -> ResourceGraph.shiftExecution(p, selected, -1));
+        if (ImGui.menuItem("Run Layer Later", "", false, layersOnly))
+          state.change(p -> ResourceGraph.shiftExecution(p, selected, 1));
+        ImGui.textDisabled("Tree organization does not change stage order");
+      }
+      if (parent != null
+          && ResourceGraph.ORGANIZATIONAL_ROOTS.contains(root)
+          && ImGui.menuItem("Move to Root"))
+        state.change(p -> ResourceGraph.move(p, List.of(r.uuid), root, null));
       ImGui.endPopup();
     }
   }
@@ -363,6 +391,8 @@ public final class ResourcePanel {
       dragSelection = List.copyOf(state.multiSelection);
       ImGui.setDragDropPayload("resource", id.toString());
       ImGui.text("Move " + dragSelection.size() + " selected resource(s)");
+      if (ResourceGraph.ORGANIZATIONAL_ROOTS.contains(root))
+        ImGui.text("Folders: drop inside; hold Shift to place before. Stage order is unchanged.");
       ImGui.endDragDropSource();
     }
   }
@@ -459,6 +489,7 @@ public final class ResourcePanel {
                     case "layer" -> {
                       var l = new Layer();
                       l.id = id;
+                      l.parentFolderUuid = createParent;
                       p.worldGenerator.layers.add(l);
                       made[0] = l.uuid;
                     }
@@ -725,6 +756,43 @@ public final class ResourcePanel {
     } else if (!smokeBrowserDrawn) throw new AssertionError("Voxel browser was not drawn");
   }
 
+  void smokeOrganize() {
+    var before = PreviewIdentity.of(state.project(), 2, null);
+    var execution =
+        state.project().worldGenerator.layers.stream().map(layer -> layer.uuid).toList();
+    UUID[] worldFolder = {null};
+    if (!state.change(
+        p -> {
+          var world = new Folder();
+          world.id = "world-organization";
+          world.rootKind = "world";
+          p.folders.add(world);
+          worldFolder[0] = world.uuid;
+          var layer = p.worldGenerator.layers.getFirst();
+          ResourceGraph.move(p, List.of(layer.uuid), "world", world.uuid);
+          var noise = new Folder();
+          noise.id = "noise-organization";
+          noise.rootKind = "noise2D";
+          p.folders.add(noise);
+          p.project.rootOrder.put(
+              "noise2D", new ArrayList<>(List.of(p.noise2D.getFirst().uuid, noise.uuid)));
+        })) throw new AssertionError(state.issues);
+    refreshBrowser();
+    treeView.open(worldFolder[0], true);
+    if (!execution.equals(
+            state.project().worldGenerator.layers.stream().map(layer -> layer.uuid).toList())
+        || !before.equals(PreviewIdentity.of(state.project(), 2, null)))
+      throw new AssertionError("Organization changed computation identity or execution order");
+    try {
+      var path = UserConfig.directory().resolve("hierarchy-smoke-project.json");
+      new ProjectIO().save(path, state.project());
+      if (!new io.voxelcreator.api.ProjectLoader().load(path).success())
+        throw new AssertionError("Organized smoke project did not reload");
+    } catch (java.io.IOException error) {
+      throw new java.io.UncheckedIOException(error);
+    }
+  }
+
   record BrowserStats(
       int indexed,
       long builds,
@@ -750,5 +818,10 @@ public final class ResourcePanel {
 
   void probeScroll(float value) {
     probeScroll = value;
+  }
+
+  void probeOpenFolder(UUID id) {
+    refreshBrowser();
+    treeView.open(id, true);
   }
 }

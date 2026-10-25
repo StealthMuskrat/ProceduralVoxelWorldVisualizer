@@ -317,6 +317,10 @@
       "type" : "object",
       "additionalProperties" : false,
       "properties" : {
+        "parentFolderUuid" : {
+          "format" : "uuid",
+          "type" : [ "string", "null" ]
+        },
         "enabled" : {
           "type" : "boolean"
         },
@@ -594,6 +598,36 @@
           "type" : "integer",
           "minimum" : -2147483648,
           "maximum" : 2147483647
+        },
+        "rootOrder" : {
+          "type" : "object",
+          "additionalProperties" : false,
+          "properties" : {
+            "noise2D" : {
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "type" : "string",
+                "format" : "uuid"
+              }
+            },
+            "noise3D" : {
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "type" : "string",
+                "format" : "uuid"
+              }
+            },
+            "world" : {
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "type" : "string",
+                "format" : "uuid"
+              }
+            }
+          }
         }
       },
       "required" : [ "seed", "minY", "maxY", "uuid" ]

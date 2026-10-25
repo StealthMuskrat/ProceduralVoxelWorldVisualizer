@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.voxelcreator.model.ResourceHierarchyTest" tests="23" skipped="0" failures="0" errors="0" timestamp="2026-10-25T01:32:30.698Z" hostname="715e00c143c7" time="0.148">
+  <properties/>
+  <testcase name="cycleAndCrossRootMovesRejectBeforeMutatingTheSource()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.011"/>
+  <testcase name="operationOnlyExportsKeepWorldFolderAncestorsAndCarrierDefaults()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.029"/>
+  <testcase name="rootOrderUuidsRemapDuringDuplicationAndNeverBecomeSemanticDependencies()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.009"/>
+  <testcase name="treeReorderingWorldFoldersAndLayersIsIndependentFromExecutionChanges()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.004"/>
+  <testcase name="deletionReconcilesRootAndFolderOrdersWithoutLeavingDanglingUuids()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.009"/>
+  <testcase name="worldLayerParentsMustExistInTheWorldRoot()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.004"/>
+  <testcase name="layerCopyIntoAnotherWorldFolderAndCutPreserveScopeAndExecutionContract()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.012"/>
+  <testcase name="mergeCopiesPreservesIncomingRootMetadataAndDestinationProjectSettings()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.004"/>
+  <testcase name="invalidExecutionSelectionsAndPasteDestinationsPreserveAllData()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.007"/>
+  <testcase name="appendPreservesExistingOrderAndAppendsIncomingMixedOrderAsOwnedValues()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.003"/>
+  <testcase name="iterativeSubtreeIncludesStructuralWorldDescendantsWithoutFollowingNoiseReferences()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.001"/>
+  <testcase name="mixedMoveIntoFolderUsesSourceDisplayOrderAndPrunesOldRootEntries()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.002"/>
+  <testcase name="mixedRootOrderSupportsNoiseBeforeFoldersAndStableUnspecifiedChildren()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.002"/>
+  <testcase name="rootOrderIsSparseAndReadRoundTripsPreserveOwnedIndependentMaps()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.011"/>
+  <testcase name="exportAncestorPruningDoesNotModifySourceFolderOrders()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.004"/>
+  <testcase name="mixedCopyIntoFolderRetainsDisplayedOrderRegardlessOfInputSelectionOrder()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.004"/>
+  <testcase name="mixedSiblingBlockShiftsPreserveRelativeOrderInBothDirections()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.002"/>
+  <testcase name="sparseRootOrderRejectsUnknownDuplicateNestedAndCrossRootEntries()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.006"/>
+  <testcase name="assignCopiesOrganizationWithoutReplacingDestinationProjectIdentityOrSeed()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.001"/>
+  <testcase name="mixedCopyBackToRootPreservesExistingOrderAndAppendsTheCopiedBlock()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.004"/>
+  <testcase name="worldFoldersContainLayersAndOrganizationDoesNotMoveExecutionArray()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.002"/>
+  <testcase name="worldFolderCopyRemapsLayerHierarchyChildOrderAndOperationIdentities()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.003"/>
+  <testcase name="ordinaryProcessingInputNamedRootOrderStillRemapsItsProceduralReferences()" classname="io.voxelcreator.model.ResourceHierarchyTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

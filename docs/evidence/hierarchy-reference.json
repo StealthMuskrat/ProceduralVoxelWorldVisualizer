@@ -1,0 +1,10 @@
+{
+  "formatVersion" : 1,
+  "execution" : [ "set", "clear" ],
+  "worldRows" : [ "second", "clear", "everywhere", "first", "set", "everywhere" ],
+  "worldDepths" : [ 0, 1, 2, 0, 1, 2 ],
+  "noiseRoot" : [ "constant", "fields" ],
+  "stages" : [ 1, 2 ],
+  "submittedRows" : 8,
+  "field" : 1.0
+}

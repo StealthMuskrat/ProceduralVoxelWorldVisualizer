@@ -1,0 +1,11 @@
+{
+  "registryVersion" : 1,
+  "projectFormatVersion" : 2,
+  "protectedRoots" : [ "noise2D", "noise3D", "world" ],
+  "rootOrderPath" : "project.rootOrder",
+  "folderOrderPath" : "folders[].childOrder",
+  "layerParentPath" : "worldGenerator.layers[].parentFolderUuid",
+  "executionOrderPath" : "worldGenerator.layers",
+  "treeOrderAffectsExecution" : false,
+  "missingOrderPolicy" : "listed direct children first; unlisted children retain legacy relative order"
+}

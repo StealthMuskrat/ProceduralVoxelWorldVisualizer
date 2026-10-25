@@ -1,0 +1,5 @@
+Hierarchy schema, exact mixed ordering, parent scopes, execution stages and absent overrides PASS
+project schema and fixtures PASS
+user-config schema and fixtures PASS
+app-config schema and fixtures PASS
+profile-capture schema and fixtures PASS

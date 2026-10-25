@@ -231,6 +231,10 @@ public final class Desktop extends Application {
         if (!smokeExportDrawn) throw new AssertionError("Export preview was not rendered");
         System.out.println("RESOURCE_EXPORT_PREVIEW_NATIVE_PASS");
       }
+      if (runtimeFrame == 239) {
+        resources.smokeOrganize();
+        System.out.println("HIERARCHY_ORGANIZATION_NATIVE_PASS");
+      }
       if (runtimeFrame == 244) {
         findPanel.smoke(true);
         find.set(true);
@@ -756,7 +760,12 @@ public final class Desktop extends Application {
           "Maximum Y (inclusive)", projectDraft.project.maxY, v -> projectDraft.project.maxY = v);
       if (ImGui.button("Apply")) {
         var edited = ProjectIO.copy(projectDraft);
-        if (state.change(p -> p.project = edited.project)) settings.set(false);
+        if (state.change(
+            p -> {
+              p.project.seed = edited.project.seed;
+              p.project.minY = edited.project.minY;
+              p.project.maxY = edited.project.maxY;
+            })) settings.set(false);
       }
       ImGui.sameLine();
       if (ImGui.button("Cancel")) settings.set(false);

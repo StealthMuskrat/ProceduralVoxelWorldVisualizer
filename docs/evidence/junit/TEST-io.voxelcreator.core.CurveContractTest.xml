@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.core.CurveContractTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:53:17.738Z" hostname="715e00c143c7" time="0.031">
+<testsuite name="io.voxelcreator.core.CurveContractTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-25T01:32:27.541Z" hostname="715e00c143c7" time="0.028">
   <properties/>
-  <testcase name="autoAlignedAndFreeHaveDistinctValidatedSemantics()" classname="io.voxelcreator.core.CurveContractTest" time="0.008"/>
-  <testcase name="duplicateIdentitiesAndUnknownHandleModesAreRejected()" classname="io.voxelcreator.core.CurveContractTest" time="0.002"/>
+  <testcase name="autoAlignedAndFreeHaveDistinctValidatedSemantics()" classname="io.voxelcreator.core.CurveContractTest" time="0.003"/>
+  <testcase name="duplicateIdentitiesAndUnknownHandleModesAreRejected()" classname="io.voxelcreator.core.CurveContractTest" time="0.008"/>
   <testcase name="displayRangeDoesNotClampAndCompiledCoefficientsAreImmutable()" classname="io.voxelcreator.core.CurveContractTest" time="0.001"/>
-  <testcase name="curveIdentitiesParticipateInProjectValidationAndDuplication()" classname="io.voxelcreator.core.CurveContractTest" time="0.015"/>
+  <testcase name="curveIdentitiesParticipateInProjectValidationAndDuplication()" classname="io.voxelcreator.core.CurveContractTest" time="0.013"/>
   <testcase name="autoBezierIsMonotoneOnUnevenIntervalsAndMixedSegments()" classname="io.voxelcreator.core.CurveContractTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.ResourceSearchIndexTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:56:57.068Z" hostname="715e00c143c7" time="0.466">
+<testsuite name="io.voxelcreator.editor.ResourceSearchIndexTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-25T01:32:17.179Z" hostname="715e00c143c7" time="0.495">
   <properties/>
-  <testcase name="disabledLayerFlagsPropagateToOperationHitsAndDisabledItemsToChildControls()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.022"/>
-  <testcase name="immutableSnapshotsRetainLabelsValuesAndReferenceSetsAfterSourceMutation()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.009"/>
-  <testcase name="parameterMapReferencesRetainTheirKeyContextAndPointersEscapeReservedCharacters()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.014"/>
+  <testcase name="disabledLayerFlagsPropagateToOperationHitsAndDisabledItemsToChildControls()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.01"/>
+  <testcase name="immutableSnapshotsRetainLabelsValuesAndReferenceSetsAfterSourceMutation()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.02"/>
+  <testcase name="parameterMapReferencesRetainTheirKeyContextAndPointersEscapeReservedCharacters()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.009"/>
   <testcase name="presentationUuidStringsAreSearchableTextButNeverInventReferences()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.006"/>
-  <testcase name="rootDirectoryAndBreadcrumbFiltersKeepExactHierarchyContext()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.006"/>
-  <testcase name="directoryChoiceCatalogIncludesFoldersAndLayersWithoutResourceIdentityMixups()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.003"/>
-  <testcase name="filtersUseRootLocaleAndRejectUnknownContractValues()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.004"/>
-  <testcase name="directReferencesIdentifyBindingsAndOperationsWithoutContainerDuplicates()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.005"/>
-  <testcase name="deepFolderPathsAreIterativeBoundedAndDirectoryScopesRemainExact()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.382"/>
-  <testcase name="sourceParametersBindingsAndCurvePointsHaveRealJsonLocationsAndUniqueKeys()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.01"/>
+  <testcase name="rootDirectoryAndBreadcrumbFiltersKeepExactHierarchyContext()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.008"/>
+  <testcase name="directoryChoiceCatalogIncludesFoldersAndLayersWithoutResourceIdentityMixups()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.002"/>
+  <testcase name="filtersUseRootLocaleAndRejectUnknownContractValues()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.008"/>
+  <testcase name="directReferencesIdentifyBindingsAndOperationsWithoutContainerDuplicates()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.008"/>
+  <testcase name="deepFolderPathsAreIterativeBoundedAndDirectoryScopesRemainExact()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.411"/>
+  <testcase name="sourceParametersBindingsAndCurvePointsHaveRealJsonLocationsAndUniqueKeys()" classname="io.voxelcreator.editor.ResourceSearchIndexTest" time="0.006"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

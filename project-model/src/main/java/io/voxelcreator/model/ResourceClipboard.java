@@ -15,7 +15,6 @@ public final class ResourceClipboard {
 
   public ResourceClipboard(ProjectData source, Collection<UUID> selected, boolean cut) {
     this.project = source.project.uuid;
-    this.selected = List.copyOf(selected);
     if (selected.isEmpty()) throw new IllegalArgumentException("Nothing selected");
     var entries =
         selected.stream()
@@ -25,6 +24,12 @@ public final class ResourceClipboard {
     if (entries.stream().anyMatch(e -> !scope.equals(e.scope())))
       throw new IllegalArgumentException("Clipboard accepts only siblings");
     this.root = entries.getFirst().root();
+    var selectedIds = Set.copyOf(selected);
+    this.selected =
+        ResourceGraph.children(source, root, entries.getFirst().parent()).stream()
+            .map(ResourceGraph.Entry::uuid)
+            .filter(selectedIds::contains)
+            .toList();
     this.cut = cut;
     snapshot = ResourceGraph.selection(source, selected, false);
   }
@@ -42,6 +47,7 @@ public final class ResourceClipboard {
       throw new IllegalArgumentException("Clipboard belongs to another project session");
     if (!this.root.equals(root))
       throw new IllegalArgumentException("Paste requires a compatible root");
+    ResourceGraph.validateParent(destination, root, parent);
     if (cut) {
       ResourceGraph.move(destination, selected, root, parent);
       return;
@@ -53,6 +59,8 @@ public final class ResourceClipboard {
     for (var n : payload.noise2D) if (roots.contains(n.uuid)) n.parentFolderUuid = parent;
     for (var n : payload.noise3D) if (roots.contains(n.uuid)) n.parentFolderUuid = parent;
     for (var f : payload.folders) if (roots.contains(f.uuid)) f.parentFolderUuid = parent;
+    for (var layer : payload.worldGenerator.layers)
+      if (roots.contains(layer.uuid)) layer.parentFolderUuid = parent;
     if (root.equals("operation")) {
       Layer target =
           destination.worldGenerator.layers.stream()
@@ -69,5 +77,8 @@ public final class ResourceClipboard {
       return;
     }
     ResourceGraph.append(destination, payload);
+    if (ResourceGraph.ORGANIZATIONAL_ROOTS.contains(root))
+      ResourceGraph.appendOrder(
+          destination, root, parent, this.selected.stream().map(copy.identities()::get).toList());
   }
 }

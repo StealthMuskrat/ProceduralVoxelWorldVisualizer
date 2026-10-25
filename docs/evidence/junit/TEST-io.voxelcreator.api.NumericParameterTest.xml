@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.NumericParameterTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:53:13.383Z" hostname="715e00c143c7" time="0.502">
+<testsuite name="io.voxelcreator.api.NumericParameterTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-25T01:32:24.514Z" hostname="715e00c143c7" time="0.32">
   <properties/>
-  <testcase name="heightScaleAndBaseHeightResolveBeforeRounding()" classname="io.voxelcreator.api.NumericParameterTest" time="0.005"/>
+  <testcase name="heightScaleAndBaseHeightResolveBeforeRounding()" classname="io.voxelcreator.api.NumericParameterTest" time="0.007"/>
   <testcase name="stageSnapshotsAndCompiledProjectAreIndependentOfLaterAuthoringEdits()" classname="io.voxelcreator.api.NumericParameterTest" time="0.005"/>
-  <testcase name="threeDimensionalDriverIsNotAccidentallyColumnCached()" classname="io.voxelcreator.api.NumericParameterTest" time="0.129"/>
-  <testcase name="interpretationPrecedesGatesAndOverflowFailsWithoutPublishingChunk()" classname="io.voxelcreator.api.NumericParameterTest" time="0.009"/>
-  <testcase name="thresholdMappingUsesPrimarySampleAndExactInclusiveComparison()" classname="io.voxelcreator.api.NumericParameterTest" time="0.011"/>
-  <testcase name="unusedDisabledAndOutsideYRowsNeverSampleInvalidFields()" classname="io.voxelcreator.api.NumericParameterTest" time="0.014"/>
-  <testcase name="workerRootAndTraceResultsAgreeWithIndependentHeightFormula()" classname="io.voxelcreator.api.NumericParameterTest" time="0.305"/>
-  <testcase name="repeatedDestinationsFollowStoredFloatingPointOrder()" classname="io.voxelcreator.api.NumericParameterTest" time="0.009"/>
+  <testcase name="threeDimensionalDriverIsNotAccidentallyColumnCached()" classname="io.voxelcreator.api.NumericParameterTest" time="0.065"/>
+  <testcase name="interpretationPrecedesGatesAndOverflowFailsWithoutPublishingChunk()" classname="io.voxelcreator.api.NumericParameterTest" time="0.006"/>
+  <testcase name="thresholdMappingUsesPrimarySampleAndExactInclusiveComparison()" classname="io.voxelcreator.api.NumericParameterTest" time="0.006"/>
+  <testcase name="unusedDisabledAndOutsideYRowsNeverSampleInvalidFields()" classname="io.voxelcreator.api.NumericParameterTest" time="0.007"/>
+  <testcase name="workerRootAndTraceResultsAgreeWithIndependentHeightFormula()" classname="io.voxelcreator.api.NumericParameterTest" time="0.207"/>
+  <testcase name="repeatedDestinationsFollowStoredFloatingPointOrder()" classname="io.voxelcreator.api.NumericParameterTest" time="0.006"/>
   <testcase name="historicalDetailsConstructorsHaveEmptyParameterReports()" classname="io.voxelcreator.api.NumericParameterTest" time="0.001"/>
-  <testcase name="explicitTwoDimensionalDriverUsesPlacementAxesAndItsOwnProjection()" classname="io.voxelcreator.api.NumericParameterTest" time="0.008"/>
+  <testcase name="explicitTwoDimensionalDriverUsesPlacementAxesAndItsOwnProjection()" classname="io.voxelcreator.api.NumericParameterTest" time="0.006"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

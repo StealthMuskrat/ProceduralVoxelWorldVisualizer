@@ -23,6 +23,9 @@ public final class ProjectData {
     public UUID uuid = UUID.randomUUID();
     public long seed = 0;
     public int minY = -64, maxY = 319;
+
+    /** Optional sparse presentation orders for direct children of the three protected roots. */
+    public Map<String, List<UUID>> rootOrder = new LinkedHashMap<>();
   }
 
   public static final class Color {
@@ -136,6 +139,7 @@ public final class ProjectData {
   }
 
   public static final class Layer extends Identity {
+    public UUID parentFolderUuid;
     public boolean enabled = true;
     public Settings defaults = new Settings();
     public List<Operation> operations = new ArrayList<>();

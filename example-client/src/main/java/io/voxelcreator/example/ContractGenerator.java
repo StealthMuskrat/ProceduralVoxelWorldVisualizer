@@ -103,6 +103,8 @@ public final class ContractGenerator {
     ((ObjectNode) defs.path("ProjectData").path("properties"))
         .set("formatVersion", obj().put("const", 2));
     schema.set("$defs", defs);
+    writeJSON(
+        root.resolve("registries/resource-hierarchy.json"), ResourceGraph.hierarchyRegistry());
     ((ObjectNode) defs.path("Item").path("properties").path("parameters"))
         .set("properties", obj().set("curve", obj().put("$ref", "#/$defs/Curve")));
     ((ArrayNode) defs.path("Curve").path("required")).removeAll();
@@ -154,6 +156,18 @@ public final class ContractGenerator {
     ((ObjectNode) defs.path("Operation").path("properties"))
         .set("noiseGeneratorUuid", obj().put("type", "string").put("format", "uuid"));
     ((ArrayNode) defs.path("Operation").path("required")).add("noiseGeneratorUuid");
+    var rootOrder = obj().put("type", "object").put("additionalProperties", false);
+    var rootProperties = obj();
+    for (String rootKind : List.of("noise2D", "noise3D", "world")) {
+      var ids = obj().put("type", "array").put("uniqueItems", true);
+      ids.set("items", obj().put("type", "string").put("format", "uuid"));
+      rootProperties.set(rootKind, ids);
+    }
+    rootOrder.set("properties", rootProperties);
+    ((ObjectNode) defs.path("Project").path("properties")).set("rootOrder", rootOrder);
+    var projectRequired = (ArrayNode) defs.path("Project").path("required");
+    for (int i = projectRequired.size() - 1; i >= 0; i--)
+      if (projectRequired.get(i).asText().equals("rootOrder")) projectRequired.remove(i);
     // New format-2 fields have documented defaults, so historical format-2 documents remain valid.
     for (String name : List.of("Settings", "Gate")) {
       var required = (ArrayNode) defs.path(name).path("required");

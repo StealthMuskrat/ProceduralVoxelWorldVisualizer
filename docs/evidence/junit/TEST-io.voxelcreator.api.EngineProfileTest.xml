@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.api.EngineProfileTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:53:13.159Z" hostname="715e00c143c7" time="0.205">
+<testsuite name="io.voxelcreator.api.EngineProfileTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-25T01:32:24.337Z" hostname="715e00c143c7" time="0.159">
   <properties/>
-  <testcase name="sourceContextThreadAndPrefetchMeasurementsDescribeActualGenerationAndStages()" classname="io.voxelcreator.api.EngineProfileTest" time="0.03"/>
-  <testcase name="deliveryTimingIncludesConsumerAcknowledgementAndFailure()" classname="io.voxelcreator.api.EngineProfileTest" time="0.069"/>
-  <testcase name="asyncSharedRequestsHaveOneQueueWaitAndOneGeneration()" classname="io.voxelcreator.api.EngineProfileTest" time="0.02"/>
-  <testcase name="captureAndStrideNeverChangeWorldResultsAcrossWorkersRootsAndContextLifetimes()" classname="io.voxelcreator.api.EngineProfileTest" time="0.058"/>
-  <testcase name="failedOperationAndPrefetchRetainFailedTimingsWithoutPublishingOrLeaking()" classname="io.voxelcreator.api.EngineProfileTest" time="0.016"/>
-  <testcase name="cancelledGenerationRetainsCancellationAndReleasesAdmission()" classname="io.voxelcreator.api.EngineProfileTest" time="0.007"/>
+  <testcase name="sourceContextThreadAndPrefetchMeasurementsDescribeActualGenerationAndStages()" classname="io.voxelcreator.api.EngineProfileTest" time="0.022"/>
+  <testcase name="deliveryTimingIncludesConsumerAcknowledgementAndFailure()" classname="io.voxelcreator.api.EngineProfileTest" time="0.065"/>
+  <testcase name="asyncSharedRequestsHaveOneQueueWaitAndOneGeneration()" classname="io.voxelcreator.api.EngineProfileTest" time="0.009"/>
+  <testcase name="captureAndStrideNeverChangeWorldResultsAcrossWorkersRootsAndContextLifetimes()" classname="io.voxelcreator.api.EngineProfileTest" time="0.04"/>
+  <testcase name="failedOperationAndPrefetchRetainFailedTimingsWithoutPublishingOrLeaking()" classname="io.voxelcreator.api.EngineProfileTest" time="0.012"/>
+  <testcase name="cancelledGenerationRetainsCancellationAndReleasesAdmission()" classname="io.voxelcreator.api.EngineProfileTest" time="0.009"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

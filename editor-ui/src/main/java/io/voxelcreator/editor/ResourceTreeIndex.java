@@ -26,8 +26,13 @@ public final class ResourceTreeIndex {
   private final Map<UUID, Node> nodes;
   private final Map<Scope, List<Node>> children;
   private final Map<String, List<Node>> kinds;
+  private final Map<UUID, Integer> stages;
 
   public ResourceTreeIndex(ProjectData project) {
+    var stageMap = new HashMap<UUID, Integer>();
+    for (int i = 0; i < project.worldGenerator.layers.size(); i++)
+      stageMap.put(project.worldGenerator.layers.get(i).uuid, i + 1);
+    stages = Map.copyOf(stageMap);
     var all = new LinkedHashMap<UUID, Node>();
     var adjacency = new HashMap<Scope, List<Node>>();
     var byKind = new HashMap<String, List<Node>>();
@@ -60,6 +65,13 @@ public final class ResourceTreeIndex {
       for (int i = 0; i < folder.childOrder.size(); i++) ranks.put(folder.childOrder.get(i), i);
       list.sort(Comparator.comparingInt(n -> ranks.getOrDefault(n.uuid(), Integer.MAX_VALUE)));
     }
+    for (var order : project.project.rootOrder.entrySet()) {
+      var list = adjacency.get(new Scope(order.getKey(), null));
+      if (list == null) continue;
+      var ranks = new HashMap<UUID, Integer>();
+      for (int i = 0; i < order.getValue().size(); i++) ranks.put(order.getValue().get(i), i);
+      list.sort(Comparator.comparingInt(n -> ranks.getOrDefault(n.uuid(), Integer.MAX_VALUE)));
+    }
     var frozenChildren = new HashMap<Scope, List<Node>>();
     adjacency.forEach((key, value) -> frozenChildren.put(key, List.copyOf(value)));
     var frozenKinds = new HashMap<String, List<Node>>();
@@ -67,6 +79,10 @@ public final class ResourceTreeIndex {
     nodes = Collections.unmodifiableMap(all);
     children = Map.copyOf(frozenChildren);
     kinds = Map.copyOf(frozenKinds);
+  }
+
+  public int stage(UUID layer) {
+    return stages.getOrDefault(layer, 0);
   }
 
   public int size() {

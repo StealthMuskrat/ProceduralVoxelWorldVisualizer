@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.storage.PackedArchiveTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:53:24.360Z" hostname="715e00c143c7" time="0.754">
+<testsuite name="io.voxelcreator.storage.PackedArchiveTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-25T01:32:32.575Z" hostname="715e00c143c7" time="0.459">
   <properties/>
-  <testcase name="independentArchiveVersionsRemapAndKeepExplicitEmptyCoverage()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.563"/>
-  <testcase name="independentLegacyTreeIsReadAndReemittedExactly()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.011"/>
+  <testcase name="independentArchiveVersionsRemapAndKeepExplicitEmptyCoverage()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.317"/>
+  <testcase name="independentLegacyTreeIsReadAndReemittedExactly()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.013"/>
   <testcase name="independentIntegerBitStreamVectorsMatchReaderAndWriter()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.008"/>
-  <testcase name="failedAppendAndConstructorDoNotReplaceDestinationOrLeakTemporaryFiles()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.033"/>
-  <testcase name="compressedJunkTruncationChecksumAndLegacyTagMismatchReject()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.024"/>
+  <testcase name="failedAppendAndConstructorDoNotReplaceDestinationOrLeakTemporaryFiles()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.021"/>
+  <testcase name="compressedJunkTruncationChecksumAndLegacyTagMismatchReject()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.012"/>
   <testcase name="malformedHeadersDictionaryAndIndexRangesRejectBeforeReadingChunks()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.011"/>
-  <testcase name="registryRejectsNoncanonicalIdsAndDuplicateUuids()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.005"/>
-  <testcase name="missingIdsAreListedBeforeAnySnapshotEscapesAndRegistryStaysUnchanged()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.004"/>
-  <testcase name="defaultV2AndExplicitV1AreDeterministicAndInteroperable()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.063"/>
-  <testcase name="invalidPackedHeadersIndicesUnusedEntriesAndPaddingReject()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.019"/>
+  <testcase name="registryRejectsNoncanonicalIdsAndDuplicateUuids()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.004"/>
+  <testcase name="missingIdsAreListedBeforeAnySnapshotEscapesAndRegistryStaysUnchanged()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.006"/>
+  <testcase name="defaultV2AndExplicitV1AreDeterministicAndInteroperable()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.047"/>
+  <testcase name="invalidPackedHeadersIndicesUnusedEntriesAndPaddingReject()" classname="io.voxelcreator.storage.PackedArchiveTest" time="0.008"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

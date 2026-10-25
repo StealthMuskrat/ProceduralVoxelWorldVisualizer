@@ -75,6 +75,11 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UnifiedFindProbe build/find-probe
           python scripts/verify_unified_find.py build/find-probe/unified-find.json
+      - name: Resource hierarchy and execution isolation reference
+        run: |
+          java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.HierarchyReferenceProbe build/hierarchy-probe
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.HierarchyConsumer build/hierarchy-probe/organized-project.json
+          python scripts/verify_hierarchy.py build/hierarchy-probe/organized-project.json build/hierarchy-probe/hierarchy-reference.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -93,6 +98,7 @@ jobs:
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/
+            build/hierarchy-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -217,6 +223,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_unified_find.py build/find-probe/unified-find.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows resource hierarchy and execution isolation reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.HierarchyReferenceProbe build/hierarchy-probe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.HierarchyConsumer build/hierarchy-probe/organized-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_hierarchy.py build/hierarchy-probe/organized-project.json build/hierarchy-probe/hierarchy-reference.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -259,6 +274,7 @@ jobs:
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/
+            build/hierarchy-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/
