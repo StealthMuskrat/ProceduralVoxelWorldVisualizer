@@ -47,10 +47,12 @@ public final class ResourcePanel {
   private List<UUID> dragSelection = List.of();
   public Consumer<UUID> findReferences;
   public final Set<UUID> exportSelection = new LinkedHashSet<>();
+  private final ResourceExportPanel exportPanel;
 
   public ResourcePanel(EditorState s, PropertyPanel properties) {
     state = s;
     this.properties = properties;
+    exportPanel = new ResourceExportPanel(s, exportSelection);
   }
 
   public void reset() {
@@ -74,6 +76,7 @@ public final class ResourcePanel {
     dragSelection = List.of();
     manager.set(false);
     exportSelection.clear();
+    exportPanel.reset();
   }
 
   public void draw() {
@@ -547,33 +550,21 @@ public final class ResourcePanel {
   }
 
   public ProjectData exportSelection() {
-    return ResourceGraph.selection(state.project(), exportSelection, true);
+    return exportPanel.prepare().resources();
   }
 
   public void beginExport() {
     exportSelection.clear();
+    exportPanel.reset();
     exportSelection.addAll(state.multiSelection);
     if (exportSelection.isEmpty() && state.selected != null) exportSelection.add(state.selected);
+    var live = new HashSet<UUID>();
+    ResourceGraph.entries(state.project()).forEach(e -> live.add(e.uuid()));
+    exportSelection.retainAll(live);
   }
 
   public void drawExportSelection() {
-    ImGui.textWrapped(
-        "Choose resources. Required references and folder ancestors are included automatically.");
-    for (var e : ResourceGraph.entries(state.project())) {
-      ImGui.pushID("export" + e.uuid());
-      var selected = new ImBoolean(exportSelection.contains(e.uuid()));
-      if (ImGui.checkbox(e.kind() + " / " + e.resource().id, selected)) {
-        if (selected.get()) exportSelection.add(e.uuid());
-        else exportSelection.remove(e.uuid());
-      }
-      ImGui.popID();
-    }
-    if (!exportSelection.isEmpty()) {
-      var included = ResourceGraph.entries(exportSelection());
-      ImGui.separator();
-      ImGui.text("Package contains " + included.size() + " resources (including dependencies):");
-      for (var e : included) ImGui.bulletText(e.kind() + " / " + e.resource().id);
-    }
+    exportPanel.draw();
   }
 
   private void copy(UUID id, String root, boolean cut) {

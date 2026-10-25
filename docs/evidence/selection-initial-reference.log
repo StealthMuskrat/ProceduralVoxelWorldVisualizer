@@ -1,0 +1,2 @@
+Exception in thread "main" java.lang.AssertionError: Picker drew invalid rows or activated without selection
+	at io.voxelcreator.editor.ResourceWorkflowProbe.main(ResourceWorkflowProbe.java:80)

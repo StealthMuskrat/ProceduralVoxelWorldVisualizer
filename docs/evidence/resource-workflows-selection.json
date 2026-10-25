@@ -1,0 +1,74 @@
+{
+  "packageVersion" : 1,
+  "resources" : {
+    "formatVersion" : 2,
+    "project" : {
+      "uuid" : "360d5d53-d0ba-468f-be7a-d2b25b59a038",
+      "seed" : 0,
+      "minY" : -64,
+      "maxY" : 319
+    },
+    "voxelTypes" : [ {
+      "uuid" : "627c48c3-25f7-4a7b-9029-8d170f7215c2",
+      "id" : "type-00000",
+      "color" : {
+        "r" : 200,
+        "g" : 200,
+        "b" : 200
+      }
+    }, {
+      "uuid" : "d74e69ea-7646-4513-a20b-42689a04e839",
+      "id" : "type-01999",
+      "color" : {
+        "r" : 200,
+        "g" : 200,
+        "b" : 200
+      }
+    } ],
+    "voxelGroups" : [ ],
+    "voxelSets" : [ {
+      "uuid" : "9180cc04-09e5-40c0-a5b3-08d4667d302a",
+      "id" : "catalog",
+      "voxelTypeUuids" : [ "627c48c3-25f7-4a7b-9029-8d170f7215c2", "d74e69ea-7646-4513-a20b-42689a04e839" ]
+    } ],
+    "noise2D" : [ {
+      "uuid" : "f2a7d805-6b13-41cf-84d4-a53518f8234d",
+      "id" : "shared-field",
+      "dimension" : 2,
+      "parentFolderUuid" : null,
+      "algorithm" : {
+        "key" : "CONSTANT",
+        "parameters" : {
+          "value" : 0.625
+        }
+      },
+      "seedOffset" : 0,
+      "coordinateTransforms" : [ ],
+      "processing" : [ ],
+      "sharedParameters" : [ ],
+      "pinnedControls" : [ ],
+      "outputBinding" : {
+        "sourceKind" : "Source Result",
+        "type" : "Scalar",
+        "ambientKey" : null,
+        "value" : null,
+        "parameterUuid" : null,
+        "itemUuid" : null,
+        "noiseGeneratorUuid" : null,
+        "projection" : "XZ",
+        "slice" : 0.0
+      }
+    } ],
+    "noise3D" : [ ],
+    "worldGenerator" : {
+      "uuid" : "ced9ae62-8501-474e-a1d0-a2c4bf5375db",
+      "layers" : [ ]
+    },
+    "folders" : [ ],
+    "bookmarks" : {
+      "noise2D" : [ ],
+      "noise3D" : [ ],
+      "world" : [ ]
+    }
+  }
+}

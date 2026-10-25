@@ -52,6 +52,11 @@ public final class Desktop extends Application {
   private ProjectData projectDraft;
   private ProjectData importCandidate;
   private ResourceImport.Plan importPlan;
+  private final ImString importFilter = new ImString(256);
+  private List<ResourceImport.Row> filteredImportRows = List.of();
+  private ResourceImport.Plan filteredImportPlan;
+  private String filteredImportQuery = "";
+  private boolean smokeExportDrawn;
   private final Map<UUID, ResourceImport.Choice> importChoices = new LinkedHashMap<>();
   private long importRevision = -1;
   private ResourceSearchIndex searchIndex;
@@ -224,9 +229,12 @@ public final class Desktop extends Application {
         System.out.println("THEME_CONTRAST_DRAFT_NATIVE_PASS");
       }
       if (runtimeFrame == 225) resources.smokeBrowser(true);
+      if (runtimeFrame == 226) openFile("Export");
       if (runtimeFrame == 238) {
         resources.smokeBrowser(false);
         System.out.println("RESOURCE_BROWSER_NATIVE_PASS");
+        if (!smokeExportDrawn) throw new AssertionError("Export preview was not rendered");
+        System.out.println("RESOURCE_EXPORT_PREVIEW_NATIVE_PASS");
       }
       if (runtimeFrame == 462) {
         profiler.set(true);
@@ -530,8 +538,9 @@ public final class Desktop extends Application {
       ImGui.setNextItemWidth(600);
       ImGui.inputText("Path", pathInput);
       if (fileAction.equals("Export")) {
-        ImGui.beginChild("export-resources", 650, 300, true);
+        ImGui.beginChild("export-resources", 720, 360, true);
         resources.drawExportSelection();
+        if (smokeFrames > 0) smokeExportDrawn = true;
         ImGui.endChild();
       }
       if (ImGui.button(fileAction)) {
@@ -588,6 +597,8 @@ public final class Desktop extends Application {
         pendingTransition = null;
         ImGui.closeCurrentPopup();
       }
+      if (smokeFrames > 0 && 480 - smokeFrames == 236 && fileAction.equals("Export"))
+        ImGui.closeCurrentPopup();
       ImGui.endPopup();
     }
     if (importCandidate != null && !ImGui.isPopupOpen("Import Resources"))
@@ -601,29 +612,59 @@ public final class Desktop extends Application {
           "Preview the entire import. Copies receive new UUIDs and collision-safe IDs. Reuse is"
               + " offered only for semantically identical definitions. Skips also exclude invalid"
               + " dependents.");
+      ImGui.inputTextWithHint(
+          "##import-filter", "Filter incoming IDs, kinds or resolution...", importFilter);
+      String query = importFilter.get().strip().toLowerCase(Locale.ROOT);
+      if (filteredImportPlan != importPlan || !filteredImportQuery.equals(query)) {
+        filteredImportRows =
+            importPlan.rows().stream()
+                .filter(
+                    row ->
+                        (row.kind()
+                                + " "
+                                + row.id()
+                                + " "
+                                + row.resolution()
+                                + " "
+                                + Objects.toString(row.targetId(), ""))
+                            .toLowerCase(Locale.ROOT)
+                            .contains(query))
+                .toList();
+        filteredImportPlan = importPlan;
+        filteredImportQuery = query;
+      }
+      ImGui.text(filteredImportRows.size() + " matching incoming resources");
       ImGui.beginChild("import-resources", 720, 360, true);
-      for (var row : importPlan.rows()) {
-        ImGui.pushID(row.uuid().toString());
-        ImGui.text(row.kind() + " / " + row.id());
-        if (row.existing() != null)
-          ImGui.textDisabled(
-              "Existing identity/ID conflict: "
-                  + row.existing()
-                  + "; compatible: "
-                  + row.compatible());
-        var choice = importChoices.getOrDefault(row.uuid(), ResourceImport.Choice.COPY);
-        fields.choice(
-            "Resolution",
-            choice.name(),
-            row.compatible() ? List.of("COPY", "REUSE", "SKIP") : List.of("COPY", "SKIP"),
-            v -> {
-              importChoices.put(row.uuid(), ResourceImport.Choice.valueOf(v));
-              importRevision = -1;
-            });
-        ImGui.textDisabled(
-            row.resolution() + (row.targetId() == null ? "" : " -> " + row.targetId()));
-        ImGui.separator();
-        ImGui.popID();
+      var clipper = new ImGuiListClipper();
+      try {
+        clipper.begin(
+            filteredImportRows.size(),
+            3 * ImGui.getTextLineHeightWithSpacing() + ImGui.getFrameHeightWithSpacing());
+        while (clipper.step())
+          for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
+            var row = filteredImportRows.get(i);
+            ImGui.pushID(row.uuid().toString());
+            ImGui.text(row.kind() + " / " + row.id());
+            ImGui.textDisabled(
+                row.existing() == null
+                    ? "No existing identity/ID conflict"
+                    : "Existing: " + row.existing() + "; compatible: " + row.compatible());
+            var choice = importChoices.getOrDefault(row.uuid(), ResourceImport.Choice.COPY);
+            fields.choice(
+                "Resolution",
+                choice.name(),
+                row.compatible() ? List.of("COPY", "REUSE", "SKIP") : List.of("COPY", "SKIP"),
+                v -> {
+                  importChoices.put(row.uuid(), ResourceImport.Choice.valueOf(v));
+                  importRevision = -1;
+                });
+            ImGui.textDisabled(
+                row.resolution() + (row.targetId() == null ? "" : " -> " + row.targetId()));
+            ImGui.popID();
+          }
+        clipper.end();
+      } finally {
+        clipper.destroy();
       }
       for (var issue : importPlan.diagnostics()) ImGui.textWrapped("! " + issue);
       ImGui.endChild();

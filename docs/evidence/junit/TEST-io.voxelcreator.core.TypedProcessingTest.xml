@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.core.TypedProcessingTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:48:08.780Z" hostname="715e00c143c7" time="0.048">
+<testsuite name="io.voxelcreator.core.TypedProcessingTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:26:52.636Z" hostname="715e00c143c7" time="0.037">
   <properties/>
-  <testcase name="coordinateValuesRequireExplicitConversion()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.005"/>
+  <testcase name="coordinateValuesRequireExplicitConversion()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.004"/>
   <testcase name="equalityRequiresMatchingTypesAndComparesEveryComponent()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.005"/>
-  <testcase name="malformedNumericParametersAreRejectedAndTerraceTransitionIsExplicit()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.012"/>
-  <testcase name="vectorRotationAndZeroNormalization()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.003"/>
-  <testcase name="explicitProjectionExpansionCoordinateConversionAndBoolean()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.006"/>
-  <testcase name="selectAndExpressionDoNotEvaluateUnselectedEarlierResults()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.013"/>
+  <testcase name="malformedNumericParametersAreRejectedAndTerraceTransitionIsExplicit()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.008"/>
+  <testcase name="vectorRotationAndZeroNormalization()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.002"/>
+  <testcase name="explicitProjectionExpansionCoordinateConversionAndBoolean()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.004"/>
+  <testcase name="selectAndExpressionDoNotEvaluateUnselectedEarlierResults()" classname="io.voxelcreator.core.TypedProcessingTest" time="0.009"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

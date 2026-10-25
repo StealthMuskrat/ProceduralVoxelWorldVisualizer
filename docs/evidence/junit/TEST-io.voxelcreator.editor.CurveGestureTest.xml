@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.CurveGestureTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:47:57.075Z" hostname="715e00c143c7" time="0.006">
+<testsuite name="io.voxelcreator.editor.CurveGestureTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:26:38.706Z" hostname="715e00c143c7" time="0.013">
   <properties/>
-  <testcase name="tangentModeAndLocalCancelIsolationAreEnforced()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.003"/>
+  <testcase name="tangentModeAndLocalCancelIsolationAreEnforced()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.006"/>
   <testcase name="cumulativeGroupSnappingProducesOneUndoEntry()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.002"/>
-  <testcase name="invalidCrossingRetainsLastValidGestureAndEndpointsStayLocked()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.001"/>
+  <testcase name="invalidCrossingRetainsLastValidGestureAndEndpointsStayLocked()" classname="io.voxelcreator.editor.CurveGestureTest" time="0.003"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

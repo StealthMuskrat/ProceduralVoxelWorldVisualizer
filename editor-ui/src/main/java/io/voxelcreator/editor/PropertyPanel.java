@@ -14,6 +14,8 @@ import java.util.function.*;
 public final class PropertyPanel {
   private final EditorState state;
   private final UiFields f = new UiFields();
+  private final ResourcePicker resourcePicker;
+  private MembershipDialog membershipDialog;
   private final ExpressionFeedback expressionFeedback = new ExpressionFeedback();
   private UUID last;
   private CurveDialog curve;
@@ -147,9 +149,11 @@ public final class PropertyPanel {
 
   public PropertyPanel(EditorState s) {
     state = s;
+    resourcePicker = new ResourcePicker(s);
   }
 
   public void draw() {
+    resourcePicker.synchronize();
     ImGui.begin("Properties");
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Properties", 1f));
     if (!Objects.equals(last, state.selected)) {
@@ -211,14 +215,10 @@ public final class PropertyPanel {
         ImGui.textWrapped(
             "Palette edits affect appearance; semantic voxel identity remains the same.");
       } else if (state.draft instanceof Membership m) {
-        for (var t : state.project().voxelTypes)
-          f.bool(
-              t.id,
-              m.voxelTypeUuids.contains(t.uuid),
-              v -> {
-                if (v) m.voxelTypeUuids.add(t.uuid);
-                else m.voxelTypeUuids.remove(t.uuid);
-              });
+        ImGui.text(m.voxelTypeUuids.size() + " member reference(s)");
+        if (ImGui.button("Edit Members...")) membershipDialog = new MembershipDialog(state, m);
+        ImGui.textWrapped(
+            "Membership editing offers a temporary searchable selection with Apply/Cancel.");
       } else if (state.draft instanceof Folder folder) {
         ImGui.text("Organizational folder: " + folder.rootKind);
         ImGui.textWrapped(
@@ -230,6 +230,7 @@ public final class PropertyPanel {
       smokeCurveDrawn = true;
       if (curve.draw()) curve = null;
     }
+    if (membershipDialog != null && membershipDialog.draw()) membershipDialog = null;
     drawSmokeWorldControls();
   }
 
@@ -993,27 +994,11 @@ public final class PropertyPanel {
   }
 
   public void noisePicker(String label, UUID current, Consumer<UUID> set) {
-    var list = new ArrayList<Noise>();
-    list.addAll(state.project().noise2D);
-    list.addAll(state.project().noise3D);
-    if (ImGui.beginCombo(label, idFor(list, current))) {
-      if (ImGui.selectable("None")) set.accept(null);
-      for (var n : list) if (ImGui.selectable(n.id + " [" + n.dimension + "D]")) set.accept(n.uuid);
-      ImGui.endCombo();
-    }
+    resourcePicker.draw(label, "noise", current, "None", set);
   }
 
   private void fieldPicker(String label, UUID current, Consumer<UUID> set) {
-    var list = new ArrayList<Noise>();
-    list.addAll(state.project().noise2D);
-    list.addAll(state.project().noise3D);
-    if (ImGui.beginCombo(label, current == null ? "Placement field" : idFor(list, current))) {
-      if (ImGui.selectable("Placement field", current == null)) set.accept(null);
-      for (var n : list)
-        if (ImGui.selectable(n.id + " [" + n.dimension + "D]", n.uuid.equals(current)))
-          set.accept(n.uuid);
-      ImGui.endCombo();
-    }
+    resourcePicker.draw(label, "noise", current, "Placement field", set);
   }
 
   private void placement(Operation op) {
@@ -1187,11 +1172,7 @@ public final class PropertyPanel {
   }
 
   private void typePicker(String label, UUID uuid, Consumer<UUID> set) {
-    if (ImGui.beginCombo(label, idFor(state.project().voxelTypes, uuid))) {
-      if (ImGui.selectable("None")) set.accept(null);
-      for (var t : state.project().voxelTypes) if (ImGui.selectable(t.id)) set.accept(t.uuid);
-      ImGui.endCombo();
-    }
+    resourcePicker.draw(label, "voxel", uuid, "None", set);
   }
 
   private void predicate(Predicate p, int depth) {
@@ -1215,11 +1196,7 @@ public final class PropertyPanel {
         v -> p.kind = v);
     if (p.kind.startsWith("TYPE_")) typePicker("Voxel type", p.reference, v -> p.reference = v);
     else if (p.kind.equals("IN_SET") || p.kind.equals("NOT_IN_SET")) {
-      if (ImGui.beginCombo("Voxel set", idFor(state.project().voxelSets, p.reference))) {
-        for (var set : state.project().voxelSets)
-          if (ImGui.selectable(set.id)) p.reference = set.uuid;
-        ImGui.endCombo();
-      }
+      resourcePicker.draw("Voxel set", "set", p.reference, null, v -> p.reference = v);
     }
     if (p.kind.equals("AND") || p.kind.equals("OR")) {
       for (int i = 0; i < p.children.size(); i++) {

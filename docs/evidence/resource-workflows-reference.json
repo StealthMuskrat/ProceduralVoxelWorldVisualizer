@@ -1,0 +1,16 @@
+{
+  "formatVersion" : 1,
+  "catalogTypes" : 2000,
+  "pickerRows" : 1,
+  "unfilteredPickerRows" : 11,
+  "unfilteredMembershipRows" : 8,
+  "pickerCallbacks" : 1,
+  "membershipRows" : 1,
+  "exportRows" : 4,
+  "filteredExportRows" : 1,
+  "preparations" : 1,
+  "exportedTypeIds" : [ "type-00000", "type-01999" ],
+  "exportedMembers" : 2,
+  "activeId" : "catalog",
+  "draftId" : "pending-id"
+}

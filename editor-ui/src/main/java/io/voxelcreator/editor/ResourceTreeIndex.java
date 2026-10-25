@@ -77,6 +77,10 @@ public final class ResourceTreeIndex {
     return nodes.get(id);
   }
 
+  public List<Node> all() {
+    return List.copyOf(nodes.values());
+  }
+
   public List<Node> kind(String kind, String query) {
     String text = normalize(query);
     return kinds.getOrDefault(kind, List.of()).stream()

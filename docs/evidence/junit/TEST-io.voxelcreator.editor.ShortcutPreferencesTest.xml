@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.voxelcreator.editor.ShortcutPreferencesTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-24T23:47:57.791Z" hostname="715e00c143c7" time="0.107">
+<testsuite name="io.voxelcreator.editor.ShortcutPreferencesTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-25T00:26:40.023Z" hostname="715e00c143c7" time="0.131">
   <properties/>
-  <testcase name="failedAtomicReplacementPreservesLiveBindingsAndDestinationContents()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.039"/>
-  <testcase name="staleDraftCannotOverwriteAnotherSuccessfulBindingChange()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.013"/>
-  <testcase name="invalidSerializedActionsValuesAndDuplicateJsonKeysRejectStrictly()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.006"/>
+  <testcase name="failedAtomicReplacementPreservesLiveBindingsAndDestinationContents()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.056"/>
+  <testcase name="staleDraftCannotOverwriteAnotherSuccessfulBindingChange()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.023"/>
+  <testcase name="invalidSerializedActionsValuesAndDuplicateJsonKeysRejectStrictly()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.008"/>
   <testcase name="draftEditsConflictsResetAndRevertNeverPublishBeforeApply()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.003"/>
-  <testcase name="validApplyWritesCanonicalSnapshotAndSurvivesRestart()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.009"/>
-  <testcase name="preferenceApplyAndSaveDoNotTouchProjectDraftHistoryOrDirtyState()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.026"/>
-  <testcase name="legacyReadUpgradesOnlyInputAndNeverRewritesItsFile()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.004"/>
-  <testcase name="invalidApplyPreservesLiveIdentityFileBytesAndDraft()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.005"/>
+  <testcase name="validApplyWritesCanonicalSnapshotAndSurvivesRestart()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.007"/>
+  <testcase name="preferenceApplyAndSaveDoNotTouchProjectDraftHistoryOrDirtyState()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.015"/>
+  <testcase name="legacyReadUpgradesOnlyInputAndNeverRewritesItsFile()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.006"/>
+  <testcase name="invalidApplyPreservesLiveIdentityFileBytesAndDraft()" classname="io.voxelcreator.editor.ShortcutPreferencesTest" time="0.01"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

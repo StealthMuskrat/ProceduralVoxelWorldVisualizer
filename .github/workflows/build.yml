@@ -66,6 +66,11 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
           python scripts/verify_resource_browser.py build/browser-probe/resource-browser.json
+      - name: Resource picker membership and export reference
+        run: |
+          java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceWorkflowProbe build/workflow-probe
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ResourceSelectionConsumer build/workflow-probe/selection.pvresources.json
+          python scripts/verify_resource_workflows.py build/workflow-probe/resource-workflows.json build/workflow-probe/selection.pvresources.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -82,6 +87,7 @@ jobs:
             build/smoke/
             build/theme-probe/
             build/browser-probe/
+            build/workflow-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -190,6 +196,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_resource_browser.py build/browser-probe/resource-browser.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows resource picker membership and export reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceWorkflowProbe build/workflow-probe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ResourceSelectionConsumer build/workflow-probe/selection.pvresources.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_resource_workflows.py build/workflow-probe/resource-workflows.json build/workflow-probe/selection.pvresources.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -230,6 +245,7 @@ jobs:
             build/smoke/
             build/theme-probe/
             build/browser-probe/
+            build/workflow-probe/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/
