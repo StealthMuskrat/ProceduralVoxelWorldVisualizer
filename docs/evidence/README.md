@@ -133,3 +133,5 @@ The resource-hierarchy extension passes 389 JUnit tests on pinned Temurin 25.0.4
 `linux-hierarchy-smoke.log` records actual organizational edits in the existing desktop scenario, saved as `hierarchy-smoke-project.json`. The inspected screenshot below is paired with that model, rather than the earlier initial smoke save. It shows an expanded World folder, unchanged layer execution ordinal and the mixed noise/folder order. The native profiler export contains 86 samples across 12 series and passes independent recomputation. Complete drag/drop/clipboard/rename/DPI/platform acceptance, arbitrary failure timing, representative performance and Windows 11 hardware remain outside this evidence.
 
 ![World folder organization, explicit layer execution position and mixed root order](hierarchy-world-folders.png)
+
+The bookmark/navigation batch passed 428 tests and both platform/native/package/reproducibility jobs. See [BOOKMARK_VALIDATION.md](BOOKMARK_VALIDATION.md) and [bookmarks-reference.json](bookmarks-reference.json).
