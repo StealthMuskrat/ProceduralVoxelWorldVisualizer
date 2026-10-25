@@ -135,3 +135,5 @@ The resource-hierarchy extension passes 389 JUnit tests on pinned Temurin 25.0.4
 ![World folder organization, explicit layer execution position and mixed root order](hierarchy-world-folders.png)
 
 The bookmark/navigation batch passed 428 tests and both platform/native/package/reproducibility jobs. See [BOOKMARK_VALIDATION.md](BOOKMARK_VALIDATION.md) and [bookmarks-reference.json](bookmarks-reference.json).
+
+The larger typed-authoring batch passed 464 tests and both platform/native/package/reproducibility jobs. See [NOISE_AUTHORING_VALIDATION.md](NOISE_AUTHORING_VALIDATION.md) and [noise-authoring-reference.json](noise-authoring-reference.json).
