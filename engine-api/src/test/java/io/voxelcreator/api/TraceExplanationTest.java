@@ -131,9 +131,17 @@ class TraceExplanationTest {
   @Test
   void explanationDoesNotPopulateAWorldCacheOrChangeActualVoxelValues() {
     fixture();
+    p.project.seed = 17;
+    layer.defaults.seedOffset = 37;
+    noise.algorithm.key = "WHITE_HASH";
+    noise.algorithm.parameters.clear();
+    noise.algorithm.parameters.put("frequency", 1.);
+    double expected =
+        new NoiseCompiler(p, CoordinateHash.mix(17 ^ 37)).compile(noise.uuid).sample(2, 0, 3);
     try (var engine = new NoiseGeneratorEngine(2, 64, 128L << 20);
         var world = engine.openWorld(new CompiledProject(p))) {
       var trace = world.trace(new BlockPos(2, 0, 3));
+      assertEquals(expected, trace.steps().getFirst().field());
       assertEquals(trace.finalType(), world.getVoxelTypeId(new BlockPos(2, 0, 3)));
       assertEquals(trace.finalType(), world.sampleStage(new BlockPos(2, 0, 3), Integer.MAX_VALUE));
     }

@@ -29,13 +29,14 @@ final class WorldPlan {
       WorldSampling sampling,
       List<Integer> intervalTargets,
       List<NumericUse> numeric,
-      NoiseCompiler compiler,
+      long fieldSeed,
       Map<String, GenerationTrace.SettingSource> settingTargets) {
     boolean columnCached() {
       return dimension == 2 && sampling.columnInvariant();
     }
   }
 
+  private final ProjectData source;
   private final List<Op> operations;
   private final List<GenerationStage> stages;
   private final int minY, maxY;
@@ -44,6 +45,9 @@ final class WorldPlan {
   private final Map<UUID, Integer> fieldDimensions;
 
   WorldPlan(ProjectData p, VoxelRegistry registry, long seed) {
+    // CompiledProject supplies its private immutable source snapshot. Keep one source, not one
+    // compiler/project copy per operation.
+    source = p;
     this.registry = registry;
     var dimensions = new HashMap<UUID, Integer>();
     java.util.stream.Stream.concat(p.noise2D.stream(), p.noise3D.stream())
@@ -118,7 +122,7 @@ final class WorldPlan {
                 new WorldSampling(s),
                 s.typeIntervals.stream().map(r -> registry.runtimeId(r.voxelTypeUuid)).toList(),
                 numericUses(s, op.interpretation, compiler),
-                compiler,
+                opSeed,
                 Map.copyOf(targets)));
       }
       stageList.add(
@@ -419,8 +423,9 @@ final class WorldPlan {
           if (trace != null) {
             var location = op.sampling.coordinates(x, y, z, op.dimension);
             primaryTrace =
-                op.compiler.explain(
-                    op.noiseUuid, location.x(), location.y(), location.z(), traceRemaining);
+                new NoiseCompiler(source, op.fieldSeed)
+                    .explain(
+                        op.noiseUuid, location.x(), location.y(), location.z(), traceRemaining);
             traceRemaining -= primaryTrace.events().size();
             f = primaryTrace.value();
           } else
