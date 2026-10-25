@@ -1,0 +1,516 @@
+{
+  "formatVersion": 2,
+  "project": {
+    "uuid": "00000000-0000-4000-8000-000000000010",
+    "seed": 0,
+    "minY": -64,
+    "maxY": 319
+  },
+  "voxelTypes": [],
+  "voxelGroups": [],
+  "voxelSets": [],
+  "noise2D": [
+    {
+      "uuid": "e0eca238-1977-3859-be8e-e5c876ab3bb4",
+      "id": "fields2",
+      "dimension": 2,
+      "parentFolderUuid": null,
+      "algorithm": {
+        "key": "CONSTANT",
+        "parameters": {
+          "value": 0
+        }
+      },
+      "seedOffset": 0,
+      "coordinateTransforms": [],
+      "processing": [
+        {
+          "uuid": "a91022bc-1435-3681-9087-28bc2d220f50",
+          "id": "expression",
+          "kind": "EXPRESSION",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {
+            "expression": "x*x+3*z*z"
+          },
+          "inputs": {}
+        },
+        {
+          "uuid": "b4c5c333-f2e7-3825-a048-113e1578815a",
+          "id": "gradient",
+          "kind": "GRADIENT",
+          "resultType": "Vector2",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "field": {
+              "sourceKind": "Earlier Field Prefix",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": "a91022bc-1435-3681-9087-28bc2d220f50",
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "e1daacbe-fba3-3953-a50b-b2f918da5e50",
+          "id": "laplacian",
+          "kind": "LAPLACIAN",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "field": {
+              "sourceKind": "Earlier Field Prefix",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": "a91022bc-1435-3681-9087-28bc2d220f50",
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "258e2fcc-388e-3c8f-823d-c2f6e51d59d6",
+          "id": "min_filter",
+          "kind": "MIN_FILTER",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "field": {
+              "sourceKind": "Earlier Field Prefix",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": "a91022bc-1435-3681-9087-28bc2d220f50",
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "dff4563c-9a6d-3a52-a621-ad5badaa07fe",
+          "id": "max_filter",
+          "kind": "MAX_FILTER",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "field": {
+              "sourceKind": "Earlier Field Prefix",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": "a91022bc-1435-3681-9087-28bc2d220f50",
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "46d9babb-4c25-38e8-aa22-61ecd8566504",
+          "id": "median_filter",
+          "kind": "MEDIAN_FILTER",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "field": {
+              "sourceKind": "Earlier Field Prefix",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": "a91022bc-1435-3681-9087-28bc2d220f50",
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "0c6e48be-8872-3e10-b71f-78cedb8c44e7",
+          "id": "plane",
+          "kind": "PLANE",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {}
+        },
+        {
+          "uuid": "664751de-fdcd-3916-8af2-3dc415dfcc23",
+          "id": "capsule",
+          "kind": "CAPSULE",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {}
+        },
+        {
+          "uuid": "63b79fbd-a968-35b3-8c83-3599a4efa2a6",
+          "id": "rounded_box",
+          "kind": "ROUNDED_BOX",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {}
+        },
+        {
+          "uuid": "83d80084-f7f0-35da-b85f-d67c165ae50c",
+          "id": "smooth_intersection",
+          "kind": "SMOOTH_INTERSECTION",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "a": {
+              "sourceKind": "Source Result",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": null,
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            },
+            "b": {
+              "sourceKind": "Constant",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": 1,
+              "parameterUuid": null,
+              "itemUuid": null,
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "66f2e1d0-8da2-3a29-8fc3-17b4965edfd7",
+          "id": "smooth_subtraction",
+          "kind": "SMOOTH_SUBTRACTION",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "a": {
+              "sourceKind": "Source Result",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": null,
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            },
+            "b": {
+              "sourceKind": "Constant",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": 1,
+              "parameterUuid": null,
+              "itemUuid": null,
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        }
+      ],
+      "sharedParameters": [],
+      "pinnedControls": [],
+      "outputBinding": {
+        "sourceKind": "Earlier Result",
+        "type": "Scalar",
+        "ambientKey": null,
+        "value": null,
+        "parameterUuid": null,
+        "itemUuid": "dff4563c-9a6d-3a52-a621-ad5badaa07fe",
+        "noiseGeneratorUuid": null,
+        "projection": "XZ",
+        "slice": 0
+      }
+    }
+  ],
+  "noise3D": [
+    {
+      "uuid": "86c3461a-1cb4-33d2-abbf-da59e6aa59e9",
+      "id": "fields3",
+      "dimension": 3,
+      "parentFolderUuid": null,
+      "algorithm": {
+        "key": "CONSTANT",
+        "parameters": {
+          "value": 0
+        }
+      },
+      "seedOffset": 0,
+      "coordinateTransforms": [],
+      "processing": [
+        {
+          "uuid": "c8bd510a-f69c-306c-9712-782e997970d5",
+          "id": "expression",
+          "kind": "EXPRESSION",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {
+            "expression": "x*x+2*y*y+3*z*z"
+          },
+          "inputs": {}
+        },
+        {
+          "uuid": "bce5d542-defd-3dec-b6c2-19f41f2f2960",
+          "id": "gradient",
+          "kind": "GRADIENT",
+          "resultType": "Vector3",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "field": {
+              "sourceKind": "Earlier Field Prefix",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": "c8bd510a-f69c-306c-9712-782e997970d5",
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "85c52cec-5465-3b60-9a96-241fcb3a86f2",
+          "id": "laplacian",
+          "kind": "LAPLACIAN",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "field": {
+              "sourceKind": "Earlier Field Prefix",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": "c8bd510a-f69c-306c-9712-782e997970d5",
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "26d18896-9774-39d8-8314-800a9804ceeb",
+          "id": "min_filter",
+          "kind": "MIN_FILTER",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "field": {
+              "sourceKind": "Earlier Field Prefix",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": "c8bd510a-f69c-306c-9712-782e997970d5",
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "961e37a6-d767-3620-aeda-98ad6706f7a1",
+          "id": "max_filter",
+          "kind": "MAX_FILTER",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "field": {
+              "sourceKind": "Earlier Field Prefix",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": "c8bd510a-f69c-306c-9712-782e997970d5",
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "53f90d8f-ef62-3f52-b687-da0f3ae4f315",
+          "id": "median_filter",
+          "kind": "MEDIAN_FILTER",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "field": {
+              "sourceKind": "Earlier Field Prefix",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": "c8bd510a-f69c-306c-9712-782e997970d5",
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "0fce1cb5-0816-3f07-bf4f-3ef34c915333",
+          "id": "plane",
+          "kind": "PLANE",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {}
+        },
+        {
+          "uuid": "6632fe93-ba55-30be-b7e9-2c153dbbb5c6",
+          "id": "capsule",
+          "kind": "CAPSULE",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {}
+        },
+        {
+          "uuid": "5130a02e-8f82-3bf8-85b2-e6df938cf357",
+          "id": "cylinder",
+          "kind": "CYLINDER",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {}
+        },
+        {
+          "uuid": "637d19a0-3039-386e-b4f0-9a21ee58b7bb",
+          "id": "torus",
+          "kind": "TORUS",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {}
+        },
+        {
+          "uuid": "5c861c1b-72cf-32c0-81ee-0665ed32f3f2",
+          "id": "rounded_box",
+          "kind": "ROUNDED_BOX",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {}
+        },
+        {
+          "uuid": "9e7bccfb-84b8-3ae5-ab31-1cf075a9edb3",
+          "id": "smooth_intersection",
+          "kind": "SMOOTH_INTERSECTION",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "a": {
+              "sourceKind": "Source Result",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": null,
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            },
+            "b": {
+              "sourceKind": "Constant",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": 1,
+              "parameterUuid": null,
+              "itemUuid": null,
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        },
+        {
+          "uuid": "28c17e98-cc84-3b3c-bee3-9f7d71bf08b1",
+          "id": "smooth_subtraction",
+          "kind": "SMOOTH_SUBTRACTION",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {},
+          "inputs": {
+            "a": {
+              "sourceKind": "Source Result",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": null,
+              "parameterUuid": null,
+              "itemUuid": null,
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            },
+            "b": {
+              "sourceKind": "Constant",
+              "type": "Scalar",
+              "ambientKey": null,
+              "value": 1,
+              "parameterUuid": null,
+              "itemUuid": null,
+              "noiseGeneratorUuid": null,
+              "projection": "XZ",
+              "slice": 0
+            }
+          }
+        }
+      ],
+      "sharedParameters": [],
+      "pinnedControls": [],
+      "outputBinding": {
+        "sourceKind": "Earlier Result",
+        "type": "Scalar",
+        "ambientKey": null,
+        "value": null,
+        "parameterUuid": null,
+        "itemUuid": "961e37a6-d767-3620-aeda-98ad6706f7a1",
+        "noiseGeneratorUuid": null,
+        "projection": "XZ",
+        "slice": 0
+      }
+    }
+  ],
+  "worldGenerator": {
+    "uuid": "00000000-0000-4000-8000-000000000011",
+    "layers": []
+  },
+  "folders": [],
+  "bookmarks": {
+    "noise2D": [],
+    "noise3D": [],
+    "world": []
+  }
+}

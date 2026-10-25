@@ -160,6 +160,29 @@ public final class CreationRegistry {
               List.of());
         }
     }
+    for (var entry : ProcessingExtensions.DETAILS.entrySet())
+      for (var control : entry.getValue().controls()) {
+        String id = "processing." + entry.getKey() + ".parameter." + control.key();
+        if (!control.options().isEmpty())
+          choice(
+              m,
+              id,
+              "Processing / " + entry.getKey(),
+              control.label(),
+              (String) control.defaultValue(),
+              control.options());
+        else
+          add(
+              m,
+              id,
+              "Processing / " + entry.getKey(),
+              control.label(),
+              control.integer() ? Kind.INTEGER : Kind.NUMBER,
+              control.defaultValue(),
+              control.minimum(),
+              control.maximum(),
+              List.of());
+      }
     parameter(m, "CONSTANT", "value", 0, -1e6, 1e6);
     parameter(m, "REMAP", "inputMin", -1, -1e6, 1e6);
     parameter(m, "REMAP", "inputMax", 1, -1e6, 1e6);

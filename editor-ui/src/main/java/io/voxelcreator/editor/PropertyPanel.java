@@ -256,6 +256,7 @@ public final class PropertyPanel {
   }
 
   public void draw() {
+    parameterCenters.clear();
     resourcePicker.synchronize();
     ImGui.begin("Properties");
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Properties", 1f));
@@ -696,6 +697,7 @@ public final class PropertyPanel {
             item.inputs.put(name, Binding.constant(0));
             noiseChanged();
           }
+          if (ProcessingExtensions.DETAILS.containsKey(item.kind)) extensionControls(n, item);
           switch (item.kind) {
             case "REMAP" -> {
               parameter(item, "inputMin", -1);
@@ -795,7 +797,12 @@ public final class PropertyPanel {
                 "OFFSET_SAMPLE",
                 "DERIVATIVE",
                 "SMOOTH_FILTER",
-                "WARP_SAMPLE" -> {
+                "WARP_SAMPLE",
+                "GRADIENT",
+                "LAPLACIAN",
+                "MIN_FILTER",
+                "MAX_FILTER",
+                "MEDIAN_FILTER" -> {
               if (!item.inputs.containsKey("field")) {
                 UUID legacy =
                     item.parameters.containsKey("noiseGeneratorUuid")
@@ -874,7 +881,7 @@ public final class PropertyPanel {
           key -> {
             var item =
                 EditorCreations.processing(
-                    state.metadata, key, uniqueItem(n, key.toLowerCase(Locale.ROOT)));
+                    state.metadata, key, uniqueItem(n, key.toLowerCase(Locale.ROOT)), n.dimension);
             n.processing.add(item);
             if (item.resultType.equals("Scalar")) n.outputBinding = Binding.earlier(item.uuid);
             noiseChanged();
@@ -968,6 +975,10 @@ public final class PropertyPanel {
     String key = noise.dimension + ":" + kind;
     var values =
         builtIn.stream()
+            .filter(
+                choice ->
+                    !kind.equals("processing")
+                        || ProcessingExtensions.supports(choice.key(), noise.dimension))
             .map(
                 choice ->
                     new DraftChoicePicker.Choice(
@@ -975,7 +986,11 @@ public final class PropertyPanel {
                         kind.equals("algorithm")
                             ? algorithmLabel(noise.dimension, choice.key())
                             : state.metadata.label(kind + "." + choice.key(), choice.label()),
-                        choice.detail()))
+                        kind.equals("processing")
+                            ? ProcessingRegistry.ITEMS.get(choice.key()).category()
+                                + " / "
+                                + ProcessingExtensions.resultType(choice.key(), noise.dimension)
+                            : choice.detail()))
             .toList();
     var previous = catalogues.get(key);
     if (values.equals(previous)) return previous;
@@ -1304,13 +1319,71 @@ public final class PropertyPanel {
     revealSearchField(null, "algorithm/parameters/" + key);
   }
 
+  private final Map<String, float[]> parameterCenters = new HashMap<>();
+
+  float[] probeParameter(UUID item, String key) {
+    return parameterCenters.get(item + ":" + key);
+  }
+
+  List<DraftChoicePicker.Choice> probeOperations(Noise noise) {
+    return catalogue(noise, "processing", OPERATIONS);
+  }
+
   private void parameter(Item item, String key, double def) {
     f.number(
         state.metadata.label("processing." + item.kind + ".parameter." + key, key),
         item.parameters.containsKey(key) ? item.parameters.get(key).asDouble() : def,
         v -> item.parameters.put(key, ProjectIO.JSON.valueToTree(v)));
+    var lo = ImGui.getItemRectMin();
+    var hi = ImGui.getItemRectMax();
+    parameterCenters.put(
+        item.uuid + ":" + key,
+        new float[] {lo.x + Math.min(80, (hi.x - lo.x) * .25f), (lo.y + hi.y) / 2});
     metadataTooltip("processing." + item.kind + ".parameter." + key);
     revealSearchField(item.uuid, "parameters/" + key);
+  }
+
+  private void extensionControls(Noise noise, Item item) {
+    var detail = ProcessingExtensions.DETAILS.get(item.kind);
+    ImGui.textWrapped(detail.description());
+    for (var control : detail.controls()) {
+      if (noise.dimension == 2 && control.threeDimensional()) continue;
+      String key = control.key();
+      String id = "processing." + item.kind + ".parameter." + key;
+      String label = state.metadata.label(id, control.label());
+      if (control.options().isEmpty())
+        parameter(item, key, ((Number) control.defaultValue()).doubleValue());
+      else {
+        List<String> options =
+            noise.dimension == 2 && key.equals("axis") ? List.of("x", "z") : control.options();
+        f.choice(
+            label,
+            item.parameters.containsKey(key)
+                ? item.parameters.get(key).asText()
+                : control.defaultValue().toString(),
+            options,
+            value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value)));
+        metadataTooltip(id);
+        revealSearchField(item.uuid, "parameters/" + key);
+      }
+    }
+    if (ProcessingExtensions.SHAPES.contains(item.kind)) {
+      f.bool(
+          "Explicit shape position",
+          item.inputs.containsKey("position"),
+          value -> {
+            if (!value) item.inputs.remove("position");
+            else {
+              var binding = Binding.constant(0);
+              binding.type = noise.dimension == 2 ? "Coordinates2D" : "Coordinates3D";
+              binding.value = NoiseAuthoring.defaultValue(binding.type);
+              item.inputs.put("position", binding);
+            }
+          });
+      ImGui.textWrapped(
+          "Negative distance is inside; zero is on the surface. Default position uses transformed"
+              + " definition coordinates.");
+    }
   }
 
   private String uniqueItem(Noise n, String base) {

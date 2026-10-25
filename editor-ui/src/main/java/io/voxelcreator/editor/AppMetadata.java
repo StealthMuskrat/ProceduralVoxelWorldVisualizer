@@ -185,6 +185,8 @@ public final class AppMetadata {
                   + "; registry inputs "
                   + entry.getValue().inputs()
                   + ". Labels do not alter this signature.");
+      if (ProcessingExtensions.DETAILS.containsKey(entry.getKey()))
+        control.description = ProcessingExtensions.DETAILS.get(entry.getKey()).description();
       control.group = "Processing";
       m.controls.put("processing." + entry.getKey(), control);
     }

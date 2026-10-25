@@ -61,6 +61,13 @@ public final class EditorCreations {
     return processingUnchecked(metadata, key, id);
   }
 
+  public static Item processing(AppMetadata metadata, String key, String id, int dimension) {
+    metadata.validate();
+    var item = processingUnchecked(metadata, key, id);
+    item.resultType = ProcessingExtensions.resultType(key, dimension);
+    return item;
+  }
+
   static Item processingUnchecked(AppMetadata metadata, String key, String id) {
     var item = ProcessingRegistry.create(key, id);
     String prefix = "processing." + key + ".";
@@ -125,6 +132,24 @@ public final class EditorCreations {
     for (int dimension : new int[] {2, 3})
       for (String key : NoiseAlgorithms.KEYS)
         NoiseAlgorithms.compile(algorithm(metadata, dimension, key), dimension, 0);
+    for (var entry : ProcessingExtensions.DETAILS.entrySet()) {
+      String prefix = "processing." + entry.getKey() + ".";
+      if (metadata.creationDefaults.keySet().stream().noneMatch(key -> key.startsWith(prefix)))
+        continue;
+      for (int dimension : entry.getValue().dimensions()) {
+        var project = new ProjectData();
+        var noise = new Noise();
+        noise.id = "extension-defaults";
+        noise.dimension = dimension;
+        noise.algorithm.key = "CONSTANT";
+        (dimension == 2 ? project.noise2D : project.noise3D).add(noise);
+        var item = processingUnchecked(metadata, entry.getKey(), "extension");
+        item.resultType = ProcessingExtensions.resultType(item.kind, dimension);
+        noise.processing.add(item);
+        if (item.resultType.equals("Scalar")) noise.outputBinding = Binding.earlier(item.uuid);
+        new NoiseCompiler(project, 0).compile(noise.uuid);
+      }
+    }
     if (metadata.creationDefaults.containsKey("processing.EXPRESSION.parameter.expression"))
       for (int dimension : new int[] {2, 3}) {
         var project = new ProjectData();

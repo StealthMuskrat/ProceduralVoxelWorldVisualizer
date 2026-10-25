@@ -123,3 +123,9 @@ Resource hierarchy extension (project format 2): `Project.rootOrder` is an optio
 ## Private noise authoring plans
 
 `NoiseAuthoring.plan(project, draft, Request)` prepares an owned compiler-validated structural edit. Requests cover move, duplicate, enable/disable, item delete and parameter duplicate/delete. Explicit resolutions retain a replacement reference, select Raw Source, or inline a parameter's current value. Invalid plans preserve the draft; `applyTo` rejects a changed draft base. Use the owning document transaction with the complete compiler validator for parent publication. `candidate()` returns an owned copy. No GUI classes are required. See [authoring workflows](NOISE_AUTHORING_WORKFLOWS.md).
+
+## Sampled calculus and distance operations
+
+`ProcessingRegistry.create(key, id, dimension)` validates dimension eligibility and creates the matching result signature. The existing two-argument factory retains its 3D default. `ProcessingExtensions.DETAILS` exposes immutable dimensions, per-dimension result types, control signatures and descriptions for GRADIENT, LAPLACIAN, MIN_FILTER, MAX_FILTER, MEDIAN_FILTER, PLANE, CAPSULE, CYLINDER, TORUS, ROUNDED_BOX, SMOOTH_INTERSECTION and SMOOTH_SUBTRACTION. Numeric values and Coordinates are distinct; gradients require an explicit Scalar consumer for final output.
+
+See [field semantics](FIELD_CALCULUS_AND_DISTANCE.md) for exact stencils, shape formulas, median order, bounded scratch/work, parameter validation and compatibility. Format 2 remains unchanged; processing registry version 3 describes the added signatures.

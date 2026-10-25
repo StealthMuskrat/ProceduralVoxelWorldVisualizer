@@ -242,6 +242,7 @@ public final class ContractGenerator {
         .put("maximum", 1);
     ((ObjectNode) defs.path("Operation").path("properties").path("interpretation"))
         .set("enum", JSON.valueToTree(WorldSemantics.INTERPRETATIONS));
+    extensionSchema(defs);
     writeJSON(root.resolve("schema/project.schema.json"), schema);
     for (String[] editor :
         List.of(
@@ -414,17 +415,7 @@ public final class ContractGenerator {
             NoiseAlgorithms.KEYS,
             "sourceImplementation",
             "FastNoiseLite 1.1.1, double marked coordinates; float output widened to double"));
-    writeJSON(
-        root.resolve("registries/noise-processing-registry.json"),
-        Map.of(
-            "registryVersion",
-            2,
-            "operations",
-            ProcessingRegistry.ITEMS,
-            "sampledFieldOperations",
-            new TreeSet<>(ProcessingRegistry.SAMPLED),
-            "sampledFieldSources",
-            List.of("Source Field", "Earlier Field Prefix", "Noise Generator Field")));
+    writeJSON(root.resolve("registries/noise-processing-registry.json"), processingRegistry());
     var funcs = new LinkedHashMap<String, Object>();
     Expression.FUNCTIONS.forEach(
         (name, fn) ->
@@ -527,6 +518,67 @@ public final class ContractGenerator {
             "0.1.0",
             "vectors",
             Map.of("2^3^2", 512, "true ? 7 : 1/0", 7, "mod(-1,3)", 2, "remap(0.5,0,1,10,20)", 15)));
+  }
+
+  public static Map<String, Object> processingRegistry() {
+    var result = new LinkedHashMap<String, Object>();
+    result.put("registryVersion", 3);
+    result.put("operations", ProcessingRegistry.ITEMS);
+    result.put("sampledFieldOperations", new TreeSet<>(ProcessingRegistry.SAMPLED));
+    result.put(
+        "sampledFieldSources",
+        List.of("Source Field", "Earlier Field Prefix", "Noise Generator Field"));
+    result.put("extendedOperations", ProcessingExtensions.DETAILS);
+    result.put("sampleWorkLimit", NoiseCompiler.MAX_SAMPLE_WORK);
+    return Collections.unmodifiableMap(result);
+  }
+
+  private static void extensionSchema(ObjectNode defs) {
+    var rules = JSON.createArrayNode();
+    for (var entry : ProcessingExtensions.DETAILS.entrySet()) {
+      var properties = obj();
+      for (var control : entry.getValue().controls()) {
+        var value = obj();
+        if (!control.options().isEmpty()) value.set("enum", JSON.valueToTree(control.options()));
+        else {
+          value.put("type", control.integer() ? "integer" : "number");
+          value.put("minimum", control.minimum()).put("maximum", control.maximum());
+        }
+        properties.set(control.key(), value);
+      }
+      var thenProperties = obj();
+      thenProperties.set("parameters", obj().set("properties", properties));
+      thenProperties.set(
+          "resultType",
+          obj()
+              .set(
+                  "enum",
+                  JSON.valueToTree(
+                      new LinkedHashSet<>(
+                          List.of(entry.getValue().result2D(), entry.getValue().result3D())))));
+      var inputs = obj();
+      if (ProcessingExtensions.CALCULUS.contains(entry.getKey())) {
+        inputs.set("field", obj().put("$ref", "#/$defs/Binding"));
+        inputs.set("coordinates", obj().put("$ref", "#/$defs/Binding"));
+      } else if (ProcessingExtensions.SHAPES.contains(entry.getKey()))
+        inputs.set("position", obj().put("$ref", "#/$defs/Binding"));
+      else
+        for (String key : List.of("a", "b")) inputs.set(key, obj().put("$ref", "#/$defs/Binding"));
+      var inputMap = obj().put("additionalProperties", false);
+      inputMap.set("properties", inputs);
+      thenProperties.set("inputs", inputMap);
+      var condition = obj();
+      var conditionProperties = obj();
+      conditionProperties.set("kind", obj().put("const", entry.getKey()));
+      conditionProperties.set("enabled", obj().put("const", true));
+      condition.set("properties", conditionProperties);
+      condition.set("required", JSON.valueToTree(List.of("kind", "enabled")));
+      var rule = obj();
+      rule.set("if", condition);
+      rule.set("then", obj().set("properties", thenProperties));
+      rules.add(rule);
+    }
+    defs.withObject("/Item").set("allOf", rules);
   }
 
   static void writeJSON(Path path, Object value) throws Exception {

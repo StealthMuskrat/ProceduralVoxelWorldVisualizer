@@ -15,7 +15,12 @@ public final class ProcessingRegistry {
           "OFFSET_SAMPLE",
           "DERIVATIVE",
           "SMOOTH_FILTER",
-          "WARP_SAMPLE");
+          "WARP_SAMPLE",
+          "GRADIENT",
+          "LAPLACIAN",
+          "MIN_FILTER",
+          "MAX_FILTER",
+          "MEDIAN_FILTER");
 
   public static boolean isFieldBinding(Binding b) {
     return b != null
@@ -101,6 +106,27 @@ public final class ProcessingRegistry {
     add(m, "Coordinates & Transforms", "Coordinates2D", "a", "PROJECT_COORDINATES");
     add(m, "Coordinates & Transforms", "Coordinates3D", "a,b", "EXPAND_COORDINATES");
     add(m, "Coordinates & Transforms", "Scalar", "", "WARP_SAMPLE");
+    add(m, "Sampling & Filters", "Vector3", "", "GRADIENT");
+    add(
+        m,
+        "Sampling & Filters",
+        "Scalar",
+        "",
+        "LAPLACIAN",
+        "MIN_FILTER",
+        "MAX_FILTER",
+        "MEDIAN_FILTER");
+    add(
+        m,
+        "Shapes & Distance",
+        "Scalar",
+        "",
+        "PLANE",
+        "CYLINDER",
+        "CAPSULE",
+        "TORUS",
+        "ROUNDED_BOX");
+    add(m, "Shapes & Distance", "Scalar", "a,b", "SMOOTH_INTERSECTION", "SMOOTH_SUBTRACTION");
     ITEMS = Collections.unmodifiableMap(m);
   }
 
@@ -109,13 +135,18 @@ public final class ProcessingRegistry {
       m.put(k, new Spec(c, t, inputs.isEmpty() ? List.of() : List.of(inputs.split(","))));
   }
 
+  /** Compatibility factory uses the three-dimensional default signature. */
   public static Item create(String key, String id) {
+    return create(key, id, 3);
+  }
+
+  public static Item create(String key, String id, int dimension) {
     var s = ITEMS.get(key);
     if (s == null) throw new IllegalArgumentException(key);
     var item = new Item();
     item.kind = key;
     item.id = id;
-    item.resultType = s.result;
+    item.resultType = ProcessingExtensions.resultType(key, dimension);
     for (String name : s.inputs) {
       Binding b = name.equals("a") ? Binding.source() : Binding.constant(name.equals("b") ? 1 : 0);
       if (name.equals("condition")

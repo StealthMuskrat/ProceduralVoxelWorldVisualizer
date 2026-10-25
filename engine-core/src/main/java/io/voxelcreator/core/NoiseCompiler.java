@@ -46,7 +46,8 @@ public final class NoiseCompiler {
       com.fasterxml.jackson.databind.JsonNode parameters) {}
 
   private static OperationKey commonKey(Item item, Map<String, Input> bound) {
-    if (ProcessingRegistry.SAMPLED.contains(item.kind)
+    if (ProcessingExtensions.SHAPES.contains(item.kind)
+        || ProcessingRegistry.SAMPLED.contains(item.kind)
         || Set.of("EXPRESSION", "FALLOFF", "SPHERE", "BOX", "COORDINATE_HASH", "COORDINATE")
             .contains(item.kind)) return null;
     var inputs = new TreeMap<String, InputKey>();
@@ -236,6 +237,8 @@ public final class NoiseCompiler {
         if (!item.enabled) {
           continue;
         }
+        if (!ProcessingExtensions.supports(item.kind, dimension))
+          throw new IllegalArgumentException(item.kind + ": requires 3D coordinates");
         enabledItems++;
         final int index = slot;
         slot += 3;
@@ -265,10 +268,15 @@ public final class NoiseCompiler {
                     "CONSTANT",
                     "COORDINATES_TO_VECTOR",
                     "VECTOR_TO_COORDINATES",
-                    "VECTOR_ROTATE")
+                    "VECTOR_ROTATE",
+                    "GRADIENT")
                 .contains(item.kind)
             && !spec.result().equals(item.resultType))
           throw new IllegalArgumentException(item.id + ": result type must be " + spec.result());
+        if (item.kind.equals("GRADIENT")
+            && !item.resultType.equals(ProcessingExtensions.resultType(item.kind, dimension)))
+          throw new IllegalArgumentException(
+              "Gradient result must match the active field dimension");
         String kind = item.kind;
         Number eval;
         Input expressionConstant = null;
@@ -386,134 +394,179 @@ public final class NoiseCompiler {
             default -> throw new IllegalArgumentException("Unsupported sampled-field selector");
           }
           Field field = sampled.field;
-          int oct = integer(item, "octaves", 4, 1, 16), radius = integer(item, "radius", 1, 0, 4);
-          double lac = param(item, "lacunarity", 2),
-              gain = param(item, "gain", .5),
-              spacing = param(item, "spacing", 1),
-              dx = param(item, "x", 0),
-              dy = param(item, "y", 0),
-              dz = param(item, "z", 0),
-              strength = param(item, "strength", 1);
-          String axis = text(item, "axis", "x"), kernel = text(item, "kernel", "BOX");
-          if (spacing <= 0
-              || lac <= 0
-              || !Set.of("x", "y", "z").contains(axis)
-              || dimension == 2 && axis.equals("y")
-              || !Set.of("BOX", "GAUSSIAN").contains(kernel)
-              || strength < 0
-              || strength > 1)
-            throw new IllegalArgumentException("Invalid field sampling controls");
           Input coordinates = bound.get("coordinates");
           if (coordinates != null
               && !coordinates.type.equals(dimension == 2 ? "Coordinates2D" : "Coordinates3D"))
             throw new IllegalArgumentException(
                 "Explicit sample locations require matching Coordinates values");
-          int width = 2 * radius + 1,
-              count = dimension == 2 ? width * width : width * width * width;
-          long samples =
-              kind.equals("DERIVATIVE")
-                  ? 2
-                  : kind.equals("SMOOTH_FILTER")
-                      ? count + 1
-                      : Set.of("FBM", "RIDGED", "BILLOW", "PING_PONG").contains(kind)
-                          ? oct
-                          : kind.equals("WARP_SAMPLE") ? 4 : 1;
-          sampleWork = boundedWork(sampled.work, samples);
-          sampleDepth = sampled.depth;
-          Field warp;
-          if (kind.equals("WARP_SAMPLE")) {
-            var algorithm = new Algorithm();
-            algorithm.parameters.put("frequency", param(item, "frequency", .01));
-            warp =
-                NoiseAlgorithms.compile(
-                    algorithm,
-                    dimension,
-                    CoordinateHash.mix(
-                        seed + Double.doubleToLongBits(param(item, "seedOffset", 0))));
-          } else warp = null;
-          double amplitude = param(item, "amplitude", 8),
-              baseFrequency = param(item, "frequency", kind.equals("WARP_SAMPLE") ? .01 : 1);
-          if (baseFrequency <= 0)
-            throw new IllegalArgumentException("Sampling frequency must be positive");
-          double[] weights = new double[count];
-          double total = 0;
-          int wi = 0;
-          for (int y = dimension == 2 ? 0 : -radius; y <= (dimension == 2 ? 0 : radius); y++)
-            for (int z = -radius; z <= radius; z++)
-              for (int x = -radius; x <= radius; x++) {
-                double value =
-                    kernel.equals("GAUSSIAN")
-                        ? StrictMath.exp(
-                            -(x * x + y * y + z * z) / StrictMath.max(.5, radius * radius / 2.))
-                        : 1;
-                weights[wi++] = value;
-                total += value;
-              }
-          for (int i = 0; i < weights.length; i++) weights[i] /= total;
+          if (ProcessingExtensions.CALCULUS.contains(kind)) {
+            if (bound.keySet().stream().anyMatch(key -> !key.equals("coordinates")))
+              throw new IllegalArgumentException(
+                  "Sampled calculus accepts field and optional coordinates inputs");
+            var plan = FieldCalculus.compile(item, dimension, field);
+            sampleWork = boundedWork(sampled.work, plan.samples());
+            sampleDepth = sampled.depth;
+            eval =
+                (c, k) ->
+                    plan.field()
+                        .sample(
+                            coordinates == null ? c.worldX : coordinates.number.get(c, 0),
+                            coordinates == null
+                                ? c.worldY
+                                : dimension == 2 ? 0 : coordinates.number.get(c, 1),
+                            coordinates == null
+                                ? c.worldZ
+                                : coordinates.number.get(c, dimension == 2 ? 1 : 2),
+                            k);
+          } else {
+            int oct = integer(item, "octaves", 4, 1, 16), radius = integer(item, "radius", 1, 0, 4);
+            double lac = param(item, "lacunarity", 2),
+                gain = param(item, "gain", .5),
+                spacing = param(item, "spacing", 1),
+                dx = param(item, "x", 0),
+                dy = param(item, "y", 0),
+                dz = param(item, "z", 0),
+                strength = param(item, "strength", 1);
+            String axis = text(item, "axis", "x"), kernel = text(item, "kernel", "BOX");
+            if (spacing <= 0
+                || lac <= 0
+                || !Set.of("x", "y", "z").contains(axis)
+                || dimension == 2 && axis.equals("y")
+                || !Set.of("BOX", "GAUSSIAN").contains(kernel)
+                || strength < 0
+                || strength > 1)
+              throw new IllegalArgumentException("Invalid field sampling controls");
+            int width = 2 * radius + 1,
+                count = dimension == 2 ? width * width : width * width * width;
+            long samples =
+                kind.equals("DERIVATIVE")
+                    ? 2
+                    : kind.equals("SMOOTH_FILTER")
+                        ? count + 1
+                        : Set.of("FBM", "RIDGED", "BILLOW", "PING_PONG").contains(kind)
+                            ? oct
+                            : kind.equals("WARP_SAMPLE") ? 4 : 1;
+            sampleWork = boundedWork(sampled.work, samples);
+            sampleDepth = sampled.depth;
+            Field warp;
+            if (kind.equals("WARP_SAMPLE")) {
+              var algorithm = new Algorithm();
+              algorithm.parameters.put("frequency", param(item, "frequency", .01));
+              warp =
+                  NoiseAlgorithms.compile(
+                      algorithm,
+                      dimension,
+                      CoordinateHash.mix(
+                          seed + Double.doubleToLongBits(param(item, "seedOffset", 0))));
+            } else warp = null;
+            double amplitude = param(item, "amplitude", 8),
+                baseFrequency = param(item, "frequency", kind.equals("WARP_SAMPLE") ? .01 : 1);
+            if (baseFrequency <= 0)
+              throw new IllegalArgumentException("Sampling frequency must be positive");
+            double[] weights = new double[count];
+            double total = 0;
+            int wi = 0;
+            for (int y = dimension == 2 ? 0 : -radius; y <= (dimension == 2 ? 0 : radius); y++)
+              for (int z = -radius; z <= radius; z++)
+                for (int x = -radius; x <= radius; x++) {
+                  double value =
+                      kernel.equals("GAUSSIAN")
+                          ? StrictMath.exp(
+                              -(x * x + y * y + z * z) / StrictMath.max(.5, radius * radius / 2.))
+                          : 1;
+                  weights[wi++] = value;
+                  total += value;
+                }
+            for (int i = 0; i < weights.length; i++) weights[i] /= total;
+            eval =
+                (c, k) -> {
+                  double x = coordinates == null ? c.worldX : coordinates.number.get(c, 0),
+                      y =
+                          coordinates == null
+                              ? c.worldY
+                              : dimension == 2 ? 0 : coordinates.number.get(c, 1),
+                      z =
+                          coordinates == null
+                              ? c.worldZ
+                              : coordinates.number.get(c, dimension == 2 ? 1 : 2);
+                  if (kind.equals("NOISE_REFERENCE")) return field.sample(x, y, z);
+                  if (kind.equals("OFFSET_SAMPLE")) return field.sample(x + dx, y + dy, z + dz);
+                  if (kind.equals("DERIVATIVE")) {
+                    double ax = axis.equals("x") ? spacing : 0,
+                        ay = axis.equals("y") ? spacing : 0,
+                        az = axis.equals("z") ? spacing : 0;
+                    return (field.sample(x + ax, y + ay, z + az)
+                            - field.sample(x - ax, y - ay, z - az))
+                        / (2 * spacing);
+                  }
+                  if (kind.equals("SMOOTH_FILTER")) {
+                    double sum = 0;
+                    int indexWeight = 0;
+                    for (int yy = dimension == 2 ? 0 : -radius;
+                        yy <= (dimension == 2 ? 0 : radius);
+                        yy++)
+                      for (int zz = -radius; zz <= radius; zz++)
+                        for (int xx = -radius; xx <= radius; xx++)
+                          sum +=
+                              weights[indexWeight++]
+                                  * field.sample(
+                                      x + xx * spacing, y + yy * spacing, z + zz * spacing);
+                    double original = field.sample(x, y, z);
+                    return original + (sum - original) * strength;
+                  }
+                  if (kind.equals("WARP_SAMPLE"))
+                    return field.sample(
+                        x + amplitude * warp.sample(x, y, z),
+                        y
+                            + (dimension == 2
+                                ? 0
+                                : amplitude * warp.sample(x + 31.1, y - 17.3, z + 7.7)),
+                        z + amplitude * warp.sample(x - 11.2, y + 43.8, z - 19.4));
+                  double sum = 0, amp = 1, freq = baseFrequency;
+                  for (int i = 0; i < oct; i++) {
+                    double value = field.sample(x * freq, y * freq, z * freq);
+                    value =
+                        switch (kind) {
+                          case "RIDGED" -> 1 - StrictMath.abs(value);
+                          case "BILLOW" -> 2 * StrictMath.abs(value) - 1;
+                          case "PING_PONG" -> {
+                            double t = value + 1;
+                            t -= 2 * StrictMath.floor(t / 2);
+                            yield 1 - StrictMath.abs(t - 1);
+                          }
+                          default -> value;
+                        };
+                    sum += amp * value;
+                    amp *= gain;
+                    freq *= lac;
+                  }
+                  return sum;
+                };
+          }
+        } else if (ProcessingExtensions.SHAPES.contains(kind)) {
+          var shape = DistanceShapes.compile(item, dimension);
+          var position = bound.get("position");
+          if (position != null)
+            require(position, dimension == 2 ? "Coordinates2D" : "Coordinates3D", item);
+          if (bound.keySet().stream().anyMatch(key -> !key.equals("position")))
+            throw new IllegalArgumentException(
+                "Distance shapes accept an optional Coordinates position input");
           eval =
-              (c, k) -> {
-                double x = coordinates == null ? c.worldX : coordinates.number.get(c, 0),
-                    y =
-                        coordinates == null
-                            ? c.worldY
-                            : dimension == 2 ? 0 : coordinates.number.get(c, 1),
-                    z =
-                        coordinates == null
-                            ? c.worldZ
-                            : coordinates.number.get(c, dimension == 2 ? 1 : 2);
-                if (kind.equals("NOISE_REFERENCE")) return field.sample(x, y, z);
-                if (kind.equals("OFFSET_SAMPLE")) return field.sample(x + dx, y + dy, z + dz);
-                if (kind.equals("DERIVATIVE")) {
-                  double ax = axis.equals("x") ? spacing : 0,
-                      ay = axis.equals("y") ? spacing : 0,
-                      az = axis.equals("z") ? spacing : 0;
-                  return (field.sample(x + ax, y + ay, z + az)
-                          - field.sample(x - ax, y - ay, z - az))
-                      / (2 * spacing);
-                }
-                if (kind.equals("SMOOTH_FILTER")) {
-                  double sum = 0;
-                  int indexWeight = 0;
-                  for (int yy = dimension == 2 ? 0 : -radius;
-                      yy <= (dimension == 2 ? 0 : radius);
-                      yy++)
-                    for (int zz = -radius; zz <= radius; zz++)
-                      for (int xx = -radius; xx <= radius; xx++)
-                        sum +=
-                            weights[indexWeight++]
-                                * field.sample(
-                                    x + xx * spacing, y + yy * spacing, z + zz * spacing);
-                  double original = field.sample(x, y, z);
-                  return original + (sum - original) * strength;
-                }
-                if (kind.equals("WARP_SAMPLE"))
-                  return field.sample(
-                      x + amplitude * warp.sample(x, y, z),
-                      y
-                          + (dimension == 2
-                              ? 0
-                              : amplitude * warp.sample(x + 31.1, y - 17.3, z + 7.7)),
-                      z + amplitude * warp.sample(x - 11.2, y + 43.8, z - 19.4));
-                double sum = 0, amp = 1, freq = baseFrequency;
-                for (int i = 0; i < oct; i++) {
-                  double value = field.sample(x * freq, y * freq, z * freq);
-                  value =
-                      switch (kind) {
-                        case "RIDGED" -> 1 - StrictMath.abs(value);
-                        case "BILLOW" -> 2 * StrictMath.abs(value) - 1;
-                        case "PING_PONG" -> {
-                          double t = value + 1;
-                          t -= 2 * StrictMath.floor(t / 2);
-                          yield 1 - StrictMath.abs(t - 1);
-                        }
-                        default -> value;
-                      };
-                  sum += amp * value;
-                  amp *= gain;
-                  freq *= lac;
-                }
-                return sum;
-              };
+              (c, k) ->
+                  shape.sample(
+                      position == null ? c.x : position.number.get(c, 0),
+                      dimension == 2 ? 0 : position == null ? c.y : position.number.get(c, 1),
+                      position == null ? c.z : position.number.get(c, dimension == 2 ? 1 : 2));
+        } else if (ProcessingExtensions.COMBINATIONS.contains(kind)) {
+          validateSignature(item, bound);
+          double smoothness =
+              ProcessingExtensions.controls(item, dimension).get("smoothness").doubleValue();
+          eval =
+              (c, k) ->
+                  DistanceShapes.smoothMaximum(
+                      a.scalar(c),
+                      kind.equals("SMOOTH_SUBTRACTION") ? -b.scalar(c) : b.scalar(c),
+                      smoothness);
         } else if (kind.equals("CURVE")) {
           require(a, "Scalar", item);
           var curve = ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class);
@@ -535,7 +588,8 @@ public final class NoiseCompiler {
             && ((kind.equals("AND") && a.literal[0] == 0)
                 || (kind.equals("OR") && a.literal[0] != 0)))
           folded = constant("Boolean", ProjectIO.JSON.valueToTree(kind.equals("OR")));
-        else if (!Set.of("EXPRESSION", "FALLOFF", "SPHERE", "BOX", "COORDINATE_HASH", "COORDINATE")
+        else if (!ProcessingExtensions.SHAPES.contains(kind)
+            && !Set.of("EXPRESSION", "FALLOFF", "SPHERE", "BOX", "COORDINATE_HASH", "COORDINATE")
                 .contains(kind)
             && !ProcessingRegistry.SAMPLED.contains(kind)
             && bound.values().stream().allMatch(input -> input.literal != null)) {
@@ -602,7 +656,12 @@ public final class NoiseCompiler {
         throw failure;
       } catch (RuntimeException failure) {
         throw new CompilationFailure(
-            n.uuid, item.uuid, "EXPRESSION".equals(item.kind) ? "expression" : null, failure);
+            n.uuid,
+            item.uuid,
+            failure instanceof ProcessingExtensions.InvalidControl invalid
+                ? invalid.key
+                : "EXPRESSION".equals(item.kind) ? "expression" : null,
+            failure);
       }
     }
     var output = binding(n.outputBinding, inputs, params, n, seed);
