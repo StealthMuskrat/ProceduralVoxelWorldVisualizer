@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The typed-authoring batch passed `clean test build dependencyNotices releaseJars` with **464 tests across 64 suites, no failures/errors/skips**, native workflows, independent engine-only consumers, Windows packaging/launcher smoke and byte-identical cross-platform JARs in [Actions run 40228589687](https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40228589687). Local schema-family validation also passed. These scoped checks do not certify full Windows 11 hardware or GUI acceptance. Earlier local observed toolchains include Temurin 25.0.4+7 and 25.0.5+8 x64.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The field-calculus/distance-shape batch passed `clean test build dependencyNotices releaseJars` with **502 tests across 66 suites, no failures/errors/skips**, native workflows, independent engine-only consumers, Windows packaging/launcher smoke and byte-identical cross-platform JARs in [Actions run 40231322715](https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40231322715). Local schema-family and generated-contract checks also passed. These scoped checks do not certify full Windows 11 hardware or GUI acceptance. Earlier local observed toolchains include Temurin 25.0.4+7 and 25.0.5+8 x64.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -15,7 +15,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 | A07 import/export | PARTIAL | Dependency checkbox export and COPY/compatible REUSE/SKIP preview; conservative semantic reuse and dependent-closure tests |
 | A08 undo/redo | PARTIAL | Structural delta transactions, bounded history, array reorder, undo/redo, curve gesture coalescing tests; full GUI audit remains |
 | A09 noise families | PARTIAL | All adapters finite/repeatable; independent bit-vector matrix remains |
-| A10 manipulations | PARTIAL | Typed math/logic/vectors/remap/curves/sampling; prefix resampling, six types, conversions and typed coordinate stages tested; broader registry/GUI acceptance remains |
+| A10 manipulations | PARTIAL | Typed math/logic/vectors/remap/curves/sampling, gradients/Laplacians, bounded neighborhoods and signed-distance primitives/combinations; six types, prefix resampling and explicit coordinates tested; broader registry/GUI acceptance remains |
 | A11 canonical panel | PARTIAL | One definition, bounded typed controls, explicit structural resolution, canonical shared-parameter pins and guarded source navigation; full gesture/hardware certification remains |
 | A12 expression language | PASS | MathContractTest and ExpressionPlanTest: every function, operators, types, lazy branches/spans, folding/sharing, nonrecursive flat plans, signed zero, nesting/threads/batches and limits |
 | A13 curve editor | PARTIAL | Auto/Aligned/Free coefficient and identity tests; group snapping/tangent/local history; native curve render; complete GUI gesture matrix remains |
@@ -48,7 +48,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 | Principal trees | Tests / checks |
 |---|---|
 | 0–4, 20 | EngineContractTest transactional persistence, validation, IDs; document and schema review |
-| 5–8 | MathContractTest expression inventory, noise adapter repetition, curve policies; TypedProcessingTest, FieldSamplingTest, CoordinateTransformTest, ExpressionPlanTest, CompilerOptimizationTest and SamplingBatchTest typed/lazy/prefix/folding/sharing/buffer contracts |
+| 5–8 | MathContractTest expression inventory, noise adapter repetition, curve policies; TypedProcessingTest, FieldSamplingTest, FieldOperationsTest, CoordinateTransformTest, ExpressionPlanTest, CompilerOptimizationTest and SamplingBatchTest typed/lazy/prefix/folding/sharing/buffer contracts |
 | 9–10 | EngineContractTest, WorldSettingsTest, WorldUseTest and WorldResourceTest: intervals, transformations, drivers, short-circuit gates, independent probability vectors, root/worker/stage invariance, imports and atomic replacement |
 | 11–12 | StorageContractTest, PaletteStorageTest and PackedArchiveTest: coordinates, dense oracle, coalescence, sparse 256³, primitive palettes, bulk replacement and independent v1/v2 binary vectors |
 | 13–14 | EngineContractTest async/contexts/backpressure; independent Example; StorageContractTest archives |
@@ -113,4 +113,4 @@ The bookmark/navigation extension adds 24 model/editor regressions, an isolated 
 
 The typed-authoring batch implements the connected Properties workflows in [NOISE_AUTHORING_WORKFLOWS.md](NOISE_AUTHORING_WORKFLOWS.md): bounded summaries/input choices/dependencies, six-type and stage eligibility, validated reorder/duplicate/enable/delete, explicit output/parameter resolution, canonical pin management and guarded source navigation. All 36 new core/editor regressions, the 2,002-item/2,000-parameter native workflow and the independent engine-only arithmetic consumer passed after implementation. See [typed-authoring evidence](evidence/NOISE_AUTHORING_VALIDATION.md). Full interactive acceptance remains separate.
 
-The sampled-calculus and distance-shape extension adds twelve dimension-aware operations, canonical control metadata and creation defaults. See [field operation semantics](FIELD_CALCULUS_AND_DISTANCE.md). Validation is deferred until the complete implementation batch; full GUI/hardware acceptance remains separate.
+The sampled-calculus and distance-shape extension adds twelve dimension-aware operations, canonical control metadata and creation defaults. See [field operation semantics](FIELD_CALCULUS_AND_DISTANCE.md). All 38 new regressions, native numeric editing and Undo/Redo, portable engine-only vectors, generated contracts and cross-platform packaging passed after implementation; see [validation evidence](evidence/FIELD_OPERATIONS_VALIDATION.md). Full GUI/hardware acceptance remains separate.

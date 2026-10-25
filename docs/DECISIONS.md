@@ -21,7 +21,7 @@
 
 The original specification is much broader than the current tested development implementation. Do not mark A01–A36 complete from a compiling build. Remaining work includes:
 
-- Broaden the manipulation registry and complete GUI acceptance of typed controls; expand conservative sharing coverage and measure representative batch performance. Typed sampled-field prefixes, all six intermediate types, explicit dimension conversions and coordinate-stage input bindings now have mathematical/ordering/short-circuit tests. See FIELD_PROCESSING.md.
+- Complete remaining manipulation families and GUI acceptance of typed controls; expand conservative sharing coverage and measure representative batch performance. Typed sampled-field prefixes, all six intermediate types, explicit dimension conversions and coordinate-stage input bindings now have mathematical/ordering/short-circuit tests. See FIELD_PROCESSING.md.
 - Complete per-algorithm independent reference vectors and certified JVM/CPU matrix.
 - Complete GUI acceptance of mixed root ordering, World folders, sibling clipboard, inline F2 rename, atomic replacement/deletion and portable COPY/REUSE/SKIP previews.
 - Complete interactive GUI acceptance of the curve editor. Multi-point cumulative snapping, one-entry gesture history, Auto/Aligned/Free validation, tangent drawing/dragging and configurable display ranges are implemented.
@@ -91,4 +91,4 @@ The bookmark/navigation extension adds searchable clipped per-tab choices, UUID-
 
 The typed-authoring extension adds cached clipped ordered summaries, six-type/stage-aware searchable input choices, compiler-validated structural plans, explicit dependency/output resolution, shared-parameter/pin management and guarded referenced-source navigation. Project format and existing creation-profile/operator semantics remain unchanged. See [NOISE_AUTHORING_WORKFLOWS.md](NOISE_AUTHORING_WORKFLOWS.md).
 
-The sampled-calculus and distance-shape extension adds twelve dimension-aware operations, canonical control metadata and creation defaults. See [field operation semantics](FIELD_CALCULUS_AND_DISTANCE.md). Validation is deferred until the complete implementation batch; full GUI/hardware acceptance remains separate.
+The sampled-calculus and distance-shape extension adds twelve dimension-aware operations, canonical control metadata and creation defaults. See [field operation semantics](FIELD_CALCULUS_AND_DISTANCE.md). Validation passed after implementation: 502 tests, native workflows, independent mathematical consumers and cross-platform packaging. Full GUI/hardware acceptance remains separate.

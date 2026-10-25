@@ -1,7 +1,5 @@
 {
-  "registryVersion" : 2,
-  "sampledFieldSources" : [ "Source Field", "Earlier Field Prefix", "Noise Generator Field" ],
-  "sampledFieldOperations" : [ "BILLOW", "DERIVATIVE", "FBM", "NOISE_REFERENCE", "OFFSET_SAMPLE", "PING_PONG", "RIDGED", "SMOOTH_FILTER", "WARP_SAMPLE" ],
+  "registryVersion" : 3,
   "operations" : {
     "ADD" : {
       "category" : "Math",
@@ -367,6 +365,533 @@
       "category" : "Coordinates & Transforms",
       "result" : "Scalar",
       "inputs" : [ ]
+    },
+    "GRADIENT" : {
+      "category" : "Sampling & Filters",
+      "result" : "Vector3",
+      "inputs" : [ ]
+    },
+    "LAPLACIAN" : {
+      "category" : "Sampling & Filters",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "MIN_FILTER" : {
+      "category" : "Sampling & Filters",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "MAX_FILTER" : {
+      "category" : "Sampling & Filters",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "MEDIAN_FILTER" : {
+      "category" : "Sampling & Filters",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "PLANE" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "CYLINDER" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "CAPSULE" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "TORUS" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "ROUNDED_BOX" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ ]
+    },
+    "SMOOTH_INTERSECTION" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
+    },
+    "SMOOTH_SUBTRACTION" : {
+      "category" : "Shapes & Distance",
+      "result" : "Scalar",
+      "inputs" : [ "a", "b" ]
     }
-  }
+  },
+  "sampledFieldOperations" : [ "BILLOW", "DERIVATIVE", "FBM", "GRADIENT", "LAPLACIAN", "MAX_FILTER", "MEDIAN_FILTER", "MIN_FILTER", "NOISE_REFERENCE", "OFFSET_SAMPLE", "PING_PONG", "RIDGED", "SMOOTH_FILTER", "WARP_SAMPLE" ],
+  "sampledFieldSources" : [ "Source Field", "Earlier Field Prefix", "Noise Generator Field" ],
+  "extendedOperations" : {
+    "GRADIENT" : {
+      "dimensions" : [ 2, 3 ],
+      "result2D" : "Vector2",
+      "result3D" : "Vector3",
+      "controls" : [ {
+        "key" : "spacing",
+        "label" : "Sample spacing",
+        "defaultValue" : 1.0,
+        "minimum" : 4.9E-324,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Centered first derivatives in X/Z (2D) or X/Y/Z (3D); unnormalized value vector."
+    },
+    "LAPLACIAN" : {
+      "dimensions" : [ 2, 3 ],
+      "result2D" : "Scalar",
+      "result3D" : "Scalar",
+      "controls" : [ {
+        "key" : "spacing",
+        "label" : "Sample spacing",
+        "defaultValue" : 1.0,
+        "minimum" : 4.9E-324,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Sum of centered second derivatives on active axes; no diagonal samples."
+    },
+    "MIN_FILTER" : {
+      "dimensions" : [ 2, 3 ],
+      "result2D" : "Scalar",
+      "result3D" : "Scalar",
+      "controls" : [ {
+        "key" : "spacing",
+        "label" : "Sample spacing",
+        "defaultValue" : 1.0,
+        "minimum" : 4.9E-324,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "radius",
+        "label" : "Neighborhood radius",
+        "defaultValue" : 1,
+        "minimum" : 0.0,
+        "maximum" : 4.0,
+        "integer" : true,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "strength",
+        "label" : "Filter strength",
+        "defaultValue" : 1.0,
+        "minimum" : 0.0,
+        "maximum" : 1.0,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Odd square/cube neighborhood in Y/Z/X order, radius 0..4; blend with the center; raw signed values."
+    },
+    "MAX_FILTER" : {
+      "dimensions" : [ 2, 3 ],
+      "result2D" : "Scalar",
+      "result3D" : "Scalar",
+      "controls" : [ {
+        "key" : "spacing",
+        "label" : "Sample spacing",
+        "defaultValue" : 1.0,
+        "minimum" : 4.9E-324,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "radius",
+        "label" : "Neighborhood radius",
+        "defaultValue" : 1,
+        "minimum" : 0.0,
+        "maximum" : 4.0,
+        "integer" : true,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "strength",
+        "label" : "Filter strength",
+        "defaultValue" : 1.0,
+        "minimum" : 0.0,
+        "maximum" : 1.0,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Odd square/cube neighborhood in Y/Z/X order, radius 0..4; blend with the center; raw signed values."
+    },
+    "MEDIAN_FILTER" : {
+      "dimensions" : [ 2, 3 ],
+      "result2D" : "Scalar",
+      "result3D" : "Scalar",
+      "controls" : [ {
+        "key" : "spacing",
+        "label" : "Sample spacing",
+        "defaultValue" : 1.0,
+        "minimum" : 4.9E-324,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "radius",
+        "label" : "Neighborhood radius",
+        "defaultValue" : 1,
+        "minimum" : 0.0,
+        "maximum" : 4.0,
+        "integer" : true,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "strength",
+        "label" : "Filter strength",
+        "defaultValue" : 1.0,
+        "minimum" : 0.0,
+        "maximum" : 1.0,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Odd square/cube neighborhood in Y/Z/X order, radius 0..4; blend with the center; raw signed values."
+    },
+    "PLANE" : {
+      "dimensions" : [ 2, 3 ],
+      "result2D" : "Scalar",
+      "result3D" : "Scalar",
+      "controls" : [ {
+        "key" : "axis",
+        "label" : "Axis",
+        "defaultValue" : "x",
+        "minimum" : 0.0,
+        "maximum" : 0.0,
+        "integer" : false,
+        "options" : [ "x", "y", "z" ],
+        "threeDimensional" : false
+      }, {
+        "key" : "offset",
+        "label" : "Plane offset",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "direction",
+        "label" : "Positive normal",
+        "defaultValue" : "POSITIVE",
+        "minimum" : 0.0,
+        "maximum" : 0.0,
+        "integer" : false,
+        "options" : [ "POSITIVE", "NEGATIVE" ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Axis-aligned signed distance: direction * (position[axis] - offset); negative is inside."
+    },
+    "CAPSULE" : {
+      "dimensions" : [ 2, 3 ],
+      "result2D" : "Scalar",
+      "result3D" : "Scalar",
+      "controls" : [ {
+        "key" : "startX",
+        "label" : "start X",
+        "defaultValue" : -16.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "startY",
+        "label" : "start Y",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : true
+      }, {
+        "key" : "startZ",
+        "label" : "start Z",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "endX",
+        "label" : "end X",
+        "defaultValue" : 16.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "endY",
+        "label" : "end Y",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : true
+      }, {
+        "key" : "endZ",
+        "label" : "end Z",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "radius",
+        "label" : "Radius",
+        "defaultValue" : 4.0,
+        "minimum" : 0.0,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Distance to the closed endpoint segment minus radius; coincident endpoints form a sphere/circle."
+    },
+    "CYLINDER" : {
+      "dimensions" : [ 3 ],
+      "result2D" : "Scalar",
+      "result3D" : "Scalar",
+      "controls" : [ {
+        "key" : "centerX",
+        "label" : "Center X",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "centerY",
+        "label" : "Center Y",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : true
+      }, {
+        "key" : "centerZ",
+        "label" : "Center Z",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "axis",
+        "label" : "Axis",
+        "defaultValue" : "y",
+        "minimum" : 0.0,
+        "maximum" : 0.0,
+        "integer" : false,
+        "options" : [ "x", "y", "z" ],
+        "threeDimensional" : false
+      }, {
+        "key" : "radius",
+        "label" : "Radius",
+        "defaultValue" : 16.0,
+        "minimum" : 0.0,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "halfHeight",
+        "label" : "Half height",
+        "defaultValue" : 16.0,
+        "minimum" : 0.0,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Exact capped cylinder signed distance about the selected axis; negative is inside."
+    },
+    "TORUS" : {
+      "dimensions" : [ 3 ],
+      "result2D" : "Scalar",
+      "result3D" : "Scalar",
+      "controls" : [ {
+        "key" : "centerX",
+        "label" : "Center X",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "centerY",
+        "label" : "Center Y",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : true
+      }, {
+        "key" : "centerZ",
+        "label" : "Center Z",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "axis",
+        "label" : "Axis",
+        "defaultValue" : "y",
+        "minimum" : 0.0,
+        "maximum" : 0.0,
+        "integer" : false,
+        "options" : [ "x", "y", "z" ],
+        "threeDimensional" : false
+      }, {
+        "key" : "majorRadius",
+        "label" : "Major radius",
+        "defaultValue" : 16.0,
+        "minimum" : 0.0,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "minorRadius",
+        "label" : "Minor radius",
+        "defaultValue" : 4.0,
+        "minimum" : 0.0,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Ring torus signed distance about the selected axis; minor radius cannot exceed major radius."
+    },
+    "ROUNDED_BOX" : {
+      "dimensions" : [ 2, 3 ],
+      "result2D" : "Scalar",
+      "result3D" : "Scalar",
+      "controls" : [ {
+        "key" : "centerX",
+        "label" : "Center X",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "centerY",
+        "label" : "Center Y",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : true
+      }, {
+        "key" : "centerZ",
+        "label" : "Center Z",
+        "defaultValue" : 0.0,
+        "minimum" : -1.7976931348623157E308,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "extentX",
+        "label" : "Outer half extent X",
+        "defaultValue" : 16,
+        "minimum" : 0.0,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "extentY",
+        "label" : "Outer half extent Y",
+        "defaultValue" : 16,
+        "minimum" : 0.0,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : true
+      }, {
+        "key" : "extentZ",
+        "label" : "Outer half extent Z",
+        "defaultValue" : 16,
+        "minimum" : 0.0,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      }, {
+        "key" : "roundRadius",
+        "label" : "Corner radius",
+        "defaultValue" : 2.0,
+        "minimum" : 0.0,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Exact rounded box with fixed outer half extents; corner radius cannot exceed any active extent."
+    },
+    "SMOOTH_INTERSECTION" : {
+      "dimensions" : [ 2, 3 ],
+      "result2D" : "Scalar",
+      "result3D" : "Scalar",
+      "controls" : [ {
+        "key" : "smoothness",
+        "label" : "Smoothness",
+        "defaultValue" : 1.0,
+        "minimum" : 4.9E-324,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Polynomial smooth maximum: intersection=max(a,b), subtraction=max(a,-b); raw signed values."
+    },
+    "SMOOTH_SUBTRACTION" : {
+      "dimensions" : [ 2, 3 ],
+      "result2D" : "Scalar",
+      "result3D" : "Scalar",
+      "controls" : [ {
+        "key" : "smoothness",
+        "label" : "Smoothness",
+        "defaultValue" : 1.0,
+        "minimum" : 4.9E-324,
+        "maximum" : 1.7976931348623157E308,
+        "integer" : false,
+        "options" : [ ],
+        "threeDimensional" : false
+      } ],
+      "description" : "Polynomial smooth maximum: intersection=max(a,b), subtraction=max(a,-b); raw signed values."
+    }
+  },
+  "sampleWorkLimit" : 1000000
 }

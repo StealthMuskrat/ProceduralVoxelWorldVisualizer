@@ -137,3 +137,5 @@ The resource-hierarchy extension passes 389 JUnit tests on pinned Temurin 25.0.4
 The bookmark/navigation batch passed 428 tests and both platform/native/package/reproducibility jobs. See [BOOKMARK_VALIDATION.md](BOOKMARK_VALIDATION.md) and [bookmarks-reference.json](bookmarks-reference.json).
 
 The larger typed-authoring batch passed 464 tests and both platform/native/package/reproducibility jobs. See [NOISE_AUTHORING_VALIDATION.md](NOISE_AUTHORING_VALIDATION.md) and [noise-authoring-reference.json](noise-authoring-reference.json).
+
+The sampled-calculus/distance-shape batch passes 502 tests and platform CI, including 22 native production item details, actual filter-strength editing, private Apply/Undo/Redo and independent mathematical/saved-fixture consumers. See [field operation evidence](FIELD_OPERATIONS_VALIDATION.md) for scope, toolchain, raw reports and remaining acceptance limits.

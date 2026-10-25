@@ -34,7 +34,7 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.Example build/independent/output
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
           java -cp build/independent:build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.example.Example --contracts build/field-operations/contracts
-          python scripts/sync_field_contracts.py build/field-operations/contracts --bootstrap
+          python scripts/sync_field_contracts.py build/field-operations/contracts
       - name: Independent import transaction reference
         run: java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ImportSessionConsumer
       - name: Exact storage measurements
@@ -153,7 +153,7 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/ProceduralVoxelCreator.jar' io.voxelcreator.example.Example --contracts build/field-operations/contracts
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          python scripts/sync_field_contracts.py build/field-operations/contracts --bootstrap
+          python scripts/sync_field_contracts.py build/field-operations/contracts
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Exact storage measurements
         shell: pwsh

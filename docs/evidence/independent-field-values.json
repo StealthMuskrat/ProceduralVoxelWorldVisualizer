@@ -1,0 +1,14 @@
+{
+  "2/GRADIENT" : 18.439088914585774,
+  "2/LAPLACIAN" : 8.0,
+  "2/PLANE" : 0.0,
+  "2/CAPSULE" : -4.0,
+  "2/ROUNDED_BOX" : -16.0,
+  "3/GRADIENT" : 18.867962264113206,
+  "3/LAPLACIAN" : 12.0,
+  "3/PLANE" : 0.0,
+  "3/CAPSULE" : -4.0,
+  "3/CYLINDER" : -16.0,
+  "3/TORUS" : 12.0,
+  "3/ROUNDED_BOX" : -16.0
+}

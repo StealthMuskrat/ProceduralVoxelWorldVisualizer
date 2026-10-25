@@ -777,6 +777,102 @@
       "order" : 0,
       "options" : { }
     },
+    "processing.GRADIENT" : {
+      "label" : "GRADIENT",
+      "tooltip" : "Sampling & Filters",
+      "description" : "Centered first derivatives in X/Z (2D) or X/Y/Z (3D); unnormalized value vector.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.LAPLACIAN" : {
+      "label" : "LAPLACIAN",
+      "tooltip" : "Sampling & Filters",
+      "description" : "Sum of centered second derivatives on active axes; no diagonal samples.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MIN_FILTER" : {
+      "label" : "MIN_FILTER",
+      "tooltip" : "Sampling & Filters",
+      "description" : "Odd square/cube neighborhood in Y/Z/X order, radius 0..4; blend with the center; raw signed values.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MAX_FILTER" : {
+      "label" : "MAX_FILTER",
+      "tooltip" : "Sampling & Filters",
+      "description" : "Odd square/cube neighborhood in Y/Z/X order, radius 0..4; blend with the center; raw signed values.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MEDIAN_FILTER" : {
+      "label" : "MEDIAN_FILTER",
+      "tooltip" : "Sampling & Filters",
+      "description" : "Odd square/cube neighborhood in Y/Z/X order, radius 0..4; blend with the center; raw signed values.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.PLANE" : {
+      "label" : "PLANE",
+      "tooltip" : "Shapes & Distance",
+      "description" : "Axis-aligned signed distance: direction * (position[axis] - offset); negative is inside.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CYLINDER" : {
+      "label" : "CYLINDER",
+      "tooltip" : "Shapes & Distance",
+      "description" : "Exact capped cylinder signed distance about the selected axis; negative is inside.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CAPSULE" : {
+      "label" : "CAPSULE",
+      "tooltip" : "Shapes & Distance",
+      "description" : "Distance to the closed endpoint segment minus radius; coincident endpoints form a sphere/circle.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.TORUS" : {
+      "label" : "TORUS",
+      "tooltip" : "Shapes & Distance",
+      "description" : "Ring torus signed distance about the selected axis; minor radius cannot exceed major radius.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.ROUNDED_BOX" : {
+      "label" : "ROUNDED_BOX",
+      "tooltip" : "Shapes & Distance",
+      "description" : "Exact rounded box with fixed outer half extents; corner radius cannot exceed any active extent.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.SMOOTH_INTERSECTION" : {
+      "label" : "SMOOTH_INTERSECTION",
+      "tooltip" : "Shapes & Distance",
+      "description" : "Polynomial smooth maximum: intersection=max(a,b), subtraction=max(a,-b); raw signed values.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.SMOOTH_SUBTRACTION" : {
+      "label" : "SMOOTH_SUBTRACTION",
+      "tooltip" : "Shapes & Distance",
+      "description" : "Polynomial smooth maximum: intersection=max(a,b), subtraction=max(a,-b); raw signed values.",
+      "group" : "Processing",
+      "order" : 0,
+      "options" : { }
+    },
     "transform.TRANSLATE" : {
       "label" : "TRANSLATE",
       "tooltip" : "Coordinate transform TRANSLATE",
@@ -1878,6 +1974,358 @@
       "tooltip" : "Creation control: processing.EXPAND_COORDINATES.input.b",
       "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
       "group" : "Processing / EXPAND_COORDINATES",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.SMOOTH_INTERSECTION.input.b" : {
+      "label" : "Literal input b",
+      "tooltip" : "Creation control: processing.SMOOTH_INTERSECTION.input.b",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / SMOOTH_INTERSECTION",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.SMOOTH_SUBTRACTION.input.b" : {
+      "label" : "Literal input b",
+      "tooltip" : "Creation control: processing.SMOOTH_SUBTRACTION.input.b",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / SMOOTH_SUBTRACTION",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.GRADIENT.parameter.spacing" : {
+      "label" : "Sample spacing",
+      "tooltip" : "Creation control: processing.GRADIENT.parameter.spacing",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / GRADIENT",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.LAPLACIAN.parameter.spacing" : {
+      "label" : "Sample spacing",
+      "tooltip" : "Creation control: processing.LAPLACIAN.parameter.spacing",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / LAPLACIAN",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MIN_FILTER.parameter.spacing" : {
+      "label" : "Sample spacing",
+      "tooltip" : "Creation control: processing.MIN_FILTER.parameter.spacing",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / MIN_FILTER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MIN_FILTER.parameter.radius" : {
+      "label" : "Neighborhood radius",
+      "tooltip" : "Creation control: processing.MIN_FILTER.parameter.radius",
+      "description" : "Future-item value; immutable type INTEGER. Existing project fields retain their authored values.",
+      "group" : "Processing / MIN_FILTER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MIN_FILTER.parameter.strength" : {
+      "label" : "Filter strength",
+      "tooltip" : "Creation control: processing.MIN_FILTER.parameter.strength",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / MIN_FILTER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MAX_FILTER.parameter.spacing" : {
+      "label" : "Sample spacing",
+      "tooltip" : "Creation control: processing.MAX_FILTER.parameter.spacing",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / MAX_FILTER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MAX_FILTER.parameter.radius" : {
+      "label" : "Neighborhood radius",
+      "tooltip" : "Creation control: processing.MAX_FILTER.parameter.radius",
+      "description" : "Future-item value; immutable type INTEGER. Existing project fields retain their authored values.",
+      "group" : "Processing / MAX_FILTER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MAX_FILTER.parameter.strength" : {
+      "label" : "Filter strength",
+      "tooltip" : "Creation control: processing.MAX_FILTER.parameter.strength",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / MAX_FILTER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MEDIAN_FILTER.parameter.spacing" : {
+      "label" : "Sample spacing",
+      "tooltip" : "Creation control: processing.MEDIAN_FILTER.parameter.spacing",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / MEDIAN_FILTER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MEDIAN_FILTER.parameter.radius" : {
+      "label" : "Neighborhood radius",
+      "tooltip" : "Creation control: processing.MEDIAN_FILTER.parameter.radius",
+      "description" : "Future-item value; immutable type INTEGER. Existing project fields retain their authored values.",
+      "group" : "Processing / MEDIAN_FILTER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.MEDIAN_FILTER.parameter.strength" : {
+      "label" : "Filter strength",
+      "tooltip" : "Creation control: processing.MEDIAN_FILTER.parameter.strength",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / MEDIAN_FILTER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.PLANE.parameter.axis" : {
+      "label" : "Axis",
+      "tooltip" : "Creation control: processing.PLANE.parameter.axis",
+      "description" : "Future-item value; immutable type CHOICE. Existing project fields retain their authored values.",
+      "group" : "Processing / PLANE",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.PLANE.parameter.offset" : {
+      "label" : "Plane offset",
+      "tooltip" : "Creation control: processing.PLANE.parameter.offset",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / PLANE",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.PLANE.parameter.direction" : {
+      "label" : "Positive normal",
+      "tooltip" : "Creation control: processing.PLANE.parameter.direction",
+      "description" : "Future-item value; immutable type CHOICE. Existing project fields retain their authored values.",
+      "group" : "Processing / PLANE",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CAPSULE.parameter.startX" : {
+      "label" : "start X",
+      "tooltip" : "Creation control: processing.CAPSULE.parameter.startX",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CAPSULE",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CAPSULE.parameter.startY" : {
+      "label" : "start Y",
+      "tooltip" : "Creation control: processing.CAPSULE.parameter.startY",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CAPSULE",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CAPSULE.parameter.startZ" : {
+      "label" : "start Z",
+      "tooltip" : "Creation control: processing.CAPSULE.parameter.startZ",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CAPSULE",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CAPSULE.parameter.endX" : {
+      "label" : "end X",
+      "tooltip" : "Creation control: processing.CAPSULE.parameter.endX",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CAPSULE",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CAPSULE.parameter.endY" : {
+      "label" : "end Y",
+      "tooltip" : "Creation control: processing.CAPSULE.parameter.endY",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CAPSULE",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CAPSULE.parameter.endZ" : {
+      "label" : "end Z",
+      "tooltip" : "Creation control: processing.CAPSULE.parameter.endZ",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CAPSULE",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CAPSULE.parameter.radius" : {
+      "label" : "Radius",
+      "tooltip" : "Creation control: processing.CAPSULE.parameter.radius",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CAPSULE",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CYLINDER.parameter.centerX" : {
+      "label" : "Center X",
+      "tooltip" : "Creation control: processing.CYLINDER.parameter.centerX",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CYLINDER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CYLINDER.parameter.centerY" : {
+      "label" : "Center Y",
+      "tooltip" : "Creation control: processing.CYLINDER.parameter.centerY",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CYLINDER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CYLINDER.parameter.centerZ" : {
+      "label" : "Center Z",
+      "tooltip" : "Creation control: processing.CYLINDER.parameter.centerZ",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CYLINDER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CYLINDER.parameter.axis" : {
+      "label" : "Axis",
+      "tooltip" : "Creation control: processing.CYLINDER.parameter.axis",
+      "description" : "Future-item value; immutable type CHOICE. Existing project fields retain their authored values.",
+      "group" : "Processing / CYLINDER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CYLINDER.parameter.radius" : {
+      "label" : "Radius",
+      "tooltip" : "Creation control: processing.CYLINDER.parameter.radius",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CYLINDER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.CYLINDER.parameter.halfHeight" : {
+      "label" : "Half height",
+      "tooltip" : "Creation control: processing.CYLINDER.parameter.halfHeight",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / CYLINDER",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.TORUS.parameter.centerX" : {
+      "label" : "Center X",
+      "tooltip" : "Creation control: processing.TORUS.parameter.centerX",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / TORUS",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.TORUS.parameter.centerY" : {
+      "label" : "Center Y",
+      "tooltip" : "Creation control: processing.TORUS.parameter.centerY",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / TORUS",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.TORUS.parameter.centerZ" : {
+      "label" : "Center Z",
+      "tooltip" : "Creation control: processing.TORUS.parameter.centerZ",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / TORUS",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.TORUS.parameter.axis" : {
+      "label" : "Axis",
+      "tooltip" : "Creation control: processing.TORUS.parameter.axis",
+      "description" : "Future-item value; immutable type CHOICE. Existing project fields retain their authored values.",
+      "group" : "Processing / TORUS",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.TORUS.parameter.majorRadius" : {
+      "label" : "Major radius",
+      "tooltip" : "Creation control: processing.TORUS.parameter.majorRadius",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / TORUS",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.TORUS.parameter.minorRadius" : {
+      "label" : "Minor radius",
+      "tooltip" : "Creation control: processing.TORUS.parameter.minorRadius",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / TORUS",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.ROUNDED_BOX.parameter.centerX" : {
+      "label" : "Center X",
+      "tooltip" : "Creation control: processing.ROUNDED_BOX.parameter.centerX",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / ROUNDED_BOX",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.ROUNDED_BOX.parameter.centerY" : {
+      "label" : "Center Y",
+      "tooltip" : "Creation control: processing.ROUNDED_BOX.parameter.centerY",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / ROUNDED_BOX",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.ROUNDED_BOX.parameter.centerZ" : {
+      "label" : "Center Z",
+      "tooltip" : "Creation control: processing.ROUNDED_BOX.parameter.centerZ",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / ROUNDED_BOX",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.ROUNDED_BOX.parameter.extentX" : {
+      "label" : "Outer half extent X",
+      "tooltip" : "Creation control: processing.ROUNDED_BOX.parameter.extentX",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / ROUNDED_BOX",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.ROUNDED_BOX.parameter.extentY" : {
+      "label" : "Outer half extent Y",
+      "tooltip" : "Creation control: processing.ROUNDED_BOX.parameter.extentY",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / ROUNDED_BOX",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.ROUNDED_BOX.parameter.extentZ" : {
+      "label" : "Outer half extent Z",
+      "tooltip" : "Creation control: processing.ROUNDED_BOX.parameter.extentZ",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / ROUNDED_BOX",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.ROUNDED_BOX.parameter.roundRadius" : {
+      "label" : "Corner radius",
+      "tooltip" : "Creation control: processing.ROUNDED_BOX.parameter.roundRadius",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / ROUNDED_BOX",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.SMOOTH_INTERSECTION.parameter.smoothness" : {
+      "label" : "Smoothness",
+      "tooltip" : "Creation control: processing.SMOOTH_INTERSECTION.parameter.smoothness",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / SMOOTH_INTERSECTION",
+      "order" : 0,
+      "options" : { }
+    },
+    "processing.SMOOTH_SUBTRACTION.parameter.smoothness" : {
+      "label" : "Smoothness",
+      "tooltip" : "Creation control: processing.SMOOTH_SUBTRACTION.parameter.smoothness",
+      "description" : "Future-item value; immutable type NUMBER. Existing project fields retain their authored values.",
+      "group" : "Processing / SMOOTH_SUBTRACTION",
       "order" : 0,
       "options" : { }
     },

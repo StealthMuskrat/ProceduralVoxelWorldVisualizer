@@ -13,7 +13,7 @@
         "controls" : {
           "type" : "object",
           "additionalProperties" : false,
-          "maxProperties" : 334,
+          "maxProperties" : 390,
           "properties" : {
             "themes" : {
               "allOf" : [ {
@@ -1264,6 +1264,162 @@
               } ]
             },
             "processing.WARP_SAMPLE" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.GRADIENT" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.LAPLACIAN" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MIN_FILTER" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MAX_FILTER" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MEDIAN_FILTER" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.PLANE" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CYLINDER" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CAPSULE" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.TORUS" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.ROUNDED_BOX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.SMOOTH_INTERSECTION" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.SMOOTH_SUBTRACTION" : {
               "allOf" : [ {
                 "$ref" : "#/$defs/Control"
               }, {
@@ -3172,6 +3328,637 @@
                 }
               } ]
             },
+            "processing.SMOOTH_INTERSECTION.input.b" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.SMOOTH_SUBTRACTION.input.b" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.GRADIENT.parameter.spacing" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.LAPLACIAN.parameter.spacing" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MIN_FILTER.parameter.spacing" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MIN_FILTER.parameter.radius" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MIN_FILTER.parameter.strength" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MAX_FILTER.parameter.spacing" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MAX_FILTER.parameter.radius" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MAX_FILTER.parameter.strength" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MEDIAN_FILTER.parameter.spacing" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MEDIAN_FILTER.parameter.radius" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.MEDIAN_FILTER.parameter.strength" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.PLANE.parameter.axis" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "x" : {
+                        "type" : "string",
+                        "minLength" : 1,
+                        "maxLength" : 160
+                      },
+                      "y" : {
+                        "type" : "string",
+                        "minLength" : 1,
+                        "maxLength" : 160
+                      },
+                      "z" : {
+                        "type" : "string",
+                        "minLength" : 1,
+                        "maxLength" : 160
+                      }
+                    }
+                  }
+                }
+              } ]
+            },
+            "processing.PLANE.parameter.offset" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.PLANE.parameter.direction" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "POSITIVE" : {
+                        "type" : "string",
+                        "minLength" : 1,
+                        "maxLength" : 160
+                      },
+                      "NEGATIVE" : {
+                        "type" : "string",
+                        "minLength" : 1,
+                        "maxLength" : 160
+                      }
+                    }
+                  }
+                }
+              } ]
+            },
+            "processing.CAPSULE.parameter.startX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CAPSULE.parameter.startY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CAPSULE.parameter.startZ" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CAPSULE.parameter.endX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CAPSULE.parameter.endY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CAPSULE.parameter.endZ" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CAPSULE.parameter.radius" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CYLINDER.parameter.centerX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CYLINDER.parameter.centerY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CYLINDER.parameter.centerZ" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CYLINDER.parameter.axis" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "x" : {
+                        "type" : "string",
+                        "minLength" : 1,
+                        "maxLength" : 160
+                      },
+                      "y" : {
+                        "type" : "string",
+                        "minLength" : 1,
+                        "maxLength" : 160
+                      },
+                      "z" : {
+                        "type" : "string",
+                        "minLength" : 1,
+                        "maxLength" : 160
+                      }
+                    }
+                  }
+                }
+              } ]
+            },
+            "processing.CYLINDER.parameter.radius" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.CYLINDER.parameter.halfHeight" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.TORUS.parameter.centerX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.TORUS.parameter.centerY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.TORUS.parameter.centerZ" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.TORUS.parameter.axis" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "x" : {
+                        "type" : "string",
+                        "minLength" : 1,
+                        "maxLength" : 160
+                      },
+                      "y" : {
+                        "type" : "string",
+                        "minLength" : 1,
+                        "maxLength" : 160
+                      },
+                      "z" : {
+                        "type" : "string",
+                        "minLength" : 1,
+                        "maxLength" : 160
+                      }
+                    }
+                  }
+                }
+              } ]
+            },
+            "processing.TORUS.parameter.majorRadius" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.TORUS.parameter.minorRadius" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.ROUNDED_BOX.parameter.centerX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.ROUNDED_BOX.parameter.centerY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.ROUNDED_BOX.parameter.centerZ" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.ROUNDED_BOX.parameter.extentX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.ROUNDED_BOX.parameter.extentY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.ROUNDED_BOX.parameter.extentZ" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.ROUNDED_BOX.parameter.roundRadius" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.SMOOTH_INTERSECTION.parameter.smoothness" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "processing.SMOOTH_SUBTRACTION.parameter.smoothness" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
             "processing.CONSTANT.parameter.value" : {
               "allOf" : [ {
                 "$ref" : "#/$defs/Control"
@@ -4628,7 +5415,7 @@
         "creationDefaults" : {
           "type" : "object",
           "additionalProperties" : false,
-          "maxProperties" : 233,
+          "maxProperties" : 277,
           "properties" : {
             "noise2D.algorithm" : {
               "enum" : [ "OPEN_SIMPLEX_2", "PERLIN", "VALUE", "VALUE_CUBIC", "CELLULAR", "WHITE_HASH", "CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF" ]
@@ -5351,6 +6138,218 @@
               "type" : "number",
               "minimum" : -1000000.0,
               "maximum" : 1000000.0
+            },
+            "processing.SMOOTH_INTERSECTION.input.b" : {
+              "type" : "number",
+              "minimum" : -1000000.0,
+              "maximum" : 1000000.0
+            },
+            "processing.SMOOTH_SUBTRACTION.input.b" : {
+              "type" : "number",
+              "minimum" : -1000000.0,
+              "maximum" : 1000000.0
+            },
+            "processing.GRADIENT.parameter.spacing" : {
+              "type" : "number",
+              "minimum" : 4.9E-324,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.LAPLACIAN.parameter.spacing" : {
+              "type" : "number",
+              "minimum" : 4.9E-324,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.MIN_FILTER.parameter.spacing" : {
+              "type" : "number",
+              "minimum" : 4.9E-324,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.MIN_FILTER.parameter.radius" : {
+              "type" : "integer",
+              "minimum" : 0.0,
+              "maximum" : 4.0
+            },
+            "processing.MIN_FILTER.parameter.strength" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.0
+            },
+            "processing.MAX_FILTER.parameter.spacing" : {
+              "type" : "number",
+              "minimum" : 4.9E-324,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.MAX_FILTER.parameter.radius" : {
+              "type" : "integer",
+              "minimum" : 0.0,
+              "maximum" : 4.0
+            },
+            "processing.MAX_FILTER.parameter.strength" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.0
+            },
+            "processing.MEDIAN_FILTER.parameter.spacing" : {
+              "type" : "number",
+              "minimum" : 4.9E-324,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.MEDIAN_FILTER.parameter.radius" : {
+              "type" : "integer",
+              "minimum" : 0.0,
+              "maximum" : 4.0
+            },
+            "processing.MEDIAN_FILTER.parameter.strength" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.0
+            },
+            "processing.PLANE.parameter.axis" : {
+              "enum" : [ "x", "y", "z" ]
+            },
+            "processing.PLANE.parameter.offset" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.PLANE.parameter.direction" : {
+              "enum" : [ "POSITIVE", "NEGATIVE" ]
+            },
+            "processing.CAPSULE.parameter.startX" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.CAPSULE.parameter.startY" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.CAPSULE.parameter.startZ" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.CAPSULE.parameter.endX" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.CAPSULE.parameter.endY" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.CAPSULE.parameter.endZ" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.CAPSULE.parameter.radius" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.CYLINDER.parameter.centerX" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.CYLINDER.parameter.centerY" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.CYLINDER.parameter.centerZ" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.CYLINDER.parameter.axis" : {
+              "enum" : [ "x", "y", "z" ]
+            },
+            "processing.CYLINDER.parameter.radius" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.CYLINDER.parameter.halfHeight" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.TORUS.parameter.centerX" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.TORUS.parameter.centerY" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.TORUS.parameter.centerZ" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.TORUS.parameter.axis" : {
+              "enum" : [ "x", "y", "z" ]
+            },
+            "processing.TORUS.parameter.majorRadius" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.TORUS.parameter.minorRadius" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.ROUNDED_BOX.parameter.centerX" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.ROUNDED_BOX.parameter.centerY" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.ROUNDED_BOX.parameter.centerZ" : {
+              "type" : "number",
+              "minimum" : -1.7976931348623157E308,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.ROUNDED_BOX.parameter.extentX" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.ROUNDED_BOX.parameter.extentY" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.ROUNDED_BOX.parameter.extentZ" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.ROUNDED_BOX.parameter.roundRadius" : {
+              "type" : "number",
+              "minimum" : 0.0,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.SMOOTH_INTERSECTION.parameter.smoothness" : {
+              "type" : "number",
+              "minimum" : 4.9E-324,
+              "maximum" : 1.7976931348623157E308
+            },
+            "processing.SMOOTH_SUBTRACTION.parameter.smoothness" : {
+              "type" : "number",
+              "minimum" : 4.9E-324,
+              "maximum" : 1.7976931348623157E308
             },
             "processing.CONSTANT.parameter.value" : {
               "type" : "number",

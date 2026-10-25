@@ -86,31 +86,6 @@
       },
       "required" : [ "name", "x", "z", "uuid" ]
     },
-    "Bookmark2D" : {
-      "allOf" : [ {
-        "$ref" : "#/$defs/Bookmark"
-      }, {
-        "properties" : {
-          "y" : {
-            "const" : null
-          }
-        }
-      } ]
-    },
-    "Bookmark3D" : {
-      "allOf" : [ {
-        "$ref" : "#/$defs/Bookmark"
-      }, {
-        "properties" : {
-          "y" : {
-            "type" : "integer",
-            "minimum" : -2147483648,
-            "maximum" : 2147483647
-          }
-        },
-        "required" : [ "y" ]
-      } ]
-    },
     "Bookmarks" : {
       "type" : "object",
       "additionalProperties" : false,
@@ -336,7 +311,603 @@
           "type" : "string"
         }
       },
-      "required" : [ "kind", "resultType", "enabled", "parameters", "inputs", "id", "uuid" ]
+      "required" : [ "kind", "resultType", "enabled", "parameters", "inputs", "id", "uuid" ],
+      "allOf" : [ {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "GRADIENT"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "spacing" : {
+                  "type" : "number",
+                  "minimum" : 4.9E-324,
+                  "maximum" : 1.7976931348623157E308
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Vector2", "Vector3" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "$ref" : "#/$defs/Binding"
+                },
+                "coordinates" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "LAPLACIAN"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "spacing" : {
+                  "type" : "number",
+                  "minimum" : 4.9E-324,
+                  "maximum" : 1.7976931348623157E308
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Scalar" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "$ref" : "#/$defs/Binding"
+                },
+                "coordinates" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "MIN_FILTER"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "spacing" : {
+                  "type" : "number",
+                  "minimum" : 4.9E-324,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "radius" : {
+                  "type" : "integer",
+                  "minimum" : 0.0,
+                  "maximum" : 4.0
+                },
+                "strength" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.0
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Scalar" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "$ref" : "#/$defs/Binding"
+                },
+                "coordinates" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "MAX_FILTER"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "spacing" : {
+                  "type" : "number",
+                  "minimum" : 4.9E-324,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "radius" : {
+                  "type" : "integer",
+                  "minimum" : 0.0,
+                  "maximum" : 4.0
+                },
+                "strength" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.0
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Scalar" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "$ref" : "#/$defs/Binding"
+                },
+                "coordinates" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "MEDIAN_FILTER"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "spacing" : {
+                  "type" : "number",
+                  "minimum" : 4.9E-324,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "radius" : {
+                  "type" : "integer",
+                  "minimum" : 0.0,
+                  "maximum" : 4.0
+                },
+                "strength" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.0
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Scalar" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "$ref" : "#/$defs/Binding"
+                },
+                "coordinates" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "PLANE"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "axis" : {
+                  "enum" : [ "x", "y", "z" ]
+                },
+                "offset" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "direction" : {
+                  "enum" : [ "POSITIVE", "NEGATIVE" ]
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Scalar" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "position" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "CAPSULE"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "startX" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "startY" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "startZ" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "endX" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "endY" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "endZ" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "radius" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.7976931348623157E308
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Scalar" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "position" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "CYLINDER"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "centerX" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "centerY" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "centerZ" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "axis" : {
+                  "enum" : [ "x", "y", "z" ]
+                },
+                "radius" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "halfHeight" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.7976931348623157E308
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Scalar" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "position" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "TORUS"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "centerX" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "centerY" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "centerZ" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "axis" : {
+                  "enum" : [ "x", "y", "z" ]
+                },
+                "majorRadius" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "minorRadius" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.7976931348623157E308
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Scalar" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "position" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "ROUNDED_BOX"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "centerX" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "centerY" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "centerZ" : {
+                  "type" : "number",
+                  "minimum" : -1.7976931348623157E308,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "extentX" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "extentY" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "extentZ" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.7976931348623157E308
+                },
+                "roundRadius" : {
+                  "type" : "number",
+                  "minimum" : 0.0,
+                  "maximum" : 1.7976931348623157E308
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Scalar" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "position" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "SMOOTH_INTERSECTION"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "smoothness" : {
+                  "type" : "number",
+                  "minimum" : 4.9E-324,
+                  "maximum" : 1.7976931348623157E308
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Scalar" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "a" : {
+                  "$ref" : "#/$defs/Binding"
+                },
+                "b" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "kind" : {
+              "const" : "SMOOTH_SUBTRACTION"
+            },
+            "enabled" : {
+              "const" : true
+            }
+          },
+          "required" : [ "kind", "enabled" ]
+        },
+        "then" : {
+          "properties" : {
+            "parameters" : {
+              "properties" : {
+                "smoothness" : {
+                  "type" : "number",
+                  "minimum" : 4.9E-324,
+                  "maximum" : 1.7976931348623157E308
+                }
+              }
+            },
+            "resultType" : {
+              "enum" : [ "Scalar" ]
+            },
+            "inputs" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "a" : {
+                  "$ref" : "#/$defs/Binding"
+                },
+                "b" : {
+                  "$ref" : "#/$defs/Binding"
+                }
+              }
+            }
+          }
+        }
+      } ]
     },
     "Layer" : {
       "type" : "object",
@@ -923,6 +1494,31 @@
         }
       },
       "required" : [ "layers", "uuid" ]
+    },
+    "Bookmark2D" : {
+      "allOf" : [ {
+        "$ref" : "#/$defs/Bookmark"
+      }, {
+        "properties" : {
+          "y" : {
+            "const" : null
+          }
+        }
+      } ]
+    },
+    "Bookmark3D" : {
+      "allOf" : [ {
+        "$ref" : "#/$defs/Bookmark"
+      }, {
+        "properties" : {
+          "y" : {
+            "type" : "integer",
+            "minimum" : -2147483648,
+            "maximum" : 2147483647
+          }
+        },
+        "required" : [ "y" ]
+      } ]
     }
   }
 }

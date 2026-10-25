@@ -1341,6 +1341,446 @@
       "maximum" : 1000000.0,
       "options" : [ ]
     },
+    "processing.SMOOTH_INTERSECTION.input.b" : {
+      "id" : "processing.SMOOTH_INTERSECTION.input.b",
+      "group" : "Processing / SMOOTH_INTERSECTION",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.SMOOTH_SUBTRACTION.input.b" : {
+      "id" : "processing.SMOOTH_SUBTRACTION.input.b",
+      "group" : "Processing / SMOOTH_SUBTRACTION",
+      "label" : "Literal input b",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : -1000000.0,
+      "maximum" : 1000000.0,
+      "options" : [ ]
+    },
+    "processing.GRADIENT.parameter.spacing" : {
+      "id" : "processing.GRADIENT.parameter.spacing",
+      "group" : "Processing / GRADIENT",
+      "label" : "Sample spacing",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 4.9E-324,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.LAPLACIAN.parameter.spacing" : {
+      "id" : "processing.LAPLACIAN.parameter.spacing",
+      "group" : "Processing / LAPLACIAN",
+      "label" : "Sample spacing",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 4.9E-324,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.MIN_FILTER.parameter.spacing" : {
+      "id" : "processing.MIN_FILTER.parameter.spacing",
+      "group" : "Processing / MIN_FILTER",
+      "label" : "Sample spacing",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 4.9E-324,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.MIN_FILTER.parameter.radius" : {
+      "id" : "processing.MIN_FILTER.parameter.radius",
+      "group" : "Processing / MIN_FILTER",
+      "label" : "Neighborhood radius",
+      "kind" : "INTEGER",
+      "builtIn" : 1,
+      "minimum" : 0.0,
+      "maximum" : 4.0,
+      "options" : [ ]
+    },
+    "processing.MIN_FILTER.parameter.strength" : {
+      "id" : "processing.MIN_FILTER.parameter.strength",
+      "group" : "Processing / MIN_FILTER",
+      "label" : "Filter strength",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "processing.MAX_FILTER.parameter.spacing" : {
+      "id" : "processing.MAX_FILTER.parameter.spacing",
+      "group" : "Processing / MAX_FILTER",
+      "label" : "Sample spacing",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 4.9E-324,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.MAX_FILTER.parameter.radius" : {
+      "id" : "processing.MAX_FILTER.parameter.radius",
+      "group" : "Processing / MAX_FILTER",
+      "label" : "Neighborhood radius",
+      "kind" : "INTEGER",
+      "builtIn" : 1,
+      "minimum" : 0.0,
+      "maximum" : 4.0,
+      "options" : [ ]
+    },
+    "processing.MAX_FILTER.parameter.strength" : {
+      "id" : "processing.MAX_FILTER.parameter.strength",
+      "group" : "Processing / MAX_FILTER",
+      "label" : "Filter strength",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "processing.MEDIAN_FILTER.parameter.spacing" : {
+      "id" : "processing.MEDIAN_FILTER.parameter.spacing",
+      "group" : "Processing / MEDIAN_FILTER",
+      "label" : "Sample spacing",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 4.9E-324,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.MEDIAN_FILTER.parameter.radius" : {
+      "id" : "processing.MEDIAN_FILTER.parameter.radius",
+      "group" : "Processing / MEDIAN_FILTER",
+      "label" : "Neighborhood radius",
+      "kind" : "INTEGER",
+      "builtIn" : 1,
+      "minimum" : 0.0,
+      "maximum" : 4.0,
+      "options" : [ ]
+    },
+    "processing.MEDIAN_FILTER.parameter.strength" : {
+      "id" : "processing.MEDIAN_FILTER.parameter.strength",
+      "group" : "Processing / MEDIAN_FILTER",
+      "label" : "Filter strength",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 0.0,
+      "maximum" : 1.0,
+      "options" : [ ]
+    },
+    "processing.PLANE.parameter.axis" : {
+      "id" : "processing.PLANE.parameter.axis",
+      "group" : "Processing / PLANE",
+      "label" : "Axis",
+      "kind" : "CHOICE",
+      "builtIn" : "x",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "x", "y", "z" ]
+    },
+    "processing.PLANE.parameter.offset" : {
+      "id" : "processing.PLANE.parameter.offset",
+      "group" : "Processing / PLANE",
+      "label" : "Plane offset",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.PLANE.parameter.direction" : {
+      "id" : "processing.PLANE.parameter.direction",
+      "group" : "Processing / PLANE",
+      "label" : "Positive normal",
+      "kind" : "CHOICE",
+      "builtIn" : "POSITIVE",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "POSITIVE", "NEGATIVE" ]
+    },
+    "processing.CAPSULE.parameter.startX" : {
+      "id" : "processing.CAPSULE.parameter.startX",
+      "group" : "Processing / CAPSULE",
+      "label" : "start X",
+      "kind" : "NUMBER",
+      "builtIn" : -16.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.CAPSULE.parameter.startY" : {
+      "id" : "processing.CAPSULE.parameter.startY",
+      "group" : "Processing / CAPSULE",
+      "label" : "start Y",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.CAPSULE.parameter.startZ" : {
+      "id" : "processing.CAPSULE.parameter.startZ",
+      "group" : "Processing / CAPSULE",
+      "label" : "start Z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.CAPSULE.parameter.endX" : {
+      "id" : "processing.CAPSULE.parameter.endX",
+      "group" : "Processing / CAPSULE",
+      "label" : "end X",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.CAPSULE.parameter.endY" : {
+      "id" : "processing.CAPSULE.parameter.endY",
+      "group" : "Processing / CAPSULE",
+      "label" : "end Y",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.CAPSULE.parameter.endZ" : {
+      "id" : "processing.CAPSULE.parameter.endZ",
+      "group" : "Processing / CAPSULE",
+      "label" : "end Z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.CAPSULE.parameter.radius" : {
+      "id" : "processing.CAPSULE.parameter.radius",
+      "group" : "Processing / CAPSULE",
+      "label" : "Radius",
+      "kind" : "NUMBER",
+      "builtIn" : 4.0,
+      "minimum" : 0.0,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.CYLINDER.parameter.centerX" : {
+      "id" : "processing.CYLINDER.parameter.centerX",
+      "group" : "Processing / CYLINDER",
+      "label" : "Center X",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.CYLINDER.parameter.centerY" : {
+      "id" : "processing.CYLINDER.parameter.centerY",
+      "group" : "Processing / CYLINDER",
+      "label" : "Center Y",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.CYLINDER.parameter.centerZ" : {
+      "id" : "processing.CYLINDER.parameter.centerZ",
+      "group" : "Processing / CYLINDER",
+      "label" : "Center Z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.CYLINDER.parameter.axis" : {
+      "id" : "processing.CYLINDER.parameter.axis",
+      "group" : "Processing / CYLINDER",
+      "label" : "Axis",
+      "kind" : "CHOICE",
+      "builtIn" : "y",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "x", "y", "z" ]
+    },
+    "processing.CYLINDER.parameter.radius" : {
+      "id" : "processing.CYLINDER.parameter.radius",
+      "group" : "Processing / CYLINDER",
+      "label" : "Radius",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.CYLINDER.parameter.halfHeight" : {
+      "id" : "processing.CYLINDER.parameter.halfHeight",
+      "group" : "Processing / CYLINDER",
+      "label" : "Half height",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.TORUS.parameter.centerX" : {
+      "id" : "processing.TORUS.parameter.centerX",
+      "group" : "Processing / TORUS",
+      "label" : "Center X",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.TORUS.parameter.centerY" : {
+      "id" : "processing.TORUS.parameter.centerY",
+      "group" : "Processing / TORUS",
+      "label" : "Center Y",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.TORUS.parameter.centerZ" : {
+      "id" : "processing.TORUS.parameter.centerZ",
+      "group" : "Processing / TORUS",
+      "label" : "Center Z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.TORUS.parameter.axis" : {
+      "id" : "processing.TORUS.parameter.axis",
+      "group" : "Processing / TORUS",
+      "label" : "Axis",
+      "kind" : "CHOICE",
+      "builtIn" : "y",
+      "minimum" : 0.0,
+      "maximum" : 0.0,
+      "options" : [ "x", "y", "z" ]
+    },
+    "processing.TORUS.parameter.majorRadius" : {
+      "id" : "processing.TORUS.parameter.majorRadius",
+      "group" : "Processing / TORUS",
+      "label" : "Major radius",
+      "kind" : "NUMBER",
+      "builtIn" : 16.0,
+      "minimum" : 0.0,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.TORUS.parameter.minorRadius" : {
+      "id" : "processing.TORUS.parameter.minorRadius",
+      "group" : "Processing / TORUS",
+      "label" : "Minor radius",
+      "kind" : "NUMBER",
+      "builtIn" : 4.0,
+      "minimum" : 0.0,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.ROUNDED_BOX.parameter.centerX" : {
+      "id" : "processing.ROUNDED_BOX.parameter.centerX",
+      "group" : "Processing / ROUNDED_BOX",
+      "label" : "Center X",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.ROUNDED_BOX.parameter.centerY" : {
+      "id" : "processing.ROUNDED_BOX.parameter.centerY",
+      "group" : "Processing / ROUNDED_BOX",
+      "label" : "Center Y",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.ROUNDED_BOX.parameter.centerZ" : {
+      "id" : "processing.ROUNDED_BOX.parameter.centerZ",
+      "group" : "Processing / ROUNDED_BOX",
+      "label" : "Center Z",
+      "kind" : "NUMBER",
+      "builtIn" : 0.0,
+      "minimum" : -1.7976931348623157E308,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.ROUNDED_BOX.parameter.extentX" : {
+      "id" : "processing.ROUNDED_BOX.parameter.extentX",
+      "group" : "Processing / ROUNDED_BOX",
+      "label" : "Outer half extent X",
+      "kind" : "NUMBER",
+      "builtIn" : 16,
+      "minimum" : 0.0,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.ROUNDED_BOX.parameter.extentY" : {
+      "id" : "processing.ROUNDED_BOX.parameter.extentY",
+      "group" : "Processing / ROUNDED_BOX",
+      "label" : "Outer half extent Y",
+      "kind" : "NUMBER",
+      "builtIn" : 16,
+      "minimum" : 0.0,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.ROUNDED_BOX.parameter.extentZ" : {
+      "id" : "processing.ROUNDED_BOX.parameter.extentZ",
+      "group" : "Processing / ROUNDED_BOX",
+      "label" : "Outer half extent Z",
+      "kind" : "NUMBER",
+      "builtIn" : 16,
+      "minimum" : 0.0,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.ROUNDED_BOX.parameter.roundRadius" : {
+      "id" : "processing.ROUNDED_BOX.parameter.roundRadius",
+      "group" : "Processing / ROUNDED_BOX",
+      "label" : "Corner radius",
+      "kind" : "NUMBER",
+      "builtIn" : 2.0,
+      "minimum" : 0.0,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.SMOOTH_INTERSECTION.parameter.smoothness" : {
+      "id" : "processing.SMOOTH_INTERSECTION.parameter.smoothness",
+      "group" : "Processing / SMOOTH_INTERSECTION",
+      "label" : "Smoothness",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 4.9E-324,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
+    "processing.SMOOTH_SUBTRACTION.parameter.smoothness" : {
+      "id" : "processing.SMOOTH_SUBTRACTION.parameter.smoothness",
+      "group" : "Processing / SMOOTH_SUBTRACTION",
+      "label" : "Smoothness",
+      "kind" : "NUMBER",
+      "builtIn" : 1.0,
+      "minimum" : 4.9E-324,
+      "maximum" : 1.7976931348623157E308,
+      "options" : [ ]
+    },
     "processing.CONSTANT.parameter.value" : {
       "id" : "processing.CONSTANT.parameter.value",
       "group" : "Processing / CONSTANT",
