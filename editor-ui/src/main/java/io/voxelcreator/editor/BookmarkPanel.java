@@ -103,6 +103,7 @@ public final class BookmarkPanel {
               row.uuid().equals(selected.get(tab)))) {
             selected.put(tab, row.uuid());
             navigation.teleport(tab, row.coordinates());
+            ImGui.closeCurrentPopup();
           }
           options.put(row.uuid(), bounds());
         }
@@ -201,7 +202,12 @@ public final class BookmarkPanel {
 
   private void record(String control) { controls.put(control, bounds()); }
   UUID selected(Tab tab) { return selected.get(tab); }
-  float[] control(String id) { return controls.get(id).clone(); }
+  float[] control(String id) {
+    var bounds = controls.get(id);
+    if (bounds == null) throw new AssertionError("Missing bookmark control " + id
+        + "; action=" + action + "; pending=" + pending + "; owner=" + owner);
+    return bounds.clone();
+  }
   float[] option(UUID uuid) { return options.get(uuid).clone(); }
   int submitted() { return submitted; }
   int builds() { return cache.builds(); }
