@@ -34,6 +34,7 @@ public final class CurveEditSession {
   }
 
   public boolean edit(Consumer<Curve> change) {
+    endGesture();
     var next = copy(curve);
     try {
       change.accept(next);
@@ -53,7 +54,14 @@ public final class CurveEditSession {
   }
 
   public void beginGesture() {
-    gesture = copy(curve);
+    if (gesture == null) gesture = copy(curve);
+  }
+
+  /** Restore the exact pre-drag curve without publishing history or clearing redo. */
+  public void cancelGesture() {
+    if (gesture != null) curve = gesture;
+    gesture = null;
+    error = "";
   }
 
   public void endGesture() {

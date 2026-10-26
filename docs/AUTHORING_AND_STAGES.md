@@ -27,3 +27,11 @@ Inspector traces include effective values and their inheritance sources, execute
 Find builds a revision-scoped index for resources, transforms, processing rows, parameters and curve points. Kind/enabled/reference filters, debounced query updates and clipped result drawing avoid serializing the document on each frame. Selecting a control result opens its owning noise definition and reveals the relevant Properties section.
 
 These features do not complete the streaming/LOD renderer, every metadata-driven control, or the full Windows 11 hardware acceptance matrix. See DECISIONS.md for remaining release work.
+
+## Curve gesture cancellation and draft publication
+
+Escape cancels an active point or tangent drag by restoring its exact baseline, with no history entry and no loss of an existing Redo branch. Repeated gesture starts retain the original baseline. Discrete edits finish an active gesture before creating their own entry. Local Undo/Redo/Delete also stop the UI pointer drag, so a held mouse button cannot immediately resume and overwrite the restored curve.
+
+Both curve-opening paths use the same Properties callback. Applying a curve stages an owned JSON value into the opening draft and refreshes its display/index state. Changed project/revision/draft/item/source identity rejects staging, retains the curve window and shows the error; Cancel discards the local curve. The ordinary Properties Apply remains the complete-resource document transaction.
+
+CurveGestureProbe exercises the production plot with real mouse events: Shift group selection, cumulative Y snapping, Alt bypass, Escape rollback, Undo while a pointer is held, local one-gesture Undo/Redo, Cancel and private Apply. An external engine-only consumer checks 147 samples against an independent three-segment linear formula, including exact knots and clamped outside inputs. This scoped evidence does not certify tangent pointer gestures, every curve mode, DPI/platform interactions or the full manual GUI acceptance matrix.

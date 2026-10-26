@@ -23,6 +23,47 @@ public final class CurveDialog {
   private UUID tangentPoint;
   private int tangentSide;
   private double tangentX;
+  private String applyError = "";
+  private boolean probing;
+
+  void probeEnable() {
+    probing = true;
+  }
+
+  private final Map<String, float[]> controls = new HashMap<>();
+  private final Map<UUID, float[]> pointCenters = new HashMap<>();
+
+  float[] probeControl(String key) {
+    return controls.get(key);
+  }
+
+  float[] probePoint(UUID id) {
+    return pointCenters.get(id);
+  }
+
+  Curve probeCurve() {
+    return io.voxelcreator.model.ProjectIO.JSON.convertValue(
+        io.voxelcreator.model.ProjectIO.JSON.valueToTree(session.curve()), Curve.class);
+  }
+
+  boolean probeCanUndo() {
+    return session.canUndo();
+  }
+
+  private void controlRect(String key) {
+    if (!probing) return;
+    controls.put(
+        key,
+        new float[] {
+          (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
+          (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
+        });
+  }
+
+  private void stopDrag() {
+    dragging = false;
+    tangentPoint = null;
+  }
 
   public CurveDialog(Curve curve, Consumer<Curve> apply) {
     session = new CurveEditSession(curve);
@@ -34,6 +75,7 @@ public final class CurveDialog {
   }
 
   public void shortcut(String action) {
+    if (Set.of("CurveDelete", "CurveUndo", "CurveRedo").contains(action)) stopDrag();
     switch (action) {
       case "CurveDelete" -> deleteSelected();
       case "CurveUndo" -> session.undo();
@@ -63,6 +105,8 @@ public final class CurveDialog {
   }
 
   public void cancel() {
+    session.cancelGesture();
+    stopDrag();
     open.set(false);
   }
 
@@ -101,6 +145,7 @@ public final class CurveDialog {
     fields.bool("Snap X", snapX, v -> snapX = v);
     ImGui.sameLine();
     fields.bool("Snap Y", snapY, v -> snapY = v);
+    controlRect("snapY");
     fields.number(
         "X increment",
         stepX,
@@ -113,9 +158,17 @@ public final class CurveDialog {
         v -> {
           if (v > 0 && Double.isFinite(v)) stepY = v;
         });
-    if (ImGui.button("Undo") && session.canUndo()) session.undo();
+    if (ImGui.button("Undo") && session.canUndo()) {
+      stopDrag();
+      session.undo();
+    }
+    controlRect("undo");
     ImGui.sameLine();
-    if (ImGui.button("Redo") && session.canRedo()) session.redo();
+    if (ImGui.button("Redo") && session.canRedo()) {
+      stopDrag();
+      session.redo();
+    }
+    controlRect("redo");
     ImGui.sameLine();
     if (ImGui.button("Fit")) {
       zoom = 1;
@@ -134,6 +187,8 @@ public final class CurveDialog {
         ImGuiButtonFlags.MouseButtonLeft
             | ImGuiButtonFlags.MouseButtonMiddle
             | ImGuiButtonFlags.MouseButtonRight);
+    if (probing) controls.put("plot", new float[] {px, py, w, h});
+    pointCenters.clear();
     boolean hovered = ImGui.isItemHovered();
     var io = ImGui.getIO();
     double span = curve.max - curve.min,
@@ -172,6 +227,7 @@ public final class CurveDialog {
     for (int i = 0; i < curve.points.size(); i++) {
       Point point = curve.points.get(i);
       float x = sx(point.x, px, w, lo, hi), y = sy(point.y, py, h, ylo, yhi);
+      if (probing) pointCenters.put(point.uuid, new float[] {x, y});
       if (selected.contains(point.uuid))
         for (int side : List.of(-1, 1)) {
           boolean visible =
@@ -261,6 +317,10 @@ public final class CurveDialog {
         }
       }
     }
+    if (dragging && ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      session.cancelGesture();
+      stopDrag();
+    }
     if (dragging && ImGui.isMouseDown(0)) {
       if (tangentPoint != null) {
         Point p = CurveEditSession.point(session.curve(), tangentPoint);
@@ -296,7 +356,7 @@ public final class CurveDialog {
     ImGui.textDisabled(
         String.format(
             Locale.ROOT,
-            "Input %.5f  Output %.5f  |  %d selected; Shift+click adds/removes",
+            "Input %.5f  Output %.5f  |  %d selected; Shift+click selects; Escape cancels drag",
             mx,
             my,
             selected.size()));
@@ -370,16 +430,25 @@ public final class CurveDialog {
     if (!session.error().isEmpty()) ImGui.textWrapped("! " + session.error());
     if (ImGui.button("Apply")) {
       session.endGesture();
-      apply.accept(session.curve());
-      open.set(false);
+      stopDrag();
+      try {
+        apply.accept(session.curve());
+        open.set(false);
+      } catch (RuntimeException invalid) {
+        applyError = Objects.requireNonNullElse(invalid.getMessage(), "Curve Apply failed");
+      }
     }
+    controlRect("apply");
     ImGui.sameLine();
-    if (ImGui.button("Cancel")) open.set(false);
+    if (ImGui.button("Cancel")) cancel();
+    controlRect("cancel");
+    if (!applyError.isEmpty()) ImGui.textWrapped("! " + applyError);
     ImGui.end();
     return !open.get();
   }
 
   private void deleteSelected() {
+    stopDrag();
     session.endGesture();
     session.edit(
         c ->

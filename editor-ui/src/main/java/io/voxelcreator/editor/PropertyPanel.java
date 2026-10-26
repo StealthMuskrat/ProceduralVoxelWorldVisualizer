@@ -180,6 +180,7 @@ public final class PropertyPanel {
   }
 
   private void openCurve(Item item, UUID point) {
+    var publication = new CurveDraftEdit(state, (Noise) state.draft, item);
     var value =
         item.parameters.containsKey("curve")
             ? ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class)
@@ -188,7 +189,8 @@ public final class PropertyPanel {
         new CurveDialog(
             value,
             v -> {
-              item.parameters.put("curve", ProjectIO.JSON.valueToTree(v));
+              publication.stage(state, v);
+              f.clear();
               noiseChanged();
             });
     if (point != null && !dialog.selectPoint(point))
@@ -718,15 +720,7 @@ public final class PropertyPanel {
             case "CURVE" -> {
               if (ImGui.button("Edit Curve"))
                 try {
-                  Curve c =
-                      item.parameters.containsKey("curve")
-                          ? ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class)
-                          : new Curve();
-                  curve =
-                      new CurveDialog(
-                          c,
-                          applied ->
-                              item.parameters.put("curve", ProjectIO.JSON.valueToTree(applied)));
+                  openCurve(item, null);
                 } catch (RuntimeException invalid) {
                   state.notify(
                       "Error",
@@ -1109,6 +1103,19 @@ public final class PropertyPanel {
       f.clear();
     }
     ImGui.popID();
+  }
+
+  void probeOpenCurve() {
+    openCurve(((Noise) state.draft).processing.getFirst(), null);
+    curve.probeEnable();
+  }
+
+  CurveDialog probeCurveDialog() {
+    return curve;
+  }
+
+  void probeCurvePanel() {
+    if (curve != null && curve.draw()) curve = null;
   }
 
   private Item inputOwner;

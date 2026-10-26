@@ -151,6 +151,10 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpandedExpressionProbe build/expanded-expression
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExpressionRecoveryConsumer build/expanded-expression/expanded-expression-project.json 6
+      - name: Curve pointer gesture and draft workflow
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveGestureProbe build/curve-gesture
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveGestureConsumer build/curve-gesture/curve-gesture-project.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -180,6 +184,7 @@ jobs:
             build/placement-drivers/
             build/expression-recovery/
             build/expanded-expression/
+            build/curve-gesture/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -422,6 +427,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ExpressionRecoveryConsumer build/expanded-expression/expanded-expression-project.json 6
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows curve pointer gesture and draft workflow
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveGestureProbe build/curve-gesture
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurveGestureConsumer build/curve-gesture/curve-gesture-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -475,6 +487,7 @@ jobs:
             build/placement-drivers/
             build/expression-recovery/
             build/expanded-expression/
+            build/curve-gesture/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/
