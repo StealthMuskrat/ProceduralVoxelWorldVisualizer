@@ -241,6 +241,31 @@ public final class ContractGenerator {
         .set("enum", JSON.valueToTree(WorldSemantics.MAPPINGS));
     ((ObjectNode) defs.path("NumericDriver").path("properties").path("destination"))
         .set("enum", JSON.valueToTree(WorldSemantics.PARAMETER_TARGETS));
+    var samplingDriverCondition =
+        fields(
+            "properties",
+            fields(
+                "destination",
+                fields(
+                    "enum",
+                    JSON.valueToTree(
+                        WorldSemantics.PARAMETERS.stream()
+                            .filter(p -> p.explicitField)
+                            .map(p -> p.key)
+                            .toList()))),
+            "required",
+            JSON.valueToTree(List.of("destination")));
+    var explicitDriverField =
+        fields(
+            "properties",
+            fields("noiseGeneratorUuid", obj().put("type", "string").put("format", "uuid")),
+            "required",
+            JSON.valueToTree(List.of("noiseGeneratorUuid")));
+    ((ObjectNode) defs.path("NumericDriver"))
+        .set(
+            "allOf",
+            JSON.createArrayNode()
+                .add(fields("if", samplingDriverCondition, "then", explicitDriverField)));
     ((ObjectNode) defs.path("NumericDriver").path("properties").path("combination"))
         .set("enum", JSON.valueToTree(WorldSemantics.COMBINATIONS));
     ((ObjectNode) defs.path("SamplingTransform").path("properties").path("kind"))
@@ -467,7 +492,7 @@ public final class ContractGenerator {
             "no reassociation or unsafe algebraic identities; invalid constants remain at executed"
                 + " source spans"));
     var worldRegistry = new LinkedHashMap<String, Object>();
-    worldRegistry.put("registryVersion", 3);
+    worldRegistry.put("registryVersion", 4);
     worldRegistry.put("actions", List.of("SET", "CLEAR", "NO_CHANGE"));
     worldRegistry.put("interpretations", WorldSemantics.INTERPRETATIONS);
     worldRegistry.put("inheritableProperties", SettingsResolver.PROPERTIES);
@@ -478,12 +503,15 @@ public final class ContractGenerator {
     worldRegistry.put("driverMappings", WorldSemantics.MAPPINGS);
     worldRegistry.put("fieldGates", WorldSemantics.GATES);
     worldRegistry.put("parameterTargets", WorldSemantics.PARAMETER_TARGETS);
+    worldRegistry.put("parameterDefinitions", WorldSemantics.parameterRegistry());
     worldRegistry.put("parameterCombinations", WorldSemantics.COMBINATIONS);
     worldRegistry.put(
         "parameterPolicy",
-        "at most 32 ordered rows; active destinations only; primary or explicit dimensional field;"
-            + " finite signed mapped endpoints; REPLACE/ADD/MULTIPLY current value before"
-            + " interpretation; disabled or irrelevant rows are not sampled");
+        "at most 32 rows; SAMPLING rows require explicit fields sampled at fixed baseline placement"
+            + " coordinates; INTERPRETATION rows run after primary sampling; ACCEPTANCE rows run"
+            + " after interpretation/type selection; each phase preserves authored order; finite"
+            + " signed mapping endpoints; every strength/probability intermediate must remain in"
+            + " [0,1]");
     worldRegistry.put(
         "samplingOrder",
         "signed axes, component scale and offset, enabled transforms in stored order, resource"

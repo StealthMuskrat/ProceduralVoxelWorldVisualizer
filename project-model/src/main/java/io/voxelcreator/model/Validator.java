@@ -467,6 +467,13 @@ public final class Validator {
       driver(d, q, false);
       if (!WorldSemantics.PARAMETER_TARGETS.contains(d.destination))
         error("INVALID_DRIVER_TARGET", q + "/destination", "Unsupported numeric destination");
+      if (WorldSemantics.PARAMETER_TARGETS.contains(d.destination)
+          && WorldSemantics.parameter(d.destination).explicitField
+          && d.noiseGeneratorUuid == null)
+        error(
+            "MISSING_DRIVER_FIELD",
+            q + "/noiseGeneratorUuid",
+            "Sampling parameter drivers require an explicit field");
       if (!WorldSemantics.COMBINATIONS.contains(d.combination))
         error("INVALID_COMBINATION", q + "/combination", "Unknown combination");
     }

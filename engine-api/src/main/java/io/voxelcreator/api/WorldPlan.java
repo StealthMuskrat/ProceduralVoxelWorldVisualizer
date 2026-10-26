@@ -3,14 +3,21 @@ package io.voxelcreator.api;
 import io.voxelcreator.core.*;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
+import io.voxelcreator.model.WorldSemantics.Parameter;
+import io.voxelcreator.model.WorldSemantics.Phase;
 import io.voxelcreator.storage.*;
 import java.util.*;
 
 final class WorldPlan {
   private record NumericUse(
-      int row, int slot, NumericDriver mapping, NoiseAlgorithms.Field field, int dimension) {}
+      int row,
+      Parameter target,
+      NumericDriver mapping,
+      NoiseAlgorithms.Field field,
+      int dimension) {}
 
-  private final ThreadLocal<double[]> numericScratch = ThreadLocal.withInitial(() -> new double[3]);
+  private final ThreadLocal<double[]> numericScratch =
+      ThreadLocal.withInitial(() -> new double[Parameter.values().length]);
 
   private record Op(
       UUID layerUuid,
@@ -30,9 +37,10 @@ final class WorldPlan {
       List<Integer> intervalTargets,
       List<NumericUse> numeric,
       long fieldSeed,
-      Map<String, GenerationTrace.SettingSource> settingTargets) {
+      Map<String, GenerationTrace.SettingSource> settingTargets,
+      boolean drivenSampling) {
     boolean columnCached() {
-      return dimension == 2 && sampling.columnInvariant();
+      return !drivenSampling && dimension == 2 && sampling.columnInvariant();
     }
   }
 
@@ -123,7 +131,13 @@ final class WorldPlan {
                 s.typeIntervals.stream().map(r -> registry.runtimeId(r.voxelTypeUuid)).toList(),
                 numericUses(s, op.interpretation, compiler),
                 opSeed,
-                Map.copyOf(targets)));
+                Map.copyOf(targets),
+                s.parameterDrivers.stream()
+                    .anyMatch(
+                        d ->
+                            d.enabled
+                                && WorldSemantics.parameter(d.destination).phase
+                                    == Phase.SAMPLING)));
       }
       stageList.add(
           new GenerationStage(
@@ -164,7 +178,7 @@ final class WorldPlan {
       uses.add(
           new NumericUse(
               row,
-              WorldSemantics.PARAMETER_TARGETS.indexOf(d.destination),
+              WorldSemantics.parameter(d.destination),
               d,
               d.noiseGeneratorUuid == null ? null : compileField(d.noiseGeneratorUuid, compiler),
               d.noiseGeneratorUuid == null ? 0 : fieldDimensions.get(d.noiseGeneratorUuid)));
@@ -172,20 +186,34 @@ final class WorldPlan {
     return List.copyOf(uses);
   }
 
-  private double[] numericValues(
-      Op op, double primary, int x, int y, int z, List<GenerationTrace.ParameterEvaluation> trace) {
+  private double[] initialValues(Op op) {
     var values = numericScratch.get();
-    var s = op.settings;
-    values[0] = s.threshold;
-    values[1] = s.baseHeight;
-    values[2] = s.heightScale;
+    for (int slot = 0; slot < (op.drivenSampling ? WorldSemantics.PARAMETERS.size() : 5); slot++)
+      values[slot] = WorldSemantics.PARAMETERS.get(slot).value(op.settings);
+    return values;
+  }
+
+  private void numericValues(
+      Op op,
+      Phase phase,
+      double primary,
+      int x,
+      int y,
+      int z,
+      double[] values,
+      List<GenerationTrace.ParameterEvaluation> trace) {
     for (var use : op.numeric) {
       var d = use.mapping;
+      var target = use.target;
+      if (target.phase != phase) continue;
+      boolean baseline = phase == Phase.SAMPLING;
       double sample =
-          use.field == null ? primary : sampleField(op, use.field, use.dimension, x, y, z);
-      double mapped = WorldSemantics.mapNumeric(d, sample), previous = values[use.slot];
+          use.field == null
+              ? primary
+              : sampleField(op, use.field, use.dimension, x, y, z, baseline ? null : values);
+      double mapped = WorldSemantics.mapNumeric(d, sample), previous = values[use.target.ordinal()];
       double next = WorldSemantics.combine(d.combination, previous, mapped);
-      if (!Double.isFinite(next))
+      if (!Double.isFinite(next) || target.unitRange && (next < 0 || next > 1))
         throw new EvaluationFailure(
             op.noiseUuid,
             op.uuid,
@@ -198,9 +226,17 @@ final class WorldPlan {
                 + d.destination
                 + " "
                 + d.combination
-                + " produced a nonfinite value");
-      values[use.slot] = next;
-      if (trace != null)
+                + " produced "
+                + (Double.isFinite(next) ? "a value outside [0,1]" : "a nonfinite value"));
+      values[use.target.ordinal()] = next;
+      if (trace != null) {
+        var location =
+            op.sampling.coordinates(
+                x,
+                y,
+                z,
+                use.field == null ? op.dimension : use.dimension,
+                baseline ? null : op.drivenSampling ? values : null);
         trace.add(
             new GenerationTrace.ParameterEvaluation(
                 use.row,
@@ -210,9 +246,11 @@ final class WorldPlan {
                 sample,
                 mapped,
                 previous,
-                next));
+                next,
+                phase.name(),
+                location));
+      }
     }
-    return values;
   }
 
   private void collectGates(Gate g, Map<UUID, NoiseAlgorithms.Field> map, NoiseCompiler c) {
@@ -344,6 +382,16 @@ final class WorldPlan {
     }
   }
 
+  private double sampleField(
+      Op op, NoiseAlgorithms.Field field, int dimension, int x, int y, int z, double[] values) {
+    if (values == null || !op.drivenSampling) return sampleField(op, field, dimension, x, y, z);
+    try {
+      return op.sampling.sample(field, dimension, x, y, z, values);
+    } catch (ArithmeticException failure) {
+      throw new EvaluationFailure(op.noiseUuid, op.uuid, x, y, z, failure.getMessage());
+    }
+  }
+
   private double driver(
       Op op,
       FieldDriver driver,
@@ -352,6 +400,8 @@ final class WorldPlan {
       int x,
       int y,
       int z,
+      double constant,
+      double[] values,
       List<GenerationTrace.DriverEvaluation> report) {
     if (!driver.enabled) return 1;
     double value =
@@ -363,11 +413,10 @@ final class WorldPlan {
                 fieldDimensions.get(driver.noiseGeneratorUuid),
                 x,
                 y,
-                z);
+                z,
+                values);
     double mapped = WorldSemantics.map(driver, value);
     if (report != null) {
-      double constant =
-          property.equals("probability") ? op.settings.probability : op.settings.strength;
       report.add(
           new GenerationTrace.DriverEvaluation(
               property, driver.noiseGeneratorUuid, value, mapped, constant, constant * mapped));
@@ -404,6 +453,8 @@ final class WorldPlan {
         var parameterTrace =
             trace == null ? null : new ArrayList<GenerationTrace.ParameterEvaluation>();
         NoiseTrace primaryTrace = null;
+        var resolved = initialValues(op);
+        GenerationTrace.SampleCoordinates actualCoordinates = null;
         var comparisons = trace == null ? null : new ArrayList<GenerationTrace.Comparison>();
         if (comparisons != null) {
           comparisons.add(
@@ -420,8 +471,11 @@ final class WorldPlan {
           reason = "Outside effective Y interval";
         }
         if (choose) {
+          numericValues(op, Phase.SAMPLING, Double.NaN, x, y, z, resolved, parameterTrace);
           if (trace != null) {
-            var location = op.sampling.coordinates(x, y, z, op.dimension);
+            var location =
+                op.sampling.coordinates(x, y, z, op.dimension, op.drivenSampling ? resolved : null);
+            actualCoordinates = location;
             primaryTrace =
                 new NoiseCompiler(source, op.fieldSeed)
                     .explain(
@@ -429,14 +483,14 @@ final class WorldPlan {
             traceRemaining -= primaryTrace.events().size();
             f = primaryTrace.value();
           } else
-            f = cached != null && cached[index] != null ? cached[index][at] : field(op, x, y, z);
-          double threshold = s.threshold, baseHeight = s.baseHeight, heightScale = s.heightScale;
-          if (!op.numeric.isEmpty()) {
-            var resolved = numericValues(op, f, x, y, z, parameterTrace);
-            threshold = resolved[0];
-            baseHeight = resolved[1];
-            heightScale = resolved[2];
-          }
+            f =
+                cached != null && cached[index] != null
+                    ? cached[index][at]
+                    : sampleField(op, op.field, op.dimension, x, y, z, resolved);
+          numericValues(op, Phase.INTERPRETATION, f, x, y, z, resolved, parameterTrace);
+          double threshold = resolved[Parameter.THRESHOLD.ordinal()],
+              baseHeight = resolved[Parameter.BASE_HEIGHT.ordinal()],
+              heightScale = resolved[Parameter.HEIGHT_SCALE.ordinal()];
           double height = baseHeight + f * heightScale;
           if (op.interpretation.startsWith("HEIGHT") && !Double.isFinite(height))
             throw new EvaluationFailure(
@@ -481,14 +535,38 @@ final class WorldPlan {
             } else target = op.intervalTargets.get(matchedInterval);
           }
         }
-        double probability = s.probability * s.strength;
+        if (choose) numericValues(op, Phase.ACCEPTANCE, f, x, y, z, resolved, parameterTrace);
+        double probability =
+            resolved[Parameter.PROBABILITY.ordinal()] * resolved[Parameter.STRENGTH.ordinal()];
         if (choose) {
-          probability *= driver(op, s.probabilityDriver, "probability", f, x, y, z, driverTrace);
-          probability *= driver(op, s.strengthDriver, "strength", f, x, y, z, driverTrace);
+          probability *=
+              driver(
+                  op,
+                  s.probabilityDriver,
+                  "probability",
+                  f,
+                  x,
+                  y,
+                  z,
+                  resolved[Parameter.PROBABILITY.ordinal()],
+                  resolved,
+                  driverTrace);
+          probability *=
+              driver(
+                  op,
+                  s.strengthDriver,
+                  "strength",
+                  f,
+                  x,
+                  y,
+                  z,
+                  resolved[Parameter.STRENGTH.ordinal()],
+                  resolved,
+                  driverTrace);
         }
         if (choose) {
           gateReached = true;
-          gatePassed = gate(s.fieldGates, op, f, x, y, z, gateTrace, "fieldGates");
+          gatePassed = gate(s.fieldGates, op, f, x, y, z, resolved, gateTrace, "fieldGates");
         }
         if (choose && !gatePassed) {
           choose = false;
@@ -540,7 +618,7 @@ final class WorldPlan {
                       probability,
                       random,
                       choose,
-                      Double.isNaN(f) ? null : op.sampling.coordinates(x, y, z, op.dimension),
+                      actualCoordinates,
                       matchedInterval < 0 ? null : matchedInterval,
                       target,
                       List.copyOf(driverTrace),
@@ -610,6 +688,7 @@ final class WorldPlan {
       int x,
       int y,
       int z,
+      double[] values,
       List<GenerationTrace.GateEvaluation> report,
       String path) {
     double value = Double.NaN;
@@ -617,7 +696,7 @@ final class WorldPlan {
     Double gateRandom = null;
     if (g.kind.equals("ALWAYS")) result = true;
     else if (g.kind.equals("NOT"))
-      result = !gate(g.children.getFirst(), op, original, x, y, z, report, path + "/0");
+      result = !gate(g.children.getFirst(), op, original, x, y, z, values, report, path + "/0");
     else if (g.kind.equals("PROBABILITY")) {
       value = g.probability;
       gateRandom =
@@ -634,7 +713,8 @@ final class WorldPlan {
     } else if (g.kind.equals("AND") || g.kind.equals("OR")) {
       result = g.kind.equals("AND");
       for (int i = 0; i < g.children.size(); i++) {
-        boolean child = gate(g.children.get(i), op, original, x, y, z, report, path + "/" + i);
+        boolean child =
+            gate(g.children.get(i), op, original, x, y, z, values, report, path + "/" + i);
         if (g.kind.equals("AND") && !child) {
           result = false;
           break;
@@ -654,7 +734,8 @@ final class WorldPlan {
                   fieldDimensions.get(g.noiseGeneratorUuid),
                   x,
                   y,
-                  z);
+                  z,
+                  values);
       result =
           g.kind.equals("INTERVAL")
               ? WorldSemantics.contains(value, g.threshold, g.max, g.includeMin, g.includeMax)

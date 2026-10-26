@@ -74,7 +74,7 @@ class NumericDriverSettingsTest {
     p.worldGenerator.layers.add(l);
     var d = new NumericDriver();
     l.defaults.parameterDrivers.add(d);
-    d.destination = "scaleX";
+    d.destination = "seedOffset";
     assertTrue(
         Validator.validate(p).stream().anyMatch(x -> x.code().equals("INVALID_DRIVER_TARGET")));
     d.destination = "threshold";
@@ -120,7 +120,19 @@ class NumericDriverSettingsTest {
     assertTrue(
         Validator.validate(p).stream().anyMatch(x -> x.code().equals("INVALID_PROBABILITY")));
     assertEquals(
-        List.of("threshold", "baseHeight", "heightScale"), WorldSemantics.PARAMETER_TARGETS);
+        List.of(
+            "threshold",
+            "baseHeight",
+            "heightScale",
+            "strength",
+            "probability",
+            "scaleX",
+            "scaleY",
+            "scaleZ",
+            "offsetX",
+            "offsetY",
+            "offsetZ"),
+        WorldSemantics.PARAMETER_TARGETS);
     assertFalse(WorldSemantics.parameterUsed("ALL", "threshold"));
     assertTrue(WorldSemantics.parameterUsed("HEIGHT_BOUNDARY", "heightScale"));
   }

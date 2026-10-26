@@ -2,6 +2,7 @@ package io.voxelcreator.api;
 
 import io.voxelcreator.core.NoiseAlgorithms;
 import io.voxelcreator.model.ProjectData.*;
+import io.voxelcreator.model.WorldSemantics.Parameter;
 import java.util.*;
 
 /** Immutable placement sampling program. Scratch never escapes or aliases a noise evaluator. */
@@ -99,11 +100,17 @@ final class WorldSampling {
     return axis.charAt(0) == '-' ? -v : v;
   }
 
-  private double[] apply(int x, int y, int z) {
+  private double[] apply(int x, int y, int z, double[] values) {
     var p = scratch.get();
-    p[0] = axis(ax, x, y, z) * sx + ox;
-    p[1] = axis(ay, x, y, z) * sy + oy;
-    p[2] = axis(az, x, y, z) * sz + oz;
+    double scaleX = values == null ? sx : values[Parameter.SCALE_X.ordinal()],
+        scaleY = values == null ? sy : values[Parameter.SCALE_Y.ordinal()],
+        scaleZ = values == null ? sz : values[Parameter.SCALE_Z.ordinal()];
+    double offsetX = values == null ? ox : values[Parameter.OFFSET_X.ordinal()],
+        offsetY = values == null ? oy : values[Parameter.OFFSET_Y.ordinal()],
+        offsetZ = values == null ? oz : values[Parameter.OFFSET_Z.ordinal()];
+    p[0] = axis(ax, x, y, z) * scaleX + offsetX;
+    p[1] = axis(ay, x, y, z) * scaleY + offsetY;
+    p[2] = axis(az, x, y, z) * scaleZ + offsetZ;
     for (var step : steps) step.apply(p);
     return p;
   }
@@ -116,13 +123,26 @@ final class WorldSampling {
   }
 
   double sample(NoiseAlgorithms.Field field, int dimension, int x, int y, int z) {
-    var p = apply(x, y, z);
+    var p = apply(x, y, z, null);
     finite(p, dimension);
     return field.sample(p[0], dimension == 2 ? 0 : p[1], p[2]);
   }
 
+  double sample(NoiseAlgorithms.Field field, int dimension, int x, int y, int z, double[] values) {
+    var p = apply(x, y, z, values);
+    finite(p, dimension);
+    return field.sample(p[0], dimension == 2 ? 0 : p[1], p[2]);
+  }
+
+  GenerationTrace.SampleCoordinates coordinates(
+      int x, int y, int z, int dimension, double[] values) {
+    var p = apply(x, y, z, values);
+    finite(p, dimension);
+    return new GenerationTrace.SampleCoordinates(p[0], dimension == 2 ? 0 : p[1], p[2]);
+  }
+
   GenerationTrace.SampleCoordinates coordinates(int x, int y, int z, int dimension) {
-    var p = apply(x, y, z);
+    var p = apply(x, y, z, null);
     finite(p, dimension);
     return new GenerationTrace.SampleCoordinates(p[0], dimension == 2 ? 0 : p[1], p[2]);
   }

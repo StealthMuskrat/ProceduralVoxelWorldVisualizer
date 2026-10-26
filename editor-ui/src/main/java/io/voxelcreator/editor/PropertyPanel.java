@@ -2160,14 +2160,50 @@ public final class PropertyPanel {
     fieldDriver(d, true);
   }
 
+  private int parameterDriverRow = -1;
+  private boolean probingParameterDrivers;
+  private final Map<String, float[]> parameterDriverCenters = new HashMap<>();
+
+  float[] probeParameterDriver(int row, String key) {
+    return parameterDriverCenters.get(row + ":" + key);
+  }
+
+  void probeParameterDriverPanel() {
+    probingParameterDrivers = true;
+    try {
+      parameterDrivers(((Layer) state.draft).defaults.parameterDrivers);
+    } finally {
+      probingParameterDrivers = false;
+    }
+  }
+
+  private void driverNumber(String key, String label, double value, DoubleConsumer update) {
+    f.number(label, value, update);
+    if (parameterDriverRow >= 0) {
+      var lo = ImGui.getItemRectMin();
+      var hi = ImGui.getItemRectMax();
+      parameterDriverCenters.put(
+          parameterDriverRow + ":" + key,
+          new float[] {lo.x + Math.min(80, (hi.x - lo.x) * .25f), (lo.y + hi.y) / 2});
+    }
+  }
+
   private void fieldDriver(FieldDriver d, boolean unitOutput) {
     f.bool("Enabled", d.enabled, v -> d.enabled = v);
     fieldPicker("Field", d.noiseGeneratorUuid, v -> d.noiseGeneratorUuid = v);
     f.choice("Mapping", d.mapping, WorldSemantics.MAPPINGS, v -> d.mapping = v);
-    f.number("Input minimum", d.inputMin, v -> d.inputMin = v);
-    f.number("Input maximum", d.inputMax, v -> d.inputMax = v);
-    f.number("Output at minimum" + (unitOutput ? " [0,1]" : ""), d.outputMin, v -> d.outputMin = v);
-    f.number("Output at maximum" + (unitOutput ? " [0,1]" : ""), d.outputMax, v -> d.outputMax = v);
+    driverNumber("inputMin", "Input minimum", d.inputMin, v -> d.inputMin = v);
+    driverNumber("inputMax", "Input maximum", d.inputMax, v -> d.inputMax = v);
+    driverNumber(
+        "outputMin",
+        "Output at minimum" + (unitOutput ? " [0,1]" : ""),
+        d.outputMin,
+        v -> d.outputMin = v);
+    driverNumber(
+        "outputMax",
+        "Output at maximum" + (unitOutput ? " [0,1]" : ""),
+        d.outputMax,
+        v -> d.outputMax = v);
     if (unitOutput)
       ImGui.textWrapped(
           "Samples use the placement coordinates. Input clamps to the declared range; the mapped"
@@ -2181,13 +2217,16 @@ public final class PropertyPanel {
             + " current numeric value. Input clamps to its range; finite signed output endpoints"
             + " are allowed.");
     ImGui.textWrapped(
-        "Threshold applies to Density/Selection; Base Height and Height Scale apply to height"
-            + " interpretations. Other destinations are not sampled.");
+        "Sampling scale/offset rows run first and require an explicit field, sampled at baseline"
+            + " placement coordinates. Interpretation rows run next; strength/probability rows run"
+            + " only after interpretation and type selection pass. Each phase preserves authored"
+            + " row order.");
     int remove = -1, up = -1, down = -1;
     for (int i = 0; i < drivers.size(); i++) {
       ImGui.pushID(i);
       var d = drivers.get(i);
-      if (smokeWorldSettings != null) ImGui.setNextItemOpen(true, ImGuiCond.Always);
+      if (smokeWorldSettings != null || probingParameterDrivers)
+        ImGui.setNextItemOpen(true, ImGuiCond.Always);
       if (ImGui.treeNode("Driver " + (i + 1) + " : " + AppMetadata.settingLabel(d.destination))) {
         if (ImGui.beginCombo("Destination", AppMetadata.settingLabel(d.destination))) {
           for (String destination : WorldSemantics.PARAMETER_TARGETS)
@@ -2197,7 +2236,22 @@ public final class PropertyPanel {
           ImGui.endCombo();
         }
         f.choice("Combination", d.combination, WorldSemantics.COMBINATIONS, v -> d.combination = v);
-        fieldDriver(d, false);
+        if (WorldSemantics.PARAMETER_TARGETS.contains(d.destination)) {
+          var target = WorldSemantics.parameter(d.destination);
+          ImGui.textWrapped(
+              "Phase: "
+                  + target.phase
+                  + (target.explicitField
+                      ? ". Explicit field required; baseline coordinates are fixed for all sampling"
+                          + " rows."
+                      : target.unitRange ? ". Every effective result must remain in [0,1]." : "."));
+        }
+        parameterDriverRow = i;
+        try {
+          fieldDriver(d, false);
+        } finally {
+          parameterDriverRow = -1;
+        }
         if (i > 0 && ImGui.smallButton("Move Up")) up = i;
         if (i > 0) ImGui.sameLine();
         if (i + 1 < drivers.size() && ImGui.smallButton("Move Down")) down = i;

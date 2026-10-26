@@ -22,15 +22,78 @@ public final class WorldSemantics {
       List.of("XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX");
   public static final List<String> TYPE_SOURCES = List.of("FIXED", "INTERVALS");
   public static final List<String> MAPPINGS = List.of("LINEAR", "SMOOTHSTEP");
-  public static final List<String> PARAMETER_TARGETS =
-      List.of("threshold", "baseHeight", "heightScale");
+
+  public enum Phase {
+    SAMPLING,
+    INTERPRETATION,
+    ACCEPTANCE
+  }
+
+  public enum Parameter {
+    THRESHOLD("threshold", Phase.INTERPRETATION, false, false),
+    BASE_HEIGHT("baseHeight", Phase.INTERPRETATION, false, false),
+    HEIGHT_SCALE("heightScale", Phase.INTERPRETATION, false, false),
+    STRENGTH("strength", Phase.ACCEPTANCE, true, false),
+    PROBABILITY("probability", Phase.ACCEPTANCE, true, false),
+    SCALE_X("scaleX", Phase.SAMPLING, false, true),
+    SCALE_Y("scaleY", Phase.SAMPLING, false, true),
+    SCALE_Z("scaleZ", Phase.SAMPLING, false, true),
+    OFFSET_X("offsetX", Phase.SAMPLING, false, true),
+    OFFSET_Y("offsetY", Phase.SAMPLING, false, true),
+    OFFSET_Z("offsetZ", Phase.SAMPLING, false, true);
+    public final String key;
+    public final Phase phase;
+    public final boolean unitRange, explicitField;
+
+    Parameter(String key, Phase phase, boolean unitRange, boolean explicitField) {
+      this.key = key;
+      this.phase = phase;
+      this.unitRange = unitRange;
+      this.explicitField = explicitField;
+    }
+
+    public double value(Settings s) {
+      return switch (this) {
+        case THRESHOLD -> s.threshold;
+        case BASE_HEIGHT -> s.baseHeight;
+        case HEIGHT_SCALE -> s.heightScale;
+        case STRENGTH -> s.strength;
+        case PROBABILITY -> s.probability;
+        case SCALE_X -> s.scaleX;
+        case SCALE_Y -> s.scaleY;
+        case SCALE_Z -> s.scaleZ;
+        case OFFSET_X -> s.offsetX;
+        case OFFSET_Y -> s.offsetY;
+        case OFFSET_Z -> s.offsetZ;
+      };
+    }
+  }
+
+  public static final List<Parameter> PARAMETERS = List.of(Parameter.values());
+  public static final List<String> PARAMETER_TARGETS = PARAMETERS.stream().map(p -> p.key).toList();
   public static final List<String> COMBINATIONS = List.of("REPLACE", "ADD", "MULTIPLY");
 
+  public static Parameter parameter(String key) {
+    for (var p : PARAMETERS) if (p.key.equals(key)) return p;
+    throw new IllegalArgumentException("Unknown parameter destination " + key);
+  }
+
+  public static Map<String, Object> parameterRegistry() {
+    var result = new LinkedHashMap<String, Object>();
+    for (var p : PARAMETERS)
+      result.put(
+          p.key,
+          Map.of(
+              "phase", p.phase.name(), "unitRange", p.unitRange, "explicitField", p.explicitField));
+    return Collections.unmodifiableMap(result);
+  }
+
   public static boolean parameterUsed(String interpretation, String destination) {
+    var parameter = parameter(destination);
+    if (parameter.phase != Phase.INTERPRETATION) return true;
     return destination.equals("threshold")
         ? interpretation.equals("DENSITY") || interpretation.equals("SELECTION")
-        : (destination.equals("baseHeight") || destination.equals("heightScale"))
-            && interpretation.startsWith("HEIGHT_");
+        : interpretation.startsWith("HEIGHT_");
   }
 
   /** Arbitrary finite output endpoints; convex interpolation is clamped to its finite endpoints. */

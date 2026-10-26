@@ -237,7 +237,9 @@ public final class TraceSnapshot {
       rows.add(
           new Row(
               "Parameter row " + (parameter.row() + 1),
-              parameter.destination()
+              parameter.phase()
+                  + " | "
+                  + parameter.destination()
                   + " "
                   + parameter.combination()
                   + " | sample="
@@ -247,7 +249,9 @@ public final class TraceSnapshot {
                   + " previous="
                   + parameter.previous()
                   + " effective="
-                  + parameter.effective(),
+                  + parameter.effective()
+                  + " | coordinates="
+                  + parameter.sampleCoordinates(),
               setting(d, "parameterDrivers")));
       if (parameter.noiseUuid() != null)
         rows.add(

@@ -137,6 +137,12 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WarpConsumer build/warp-controls/warp-project.json 198 fixtures/warp-vectors.json build/warp-controls
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WarpConsumer fixtures/warp-fields.json 55 fixtures/warp-vectors.json
           python scripts/verify_warp_controls.py build/warp-controls
+      - name: Phased placement driver workflow
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PlacementDriverProbe build/placement-drivers
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PlacementDriverConsumer build/placement-drivers/placement-driver-project.json 4 build/placement-drivers
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PlacementDriverConsumer fixtures/placement-driver-phases.json 2
+          python scripts/verify_placement_driver_phases.py build/placement-drivers
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -163,6 +169,7 @@ jobs:
             build/algorithm-reference/
             build/scalar-remapping/
             build/warp-controls/
+            build/placement-drivers/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -380,6 +387,17 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_warp_controls.py build/warp-controls
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows phased placement driver workflow
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PlacementDriverProbe build/placement-drivers
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.PlacementDriverConsumer build/placement-drivers/placement-driver-project.json 4 build/placement-drivers
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.PlacementDriverConsumer fixtures/placement-driver-phases.json 2
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_placement_driver_phases.py build/placement-drivers
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -430,6 +448,7 @@ jobs:
             build/algorithm-reference/
             build/scalar-remapping/
             build/warp-controls/
+            build/placement-drivers/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/
