@@ -1,0 +1,9 @@
+{
+  "after" : 1,
+  "formatVersion" : 1,
+  "outputMaximum" : 4,
+  "before" : 0,
+  "oneUndoRedo" : true,
+  "privateEdit" : true,
+  "missingFieldRejected" : true
+}

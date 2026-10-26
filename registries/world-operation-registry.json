@@ -1,165 +1,76 @@
 {
-  "registryVersion": 4,
-  "actions": [
-    "SET",
-    "CLEAR",
-    "NO_CHANGE"
-  ],
-  "interpretations": [
-    "HEIGHT_BELOW",
-    "HEIGHT_ABOVE",
-    "HEIGHT_BOUNDARY",
-    "SELECTION",
-    "DENSITY",
-    "TYPE_SELECTION",
-    "ALL"
-  ],
-  "inheritableProperties": [
-    "baseHeight",
-    "heightScale",
-    "threshold",
-    "strength",
-    "probability",
-    "minY",
-    "maxY",
-    "axisX",
-    "axisY",
-    "axisZ",
-    "scaleX",
-    "scaleY",
-    "scaleZ",
-    "offsetX",
-    "offsetY",
-    "offsetZ",
-    "samplingTransforms",
-    "seedOffset",
-    "action",
-    "rounding",
-    "typeSource",
-    "voxelTypeUuid",
-    "typeIntervals",
-    "probabilityDriver",
-    "strengthDriver",
-    "parameterDrivers",
-    "voxelStatePredicate",
-    "fieldGates"
-  ],
-  "sampleAxes": [
-    "X",
-    "Y",
-    "Z",
-    "-X",
-    "-Y",
-    "-Z"
-  ],
-  "samplingTransforms": [
-    "TRANSLATE",
-    "SCALE",
-    "ROTATE"
-  ],
-  "rotationOrders": [
-    "XYZ",
-    "XZY",
-    "YXZ",
-    "YZX",
-    "ZXY",
-    "ZYX"
-  ],
-  "typeSources": [
-    "FIXED",
-    "INTERVALS"
-  ],
-  "driverMappings": [
-    "LINEAR",
-    "SMOOTHSTEP"
-  ],
-  "fieldGates": [
-    "ALWAYS",
-    "COMPARE",
-    "INTERVAL",
-    "PROBABILITY",
-    "NOT",
-    "AND",
-    "OR"
-  ],
-  "parameterTargets": [
-    "threshold",
-    "baseHeight",
-    "heightScale",
-    "strength",
-    "probability",
-    "scaleX",
-    "scaleY",
-    "scaleZ",
-    "offsetX",
-    "offsetY",
-    "offsetZ"
-  ],
-  "parameterCombinations": [
-    "REPLACE",
-    "ADD",
-    "MULTIPLY"
-  ],
-  "parameterPolicy": "at most 32 rows; SAMPLING rows require explicit fields sampled at fixed baseline placement coordinates; INTERPRETATION rows run after primary sampling; ACCEPTANCE rows run after interpretation/type selection; each phase preserves authored order; finite signed mapping endpoints; every strength/probability intermediate must remain in [0,1]",
-  "samplingOrder": "signed axes, component scale and offset, enabled transforms in stored order, resource definition; 2D fields use transformed X/Z",
-  "driverComposition": "probability * strength * mapped probability driver * mapped strength driver; disabled factors are 1",
-  "intervalPolicy": "finite nonempty intervals; explicit inclusive endpoints; overlaps rejected; no match is NO_CHANGE",
-  "rotationPolicy": "right-handed degrees; each listed axis rotates current coordinates about that fixed sampling-space axis; pivot applies before/after each transform",
-  "parameterDefinitions": {
-    "threshold": {
-      "phase": "INTERPRETATION",
-      "unitRange": false,
-      "explicitField": false
+  "registryVersion" : 4,
+  "actions" : [ "SET", "CLEAR", "NO_CHANGE" ],
+  "interpretations" : [ "HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY", "TYPE_SELECTION", "ALL" ],
+  "inheritableProperties" : [ "baseHeight", "heightScale", "threshold", "strength", "probability", "minY", "maxY", "axisX", "axisY", "axisZ", "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ", "samplingTransforms", "seedOffset", "action", "rounding", "typeSource", "voxelTypeUuid", "typeIntervals", "probabilityDriver", "strengthDriver", "parameterDrivers", "voxelStatePredicate", "fieldGates" ],
+  "sampleAxes" : [ "X", "Y", "Z", "-X", "-Y", "-Z" ],
+  "samplingTransforms" : [ "TRANSLATE", "SCALE", "ROTATE" ],
+  "rotationOrders" : [ "XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX" ],
+  "typeSources" : [ "FIXED", "INTERVALS" ],
+  "driverMappings" : [ "LINEAR", "SMOOTHSTEP" ],
+  "fieldGates" : [ "ALWAYS", "COMPARE", "INTERVAL", "PROBABILITY", "NOT", "AND", "OR" ],
+  "parameterTargets" : [ "threshold", "baseHeight", "heightScale", "strength", "probability", "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ" ],
+  "parameterDefinitions" : {
+    "threshold" : {
+      "phase" : "INTERPRETATION",
+      "explicitField" : false,
+      "unitRange" : false
     },
-    "baseHeight": {
-      "phase": "INTERPRETATION",
-      "unitRange": false,
-      "explicitField": false
+    "baseHeight" : {
+      "phase" : "INTERPRETATION",
+      "explicitField" : false,
+      "unitRange" : false
     },
-    "heightScale": {
-      "phase": "INTERPRETATION",
-      "unitRange": false,
-      "explicitField": false
+    "heightScale" : {
+      "phase" : "INTERPRETATION",
+      "explicitField" : false,
+      "unitRange" : false
     },
-    "strength": {
-      "phase": "ACCEPTANCE",
-      "unitRange": true,
-      "explicitField": false
+    "strength" : {
+      "phase" : "ACCEPTANCE",
+      "explicitField" : false,
+      "unitRange" : true
     },
-    "probability": {
-      "phase": "ACCEPTANCE",
-      "unitRange": true,
-      "explicitField": false
+    "probability" : {
+      "phase" : "ACCEPTANCE",
+      "explicitField" : false,
+      "unitRange" : true
     },
-    "scaleX": {
-      "phase": "SAMPLING",
-      "unitRange": false,
-      "explicitField": true
+    "scaleX" : {
+      "phase" : "SAMPLING",
+      "explicitField" : true,
+      "unitRange" : false
     },
-    "scaleY": {
-      "phase": "SAMPLING",
-      "unitRange": false,
-      "explicitField": true
+    "scaleY" : {
+      "phase" : "SAMPLING",
+      "explicitField" : true,
+      "unitRange" : false
     },
-    "scaleZ": {
-      "phase": "SAMPLING",
-      "unitRange": false,
-      "explicitField": true
+    "scaleZ" : {
+      "phase" : "SAMPLING",
+      "explicitField" : true,
+      "unitRange" : false
     },
-    "offsetX": {
-      "phase": "SAMPLING",
-      "unitRange": false,
-      "explicitField": true
+    "offsetX" : {
+      "phase" : "SAMPLING",
+      "explicitField" : true,
+      "unitRange" : false
     },
-    "offsetY": {
-      "phase": "SAMPLING",
-      "unitRange": false,
-      "explicitField": true
+    "offsetY" : {
+      "phase" : "SAMPLING",
+      "explicitField" : true,
+      "unitRange" : false
     },
-    "offsetZ": {
-      "phase": "SAMPLING",
-      "unitRange": false,
-      "explicitField": true
+    "offsetZ" : {
+      "phase" : "SAMPLING",
+      "explicitField" : true,
+      "unitRange" : false
     }
-  }
+  },
+  "parameterCombinations" : [ "REPLACE", "ADD", "MULTIPLY" ],
+  "parameterPolicy" : "at most 32 rows; SAMPLING rows require explicit fields sampled at fixed baseline placement coordinates; INTERPRETATION rows run after primary sampling; ACCEPTANCE rows run after interpretation/type selection; each phase preserves authored order; finite signed mapping endpoints; every strength/probability intermediate must remain in [0,1]",
+  "samplingOrder" : "signed axes, component scale and offset, enabled transforms in stored order, resource definition; 2D fields use transformed X/Z",
+  "driverComposition" : "probability * strength * mapped probability driver * mapped strength driver; disabled factors are 1",
+  "intervalPolicy" : "finite nonempty intervals; explicit inclusive endpoints; overlaps rejected; no match is NO_CHANGE",
+  "rotationPolicy" : "right-handed degrees; each listed axis rotates current coordinates about that fixed sampling-space axis; pivot applies before/after each transform"
 }

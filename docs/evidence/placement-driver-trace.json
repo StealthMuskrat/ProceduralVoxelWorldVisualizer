@@ -1,0 +1,341 @@
+{
+  "position" : {
+    "x" : 0,
+    "y" : 0,
+    "z" : 0
+  },
+  "finalType" : 1,
+  "steps" : [ {
+    "layerUuid" : "00000000-0000-4000-8000-000000000006",
+    "operationUuid" : "00000000-0000-4000-8000-000000000007",
+    "noiseUuid" : "f4b3e3f9-f464-5fd3-a634-2e44909b8fd1",
+    "layerId" : "terrain",
+    "operationId" : "surface",
+    "field" : 3.0,
+    "previous" : 0,
+    "result" : 1,
+    "action" : "SET",
+    "reason" : "Selected",
+    "settingsSources" : {
+      "minY" : "Layer default",
+      "baseHeight" : "Layer default",
+      "offsetZ" : "Layer default",
+      "action" : "Layer default",
+      "heightScale" : "Layer default",
+      "rounding" : "Layer default",
+      "typeIntervals" : "Layer default",
+      "probabilityDriver" : "Layer default",
+      "maxY" : "Layer default",
+      "typeSource" : "Layer default",
+      "fieldGates" : "Layer default",
+      "strengthDriver" : "Layer default",
+      "seedOffset" : "Layer default",
+      "samplingTransforms" : "Layer default",
+      "voxelTypeUuid" : "Layer default",
+      "voxelStatePredicate" : "Layer default",
+      "parameterDrivers" : "Layer default",
+      "threshold" : "Layer default",
+      "probability" : "Layer default",
+      "scaleX" : "Layer default",
+      "axisX" : "Layer default",
+      "axisY" : "Layer default",
+      "strength" : "Layer default",
+      "axisZ" : "Layer default",
+      "scaleY" : "Layer default",
+      "scaleZ" : "Layer default",
+      "offsetX" : "Layer default",
+      "offsetY" : "Layer default"
+    },
+    "details" : {
+      "effectiveSettings" : {
+        "minY" : "-2147483648",
+        "baseHeight" : "0.0",
+        "offsetZ" : "0.0",
+        "action" : "\"SET\"",
+        "heightScale" : "1.0",
+        "rounding" : "\"FLOOR\"",
+        "typeIntervals" : "[]",
+        "probabilityDriver" : "{\"enabled\":false,\"noiseGeneratorUuid\":null,\"inputMin\":0.0,\"inputMax\":1.0,\"outputMin\":0.0,\"outputMax\":1.0,\"mapping\":\"LINEAR\"}",
+        "maxY" : "2147483647",
+        "typeSource" : "\"FIXED\"",
+        "fieldGates" : "{\"kind\":\"ALWAYS\",\"comparison\":\"GE\",\"threshold\":0.0,\"max\":1.0,\"includeMin\":true,\"includeMax\":true,\"probability\":1.0,\"seedOffset\":0,\"noiseGeneratorUuid\":null,\"children\":[]}",
+        "strengthDriver" : "{\"enabled\":false,\"noiseGeneratorUuid\":null,\"inputMin\":0.0,\"inputMax\":1.0,\"outputMin\":0.0,\"outputMax\":1.0,\"mapping\":\"LINEAR\"}",
+        "seedOffset" : "0",
+        "samplingTransforms" : "[]",
+        "voxelTypeUuid" : "\"00000000-0000-4000-8000-000000000003\"",
+        "voxelStatePredicate" : "{\"kind\":\"ANY\",\"reference\":null,\"children\":[]}",
+        "parameterDrivers" : "[{\"enabled\":true,\"noiseGeneratorUuid\":\"5e611ff0-ebfb-559e-b6e4-1df7456cd8ff\",\"inputMin\":-4.0,\"inputMax\":4.0,\"outputMin\":2.0,\"outputMax\":4.0,\"mapping\":\"LINEAR\",\"destination\":\"offsetX\",\"combination\":\"REPLACE\"},{\"enabled\":true,\"noiseGeneratorUuid\":null,\"inputMin\":0.0,\"inputMax\":1.0,\"outputMin\":1.0,\"outputMax\":1.0,\"mapping\":\"LINEAR\",\"destination\":\"strength\",\"combination\":\"REPLACE\"},{\"enabled\":true,\"noiseGeneratorUuid\":null,\"inputMin\":0.0,\"inputMax\":1.0,\"outputMin\":2.5,\"outputMax\":2.5,\"mapping\":\"LINEAR\",\"destination\":\"threshold\",\"combination\":\"REPLACE\"}]",
+        "threshold" : "2.5",
+        "probability" : "1.0",
+        "scaleX" : "1.0",
+        "scaleY" : "1.0",
+        "scaleZ" : "1.0",
+        "strength" : "1.0",
+        "axisX" : "\"X\"",
+        "axisY" : "\"Y\"",
+        "axisZ" : "\"Z\"",
+        "offsetX" : "0.0",
+        "offsetY" : "0.0"
+      },
+      "gates" : [ {
+        "path" : "fieldGates",
+        "kind" : "ALWAYS",
+        "noiseUuid" : null,
+        "value" : null,
+        "passed" : true,
+        "random" : null
+      } ],
+      "gatePassed" : true,
+      "predicatePassed" : true,
+      "probability" : 1.0,
+      "random" : 0.5012820138020622,
+      "selected" : true,
+      "sampleCoordinates" : {
+        "x" : 3.0,
+        "y" : 0.0,
+        "z" : 0.0
+      },
+      "matchedInterval" : null,
+      "candidateType" : 1,
+      "drivers" : [ ],
+      "parameters" : [ {
+        "row" : 0,
+        "destination" : "offsetX",
+        "combination" : "REPLACE",
+        "noiseUuid" : "5e611ff0-ebfb-559e-b6e4-1df7456cd8ff",
+        "sample" : 0.0,
+        "mapped" : 3.0,
+        "previous" : 0.0,
+        "effective" : 3.0,
+        "phase" : "SAMPLING",
+        "sampleCoordinates" : {
+          "x" : 0.0,
+          "y" : 0.0,
+          "z" : 0.0
+        }
+      }, {
+        "row" : 2,
+        "destination" : "threshold",
+        "combination" : "REPLACE",
+        "noiseUuid" : null,
+        "sample" : 3.0,
+        "mapped" : 2.5,
+        "previous" : 2.5,
+        "effective" : 2.5,
+        "phase" : "INTERPRETATION",
+        "sampleCoordinates" : {
+          "x" : 3.0,
+          "y" : 0.0,
+          "z" : 0.0
+        }
+      }, {
+        "row" : 1,
+        "destination" : "strength",
+        "combination" : "REPLACE",
+        "noiseUuid" : null,
+        "sample" : 3.0,
+        "mapped" : 1.0,
+        "previous" : 1.0,
+        "effective" : 1.0,
+        "phase" : "ACCEPTANCE",
+        "sampleCoordinates" : {
+          "x" : 3.0,
+          "y" : 0.0,
+          "z" : 0.0
+        }
+      } ],
+      "settingTargets" : {
+        "minY" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "minY",
+          "override" : false
+        },
+        "baseHeight" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "baseHeight",
+          "override" : false
+        },
+        "offsetZ" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "offsetZ",
+          "override" : false
+        },
+        "action" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "action",
+          "override" : false
+        },
+        "heightScale" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "heightScale",
+          "override" : false
+        },
+        "rounding" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "rounding",
+          "override" : false
+        },
+        "typeIntervals" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "typeIntervals",
+          "override" : false
+        },
+        "probabilityDriver" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "probabilityDriver",
+          "override" : false
+        },
+        "maxY" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "maxY",
+          "override" : false
+        },
+        "typeSource" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "typeSource",
+          "override" : false
+        },
+        "fieldGates" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "fieldGates",
+          "override" : false
+        },
+        "strengthDriver" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "strengthDriver",
+          "override" : false
+        },
+        "seedOffset" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "seedOffset",
+          "override" : false
+        },
+        "samplingTransforms" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "samplingTransforms",
+          "override" : false
+        },
+        "voxelTypeUuid" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "voxelTypeUuid",
+          "override" : false
+        },
+        "voxelStatePredicate" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "voxelStatePredicate",
+          "override" : false
+        },
+        "parameterDrivers" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "parameterDrivers",
+          "override" : false
+        },
+        "threshold" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "threshold",
+          "override" : false
+        },
+        "probability" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "probability",
+          "override" : false
+        },
+        "scaleX" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "scaleX",
+          "override" : false
+        },
+        "axisX" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "axisX",
+          "override" : false
+        },
+        "axisY" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "axisY",
+          "override" : false
+        },
+        "strength" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "strength",
+          "override" : false
+        },
+        "axisZ" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "axisZ",
+          "override" : false
+        },
+        "scaleY" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "scaleY",
+          "override" : false
+        },
+        "scaleZ" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "scaleZ",
+          "override" : false
+        },
+        "offsetX" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "offsetX",
+          "override" : false
+        },
+        "offsetY" : {
+          "resourceUuid" : "00000000-0000-4000-8000-000000000006",
+          "property" : "offsetY",
+          "override" : false
+        }
+      },
+      "comparisons" : [ {
+        "property" : "minY",
+        "left" : 0.0,
+        "operator" : ">=",
+        "right" : -64.0,
+        "passed" : true
+      }, {
+        "property" : "maxY",
+        "left" : 0.0,
+        "operator" : "<=",
+        "right" : 319.0,
+        "passed" : true
+      }, {
+        "property" : "threshold",
+        "left" : 3.0,
+        "operator" : ">=",
+        "right" : 2.5,
+        "passed" : true
+      } ],
+      "primaryField" : {
+        "resourceUuid" : "f4b3e3f9-f464-5fd3-a634-2e44909b8fd1",
+        "x" : 3.0,
+        "y" : 0.0,
+        "z" : 0.0,
+        "value" : 3.0,
+        "events" : [ {
+          "resourceUuid" : "f4b3e3f9-f464-5fd3-a634-2e44909b8fd1",
+          "itemUuid" : "92fd5a5e-121b-57a9-8054-9d4f9d5fae9d",
+          "id" : "primary-expr",
+          "phase" : "PROCESSING",
+          "kind" : "EXPRESSION",
+          "type" : "Scalar",
+          "x" : 3.0,
+          "y" : 0.0,
+          "z" : 0.0,
+          "values" : [ 3.0 ]
+        }, {
+          "resourceUuid" : "f4b3e3f9-f464-5fd3-a634-2e44909b8fd1",
+          "itemUuid" : "92fd5a5e-121b-57a9-8054-9d4f9d5fae9d",
+          "id" : "primary",
+          "phase" : "OUTPUT",
+          "kind" : "OUTPUT",
+          "type" : "Scalar",
+          "x" : 3.0,
+          "y" : 0.0,
+          "z" : 0.0,
+          "values" : [ 3.0 ]
+        } ],
+        "omitted" : 0
+      }
+    }
+  } ]
+}
