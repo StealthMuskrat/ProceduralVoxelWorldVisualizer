@@ -1,0 +1,13 @@
+# Curve gesture validation
+
+Validated implementation: `1c61572429b21490cb853dbead239b305aaf5b73`.
+
+[Actions run 40369294857](https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40369294857) uses Temurin 25.0.4+7 and Gradle 9.2.1. The required command is `clean test build dependencyNotices releaseJars`. Local execution was attempted but the Java launcher lacks `libjli.so`; local schema-family and diff checks passed.
+
+The raw Linux JUnit reports contain 673 tests across 81 suites with zero failures, errors or skips. See [JUnit summary](curve-gesture-junit.json). Six new tests cover exact baseline/Redo preservation after cancellation, repeated gesture starts, tangent and invalid-move rollback, separate drag/discrete-edit history entries, owned private staging with other pending fields, changed/refreshed/removed/committed/replaced source rejection and invalid-curve preservation.
+
+CurveGestureProbe enters the production curve dialog through the shared Properties opening/publication path. Actual pointer events select two interior points with Shift and move them cumulatively with Y snap. One Undo returns to the exact initial curve and Redo restores the group. Escape rolls back an active drag without a new history entry. A local Undo while the pointer is held stops later movement from resuming the drag. Alt bypass uses the delivered pointer coordinates to account for native whole-pixel quantization; this is checked independently of the snap result. Cancel preserves the parent definition. Curve Apply stages only the private Properties draft, with unchanged document/history; the ordinary resource Apply is one document transaction with Undo/Redo. See [native report](curve-gesture-native.json).
+
+The final four knots are approximately `(0,0)`, `(0.25,0.35)`, `(0.75,0.85)`, `(1,1)`, with Linear interpolation and Clamp. The external CurveGestureConsumer loads the saved project using only the engine JAR and checks 147 X/Z samples, including exact knots and outside-domain values, against independent `1.4*x`, `x+0.1` and `0.85+0.6*(x-0.75)` segments with 2e-12 tolerance. Native pointer checks use 2e-6 tolerance; this does not reduce the engine-only arithmetic tolerance.
+
+The platform workflow retains every prior native/rendering/source/reference probe, Windows packaged launcher and cross-platform JAR reproducibility comparison. Their authoritative status is available in the linked run. Tangent pointer gestures, all point/domain/context-menu workflows, DPI conditions, full manual GUI recovery, Windows 11 hardware and production release acceptance remain separate.

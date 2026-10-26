@@ -1,0 +1,12 @@
+{
+  "oneGestureUndo" : true,
+  "privateStage" : true,
+  "formatVersion" : 1,
+  "cancel" : true,
+  "after" : 0.35,
+  "points" : 4,
+  "oneDocumentUndoRedo" : true,
+  "escape" : true,
+  "altBypass" : true,
+  "before" : 0.25
+}
