@@ -21,6 +21,23 @@ class CurveWrappingTest {
   }
 
   @Test
+  void signedZeroInputsReturnExactNumericKnotValues() {
+    for (double zero : new double[] {0.0, -0.0}) {
+      var c = curve(-1, 1, "REPEAT");
+      c.points.getFirst().segmentInterpolation = "STEP";
+      c.points.add(1, new Point(zero, 7));
+      var f = new ScalarCurve(c);
+      assertEquals(7, f.sample(0.0));
+      assertEquals(7, f.sample(-0.0));
+    }
+    var c = curve(0, 1, "REPEAT");
+    c.points.getFirst().y = -0.0;
+    var f = new ScalarCurve(c);
+    assertEquals(Double.doubleToRawLongBits(-0.0), Double.doubleToRawLongBits(f.sample(-0.0)));
+    assertEquals(Double.doubleToRawLongBits(-0.0), Double.doubleToRawLongBits(f.sample(0.0)));
+  }
+
+  @Test
   void independentExactRationalCorpusAndHistoricalBits() throws Exception {
     var rows =
         ProjectIO.JSON

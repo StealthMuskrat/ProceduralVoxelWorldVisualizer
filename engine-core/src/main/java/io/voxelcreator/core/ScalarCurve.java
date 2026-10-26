@@ -142,10 +142,15 @@ public final class ScalarCurve {
     }
     if (!inDomain(v, lo, hi))
       throw new ArithmeticException("Curve outside-domain mapping is not representable");
+    if (v == lo) return y[0];
     if (v == hi) return y[last];
     int i = java.util.Arrays.binarySearch(x, v);
     if (i >= 0) return y[i];
-    i = -i - 2;
+    int insertion = -i - 1;
+    // Array search orders signed zeros separately; curve knots use numeric equality.
+    if (insertion < x.length && v == x[insertion]) return y[insertion];
+    if (insertion > 0 && v == x[insertion - 1]) return y[insertion - 1];
+    i = insertion - 1;
     double h = x[i + 1] - x[i], t = (v - x[i]) / h;
     return ((a[i] * t + b[i]) * t + c[i]) * t + d[i];
   }
