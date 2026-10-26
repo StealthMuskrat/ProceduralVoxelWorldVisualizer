@@ -29,6 +29,10 @@ public final class ScalarRemapping {
       return controls.get(key).textValue();
     }
 
+    public boolean usesPosition() {
+      return kind.equals("FALLOFF") && s("domain").equals("COORDINATES");
+    }
+
     public double weight() {
       return n("weight");
     }

@@ -652,12 +652,15 @@ public final class NoiseCompiler {
                     if (w == 1 && plan.mode().equals("LERP")) return plan.output(b.scalar(c));
                     return plan.combine(a.scalar(c), b.scalar(c), w);
                   }
-                  : (c, k) ->
-                      plan.sample(
-                          a.scalar(c),
-                          position == null ? c.x : position.number.get(c, 0),
-                          dimension == 2 ? 0 : position == null ? c.y : position.number.get(c, 1),
-                          position == null ? c.z : position.number.get(c, dimension == 2 ? 1 : 2));
+                  : (c, k) -> {
+                    double av = a.scalar(c);
+                    if (!plan.usesPosition()) return plan.sample(av, 0, 0, 0);
+                    return plan.sample(
+                        av,
+                        position == null ? c.x : position.number.get(c, 0),
+                        dimension == 2 ? 0 : position == null ? c.y : position.number.get(c, 1),
+                        position == null ? c.z : position.number.get(c, dimension == 2 ? 1 : 2));
+                  };
         } else if (kind.equals("CURVE")) {
           require(a, "Scalar", item);
           var curve = ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class);

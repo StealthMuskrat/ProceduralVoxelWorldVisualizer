@@ -353,4 +353,22 @@ class ScalarRemappingTest {
     set(i, "outputPolicy", "RAW");
     assertEquals(-1e308, value());
   }
+
+  @Test
+  void inputDomainDoesNotExecuteAnUnusedFailingPositionBinding() {
+    var bad = expression("1/0");
+    var position = item("COORDINATES2");
+    position.inputs.put("x", Binding.earlier(bad.uuid));
+    var i = item("FALLOFF");
+    var coordinates = Binding.earlier(position.uuid);
+    coordinates.type = "Coordinates2D";
+    i.inputs.put("position", coordinates);
+    i.inputs.put("a", Binding.constant(-3));
+    set(i, "domain", "INPUT");
+    set(i, "centerX", -1);
+    set(i, "extent", 4);
+    assertEquals(-1.5, field().sample(99, 0, 99));
+    set(i, "domain", "COORDINATES");
+    assertThrows(EvaluationFailure.class, this::value);
+  }
 }
