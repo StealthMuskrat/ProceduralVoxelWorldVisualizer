@@ -169,7 +169,8 @@ public final class CurveGestureProbe {
     var p = dialog().probePoint(first);
     startX = p[0];
     startY = p[1];
-    plotHeight = dialog().probeControl("plot")[3];
+    var c = dialog().probeCurve();
+    plotHeight = (float) (dialog().probeControl("plot")[3] / (c.displayMax - c.displayMin));
     io.addMousePosEvent(startX, startY);
     frame();
     io.addMouseButtonEvent(0, true);

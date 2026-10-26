@@ -59,7 +59,7 @@ public class CurveGestureTest {
     s.move(Set.of(id), .1, .2, false, false, 1, 1);
     assertTrue(s.edit(value -> value.displayMax = 2));
     s.undo();
-    assertEquals(1, s.curve().displayMax);
+    assertEquals(c.displayMax, s.curve().displayMax);
     assertEquals(.7, s.curve().points.get(1).y, 1e-14);
     s.undo();
     assertEquals(.5, s.curve().points.get(1).y);
