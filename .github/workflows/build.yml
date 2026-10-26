@@ -163,6 +163,10 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveNavigationProbe build/curve-navigation
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveNavigationConsumer build/curve-navigation/curve-navigation-project.json
+      - name: Curve numerical preview recovery
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurvePreviewProbe build/curve-preview
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurvePreviewConsumer build/curve-preview/curve-preview-project.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -195,6 +199,7 @@ jobs:
             build/curve-gesture/
             build/curve-point/
             build/curve-navigation/
+            build/curve-preview/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -458,6 +463,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurveNavigationConsumer build/curve-navigation/curve-navigation-project.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows curve numerical preview recovery
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurvePreviewProbe build/curve-preview
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurvePreviewConsumer build/curve-preview/curve-preview-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -514,6 +526,7 @@ jobs:
             build/curve-gesture/
             build/curve-point/
             build/curve-navigation/
+            build/curve-preview/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/

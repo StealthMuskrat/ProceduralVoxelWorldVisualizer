@@ -36,6 +36,17 @@ public final class CurveDialog {
   private int tangentSide;
   private double tangentX;
   private String applyError = "";
+  private int previewFailures;
+  private String previewFailure = "";
+
+  int probePreviewFailures() {
+    return previewFailures;
+  }
+
+  String probePreviewFailure() {
+    return previewFailure;
+  }
+
   private boolean probing;
 
   void probeEnable() {
@@ -256,11 +267,19 @@ public final class CurveDialog {
       draw.addLine(sx(0, px, w, lo, hi), py, sx(0, px, w, lo, hi), py + h, 0x88708090);
     if (ylo <= 0 && yhi >= 0)
       draw.addLine(px, sy(0, py, h, ylo, yhi), px + w, sy(0, py, h, ylo, yhi), 0x88708090);
-    float lastX = px, lastY = sy(compiled.sample(lo), py, h, ylo, yhi);
-    for (int i = 1; i <= 512; i++) {
-      double x = lo + (hi - lo) * i / 512;
-      float nx = px + w * i / 512, ny = sy(compiled.sample(x), py, h, ylo, yhi);
-      draw.addLine(lastX, lastY, nx, ny, 0xffbce37b, 2);
+    var preview = CurvePreview.capture(compiled, lo, hi);
+    previewFailures = preview.failures();
+    previewFailure = preview.firstFailure() == null ? "" : preview.firstFailure().message();
+    boolean previousValid = false;
+    float lastX = 0, lastY = 0;
+    for (int i = 0; i < preview.size(); i++) {
+      if (!preview.valid(i)) {
+        previousValid = false;
+        continue;
+      }
+      float nx = sx(preview.input(i), px, w, lo, hi), ny = sy(preview.value(i), py, h, ylo, yhi);
+      if (previousValid) draw.addLine(lastX, lastY, nx, ny, 0xffbce37b, 2);
+      previousValid = true;
       lastX = nx;
       lastY = ny;
     }
@@ -396,6 +415,15 @@ public final class CurveDialog {
             mx,
             my,
             selected.size()));
+    if (preview.firstFailure() != null)
+      ImGui.textWrapped(
+          "! Curve preview: "
+              + preview.failures()
+              + " samples unavailable; first at "
+              + preview.firstFailure().input()
+              + ": "
+              + preview.firstFailure().message()
+              + ". Fit the view or adjust the curve. Failed samples are shown as gaps.");
     curve = session.curve();
     var selection = curve.points.stream().filter(p -> selected.contains(p.uuid)).toList();
     if (selection.size() == 1) {
