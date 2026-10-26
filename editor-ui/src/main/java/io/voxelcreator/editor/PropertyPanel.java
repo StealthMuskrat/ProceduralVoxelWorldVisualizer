@@ -147,6 +147,7 @@ public final class PropertyPanel {
     if (!state.navigate(target)) return false;
     focusedControl = target.control();
     navigationTarget = target;
+    expressionFocusSubmitted = false;
     searchScroll = true;
     return true;
   }
@@ -1114,6 +1115,7 @@ public final class PropertyPanel {
 
   private final Map<String, float[]> expressionRects = new HashMap<>();
   private boolean expressionActive;
+  private boolean expressionFocusSubmitted;
 
   boolean probeExpressionActive() {
     return expressionActive;
@@ -1152,16 +1154,22 @@ public final class PropertyPanel {
             && item.uuid.equals(navigationTarget.control())
             && Set.of("expression", "parameters/expression")
                 .contains(Objects.requireNonNullElse(navigationTarget.parameter(), ""));
-    if (expressionTarget) ImGui.setKeyboardFocusHere();
+    if (expressionTarget && !expressionFocusSubmitted) {
+      ImGui.setKeyboardFocusHere();
+      expressionFocusSubmitted = true;
+    }
     f.text(
         "Expression", expr, v -> item.parameters.put("expression", ProjectIO.JSON.valueToTree(v)));
     expressionRect("text");
     expressionActive = ImGui.isItemActive();
     if (expressionTarget) {
       ImGui.setScrollHereY(.25f);
-      // Focus requests are applied by ImGui on a later frame. Keep the request until
-      // the text widget acknowledges it, including navigation from an active button.
-      if (expressionActive) searchScroll = false;
+      // ImGui applies focus on a later frame. Do not resubmit it while waiting:
+      // repeated activation can reset a user's text selection.
+      if (expressionActive) {
+        searchScroll = false;
+        expressionFocusSubmitted = false;
+      }
     }
     var feedback = expressionFeedback.inspect(state.project(), n, item);
     if (!feedback.valid()) {

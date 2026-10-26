@@ -65,6 +65,7 @@ public final class ExpressionRecoveryProbe {
             "Focus action destination");
         for (int i = 0; i < 10 && !panel.probeExpressionActive(); i++) frame();
         require(panel.probeExpressionActive(), "Focus request was not acknowledged");
+        frames(3);
         // No mouse click on the text: the production focus action must accept keyboard repair.
         replace("x+bias*2");
         require(
