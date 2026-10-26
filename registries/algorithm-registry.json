@@ -1,6 +1,713 @@
 {
-  "registryVersion" : 1,
-  "engineVersion" : "0.1.0",
-  "sourceImplementation" : "FastNoiseLite 1.1.1, double marked coordinates; float output widened to double",
-  "algorithms" : [ "OPEN_SIMPLEX_2", "PERLIN", "VALUE", "VALUE_CUBIC", "CELLULAR", "WHITE_HASH", "CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF" ]
+  "registryVersion": 2,
+  "engineVersion": "0.1.0",
+  "algorithms": [
+    "OPEN_SIMPLEX_2",
+    "PERLIN",
+    "VALUE",
+    "VALUE_CUBIC",
+    "CELLULAR",
+    "WHITE_HASH",
+    "CONSTANT",
+    "GRADIENT_Y",
+    "SPHERE_SDF",
+    "BOX_SDF"
+  ],
+  "specifications": {
+    "OPEN_SIMPLEX_2": {
+      "key": "OPEN_SIMPLEX_2",
+      "family": "FastNoiseLite",
+      "dimensions": [
+        2,
+        3
+      ],
+      "parameters": [
+        {
+          "key": "frequency",
+          "label": "Frequency",
+          "defaultValue": 0.01,
+          "minimum": 5e-324,
+          "maximum": 1000000.0,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 1e-09,
+          "presetMaximum": 1000000.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Positive frequency; FastNoiseLite receives its float narrowing."
+        },
+        {
+          "key": "fractal",
+          "label": "Fractal mode",
+          "defaultValue": 0.0,
+          "minimum": 0.0,
+          "maximum": 3.0,
+          "integer": true,
+          "choices": [
+            "NONE",
+            "FBM",
+            "RIDGED",
+            "PING_PONG"
+          ],
+          "presetMinimum": 0.0,
+          "presetMaximum": 3.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Stable numeric index: NONE, FBM, RIDGED, PING_PONG."
+        },
+        {
+          "key": "octaves",
+          "label": "Octaves",
+          "defaultValue": 3.0,
+          "minimum": 1.0,
+          "maximum": 16.0,
+          "integer": true,
+          "choices": [],
+          "presetMinimum": 1.0,
+          "presetMaximum": 16.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Enabled source fractal octave count."
+        },
+        {
+          "key": "lacunarity",
+          "label": "Lacunarity",
+          "defaultValue": 2.0,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 1.0,
+          "presetMaximum": 8.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Signed finite float-compatible frequency multiplier; no implicit clamp."
+        },
+        {
+          "key": "gain",
+          "label": "Gain",
+          "defaultValue": 0.5,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 1.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Signed finite float-compatible amplitude multiplier; no implicit clamp."
+        },
+        {
+          "key": "pingPongStrength",
+          "label": "Ping-pong strength",
+          "defaultValue": 2.0,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 8.0,
+          "threeDimensional": false,
+          "visibility": "PING_PONG",
+          "help": "Used by source ping-pong fractals only."
+        }
+      ],
+      "semantics": "FastNoiseLite 1.1.1; marked coordinates use double, internal noise output is float widened to double; seed folds high/low 32 bits."
+    },
+    "PERLIN": {
+      "key": "PERLIN",
+      "family": "FastNoiseLite",
+      "dimensions": [
+        2,
+        3
+      ],
+      "parameters": [
+        {
+          "key": "frequency",
+          "label": "Frequency",
+          "defaultValue": 0.01,
+          "minimum": 5e-324,
+          "maximum": 1000000.0,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 1e-09,
+          "presetMaximum": 1000000.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Positive frequency; FastNoiseLite receives its float narrowing."
+        },
+        {
+          "key": "fractal",
+          "label": "Fractal mode",
+          "defaultValue": 0.0,
+          "minimum": 0.0,
+          "maximum": 3.0,
+          "integer": true,
+          "choices": [
+            "NONE",
+            "FBM",
+            "RIDGED",
+            "PING_PONG"
+          ],
+          "presetMinimum": 0.0,
+          "presetMaximum": 3.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Stable numeric index: NONE, FBM, RIDGED, PING_PONG."
+        },
+        {
+          "key": "octaves",
+          "label": "Octaves",
+          "defaultValue": 3.0,
+          "minimum": 1.0,
+          "maximum": 16.0,
+          "integer": true,
+          "choices": [],
+          "presetMinimum": 1.0,
+          "presetMaximum": 16.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Enabled source fractal octave count."
+        },
+        {
+          "key": "lacunarity",
+          "label": "Lacunarity",
+          "defaultValue": 2.0,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 1.0,
+          "presetMaximum": 8.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Signed finite float-compatible frequency multiplier; no implicit clamp."
+        },
+        {
+          "key": "gain",
+          "label": "Gain",
+          "defaultValue": 0.5,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 1.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Signed finite float-compatible amplitude multiplier; no implicit clamp."
+        },
+        {
+          "key": "pingPongStrength",
+          "label": "Ping-pong strength",
+          "defaultValue": 2.0,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 8.0,
+          "threeDimensional": false,
+          "visibility": "PING_PONG",
+          "help": "Used by source ping-pong fractals only."
+        }
+      ],
+      "semantics": "FastNoiseLite 1.1.1; marked coordinates use double, internal noise output is float widened to double; seed folds high/low 32 bits."
+    },
+    "VALUE": {
+      "key": "VALUE",
+      "family": "FastNoiseLite",
+      "dimensions": [
+        2,
+        3
+      ],
+      "parameters": [
+        {
+          "key": "frequency",
+          "label": "Frequency",
+          "defaultValue": 0.01,
+          "minimum": 5e-324,
+          "maximum": 1000000.0,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 1e-09,
+          "presetMaximum": 1000000.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Positive frequency; FastNoiseLite receives its float narrowing."
+        },
+        {
+          "key": "fractal",
+          "label": "Fractal mode",
+          "defaultValue": 0.0,
+          "minimum": 0.0,
+          "maximum": 3.0,
+          "integer": true,
+          "choices": [
+            "NONE",
+            "FBM",
+            "RIDGED",
+            "PING_PONG"
+          ],
+          "presetMinimum": 0.0,
+          "presetMaximum": 3.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Stable numeric index: NONE, FBM, RIDGED, PING_PONG."
+        },
+        {
+          "key": "octaves",
+          "label": "Octaves",
+          "defaultValue": 3.0,
+          "minimum": 1.0,
+          "maximum": 16.0,
+          "integer": true,
+          "choices": [],
+          "presetMinimum": 1.0,
+          "presetMaximum": 16.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Enabled source fractal octave count."
+        },
+        {
+          "key": "lacunarity",
+          "label": "Lacunarity",
+          "defaultValue": 2.0,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 1.0,
+          "presetMaximum": 8.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Signed finite float-compatible frequency multiplier; no implicit clamp."
+        },
+        {
+          "key": "gain",
+          "label": "Gain",
+          "defaultValue": 0.5,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 1.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Signed finite float-compatible amplitude multiplier; no implicit clamp."
+        },
+        {
+          "key": "pingPongStrength",
+          "label": "Ping-pong strength",
+          "defaultValue": 2.0,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 8.0,
+          "threeDimensional": false,
+          "visibility": "PING_PONG",
+          "help": "Used by source ping-pong fractals only."
+        }
+      ],
+      "semantics": "FastNoiseLite 1.1.1; marked coordinates use double, internal noise output is float widened to double; seed folds high/low 32 bits."
+    },
+    "VALUE_CUBIC": {
+      "key": "VALUE_CUBIC",
+      "family": "FastNoiseLite",
+      "dimensions": [
+        2,
+        3
+      ],
+      "parameters": [
+        {
+          "key": "frequency",
+          "label": "Frequency",
+          "defaultValue": 0.01,
+          "minimum": 5e-324,
+          "maximum": 1000000.0,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 1e-09,
+          "presetMaximum": 1000000.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Positive frequency; FastNoiseLite receives its float narrowing."
+        },
+        {
+          "key": "fractal",
+          "label": "Fractal mode",
+          "defaultValue": 0.0,
+          "minimum": 0.0,
+          "maximum": 3.0,
+          "integer": true,
+          "choices": [
+            "NONE",
+            "FBM",
+            "RIDGED",
+            "PING_PONG"
+          ],
+          "presetMinimum": 0.0,
+          "presetMaximum": 3.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Stable numeric index: NONE, FBM, RIDGED, PING_PONG."
+        },
+        {
+          "key": "octaves",
+          "label": "Octaves",
+          "defaultValue": 3.0,
+          "minimum": 1.0,
+          "maximum": 16.0,
+          "integer": true,
+          "choices": [],
+          "presetMinimum": 1.0,
+          "presetMaximum": 16.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Enabled source fractal octave count."
+        },
+        {
+          "key": "lacunarity",
+          "label": "Lacunarity",
+          "defaultValue": 2.0,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 1.0,
+          "presetMaximum": 8.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Signed finite float-compatible frequency multiplier; no implicit clamp."
+        },
+        {
+          "key": "gain",
+          "label": "Gain",
+          "defaultValue": 0.5,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 1.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Signed finite float-compatible amplitude multiplier; no implicit clamp."
+        },
+        {
+          "key": "pingPongStrength",
+          "label": "Ping-pong strength",
+          "defaultValue": 2.0,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 8.0,
+          "threeDimensional": false,
+          "visibility": "PING_PONG",
+          "help": "Used by source ping-pong fractals only."
+        }
+      ],
+      "semantics": "FastNoiseLite 1.1.1; marked coordinates use double, internal noise output is float widened to double; seed folds high/low 32 bits."
+    },
+    "CELLULAR": {
+      "key": "CELLULAR",
+      "family": "FastNoiseLite",
+      "dimensions": [
+        2,
+        3
+      ],
+      "parameters": [
+        {
+          "key": "frequency",
+          "label": "Frequency",
+          "defaultValue": 0.01,
+          "minimum": 5e-324,
+          "maximum": 1000000.0,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 1e-09,
+          "presetMaximum": 1000000.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Positive frequency; FastNoiseLite receives its float narrowing."
+        },
+        {
+          "key": "fractal",
+          "label": "Fractal mode",
+          "defaultValue": 0.0,
+          "minimum": 0.0,
+          "maximum": 3.0,
+          "integer": true,
+          "choices": [
+            "NONE",
+            "FBM",
+            "RIDGED",
+            "PING_PONG"
+          ],
+          "presetMinimum": 0.0,
+          "presetMaximum": 3.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Stable numeric index: NONE, FBM, RIDGED, PING_PONG."
+        },
+        {
+          "key": "octaves",
+          "label": "Octaves",
+          "defaultValue": 3.0,
+          "minimum": 1.0,
+          "maximum": 16.0,
+          "integer": true,
+          "choices": [],
+          "presetMinimum": 1.0,
+          "presetMaximum": 16.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Enabled source fractal octave count."
+        },
+        {
+          "key": "lacunarity",
+          "label": "Lacunarity",
+          "defaultValue": 2.0,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 1.0,
+          "presetMaximum": 8.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Signed finite float-compatible frequency multiplier; no implicit clamp."
+        },
+        {
+          "key": "gain",
+          "label": "Gain",
+          "defaultValue": 0.5,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 1.0,
+          "threeDimensional": false,
+          "visibility": "FRACTAL",
+          "help": "Signed finite float-compatible amplitude multiplier; no implicit clamp."
+        },
+        {
+          "key": "pingPongStrength",
+          "label": "Ping-pong strength",
+          "defaultValue": 2.0,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 8.0,
+          "threeDimensional": false,
+          "visibility": "PING_PONG",
+          "help": "Used by source ping-pong fractals only."
+        },
+        {
+          "key": "cellularDistance",
+          "label": "Distance metric",
+          "defaultValue": 1.0,
+          "minimum": 0.0,
+          "maximum": 3.0,
+          "integer": true,
+          "choices": [
+            "EUCLIDEAN",
+            "EUCLIDEAN_SQUARED",
+            "MANHATTAN",
+            "HYBRID"
+          ],
+          "presetMinimum": 0.0,
+          "presetMaximum": 3.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Stable FastNoiseLite distance index."
+        },
+        {
+          "key": "cellularReturn",
+          "label": "Return mode",
+          "defaultValue": 1.0,
+          "minimum": 0.0,
+          "maximum": 6.0,
+          "integer": true,
+          "choices": [
+            "CELL_VALUE",
+            "DISTANCE",
+            "DISTANCE_2",
+            "DISTANCE_2_ADD",
+            "DISTANCE_2_SUBTRACT",
+            "DISTANCE_2_MULTIPLY",
+            "DISTANCE_2_DIVIDE"
+          ],
+          "presetMinimum": 0.0,
+          "presetMaximum": 6.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Stable FastNoiseLite return index; output is not implicitly normalized."
+        },
+        {
+          "key": "jitter",
+          "label": "Cellular jitter",
+          "defaultValue": 1.0,
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 1.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Signed finite float-compatible jitter; preset range is 0..1."
+        }
+      ],
+      "semantics": "FastNoiseLite 1.1.1; marked coordinates use double, internal noise output is float widened to double; seed folds high/low 32 bits."
+    },
+    "WHITE_HASH": {
+      "key": "WHITE_HASH",
+      "family": "Coordinate hash",
+      "dimensions": [
+        2,
+        3
+      ],
+      "parameters": [
+        {
+          "key": "frequency",
+          "label": "Frequency",
+          "defaultValue": 0.01,
+          "minimum": 5e-324,
+          "maximum": 1000000.0,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 1e-09,
+          "presetMaximum": 1000000.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Positive frequency; FastNoiseLite receives its float narrowing."
+        }
+      ],
+      "semantics": "SplitMix64 over scaled coordinate double bits; raw [-1,1). No source fractal controls."
+    },
+    "CONSTANT": {
+      "key": "CONSTANT",
+      "family": "Analytic",
+      "dimensions": [
+        2,
+        3
+      ],
+      "parameters": [
+        {
+          "key": "value",
+          "label": "Constant value",
+          "defaultValue": 0.0,
+          "minimum": -1.7976931348623157e+308,
+          "maximum": 1.7976931348623157e+308,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": -1000000.0,
+          "presetMaximum": 1000000.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Raw signed double."
+        }
+      ],
+      "semantics": "Raw constant double, including signed zero."
+    },
+    "GRADIENT_Y": {
+      "key": "GRADIENT_Y",
+      "family": "Analytic",
+      "dimensions": [
+        2,
+        3
+      ],
+      "parameters": [],
+      "semantics": "Identity Z in 2D, identity Y in 3D; raw unbounded double."
+    },
+    "SPHERE_SDF": {
+      "key": "SPHERE_SDF",
+      "family": "Signed distance",
+      "dimensions": [
+        2,
+        3
+      ],
+      "parameters": [
+        {
+          "key": "radius",
+          "label": "Radius",
+          "defaultValue": 16.0,
+          "minimum": 0.0,
+          "maximum": 1.7976931348623157e+308,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 1000000.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Nonnegative sphere/circle radius; negative means inside the resulting SDF."
+        }
+      ],
+      "semantics": "Euclidean length minus radius; negative inside. Existing arithmetic order is preserved."
+    },
+    "BOX_SDF": {
+      "key": "BOX_SDF",
+      "family": "Signed distance",
+      "dimensions": [
+        2,
+        3
+      ],
+      "parameters": [
+        {
+          "key": "extentX",
+          "label": "Half extent X",
+          "defaultValue": 16.0,
+          "minimum": 0.0,
+          "maximum": 1.7976931348623157e+308,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 1000000.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Nonnegative outer half extent in definition coordinates."
+        },
+        {
+          "key": "extentY",
+          "label": "Half extent Y",
+          "defaultValue": 16.0,
+          "minimum": 0.0,
+          "maximum": 1.7976931348623157e+308,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 1000000.0,
+          "threeDimensional": true,
+          "visibility": "ALWAYS",
+          "help": "Nonnegative outer half extent in definition coordinates."
+        },
+        {
+          "key": "extentZ",
+          "label": "Half extent Z",
+          "defaultValue": 16.0,
+          "minimum": 0.0,
+          "maximum": 1.7976931348623157e+308,
+          "integer": false,
+          "choices": [],
+          "presetMinimum": 0.0,
+          "presetMaximum": 1000000.0,
+          "threeDimensional": false,
+          "visibility": "ALWAYS",
+          "help": "Nonnegative outer half extent in definition coordinates."
+        }
+      ],
+      "semantics": "Axis-aligned exact box SDF with half extents; negative inside; Y ignored in 2D."
+    }
+  },
+  "inactiveParameterPolicy": "Known finite typed inactive parameters are retained and ignored. Frequency retains its historical global validity check; FastNoiseLite cellular indices retain their historical bounds on all upstream families. Unknown keys reject.",
+  "normalization": "Raw signed values; source fractals follow FastNoiseLite bounding. No implicit 0..1 mapping."
 }

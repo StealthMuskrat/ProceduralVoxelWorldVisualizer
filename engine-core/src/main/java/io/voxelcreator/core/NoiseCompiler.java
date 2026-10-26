@@ -250,7 +250,17 @@ public final class NoiseCompiler {
     try {
       source = NoiseAlgorithms.compile(n.algorithm, n.dimension, seed);
     } catch (RuntimeException failure) {
-      throw new CompilationFailure(n.uuid, null, "algorithm", failure);
+      throw new CompilationFailure(
+          n.uuid,
+          null,
+          failure instanceof NoiseAlgorithmRegistry.Problem problem
+              ? problem.parameter().equals("key")
+                  ? "algorithm"
+                  : problem.parameter().equals("dimension")
+                      ? "dimension"
+                      : "algorithm/parameters/" + problem.parameter()
+              : "algorithm",
+          failure);
     }
 
     var inputs = new HashMap<UUID, Input>();

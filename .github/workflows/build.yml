@@ -25,6 +25,12 @@ jobs:
         run: |
           python -m pip install -r scripts/requirements-validation.txt
           python scripts/verify_schemas.py
+      - name: Regenerate independent upstream source vectors
+        run: |
+          mkdir -p build/algorithm-reference
+          g++ -std=c++20 -O2 -fwrapv -fno-fast-math -ffp-contract=off reference/fastnoiselite/reference.cpp -o build/algorithm-reference/reference
+          build/algorithm-reference/reference > build/algorithm-reference/cpp-vectors.tsv
+          cmp fixtures/algorithm-cpp-vectors.tsv build/algorithm-reference/cpp-vectors.tsv
       - name: Clean build and contracts
         run: ./gradlew clean test build dependencyNotices releaseJars
       - name: Independent engine consumer
@@ -106,6 +112,15 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.TraceConsumer build/trace-workflow/trace-project.json
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.TraceConsumer fixtures/trace-workflow.json
           python scripts/verify_trace_workflow.py build/trace-workflow
+      - name: Source algorithm controls and independent references
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SourceAlgorithmProbe build/algorithm-reference
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.AlgorithmReferenceConsumer fixtures/algorithm-cpp-vectors.tsv fixtures/algorithm-analytic-vectors.json build/algorithm-reference build/algorithm-reference/source-algorithm-project.json
+          python scripts/verify_algorithm_references.py build/algorithm-reference
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Linux-algorithm-bits
+          path: build/algorithm-reference/algorithm-jvm-bits.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -129,6 +144,7 @@ jobs:
             build/noise-authoring-probe/
             build/field-operations/
             build/trace-workflow/
+            build/algorithm-reference/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -311,6 +327,19 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_trace_workflow.py build/trace-workflow
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows source algorithm controls and independent references
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SourceAlgorithmProbe build/algorithm-reference
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.AlgorithmReferenceConsumer fixtures/algorithm-cpp-vectors.tsv fixtures/algorithm-analytic-vectors.json build/algorithm-reference build/algorithm-reference/source-algorithm-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_algorithm_references.py build/algorithm-reference
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Windows-algorithm-bits
+          path: build/algorithm-reference/algorithm-jvm-bits.json
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -358,6 +387,7 @@ jobs:
             build/noise-authoring-probe/
             build/field-operations/
             build/trace-workflow/
+            build/algorithm-reference/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/
@@ -372,3 +402,9 @@ jobs:
           path: hashes
       - name: Compare Linux and Windows JAR bytes
         run: cmp hashes/Linux-jar-hashes/jar-hashes.txt hashes/Windows-jar-hashes/jar-hashes.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-algorithm-bits'
+          path: algorithm-bits
+      - name: Compare Linux and Windows source-noise raw bits
+        run: python -c "import json,pathlib; p=pathlib.Path('algorithm-bits'); a=json.loads((p/'Linux-algorithm-bits/algorithm-jvm-bits.json').read_text()); b=json.loads((p/'Windows-algorithm-bits/algorithm-jvm-bits.json').read_text()); assert len(a)==20 and a==b; print('All 20 source/dimension raw-bit digests match')"

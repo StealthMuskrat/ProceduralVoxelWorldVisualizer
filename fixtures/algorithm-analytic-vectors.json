@@ -1,0 +1,3080 @@
+{
+  "formatVersion": 1,
+  "oracle": "Independent Python IEEE-double and unsigned SplitMix64 formulas",
+  "vectors": [
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fd8a73eb355c224"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bff0000000000000"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfefbe9c4ddc397e"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fc7bb296c994eb0"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfec55156102b23e"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fcd23f6ff7fe058"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fe4d04e1dbc3f68"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfd4b6f4f177fa80"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfde73c309e0758c"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fc6808516060e50"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fd31207e98099d0"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfe64bb40140c860"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fd45e762a9c28bc"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fda682afe7965dc"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fe7b177bc97da6c"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfe2fc3a0f95abf8"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfc241ee66de48c0"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfedc42b7efd0b22"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfe17c9dc464a80a"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fc629f58e8ec5b8"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fabe5e76c659240"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fca67cec8e2c368"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfee3d93d7190fb0"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fe478c580a67624"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fd8a73eb355c224"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bff0000000000000"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfa6789c188efde0"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfd550861e3ede40"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fede5e4f57c1a86"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfed2c261661f17e"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fe4d04e1dbc3f68"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfd4b6f4f177fa80"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3febe2ae62106390"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3faa55e7e95664a0"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfe3d746b6feb80c"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfeac19dc3e4f72c"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fd45e762a9c28bc"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fda682afe7965dc"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fee4e087cecee94"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfd63ace9d4d6958"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfe170bb18fc17d4"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfdbd0e89d1ab3cc"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfe17c9dc464a80a"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fc629f58e8ec5b8"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3fd25d14f8413414"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "3feaf548afafe220"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfbbd9d271b07ee0"
+    },
+    {
+      "algorithm": "WHITE_HASH",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "frequency": 0.125
+      },
+      "valueBits": "bfbc27807691b640"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "CONSTANT",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "value": -0.0
+      },
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {},
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {},
+      "valueBits": "4028000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {},
+      "valueBits": "4040400000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {},
+      "valueBits": "40700c0000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {},
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {},
+      "valueBits": "4028000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {},
+      "valueBits": "4040400000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {},
+      "valueBits": "40700c0000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {},
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {},
+      "valueBits": "4028000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {},
+      "valueBits": "4040400000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {},
+      "valueBits": "40700c0000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {},
+      "valueBits": "8000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {},
+      "valueBits": "4028000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {},
+      "valueBits": "4040400000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {},
+      "valueBits": "40700c0000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "4010000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {},
+      "valueBits": "c010000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {},
+      "valueBits": "401c800000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {},
+      "valueBits": "c080040000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "4010000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {},
+      "valueBits": "c010000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {},
+      "valueBits": "401c800000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {},
+      "valueBits": "c080040000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "4010000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {},
+      "valueBits": "c010000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {},
+      "valueBits": "401c800000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {},
+      "valueBits": "c080040000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {},
+      "valueBits": "4010000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {},
+      "valueBits": "c010000000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {},
+      "valueBits": "401c800000000000"
+    },
+    {
+      "algorithm": "GRADIENT_Y",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {},
+      "valueBits": "c080040000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "401d7a2e340fc714"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "40442153689e7299"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "40906bc23d9beecf"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "401d7a2e340fc714"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "40442153689e7299"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "40906bc23d9beecf"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "401d7a2e340fc714"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "40442153689e7299"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "40906bc23d9beecf"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "401d7a2e340fc714"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "40442153689e7299"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "40906bc23d9beecf"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "4020000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "404468abd22cffe6"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "409242f572fbd1ed"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "4020000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "404468abd22cffe6"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "409242f572fbd1ed"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "4020000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "404468abd22cffe6"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "409242f572fbd1ed"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "c014000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "0000000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "4020000000000000"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "404468abd22cffe6"
+    },
+    {
+      "algorithm": "SPHERE_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "radius": 5.0
+      },
+      "valueBits": "409242f572fbd1ed"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "3ff0000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40201fe03f61bad0"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "4044825747ee01f3"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000000",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "409074215df40bcf"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "3ff0000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40201fe03f61bad0"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "4044825747ee01f3"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "0000000000000001",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "409074215df40bcf"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "3ff0000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40201fe03f61bad0"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "4044825747ee01f3"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "ffffffffffffffff",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "409074215df40bcf"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "3ff0000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40201fe03f61bad0"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "4044825747ee01f3"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 2,
+      "seedHex": "123456789abcdef0",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "409074215df40bcf"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "3ff6a09e667f3bcd"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40203f81f636b80c"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40449cd2c2ec4a87"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000000",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40924742e25c3450"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "3ff6a09e667f3bcd"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40203f81f636b80c"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40449cd2c2ec4a87"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "0000000000000001",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40924742e25c3450"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "3ff6a09e667f3bcd"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40203f81f636b80c"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40449cd2c2ec4a87"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "ffffffffffffffff",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40924742e25c3450"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -0.0,
+      "y": 0.0,
+      "z": -0.0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "c000000000000000"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "3ff6a09e667f3bcd"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -3,
+      "y": -4,
+      "z": 12,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40203f81f636b80c"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": -31.5,
+      "y": 7.125,
+      "z": 32.5,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40449cd2c2ec4a87"
+    },
+    {
+      "algorithm": "BOX_SDF",
+      "dimension": 3,
+      "seedHex": "123456789abcdef0",
+      "x": 1024.25,
+      "y": -512.5,
+      "z": 256.75,
+      "parameters": {
+        "extentX": 2.0,
+        "extentY": 3.0,
+        "extentZ": 4.0
+      },
+      "valueBits": "40924742e25c3450"
+    }
+  ],
+  "seedVectors": [
+    {
+      "runtimeHex": "0000000000000000",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "0000000000000000",
+      "valueHex": "7dfb54ec27aafe4e"
+    },
+    {
+      "runtimeHex": "0000000000000000",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "0000000000000001",
+      "valueHex": "65916433ca149b56"
+    },
+    {
+      "runtimeHex": "0000000000000000",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "ffffffffffffffff",
+      "valueHex": "a85217ae9198f9de"
+    },
+    {
+      "runtimeHex": "0000000000000000",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "8000000000000000",
+      "valueHex": "ad2c436e051aa192"
+    },
+    {
+      "runtimeHex": "0000000000000000",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "0000000000000000",
+      "valueHex": "46558778d49ffee9"
+    },
+    {
+      "runtimeHex": "0000000000000000",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "0000000000000001",
+      "valueHex": "1134c1bed4224afa"
+    },
+    {
+      "runtimeHex": "0000000000000000",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "ffffffffffffffff",
+      "valueHex": "a653c10f387c17f4"
+    },
+    {
+      "runtimeHex": "0000000000000000",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "8000000000000000",
+      "valueHex": "0eb47dde3b5de826"
+    },
+    {
+      "runtimeHex": "0000000000000001",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "0000000000000000",
+      "valueHex": "4da3f75338e8d7df"
+    },
+    {
+      "runtimeHex": "0000000000000001",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "0000000000000001",
+      "valueHex": "049ad148ad01db2e"
+    },
+    {
+      "runtimeHex": "0000000000000001",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "ffffffffffffffff",
+      "valueHex": "bb1fa188de90c401"
+    },
+    {
+      "runtimeHex": "0000000000000001",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "8000000000000000",
+      "valueHex": "2263defc156f1d0b"
+    },
+    {
+      "runtimeHex": "0000000000000001",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "0000000000000000",
+      "valueHex": "6f0756d7ba038274"
+    },
+    {
+      "runtimeHex": "0000000000000001",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "0000000000000001",
+      "valueHex": "86c1ce3ba9e4f695"
+    },
+    {
+      "runtimeHex": "0000000000000001",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "ffffffffffffffff",
+      "valueHex": "f1947061507cfede"
+    },
+    {
+      "runtimeHex": "0000000000000001",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "8000000000000000",
+      "valueHex": "07306739adc32293"
+    },
+    {
+      "runtimeHex": "ffffffffffffffff",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "0000000000000000",
+      "valueHex": "0514473f8d0a3c68"
+    },
+    {
+      "runtimeHex": "ffffffffffffffff",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "0000000000000001",
+      "valueHex": "baff0c99db87c681"
+    },
+    {
+      "runtimeHex": "ffffffffffffffff",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "ffffffffffffffff",
+      "valueHex": "cdaa60176c82da2c"
+    },
+    {
+      "runtimeHex": "ffffffffffffffff",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "8000000000000000",
+      "valueHex": "7fc2df17315c7fe3"
+    },
+    {
+      "runtimeHex": "ffffffffffffffff",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "0000000000000000",
+      "valueHex": "5b255a38f06edde9"
+    },
+    {
+      "runtimeHex": "ffffffffffffffff",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "0000000000000001",
+      "valueHex": "0d107348a0615196"
+    },
+    {
+      "runtimeHex": "ffffffffffffffff",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "ffffffffffffffff",
+      "valueHex": "142ccd9a6e6a405c"
+    },
+    {
+      "runtimeHex": "ffffffffffffffff",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "8000000000000000",
+      "valueHex": "47e0f278c07436ea"
+    },
+    {
+      "runtimeHex": "8000000000000000",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "0000000000000000",
+      "valueHex": "9f5141b7bc124f3a"
+    },
+    {
+      "runtimeHex": "8000000000000000",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "0000000000000001",
+      "valueHex": "58f139fe2696000d"
+    },
+    {
+      "runtimeHex": "8000000000000000",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "ffffffffffffffff",
+      "valueHex": "5cc8539816af3870"
+    },
+    {
+      "runtimeHex": "8000000000000000",
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "offsetHex": "8000000000000000",
+      "valueHex": "bca2317fbc08caf1"
+    },
+    {
+      "runtimeHex": "8000000000000000",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "0000000000000000",
+      "valueHex": "6dc0838d87967843"
+    },
+    {
+      "runtimeHex": "8000000000000000",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "0000000000000001",
+      "valueHex": "8991904eb0861ed8"
+    },
+    {
+      "runtimeHex": "8000000000000000",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "ffffffffffffffff",
+      "valueHex": "d7c2357ac1da7fde"
+    },
+    {
+      "runtimeHex": "8000000000000000",
+      "uuid": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "offsetHex": "8000000000000000",
+      "valueHex": "bc1f1a505f5fa678"
+    }
+  ]
+}

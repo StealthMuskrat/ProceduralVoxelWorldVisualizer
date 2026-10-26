@@ -256,9 +256,24 @@ public final class ApplicationSettingsPanel {
         }
       }
       case NUMBER, INTEGER -> {
-        double edited = number("Value", value.asDouble(), spec.minimum(), spec.maximum());
-        if (Double.doubleToLongBits(edited) != Double.doubleToLongBits(value.asDouble()))
-          put(spec, ProjectIO.JSON.valueToTree(edited));
+        if (spec.kind() == CreationRegistry.Kind.INTEGER && !spec.options().isEmpty()) {
+          int current = value.intValue();
+          String label =
+              current >= 0 && current < spec.options().size()
+                  ? draft.option(spec.id(), spec.options().get(current))
+                  : "Invalid index " + value;
+          if (ImGui.beginCombo("Value", label)) {
+            for (int i = 0; i < spec.options().size(); i++)
+              if (ImGui.selectable(
+                  draft.option(spec.id(), spec.options().get(i)) + "###source-index-" + i,
+                  current == i)) put(spec, ProjectIO.JSON.valueToTree(i));
+            ImGui.endCombo();
+          }
+        } else {
+          double edited = number("Value", value.asDouble(), spec.minimum(), spec.maximum());
+          if (Double.doubleToLongBits(edited) != Double.doubleToLongBits(value.asDouble()))
+            put(spec, ProjectIO.JSON.valueToTree(edited));
+        }
       }
       case VECTOR2, VECTOR3 -> {
         var array = value.deepCopy();

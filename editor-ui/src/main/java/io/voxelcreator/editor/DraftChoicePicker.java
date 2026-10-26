@@ -36,6 +36,7 @@ public final class DraftChoicePicker {
   private final Map<String, float[]> options = new HashMap<>();
   private boolean open;
   private int submitted;
+  private float[] buttonCenter;
 
   public void draw(
       String label, String current, List<Choice> choices, String none, Consumer<String> change) {
@@ -49,11 +50,15 @@ public final class DraftChoicePicker {
                 .orElse("Unavailable choice");
     int id = ImGui.getID(label);
     ImGui.pushID(id);
-    if (ImGui.button(
+    boolean clicked =
+        ImGui.button(
             AppMetadata.uiText(preview) + "  v###draft-choice",
             Math.max(100, Math.min(330, ImGui.getContentRegionAvailX() * .7f)),
-            0)
-        || open) {
+            0);
+    var lo = ImGui.getItemRectMin();
+    var hi = ImGui.getItemRectMax();
+    buttonCenter = new float[] {(lo.x + hi.x) / 2, (lo.y + hi.y) / 2};
+    if (clicked || open) {
       ImGui.openPopup("draft-choices");
       open = false;
     }
@@ -100,6 +105,10 @@ public final class DraftChoicePicker {
       ImGui.endPopup();
     }
     ImGui.popID();
+  }
+
+  float[] buttonCenter() {
+    return buttonCenter.clone();
   }
 
   void probeOpen() {

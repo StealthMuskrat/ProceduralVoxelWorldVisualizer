@@ -137,3 +137,9 @@ See [field semantics](FIELD_CALCULUS_AND_DISTANCE.md) for exact stencils, shape 
 `GenerationTrace.Details` adds `settingTargets()` (actual layer/override UUID and logical key), `comparisons()` (effective reached comparisons) and `primaryField()` (bounded canonical primary-noise observations). Existing 7-, 11- and 12-argument constructors supply empty metadata. Record-pattern/reflection clients must migrate. World trace shares a 1024-event allowance across primary samples; other sampled fields retain their existing gate/driver/parameter values and UUID links. Top-level trace/step collections are now defensively copied.
 
 See [trace semantics and limits](TRACE_EXPLANATIONS_AND_NAVIGATION.md) and `registries/trace-navigation.json`. Project/user/app schema shapes remain unchanged.
+
+## Canonical source algorithm signatures
+
+`NoiseAlgorithmRegistry.ITEMS`, `KEYS`, `parameters(key,dimension)` and `parameter(key)` expose immutable source signatures. Each parameter includes engine and narrower creation-preset ranges, default, integer/choice indices, dimensionality, visibility and help. `validate()` raises `NoiseAlgorithmRegistry.Problem` with the exact parameter key. `NoiseAlgorithms.compile` uses this contract; source formulas and 64-bit seed mixing are unchanged. Source compiler issues use `algorithm/parameters/<key>` for control navigation.
+
+Known inactive values remain stored, with legacy global frequency and FastNoiseLite Cellular-index checks preserved. Negative active SDF sizes and nonfinite float narrowing now reject. Named choices remain numeric in serialized projects/profiles. See [compatibility and reference-vector policy](SOURCE_ALGORITHM_CONTRACTS.md). Project format remains 2; source registry version is 2.

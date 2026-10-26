@@ -109,29 +109,17 @@ public final class CreationRegistry {
       for (String algorithm : NoiseAlgorithms.KEYS) {
         String prefix = root + ".algorithm." + algorithm + ".";
         String category = group + " / " + algorithm;
-        if (List.of("OPEN_SIMPLEX_2", "PERLIN", "VALUE", "VALUE_CUBIC", "CELLULAR", "WHITE_HASH")
-            .contains(algorithm))
-          number(m, prefix + "frequency", category, "Frequency", .01, 1e-9, 1e6);
-        if (List.of("OPEN_SIMPLEX_2", "PERLIN", "VALUE", "VALUE_CUBIC", "CELLULAR")
-            .contains(algorithm)) {
-          integer(m, prefix + "octaves", category, "Octaves", 3, 1, 16);
-          integer(m, prefix + "fractal", category, "Fractal index", 0, 0, 3);
-          number(m, prefix + "lacunarity", category, "Lacunarity", 2, 1, 8);
-          number(m, prefix + "gain", category, "Gain", .5, 0, 1);
-          number(m, prefix + "pingPongStrength", category, "Ping pong strength", 2, 0, 8);
-        }
-        if (algorithm.equals("CELLULAR")) {
-          integer(m, prefix + "cellularDistance", category, "Distance index", 1, 0, 3);
-          integer(m, prefix + "cellularReturn", category, "Return index", 1, 0, 6);
-          number(m, prefix + "jitter", category, "Jitter", 1, 0, 1);
-        }
-        if (algorithm.equals("CONSTANT"))
-          number(m, prefix + "value", category, "Constant value", 0, -1e6, 1e6);
-        if (algorithm.equals("SPHERE_SDF"))
-          number(m, prefix + "radius", category, "Radius", 16, 0, 1e6);
-        if (algorithm.equals("BOX_SDF"))
-          for (String axis : dimension == 2 ? List.of("X", "Z") : List.of("X", "Y", "Z"))
-            number(m, prefix + "extent" + axis, category, "Extent " + axis, 16, 0, 1e6);
+        for (var control : NoiseAlgorithmRegistry.parameters(algorithm, dimension))
+          add(
+              m,
+              prefix + control.key(),
+              category,
+              control.label(),
+              control.integer() ? Kind.INTEGER : Kind.NUMBER,
+              control.defaultValue(),
+              control.presetMinimum(),
+              control.presetMaximum(),
+              control.choices());
       }
     }
     for (var entry : ProcessingRegistry.ITEMS.entrySet()) {

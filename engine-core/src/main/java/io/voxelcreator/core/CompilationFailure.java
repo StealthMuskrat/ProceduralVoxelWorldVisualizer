@@ -19,7 +19,11 @@ public final class CompilationFailure extends IllegalArgumentException {
             "/noise/"
                 + resource
                 + (item == null ? "" : "/control/" + item)
-                + (parameter == null ? "" : "/parameters/" + parameter),
+                + (parameter == null
+                    ? ""
+                    : item == null && parameter.startsWith("algorithm/")
+                        ? "/" + parameter
+                        : "/parameters/" + parameter),
             resource,
             item,
             parameter);

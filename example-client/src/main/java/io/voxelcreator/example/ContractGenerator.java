@@ -261,6 +261,7 @@ public final class ContractGenerator {
     ((ObjectNode) defs.path("Operation").path("properties").path("interpretation"))
         .set("enum", JSON.valueToTree(WorldSemantics.INTERPRETATIONS));
     extensionSchema(defs);
+    sourceAlgorithmSchema(defs);
     writeJSON(root.resolve("schema/project.schema.json"), schema);
     for (String[] editor :
         List.of(
@@ -423,16 +424,7 @@ public final class ContractGenerator {
     }
 
     writeJSON(
-        root.resolve("registries/algorithm-registry.json"),
-        Map.of(
-            "registryVersion",
-            1,
-            "engineVersion",
-            "0.1.0",
-            "algorithms",
-            NoiseAlgorithms.KEYS,
-            "sourceImplementation",
-            "FastNoiseLite 1.1.1, double marked coordinates; float output widened to double"));
+        root.resolve("registries/algorithm-registry.json"), NoiseAlgorithmRegistry.registry());
     writeJSON(root.resolve("registries/noise-processing-registry.json"), processingRegistry());
     var funcs = new LinkedHashMap<String, Object>();
     Expression.FUNCTIONS.forEach(
@@ -536,6 +528,52 @@ public final class ContractGenerator {
             "0.1.0",
             "vectors",
             Map.of("2^3^2", 512, "true ? 7 : 1/0", 7, "mod(-1,3)", 2, "remap(0.5,0,1,10,20)", 15)));
+  }
+
+  private static void sourceAlgorithmSchema(ObjectNode defs) {
+    ObjectNode map = (ObjectNode) defs.path("Algorithm").path("properties").path("parameters");
+    map.put("additionalProperties", false);
+    var known = obj();
+    for (var spec : NoiseAlgorithmRegistry.ITEMS.values())
+      for (var control : spec.parameters()) {
+        var type = obj().put("type", control.integer() ? "integer" : "number");
+        if (control.key().equals("frequency"))
+          type.put("minimum", control.minimum()).put("maximum", control.maximum());
+        known.set(control.key(), type);
+      }
+    map.set("properties", known);
+    var rules = JSON.createArrayNode();
+    for (var spec : NoiseAlgorithmRegistry.ITEMS.values()) {
+      var controls = obj();
+      for (var control : spec.parameters()) {
+        if (control.threeDimensional()) continue;
+        controls.set(
+            control.key(),
+            obj()
+                .put("type", control.integer() ? "integer" : "number")
+                .put("minimum", control.minimum())
+                .put("maximum", control.maximum()));
+      }
+      var condition = obj();
+      condition.set("properties", obj().set("key", obj().put("const", spec.key())));
+      condition.set("required", JSON.valueToTree(List.of("key")));
+      var rule = obj();
+      rule.set("if", condition);
+      rule.set(
+          "then",
+          obj().set("properties", obj().set("parameters", obj().set("properties", controls))));
+      rules.add(rule);
+    }
+    ((ObjectNode) defs.path("Algorithm")).set("allOf", rules);
+    var activeY = obj();
+    activeY.set("properties", obj().set("extentY", obj().put("type", "number").put("minimum", 0)));
+    var box = obj();
+    box.set("if", obj().set("properties", obj().set("key", obj().put("const", "BOX_SDF"))));
+    box.set("then", obj().set("properties", obj().set("parameters", activeY)));
+    var dimension = obj();
+    dimension.set("if", obj().set("properties", obj().set("dimension", obj().put("const", 3))));
+    dimension.set("then", obj().set("properties", obj().set("algorithm", box)));
+    ((ObjectNode) defs.path("Noise")).set("allOf", JSON.createArrayNode().add(dimension));
   }
 
   public static Map<String, Object> processingRegistry() {

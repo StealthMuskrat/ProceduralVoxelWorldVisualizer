@@ -168,10 +168,7 @@ public final class AppMetadata {
     }
     for (String key : NoiseAlgorithms.KEYS) {
       var control =
-          new Control(
-              key,
-              "Source algorithm " + key,
-              "Algorithm identity and valid parameters remain defined by the engine registry.");
+          new Control(key, "Source algorithm " + key, NoiseAlgorithmRegistry.get(key).semantics());
       control.group = "Algorithms";
       m.controls.put("algorithm." + key, control);
     }

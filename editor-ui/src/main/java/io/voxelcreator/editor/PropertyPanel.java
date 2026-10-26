@@ -257,6 +257,8 @@ public final class PropertyPanel {
 
   public void draw() {
     parameterCenters.clear();
+    sourceControlCenters.clear();
+    sourceControlKeys.clear();
     resourcePicker.synchronize();
     ImGui.begin("Properties");
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Properties", 1f));
@@ -366,6 +368,7 @@ public final class PropertyPanel {
             noiseChanged();
           });
       metadataTooltip("noise.algorithm");
+      ImGui.textWrapped(NoiseAlgorithmRegistry.get(n.algorithm.key).semantics());
       revealSearchField(null, "algorithm");
       longText(
           state.metadata.label("noise.seedOffset", "Seed offset"),
@@ -373,23 +376,34 @@ public final class PropertyPanel {
           v -> n.seedOffset = v);
       metadataTooltip("noise.seedOffset");
       revealSearchField(null, "seedOffset");
-      if (!Set.of("CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF").contains(n.algorithm.key)) {
-        algorithmNumber(n, "frequency", .01);
-        if (n.algorithm.key.equals("CELLULAR")) {
-          algorithmNumber(n, "cellularDistance", 1);
-          algorithmNumber(n, "cellularReturn", 1);
-          algorithmNumber(n, "jitter", 1);
-        }
-        algorithmNumber(n, "fractal", 0);
-        algorithmNumber(n, "octaves", 3);
-        algorithmNumber(n, "lacunarity", 2);
-        algorithmNumber(n, "gain", .5);
-      } else if (n.algorithm.key.equals("CONSTANT")) algorithmNumber(n, "value", 0);
-      else if (n.algorithm.key.equals("SPHERE_SDF")) algorithmNumber(n, "radius", 16);
-      else if (n.algorithm.key.equals("BOX_SDF")) {
-        for (String axis : List.of("X", "Y", "Z"))
-          if (!axis.equals("Y") || n.dimension == 3) algorithmNumber(n, "extent" + axis, 16);
+      sourceControlKeys.clear();
+      for (var control : NoiseAlgorithmRegistry.parameters(n.algorithm.key, n.dimension)) {
+        boolean targeted =
+            navigationTarget != null
+                && ("algorithm/parameters/" + control.key()).equals(navigationTarget.parameter());
+        if (control.visible(n.algorithm) || targeted) algorithmParameter(n, control);
       }
+      if (navigationTarget != null
+          && navigationTarget.parameter() != null
+          && navigationTarget.parameter().startsWith("algorithm/parameters/")) {
+        String key = navigationTarget.parameter().substring("algorithm/parameters/".length());
+        if (!sourceControlKeys.contains(key) && n.algorithm.parameters.containsKey(key)) {
+          try {
+            ImGui.textWrapped("Stored inactive parameter requires repair for legacy validation.");
+            algorithmParameter(n, NoiseAlgorithmRegistry.parameter(key));
+          } catch (NoiseAlgorithmRegistry.Problem ignored) {
+          }
+        }
+      }
+      long storedInactive =
+          n.algorithm.parameters.keySet().stream()
+              .filter(
+                  key ->
+                      NoiseAlgorithmRegistry.parameters(n.algorithm.key, n.dimension).stream()
+                          .noneMatch(p -> p.key().equals(key)))
+              .count();
+      if (storedInactive > 0)
+        ImGui.textDisabled(storedInactive + " known inactive source parameters retained.");
     }
     if (focusedControl != null
         && n.coordinateTransforms.stream().anyMatch(i -> i.uuid.equals(focusedControl)))
@@ -1309,13 +1323,81 @@ public final class PropertyPanel {
     if (control != null && ImGui.isItemHovered()) ImGui.setTooltip(control.tooltip);
   }
 
-  private void algorithmNumber(Noise n, String key, double def) {
-    f.number(
-        state.metadata.label(
-            "noise" + n.dimension + "D.algorithm." + n.algorithm.key + "." + key, key),
-        n.algorithm.parameters.getOrDefault(key, def),
-        v -> n.algorithm.parameters.put(key, v));
-    metadataTooltip("noise" + n.dimension + "D.algorithm." + n.algorithm.key + "." + key);
+  private final Set<String> sourceControlKeys = new LinkedHashSet<>();
+  private final Map<String, float[]> sourceControlCenters = new HashMap<>();
+
+  Set<String> probeSourceControls() {
+    return Set.copyOf(sourceControlKeys);
+  }
+
+  float[] probeSourceControl(String key) {
+    return sourceControlCenters.get(key);
+  }
+
+  float[] probeSourceOption(String key) {
+    return draftChoices.option(key);
+  }
+
+  private void algorithmParameter(Noise noise, NoiseAlgorithmRegistry.Parameter control) {
+    String key = control.key(),
+        id = "noise" + noise.dimension + "D.algorithm." + noise.algorithm.key + "." + key;
+    sourceControlKeys.add(key);
+    double current = noise.algorithm.parameters.getOrDefault(key, control.defaultValue());
+    if (!control.choices().isEmpty()) {
+      var options = new ArrayList<DraftChoicePicker.Choice>();
+      for (int i = 0; i < control.choices().size(); i++)
+        options.add(
+            new DraftChoicePicker.Choice(
+                Integer.toString(i),
+                state.metadata.option(id, control.choices().get(i)),
+                control.choices().get(i)));
+      String cache = "source-choice:" + id;
+      var previous = catalogues.get(cache);
+      if (!options.equals(previous)) {
+        previous = List.copyOf(options);
+        catalogues.put(cache, previous);
+      }
+      draftChoices.draw(
+          state.metadata.label(id, control.label()),
+          Double.isFinite(current) && current == Math.rint(current)
+              ? Integer.toString((int) current)
+              : Double.toString(current),
+          previous,
+          null,
+          value -> {
+            noise.algorithm.parameters.put(key, Double.parseDouble(value));
+            noiseChanged();
+          });
+    } else {
+      ImGui.pushID(id);
+      double[] slider = {current};
+      if (ImGui.sliderScalar(
+          "##source-slider",
+          slider,
+          control.presetMinimum(),
+          control.presetMaximum(),
+          control.integer() ? "%.0f" : "%.5f")) {
+        noise.algorithm.parameters.put(
+            key, control.integer() ? StrictMath.rint(slider[0]) : slider[0]);
+        noiseChanged();
+        current = noise.algorithm.parameters.get(key);
+      }
+      f.number(
+          state.metadata.label(id, control.label()),
+          current,
+          value -> noise.algorithm.parameters.put(key, value));
+      ImGui.popID();
+    }
+    var lo = ImGui.getItemRectMin();
+    var hi = ImGui.getItemRectMax();
+    sourceControlCenters.put(
+        key,
+        control.choices().isEmpty()
+            ? new float[] {lo.x + Math.min(80, (hi.x - lo.x) * .25f), (lo.y + hi.y) / 2}
+            : draftChoices.buttonCenter());
+    f.tooltip(
+        control.help() + " Engine range [" + control.minimum() + ", " + control.maximum() + "].");
+    metadataTooltip(id);
     revealSearchField(null, "algorithm/parameters/" + key);
   }
 

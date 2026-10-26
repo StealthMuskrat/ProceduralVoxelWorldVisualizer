@@ -13,49 +13,10 @@ public final class NoiseAlgorithms {
     double sample(double x, double y, double z);
   }
 
-  public static final List<String> KEYS =
-      List.of(
-          "OPEN_SIMPLEX_2",
-          "PERLIN",
-          "VALUE",
-          "VALUE_CUBIC",
-          "CELLULAR",
-          "WHITE_HASH",
-          "CONSTANT",
-          "GRADIENT_Y",
-          "SPHERE_SDF",
-          "BOX_SDF");
+  public static final List<String> KEYS = NoiseAlgorithmRegistry.KEYS;
 
   public static Field compile(Algorithm a, int dimension, long seed) {
-    for (var parameter : a.parameters.entrySet()) {
-      double value = parameter.getValue();
-      if (!Double.isFinite(value))
-        throw new IllegalArgumentException(
-            "Finite algorithm parameter required: " + parameter.getKey());
-      if (Set.of("octaves", "fractal", "cellularDistance", "cellularReturn")
-              .contains(parameter.getKey())
-          && value != StrictMath.rint(value))
-        throw new IllegalArgumentException(
-            "Integer algorithm parameter required: " + parameter.getKey());
-    }
-    if (!KEYS.contains(a.key)) throw new IllegalArgumentException("Unknown algorithm " + a.key);
-    for (String p : a.parameters.keySet())
-      if (!Set.of(
-              "frequency",
-              "value",
-              "radius",
-              "extentX",
-              "extentY",
-              "extentZ",
-              "cellularDistance",
-              "cellularReturn",
-              "jitter",
-              "fractal",
-              "octaves",
-              "lacunarity",
-              "gain",
-              "pingPongStrength")
-          .contains(p)) throw new IllegalArgumentException("Unsupported algorithm parameter " + p);
+    NoiseAlgorithmRegistry.validate(a, dimension);
     double frequency = a.parameters.getOrDefault("frequency", .01);
     if (!Double.isFinite(frequency) || frequency <= 0 || frequency > 1000000)
       throw new IllegalArgumentException("Frequency must be in (0,1000000]");
