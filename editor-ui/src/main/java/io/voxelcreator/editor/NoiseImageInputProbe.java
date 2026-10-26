@@ -12,6 +12,7 @@ public final class NoiseImageInputProbe {
   private static float px, py;
   private static final float WIDTH = 640, HEIGHT = 360;
   private static int changes;
+  private static boolean openGuardPopup, closeGuardPopup, otherFocus, restoreFocus;
   private static final NoiseImageInput input = new NoiseImageInput();
 
   public static void main(String[] args) throws Exception {
@@ -110,6 +111,60 @@ public final class NoiseImageInputProbe {
         require(!pose.equals(captureBefore), "Fresh drag after Escape failed");
         io.addMouseButtonEvent(0, false);
         frame();
+        // An open popup supersedes capture, even while the button is still held.
+        io.addMouseButtonEvent(0, true);
+        frame();
+        io.addMousePosEvent(px + WIDTH / 2 + 108, py + HEIGHT / 2 + 60);
+        frame();
+        var popupBefore = pose;
+        int popupChanges = changes;
+        openGuardPopup = true;
+        io.addMousePosEvent(px + WIDTH / 2 + 124, py + HEIGHT / 2 + 80);
+        frame();
+        io.addMouseWheelEvent(0, 2);
+        frame();
+        require(
+            pose.equals(popupBefore) && changes == popupChanges, "Popup did not block navigation");
+        closeGuardPopup = true;
+        frame();
+        frames(2);
+        io.addMousePosEvent(px + WIDTH / 2 + 140, py + HEIGHT / 2 + 90);
+        frame();
+        var popupAfter = pose;
+        require(pose.equals(popupBefore), "Held drag resumed after popup closed");
+        io.addMouseButtonEvent(0, false);
+        frame();
+        restoreFocus = true;
+        frame();
+        io.addMouseButtonEvent(0, true);
+        frame();
+        io.addMousePosEvent(px + WIDTH / 2 + 156, py + HEIGHT / 2 + 100);
+        frame();
+        require(!pose.equals(popupBefore), "Fresh drag after popup failed");
+        var focusBefore = pose;
+        int focusChanges = changes;
+        otherFocus = true;
+        io.addMousePosEvent(px + WIDTH / 2 + 172, py + HEIGHT / 2 + 110);
+        frame();
+        require(
+            pose.equals(focusBefore) && changes == focusChanges,
+            "Window focus did not block capture");
+        otherFocus = false;
+        restoreFocus = true;
+        frame();
+        io.addMousePosEvent(px + WIDTH / 2 + 188, py + HEIGHT / 2 + 120);
+        frame();
+        var focusAfter = pose;
+        require(pose.equals(focusBefore), "Held drag resumed after focus returned");
+        io.addMouseButtonEvent(0, false);
+        frame();
+        io.addMouseButtonEvent(0, true);
+        frame();
+        io.addMousePosEvent(px + WIDTH / 2 + 204, py + HEIGHT / 2 + 130);
+        frame();
+        require(!pose.equals(focusBefore), "Fresh drag after focus recovery failed");
+        io.addMouseButtonEvent(0, false);
+        frame();
         input.reset();
         pose = new NoiseImageNavigation(pose.x(), pose.z(), NoiseImageNavigation.MIN_STEP);
         io.addMousePosEvent(px + WIDTH * .25f, py + HEIGHT * .35f);
@@ -128,7 +183,14 @@ public final class NoiseImageInputProbe {
             out.resolve("image-input-native.json"),
             ProjectIO.JSON.writeValueAsString(
                 Map.ofEntries(
-                    Map.entry("formatVersion", 2),
+                    Map.entry("formatVersion", 3),
+                    Map.entry("popupBefore", popupBefore),
+                    Map.entry("popupAfter", popupAfter),
+                    Map.entry("focusBefore", focusBefore),
+                    Map.entry("focusAfter", focusAfter),
+                    Map.entry("popupBlocked", true),
+                    Map.entry("focusBlocked", true),
+                    Map.entry("guardRecovery", true),
                     Map.entry("captureBefore", captureBefore),
                     Map.entry("outsidePan", outsidePan),
                     Map.entry("outsideDx", dx),
@@ -162,6 +224,18 @@ public final class NoiseImageInputProbe {
 
   private static void frame() {
     ImGui.newFrame();
+    if (otherFocus) {
+      ImGui.setNextWindowPos(760, 30, ImGuiCond.Always);
+      ImGui.setNextWindowSize(200, 200, ImGuiCond.Always);
+      ImGui.setNextWindowFocus();
+      ImGui.begin("Other input owner");
+      ImGui.text("Focus owner");
+      ImGui.end();
+    }
+    if (restoreFocus) {
+      ImGui.setNextWindowFocus();
+      restoreFocus = false;
+    }
     ImGui.setNextWindowPos(30, 30, ImGuiCond.Always);
     ImGui.setNextWindowSize(700, 450, ImGuiCond.Always);
     ImGui.begin(
@@ -170,10 +244,22 @@ public final class NoiseImageInputProbe {
     px = ImGui.getCursorScreenPosX();
     py = ImGui.getCursorScreenPosY();
     ImGui.invisibleButton("image", WIDTH, HEIGHT);
+    if (openGuardPopup) {
+      ImGui.openPopup("Input guard");
+      openGuardPopup = false;
+    }
     var next = input.navigate(pose, ImGui.isItemHovered(), px, py, WIDTH, HEIGHT);
     if (!next.equals(pose)) {
       pose = next;
       changes++;
+    }
+    if (ImGui.beginPopup("Input guard")) {
+      ImGui.text("Navigation blocked");
+      if (closeGuardPopup) {
+        ImGui.closeCurrentPopup();
+        closeGuardPopup = false;
+      }
+      ImGui.endPopup();
     }
     ImGui.end();
     ImGui.render();

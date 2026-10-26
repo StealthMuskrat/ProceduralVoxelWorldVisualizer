@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiFocusedFlags;
 import imgui.flag.ImGuiKey;
 
 /** Per-surface production ImGui event routing and captured 2D pan ownership. */
@@ -14,6 +15,11 @@ final class NoiseImageInput {
 
   NoiseImageNavigation navigate(
       NoiseImageNavigation before, boolean hovered, float px, float py, float width, float height) {
+    // Modal/context UI or another focused window supersedes this surface's gesture.
+    if (ShortcutKeys.popup() || !ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows)) {
+      reset();
+      return before;
+    }
     var io = ImGui.getIO();
     // External navigation (e.g. teleport) supersedes a held gesture.
     if (baseline != null && !before.equals(last)) reset();
