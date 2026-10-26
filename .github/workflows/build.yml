@@ -177,6 +177,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveControlsProbe build/curve-controls
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveControlsConsumer build/curve-controls/curve-controls-project.json
           python scripts/verify_curve_controls.py build/curve-controls
+      - name: Exact 2D image row cache reference
+        run: |
+          java -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImageRowsReference build/image-rows
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ImageRowsConsumer build/image-rows
+          python scripts/verify_image_rows.py build/image-rows
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -212,6 +217,7 @@ jobs:
             build/curve-preview/
             build/curve-wrapping/
             build/curve-controls/
+            build/image-rows/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -500,6 +506,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_curve_controls.py build/curve-controls
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows exact 2D image row cache reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImageRowsReference build/image-rows
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ImageRowsConsumer build/image-rows
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_image_rows.py build/image-rows
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -559,6 +574,7 @@ jobs:
             build/curve-preview/
             build/curve-wrapping/
             build/curve-controls/
+            build/image-rows/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/

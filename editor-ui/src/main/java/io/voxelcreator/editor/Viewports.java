@@ -43,6 +43,8 @@ public final class Viewports implements AutoCloseable {
     final int kind;
     final GlViewport gl = new GlViewport();
     final Camera camera = new Camera();
+    final NoiseImageRows imageRows = new NoiseImageRows();
+    NoiseImageRows.Statistics imageStatistics;
     UUID noise, stage, keyNoise;
     long keyRevision = -1, rebuildSerial = 0, compileId = 0;
     String geometryKey = "",
@@ -214,7 +216,24 @@ public final class Viewports implements AutoCloseable {
       float[] histogram,
       NoiseAlgorithms.Field sampler,
       String error,
-      VolumeData volume) {
+      VolumeData volume,
+      NoiseImageRows.Statistics imageStatistics) {
+    Preview(
+        long epoch,
+        Mesh mesh,
+        int[] image,
+        double[] raw,
+        int width,
+        Vector3d origin,
+        int[] palette,
+        float[] histogram,
+        NoiseAlgorithms.Field sampler,
+        String error,
+        VolumeData volume) {
+      this(
+          epoch, mesh, image, raw, width, origin, palette, histogram, sampler, error, volume, null);
+    }
+
     Preview(
         long epoch,
         Mesh mesh,
@@ -226,7 +245,7 @@ public final class Viewports implements AutoCloseable {
         float[] histogram,
         NoiseAlgorithms.Field sampler,
         String error) {
-      this(epoch, mesh, image, raw, width, origin, palette, histogram, sampler, error, null);
+      this(epoch, mesh, image, raw, width, origin, palette, histogram, sampler, error, null, null);
     }
   }
 
@@ -262,6 +281,10 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void draw() {
+    views[0].imageRows.budget(
+        Math.min(
+            (long) state.user.performance.cacheMiB << 20,
+            Math.max(0, ((long) state.user.performance.sceneCpuMiB << 20) - 64L * 256 * 256)));
     ImGui.begin("Visualizers");
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Visualizers", 1f));
     if (ImGui.beginTabBar("view-tabs")) {
@@ -299,6 +322,9 @@ public final class Viewports implements AutoCloseable {
     properties.assertSmokeWorldControlsRendered();
     properties.assertSmokeExpressionRendered();
     System.out.println("EXACT_WORLD_STAGE_PREVIEWS_PASS");
+    if (!smokeImageRecolor || !smokeImagePan || !smokeImageReturn)
+      throw new IllegalStateException("2D image cache reuse was not observed");
+    System.out.println("EXACT_2D_ROW_CACHE_NATIVE_PASS recolor / one-row pan / return view");
     System.out.println("THREE_ENGINE_VIEWPORTS_PASS");
     System.out.println("RAYMARCHED_VOLUME_AND_XYZ_SLICES_PASS");
   }
@@ -316,6 +342,19 @@ public final class Viewports implements AutoCloseable {
    * Smoke phases advance only after the actual stage preview completed, with timeout in Desktop.
    */
   public boolean smokePhaseReady(int frame) {
+    if (frame == 39 || frame == 59 || frame == 79 || frame == 99) {
+      var v = views[0];
+      if (!v.completed || v.failedPreview || v.activeJob || v.dirty || v.imageStatistics == null)
+        return false;
+      var stats = v.imageStatistics;
+      if (frame == 59) smokeImageRecolor = stats.sampledRows() == 0 && stats.reusedRows() == 256;
+      if (frame == 79) smokeImagePan = stats.sampledRows() == 1 && stats.reusedRows() == 255;
+      if (frame == 99) smokeImageReturn = stats.sampledRows() == 0 && stats.reusedRows() == 256;
+      return frame == 39
+          || frame == 59 && smokeImageRecolor
+          || frame == 79 && smokeImagePan
+          || frame == 99 && smokeImageReturn;
+    }
     String required =
         switch (frame) {
           case 274 -> "Only Changes";
@@ -327,7 +366,21 @@ public final class Viewports implements AutoCloseable {
     return required == null || views[2].completedModes.contains(required);
   }
 
+  private boolean smokeImageRecolor, smokeImagePan, smokeImageReturn;
+
   public void smokePhase(int frame) {
+    if (frame == 40) {
+      views[0].mode = "Heatmap";
+      mark(views[0]);
+    }
+    if (frame == 60) {
+      views[0].panZ += views[0].step;
+      mark(views[0]);
+    }
+    if (frame == 80) {
+      views[0].panZ -= views[0].step;
+      mark(views[0]);
+    }
     if (frame == 335 || frame == 355)
       properties.smokeWorldControls(frame == 335 ? "Numeric parameters" : null);
     if (frame == 365 || frame == 385 || frame == 400 || frame == 415)
@@ -604,6 +657,7 @@ public final class Viewports implements AutoCloseable {
         v.origin.set(ready.origin);
         v.gl.setPalette(ready.palette);
         v.raw = ready.raw;
+        if (v.kind == 0) v.imageStatistics = ready.imageStatistics;
         v.hoverSampler = ready.sampler;
         v.histogram = ready.histogram;
         v.message = "Ready";
@@ -1175,6 +1229,10 @@ public final class Viewports implements AutoCloseable {
     double centerY = v.fixed ? v.panY : v.camera.flying ? v.camera.position.y : v.camera.focus.y;
     boolean fixed = v.fixed;
     final long cacheBudget = (long) state.user.performance.cacheMiB * 1024 * 1024;
+    final boolean freshImage = v.force;
+    final long imageBudget =
+        Math.min(
+            cacheBudget, Math.max(0, ((long) state.user.performance.sceneCpuMiB << 20) - working));
     v.force = false;
     v.dirty = false;
     v.activeJob = true;
@@ -1201,6 +1259,23 @@ public final class Viewports implements AutoCloseable {
                     float[] histogram = new float[64];
                     var compiler = new NoiseCompiler(snapshot, snapshot.project.seed);
                     var sampler = compiler.compile(noise);
+                    NoiseImageRows.Statistics imageStatistics = null;
+                    if (kind == 0) {
+                      var sampled =
+                          v.imageRows.sample(
+                              PreviewIdentity.of(snapshot, 0, noise),
+                              epoch,
+                              sampler,
+                              side,
+                              panX,
+                              panZ,
+                              step,
+                              imageBudget,
+                              freshImage,
+                              new CancellationToken());
+                      raw = sampled.copyValues();
+                      imageStatistics = sampled.statistics();
+                    }
                     for (int z = 0; z < side; z++) {
                       if (Thread.currentThread().isInterrupted()) return;
                       for (int x = 0; x < side; x++) {
@@ -1210,7 +1285,7 @@ public final class Viewports implements AutoCloseable {
                             vv = (slicePlane == SlicePlane.Z ? origin.y : origin.z) + z * step;
                         double value =
                             kind == 0
-                                ? sampler.sample(wx, 0, wz)
+                                ? raw[z * side + x]
                                 : sampler.sample(
                                     slicePlane.x(u, vv, slice),
                                     slicePlane.y(u, vv, slice),
@@ -1224,8 +1299,18 @@ public final class Viewports implements AutoCloseable {
                     publish(
                         v,
                         new Preview(
-                            epoch, null, pixels, raw, side, origin, palette, histogram, sampler,
-                            null));
+                            epoch,
+                            null,
+                            pixels,
+                            raw,
+                            side,
+                            origin,
+                            palette,
+                            histogram,
+                            sampler,
+                            null,
+                            null,
+                            imageStatistics));
                   } else if (kind == 1 && mode.equals("Volume")) {
                     var sampler = new NoiseCompiler(snapshot, snapshot.project.seed).compile(noise);
                     var volume = VolumeData.sample(n, origin.x, origin.y, origin.z, sampler);
@@ -1603,6 +1688,7 @@ public final class Viewports implements AutoCloseable {
       if (v.job != null) v.job.cancel(true);
       state.background.purge();
       stopStream(v);
+      v.imageRows.close();
       v.gl.close();
     }
   }
