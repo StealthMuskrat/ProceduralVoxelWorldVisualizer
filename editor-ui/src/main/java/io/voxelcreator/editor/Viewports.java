@@ -716,16 +716,12 @@ public final class Viewports implements AutoCloseable {
     if (v.kind == 0 && state.user.visualization.grid) {
       var draw = ImGui.getWindowDrawList();
       draw.pushClipRect(px, py, px + w, py + h, true);
-      double extent = 256 * v.step,
-          spacing = Math.pow(10, Math.floor(Math.log10(Math.max(.00001, extent / 12)))),
-          minX = v.panX - extent / 2,
-          minZ = v.panZ - extent / 2;
-      for (double x = Math.ceil(minX / spacing) * spacing; x < minX + extent; x += spacing) {
-        float sx = (float) (px + (x - minX) / extent * w);
+      for (double fraction : NoiseImageGrid.lines(v.panX, v.step, 256)) {
+        float sx = (float) (px + fraction * w);
         draw.addLine(sx, py, sx, py + h, 0x33434d5e);
       }
-      for (double z = Math.ceil(minZ / spacing) * spacing; z < minZ + extent; z += spacing) {
-        float sz = (float) (py + (z - minZ) / extent * h);
+      for (double fraction : NoiseImageGrid.lines(v.panZ, v.step, 256)) {
+        float sz = (float) (py + fraction * h);
         draw.addLine(px, sz, px + w, sz, 0x33434d5e);
       }
       draw.popClipRect();
@@ -745,6 +741,8 @@ public final class Viewports implements AutoCloseable {
             mark(v);
           }
       }
+      if (v.kind == 0 && ImGui.menuItem("Grid overlay", "", state.user.visualization.grid))
+        state.user.visualization.grid = !state.user.visualization.grid;
       if (ImGui.menuItem("Teleport")) bookmarkPanel.openTeleport(Tab.values()[v.kind]);
       if (ImGui.menuItem("Add Bookmark"))
         bookmarkPanel.openAdd(Tab.values()[v.kind], v.pickedBookmark);
