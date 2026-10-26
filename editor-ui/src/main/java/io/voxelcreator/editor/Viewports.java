@@ -45,6 +45,7 @@ public final class Viewports implements AutoCloseable {
     final Camera camera = new Camera();
     final NoiseImageRows imageRows = new NoiseImageRows();
     NoiseImageRows.Statistics imageStatistics;
+    NoiseImageView displayedImage;
     UUID noise, stage, keyNoise;
     long keyRevision = -1, rebuildSerial = 0, compileId = 0;
     String geometryKey = "",
@@ -217,7 +218,8 @@ public final class Viewports implements AutoCloseable {
       NoiseAlgorithms.Field sampler,
       String error,
       VolumeData volume,
-      NoiseImageRows.Statistics imageStatistics) {
+      NoiseImageRows.Statistics imageStatistics,
+      NoiseImageView imageView) {
     Preview(
         long epoch,
         Mesh mesh,
@@ -231,7 +233,8 @@ public final class Viewports implements AutoCloseable {
         String error,
         VolumeData volume) {
       this(
-          epoch, mesh, image, raw, width, origin, palette, histogram, sampler, error, volume, null);
+          epoch, mesh, image, raw, width, origin, palette, histogram, sampler, error, volume, null,
+          null);
     }
 
     Preview(
@@ -245,7 +248,9 @@ public final class Viewports implements AutoCloseable {
         float[] histogram,
         NoiseAlgorithms.Field sampler,
         String error) {
-      this(epoch, mesh, image, raw, width, origin, palette, histogram, sampler, error, null, null);
+      this(
+          epoch, mesh, image, raw, width, origin, palette, histogram, sampler, error, null, null,
+          null);
     }
   }
 
@@ -386,8 +391,18 @@ public final class Viewports implements AutoCloseable {
       mark(views[0]);
     }
     if (frame == 100) {
+      var image = views[0].displayedImage;
+      if (image == null) throw new AssertionError("No accepted 2D image geometry");
       views[0].panX += views[0].step;
       mark(views[0]);
+      var pointer = image.sample(.5, .5);
+      if (pointer.x() != image.panX()
+          || pointer.z() != image.panZ()
+          || pointer.x() == views[0].panX
+          || views[0].displayedImage != image)
+        throw new AssertionError("Pending pan replaced displayed image geometry");
+      System.out.println(
+          "ACCEPTED_2D_IMAGE_GEOMETRY_PASS pending pan retains hover program and center");
     }
     if (frame == 335 || frame == 355)
       properties.smokeWorldControls(frame == 335 ? "Numeric parameters" : null);
@@ -665,7 +680,10 @@ public final class Viewports implements AutoCloseable {
         v.origin.set(ready.origin);
         v.gl.setPalette(ready.palette);
         v.raw = ready.raw;
-        if (v.kind == 0) v.imageStatistics = ready.imageStatistics;
+        if (v.kind == 0) {
+          v.imageStatistics = ready.imageStatistics;
+          v.displayedImage = ready.imageView;
+        }
         v.hoverSampler = ready.sampler;
         v.histogram = ready.histogram;
         v.message = "Ready";
@@ -716,11 +734,19 @@ public final class Viewports implements AutoCloseable {
     if (v.kind == 0 && state.user.visualization.grid) {
       var draw = ImGui.getWindowDrawList();
       draw.pushClipRect(px, py, px + w, py + h, true);
-      for (double fraction : NoiseImageGrid.lines(v.panX, v.step, 256)) {
+      for (double fraction :
+          NoiseImageGrid.lines(
+              v.displayedImage == null ? v.panX : v.displayedImage.panX(),
+              v.displayedImage == null ? v.step : v.displayedImage.step(),
+              256)) {
         float sx = (float) (px + fraction * w);
         draw.addLine(sx, py, sx, py + h, 0x33434d5e);
       }
-      for (double fraction : NoiseImageGrid.lines(v.panZ, v.step, 256)) {
+      for (double fraction :
+          NoiseImageGrid.lines(
+              v.displayedImage == null ? v.panZ : v.displayedImage.panZ(),
+              v.displayedImage == null ? v.step : v.displayedImage.step(),
+              256)) {
         float sz = (float) (py + fraction * h);
         draw.addLine(px, sz, px + w, sz, 0x33434d5e);
       }
@@ -764,23 +790,22 @@ public final class Viewports implements AutoCloseable {
           v.step = Math.max(.0001, Math.min(10000, v.step * Math.exp(-io.getMouseWheel() * .15)));
           mark(v);
         }
-        double x = v.panX + (io.getMousePosX() - px - w / 2) / w * 256 * v.step,
-            z = v.panZ + (io.getMousePosY() - py - h / 2) / h * 256 * v.step;
-        String sample = "";
-        try {
-          var n = state.project().noise2D.stream().filter(a -> a.uuid.equals(v.noise)).findFirst();
-          if (n.isPresent()) {
-            double raw = v.hoverSampler.sample(x, 0, z);
+        String sample = "Waiting for a displayed preview";
+        if (v.displayedImage != null) {
+          try {
+            var observation =
+                v.displayedImage.sample((io.getMousePosX() - px) / w, (io.getMousePosY() - py) / h);
             sample =
                 String.format(
                     Locale.ROOT,
                     "X %.5f  Z %.5f   Raw %.8f   Display %.5f",
-                    x,
-                    z,
-                    raw,
-                    Math.max(0, Math.min(1, (raw + 1) / 2)));
+                    observation.x(),
+                    observation.z(),
+                    observation.raw(),
+                    observation.display());
+          } catch (RuntimeException failure) {
+            sample = "Sample unavailable at pointer";
           }
-        } catch (Exception ignored) {
         }
         ImGui.textDisabled(sample);
       } else if (v.kind == 1 && v.mode.equals("Slices")) {
@@ -1316,7 +1341,10 @@ public final class Viewports implements AutoCloseable {
                             sampler,
                             null,
                             null,
-                            imageStatistics));
+                            imageStatistics,
+                            kind == 0
+                                ? new NoiseImageView(panX, panZ, step, side, sampler)
+                                : null));
                   } else if (kind == 1 && mode.equals("Volume")) {
                     var sampler = new NoiseCompiler(snapshot, snapshot.project.seed).compile(noise);
                     var volume = VolumeData.sample(n, origin.x, origin.y, origin.z, sampler);
@@ -1540,9 +1568,14 @@ public final class Viewports implements AutoCloseable {
     var io = ImGui.getIO();
     try {
       if (v.kind == 0) {
-        double x = v.panX + (io.getMousePosX() - px - width / 2) / width * 256 * v.step,
-            z = v.panZ + (io.getMousePosY() - py - height / 2) / height * 256 * v.step;
-        v.pickedBookmark = BookmarkTransactions.capture(Tab.NOISE_2D, x, 0, z);
+        if (v.displayedImage == null) {
+          v.pickedBookmark = null;
+          return;
+        }
+        var point =
+            v.displayedImage.at(
+                (io.getMousePosX() - px) / width, (io.getMousePosY() - py) / height);
+        v.pickedBookmark = BookmarkTransactions.capture(Tab.NOISE_2D, point.x(), 0, point.z());
       } else if (v.kind == 1 && v.mode.equals("Slices") && v.image) {
         var plane = v.displayedSlicePlane;
         double
