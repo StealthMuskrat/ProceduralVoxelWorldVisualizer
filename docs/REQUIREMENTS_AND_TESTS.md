@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The 2D popup/window-focus guard batch passed `clean test build dependencyNotices releaseJars` with **722 tests across 90 suites, no failures/errors/skips**. Native ImGui popup/focus transfers check blocked pan/wheel, dropped capture, no held-button resumption and fresh-drag recovery; Python verifies recorded blocked poses. Existing GL/image/engine checks remain in CI. See [guard evidence](evidence/IMAGE_GUARD_VALIDATION.md). Local schemas passed. OS application focus, physical mouse/DPI, Windows 11 hardware and complete acceptance remain separate.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The versioned preview-handoff batch passed `clean test build dependencyNotices releaseJars` with **729 tests across 91 suites, no failures/errors/skips**. Seven new cases cover stale/pending/consumed results, closure, token ownership, controlled worker races and superseded sampling even after a callback clears interruption. Existing native/image/input/engine references remain in CI. See [handoff evidence](evidence/PREVIEW_MAILBOX_VALIDATION.md). Local schemas passed. Full scheduler stress, physical GUI/DPI, Windows 11 hardware and complete acceptance remain separate.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
