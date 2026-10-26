@@ -32,6 +32,11 @@ public final class CurveDialog {
 
   private final Map<String, float[]> controls = new HashMap<>();
   private final Map<UUID, float[]> pointCenters = new HashMap<>();
+  private final Map<String, float[]> handleCenters = new HashMap<>();
+
+  float[] probeHandle(UUID id, int side) {
+    return handleCenters.get(id + ":" + side);
+  }
 
   float[] probeControl(String key) {
     return controls.get(key);
@@ -189,6 +194,7 @@ public final class CurveDialog {
             | ImGuiButtonFlags.MouseButtonRight);
     if (probing) controls.put("plot", new float[] {px, py, w, h});
     pointCenters.clear();
+    handleCenters.clear();
     boolean hovered = ImGui.isItemHovered();
     var io = ImGui.getIO();
     double span = curve.max - curve.min,
@@ -245,6 +251,7 @@ public final class CurveDialog {
               slope = side < 0 ? compiled.incomingSlope(i) : compiled.outgoingSlope(i);
           float hx = sx(point.x + offset, px, w, lo, hi),
               hy = sy(point.y + offset * slope, py, h, ylo, yhi);
+          if (probing) handleCenters.put(point.uuid + ":" + side, new float[] {hx, hy});
           draw.addLine(x, y, hx, hy, 0xffc8a374);
           draw.addCircleFilled(
               hx, hy, 4, point.handleMode.equals("AUTO") ? 0xff777777 : 0xffe9bd8d);
@@ -282,6 +289,7 @@ public final class CurveDialog {
           tangentPoint = handleHit;
           tangentSide = sideHit;
           tangentX = handleX;
+          dragY = my;
           session.beginGesture();
           dragging = true;
         } else if (hit != null) {
@@ -304,16 +312,11 @@ public final class CurveDialog {
           && mx > curve.min
           && mx < curve.max
           && Math.abs(sy(compiled.sample(mx), py, h, ylo, yhi) - io.getMousePosY()) < 10) {
-        double x = snapX && !io.getKeyAlt() ? StrictMath.rint(mx / stepX) * stepX : mx,
-            y = snapY && !io.getKeyAlt() ? StrictMath.rint(my / stepY) * stepY : my;
-        var point = new Point(x, y);
-        if (session.edit(
-            c -> {
-              c.points.add(point);
-              c.points.sort(Comparator.comparingDouble(p -> p.x));
-            })) {
+        UUID id =
+            session.insert(mx, snapX && !io.getKeyAlt(), snapY && !io.getKeyAlt(), stepX, stepY);
+        if (id != null) {
           selected.clear();
-          selected.add(point.uuid);
+          selected.add(id);
         }
       }
     }
@@ -324,7 +327,7 @@ public final class CurveDialog {
     if (dragging && ImGui.isMouseDown(0)) {
       if (tangentPoint != null) {
         Point p = CurveEditSession.point(session.curve(), tangentPoint);
-        session.tangent(p.uuid, tangentSide, (my - p.y) / tangentX);
+        session.moveTangent(p.uuid, tangentSide, my - dragY, tangentX);
       } else
         session.move(
             selected,
@@ -427,6 +430,7 @@ public final class CurveDialog {
       ImGui.textWrapped(
           "Drag any selected point to move the group. Endpoint X values stay locked.");
     if (ImGui.button("Delete Selected Interior Points")) deleteSelected();
+    controlRect("delete");
     if (!session.error().isEmpty()) ImGui.textWrapped("! " + session.error());
     if (ImGui.button("Apply")) {
       session.endGesture();
@@ -450,13 +454,7 @@ public final class CurveDialog {
   private void deleteSelected() {
     stopDrag();
     session.endGesture();
-    session.edit(
-        c ->
-            c.points.removeIf(
-                p ->
-                    p != c.points.getFirst()
-                        && p != c.points.getLast()
-                        && selected.contains(p.uuid)));
+    session.removeInterior(selected);
     selected.retainAll(session.curve().points.stream().map(p -> p.uuid).toList());
   }
 

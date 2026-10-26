@@ -115,6 +115,65 @@ public final class CurveEditSession {
     return preview(next);
   }
 
+  /** Pointer deltas are relative to the exact baseline, avoiding a jump on handle selection. */
+  public boolean moveTangent(UUID id, int side, double dy, double handleX) {
+    if (gesture == null) beginGesture();
+    if ((side != -1 && side != 1)
+        || !Double.isFinite(dy)
+        || !Double.isFinite(handleX)
+        || handleX == 0) {
+      error = "A finite nonzero tangent handle and finite movement are required";
+      return false;
+    }
+    Point baseline = point(gesture, id);
+    var compiled = new ScalarCurve(gesture);
+    int index = gesture.points.indexOf(baseline);
+    double slope = side < 0 ? compiled.incomingSlope(index) : compiled.outgoingSlope(index);
+    return tangent(id, side, slope + dy / handleX);
+  }
+
+  /**
+   * Insert at the canonical sampled value, with explicit X/Y snapping and inherited segment mode.
+   */
+  public UUID insert(double requestedX, boolean snapX, boolean snapY, double stepX, double stepY) {
+    UUID id = UUID.randomUUID();
+    boolean inserted =
+        edit(
+            c -> {
+              double x = snap(requestedX, snapX, stepX);
+              if (!Double.isFinite(x) || x <= c.min || x >= c.max)
+                throw new IllegalArgumentException(
+                    "New point X must lie strictly inside the domain");
+              double y = snap(new ScalarCurve(c).sample(x), snapY, stepY);
+              var next = new Point(x, y);
+              next.uuid = id;
+              for (int i = 0; i < c.points.size() - 1; i++)
+                if (c.points.get(i).x <= x && x < c.points.get(i + 1).x) {
+                  next.segmentInterpolation = c.points.get(i).segmentInterpolation;
+                  break;
+                }
+              c.points.add(next);
+              c.points.sort(Comparator.comparingDouble(p -> p.x));
+            });
+    return inserted ? id : null;
+  }
+
+  public boolean removeInterior(Set<UUID> selection) {
+    return edit(
+        c -> {
+          UUID first = c.points.getFirst().uuid, last = c.points.getLast().uuid;
+          c.points.removeIf(
+              p -> !p.uuid.equals(first) && !p.uuid.equals(last) && selection.contains(p.uuid));
+        });
+  }
+
+  private static double snap(double value, boolean enabled, double step) {
+    if (!enabled) return value;
+    if (!Double.isFinite(step) || step <= 0)
+      throw new IllegalArgumentException("Snap increment must be finite and positive");
+    return StrictMath.rint(value / step) * step;
+  }
+
   public void undo() {
     endGesture();
     if (!undo.isEmpty()) {
