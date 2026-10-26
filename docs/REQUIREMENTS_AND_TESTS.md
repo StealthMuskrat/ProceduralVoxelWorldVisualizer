@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The canonical curve-controls batch passed `clean test build dependencyNotices releaseJars` with **698 tests across 86 suites, no failures/errors/skips**. Native coverage includes domain/display numeric edits, invalid-domain rejection, all 11 mode choices, context actions, curve-scoped keyboard history, private Apply and document Undo/Redo; independent replay checks 363 mirrored piecewise-linear samples. See [curve controls evidence](evidence/CURVE_CONTROLS_VALIDATION.md). Local schema checks also passed. These scoped checks do not certify Windows 11 hardware, a full JVM/CPU matrix or complete GUI acceptance.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The exact image-overlap batch passed `clean test build dependencyNotices releaseJars` with **709 tests across 87 suites, no failures/errors/skips**. Independent checks replay 524,288 exact samples and recompute eight raw/color/histogram digests; native async/GL coverage asserts recolor, vertical pan, return and horizontal pan work counts. See [image overlap evidence](evidence/IMAGE_OVERLAP_VALIDATION.md). Local schema checks also passed. These scoped checks do not certify Windows 11 hardware, a full JVM/CPU matrix or complete GUI acceptance.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
