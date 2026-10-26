@@ -31,7 +31,7 @@ public final class CurveWrappingProbe {
                     var n = new Noise();
                     n.id = mode.toLowerCase(Locale.ROOT);
                     n.algorithm.key = "CONSTANT";
-                    n.algorithm.parameters.put("value", ProjectIO.JSON.valueToTree(0));
+                    n.algorithm.parameters.put("value", 0.0);
                     var item = ProcessingRegistry.create("CURVE", "curve");
                     var input = Binding.constant(0);
                     input.sourceKind = "Ambient Value";
