@@ -122,15 +122,19 @@ public class ChunkSceneTest {
                 },
                 workers,
                 config())) {
-      for (int i = 0; i < 30; i++) {
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+      do {
         scene.tick(new Vector3d(1), new Vector3d(10), 8);
+        if (calls.get() > 0 && scene.statistics().activeJobs() == 0) break;
         Thread.sleep(1);
-      }
+      } while (System.nanoTime() < deadline);
+      assertEquals(0, scene.statistics().activeJobs(), "failure jobs did not settle");
       int first = calls.get();
+      assertTrue(first > 0, "source was never scheduled");
       for (int i = 0; i < 100; i++) scene.tick(new Vector3d(1), new Vector3d(10), 8);
       assertTrue(calls.get() <= 125);
+      assertEquals(first, calls.get(), "failed chunks were retried");
       assertTrue(scene.statistics().status().contains("bad field"));
-      assertTrue(first > 0);
     }
   }
 }
