@@ -66,15 +66,13 @@ public final class CurveWrappingProbe {
           frame();
           io.addMouseWheelEvent(0, -25);
           frames(2);
-          io.addMouseButtonEvent(2, true);
-          frame();
-          io.addMousePosEvent(1e18f, plot[1] + plot[3] / 2);
-          frame();
-          io.addMouseButtonEvent(2, false);
+          // Seed an extreme world-space view without asking the native input backend to
+          // represent an unphysical pixel position. The production plot still samples it.
+          dialog().probeCenterView(-1e16, .5);
           frames(2);
           double far = dialog().probeView().minX();
           positions.add(far);
-          require(far < -1e15, "Large finite pan was not reached");
+          require(far < -1e15, "Large finite view was not reached");
           require(
               dialog().probePreviewFailures() == 0, "Wrapped preview still has invalid samples");
           require(!dialog().probeCanUndo(), "Wrapping preview created history");

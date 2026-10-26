@@ -27,6 +27,10 @@ public final class CurveDialog {
     return view.bounds();
   }
 
+  void probeCenterView(double x, double y) {
+    if (!view.centerAt(x, y)) throw new IllegalArgumentException("Probe view is not representable");
+  }
+
   double probeZoom() {
     return view.zoom();
   }
