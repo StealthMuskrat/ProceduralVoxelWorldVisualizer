@@ -300,7 +300,7 @@ class NoiseImageRowsTest {
     try (var c = new NoiseImageRows()) {
       NoiseAlgorithms.Field f =
           (x, y, z) -> Double.doubleToRawLongBits(x) == Double.doubleToRawLongBits(-0.) ? -1 : 1;
-      sample(c, "a", 1, f, 2, -0., 1, Double.MIN_VALUE, BUDGET, false);
+      sample(c, "a", 1, f, 1, -0., 1, Double.MIN_VALUE, BUDGET, false);
       var plus = sample(c, "a", 2, f, 1, 0., 1, Double.MIN_VALUE, BUDGET, false);
       assertEquals(1, plus.value(0, 0));
       assertEquals(1, plus.statistics().sampledValues());
