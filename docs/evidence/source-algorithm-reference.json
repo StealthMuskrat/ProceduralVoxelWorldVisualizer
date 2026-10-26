@@ -1,0 +1,9 @@
+{
+  "algorithmDimensionVisits" : 20,
+  "formatVersion" : 1,
+  "preciseInvalidFrequency" : true,
+  "namedFractalIndex" : 3,
+  "pingPongStrength" : 3.5,
+  "privateEdits" : true,
+  "oneUndoRedo" : true
+}

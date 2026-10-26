@@ -1,0 +1,22 @@
+{
+  "formatVersion" : 1,
+  "cppCases" : 3264,
+  "exactCppBits" : 3218,
+  "maximumAbsoluteError" : 6.258487701416016E-7,
+  "absoluteTolerance" : 2.0E-6,
+  "relativeTolerance" : 2.0E-6,
+  "analyticCases" : 240,
+  "seedCases" : 32,
+  "families" : {
+    "CELLULAR/2" : 864,
+    "CELLULAR/3" : 864,
+    "OPEN_SIMPLEX_2/2" : 192,
+    "OPEN_SIMPLEX_2/3" : 192,
+    "PERLIN/2" : 192,
+    "PERLIN/3" : 192,
+    "VALUE/2" : 192,
+    "VALUE/3" : 192,
+    "VALUE_CUBIC/2" : 192,
+    "VALUE_CUBIC/3" : 192
+  }
+}

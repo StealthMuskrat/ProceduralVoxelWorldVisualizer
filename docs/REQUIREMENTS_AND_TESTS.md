@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The trace-explanation batch passed `clean test build dependencyNotices releaseJars` with **544 tests across 70 suites, no failures/errors/skips**, native workflows, engine-only consumers, Windows packaging/launcher smoke and byte-identical cross-platform JARs in [Actions run 40234954738](https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40234954738). Local schema-family and independent saved-trace checks also passed. These scoped checks do not certify full Windows 11 hardware or GUI acceptance. Earlier local observed toolchains include Temurin 25.0.4+7 and 25.0.5+8 x64.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The source-algorithm batch passed `clean test build dependencyNotices releaseJars` with **570 tests across 72 suites, no failures/errors/skips**, native workflows, independent C++/Python and engine-only consumers, matching 20 source/dimension raw-bit digests, Windows packaging/launcher smoke and byte-identical cross-platform JARs in [Actions run 40251574747](https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40251574747). Local schema/source checks also passed. These scoped checks do not certify full Windows 11 hardware, a full JVM/CPU matrix or complete GUI acceptance. Earlier local observed toolchains include Temurin 25.0.4+7 and 25.0.5+8 x64.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -14,7 +14,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 | A06 UUID clipboard | PARTIAL | Sibling/folder clipboard, internal/external reference and live cut identity tests; complete gesture GUI matrix remains |
 | A07 import/export | PARTIAL | Dependency checkbox export and COPY/compatible REUSE/SKIP preview; conservative semantic reuse and dependent-closure tests |
 | A08 undo/redo | PARTIAL | Structural delta transactions, bounded history, array reorder, undo/redo, curve gesture coalescing tests; full GUI audit remains |
-| A09 noise families | PARTIAL | All adapters finite/repeatable; independent bit-vector matrix remains |
+| A09 noise families | PARTIAL | 3,264 independent C++ comparisons, 240 exact analytic/hash and 32 exact seed vectors; 20 matching pinned Linux/Windows JVM bit digests; broader CPU/JVM matrix remains |
 | A10 manipulations | PARTIAL | Typed math/logic/vectors/remap/curves/sampling, gradients/Laplacians, bounded neighborhoods and signed-distance primitives/combinations; six types, prefix resampling and explicit coordinates tested; broader registry/GUI acceptance remains |
 | A11 canonical panel | PARTIAL | One definition, bounded typed controls, explicit structural resolution, canonical shared-parameter pins and guarded source navigation; full gesture/hardware certification remains |
 | A12 expression language | PASS | MathContractTest and ExpressionPlanTest: every function, operators, types, lazy branches/spans, folding/sharing, nonrecursive flat plans, signed zero, nesting/threads/batches and limits |
@@ -48,7 +48,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 | Principal trees | Tests / checks |
 |---|---|
 | 0–4, 20 | EngineContractTest transactional persistence, validation, IDs; document and schema review |
-| 5–8 | MathContractTest expression inventory, noise adapter repetition, curve policies; TypedProcessingTest, FieldSamplingTest, FieldOperationsTest, CoordinateTransformTest, ExpressionPlanTest, NoiseTraceTest, TraceExplanationTest, CompilerOptimizationTest and SamplingBatchTest typed/lazy/prefix/folding/sharing/buffer contracts |
+| 5–8 | MathContractTest expression inventory, noise adapter repetition, curve policies; TypedProcessingTest, FieldSamplingTest, FieldOperationsTest, CoordinateTransformTest, ExpressionPlanTest, NoiseTraceTest, TraceExplanationTest, NoiseAlgorithmRegistryTest, CompilerOptimizationTest and SamplingBatchTest typed/lazy/prefix/folding/sharing/buffer contracts |
 | 9–10 | EngineContractTest, WorldSettingsTest, WorldUseTest and WorldResourceTest: intervals, transformations, drivers, short-circuit gates, independent probability vectors, root/worker/stage invariance, imports and atomic replacement |
 | 11–12 | StorageContractTest, PaletteStorageTest and PackedArchiveTest: coordinates, dense oracle, coalescence, sparse 256³, primitive palettes, bulk replacement and independent v1/v2 binary vectors |
 | 13–14 | EngineContractTest async/contexts/backpressure; independent Example; StorageContractTest archives |
@@ -117,4 +117,4 @@ The sampled-calculus and distance-shape extension adds twelve dimension-aware op
 
 The trace-explanation extension adds bounded canonical noise observations, actual comparison/provenance records, one clipped Inspector/Logs view, bounded retained payloads and guarded UUID/control navigation. See [trace contracts](TRACE_EXPLANATIONS_AND_NAVIGATION.md). All 42 new regressions, native navigation/log workflows, portable engine-only replay and cross-platform packaging passed after implementation; see [trace evidence](evidence/TRACE_EXPLANATIONS_VALIDATION.md). Full GUI/hardware certification remains separate.
 
-The source-algorithm contract batch centralizes dimensional parameter signatures, named enum authoring, precise validation and creation metadata, with independent upstream C++/Python vectors and JVM raw-bit comparisons. See [source algorithm contracts](SOURCE_ALGORITHM_CONTRACTS.md). Validation follows the complete implementation batch; hardware and full GUI certification remain separate.
+The source-algorithm contract batch centralizes dimensional parameter signatures, named enum authoring, precise validation and creation metadata, with independent upstream C++/Python vectors and JVM raw-bit comparisons. See [source algorithm contracts](SOURCE_ALGORITHM_CONTRACTS.md). All 26 new regressions, native source authoring, independent vectors and cross-platform packaging passed after implementation; see [source evidence](evidence/SOURCE_ALGORITHM_VALIDATION.md). Hardware and full GUI certification remain separate.
