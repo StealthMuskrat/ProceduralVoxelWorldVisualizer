@@ -9,7 +9,7 @@ assert sum(report['families'].values())==3264 and len(report['families'])==10
 assert 0<=report['exactCppBits']<=3264 and report['maximumAbsoluteError']>=0
 hashes=json.loads((output/'algorithm-jvm-bits.json').read_text());assert len(hashes)==20 and all(len(h)==64 for h in hashes.values())
 baseline=root/'fixtures/algorithm-jvm-reference.json'
-if baseline.exists():assert hashes==json.loads(baseline.read_text()),'Canonical JVM bit vectors changed'
+assert hashes==json.loads(baseline.read_text()),'Canonical JVM bit vectors changed'
 registry=json.loads((root/'registries/algorithm-registry.json').read_text());assert registry['registryVersion']==2 and len(registry['specifications'])==10
 assert {p['key'] for p in registry['specifications']['WHITE_HASH']['parameters']}=={'frequency'}
 if (output/'source-algorithm-reference.json').exists():
