@@ -1,0 +1,9 @@
+{
+  "keyboardActions" : [ "CurveDelete", "CurveUndo", "CurveRedo" ],
+  "invalidDomainRejected" : true,
+  "modeChoices" : [ "Outside domain/CLAMP", "Outside domain/EXTEND", "Outside domain/REPEAT", "Outside domain/MIRROR", "Next segment/STEP", "Next segment/LINEAR", "Next segment/SMOOTH", "Next segment/BEZIER", "Handle mode/AUTO", "Handle mode/ALIGNED", "Handle mode/FREE" ],
+  "formatVersion" : 1,
+  "privateApply" : true,
+  "oneUndoRedo" : true,
+  "contextActions" : [ "selectAll", "delete", "clear", "fit" ]
+}
