@@ -1,0 +1,11 @@
+{
+  "before" : 55,
+  "renderedWarpPanels" : 4,
+  "amplitude" : 2,
+  "oneUndoRedo" : true,
+  "preciseInvalidOctaves" : true,
+  "after" : 198,
+  "mode" : "SEQUENTIAL",
+  "algorithm" : "CONSTANT",
+  "formatVersion" : 1
+}

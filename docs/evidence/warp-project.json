@@ -1,0 +1,366 @@
+{
+  "formatVersion" : 2,
+  "project" : {
+    "uuid" : "a2f04eb6-543e-42b6-be39-0230a4d05e36",
+    "seed" : 0,
+    "minY" : -64,
+    "maxY" : 319,
+    "rootOrder" : { }
+  },
+  "voxelTypes" : [ ],
+  "voxelGroups" : [ ],
+  "voxelSets" : [ ],
+  "noise2D" : [ {
+    "uuid" : "4cedbe45-151a-5c64-8507-a383704881f6",
+    "id" : "warp-sample",
+    "dimension" : 2,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "CONSTANT",
+      "parameters" : {
+        "value" : 0.0
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ {
+      "uuid" : "2c10b5c1-103c-5b6d-9205-7df3347fd508",
+      "id" : "warp-sample-expression",
+      "kind" : "EXPRESSION",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "expression" : "x+10*z"
+      },
+      "inputs" : { }
+    }, {
+      "uuid" : "712271ae-0bf0-5d7b-aad9-51ba91648631",
+      "id" : "warp-sample-item",
+      "kind" : "WARP_SAMPLE",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "amplitude" : 2.0,
+        "frequency" : 1,
+        "warpMode" : "SEQUENTIAL",
+        "warpAlgorithm" : "CONSTANT"
+      },
+      "inputs" : {
+        "field" : {
+          "sourceKind" : "Earlier Field Prefix",
+          "type" : "Scalar",
+          "ambientKey" : null,
+          "value" : null,
+          "parameterUuid" : null,
+          "itemUuid" : "2c10b5c1-103c-5b6d-9205-7df3347fd508",
+          "noiseGeneratorUuid" : null,
+          "projection" : "XZ",
+          "slice" : 0.0
+        },
+        "displacementX" : {
+          "sourceKind" : "Noise Generator Field",
+          "type" : "Scalar",
+          "ambientKey" : null,
+          "value" : null,
+          "parameterUuid" : null,
+          "itemUuid" : null,
+          "noiseGeneratorUuid" : "5fc71a2a-74b9-5c6f-ab2e-3cf9264e601d",
+          "projection" : "XZ",
+          "slice" : 0.0
+        },
+        "displacementZ" : {
+          "sourceKind" : "Noise Generator Field",
+          "type" : "Scalar",
+          "ambientKey" : null,
+          "value" : null,
+          "parameterUuid" : null,
+          "itemUuid" : null,
+          "noiseGeneratorUuid" : "161be963-1b49-50ae-b9da-6979028a8d35",
+          "projection" : "XZ",
+          "slice" : 0.0
+        }
+      }
+    } ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Earlier Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : "712271ae-0bf0-5d7b-aad9-51ba91648631",
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  }, {
+    "uuid" : "0dc81d49-b8a1-5111-bc4e-ad81196badc2",
+    "id" : "domain-warp",
+    "dimension" : 2,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "CONSTANT",
+      "parameters" : {
+        "value" : 0.0
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ {
+      "uuid" : "19c6765f-005d-58c1-8292-7679defbc79a",
+      "id" : "domain-warp-item",
+      "kind" : "DOMAIN_WARP",
+      "resultType" : "Coordinates2D",
+      "enabled" : true,
+      "parameters" : {
+        "amplitude" : 1,
+        "frequency" : 1
+      },
+      "inputs" : {
+        "displacementX" : {
+          "sourceKind" : "Noise Generator Field",
+          "type" : "Scalar",
+          "ambientKey" : null,
+          "value" : null,
+          "parameterUuid" : null,
+          "itemUuid" : null,
+          "noiseGeneratorUuid" : "5fc71a2a-74b9-5c6f-ab2e-3cf9264e601d",
+          "projection" : "XZ",
+          "slice" : 0.0
+        },
+        "displacementZ" : {
+          "sourceKind" : "Noise Generator Field",
+          "type" : "Scalar",
+          "ambientKey" : null,
+          "value" : null,
+          "parameterUuid" : null,
+          "itemUuid" : null,
+          "noiseGeneratorUuid" : "161be963-1b49-50ae-b9da-6979028a8d35",
+          "projection" : "XZ",
+          "slice" : 0.0
+        }
+      }
+    } ],
+    "processing" : [ {
+      "uuid" : "30418d45-1bc9-5100-84dc-24eb0f500d36",
+      "id" : "domain-warp-expression",
+      "kind" : "EXPRESSION",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "expression" : "x+10*z"
+      },
+      "inputs" : { }
+    } ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Earlier Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : "30418d45-1bc9-5100-84dc-24eb0f500d36",
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  }, {
+    "uuid" : "5fc71a2a-74b9-5c6f-ab2e-3cf9264e601d",
+    "id" : "displacement-x",
+    "dimension" : 2,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "CONSTANT",
+      "parameters" : {
+        "value" : 0.0
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ {
+      "uuid" : "2ba711b4-0872-5205-b291-0cdf67b669b0",
+      "id" : "displacement-x-expression",
+      "kind" : "EXPRESSION",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "expression" : "z"
+      },
+      "inputs" : { }
+    } ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Earlier Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : "2ba711b4-0872-5205-b291-0cdf67b669b0",
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  }, {
+    "uuid" : "161be963-1b49-50ae-b9da-6979028a8d35",
+    "id" : "displacement-z",
+    "dimension" : 2,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "CONSTANT",
+      "parameters" : {
+        "value" : 0.0
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ {
+      "uuid" : "96861cbe-265a-5488-b1fd-7c120b402771",
+      "id" : "displacement-z-expression",
+      "kind" : "EXPRESSION",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "expression" : "x"
+      },
+      "inputs" : { }
+    } ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Earlier Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : "96861cbe-265a-5488-b1fd-7c120b402771",
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  } ],
+  "noise3D" : [ {
+    "uuid" : "30fd6c3e-6566-581b-b3a9-ac65db93596f",
+    "id" : "warp-sample3",
+    "dimension" : 3,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "CONSTANT",
+      "parameters" : {
+        "value" : 0.0
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ {
+      "uuid" : "55f0074b-f157-5495-b5b7-677f260d0f1f",
+      "id" : "warp-sample3-expression",
+      "kind" : "EXPRESSION",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "expression" : "x+10*y+100*z"
+      },
+      "inputs" : { }
+    }, {
+      "uuid" : "e580fd89-0150-575f-bc14-af1aeabda804",
+      "id" : "warp-sample3-warp",
+      "kind" : "WARP_SAMPLE",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "amplitude" : 1,
+        "frequency" : 1,
+        "warpAlgorithm" : "CONSTANT",
+        "source.value" : 1
+      },
+      "inputs" : {
+        "field" : {
+          "sourceKind" : "Earlier Field Prefix",
+          "type" : "Scalar",
+          "ambientKey" : null,
+          "value" : null,
+          "parameterUuid" : null,
+          "itemUuid" : "55f0074b-f157-5495-b5b7-677f260d0f1f",
+          "noiseGeneratorUuid" : null,
+          "projection" : "XZ",
+          "slice" : 0.0
+        }
+      }
+    } ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Earlier Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : "e580fd89-0150-575f-bc14-af1aeabda804",
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  }, {
+    "uuid" : "d7ea0a86-3f45-521d-aa12-9b599e91b26c",
+    "id" : "domain-warp3",
+    "dimension" : 3,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "CONSTANT",
+      "parameters" : {
+        "value" : 0.0
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ {
+      "uuid" : "2a15c4a3-4ba7-518b-90c5-bf993e07069b",
+      "id" : "domain-warp3-warp",
+      "kind" : "DOMAIN_WARP",
+      "resultType" : "Coordinates3D",
+      "enabled" : true,
+      "parameters" : {
+        "amplitude" : 1,
+        "frequency" : 1,
+        "warpAlgorithm" : "CONSTANT",
+        "source.value" : 1
+      },
+      "inputs" : { }
+    } ],
+    "processing" : [ {
+      "uuid" : "00f0c437-b44e-5483-a438-5c2287413e24",
+      "id" : "domain-warp3-expression",
+      "kind" : "EXPRESSION",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "expression" : "x+10*y+100*z"
+      },
+      "inputs" : { }
+    } ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Earlier Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : "00f0c437-b44e-5483-a438-5c2287413e24",
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  } ],
+  "worldGenerator" : {
+    "uuid" : "cdc489dc-4ac9-4920-9a6f-c748340580cd",
+    "layers" : [ ]
+  },
+  "folders" : [ ],
+  "bookmarks" : {
+    "noise2D" : [ ],
+    "noise3D" : [ ],
+    "world" : [ ]
+  }
+}
