@@ -75,7 +75,7 @@ public final class Viewports implements AutoCloseable {
     long revision = -1, lastSubmit = 0;
     volatile long epoch = 0;
     Future<?> job;
-    final AtomicReference<Preview> ready = new AtomicReference<>();
+    final PreviewMailbox<Preview> ready = new PreviewMailbox<>();
     String message = "Ready";
     Vector3d origin = new Vector3d();
     double[] raw;
@@ -654,7 +654,7 @@ public final class Viewports implements AutoCloseable {
     boolean streaming = wantsStreaming(v);
     if (streaming) streaming = stream(v);
     else stopStream(v);
-    Preview ready = v.ready.getAndSet(null);
+    Preview ready = v.ready.take();
     if (ready != null && ready.epoch == v.epoch && !streaming) {
       v.activeJob = false;
       if (ready.error != null) {
@@ -1223,15 +1223,14 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void publish(View v, Preview result) {
-    v.ready.accumulateAndGet(
-        result,
-        (previous, next) -> previous == null || next.epoch >= previous.epoch ? next : previous);
+    v.ready.publish(result.epoch, result);
   }
 
   private void mark(View v) {
     v.dirty = true;
     v.failedPreview = false;
     v.epoch++;
+    v.ready.advance(v.epoch);
     if (v.job != null) v.job.cancel(true);
     state.background.purge();
     v.activeJob = false;
@@ -1258,6 +1257,7 @@ public final class Viewports implements AutoCloseable {
     }
     var snapshot = ProjectIO.copy(state.project());
     long epoch = v.epoch;
+    var cancellation = v.ready.token(epoch);
     int kind = v.kind;
     UUID noise = v.noise, stageId = v.stage;
     String stageMode = v.stageMode;
@@ -1285,6 +1285,7 @@ public final class Viewports implements AutoCloseable {
                 long stamp = profile == null ? 0 : profile.begin();
                 var outcome = Profiler.Outcome.CANCELLED;
                 try {
+                  cancellation.throwIfCancelled();
                   var compiled = new CompiledProject(snapshot);
                   int[] palette = palette(snapshot, kind);
                   Vector3d origin =
@@ -1311,7 +1312,7 @@ public final class Viewports implements AutoCloseable {
                               step,
                               imageBudget,
                               freshImage,
-                              new CancellationToken());
+                              cancellation);
                       raw = sampled.copyValues();
                       imageStatistics = sampled.statistics();
                     }
@@ -1732,6 +1733,7 @@ public final class Viewports implements AutoCloseable {
   @Override
   public void close() {
     for (var v : views) {
+      v.ready.close();
       if (v.job != null) v.job.cancel(true);
       state.background.purge();
       stopStream(v);
