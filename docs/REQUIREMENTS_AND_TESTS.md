@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The pointer-anchored 2D navigation batch passed `clean test build dependencyNotices releaseJars` with **722 tests across 90 suites, no failures/errors/skips**. Five new cases cover pointer-world invariance, pan/center arithmetic, no-op/scale bounds, invalid/overflow gestures and inverse operations. Existing native/image/engine references and packaging passed. See [navigation evidence](evidence/NAVIGATION_2D_VALIDATION.md). Local schemas passed. Full manual pointer/GUI/DPI, Windows 11 hardware and complete acceptance remain separate.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The native shared 2D image-input batch passed `clean test build dependencyNotices releaseJars` with **722 tests across 90 suites, no failures/errors/skips**. Native wheel/drag events verify cursor anchoring, pan, release, ignored outside wheel, saturated no-work zoom and unchanged project/history; independent Python checks recorded pose arithmetic. Existing viewport GL/image/engine checks and packaging remain in CI. See [native image input evidence](evidence/IMAGE_INPUT_VALIDATION.md). Local schemas passed. Full OS-window/physical pointer/DPI, Windows 11 hardware and complete acceptance remain separate.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
