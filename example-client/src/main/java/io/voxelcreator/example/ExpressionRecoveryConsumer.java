@@ -8,10 +8,11 @@ public final class ExpressionRecoveryConsumer {
     var loaded = new ProjectLoader().load(Path.of(args[0]));
     if (!loaded.success()) throw new AssertionError(loaded.diagnostics());
     var sampler = new CompiledProject(loaded.project()).noise2D("formula", 0);
+    double offset = args.length > 1 ? Double.parseDouble(args[1]) : 4;
     int count = 0;
     for (int x = -4; x <= 4; x++)
       for (int z = -4; z <= 4; z++) {
-        if (sampler.sample(x, z) != x + 4)
+        if (sampler.sample(x, z) != x + offset)
           throw new AssertionError("Repaired formula at " + x + "," + z);
         count++;
       }

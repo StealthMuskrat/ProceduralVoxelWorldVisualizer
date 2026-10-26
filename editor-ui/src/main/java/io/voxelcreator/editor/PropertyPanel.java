@@ -19,6 +19,7 @@ public final class PropertyPanel {
   private final NoiseItemBrowser noiseBrowser = new NoiseItemBrowser();
   private final DraftChoicePicker draftChoices = new DraftChoicePicker();
   private NoiseEditDialog noiseEdit;
+  private ExpressionEditDialog expressionDialog;
   private SearchNavigation referenceNavigation;
   private boolean referencePrompt;
   private String authoringMessage = "";
@@ -156,6 +157,7 @@ public final class PropertyPanel {
     return curve != null
         || membershipDialog != null
         || noiseEdit != null
+        || expressionDialog != null
         || referenceNavigation.pending();
   }
 
@@ -347,6 +349,7 @@ public final class PropertyPanel {
     }
     if (membershipDialog != null && membershipDialog.draw()) membershipDialog = null;
     if (noiseEdit != null && noiseEdit.draw()) noiseEdit = null;
+    drawExpressionDialog();
     drawReferenceGuard();
     drawSmokeWorldControls();
   }
@@ -1141,6 +1144,19 @@ public final class PropertyPanel {
   void probeExpressionPanel() {
     var noise = (Noise) state.draft;
     expressionControls(noise, noise.processing.getFirst());
+    drawExpressionDialog();
+  }
+
+  private void drawExpressionDialog() {
+    if (expressionDialog != null && expressionDialog.draw()) expressionDialog = null;
+  }
+
+  float[] probeExpandedExpressionControl(String key) {
+    return expressionDialog == null ? null : expressionDialog.control(key);
+  }
+
+  boolean probeExpandedExpressionOpen() {
+    return expressionDialog != null;
   }
 
   private void expressionControls(Noise n, Item item) {
@@ -1171,6 +1187,21 @@ public final class PropertyPanel {
         expressionFocusSubmitted = false;
       }
     }
+    if (ImGui.smallButton("Expand Expression")) {
+      try {
+        expressionDialog =
+            new ExpressionEditDialog(
+                state,
+                new ExpressionEditSession(state, n, item),
+                () -> {
+                  f.clear();
+                  noiseChanged();
+                });
+      } catch (RuntimeException invalid) {
+        authoringMessage = "! " + invalid.getMessage();
+      }
+    }
+    expressionRect("expand");
     var feedback = expressionFeedback.inspect(state.project(), n, item);
     if (!feedback.valid()) {
       ImGui.textWrapped("! " + feedback.error());

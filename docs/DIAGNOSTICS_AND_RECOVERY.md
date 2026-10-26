@@ -33,3 +33,13 @@ Processing input failures now retain `inputs/<name>` compiler context rather tha
 Inline expression feedback distinguishes malformed bindings from parser/type spans. Binding feedback offers Go To Input; parser feedback displays a zero-based, end-exclusive UTF-16 character range and Focus Expression. Go To Problem also focuses expression text and scrolls it into view. These actions preserve the private draft and do not publish history. The feedback Result record adds an optional input name, retaining its prior constructor; record-pattern/reflection users need to account for the added component.
 
 The isolated ExpressionRecoveryProbe uses production controls and real mouse/keyboard events to check an inline input destination, rejected text preservation, keyboard repair via Focus Expression, one Apply and one Undo/Redo. An external engine-only consumer checks 81 independent samples of the saved repaired formula. This scoped workflow does not certify span selection, expanded text editing or the complete GUI recovery matrix.
+
+## Expanded expression editing
+
+Expand Expression opens a multiline text buffer separate from Properties. Cancel and Escape discard it. Use in Properties stages only expression text and creates no document history; the ordinary Apply validates the complete resource and commits one transaction. Invalid syntax can be staged for continued editing, and rejected Apply preserves that draft.
+
+The editor retains project/revision, selected draft and item identity plus the original expression value/presence. Changed expressions, removed items, replaced drafts and changed projects reject staging rather than overwriting newer text. Other pending Properties fields are preserved. Inline and expanded controls clear their text cache after staging so they show the same source.
+
+The buffer has fixed UTF-8 byte capacity sufficient for the language's 16,384 UTF-16 character limit. Staging rejects longer strings without truncation; oversized existing text refuses expanded opening. Live feedback includes binding errors or parser/type character ranges. This does not add token-span selection or a new serialization format.
+
+ExpressionEditSessionTest covers private cancellation/staging, incomplete text, one Apply/Undo/Redo, stale ownership and Unicode/length boundaries. ExpandedExpressionProbe drives the production modal using real keyboard/mouse events, including newline entry, Cancel, Escape and private staging. The saved multiline formula is replayed at 81 points by the external engine-only consumer. Full manual GUI, DPI and hardware acceptance remain separate.
