@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The phased placement-driver batch passed `clean test build dependencyNotices releaseJars` with **655 tests across 79 suites, no failures/errors/skips**, native private driver editing and 147-cell independent replay, all existing C++/Python and engine-only consumers, matching 20 source/dimension raw-bit digests, Windows packaging/launcher smoke and byte-identical cross-platform JARs in [Actions run 40339649459](https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40339649459). Local schemas also passed. These scoped checks do not certify Windows 11 hardware, a full JVM/CPU matrix or complete GUI acceptance.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The expanded-expression batch passed `clean test build dependencyNotices releaseJars` with **667 tests across 80 suites, no failures/errors/skips**. Its native workflow covers multiline keyboard entry, Cancel/Escape, private staging and one Apply/Undo/Redo; engine-only replay checks 81 independent points. See [expanded expression evidence](evidence/EXPANDED_EXPRESSION_VALIDATION.md). Local schemas also passed. These scoped checks do not certify Windows 11 hardware, a full JVM/CPU matrix or complete GUI acceptance.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|

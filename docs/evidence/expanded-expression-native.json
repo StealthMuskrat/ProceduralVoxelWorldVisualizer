@@ -1,0 +1,11 @@
+{
+  "oneUndoRedo" : true,
+  "privateStage" : true,
+  "after" : 6,
+  "escape" : true,
+  "privateBuffer" : true,
+  "cancel" : true,
+  "formatVersion" : 1,
+  "before" : 2,
+  "lineCount" : 2
+}
