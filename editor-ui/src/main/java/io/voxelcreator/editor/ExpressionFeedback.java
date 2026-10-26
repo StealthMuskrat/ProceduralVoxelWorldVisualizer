@@ -16,7 +16,18 @@ public final class ExpressionFeedback {
       int end,
       Expression.Type type,
       List<String> inputs,
-      Expression.Statistics statistics) {
+      Expression.Statistics statistics,
+      String input) {
+    public Result(
+        String error,
+        int start,
+        int end,
+        Expression.Type type,
+        List<String> inputs,
+        Expression.Statistics statistics) {
+      this(error, start, end, type, inputs, statistics, null);
+    }
+
     public Result {
       inputs = List.copyOf(inputs);
     }
@@ -39,10 +50,12 @@ public final class ExpressionFeedback {
   }
 
   public Result inspect(ProjectData project, Noise noise, Item item) {
+    String currentInput = null;
     try {
       var types = new LinkedHashMap<String, Expression.Type>();
       var constants = new LinkedHashMap<String, Double>();
       for (var entry : item.inputs.entrySet()) {
+        currentInput = entry.getKey();
         var binding = entry.getValue();
         String type = binding.type;
         if (!Set.of("Scalar", "Boolean").contains(type))
@@ -79,6 +92,7 @@ public final class ExpressionFeedback {
           }
         }
       }
+      currentInput = null;
       for (String name : NoiseCompiler.AMBIENT) types.putIfAbsent(name, Expression.Type.Scalar);
       types.putIfAbsent("source", Expression.Type.Scalar);
       var ambient = new LinkedHashMap<String, Double>();
@@ -122,7 +136,8 @@ public final class ExpressionFeedback {
           0,
           null,
           List.of(),
-          null);
+          null,
+          currentInput);
     }
   }
 }

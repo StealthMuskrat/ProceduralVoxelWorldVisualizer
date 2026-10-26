@@ -21,10 +21,11 @@ public final class CompilationFailure extends IllegalArgumentException {
                 + (item == null ? "" : "/control/" + item)
                 + (parameter == null
                     ? ""
-                    : (item == null && parameter.startsWith("algorithm/"))
-                            || parameter.startsWith("inputs/")
-                        ? "/" + parameter
-                        : "/parameters/" + parameter),
+                    : parameter.startsWith("inputs/")
+                        ? "/inputs/" + parameter.substring(7).replace("~", "~0").replace("/", "~1")
+                        : item == null && parameter.startsWith("algorithm/")
+                            ? "/" + parameter
+                            : "/parameters/" + parameter),
             resource,
             item,
             parameter);

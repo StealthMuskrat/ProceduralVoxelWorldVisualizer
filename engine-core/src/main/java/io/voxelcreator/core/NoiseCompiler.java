@@ -305,19 +305,32 @@ public final class NoiseCompiler {
         slot += 3;
         var bound = new HashMap<String, Input>();
         for (var e : item.inputs.entrySet()) {
-          if ((e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind))
-              || item.kind.equals("WARP_SAMPLE") && WarpRegistry.component(e.getKey())) {
-            if (!ProcessingRegistry.isFieldBinding(e.getValue()))
-              throw new IllegalArgumentException(
-                  "A sampled-field input requires Source Field, Earlier Field Prefix or Noise"
-                      + " Generator Field");
-            continue;
+          try {
+            if ((e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind))
+                || item.kind.equals("WARP_SAMPLE") && WarpRegistry.component(e.getKey())) {
+              if (!ProcessingRegistry.isFieldBinding(e.getValue()))
+                throw new IllegalArgumentException(
+                    "A sampled-field input requires Source Field, Earlier Field Prefix or Noise"
+                        + " Generator Field");
+              continue;
+            }
+            Input input = binding(e.getValue(), inputs, params, n, seed);
+            if (item.kind.equals("EXPRESSION") && !Set.of("Scalar", "Boolean").contains(input.type))
+              throw new IllegalArgumentException("Expression inputs must be Scalar or Boolean");
+            bound.put(e.getKey(), input);
+          } catch (CompilationFailure failure) {
+            throw failure;
+          } catch (RuntimeException failure) {
+            throw new CompilationFailure(n.uuid, item.uuid, "inputs/" + e.getKey(), failure);
           }
-          bound.put(e.getKey(), binding(e.getValue(), inputs, params, n, seed));
         }
         for (String required : spec.inputs())
           if (!bound.containsKey(required))
-            throw new IllegalArgumentException(item.id + ": missing input " + required);
+            throw new CompilationFailure(
+                n.uuid,
+                item.uuid,
+                "inputs/" + required,
+                new IllegalArgumentException(item.id + ": missing input " + required));
         Input a = bound.get("a"), b = bound.get("b");
         if (!Set.of(
                     "EXPRESSION",

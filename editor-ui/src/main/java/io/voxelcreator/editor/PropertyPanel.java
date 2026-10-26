@@ -626,51 +626,7 @@ public final class PropertyPanel {
                 item.resultType,
                 List.of("Coordinates2D", "Coordinates3D"),
                 v -> item.resultType = v);
-          if (item.kind.equals("EXPRESSION")) {
-            f.choice(
-                "Result type",
-                item.resultType,
-                List.of("Scalar", "Boolean"),
-                v -> item.resultType = v);
-            String expr =
-                item.parameters.containsKey("expression")
-                    ? item.parameters.get("expression").asText()
-                    : "";
-            f.text(
-                "Expression",
-                expr,
-                v -> item.parameters.put("expression", ProjectIO.JSON.valueToTree(v)));
-            var feedback = expressionFeedback.inspect(state.project(), n, item);
-            if (!feedback.valid()) ImGui.textWrapped("! " + feedback.error());
-            else {
-              ImGui.textWrapped(
-                  feedback.type()
-                      + " expression; "
-                      + (feedback.inputs().isEmpty()
-                          ? "constant output"
-                          : "inputs: " + String.join(", ", feedback.inputs())));
-              if (smokeExpressionMode) {
-                smokeExpressionDrawn = true;
-                ImGui.setNextItemOpen(true, ImGuiCond.Always);
-              }
-              if (ImGui.treeNode("Evaluation details")) {
-                var stats = feedback.statistics();
-                ImGui.text(
-                    "Constant parts: "
-                        + stats.foldedNodes()
-                        + "; removed branches: "
-                        + stats.prunedBranches());
-                ImGui.text(
-                    "Shared calculations: "
-                        + stats.sharedExpressions()
-                        + "; instructions: "
-                        + stats.instructions());
-                ImGui.textWrapped(
-                    "Input and resource references receive full validation on Apply.");
-                ImGui.treePop();
-              }
-            }
-          }
+          if (item.kind.equals("EXPRESSION")) expressionControls(n, item);
           if (java.util.Set.of("ADD", "SUBTRACT", "MULTIPLY", "DIVIDE").contains(item.kind))
             f.choice(
                 "Result type",
@@ -1155,6 +1111,106 @@ public final class PropertyPanel {
   private long inputVersion = -1;
   private String inputKey;
   private List<DraftChoicePicker.Choice> inputChoices = List.of();
+
+  private final Map<String, float[]> expressionRects = new HashMap<>();
+
+  private void expressionRect(String key) {
+    expressionRects.put(
+        key,
+        new float[] {
+          (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
+          (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
+        });
+  }
+
+  float[] probeExpressionControl(String key) {
+    return expressionRects.get(key);
+  }
+
+  EditorEvents.Target probeExpressionTarget() {
+    return navigationTarget;
+  }
+
+  void probeExpressionPanel() {
+    var noise = (Noise) state.draft;
+    expressionControls(noise, noise.processing.getFirst());
+  }
+
+  private void expressionControls(Noise n, Item item) {
+    f.choice(
+        "Result type", item.resultType, List.of("Scalar", "Boolean"), v -> item.resultType = v);
+    String expr =
+        item.parameters.containsKey("expression") ? item.parameters.get("expression").asText() : "";
+    boolean expressionTarget =
+        searchScroll
+            && navigationTarget != null
+            && item.uuid.equals(navigationTarget.control())
+            && Set.of("expression", "parameters/expression")
+                .contains(Objects.requireNonNullElse(navigationTarget.parameter(), ""));
+    if (expressionTarget) ImGui.setKeyboardFocusHere();
+    f.text(
+        "Expression", expr, v -> item.parameters.put("expression", ProjectIO.JSON.valueToTree(v)));
+    expressionRect("text");
+    if (expressionTarget) {
+      ImGui.setScrollHereY(.25f);
+      searchScroll = false;
+    }
+    var feedback = expressionFeedback.inspect(state.project(), n, item);
+    if (!feedback.valid()) {
+      ImGui.textWrapped("! " + feedback.error());
+      if (feedback.input() != null) {
+        if (ImGui.smallButton("Go To Input: " + feedback.input()))
+          goToProblem(
+              new EditorEvents.Target(
+                  state.project().project.uuid,
+                  n.uuid,
+                  item.uuid,
+                  "inputs/" + feedback.input(),
+                  "",
+                  false));
+        expressionRect("input");
+      } else {
+        ImGui.textWrapped(
+            "Expression characters "
+                + feedback.start()
+                + ".."
+                + feedback.end()
+                + " (zero-based, end exclusive)");
+        if (ImGui.smallButton("Focus Expression")) {
+          goToProblem(
+              new EditorEvents.Target(
+                  state.project().project.uuid, n.uuid, item.uuid, "expression", "", false));
+        }
+        expressionRect("focus");
+      }
+    } else {
+      ImGui.textWrapped(
+          feedback.type()
+              + " expression; "
+              + (feedback.inputs().isEmpty()
+                  ? "constant output"
+                  : "inputs: " + String.join(", ", feedback.inputs())));
+      if (smokeExpressionMode) {
+        smokeExpressionDrawn = true;
+        ImGui.setNextItemOpen(true, ImGuiCond.Always);
+      }
+      if (ImGui.treeNode("Evaluation details")) {
+        var stats = feedback.statistics();
+        ImGui.text(
+            "Constant parts: "
+                + stats.foldedNodes()
+                + "; removed branches: "
+                + stats.prunedBranches());
+        ImGui.text(
+            "Shared calculations: "
+                + stats.sharedExpressions()
+                + "; instructions: "
+                + stats.instructions());
+        ImGui.textWrapped("Input and resource references receive full validation on Apply.");
+        ImGui.treePop();
+      }
+    }
+  }
 
   private List<Map.Entry<String, Binding>> selectedInputs(Item item) {
     if (item.inputs.isEmpty()) return List.of();

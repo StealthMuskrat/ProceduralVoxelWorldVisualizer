@@ -11,6 +11,44 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ExpressionFeedbackTest {
   @Test
+  void invalidNamedBindingsAreDistinguishedFromParserSpansAndNeverCached() {
+    var p = new ProjectData();
+    var n = new Noise();
+    n.id = "n";
+    var item = ProcessingRegistry.create("EXPRESSION", "formula");
+    item.parameters.put("expression", ProjectIO.JSON.valueToTree("x+unknown"));
+    var binding = Binding.constant(0);
+    binding.value = null;
+    item.inputs.put("bias", binding);
+    var feedback = new ExpressionFeedback();
+    var bad = feedback.inspect(p, n, item);
+    assertFalse(bad.valid());
+    assertEquals("bias", bad.input());
+    assertEquals(0, feedback.cachedEntries());
+    binding.value = ProjectIO.JSON.valueToTree(2);
+    var parser = feedback.inspect(p, n, item);
+    assertNull(parser.input());
+    assertEquals(2, parser.start());
+    assertEquals(9, parser.end());
+    assertSame(parser, feedback.inspect(p, n, item));
+    binding.sourceKind = "Shared Parameter";
+    binding.parameterUuid = java.util.UUID.randomUUID();
+    assertEquals("bias", feedback.inspect(p, n, item).input());
+    binding.sourceKind = "Constant";
+    binding.type = "Vector3";
+    assertEquals("bias", feedback.inspect(p, n, item).input());
+    item.inputs.put("bias", null);
+    assertEquals("bias", feedback.inspect(p, n, item).input());
+  }
+
+  @Test
+  void historicalFeedbackConstructorHasNoBindingDestination() {
+    var old = new ExpressionFeedback.Result("bad", 1, 2, null, java.util.List.of(), null);
+    assertNull(old.input());
+    assertFalse(old.valid());
+  }
+
+  @Test
   void parserFeedbackTracksTypesSharedValuesAndErrorSpans() {
     var p = new ProjectData();
     var n = new Noise();

@@ -9,6 +9,45 @@ import org.junit.jupiter.api.Test;
 
 class CompilationDiagnosticTest {
   @Test
+  void invalidBindingsNameTheInputAndEscapeItsPointerToken() {
+    var p = new ProjectData();
+    var n = new Noise();
+    n.id = "n";
+    p.noise2D.add(n);
+    var item = ProcessingRegistry.create("EXPRESSION", "formula");
+    item.parameters.put("expression", ProjectIO.JSON.valueToTree("x"));
+    item.inputs.put("a/b~c", Binding.constant(0));
+    item.inputs.get("a/b~c").value = null;
+    n.processing.add(item);
+    n.outputBinding = Binding.earlier(item.uuid);
+    var failure =
+        assertThrows(CompilationFailure.class, () -> new NoiseCompiler(p, 0).compile(n.uuid));
+    assertEquals("inputs/a/b~c", failure.diagnostic().parameterKey());
+    assertTrue(failure.diagnostic().jsonPointer().endsWith("/inputs/a~1b~0c"));
+    assertEquals(item.uuid, failure.diagnostic().itemUuid());
+    assertEquals(n.uuid, failure.diagnostic().sourceUuid());
+  }
+
+  @Test
+  void incompatibleExpressionInputAndMissingOrdinaryInputHaveBindingTargets() {
+    var p = new ProjectData();
+    var n = new Noise();
+    n.id = "n";
+    p.noise2D.add(n);
+    var item = ProcessingRegistry.create("EXPRESSION", "formula");
+    item.parameters.put("expression", ProjectIO.JSON.valueToTree("x"));
+    var vector = Binding.constant(0);
+    vector.type = "Vector2";
+    vector.value = ProjectIO.JSON.valueToTree(new double[] {1, 2});
+    item.inputs.put("vector", vector);
+    n.processing.add(item);
+    assertEquals("inputs/vector", NoiseCompiler.validate(p).getFirst().parameterKey());
+    item.kind = "ADD";
+    item.inputs.clear();
+    assertEquals("inputs/a", NoiseCompiler.validate(p).getFirst().parameterKey());
+  }
+
+  @Test
   void parserFailureRetainsOwningItemParameterAndOriginalSpanCause() {
     var p = new ProjectData();
     var n = new Noise();

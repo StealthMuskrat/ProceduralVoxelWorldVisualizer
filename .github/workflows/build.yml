@@ -143,6 +143,10 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PlacementDriverConsumer build/placement-drivers/placement-driver-project.json 4 build/placement-drivers
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PlacementDriverConsumer fixtures/placement-driver-phases.json 2
           python scripts/verify_placement_driver_phases.py build/placement-drivers
+      - name: Expression diagnostic recovery workflow
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpressionRecoveryProbe build/expression-recovery
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExpressionRecoveryConsumer build/expression-recovery/expression-recovery-project.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -170,6 +174,7 @@ jobs:
             build/scalar-remapping/
             build/warp-controls/
             build/placement-drivers/
+            build/expression-recovery/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -398,6 +403,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_placement_driver_phases.py build/placement-drivers
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows expression diagnostic recovery workflow
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpressionRecoveryProbe build/expression-recovery
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ExpressionRecoveryConsumer build/expression-recovery/expression-recovery-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -449,6 +461,7 @@ jobs:
             build/scalar-remapping/
             build/warp-controls/
             build/placement-drivers/
+            build/expression-recovery/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/
