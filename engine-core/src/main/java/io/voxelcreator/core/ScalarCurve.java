@@ -128,23 +128,59 @@ public final class ScalarCurve {
               ? y[0] + (v - lo) * endpointSlope(0)
               : y[last] + (v - hi) * endpointSlope(last);
         case "REPEAT":
-          v = lo + (v - lo) - len * StrictMath.floor((v - lo) / len);
+          double repeated = lo + (v - lo) - len * StrictMath.floor((v - lo) / len);
+          v = inDomain(repeated, lo, hi) ? repeated : repeatFallback(v, lo, len);
           break;
         case "MIRROR":
           double t = (v - lo) - 2 * len * StrictMath.floor((v - lo) / (2 * len));
-          v = lo + (t <= len ? t : 2 * len - t);
+          double mirrored = lo + (t <= len ? t : 2 * len - t);
+          v = inDomain(mirrored, lo, hi) ? mirrored : mirrorFallback(v, lo, len);
           break;
         default:
           throw new AssertionError();
       }
     }
-    if (!Double.isFinite(v)) throw new ArithmeticException("Curve outside-domain mapping overflow");
+    if (!inDomain(v, lo, hi))
+      throw new ArithmeticException("Curve outside-domain mapping is not representable");
     if (v == hi) return y[last];
     int i = java.util.Arrays.binarySearch(x, v);
     if (i >= 0) return y[i];
     i = -i - 2;
     double h = x[i + 1] - x[i], t = (v - x[i]) / h;
     return ((a[i] * t + b[i]) * t + c[i]) * t + d[i];
+  }
+
+  private static boolean inDomain(double value, double lo, double hi) {
+    return Double.isFinite(value) && value >= lo && value <= hi;
+  }
+
+  private static double positiveRemainder(double value, double period) {
+    double remainder = value % period;
+    if (remainder < 0) remainder += period;
+    return remainder >= period ? 0 : remainder;
+  }
+
+  /** Reduce each operand before subtraction so neither the offset nor quotient can overflow. */
+  private static double phase(double value, double origin, double period) {
+    double result = positiveRemainder(value, period) - positiveRemainder(origin, period);
+    if (result < 0) result += period;
+    return result >= period ? 0 : result;
+  }
+
+  private static double repeatFallback(double value, double lo, double length) {
+    return lo + phase(value, lo, length);
+  }
+
+  private static double mirrorFallback(double value, double lo, double length) {
+    double period = 2 * length;
+    if (Double.isFinite(period)) {
+      double p = phase(value, lo, period);
+      return lo + (p <= length ? p : period - p);
+    }
+    // Work at half scale when the doubled period cannot be represented. Fold before
+    // doubling, so the intermediate distance never exceeds the finite domain length.
+    double half = positiveRemainder(value / 2 - lo / 2, length);
+    return lo + 2 * Math.min(half, length - half);
   }
 
   private double endpointSlope(int i) {

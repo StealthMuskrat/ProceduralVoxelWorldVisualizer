@@ -1,0 +1,4238 @@
+{
+  "formatVersion": 1,
+  "projectFormat": 2,
+  "processingKind": "CURVE",
+  "dimensions": [
+    2,
+    3
+  ],
+  "seed": 0,
+  "fallbackOracle": "exact Fraction of binary64 inputs and rounded binary64 domain span",
+  "tolerance": 2e-13,
+  "vectors": [
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0000000000001p-1022"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.999999999999ap-4"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.ccccccccccccdp-1"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": -1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": -1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "REPEAT",
+      "input": 1.0000000000000002,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-52"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0000000000001p-1022"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": -5e-324,
+      "legacyValid": false,
+      "expectedHex": "0x0.0000000000001p-1022"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.999999999999ap-4"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.99999999999a0p-4"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": -1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": -1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 1.0,
+      "mode": "MIRROR",
+      "input": 1.0000000000000002,
+      "legacyValid": true,
+      "expectedHex": "0x1.ffffffffffffep-1"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.99999999999a0p-4"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.cccccccccccccp-1"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": -1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": -1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 2.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 0.9999999999999999,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 2.0000000000000004,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-51"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "REPEAT",
+      "input": 1.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.cccccccccccccp-1"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.cccccccccccccp-1"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": -1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": -1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 2.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 0.9999999999999999,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 2.0000000000000004,
+      "legacyValid": true,
+      "expectedHex": "0x1.ffffffffffffcp-1"
+    },
+    {
+      "min": 1.0,
+      "max": 2.0,
+      "mode": "MIRROR",
+      "input": 1.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.99999999999a0p-4"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.cccccccccccccp-1"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": 1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -2.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -2.0000000000000004,
+      "legacyValid": true,
+      "expectedHex": "0x1.ffffffffffffcp-1"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -0.9999999999999999,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "REPEAT",
+      "input": -1.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.99999999999a0p-4"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.99999999999a0p-4"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": 1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": 1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": 1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -2.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -2.0000000000000004,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-51"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -0.9999999999999999,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -2.0,
+      "max": -1.0,
+      "mode": "MIRROR",
+      "input": -1.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 0.1,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": -0.1,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 0.5,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": -0.5,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 1.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": -1.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 4.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": -4.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": -1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": -1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "REPEAT",
+      "input": 1e-323,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 0.1,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": -0.1,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 0.5,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": -0.5,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 1.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": -1.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 4.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": -4.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": -1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": -1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 5e-324,
+      "mode": "MIRROR",
+      "input": 1e-323,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 0.1,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": -0.1,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 0.5,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": -0.5,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 1.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": -1.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 4.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": -4.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": -1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": -1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 1e-323,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "REPEAT",
+      "input": 1.5e-323,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 0.1,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": -0.1,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 0.5,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": -0.5,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 1.0,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": -1.0,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 4.0,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": -4.0,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": -1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": -1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 1e-323,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 5e-324,
+      "max": 1e-323,
+      "mode": "MIRROR",
+      "input": 1.5e-323,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-74"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": -1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": -1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 9.332636185032189e-302,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 9.33263618503219e-302,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-52"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "REPEAT",
+      "input": 4.6663180925160944e-302,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-74"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": -1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": -1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 9.332636185032189e-302,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 9.33263618503219e-302,
+      "legacyValid": true,
+      "expectedHex": "0x1.ffffffffffffep-1"
+    },
+    {
+      "min": 0.0,
+      "max": 9.332636185032189e-302,
+      "mode": "MIRROR",
+      "input": 4.6663180925160944e-302,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 0.1,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": -0.1,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 0.5,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": -0.5,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 1.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": -1.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 4.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": -4.0,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": -1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": -1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 9.332636185032189e-302,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 1.8665272370064378e-301,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 9.332636185032188e-302,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 1.866527237006438e-301,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-51"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "REPEAT",
+      "input": 1.3998954277548283e-301,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": -1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": -1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 9.332636185032189e-302,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 1.8665272370064378e-301,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 9.332636185032188e-302,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 1.866527237006438e-301,
+      "legacyValid": true,
+      "expectedHex": "0x1.ffffffffffffcp-1"
+    },
+    {
+      "min": 9.332636185032189e-302,
+      "max": 1.8665272370064378e-301,
+      "mode": "MIRROR",
+      "input": 1.3998954277548283e-301,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 1.0000000000000002e+16,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 9999999999999998.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "REPEAT",
+      "input": 1.0000000000000004e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": -1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": -1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 1.0000000000000002e+16,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 9999999999999998.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": 1e+16,
+      "max": 1.0000000000000002e+16,
+      "mode": "MIRROR",
+      "input": 1.0000000000000004e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": 1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -1.0000000000000002e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -1.0000000000000004e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "REPEAT",
+      "input": -9999999999999998.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": 1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": 1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": 1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -1.0000000000000002e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -1.0000000000000004e+16,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1.0000000000000002e+16,
+      "max": -1e+16,
+      "mode": "MIRROR",
+      "input": -9999999999999998.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x1.00000035afe53p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x1.ffffff94a0359p-2"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.3f43058818c1ap-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.8179f4efce7ccp-2"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -8e+307,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 8e+307,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": -8.000000000000001e+307,
+      "legacyValid": true,
+      "expectedHex": "0x1.fffffffffffffp-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "REPEAT",
+      "input": 8.000000000000001e+307,
+      "legacyValid": true,
+      "expectedHex": "0x1.1fa182c40c60ep-53"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x1.00000035afe53p-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x1.ffffff94a0359p-2"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.8179f4efce7ccp-2"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.3f43058818c1ap-1"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -8e+307,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 8e+307,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": -8.000000000000001e+307,
+      "legacyValid": false,
+      "expectedHex": "0x1.1fa182c40c60ep-54"
+    },
+    {
+      "min": -8e+307,
+      "max": 8e+307,
+      "mode": "MIRROR",
+      "input": 8.000000000000001e+307,
+      "legacyValid": false,
+      "expectedHex": "0x1.fffffffffffffp-1"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": 5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": 0.1,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": 0.5,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": 1.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": 4.0,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": 1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": 1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": 1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": 1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x1.5798ee2302284p-27"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x1.ffffffaa19c47p-1"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.986b3c0cf468fp-1"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": true,
+      "expectedHex": "0x1.9e530fcc2e5c2p-3"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -1e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -1.0000000000000002e+308,
+      "legacyValid": true,
+      "expectedHex": "0x1.ffffffffffffep-1"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "REPEAT",
+      "input": -5e+307,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": 0.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": 5e-324,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -5e-324,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": 0.1,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -0.1,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": 0.5,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -0.5,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": 1.0,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -1.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": 4.0,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -4.0,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": 1e+16,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -1e+16,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": 1e+20,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -1e+20,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": 1e+100,
+      "legacyValid": false,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -1e+100,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": 1e+300,
+      "legacyValid": false,
+      "expectedHex": "0x1.ffffffaa19c47p-1"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -1e+300,
+      "legacyValid": true,
+      "expectedHex": "0x1.ffffffaa19c47p-1"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": 1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.986b3c0cf468fp-1"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -1.7976931348623157e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.986b3c0cf468fp-1"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -1e+308,
+      "legacyValid": true,
+      "expectedHex": "0x0.0p+0"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -1.0000000000000002e+308,
+      "legacyValid": false,
+      "expectedHex": "0x1.cc359e067a349p-53"
+    },
+    {
+      "min": -1e+308,
+      "max": 0.0,
+      "mode": "MIRROR",
+      "input": -5e+307,
+      "legacyValid": true,
+      "expectedHex": "0x1.0000000000000p-1"
+    }
+  ]
+}

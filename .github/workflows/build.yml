@@ -167,6 +167,11 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurvePreviewProbe build/curve-preview
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurvePreviewConsumer build/curve-preview/curve-preview-project.json
+      - name: Curve wrapping exact reference and native workflow
+        run: |
+          python scripts/curve_wrapping_reference.py fixtures/curve-wrapping-vectors.json --check
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveWrappingProbe build/curve-wrapping
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveWrappingConsumer fixtures/curve-wrapping-vectors.json build/curve-wrapping/curve-wrapping-project.json build/curve-wrapping
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -200,6 +205,7 @@ jobs:
             build/curve-point/
             build/curve-navigation/
             build/curve-preview/
+            build/curve-wrapping/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -470,6 +476,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurvePreviewConsumer build/curve-preview/curve-preview-project.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows curve wrapping exact reference and native workflow
+        shell: pwsh
+        run: |
+          python scripts/curve_wrapping_reference.py fixtures/curve-wrapping-vectors.json --check
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveWrappingProbe build/curve-wrapping
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurveWrappingConsumer fixtures/curve-wrapping-vectors.json build/curve-wrapping/curve-wrapping-project.json build/curve-wrapping
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -527,6 +542,7 @@ jobs:
             build/curve-point/
             build/curve-navigation/
             build/curve-preview/
+            build/curve-wrapping/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/

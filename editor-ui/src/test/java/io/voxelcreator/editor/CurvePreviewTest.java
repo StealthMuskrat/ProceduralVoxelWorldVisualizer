@@ -40,7 +40,7 @@ class CurvePreviewTest {
   }
 
   @Test
-  void repeatAndMirrorMappingFailuresAreBoundedWithoutReplacingTheirValues() {
+  void repeatAndMirrorTinyDomainsRemainFiniteAfterWrappingFallback() {
     for (String outside : new String[] {"REPEAT", "MIRROR"}) {
       var c = new Curve();
       c.max = Double.MIN_VALUE;
@@ -48,12 +48,11 @@ class CurvePreviewTest {
       c.points.getLast().y = Double.MIN_VALUE;
       c.outsideDomain = outside;
       var p = CurvePreview.capture(new ScalarCurve(c), -1, 1);
-      assertEquals(512, p.failures());
+      assertEquals(0, p.failures());
       assertTrue(p.valid(256));
       assertEquals(0, p.value(256));
-      assertTrue(Double.isNaN(p.value(0)));
-      assertTrue(p.firstFailure().message().contains("mapping overflow"));
-      assertTrue(p.firstFailure().message().length() <= 256);
+      assertNull(p.firstFailure());
+      for (int i = 0; i < p.size(); i++) assertEquals(0, p.value(i));
     }
   }
 
