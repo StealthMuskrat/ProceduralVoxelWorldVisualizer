@@ -33,7 +33,6 @@ public final class Viewports implements AutoCloseable {
   private final UiFields fields = new UiFields();
   private int active = 0;
   private int smokeTab = -1;
-  private boolean paused = false;
   private long traceSerial = 0;
   private final ImBoolean inspector = new ImBoolean(false);
   private final int[] inspect = {0, 0, 0};
@@ -76,6 +75,7 @@ public final class Viewports implements AutoCloseable {
     volatile long epoch = 0;
     Future<?> job;
     final PreviewMailbox<Preview> ready = new PreviewMailbox<>();
+    final PreviewAdmission admission = new PreviewAdmission();
     String message = "Ready";
     Vector3d origin = new Vector3d();
     double[] raw;
@@ -479,7 +479,6 @@ public final class Viewports implements AutoCloseable {
       }
     }
     if (ImGui.button("Regenerate")) {
-      paused = false;
       v.force = true;
       v.rebuildSerial++;
       mark(v);
@@ -698,7 +697,7 @@ public final class Viewports implements AutoCloseable {
         && (!v.failedPreview || v.force)
         && v.dirty
         && !v.activeJob
-        && !paused
+        && !v.admission.blocked()
         && (state.user.editor.autoRegenerate || v.force || v.lastSubmit == 0)
         && System.nanoTime() - v.lastSubmit
             > 1_000_000_000L / state.user.editor.opportunitiesPerSecond) submit(v);
@@ -1228,6 +1227,7 @@ public final class Viewports implements AutoCloseable {
 
   private void mark(View v) {
     v.dirty = true;
+    v.admission.changed();
     v.failedPreview = false;
     v.epoch++;
     v.ready.advance(v.epoch);
@@ -1238,23 +1238,20 @@ public final class Viewports implements AutoCloseable {
 
   private void submit(View v) {
     int n = v.kind == 0 ? 256 : v.size;
-    if ((long) n * n * (v.kind == 0 ? 1 : n) > state.user.performance.previewCellBudget
-        || n > state.user.performance.maxPreviewDimension && v.kind != 0) {
-      v.message = "Preview exceeds configured budget; reduce extent";
-      paused = true;
+    var admission =
+        v.admission.check(
+            v.kind,
+            n,
+            v.mode,
+            state.user.performance.previewCellBudget,
+            state.user.performance.maxPreviewDimension,
+            (long) state.user.performance.sceneCpuMiB << 20);
+    if (!admission.allowed()) {
+      v.message = admission.message();
+      v.failedPreview = true;
       return;
     }
-    long working =
-        (v.kind == 0
-            ? 64L * n * n
-            : v.mode.equals("Volume")
-                ? 12L * n * n * n
-                : v.mode.equals("Point Cloud") ? 96L * n * n * n : 3024L * n * n * n);
-    if (working > ((long) state.user.performance.sceneCpuMiB << 20)) {
-      v.message = "Preview exceeds working-memory budget; reduce extent or raise CPU MiB";
-      paused = true;
-      return;
-    }
+    long working = admission.workingBytes();
     var snapshot = ProjectIO.copy(state.project());
     long epoch = v.epoch;
     var cancellation = v.ready.token(epoch);
@@ -1514,7 +1511,8 @@ public final class Viewports implements AutoCloseable {
     } catch (RejectedExecutionException e) {
       v.activeJob = false;
       v.message = "Preview queue is full; Regenerate to retry";
-      paused = true;
+      v.failedPreview = true;
+      v.admission.queueFull();
     }
   }
 
