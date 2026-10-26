@@ -12,6 +12,7 @@ public final class NoiseImageInputProbe {
   private static float px, py;
   private static final float WIDTH = 640, HEIGHT = 360;
   private static int changes;
+  private static final NoiseImageInput input = new NoiseImageInput();
 
   public static void main(String[] args) throws Exception {
     var out = Path.of(args[0]).toAbsolutePath();
@@ -70,6 +71,46 @@ public final class NoiseImageInputProbe {
         io.addMouseWheelEvent(0, 3);
         frame();
         require(pose.equals(panned) && changes == afterRelease, "Outside wheel moved pose");
+        // A drag pressed outside must not be adopted on entering the image.
+        io.addMouseButtonEvent(0, true);
+        frame();
+        io.addMousePosEvent(px + WIDTH / 2, py + HEIGHT / 2);
+        frame();
+        require(pose.equals(panned), "Foreign drag was adopted");
+        io.addMouseButtonEvent(0, false);
+        frame();
+        var captureBefore = pose;
+        io.addMouseButtonEvent(0, true);
+        frame();
+        double startX = io.getMousePosX(), startY = io.getMousePosY();
+        io.addMousePosEvent(px + WIDTH + 40, py - 20);
+        frame();
+        var outsidePan = pose;
+        double dx = io.getMousePosX() - startX, dy = io.getMousePosY() - startY;
+        near(captureBefore.x() - dx / WIDTH * 256 * captureBefore.step(), pose.x());
+        near(captureBefore.z() - dy / HEIGHT * 256 * captureBefore.step(), pose.z());
+        require(!pose.equals(captureBefore), "Captured outside drag did not pan");
+        io.addMouseWheelEvent(0, 2);
+        frame();
+        require(pose.equals(outsidePan), "Wheel changed captured drag");
+        io.addKeyEvent(ImGuiKey.Escape, true);
+        frame();
+        io.addKeyEvent(ImGuiKey.Escape, false);
+        frame();
+        require(pose.equals(captureBefore), "Escape failed to restore baseline");
+        io.addMousePosEvent(px + WIDTH / 2 + 80, py + HEIGHT / 2 + 30);
+        frame();
+        require(pose.equals(captureBefore), "Cancelled held drag resumed");
+        io.addMouseButtonEvent(0, false);
+        frame();
+        io.addMouseButtonEvent(0, true);
+        frame();
+        io.addMousePosEvent(px + WIDTH / 2 + 96, py + HEIGHT / 2 + 50);
+        frame();
+        require(!pose.equals(captureBefore), "Fresh drag after Escape failed");
+        io.addMouseButtonEvent(0, false);
+        frame();
+        input.reset();
         pose = new NoiseImageNavigation(pose.x(), pose.z(), NoiseImageNavigation.MIN_STEP);
         io.addMousePosEvent(px + WIDTH * .25f, py + HEIGHT * .35f);
         frame();
@@ -87,7 +128,15 @@ public final class NoiseImageInputProbe {
             out.resolve("image-input-native.json"),
             ProjectIO.JSON.writeValueAsString(
                 Map.ofEntries(
-                    Map.entry("formatVersion", 1),
+                    Map.entry("formatVersion", 2),
+                    Map.entry("captureBefore", captureBefore),
+                    Map.entry("outsidePan", outsidePan),
+                    Map.entry("outsideDx", dx),
+                    Map.entry("outsideDy", dy),
+                    Map.entry("foreignDragIgnored", true),
+                    Map.entry("escapeRestored", true),
+                    Map.entry("heldWheelIgnored", true),
+                    Map.entry("freshDragAfterCancel", true),
                     Map.entry("before", before),
                     Map.entry("zoomed", zoomed),
                     Map.entry("u", u),
@@ -99,8 +148,8 @@ public final class NoiseImageInputProbe {
                     Map.entry("saturatedNoWork", true),
                     Map.entry("viewOnly", true))));
         System.out.println(
-            "IMAGE_INPUT_NATIVE_PASS wheel anchor / drag / release / outside wheel / saturation /"
-                + " view-only");
+            "IMAGE_INPUT_NATIVE_PASS wheel anchor / captured outside drag / Escape / foreign drag /"
+                + " saturation / view-only");
       }
     } finally {
       ImGui.destroyContext();
@@ -121,7 +170,7 @@ public final class NoiseImageInputProbe {
     px = ImGui.getCursorScreenPosX();
     py = ImGui.getCursorScreenPosY();
     ImGui.invisibleButton("image", WIDTH, HEIGHT);
-    var next = NoiseImageInput.navigate(pose, ImGui.isItemHovered(), px, py, WIDTH, HEIGHT);
+    var next = input.navigate(pose, ImGui.isItemHovered(), px, py, WIDTH, HEIGHT);
     if (!next.equals(pose)) {
       pose = next;
       changes++;

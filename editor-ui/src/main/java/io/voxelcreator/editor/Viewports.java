@@ -44,6 +44,7 @@ public final class Viewports implements AutoCloseable {
     final GlViewport gl = new GlViewport();
     final Camera camera = new Camera();
     final NoiseImageRows imageRows = new NoiseImageRows();
+    final NoiseImageInput imageInput = new NoiseImageInput();
     NoiseImageRows.Statistics imageStatistics;
     NoiseImageView displayedImage;
     UUID noise, stage, keyNoise;
@@ -304,6 +305,7 @@ public final class Viewports implements AutoCloseable {
       ImGui.endTabBar();
     }
     ImGui.end();
+    if (active != 0) views[0].imageInput.reset();
     drawInspector();
     bookmarkPanel.drawDialogs();
   }
@@ -701,6 +703,7 @@ public final class Viewports implements AutoCloseable {
         && System.nanoTime() - v.lastSubmit
             > 1_000_000_000L / state.user.editor.opportunitiesPerSecond) submit(v);
     if (!source) {
+      v.imageInput.reset();
       ImGui.spacing();
       ImGui.textWrapped(
           "Create a "
@@ -779,20 +782,22 @@ public final class Viewports implements AutoCloseable {
       }
       ImGui.endPopup();
     }
+    if (v.kind == 0) {
+      try {
+        var before = new NoiseImageNavigation(v.panX, v.panZ, v.step);
+        var after = v.imageInput.navigate(before, hovered, px, py, w, h);
+        if (!after.equals(before)) {
+          v.panX = after.x();
+          v.panZ = after.z();
+          v.step = after.step();
+          mark(v);
+        }
+      } catch (IllegalArgumentException failure) {
+        state.status = "2D navigation exceeds finite coordinate range";
+      }
+    }
     if (hovered) {
       if (v.kind == 0) {
-        try {
-          var before = new NoiseImageNavigation(v.panX, v.panZ, v.step);
-          var after = NoiseImageInput.navigate(before, hovered, px, py, w, h);
-          if (!after.equals(before)) {
-            v.panX = after.x();
-            v.panZ = after.z();
-            v.step = after.step();
-            mark(v);
-          }
-        } catch (IllegalArgumentException failure) {
-          state.status = "2D navigation exceeds finite coordinate range";
-        }
         String sample = "Waiting for a displayed preview";
         if (v.displayedImage != null) {
           try {

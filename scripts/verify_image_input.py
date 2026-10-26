@@ -12,3 +12,11 @@ assert math.isclose(b['z'],a['z']+18/360*256*a['step'],rel_tol=0,abs_tol=1e-10)
 assert a['step']==b['step']
 assert all(r[k] is True for k in ['released','outsideIgnored','saturatedNoWork','viewOnly'])
 print('IMAGE_INPUT_PYTHON_PASS native cursor anchor / pan arithmetic / lifecycle')
+
+assert r['formatVersion']==2
+a,b=r['captureBefore'],r['outsidePan']
+assert math.isclose(b['x'],a['x']-r['outsideDx']/640*256*a['step'],rel_tol=0,abs_tol=1e-10)
+assert math.isclose(b['z'],a['z']-r['outsideDy']/360*256*a['step'],rel_tol=0,abs_tol=1e-10)
+assert a['step']==b['step']
+assert all(r[k] is True for k in ['foreignDragIgnored','escapeRestored','heldWheelIgnored','freshDragAfterCancel'])
+print('IMAGE_CAPTURE_PYTHON_PASS outside drag / ownership / Escape')
