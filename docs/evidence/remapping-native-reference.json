@@ -1,0 +1,10 @@
+{
+  "after" : 3.25,
+  "oneUndoRedo" : true,
+  "weight" : 0.75,
+  "preciseInvalidExtent" : true,
+  "mode" : "ADD",
+  "renderedOperations" : 4,
+  "formatVersion" : 1,
+  "before" : 0.5
+}
