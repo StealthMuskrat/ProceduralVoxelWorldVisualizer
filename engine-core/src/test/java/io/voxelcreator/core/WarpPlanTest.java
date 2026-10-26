@@ -433,4 +433,29 @@ class WarpPlanTest {
     i.inputs.put("warpZ", Binding.constant(0));
     assertEquals(372, field(n).sample(2, 7, 3));
   }
+
+  @Test
+  void nestedNumericGeneratorReferencesCountEveryOctaveInvocation() {
+    var base = noise("base-work", 3, "x");
+    var filter = ProcessingRegistry.create("MEDIAN_FILTER", "large-neighborhood", 3);
+    filter.inputs.put("field", Binding.earlierField(base.processing.getFirst().uuid));
+    set(filter, "radius", 4);
+    base.processing.add(filter);
+    base.outputBinding = Binding.earlier(filter.uuid);
+    var previous = base;
+    for (int k = 0; k < 3; k++) {
+      var n = noise("numeric-work-" + k, 3, "x");
+      var i = warp(n, false);
+      set(i, "warpOctaves", 16);
+      for (var key : List.of("warpX", "warpY", "warpZ")) {
+        var binding = Binding.noiseField(previous.uuid);
+        binding.sourceKind = "Noise Generator Reference";
+        i.inputs.put(key, binding);
+      }
+      previous = n;
+    }
+    assertTrue(
+        NoiseCompiler.validate(project).stream()
+            .anyMatch(d -> d.message().contains("COMPLEXITY_LIMIT")));
+  }
 }

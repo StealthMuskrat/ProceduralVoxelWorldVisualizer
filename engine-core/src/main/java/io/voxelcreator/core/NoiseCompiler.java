@@ -503,7 +503,7 @@ public final class NoiseCompiler {
                       displacementWork,
                       components[axis] != null
                           ? components[axis].work
-                          : values[axis] != null ? 0 : 16);
+                          : values[axis] != null ? values[axis].work : 16);
               if (components[axis] != null)
                 sampleDepth = Math.max(sampleDepth, components[axis].depth);
             }
@@ -1077,7 +1077,7 @@ public final class NoiseCompiler {
                     oneOctave,
                     displacementFields[axis] != null
                         ? displacementFields[axis].work
-                        : warpValues[axis] != null ? 0 : 16);
+                        : warpValues[axis] != null ? warpValues[axis].work : 16);
             if (displacementFields[axis] != null)
               depth = Math.max(depth, displacementFields[axis].depth);
           }

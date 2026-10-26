@@ -34,7 +34,7 @@ Warp octaves are 1..16, with positive finite lacunarity and signed finite gain. 
 
 The target field is evaluated once at the final displaced position. WARP_SAMPLE starts from incoming generator coordinates or its explicit typed Coordinates input, then invokes the selected target field/prefix, including that field's transforms once. DOMAIN_WARP starts at its incoming coordinate-stage location or an earlier explicit coordinate snapshot; subsequent coordinate transforms execute in authored order.
 
-Zero amplitude does not execute displacement queries. Zero octave amplitude (including zero gain) skips that octave. Controls and references still validate before evaluation. Nonfinite displacement, coordinate scaling, amplitude products and accumulated coordinates fail at the executing warp boundary; octave scale/gain overflow rejects during compilation. Per-thread primitive result scratch is owned by each compiled item. Estimated displacement field work is multiplied by octave count and included with target work; nested sampled prefixes retain the existing 1,000,000-work and depth limits.
+Zero amplitude does not execute displacement queries. Zero octave amplitude (including zero gain) skips that octave. Controls and references still validate before evaluation. Nonfinite displacement, coordinate scaling, amplitude products and accumulated coordinates fail at the executing warp boundary; octave scale/gain overflow rejects during compilation. Per-thread primitive result scratch is owned by each compiled item. Estimated displacement field and numeric generator-reference work is multiplied by octave count and included with target work; nested sampled prefixes retain the existing 1,000,000-work and depth limits.
 
 ## Seeds and compatibility
 
