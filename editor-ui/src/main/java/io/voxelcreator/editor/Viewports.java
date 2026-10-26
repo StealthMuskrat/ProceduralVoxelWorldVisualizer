@@ -781,14 +781,23 @@ public final class Viewports implements AutoCloseable {
     }
     if (hovered) {
       if (v.kind == 0) {
-        if (ImGui.isMouseDragging(0)) {
-          v.panX -= io.getMouseDeltaX() * v.step * 256 / w;
-          v.panZ -= io.getMouseDeltaY() * v.step * 256 / h;
-          mark(v);
-        }
-        if (io.getMouseWheel() != 0) {
-          v.step = Math.max(.0001, Math.min(10000, v.step * Math.exp(-io.getMouseWheel() * .15)));
-          mark(v);
+        try {
+          var before = new NoiseImageNavigation(v.panX, v.panZ, v.step);
+          var after = before;
+          if (ImGui.isMouseDragging(0))
+            after = after.pan(io.getMouseDeltaX() / w, io.getMouseDeltaY() / h);
+          if (io.getMouseWheel() != 0)
+            after =
+                after.zoom(
+                    (io.getMousePosX() - px) / w, (io.getMousePosY() - py) / h, io.getMouseWheel());
+          if (!after.equals(before)) {
+            v.panX = after.x();
+            v.panZ = after.z();
+            v.step = after.step();
+            mark(v);
+          }
+        } catch (IllegalArgumentException failure) {
+          state.status = "2D navigation exceeds finite coordinate range";
         }
         String sample = "Waiting for a displayed preview";
         if (v.displayedImage != null) {
