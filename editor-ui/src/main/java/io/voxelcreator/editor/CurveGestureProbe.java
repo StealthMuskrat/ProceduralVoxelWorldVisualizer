@@ -103,7 +103,8 @@ public final class CurveGestureProbe {
         check(.35, .85);
         click(dialog().probeControl("undo"));
         drag(.073, true);
-        check(.323, .823);
+        check(.25 + deliveredDelta, .75 + deliveredDelta);
+        require(Math.abs(.25 + deliveredDelta - .35) > .01, "Alt move accidentally snapped");
         click(dialog().probeControl("undo"));
         check(.25, .75);
         drag(.076, false);
@@ -159,6 +160,7 @@ public final class CurveGestureProbe {
   }
 
   private static float startX, startY, plotHeight;
+  private static double pressedY, deliveredDelta;
 
   private static CurveDialog dialog() {
     return panel.probeCurveDialog();
@@ -175,6 +177,7 @@ public final class CurveGestureProbe {
     frame();
     io.addMouseButtonEvent(0, true);
     frame();
+    pressedY = io.getMousePosY();
     moveHeld(dy / 2);
     moveHeld(dy);
   }
@@ -182,6 +185,7 @@ public final class CurveGestureProbe {
   private static void moveHeld(double dy) {
     ImGui.getIO().addMousePosEvent(startX, startY - (float) (dy * plotHeight));
     frame();
+    deliveredDelta = (pressedY - ImGui.getIO().getMousePosY()) / plotHeight;
   }
 
   private static void release() {
