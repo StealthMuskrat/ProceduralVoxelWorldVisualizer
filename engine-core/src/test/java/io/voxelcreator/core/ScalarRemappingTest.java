@@ -339,4 +339,18 @@ class ScalarRemappingTest {
     set(i, "transition", 1);
     assertEquals(-.125, value());
   }
+
+  @Test
+  void explicitOutputClampCannotMaskBlendOverflowAndFullWeightAvoidsUnusedDifference() {
+    var i = item("BLEND");
+    i.inputs.put("a", Binding.constant(1e308));
+    i.inputs.put("b", Binding.constant(-1e308));
+    set(i, "weight", .5);
+    set(i, "outputPolicy", "CLAMP_01");
+    assertThrows(EvaluationFailure.class, this::value);
+    set(i, "weight", 1);
+    assertEquals(0, value());
+    set(i, "outputPolicy", "RAW");
+    assertEquals(-1e308, value());
+  }
 }

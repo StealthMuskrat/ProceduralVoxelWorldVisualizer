@@ -38,6 +38,7 @@ public final class ScalarRemapping {
     }
 
     public double output(double value) {
+      if (!Double.isFinite(value)) throw new ArithmeticException("Nonfinite weighted blend result");
       return s("outputPolicy").equals("CLAMP_01") ? Expression.clamp(value, 0, 1) : value;
     }
 

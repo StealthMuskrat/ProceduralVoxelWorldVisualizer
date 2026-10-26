@@ -16,7 +16,7 @@ BLEND takes required Scalar `a` and `b`. Both accept the existing typed bindings
 | MIN | min(a,b) |
 | MAX | max(a,b) |
 
-The result is `a + (target-a)*weight`. RAW weight permits signed extrapolation. CLAMP explicitly restricts weight to [0,1]. RAW output preserves signed doubles; CLAMP_01 explicitly clamps the result. There is no automatic normalization of source values. Weight zero evaluates only a; LERP weight one evaluates only b. Other full-weight modes evaluate the target directly, avoiding an unnecessary blend difference. Nonfinite target arithmetic, including division by zero, fails at the executing item before output clamping. Unselected branches retain normal lazy evaluation and typed validation.
+The result is `a + (target-a)*weight`. RAW weight permits signed extrapolation. CLAMP explicitly restricts weight to [0,1]. RAW output preserves signed doubles; CLAMP_01 explicitly clamps the result. There is no automatic normalization of source values. Weight zero evaluates only a; LERP weight one evaluates only b. Other full-weight modes evaluate the target directly, avoiding an unnecessary blend difference. Nonfinite target arithmetic or weighted results, including division by zero and blend overflow, fails at the executing item before output clamping. Unselected branches retain normal lazy evaluation and typed validation.
 
 ## Falloff
 
