@@ -213,6 +213,11 @@ class PlacementDriverPhaseTest {
   void acceptanceRowsDoNotExecuteAfterMissingTypeInterval() {
     op.interpretation = "ALL";
     layer.defaults.typeSource = "INTERVALS";
+    var interval = new TypeInterval();
+    interval.min = 1;
+    interval.max = 2;
+    interval.voxelTypeUuid = p.voxelTypes.getFirst().uuid;
+    layer.defaults.typeIntervals.add(interval);
     var invalid = field("bad", 3, "1/0");
     row("strength", "REPLACE", 0, 1, invalid);
     assertEquals(0, trace(0, 0, 0).finalType());
