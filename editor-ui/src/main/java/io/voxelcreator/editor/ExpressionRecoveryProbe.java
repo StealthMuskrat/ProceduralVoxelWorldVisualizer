@@ -60,12 +60,16 @@ public final class ExpressionRecoveryProbe {
             committed.equals(ProjectIO.JSON.valueToTree(state.project())), "Premature publication");
         frames(3);
         click(panel.probeExpressionControl("focus"));
-        frames(2);
+        require(
+            "expression".equals(panel.probeExpressionTarget().parameter()),
+            "Focus action destination");
+        for (int i = 0; i < 10 && !panel.probeExpressionActive(); i++) frame();
+        require(panel.probeExpressionActive(), "Focus request was not acknowledged");
         // No mouse click on the text: the production focus action must accept keyboard repair.
         replace("x+bias*2");
         require(
             "x+bias*2".equals(item.parameters.get("expression").asText()),
-            "Keyboard focus repair failed");
+            "Keyboard focus repair failed: " + item.parameters.get("expression"));
         require(state.applyDraft(), "Repair rejected");
         require(sample(state.project(), n.uuid) == 4, "Repaired arithmetic");
         state.document.undo();

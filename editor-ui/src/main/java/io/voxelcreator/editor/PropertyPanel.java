@@ -1113,6 +1113,11 @@ public final class PropertyPanel {
   private List<DraftChoicePicker.Choice> inputChoices = List.of();
 
   private final Map<String, float[]> expressionRects = new HashMap<>();
+  private boolean expressionActive;
+
+  boolean probeExpressionActive() {
+    return expressionActive;
+  }
 
   private void expressionRect(String key) {
     expressionRects.put(
@@ -1151,9 +1156,12 @@ public final class PropertyPanel {
     f.text(
         "Expression", expr, v -> item.parameters.put("expression", ProjectIO.JSON.valueToTree(v)));
     expressionRect("text");
+    expressionActive = ImGui.isItemActive();
     if (expressionTarget) {
       ImGui.setScrollHereY(.25f);
-      searchScroll = false;
+      // Focus requests are applied by ImGui on a later frame. Keep the request until
+      // the text widget acknowledges it, including navigation from an active button.
+      if (expressionActive) searchScroll = false;
     }
     var feedback = expressionFeedback.inspect(state.project(), n, item);
     if (!feedback.valid()) {
