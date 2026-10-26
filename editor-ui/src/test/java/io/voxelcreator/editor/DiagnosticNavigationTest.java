@@ -33,6 +33,48 @@ class DiagnosticNavigationTest {
   }
 
   @Test
+  void bindingPathsSelectExactDecodedInputRatherThanLeafOrPrefix() {
+    var p = project();
+    var n = p.noise2D.getFirst();
+    var item = n.processing.getFirst();
+    for (String collection : List.of("processing", "coordinateTransforms", "control")) {
+      var diagnostic =
+          new Diagnostic(
+              "BAD",
+              Diagnostic.Severity.ERROR,
+              "bad",
+              "/noise2D/0/" + collection + "/0/inputs/a~1b~0c/constant",
+              n.uuid,
+              item.uuid,
+              "constant");
+      var target = EditorEvents.Target.diagnostic(p.project.uuid, diagnostic);
+      assertEquals("inputs/a/b~c", target.parameter());
+      assertTrue(DiagnosticNavigation.inputTarget(target, item.uuid, "a/b~c"));
+      assertFalse(DiagnosticNavigation.inputTarget(target, item.uuid, "a"));
+      assertFalse(DiagnosticNavigation.inputTarget(target, UUID.randomUUID(), "a/b~c"));
+      assertEquals(diagnostic.jsonPointer(), target.pointer());
+    }
+  }
+
+  @Test
+  void ordinaryAndParameterNamedInputsDoNotBecomeBindingRoutes() {
+    var p = project();
+    var n = p.noise2D.getFirst();
+    var item = n.processing.getFirst();
+    for (String pointer :
+        List.of(
+            "/noise2D/0/processing/0/parameters/inputs/value",
+            "/noise2D/0/processing/0/parameters/expression",
+            "/runtime/inputs/x")) {
+      var diagnostic =
+          new Diagnostic(
+              "BAD", Diagnostic.Severity.ERROR, "bad", pointer, n.uuid, item.uuid, "expression");
+      assertEquals("expression", DiagnosticNavigation.parameter(diagnostic));
+    }
+    assertFalse(DiagnosticNavigation.inputTarget(null, item.uuid, "a"));
+  }
+
+  @Test
   void historicalUuidTargetsSurviveReorderButNotDeletionOrNewProjects() {
     var p = project();
     var t = target(p);

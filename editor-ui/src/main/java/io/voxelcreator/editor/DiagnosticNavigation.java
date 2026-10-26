@@ -8,6 +8,26 @@ import java.util.*;
 public final class DiagnosticNavigation {
   private DiagnosticNavigation() {}
 
+  /** Preserve the named binding from structural diagnostics without replaying array indices. */
+  static String parameter(Diagnostic diagnostic) {
+    String pointer = Objects.requireNonNullElse(diagnostic.jsonPointer(), "");
+    String[] tokens = pointer.split("/", -1);
+    for (int i = 1; i + 1 < tokens.length; i++) {
+      if (diagnostic.itemUuid() != null
+          && i >= 3
+          && Set.of("processing", "coordinateTransforms", "control").contains(tokens[i - 2])
+          && tokens[i].equals("inputs"))
+        return "inputs/" + tokens[i + 1].replace("~1", "/").replace("~0", "~");
+    }
+    return diagnostic.parameterKey();
+  }
+
+  static boolean inputTarget(EditorEvents.Target target, UUID item, String name) {
+    return target != null
+        && Objects.equals(target.control(), item)
+        && Objects.equals(target.parameter(), "inputs/" + name);
+  }
+
   public static boolean available(
       ProjectData project, UUID selected, Object draft, EditorEvents.Target target) {
     if (target == null || !Objects.equals(project.project.uuid, target.project())) return false;

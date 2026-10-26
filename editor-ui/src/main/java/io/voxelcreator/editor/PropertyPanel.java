@@ -147,6 +147,7 @@ public final class PropertyPanel {
     if (!state.navigate(target)) return false;
     focusedControl = target.control();
     navigationTarget = target;
+    searchScroll = true;
     return true;
   }
 
@@ -684,9 +685,7 @@ public final class PropertyPanel {
                 v -> item.resultType = v);
           for (var e : selectedInputs(item)) {
             ImGui.pushID(e.getKey());
-            if (navigationTarget != null
-                && item.uuid.equals(navigationTarget.control())
-                && ("inputs/" + e.getKey()).equals(navigationTarget.parameter()))
+            if (DiagnosticNavigation.inputTarget(navigationTarget, item.uuid, e.getKey()))
               ImGui.setNextItemOpen(true, ImGuiCond.Always);
             if (ImGui.treeNode(
                 "Input: " + e.getKey() + " [" + e.getValue().type + "]###input-properties")) {
@@ -1174,9 +1173,7 @@ public final class PropertyPanel {
     }
     if (navigationTarget != null && item.uuid.equals(navigationTarget.control())) {
       String path = Objects.requireNonNullElse(navigationTarget.parameter(), "");
-      for (String name : item.inputs.keySet())
-        if (path.equals("inputs/" + name) || path.startsWith("inputs/" + name + "/"))
-          inputKey = name;
+      for (String name : item.inputs.keySet()) if (path.equals("inputs/" + name)) inputKey = name;
     }
     if (!item.inputs.containsKey(inputKey)) inputKey = item.inputs.keySet().iterator().next();
     draftChoices.draw(

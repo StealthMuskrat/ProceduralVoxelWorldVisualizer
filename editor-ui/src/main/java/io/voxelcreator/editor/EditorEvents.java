@@ -31,7 +31,7 @@ public final class EditorEvents {
           project,
           d.sourceUuid(),
           d.itemUuid(),
-          clip(d.parameterKey(), 256),
+          clip(DiagnosticNavigation.parameter(d), 256),
           clip(p, 2048),
           d.sourceUuid() == null && (p.startsWith("/project") || p.equals("/formatVersion")));
     }
