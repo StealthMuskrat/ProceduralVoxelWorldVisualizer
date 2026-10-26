@@ -1,1708 +1,3361 @@
 {
-  "$schema" : "https://json-schema.org/draft/2020-12/schema",
-  "$id" : "urn:voxelcreator:project:2",
-  "title" : "Procedural Voxel Creator project format 2",
-  "$ref" : "#/$defs/ProjectData",
-  "$defs" : {
-    "Algorithm" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "key" : {
-          "type" : "string",
-          "enum" : [ "OPEN_SIMPLEX_2", "PERLIN", "VALUE", "VALUE_CUBIC", "CELLULAR", "WHITE_HASH", "CONSTANT", "GRADIENT_Y", "SPHERE_SDF", "BOX_SDF" ]
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:voxelcreator:project:2",
+  "title": "Procedural Voxel Creator project format 2",
+  "$ref": "#/$defs/ProjectData",
+  "$defs": {
+    "Algorithm": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "enum": [
+            "OPEN_SIMPLEX_2",
+            "PERLIN",
+            "VALUE",
+            "VALUE_CUBIC",
+            "CELLULAR",
+            "WHITE_HASH",
+            "CONSTANT",
+            "GRADIENT_Y",
+            "SPHERE_SDF",
+            "BOX_SDF"
+          ]
         },
-        "parameters" : {
-          "type" : "object",
-          "additionalProperties" : false,
-          "properties" : {
-            "frequency" : {
-              "type" : "number",
-              "minimum" : 4.9E-324,
-              "maximum" : 1000000.0
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "frequency": {
+              "type": "number",
+              "minimum": 5e-324,
+              "maximum": 1000000.0
             },
-            "fractal" : {
-              "type" : "integer"
+            "fractal": {
+              "type": "integer"
             },
-            "octaves" : {
-              "type" : "integer"
+            "octaves": {
+              "type": "integer"
             },
-            "lacunarity" : {
-              "type" : "number"
+            "lacunarity": {
+              "type": "number"
             },
-            "gain" : {
-              "type" : "number"
+            "gain": {
+              "type": "number"
             },
-            "pingPongStrength" : {
-              "type" : "number"
+            "pingPongStrength": {
+              "type": "number"
             },
-            "cellularDistance" : {
-              "type" : "integer"
+            "cellularDistance": {
+              "type": "integer"
             },
-            "cellularReturn" : {
-              "type" : "integer"
+            "cellularReturn": {
+              "type": "integer"
             },
-            "jitter" : {
-              "type" : "number"
+            "jitter": {
+              "type": "number"
             },
-            "value" : {
-              "type" : "number"
+            "value": {
+              "type": "number"
             },
-            "radius" : {
-              "type" : "number"
+            "radius": {
+              "type": "number"
             },
-            "extentX" : {
-              "type" : "number"
+            "extentX": {
+              "type": "number"
             },
-            "extentY" : {
-              "type" : "number"
+            "extentY": {
+              "type": "number"
             },
-            "extentZ" : {
-              "type" : "number"
+            "extentZ": {
+              "type": "number"
             }
           }
         }
       },
-      "required" : [ "key", "parameters" ],
-      "allOf" : [ {
-        "if" : {
-          "properties" : {
-            "key" : {
-              "const" : "OPEN_SIMPLEX_2"
-            }
+      "required": [
+        "key",
+        "parameters"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "key": {
+                "const": "OPEN_SIMPLEX_2"
+              }
+            },
+            "required": [
+              "key"
+            ]
           },
-          "required" : [ "key" ]
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "frequency": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1000000.0
+                  },
+                  "fractal": {
+                    "type": "integer",
+                    "minimum": 0.0,
+                    "maximum": 3.0
+                  },
+                  "octaves": {
+                    "type": "integer",
+                    "minimum": 1.0,
+                    "maximum": 16.0
+                  },
+                  "lacunarity": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  },
+                  "gain": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  },
+                  "pingPongStrength": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  }
+                }
+              }
+            }
+          }
         },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "frequency" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1000000.0
-                },
-                "fractal" : {
-                  "type" : "integer",
-                  "minimum" : 0.0,
-                  "maximum" : 3.0
-                },
-                "octaves" : {
-                  "type" : "integer",
-                  "minimum" : 1.0,
-                  "maximum" : 16.0
-                },
-                "lacunarity" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                },
-                "gain" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                },
-                "pingPongStrength" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
+        {
+          "if": {
+            "properties": {
+              "key": {
+                "const": "PERLIN"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "frequency": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1000000.0
+                  },
+                  "fractal": {
+                    "type": "integer",
+                    "minimum": 0.0,
+                    "maximum": 3.0
+                  },
+                  "octaves": {
+                    "type": "integer",
+                    "minimum": 1.0,
+                    "maximum": 16.0
+                  },
+                  "lacunarity": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  },
+                  "gain": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  },
+                  "pingPongStrength": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "key": {
+                "const": "VALUE"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "frequency": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1000000.0
+                  },
+                  "fractal": {
+                    "type": "integer",
+                    "minimum": 0.0,
+                    "maximum": 3.0
+                  },
+                  "octaves": {
+                    "type": "integer",
+                    "minimum": 1.0,
+                    "maximum": 16.0
+                  },
+                  "lacunarity": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  },
+                  "gain": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  },
+                  "pingPongStrength": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "key": {
+                "const": "VALUE_CUBIC"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "frequency": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1000000.0
+                  },
+                  "fractal": {
+                    "type": "integer",
+                    "minimum": 0.0,
+                    "maximum": 3.0
+                  },
+                  "octaves": {
+                    "type": "integer",
+                    "minimum": 1.0,
+                    "maximum": 16.0
+                  },
+                  "lacunarity": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  },
+                  "gain": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  },
+                  "pingPongStrength": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "key": {
+                "const": "CELLULAR"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "frequency": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1000000.0
+                  },
+                  "fractal": {
+                    "type": "integer",
+                    "minimum": 0.0,
+                    "maximum": 3.0
+                  },
+                  "octaves": {
+                    "type": "integer",
+                    "minimum": 1.0,
+                    "maximum": 16.0
+                  },
+                  "lacunarity": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  },
+                  "gain": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  },
+                  "pingPongStrength": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  },
+                  "cellularDistance": {
+                    "type": "integer",
+                    "minimum": 0.0,
+                    "maximum": 3.0
+                  },
+                  "cellularReturn": {
+                    "type": "integer",
+                    "minimum": 0.0,
+                    "maximum": 6.0
+                  },
+                  "jitter": {
+                    "type": "number",
+                    "minimum": -3.4028234663852886e+38,
+                    "maximum": 3.4028234663852886e+38
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "key": {
+                "const": "WHITE_HASH"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "frequency": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1000000.0
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "key": {
+                "const": "CONSTANT"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "value": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "key": {
+                "const": "GRADIENT_Y"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "key": {
+                "const": "SPHERE_SDF"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "radius": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "key": {
+                "const": "BOX_SDF"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "extentX": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "extentZ": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  }
                 }
               }
             }
           }
         }
-      }, {
-        "if" : {
-          "properties" : {
-            "key" : {
-              "const" : "PERLIN"
-            }
-          },
-          "required" : [ "key" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "frequency" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1000000.0
-                },
-                "fractal" : {
-                  "type" : "integer",
-                  "minimum" : 0.0,
-                  "maximum" : 3.0
-                },
-                "octaves" : {
-                  "type" : "integer",
-                  "minimum" : 1.0,
-                  "maximum" : 16.0
-                },
-                "lacunarity" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                },
-                "gain" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                },
-                "pingPongStrength" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "key" : {
-              "const" : "VALUE"
-            }
-          },
-          "required" : [ "key" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "frequency" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1000000.0
-                },
-                "fractal" : {
-                  "type" : "integer",
-                  "minimum" : 0.0,
-                  "maximum" : 3.0
-                },
-                "octaves" : {
-                  "type" : "integer",
-                  "minimum" : 1.0,
-                  "maximum" : 16.0
-                },
-                "lacunarity" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                },
-                "gain" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                },
-                "pingPongStrength" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "key" : {
-              "const" : "VALUE_CUBIC"
-            }
-          },
-          "required" : [ "key" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "frequency" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1000000.0
-                },
-                "fractal" : {
-                  "type" : "integer",
-                  "minimum" : 0.0,
-                  "maximum" : 3.0
-                },
-                "octaves" : {
-                  "type" : "integer",
-                  "minimum" : 1.0,
-                  "maximum" : 16.0
-                },
-                "lacunarity" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                },
-                "gain" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                },
-                "pingPongStrength" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "key" : {
-              "const" : "CELLULAR"
-            }
-          },
-          "required" : [ "key" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "frequency" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1000000.0
-                },
-                "fractal" : {
-                  "type" : "integer",
-                  "minimum" : 0.0,
-                  "maximum" : 3.0
-                },
-                "octaves" : {
-                  "type" : "integer",
-                  "minimum" : 1.0,
-                  "maximum" : 16.0
-                },
-                "lacunarity" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                },
-                "gain" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                },
-                "pingPongStrength" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                },
-                "cellularDistance" : {
-                  "type" : "integer",
-                  "minimum" : 0.0,
-                  "maximum" : 3.0
-                },
-                "cellularReturn" : {
-                  "type" : "integer",
-                  "minimum" : 0.0,
-                  "maximum" : 6.0
-                },
-                "jitter" : {
-                  "type" : "number",
-                  "minimum" : -3.4028234663852886E38,
-                  "maximum" : 3.4028234663852886E38
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "key" : {
-              "const" : "WHITE_HASH"
-            }
-          },
-          "required" : [ "key" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "frequency" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1000000.0
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "key" : {
-              "const" : "CONSTANT"
-            }
-          },
-          "required" : [ "key" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "value" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "key" : {
-              "const" : "GRADIENT_Y"
-            }
-          },
-          "required" : [ "key" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : { }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "key" : {
-              "const" : "SPHERE_SDF"
-            }
-          },
-          "required" : [ "key" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "radius" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "key" : {
-              "const" : "BOX_SDF"
-            }
-          },
-          "required" : [ "key" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "extentX" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "extentZ" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            }
-          }
-        }
-      } ]
+      ]
     },
-    "Binding" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "sourceKind" : {
-          "type" : "string",
-          "enum" : [ "Constant", "Shared Parameter", "Ambient Value", "Source Result", "Earlier Result", "Noise Generator Reference", "Source Field", "Earlier Field Prefix", "Noise Generator Field" ]
+    "Binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceKind": {
+          "type": "string",
+          "enum": [
+            "Constant",
+            "Shared Parameter",
+            "Ambient Value",
+            "Source Result",
+            "Earlier Result",
+            "Noise Generator Reference",
+            "Source Field",
+            "Earlier Field Prefix",
+            "Noise Generator Field"
+          ]
         },
-        "type" : {
-          "type" : "string"
+        "type": {
+          "type": "string"
         },
-        "ambientKey" : {
-          "type" : [ "string", "null" ]
+        "ambientKey": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "value" : { },
-        "parameterUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+        "value": {},
+        "parameterUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "itemUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+        "itemUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "noiseGeneratorUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+        "noiseGeneratorUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "projection" : {
-          "type" : "string"
+        "projection": {
+          "type": "string"
         },
-        "slice" : {
-          "type" : "number"
+        "slice": {
+          "type": "number"
         }
       },
-      "required" : [ "sourceKind", "type", "ambientKey", "projection", "slice" ]
+      "required": [
+        "sourceKind",
+        "type",
+        "ambientKey",
+        "projection",
+        "slice"
+      ]
     },
-    "Bookmark" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
+    "Bookmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
         },
-        "name" : {
-          "type" : "string"
+        "name": {
+          "type": "string"
         },
-        "x" : {
-          "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+        "x": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
         },
-        "z" : {
-          "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+        "z": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
         },
-        "y" : {
-          "type" : [ "integer", "null" ],
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+        "y": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647
         }
       },
-      "required" : [ "name", "x", "z", "uuid" ]
+      "required": [
+        "name",
+        "x",
+        "z",
+        "uuid"
+      ]
     },
-    "Bookmarks" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "noise2D" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Bookmark2D"
+    "Bookmarks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "noise2D": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Bookmark2D"
           }
         },
-        "noise3D" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Bookmark3D"
+        "noise3D": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Bookmark3D"
           }
         },
-        "world" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Bookmark3D"
+        "world": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Bookmark3D"
           }
         }
       },
-      "required" : [ "noise2D", "noise3D", "world" ]
+      "required": [
+        "noise2D",
+        "noise3D",
+        "world"
+      ]
     },
-    "Color" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "r" : {
-          "type" : "integer",
-          "minimum" : 0,
-          "maximum" : 255
+    "Color": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "r": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
         },
-        "g" : {
-          "type" : "integer",
-          "minimum" : 0,
-          "maximum" : 255
+        "g": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
         },
-        "b" : {
-          "type" : "integer",
-          "minimum" : 0,
-          "maximum" : 255
+        "b": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
         }
       },
-      "required" : [ "r", "g", "b" ]
+      "required": [
+        "r",
+        "g",
+        "b"
+      ]
     },
-    "Curve" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
+    "Curve": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
         },
-        "min" : {
-          "type" : "number"
+        "min": {
+          "type": "number"
         },
-        "max" : {
-          "type" : "number"
+        "max": {
+          "type": "number"
         },
-        "displayMin" : {
-          "type" : "number"
+        "displayMin": {
+          "type": "number"
         },
-        "displayMax" : {
-          "type" : "number"
+        "displayMax": {
+          "type": "number"
         },
-        "outsideDomain" : {
-          "type" : "string",
-          "enum" : [ "CLAMP", "EXTEND", "REPEAT", "MIRROR" ]
+        "outsideDomain": {
+          "type": "string",
+          "enum": [
+            "CLAMP",
+            "EXTEND",
+            "REPEAT",
+            "MIRROR"
+          ]
         },
-        "points" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Point"
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Point"
           }
         }
       },
-      "required" : [ "uuid", "min", "max", "outsideDomain", "points" ]
+      "required": [
+        "uuid",
+        "min",
+        "max",
+        "outsideDomain",
+        "points"
+      ]
     },
-    "FieldDriver" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "enabled" : {
-          "type" : "boolean"
+    "FieldDriver": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
         },
-        "noiseGeneratorUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+        "noiseGeneratorUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "inputMin" : {
-          "type" : "number"
+        "inputMin": {
+          "type": "number"
         },
-        "inputMax" : {
-          "type" : "number"
+        "inputMax": {
+          "type": "number"
         },
-        "outputMin" : {
-          "type" : "number",
-          "minimum" : 0,
-          "maximum" : 1
+        "outputMin": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
-        "outputMax" : {
-          "type" : "number",
-          "minimum" : 0,
-          "maximum" : 1
+        "outputMax": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
-        "mapping" : {
-          "type" : "string",
-          "enum" : [ "LINEAR", "SMOOTHSTEP" ]
+        "mapping": {
+          "type": "string",
+          "enum": [
+            "LINEAR",
+            "SMOOTHSTEP"
+          ]
         }
       },
-      "required" : [ "enabled", "inputMin", "inputMax", "outputMin", "outputMax", "mapping" ]
+      "required": [
+        "enabled",
+        "inputMin",
+        "inputMax",
+        "outputMin",
+        "outputMax",
+        "mapping"
+      ]
     },
-    "Folder" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "rootKind" : {
-          "type" : "string"
+    "Folder": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rootKind": {
+          "type": "string"
         },
-        "parentFolderUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+        "parentFolderUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "childOrder" : {
-          "type" : "array",
-          "items" : {
-            "format" : "uuid",
-            "type" : [ "string", "null" ]
+        "childOrder": {
+          "type": "array",
+          "items": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
         },
-        "id" : {
-          "type" : "string"
+        "id": {
+          "type": "string"
         }
       },
-      "required" : [ "rootKind", "childOrder", "id", "uuid" ]
+      "required": [
+        "rootKind",
+        "childOrder",
+        "id",
+        "uuid"
+      ]
     },
-    "Gate" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "kind" : {
-          "type" : "string",
-          "enum" : [ "ALWAYS", "COMPARE", "INTERVAL", "PROBABILITY", "NOT", "AND", "OR" ]
+    "Gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "ALWAYS",
+            "COMPARE",
+            "INTERVAL",
+            "PROBABILITY",
+            "NOT",
+            "AND",
+            "OR"
+          ]
         },
-        "comparison" : {
-          "type" : "string"
+        "comparison": {
+          "type": "string"
         },
-        "threshold" : {
-          "type" : "number"
+        "threshold": {
+          "type": "number"
         },
-        "max" : {
-          "type" : "number"
+        "max": {
+          "type": "number"
         },
-        "includeMin" : {
-          "type" : "boolean"
+        "includeMin": {
+          "type": "boolean"
         },
-        "includeMax" : {
-          "type" : "boolean"
+        "includeMax": {
+          "type": "boolean"
         },
-        "probability" : {
-          "type" : "number",
-          "minimum" : 0,
-          "maximum" : 1
+        "probability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
-        "seedOffset" : {
-          "type" : "integer",
-          "minimum" : -9223372036854775808,
-          "maximum" : 9223372036854775807
+        "seedOffset": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
         },
-        "noiseGeneratorUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+        "noiseGeneratorUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "children" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Gate"
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Gate"
           }
         }
       },
-      "required" : [ "kind", "comparison", "threshold", "max", "children" ]
+      "required": [
+        "kind",
+        "comparison",
+        "threshold",
+        "max",
+        "children"
+      ]
     },
-    "Item" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "kind" : {
-          "type" : "string"
+    "Item": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
         },
-        "resultType" : {
-          "type" : "string",
-          "enum" : [ "Scalar", "Boolean", "Vector2", "Vector3", "Coordinates2D", "Coordinates3D" ]
+        "resultType": {
+          "type": "string",
+          "enum": [
+            "Scalar",
+            "Boolean",
+            "Vector2",
+            "Vector3",
+            "Coordinates2D",
+            "Coordinates3D"
+          ]
         },
-        "enabled" : {
-          "type" : "boolean"
+        "enabled": {
+          "type": "boolean"
         },
-        "parameters" : {
-          "type" : "object",
-          "additionalProperties" : { },
-          "properties" : {
-            "curve" : {
-              "$ref" : "#/$defs/Curve"
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {},
+          "properties": {
+            "curve": {
+              "$ref": "#/$defs/Curve"
             }
           }
         },
-        "inputs" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "$ref" : "#/$defs/Binding"
+        "inputs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Binding"
           }
         },
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
         },
-        "id" : {
-          "type" : "string"
+        "id": {
+          "type": "string"
         }
       },
-      "required" : [ "kind", "resultType", "enabled", "parameters", "inputs", "id", "uuid" ],
-      "allOf" : [ {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "GRADIENT"
+      "required": [
+        "kind",
+        "resultType",
+        "enabled",
+        "parameters",
+        "inputs",
+        "id",
+        "uuid"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "GRADIENT"
+              },
+              "enabled": {
+                "const": true
+              }
             },
-            "enabled" : {
-              "const" : true
-            }
+            "required": [
+              "kind",
+              "enabled"
+            ]
           },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "spacing" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Vector2", "Vector3" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "field" : {
-                  "$ref" : "#/$defs/Binding"
-                },
-                "coordinates" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "LAPLACIAN"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "spacing" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "field" : {
-                  "$ref" : "#/$defs/Binding"
-                },
-                "coordinates" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "MIN_FILTER"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "spacing" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "radius" : {
-                  "type" : "integer",
-                  "minimum" : 0.0,
-                  "maximum" : 4.0
-                },
-                "strength" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.0
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "field" : {
-                  "$ref" : "#/$defs/Binding"
-                },
-                "coordinates" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "MAX_FILTER"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "spacing" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "radius" : {
-                  "type" : "integer",
-                  "minimum" : 0.0,
-                  "maximum" : 4.0
-                },
-                "strength" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.0
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "field" : {
-                  "$ref" : "#/$defs/Binding"
-                },
-                "coordinates" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "MEDIAN_FILTER"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "spacing" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "radius" : {
-                  "type" : "integer",
-                  "minimum" : 0.0,
-                  "maximum" : 4.0
-                },
-                "strength" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.0
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "field" : {
-                  "$ref" : "#/$defs/Binding"
-                },
-                "coordinates" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "PLANE"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "axis" : {
-                  "enum" : [ "x", "y", "z" ]
-                },
-                "offset" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "direction" : {
-                  "enum" : [ "POSITIVE", "NEGATIVE" ]
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "position" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "CAPSULE"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "startX" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "startY" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "startZ" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "endX" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "endY" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "endZ" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "radius" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "position" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "CYLINDER"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "centerX" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "centerY" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "centerZ" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "axis" : {
-                  "enum" : [ "x", "y", "z" ]
-                },
-                "radius" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "halfHeight" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "position" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "TORUS"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "centerX" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "centerY" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "centerZ" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "axis" : {
-                  "enum" : [ "x", "y", "z" ]
-                },
-                "majorRadius" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "minorRadius" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "position" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "ROUNDED_BOX"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "centerX" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "centerY" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "centerZ" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "extentX" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "extentY" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "extentZ" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "roundRadius" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "position" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "SMOOTH_INTERSECTION"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "smoothness" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "a" : {
-                  "$ref" : "#/$defs/Binding"
-                },
-                "b" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "SMOOTH_SUBTRACTION"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "smoothness" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "a" : {
-                  "$ref" : "#/$defs/Binding"
-                },
-                "b" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "REMAP"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "inputMin" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "inputMax" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "outputMin" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "outputMax" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "clamp" : {
-                  "type" : "boolean"
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "a" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "CLAMP"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "min" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "max" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "a" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "TERRACE"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "levels" : {
-                  "type" : "integer",
-                  "minimum" : 1.0,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "transition" : {
-                  "type" : "number",
-                  "minimum" : 0.0,
-                  "maximum" : 1.0
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "a" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "FALLOFF"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "domain" : {
-                  "enum" : [ "COORDINATES", "INPUT" ]
-                },
-                "metric" : {
-                  "enum" : [ "EUCLIDEAN", "CHEBYSHEV", "MANHATTAN", "AXIS" ]
-                },
-                "axis" : {
-                  "enum" : [ "x", "y", "z" ]
-                },
-                "centerX" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "centerY" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "centerZ" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "extent" : {
-                  "type" : "number",
-                  "minimum" : 4.9E-324,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "shape" : {
-                  "enum" : [ "LINEAR", "SMOOTHSTEP", "SMOOTHERSTEP", "COSINE" ]
-                },
-                "outside" : {
-                  "enum" : [ "CLAMP", "EXTEND" ]
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "a" : {
-                  "$ref" : "#/$defs/Binding"
-                },
-                "position" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      }, {
-        "if" : {
-          "properties" : {
-            "kind" : {
-              "const" : "BLEND"
-            },
-            "enabled" : {
-              "const" : true
-            }
-          },
-          "required" : [ "kind", "enabled" ]
-        },
-        "then" : {
-          "properties" : {
-            "parameters" : {
-              "properties" : {
-                "mode" : {
-                  "enum" : [ "LERP", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE", "MIN", "MAX" ]
-                },
-                "weight" : {
-                  "type" : "number",
-                  "minimum" : -1.7976931348623157E308,
-                  "maximum" : 1.7976931348623157E308
-                },
-                "weightPolicy" : {
-                  "enum" : [ "RAW", "CLAMP" ]
-                },
-                "outputPolicy" : {
-                  "enum" : [ "RAW", "CLAMP_01" ]
-                }
-              }
-            },
-            "resultType" : {
-              "enum" : [ "Scalar" ]
-            },
-            "inputs" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "a" : {
-                  "$ref" : "#/$defs/Binding"
-                },
-                "b" : {
-                  "$ref" : "#/$defs/Binding"
-                },
-                "weight" : {
-                  "$ref" : "#/$defs/Binding"
-                }
-              }
-            }
-          }
-        }
-      } ]
-    },
-    "Layer" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "parentFolderUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
-        },
-        "enabled" : {
-          "type" : "boolean"
-        },
-        "defaults" : {
-          "$ref" : "#/$defs/Settings"
-        },
-        "operations" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Operation"
-          }
-        },
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
-        },
-        "id" : {
-          "type" : "string"
-        }
-      },
-      "required" : [ "enabled", "defaults", "operations", "id", "uuid" ]
-    },
-    "Membership" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "voxelTypeUuids" : {
-          "type" : "array",
-          "items" : {
-            "format" : "uuid",
-            "type" : [ "string", "null" ]
-          }
-        },
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
-        },
-        "id" : {
-          "type" : "string"
-        }
-      },
-      "required" : [ "voxelTypeUuids", "id", "uuid" ]
-    },
-    "Noise" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "dimension" : {
-          "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647,
-          "enum" : [ 2, 3 ]
-        },
-        "parentFolderUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
-        },
-        "algorithm" : {
-          "$ref" : "#/$defs/Algorithm"
-        },
-        "seedOffset" : {
-          "type" : "integer",
-          "minimum" : -9223372036854775808,
-          "maximum" : 9223372036854775807
-        },
-        "coordinateTransforms" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Item"
-          }
-        },
-        "processing" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Item"
-          }
-        },
-        "sharedParameters" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Parameter"
-          }
-        },
-        "pinnedControls" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Pin"
-          }
-        },
-        "outputBinding" : {
-          "$ref" : "#/$defs/Binding"
-        },
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
-        },
-        "id" : {
-          "type" : "string"
-        }
-      },
-      "required" : [ "dimension", "algorithm", "seedOffset", "coordinateTransforms", "processing", "sharedParameters", "pinnedControls", "outputBinding", "id", "uuid" ],
-      "allOf" : [ {
-        "if" : {
-          "properties" : {
-            "dimension" : {
-              "const" : 3
-            }
-          }
-        },
-        "then" : {
-          "properties" : {
-            "algorithm" : {
-              "if" : {
-                "properties" : {
-                  "key" : {
-                    "const" : "BOX_SDF"
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "spacing": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1.7976931348623157e+308
                   }
                 }
               },
-              "then" : {
-                "properties" : {
-                  "parameters" : {
-                    "properties" : {
-                      "extentY" : {
-                        "type" : "number",
-                        "minimum" : 0
+              "resultType": {
+                "enum": [
+                  "Vector2",
+                  "Vector3"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "coordinates": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "LAPLACIAN"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "spacing": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1.7976931348623157e+308
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "coordinates": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "MIN_FILTER"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "spacing": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "radius": {
+                    "type": "integer",
+                    "minimum": 0.0,
+                    "maximum": 4.0
+                  },
+                  "strength": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "coordinates": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "MAX_FILTER"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "spacing": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "radius": {
+                    "type": "integer",
+                    "minimum": 0.0,
+                    "maximum": 4.0
+                  },
+                  "strength": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "coordinates": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "MEDIAN_FILTER"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "spacing": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "radius": {
+                    "type": "integer",
+                    "minimum": 0.0,
+                    "maximum": 4.0
+                  },
+                  "strength": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "coordinates": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "PLANE"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "axis": {
+                    "enum": [
+                      "x",
+                      "y",
+                      "z"
+                    ]
+                  },
+                  "offset": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "direction": {
+                    "enum": [
+                      "POSITIVE",
+                      "NEGATIVE"
+                    ]
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "position": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "CAPSULE"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "startX": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "startY": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "startZ": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "endX": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "endY": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "endZ": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "radius": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "position": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "CYLINDER"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "centerX": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "centerY": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "centerZ": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "axis": {
+                    "enum": [
+                      "x",
+                      "y",
+                      "z"
+                    ]
+                  },
+                  "radius": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "halfHeight": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "position": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "TORUS"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "centerX": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "centerY": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "centerZ": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "axis": {
+                    "enum": [
+                      "x",
+                      "y",
+                      "z"
+                    ]
+                  },
+                  "majorRadius": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "minorRadius": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "position": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ROUNDED_BOX"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "centerX": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "centerY": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "centerZ": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "extentX": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "extentY": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "extentZ": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "roundRadius": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.7976931348623157e+308
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "position": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "SMOOTH_INTERSECTION"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "smoothness": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1.7976931348623157e+308
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "a": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "b": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "SMOOTH_SUBTRACTION"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "smoothness": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1.7976931348623157e+308
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "a": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "b": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "REMAP"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "inputMin": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "inputMax": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "outputMin": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "outputMax": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "clamp": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "a": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "CLAMP"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "min": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "max": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "a": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "TERRACE"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "levels": {
+                    "type": "integer",
+                    "minimum": 1.0,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "transition": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "a": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "FALLOFF"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "domain": {
+                    "enum": [
+                      "COORDINATES",
+                      "INPUT"
+                    ]
+                  },
+                  "metric": {
+                    "enum": [
+                      "EUCLIDEAN",
+                      "CHEBYSHEV",
+                      "MANHATTAN",
+                      "AXIS"
+                    ]
+                  },
+                  "axis": {
+                    "enum": [
+                      "x",
+                      "y",
+                      "z"
+                    ]
+                  },
+                  "centerX": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "centerY": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "centerZ": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "extent": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "shape": {
+                    "enum": [
+                      "LINEAR",
+                      "SMOOTHSTEP",
+                      "SMOOTHERSTEP",
+                      "COSINE"
+                    ]
+                  },
+                  "outside": {
+                    "enum": [
+                      "CLAMP",
+                      "EXTEND"
+                    ]
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "a": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "BLEND"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "mode": {
+                    "enum": [
+                      "LERP",
+                      "ADD",
+                      "SUBTRACT",
+                      "MULTIPLY",
+                      "DIVIDE",
+                      "MIN",
+                      "MAX"
+                    ]
+                  },
+                  "weight": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "weightPolicy": {
+                    "enum": [
+                      "RAW",
+                      "CLAMP"
+                    ]
+                  },
+                  "outputPolicy": {
+                    "enum": [
+                      "RAW",
+                      "CLAMP_01"
+                    ]
+                  }
+                }
+              },
+              "resultType": {
+                "enum": [
+                  "Scalar"
+                ]
+              },
+              "inputs": {
+                "additionalProperties": false,
+                "properties": {
+                  "a": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "b": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "weight": {
+                    "$ref": "#/$defs/Binding"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "DOMAIN_WARP"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "warpAlgorithm": {
+                    "enum": [
+                      "OPEN_SIMPLEX_2",
+                      "PERLIN",
+                      "VALUE",
+                      "VALUE_CUBIC",
+                      "CELLULAR",
+                      "WHITE_HASH",
+                      "CONSTANT",
+                      "GRADIENT_Y",
+                      "SPHERE_SDF",
+                      "BOX_SDF"
+                    ]
+                  },
+                  "warpMode": {
+                    "enum": [
+                      "INDEPENDENT",
+                      "PROGRESSIVE",
+                      "SEQUENTIAL"
+                    ]
+                  },
+                  "warpOrder": {
+                    "enum": [
+                      "XZ",
+                      "ZX",
+                      "XYZ",
+                      "XZY",
+                      "YXZ",
+                      "YZX",
+                      "ZXY",
+                      "ZYX"
+                    ]
+                  },
+                  "amplitude": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "frequency": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1000000.0
+                  },
+                  "seedOffset": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "warpOctaves": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 16
+                  },
+                  "warpLacunarity": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "warpGain": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "octaveSeeds": {
+                    "enum": [
+                      "SAME",
+                      "INCREMENT"
+                    ]
+                  },
+                  "source.fractal": {
+                    "type": "integer"
+                  },
+                  "source.octaves": {
+                    "type": "integer"
+                  },
+                  "source.lacunarity": {
+                    "type": "number"
+                  },
+                  "source.gain": {
+                    "type": "number"
+                  },
+                  "source.pingPongStrength": {
+                    "type": "number"
+                  },
+                  "source.cellularDistance": {
+                    "type": "integer"
+                  },
+                  "source.cellularReturn": {
+                    "type": "integer"
+                  },
+                  "source.jitter": {
+                    "type": "number"
+                  },
+                  "source.value": {
+                    "type": "number"
+                  },
+                  "source.radius": {
+                    "type": "number"
+                  },
+                  "source.extentX": {
+                    "type": "number"
+                  },
+                  "source.extentY": {
+                    "type": "number"
+                  },
+                  "source.extentZ": {
+                    "type": "number"
+                  },
+                  "source.frequency": false
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "OPEN_SIMPLEX_2"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "source.fractal": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.octaves": {
+                          "type": "integer",
+                          "minimum": 1.0,
+                          "maximum": 16.0
+                        },
+                        "source.lacunarity": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.gain": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.pingPongStrength": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "PERLIN"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.fractal": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.octaves": {
+                          "type": "integer",
+                          "minimum": 1.0,
+                          "maximum": 16.0
+                        },
+                        "source.lacunarity": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.gain": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.pingPongStrength": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "VALUE"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.fractal": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.octaves": {
+                          "type": "integer",
+                          "minimum": 1.0,
+                          "maximum": 16.0
+                        },
+                        "source.lacunarity": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.gain": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.pingPongStrength": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "VALUE_CUBIC"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.fractal": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.octaves": {
+                          "type": "integer",
+                          "minimum": 1.0,
+                          "maximum": 16.0
+                        },
+                        "source.lacunarity": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.gain": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.pingPongStrength": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "CELLULAR"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.fractal": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.octaves": {
+                          "type": "integer",
+                          "minimum": 1.0,
+                          "maximum": 16.0
+                        },
+                        "source.lacunarity": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.gain": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.pingPongStrength": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.cellularDistance": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.cellularReturn": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 6.0
+                        },
+                        "source.jitter": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "WHITE_HASH"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {}
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "CONSTANT"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.value": {
+                          "type": "number",
+                          "minimum": -1.7976931348623157e+308,
+                          "maximum": 1.7976931348623157e+308
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "GRADIENT_Y"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {}
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "SPHERE_SDF"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.radius": {
+                          "type": "number",
+                          "minimum": 0.0,
+                          "maximum": 1.7976931348623157e+308
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "BOX_SDF"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.extentX": {
+                          "type": "number",
+                          "minimum": 0.0,
+                          "maximum": 1.7976931348623157e+308
+                        },
+                        "source.extentZ": {
+                          "type": "number",
+                          "minimum": 0.0,
+                          "maximum": 1.7976931348623157e+308
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "inputs": {
+                "properties": {
+                  "coordinates": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "amplitude": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "warpX": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "warpY": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "warpZ": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "x": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "y": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "z": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "angle": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "angleX": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "angleY": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "angleZ": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "pivotX": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "pivotY": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "pivotZ": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "displacementX": {
+                    "allOf": [
+                      {
+                        "$ref": "#/$defs/Binding"
+                      },
+                      {
+                        "properties": {
+                          "sourceKind": {
+                            "enum": [
+                              "Noise Generator Field"
+                            ]
+                          },
+                          "type": {
+                            "const": "Scalar"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "displacementY": {
+                    "allOf": [
+                      {
+                        "$ref": "#/$defs/Binding"
+                      },
+                      {
+                        "properties": {
+                          "sourceKind": {
+                            "enum": [
+                              "Noise Generator Field"
+                            ]
+                          },
+                          "type": {
+                            "const": "Scalar"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "displacementZ": {
+                    "allOf": [
+                      {
+                        "$ref": "#/$defs/Binding"
+                      },
+                      {
+                        "properties": {
+                          "sourceKind": {
+                            "enum": [
+                              "Noise Generator Field"
+                            ]
+                          },
+                          "type": {
+                            "const": "Scalar"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "WARP_SAMPLE"
+              },
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "properties": {
+                  "warpAlgorithm": {
+                    "enum": [
+                      "OPEN_SIMPLEX_2",
+                      "PERLIN",
+                      "VALUE",
+                      "VALUE_CUBIC",
+                      "CELLULAR",
+                      "WHITE_HASH",
+                      "CONSTANT",
+                      "GRADIENT_Y",
+                      "SPHERE_SDF",
+                      "BOX_SDF"
+                    ]
+                  },
+                  "warpMode": {
+                    "enum": [
+                      "INDEPENDENT",
+                      "PROGRESSIVE",
+                      "SEQUENTIAL"
+                    ]
+                  },
+                  "warpOrder": {
+                    "enum": [
+                      "XZ",
+                      "ZX",
+                      "XYZ",
+                      "XZY",
+                      "YXZ",
+                      "YZX",
+                      "ZXY",
+                      "ZYX"
+                    ]
+                  },
+                  "amplitude": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "frequency": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1000000.0
+                  },
+                  "seedOffset": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "warpOctaves": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 16
+                  },
+                  "warpLacunarity": {
+                    "type": "number",
+                    "minimum": 5e-324,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "warpGain": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157e+308,
+                    "maximum": 1.7976931348623157e+308
+                  },
+                  "octaveSeeds": {
+                    "enum": [
+                      "SAME",
+                      "INCREMENT"
+                    ]
+                  },
+                  "source.fractal": {
+                    "type": "integer"
+                  },
+                  "source.octaves": {
+                    "type": "integer"
+                  },
+                  "source.lacunarity": {
+                    "type": "number"
+                  },
+                  "source.gain": {
+                    "type": "number"
+                  },
+                  "source.pingPongStrength": {
+                    "type": "number"
+                  },
+                  "source.cellularDistance": {
+                    "type": "integer"
+                  },
+                  "source.cellularReturn": {
+                    "type": "integer"
+                  },
+                  "source.jitter": {
+                    "type": "number"
+                  },
+                  "source.value": {
+                    "type": "number"
+                  },
+                  "source.radius": {
+                    "type": "number"
+                  },
+                  "source.extentX": {
+                    "type": "number"
+                  },
+                  "source.extentY": {
+                    "type": "number"
+                  },
+                  "source.extentZ": {
+                    "type": "number"
+                  },
+                  "source.frequency": false
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "OPEN_SIMPLEX_2"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "source.fractal": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.octaves": {
+                          "type": "integer",
+                          "minimum": 1.0,
+                          "maximum": 16.0
+                        },
+                        "source.lacunarity": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.gain": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.pingPongStrength": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "PERLIN"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.fractal": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.octaves": {
+                          "type": "integer",
+                          "minimum": 1.0,
+                          "maximum": 16.0
+                        },
+                        "source.lacunarity": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.gain": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.pingPongStrength": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "VALUE"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.fractal": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.octaves": {
+                          "type": "integer",
+                          "minimum": 1.0,
+                          "maximum": 16.0
+                        },
+                        "source.lacunarity": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.gain": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.pingPongStrength": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "VALUE_CUBIC"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.fractal": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.octaves": {
+                          "type": "integer",
+                          "minimum": 1.0,
+                          "maximum": 16.0
+                        },
+                        "source.lacunarity": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.gain": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.pingPongStrength": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "CELLULAR"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.fractal": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.octaves": {
+                          "type": "integer",
+                          "minimum": 1.0,
+                          "maximum": 16.0
+                        },
+                        "source.lacunarity": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.gain": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.pingPongStrength": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        },
+                        "source.cellularDistance": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 3.0
+                        },
+                        "source.cellularReturn": {
+                          "type": "integer",
+                          "minimum": 0.0,
+                          "maximum": 6.0
+                        },
+                        "source.jitter": {
+                          "type": "number",
+                          "minimum": -3.4028234663852886e+38,
+                          "maximum": 3.4028234663852886e+38
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "WHITE_HASH"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {}
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "CONSTANT"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.value": {
+                          "type": "number",
+                          "minimum": -1.7976931348623157e+308,
+                          "maximum": 1.7976931348623157e+308
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "GRADIENT_Y"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {}
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "SPHERE_SDF"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.radius": {
+                          "type": "number",
+                          "minimum": 0.0,
+                          "maximum": 1.7976931348623157e+308
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "warpAlgorithm": {
+                          "const": "BOX_SDF"
+                        }
+                      },
+                      "required": [
+                        "warpAlgorithm"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "source.extentX": {
+                          "type": "number",
+                          "minimum": 0.0,
+                          "maximum": 1.7976931348623157e+308
+                        },
+                        "source.extentZ": {
+                          "type": "number",
+                          "minimum": 0.0,
+                          "maximum": 1.7976931348623157e+308
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "inputs": {
+                "properties": {
+                  "coordinates": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "amplitude": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "warpX": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "warpY": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "warpZ": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "field": {
+                    "$ref": "#/$defs/Binding"
+                  },
+                  "displacementX": {
+                    "allOf": [
+                      {
+                        "$ref": "#/$defs/Binding"
+                      },
+                      {
+                        "properties": {
+                          "sourceKind": {
+                            "enum": [
+                              "Source Field",
+                              "Earlier Field Prefix",
+                              "Noise Generator Field"
+                            ]
+                          },
+                          "type": {
+                            "const": "Scalar"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "displacementY": {
+                    "allOf": [
+                      {
+                        "$ref": "#/$defs/Binding"
+                      },
+                      {
+                        "properties": {
+                          "sourceKind": {
+                            "enum": [
+                              "Source Field",
+                              "Earlier Field Prefix",
+                              "Noise Generator Field"
+                            ]
+                          },
+                          "type": {
+                            "const": "Scalar"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "displacementZ": {
+                    "allOf": [
+                      {
+                        "$ref": "#/$defs/Binding"
+                      },
+                      {
+                        "properties": {
+                          "sourceKind": {
+                            "enum": [
+                              "Source Field",
+                              "Earlier Field Prefix",
+                              "Noise Generator Field"
+                            ]
+                          },
+                          "type": {
+                            "const": "Scalar"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "parentFolderUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "defaults": {
+          "$ref": "#/$defs/Settings"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Operation"
+          }
+        },
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "enabled",
+        "defaults",
+        "operations",
+        "id",
+        "uuid"
+      ]
+    },
+    "Membership": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "voxelTypeUuids": {
+          "type": "array",
+          "items": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "voxelTypeUuids",
+        "id",
+        "uuid"
+      ]
+    },
+    "Noise": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dimension": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "enum": [
+            2,
+            3
+          ]
+        },
+        "parentFolderUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "algorithm": {
+          "$ref": "#/$defs/Algorithm"
+        },
+        "seedOffset": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "coordinateTransforms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Item"
+          }
+        },
+        "processing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Item"
+          }
+        },
+        "sharedParameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Parameter"
+          }
+        },
+        "pinnedControls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Pin"
+          }
+        },
+        "outputBinding": {
+          "$ref": "#/$defs/Binding"
+        },
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "dimension",
+        "algorithm",
+        "seedOffset",
+        "coordinateTransforms",
+        "processing",
+        "sharedParameters",
+        "pinnedControls",
+        "outputBinding",
+        "id",
+        "uuid"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "dimension": {
+                "const": 3
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "algorithm": {
+                "if": {
+                  "properties": {
+                    "key": {
+                      "const": "BOX_SDF"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "parameters": {
+                      "properties": {
+                        "extentY": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "dimension": {
+                "const": 2
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "coordinateTransforms": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "DOMAIN_WARP",
+                          "WARP_SAMPLE"
+                        ]
+                      },
+                      "enabled": {
+                        "const": true
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "enabled"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "parameters": {
+                        "properties": {
+                          "warpOrder": {
+                            "enum": [
+                              "XZ",
+                              "ZX"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "processing": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "DOMAIN_WARP",
+                          "WARP_SAMPLE"
+                        ]
+                      },
+                      "enabled": {
+                        "const": true
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "enabled"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "parameters": {
+                        "properties": {
+                          "warpOrder": {
+                            "enum": [
+                              "XZ",
+                              "ZX"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "dimension": {
+                "const": 3
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "coordinateTransforms": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "DOMAIN_WARP",
+                          "WARP_SAMPLE"
+                        ]
+                      },
+                      "enabled": {
+                        "const": true
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "enabled"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "parameters": {
+                        "properties": {
+                          "warpOrder": {
+                            "enum": [
+                              "XYZ",
+                              "XZY",
+                              "YXZ",
+                              "YZX",
+                              "ZXY",
+                              "ZYX"
+                            ]
+                          }
+                        },
+                        "allOf": [
+                          {
+                            "if": {
+                              "properties": {
+                                "warpAlgorithm": {
+                                  "const": "BOX_SDF"
+                                }
+                              },
+                              "required": [
+                                "warpAlgorithm"
+                              ]
+                            },
+                            "then": {
+                              "properties": {
+                                "source.extentY": {
+                                  "minimum": 0
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "processing": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "DOMAIN_WARP",
+                          "WARP_SAMPLE"
+                        ]
+                      },
+                      "enabled": {
+                        "const": true
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "enabled"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "parameters": {
+                        "properties": {
+                          "warpOrder": {
+                            "enum": [
+                              "XYZ",
+                              "XZY",
+                              "YXZ",
+                              "YZX",
+                              "ZXY",
+                              "ZYX"
+                            ]
+                          }
+                        },
+                        "allOf": [
+                          {
+                            "if": {
+                              "properties": {
+                                "warpAlgorithm": {
+                                  "const": "BOX_SDF"
+                                }
+                              },
+                              "required": [
+                                "warpAlgorithm"
+                              ]
+                            },
+                            "then": {
+                              "properties": {
+                                "source.extentY": {
+                                  "minimum": 0
+                                }
+                              }
+                            }
+                          }
+                        ]
                       }
                     }
                   }
@@ -1711,508 +3364,689 @@
             }
           }
         }
-      } ]
+      ]
     },
-    "NumericDriver" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "destination" : {
-          "type" : "string",
-          "enum" : [ "threshold", "baseHeight", "heightScale" ]
+    "NumericDriver": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "destination": {
+          "type": "string",
+          "enum": [
+            "threshold",
+            "baseHeight",
+            "heightScale"
+          ]
         },
-        "combination" : {
-          "type" : "string",
-          "enum" : [ "REPLACE", "ADD", "MULTIPLY" ]
+        "combination": {
+          "type": "string",
+          "enum": [
+            "REPLACE",
+            "ADD",
+            "MULTIPLY"
+          ]
         },
-        "enabled" : {
-          "type" : "boolean"
+        "enabled": {
+          "type": "boolean"
         },
-        "noiseGeneratorUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+        "noiseGeneratorUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "inputMin" : {
-          "type" : "number"
+        "inputMin": {
+          "type": "number"
         },
-        "inputMax" : {
-          "type" : "number"
+        "inputMax": {
+          "type": "number"
         },
-        "outputMin" : {
-          "type" : "number"
+        "outputMin": {
+          "type": "number"
         },
-        "outputMax" : {
-          "type" : "number"
+        "outputMax": {
+          "type": "number"
         },
-        "mapping" : {
-          "type" : "string",
-          "enum" : [ "LINEAR", "SMOOTHSTEP" ]
+        "mapping": {
+          "type": "string",
+          "enum": [
+            "LINEAR",
+            "SMOOTHSTEP"
+          ]
         }
       },
-      "required" : [ "destination", "combination", "enabled", "inputMin", "inputMax", "outputMin", "outputMax", "mapping" ]
+      "required": [
+        "destination",
+        "combination",
+        "enabled",
+        "inputMin",
+        "inputMax",
+        "outputMin",
+        "outputMax",
+        "mapping"
+      ]
     },
-    "Operation" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "enabled" : {
-          "type" : "boolean"
+    "Operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
         },
-        "noiseGeneratorUuid" : {
-          "type" : "string",
-          "format" : "uuid"
+        "noiseGeneratorUuid": {
+          "type": "string",
+          "format": "uuid"
         },
-        "interpretation" : {
-          "type" : "string",
-          "enum" : [ "HEIGHT_BELOW", "HEIGHT_ABOVE", "HEIGHT_BOUNDARY", "SELECTION", "DENSITY", "TYPE_SELECTION", "ALL" ]
+        "interpretation": {
+          "type": "string",
+          "enum": [
+            "HEIGHT_BELOW",
+            "HEIGHT_ABOVE",
+            "HEIGHT_BOUNDARY",
+            "SELECTION",
+            "DENSITY",
+            "TYPE_SELECTION",
+            "ALL"
+          ]
         },
-        "overrides" : {
-          "type" : "object",
-          "additionalProperties" : { }
+        "overrides": {
+          "type": "object",
+          "additionalProperties": {}
         },
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
         },
-        "id" : {
-          "type" : "string"
+        "id": {
+          "type": "string"
         }
       },
-      "required" : [ "enabled", "interpretation", "overrides", "id", "uuid", "noiseGeneratorUuid" ]
+      "required": [
+        "enabled",
+        "interpretation",
+        "overrides",
+        "id",
+        "uuid",
+        "noiseGeneratorUuid"
+      ]
     },
-    "Parameter" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "type" : {
-          "type" : "string"
+    "Parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string"
         },
-        "value" : { },
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
+        "value": {},
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
         },
-        "id" : {
-          "type" : "string"
+        "id": {
+          "type": "string"
         }
       },
-      "required" : [ "type", "id", "uuid" ]
+      "required": [
+        "type",
+        "id",
+        "uuid"
+      ]
     },
-    "Pin" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "targetUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+    "Pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "targetUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "label" : {
-          "type" : "string"
+        "label": {
+          "type": "string"
         },
-        "group" : {
-          "type" : "string"
+        "group": {
+          "type": "string"
         }
       },
-      "required" : [ "label", "group" ]
+      "required": [
+        "label",
+        "group"
+      ]
     },
-    "Point" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
+    "Point": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
         },
-        "x" : {
-          "type" : "number"
+        "x": {
+          "type": "number"
         },
-        "y" : {
-          "type" : "number"
+        "y": {
+          "type": "number"
         },
-        "inTangent" : {
-          "type" : "number"
+        "inTangent": {
+          "type": "number"
         },
-        "outTangent" : {
-          "type" : "number"
+        "outTangent": {
+          "type": "number"
         },
-        "segmentInterpolation" : {
-          "type" : "string",
-          "enum" : [ "STEP", "LINEAR", "SMOOTH", "BEZIER" ]
+        "segmentInterpolation": {
+          "type": "string",
+          "enum": [
+            "STEP",
+            "LINEAR",
+            "SMOOTH",
+            "BEZIER"
+          ]
         },
-        "handleMode" : {
-          "type" : "string",
-          "enum" : [ "AUTO", "ALIGNED", "FREE" ]
+        "handleMode": {
+          "type": "string",
+          "enum": [
+            "AUTO",
+            "ALIGNED",
+            "FREE"
+          ]
         }
       },
-      "required" : [ "x", "y", "inTangent", "outTangent", "segmentInterpolation", "handleMode", "uuid" ]
+      "required": [
+        "x",
+        "y",
+        "inTangent",
+        "outTangent",
+        "segmentInterpolation",
+        "handleMode",
+        "uuid"
+      ]
     },
-    "Predicate" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "kind" : {
-          "type" : "string"
+    "Predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
         },
-        "reference" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+        "reference": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "children" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Predicate"
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Predicate"
           }
         }
       },
-      "required" : [ "kind", "children" ]
+      "required": [
+        "kind",
+        "children"
+      ]
     },
-    "Project" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
+    "Project": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
         },
-        "seed" : {
-          "type" : "integer",
-          "minimum" : -9223372036854775808,
-          "maximum" : 9223372036854775807
+        "seed": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
         },
-        "minY" : {
-          "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+        "minY": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
         },
-        "maxY" : {
-          "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+        "maxY": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
         },
-        "rootOrder" : {
-          "type" : "object",
-          "additionalProperties" : false,
-          "properties" : {
-            "noise2D" : {
-              "type" : "array",
-              "uniqueItems" : true,
-              "items" : {
-                "type" : "string",
-                "format" : "uuid"
+        "rootOrder": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "noise2D": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "format": "uuid"
               }
             },
-            "noise3D" : {
-              "type" : "array",
-              "uniqueItems" : true,
-              "items" : {
-                "type" : "string",
-                "format" : "uuid"
+            "noise3D": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "format": "uuid"
               }
             },
-            "world" : {
-              "type" : "array",
-              "uniqueItems" : true,
-              "items" : {
-                "type" : "string",
-                "format" : "uuid"
+            "world": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "format": "uuid"
               }
             }
           }
         }
       },
-      "required" : [ "seed", "minY", "maxY", "uuid" ]
+      "required": [
+        "seed",
+        "minY",
+        "maxY",
+        "uuid"
+      ]
     },
-    "ProjectData" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "formatVersion" : {
-          "const" : 2
+    "ProjectData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "formatVersion": {
+          "const": 2
         },
-        "project" : {
-          "$ref" : "#/$defs/Project"
+        "project": {
+          "$ref": "#/$defs/Project"
         },
-        "voxelTypes" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/VoxelType"
+        "voxelTypes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/VoxelType"
           }
         },
-        "voxelGroups" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Membership"
+        "voxelGroups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Membership"
           }
         },
-        "voxelSets" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Membership"
+        "voxelSets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Membership"
           }
         },
-        "noise2D" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Noise"
+        "noise2D": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Noise"
           }
         },
-        "noise3D" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Noise"
+        "noise3D": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Noise"
           }
         },
-        "worldGenerator" : {
-          "$ref" : "#/$defs/World"
+        "worldGenerator": {
+          "$ref": "#/$defs/World"
         },
-        "folders" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Folder"
+        "folders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Folder"
           }
         },
-        "bookmarks" : {
-          "$ref" : "#/$defs/Bookmarks"
+        "bookmarks": {
+          "$ref": "#/$defs/Bookmarks"
         }
       },
-      "required" : [ "formatVersion", "project", "voxelTypes", "voxelGroups", "voxelSets", "noise2D", "noise3D", "worldGenerator", "folders", "bookmarks" ]
+      "required": [
+        "formatVersion",
+        "project",
+        "voxelTypes",
+        "voxelGroups",
+        "voxelSets",
+        "noise2D",
+        "noise3D",
+        "worldGenerator",
+        "folders",
+        "bookmarks"
+      ]
     },
-    "SamplingTransform" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "enabled" : {
-          "type" : "boolean"
+    "SamplingTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
         },
-        "kind" : {
-          "type" : "string",
-          "enum" : [ "TRANSLATE", "SCALE", "ROTATE" ]
+        "kind": {
+          "type": "string",
+          "enum": [
+            "TRANSLATE",
+            "SCALE",
+            "ROTATE"
+          ]
         },
-        "rotationOrder" : {
-          "type" : "string",
-          "enum" : [ "XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX" ]
+        "rotationOrder": {
+          "type": "string",
+          "enum": [
+            "XYZ",
+            "XZY",
+            "YXZ",
+            "YZX",
+            "ZXY",
+            "ZYX"
+          ]
         },
-        "x" : {
-          "type" : "number"
+        "x": {
+          "type": "number"
         },
-        "y" : {
-          "type" : "number"
+        "y": {
+          "type": "number"
         },
-        "z" : {
-          "type" : "number"
+        "z": {
+          "type": "number"
         },
-        "pivotX" : {
-          "type" : "number"
+        "pivotX": {
+          "type": "number"
         },
-        "pivotY" : {
-          "type" : "number"
+        "pivotY": {
+          "type": "number"
         },
-        "pivotZ" : {
-          "type" : "number"
+        "pivotZ": {
+          "type": "number"
         }
       },
-      "required" : [ "enabled", "kind", "rotationOrder", "x", "y", "z", "pivotX", "pivotY", "pivotZ" ]
+      "required": [
+        "enabled",
+        "kind",
+        "rotationOrder",
+        "x",
+        "y",
+        "z",
+        "pivotX",
+        "pivotY",
+        "pivotZ"
+      ]
     },
-    "Settings" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "baseHeight" : {
-          "type" : "number"
+    "Settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "baseHeight": {
+          "type": "number"
         },
-        "heightScale" : {
-          "type" : "number"
+        "heightScale": {
+          "type": "number"
         },
-        "threshold" : {
-          "type" : "number"
+        "threshold": {
+          "type": "number"
         },
-        "strength" : {
-          "type" : "number",
-          "minimum" : 0,
-          "maximum" : 1
+        "strength": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
-        "probability" : {
-          "type" : "number",
-          "minimum" : 0,
-          "maximum" : 1
+        "probability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
-        "minY" : {
-          "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+        "minY": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
         },
-        "maxY" : {
-          "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+        "maxY": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
         },
-        "scaleX" : {
-          "type" : "number"
+        "scaleX": {
+          "type": "number"
         },
-        "scaleY" : {
-          "type" : "number"
+        "scaleY": {
+          "type": "number"
         },
-        "scaleZ" : {
-          "type" : "number"
+        "scaleZ": {
+          "type": "number"
         },
-        "offsetX" : {
-          "type" : "number"
+        "offsetX": {
+          "type": "number"
         },
-        "offsetY" : {
-          "type" : "number"
+        "offsetY": {
+          "type": "number"
         },
-        "offsetZ" : {
-          "type" : "number"
+        "offsetZ": {
+          "type": "number"
         },
-        "axisX" : {
-          "type" : "string",
-          "enum" : [ "X", "Y", "Z", "-X", "-Y", "-Z" ]
+        "axisX": {
+          "type": "string",
+          "enum": [
+            "X",
+            "Y",
+            "Z",
+            "-X",
+            "-Y",
+            "-Z"
+          ]
         },
-        "axisY" : {
-          "type" : "string",
-          "enum" : [ "X", "Y", "Z", "-X", "-Y", "-Z" ]
+        "axisY": {
+          "type": "string",
+          "enum": [
+            "X",
+            "Y",
+            "Z",
+            "-X",
+            "-Y",
+            "-Z"
+          ]
         },
-        "axisZ" : {
-          "type" : "string",
-          "enum" : [ "X", "Y", "Z", "-X", "-Y", "-Z" ]
+        "axisZ": {
+          "type": "string",
+          "enum": [
+            "X",
+            "Y",
+            "Z",
+            "-X",
+            "-Y",
+            "-Z"
+          ]
         },
-        "samplingTransforms" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/SamplingTransform"
+        "samplingTransforms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SamplingTransform"
           },
-          "maxItems" : 64
+          "maxItems": 64
         },
-        "seedOffset" : {
-          "type" : "integer",
-          "minimum" : -9223372036854775808,
-          "maximum" : 9223372036854775807
+        "seedOffset": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
         },
-        "action" : {
-          "type" : "string",
-          "enum" : [ "SET", "CLEAR", "NO_CHANGE" ]
+        "action": {
+          "type": "string",
+          "enum": [
+            "SET",
+            "CLEAR",
+            "NO_CHANGE"
+          ]
         },
-        "rounding" : {
-          "type" : "string"
+        "rounding": {
+          "type": "string"
         },
-        "voxelTypeUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+        "voxelTypeUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "typeSource" : {
-          "type" : "string",
-          "enum" : [ "FIXED", "INTERVALS" ]
+        "typeSource": {
+          "type": "string",
+          "enum": [
+            "FIXED",
+            "INTERVALS"
+          ]
         },
-        "typeIntervals" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/TypeInterval"
+        "typeIntervals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TypeInterval"
           },
-          "maxItems" : 256
+          "maxItems": 256
         },
-        "probabilityDriver" : {
-          "$ref" : "#/$defs/FieldDriver"
+        "probabilityDriver": {
+          "$ref": "#/$defs/FieldDriver"
         },
-        "strengthDriver" : {
-          "$ref" : "#/$defs/FieldDriver"
+        "strengthDriver": {
+          "$ref": "#/$defs/FieldDriver"
         },
-        "parameterDrivers" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/NumericDriver"
+        "parameterDrivers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NumericDriver"
           },
-          "maxItems" : 32
+          "maxItems": 32
         },
-        "voxelStatePredicate" : {
-          "$ref" : "#/$defs/Predicate"
+        "voxelStatePredicate": {
+          "$ref": "#/$defs/Predicate"
         },
-        "fieldGates" : {
-          "$ref" : "#/$defs/Gate"
+        "fieldGates": {
+          "$ref": "#/$defs/Gate"
         }
       },
-      "required" : [ "baseHeight", "heightScale", "threshold", "strength", "probability", "minY", "maxY", "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ", "seedOffset", "action", "rounding", "voxelStatePredicate", "fieldGates" ]
+      "required": [
+        "baseHeight",
+        "heightScale",
+        "threshold",
+        "strength",
+        "probability",
+        "minY",
+        "maxY",
+        "scaleX",
+        "scaleY",
+        "scaleZ",
+        "offsetX",
+        "offsetY",
+        "offsetZ",
+        "seedOffset",
+        "action",
+        "rounding",
+        "voxelStatePredicate",
+        "fieldGates"
+      ]
     },
-    "TypeInterval" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "min" : {
-          "type" : "number"
+    "TypeInterval": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "type": "number"
         },
-        "max" : {
-          "type" : "number"
+        "max": {
+          "type": "number"
         },
-        "includeMin" : {
-          "type" : "boolean"
+        "includeMin": {
+          "type": "boolean"
         },
-        "includeMax" : {
-          "type" : "boolean"
+        "includeMax": {
+          "type": "boolean"
         },
-        "voxelTypeUuid" : {
-          "format" : "uuid",
-          "type" : [ "string", "null" ]
+        "voxelTypeUuid": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
-      "required" : [ "min", "max", "includeMin", "includeMax" ]
+      "required": [
+        "min",
+        "max",
+        "includeMin",
+        "includeMax"
+      ]
     },
-    "VoxelType" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "color" : {
-          "$ref" : "#/$defs/Color"
+    "VoxelType": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/Color"
         },
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
         },
-        "id" : {
-          "type" : "string"
+        "id": {
+          "type": "string"
         }
       },
-      "required" : [ "color", "id", "uuid" ]
+      "required": [
+        "color",
+        "id",
+        "uuid"
+      ]
     },
-    "World" : {
-      "type" : "object",
-      "additionalProperties" : false,
-      "properties" : {
-        "uuid" : {
-          "type" : "string",
-          "format" : "uuid"
+    "World": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
         },
-        "layers" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/$defs/Layer"
+        "layers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Layer"
           }
         }
       },
-      "required" : [ "layers", "uuid" ]
+      "required": [
+        "layers",
+        "uuid"
+      ]
     },
-    "Bookmark2D" : {
-      "allOf" : [ {
-        "$ref" : "#/$defs/Bookmark"
-      }, {
-        "properties" : {
-          "y" : {
-            "const" : null
+    "Bookmark2D": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Bookmark"
+        },
+        {
+          "properties": {
+            "y": {
+              "const": null
+            }
           }
         }
-      } ]
+      ]
     },
-    "Bookmark3D" : {
-      "allOf" : [ {
-        "$ref" : "#/$defs/Bookmark"
-      }, {
-        "properties" : {
-          "y" : {
-            "type" : "integer",
-            "minimum" : -2147483648,
-            "maximum" : 2147483647
-          }
+    "Bookmark3D": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Bookmark"
         },
-        "required" : [ "y" ]
-      } ]
+        {
+          "properties": {
+            "y": {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            }
+          },
+          "required": [
+            "y"
+          ]
+        }
+      ]
     }
   }
 }

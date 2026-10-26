@@ -185,6 +185,7 @@ public final class AppMetadata {
       if (ProcessingExtensions.DETAILS.containsKey(entry.getKey()))
         control.description = ProcessingExtensions.DETAILS.get(entry.getKey()).description();
       control.group = "Processing";
+      if (entry.getKey().equals("WARP_SAMPLE")) control.description = WarpRegistry.SEMANTICS;
       m.controls.put("processing." + entry.getKey(), control);
     }
     for (String key : CreationRegistry.TRANSFORMS) {
@@ -194,6 +195,7 @@ public final class AppMetadata {
               "Coordinate transform " + key,
               "Ordered transforms use the authored coordinates and registry semantics.");
       control.group = "Transforms";
+      if (key.equals("DOMAIN_WARP")) control.description = WarpRegistry.SEMANTICS;
       m.controls.put("transform." + key, control);
     }
     for (var spec : CreationRegistry.CONTROLS.values()) {

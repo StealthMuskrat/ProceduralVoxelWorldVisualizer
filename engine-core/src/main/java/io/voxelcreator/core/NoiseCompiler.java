@@ -305,7 +305,8 @@ public final class NoiseCompiler {
         slot += 3;
         var bound = new HashMap<String, Input>();
         for (var e : item.inputs.entrySet()) {
-          if (e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind)) {
+          if ((e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind))
+              || item.kind.equals("WARP_SAMPLE") && WarpRegistry.component(e.getKey())) {
             if (!ProcessingRegistry.isFieldBinding(e.getValue()))
               throw new IllegalArgumentException(
                   "A sampled-field input requires Source Field, Earlier Field Prefix or Noise"
@@ -430,30 +431,8 @@ public final class NoiseCompiler {
                     ? Binding.sourceField()
                     : Binding.noiseField(UUID.fromString(legacy));
           }
-          FieldPlan sampled;
-          switch (selected.sourceKind) {
-            case "Source Field" -> sampled = sourceField;
-            case "Earlier Field Prefix" -> {
-              Input target = inputs.get(selected.itemUuid);
-              if (target == null || !target.type.equals("Scalar"))
-                throw new IllegalArgumentException(
-                    "Earlier field prefix must select an enabled earlier Scalar result");
-              sampled = prefixes.get(selected.itemUuid);
-              if (sampled == null) {
-                sampled = executable(n, source, transforms, target, slot);
-                prefixes.put(selected.itemUuid, sampled);
-              }
-            }
-            case "Noise Generator Field" -> {
-              Field ref = projectedReference(selected, n.dimension);
-              sampled =
-                  new FieldPlan(
-                      ref,
-                      resourceWork.get(selected.noiseGeneratorUuid),
-                      resourceDepth.get(selected.noiseGeneratorUuid));
-            }
-            default -> throw new IllegalArgumentException("Unsupported sampled-field selector");
-          }
+          FieldPlan sampled =
+              selectedField(selected, n, source, transforms, sourceField, inputs, prefixes, slot);
           Field field = sampled.field;
           Input coordinates = bound.get("coordinates");
           if (coordinates != null
@@ -479,6 +458,74 @@ public final class NoiseCompiler {
                                 ? c.worldZ
                                 : coordinates.number.get(c, dimension == 2 ? 1 : 2),
                             k);
+          } else if (kind.equals("WARP_SAMPLE")) {
+            var plan = WarpPlan.compile(item, dimension, seed);
+            var components = new FieldPlan[3];
+            for (int axis = 0; axis < 3; axis++) {
+              String name = WarpRegistry.COMPONENTS.get(axis);
+              var binding = item.inputs.get(name);
+              if (binding == null) continue;
+              if (dimension == 2 && axis == 1)
+                throw new ProcessingExtensions.InvalidControl(
+                    "inputs/" + name, "2D warp has no Y displacement");
+              try {
+                components[axis] =
+                    selectedField(
+                        binding, n, source, transforms, sourceField, inputs, prefixes, slot);
+              } catch (CompilationFailure failure) {
+                throw failure;
+              } catch (RuntimeException failure) {
+                throw new CompilationFailure(n.uuid, item.uuid, "inputs/" + name, failure);
+              }
+            }
+            for (String name : bound.keySet())
+              if (!Set.of("coordinates", "amplitude", "warpX", "warpY", "warpZ").contains(name))
+                throw new ProcessingExtensions.InvalidControl(
+                    "inputs/" + name, "Unsupported warp input " + name);
+            var values = new Input[] {bound.get("warpX"), bound.get("warpY"), bound.get("warpZ")};
+            for (int axis = 0; axis < 3; axis++) {
+              if (values[axis] != null) require(values[axis], "Scalar", item);
+              if (values[axis] != null && components[axis] != null)
+                throw new ProcessingExtensions.InvalidControl(
+                    "inputs/" + WarpRegistry.COMPONENTS.get(axis),
+                    "Choose a numeric displacement or a sampled field, not both");
+              if (dimension == 2 && axis == 1 && values[axis] != null)
+                throw new ProcessingExtensions.InvalidControl(
+                    "inputs/warpY", "2D warp has no Y displacement");
+            }
+            Input amount = control(bound, item, "amplitude", 8);
+            require(amount, "Scalar", item);
+            var displacement = warpDisplacement(values, components);
+            long displacementWork = 0;
+            for (int axis : dimension == 2 ? new int[] {0, 2} : new int[] {0, 1, 2}) {
+              displacementWork =
+                  Math.addExact(
+                      displacementWork,
+                      components[axis] != null
+                          ? components[axis].work
+                          : values[axis] != null ? 0 : 16);
+              if (components[axis] != null)
+                sampleDepth = Math.max(sampleDepth, components[axis].depth);
+            }
+            sampleWork = Math.addExact(sampled.work, boundedWork(displacementWork, plan.octaves()));
+            boundedWork(sampleWork, 1);
+            sampleDepth = Math.max(sampleDepth, sampled.depth);
+            var scratch = ThreadLocal.withInitial(() -> new double[3]);
+            eval =
+                (c, k) -> {
+                  double x = coordinates == null ? c.worldX : coordinates.number.get(c, 0),
+                      y =
+                          coordinates == null
+                              ? c.worldY
+                              : dimension == 2 ? 0 : coordinates.number.get(c, 1),
+                      z =
+                          coordinates == null
+                              ? c.worldZ
+                              : coordinates.number.get(c, dimension == 2 ? 1 : 2);
+                  double[] location = scratch.get();
+                  plan.apply(x, y, z, amount.scalar(c), c, displacement, location);
+                  return field.sample(location[0], location[1], location[2]);
+                };
           } else {
             int oct = integer(item, "octaves", 4, 1, 16), radius = integer(item, "radius", 1, 0, 4);
             double lac = param(item, "lacunarity", 2),
@@ -504,24 +551,10 @@ public final class NoiseCompiler {
                     ? 2
                     : kind.equals("SMOOTH_FILTER")
                         ? count + 1
-                        : Set.of("FBM", "RIDGED", "BILLOW", "PING_PONG").contains(kind)
-                            ? oct
-                            : kind.equals("WARP_SAMPLE") ? 4 : 1;
+                        : Set.of("FBM", "RIDGED", "BILLOW", "PING_PONG").contains(kind) ? oct : 1;
             sampleWork = boundedWork(sampled.work, samples);
             sampleDepth = sampled.depth;
-            Field warp;
-            if (kind.equals("WARP_SAMPLE")) {
-              var algorithm = new Algorithm();
-              algorithm.parameters.put("frequency", param(item, "frequency", .01));
-              warp =
-                  NoiseAlgorithms.compile(
-                      algorithm,
-                      dimension,
-                      CoordinateHash.mix(
-                          seed + Double.doubleToLongBits(param(item, "seedOffset", 0))));
-            } else warp = null;
-            double amplitude = param(item, "amplitude", 8),
-                baseFrequency = param(item, "frequency", kind.equals("WARP_SAMPLE") ? .01 : 1);
+            double baseFrequency = param(item, "frequency", 1);
             if (baseFrequency <= 0)
               throw new IllegalArgumentException("Sampling frequency must be positive");
             double[] weights = new double[count];
@@ -575,14 +608,6 @@ public final class NoiseCompiler {
                     double original = field.sample(x, y, z);
                     return original + (sum - original) * strength;
                   }
-                  if (kind.equals("WARP_SAMPLE"))
-                    return field.sample(
-                        x + amplitude * warp.sample(x, y, z),
-                        y
-                            + (dimension == 2
-                                ? 0
-                                : amplitude * warp.sample(x + 31.1, y - 17.3, z + 7.7)),
-                        z + amplitude * warp.sample(x - 11.2, y + 43.8, z - 19.4));
                   double sum = 0, amp = 1, freq = baseFrequency;
                   for (int i = 0; i < oct; i++) {
                     double value = field.sample(x * freq, y * freq, z * freq);
@@ -878,7 +903,35 @@ public final class NoiseCompiler {
                 "warpX",
                 "warpY",
                 "warpZ");
+        var displacementFields = new FieldPlan[3];
         for (var e : item.inputs.entrySet()) {
+          if (kindOfWarp(item) && WarpRegistry.component(e.getKey())) {
+            int axis = WarpRegistry.COMPONENTS.indexOf(e.getKey());
+            if (n.dimension == 2 && axis == 1)
+              throw new ProcessingExtensions.InvalidControl(
+                  "inputs/" + e.getKey(), "2D warp has no Y displacement");
+            var binding = e.getValue();
+            if (binding == null
+                || !binding.sourceKind.equals("Noise Generator Field")
+                || !binding.type.equals("Scalar"))
+              throw new ProcessingExtensions.InvalidControl(
+                  "inputs/" + e.getKey(),
+                  "Coordinate warp displacement requires a Noise Generator Field");
+            Field ref;
+            try {
+              ref = projectedReference(binding, n.dimension);
+            } catch (CompilationFailure failure) {
+              throw failure;
+            } catch (RuntimeException failure) {
+              throw new CompilationFailure(n.uuid, item.uuid, "inputs/" + e.getKey(), failure);
+            }
+            displacementFields[axis] =
+                new FieldPlan(
+                    ref,
+                    resourceWork.get(binding.noiseGeneratorUuid),
+                    resourceDepth.get(binding.noiseGeneratorUuid));
+            continue;
+          }
           if (!allowed.contains(e.getKey()))
             throw new IllegalArgumentException("Unknown transform input " + e.getKey());
           if (Set.of(
@@ -914,17 +967,16 @@ public final class NoiseCompiler {
         String order = text(item, "rotationOrder", "XYZ");
         if (!Set.of("XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX").contains(order))
           throw new IllegalArgumentException("Explicit rotation axis order required");
-        Field warp;
-        if (kind.equals("DOMAIN_WARP")) {
-          var algorithm = new Algorithm();
-          algorithm.parameters.put("frequency", param(item, "frequency", .01));
-          warp =
-              NoiseAlgorithms.compile(
-                  algorithm,
-                  dimension,
-                  CoordinateHash.mix(seed + Double.doubleToLongBits(param(item, "seedOffset", 0))));
-        } else warp = null;
-        Input wx = bound.get("warpX"), wy = bound.get("warpY"), wz = bound.get("warpZ");
+        WarpPlan warp = kind.equals("DOMAIN_WARP") ? WarpPlan.compile(item, dimension, seed) : null;
+        var warpValues = new Input[] {bound.get("warpX"), bound.get("warpY"), bound.get("warpZ")};
+        if (warp != null)
+          for (int axis = 0; axis < 3; axis++)
+            if (warpValues[axis] != null && displacementFields[axis] != null)
+              throw new ProcessingExtensions.InvalidControl(
+                  "inputs/" + WarpRegistry.COMPONENTS.get(axis),
+                  "Choose numeric or sampled displacement, not both");
+        var displacement = warpDisplacement(warpValues, displacementFields);
+        var warpScratch = ThreadLocal.withInitial(() -> new double[3]);
         Step step =
             c -> {
               try {
@@ -978,18 +1030,11 @@ public final class NoiseCompiler {
                   yy = dimension == 2 ? 0 : yy + pivotY;
                   zz += pivotZ;
                 } else {
-                  double amount = amplitude.scalar(c),
-                      dx = wx == null ? warp.sample(xx, yy, zz) : wx.scalar(c),
-                      dy =
-                          dimension == 2
-                              ? 0
-                              : wy == null
-                                  ? warp.sample(xx + 31.1, yy - 17.3, zz + 7.7)
-                                  : wy.scalar(c),
-                      dz = wz == null ? warp.sample(xx - 11.2, yy + 43.8, zz - 19.4) : wz.scalar(c);
-                  xx += amount * dx;
-                  yy += amount * dy;
-                  zz += amount * dz;
+                  double[] location = warpScratch.get();
+                  warp.apply(xx, yy, zz, amplitude.scalar(c), c, displacement, location);
+                  xx = location[0];
+                  yy = location[1];
+                  zz = location[2];
                 }
                 if (!Double.isFinite(xx) || !Double.isFinite(yy) || !Double.isFinite(zz))
                   throw new ArithmeticException("Nonfinite transformed coordinates");
@@ -1023,7 +1068,21 @@ public final class NoiseCompiler {
                       Arrays.copyOfRange(c.values, index, index + dimension));
                 }
                 : normalStep);
-        long stepWork = kind.equals("DOMAIN_WARP") ? 48 : 1;
+        long stepWork = 1;
+        if (warp != null) {
+          long oneOctave = 0;
+          for (int axis : dimension == 2 ? new int[] {0, 2} : new int[] {0, 1, 2}) {
+            oneOctave =
+                Math.addExact(
+                    oneOctave,
+                    displacementFields[axis] != null
+                        ? displacementFields[axis].work
+                        : warpValues[axis] != null ? 0 : 16);
+            if (displacementFields[axis] != null)
+              depth = Math.max(depth, displacementFields[axis].depth);
+          }
+          stepWork = boundedWork(oneOctave, warp.octaves());
+        }
         for (Input in : bound.values()) {
           stepWork = Math.addExact(stepWork, in.work);
           depth = Math.max(depth, in.depth);
@@ -1037,10 +1096,73 @@ public final class NoiseCompiler {
       } catch (CompilationFailure failure) {
         throw failure;
       } catch (RuntimeException failure) {
-        throw new CompilationFailure(n.uuid, item.uuid, null, failure);
+        throw new CompilationFailure(
+            n.uuid,
+            item.uuid,
+            failure instanceof ProcessingExtensions.InvalidControl invalid ? invalid.key : null,
+            failure);
       }
     }
     return new TransformPlan(List.copyOf(steps), slots, work, depth);
+  }
+
+  private static boolean kindOfWarp(Item item) {
+    return item.kind.equals("DOMAIN_WARP");
+  }
+
+  private FieldPlan selectedField(
+      Binding selected,
+      Noise n,
+      Field source,
+      TransformPlan transforms,
+      FieldPlan sourceField,
+      Map<UUID, Input> earlier,
+      Map<UUID, FieldPlan> prefixes,
+      int slots) {
+    if (selected == null || !selected.type.equals("Scalar"))
+      throw new IllegalArgumentException("Sampled field requires Scalar output");
+    return switch (selected.sourceKind) {
+      case "Source Field" -> sourceField;
+      case "Earlier Field Prefix" -> {
+        Input target = earlier.get(selected.itemUuid);
+        if (target == null || !target.type.equals("Scalar"))
+          throw new IllegalArgumentException(
+              "Earlier field prefix must select an enabled earlier Scalar result");
+        FieldPlan cached = prefixes.get(selected.itemUuid);
+        if (cached == null) {
+          cached = executable(n, source, transforms, target, slots);
+          prefixes.put(selected.itemUuid, cached);
+        }
+        yield cached;
+      }
+      case "Noise Generator Field" -> {
+        Field ref = projectedReference(selected, n.dimension);
+        yield new FieldPlan(
+            ref,
+            resourceWork.get(selected.noiseGeneratorUuid),
+            resourceDepth.get(selected.noiseGeneratorUuid));
+      }
+      default -> throw new IllegalArgumentException("Unsupported sampled-field selector");
+    };
+  }
+
+  private static WarpPlan.Displacement<Context> warpDisplacement(
+      Input[] values, FieldPlan[] fields) {
+    return new WarpPlan.Displacement<>() {
+      public boolean present(int axis) {
+        return values[axis] != null || fields[axis] != null;
+      }
+
+      public boolean resampled(int axis) {
+        return fields[axis] != null;
+      }
+
+      public double sample(Context context, int axis, double x, double y, double z) {
+        return fields[axis] != null
+            ? fields[axis].field.sample(x, y, z)
+            : values[axis].scalar(context);
+      }
+    };
   }
 
   private static Input control(Map<String, Input> inputs, Item item, String key, double fallback) {

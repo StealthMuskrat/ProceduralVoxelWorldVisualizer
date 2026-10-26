@@ -65,6 +65,12 @@ public final class EditorCreations {
     metadata.validate();
     var item = processingUnchecked(metadata, key, id);
     item.resultType = ProcessingExtensions.resultType(key, dimension);
+    if (key.equals("WARP_SAMPLE")
+        && dimension == 2
+        && !WarpRegistry.orders(2).contains(item.parameters.get("warpOrder").asText()))
+      item.parameters.put(
+          "warpOrder",
+          ProjectIO.JSON.valueToTree(item.parameters.get("warpOrder").asText().replace("Y", "")));
     return item;
   }
 
@@ -149,6 +155,33 @@ public final class EditorCreations {
         if (item.resultType.equals("Scalar")) noise.outputBinding = Binding.earlier(item.uuid);
         new NoiseCompiler(project, 0).compile(noise.uuid);
       }
+    }
+    for (int dimension : new int[] {2, 3}) {
+      var p = new ProjectData();
+      var n = new Noise();
+      n.id = "warp-defaults";
+      n.dimension = dimension;
+      n.algorithm.key = "CONSTANT";
+      (dimension == 2 ? p.noise2D : p.noise3D).add(n);
+      var processing = processingUnchecked(metadata, "WARP_SAMPLE", "warp");
+      n.processing.add(processing);
+      n.outputBinding = Binding.earlier(processing.uuid);
+      if (dimension == 2)
+        processing.parameters.put(
+            "warpOrder",
+            ProjectIO.JSON.valueToTree(
+                processing.parameters.get("warpOrder").asText().replace("Y", "")));
+      WarpPlan.compile(processing, dimension, 0);
+      var transform = new Item();
+      transform.kind = "DOMAIN_WARP";
+      transform.id = "warp-transform";
+      transform.resultType = dimension == 2 ? "Coordinates2D" : "Coordinates3D";
+      String prefix = "transform" + dimension + "D.DOMAIN_WARP.";
+      for (var spec : CreationRegistry.CONTROLS.values())
+        if (spec.id().startsWith(prefix))
+          transform.parameters.put(
+              spec.id().substring(prefix.length()), CreationRegistry.value(metadata, spec.id()));
+      WarpPlan.compile(transform, dimension, 0);
     }
     if (metadata.creationDefaults.containsKey("processing.EXPRESSION.parameter.expression"))
       for (int dimension : new int[] {2, 3}) {

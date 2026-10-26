@@ -243,16 +243,8 @@ public final class CreationRegistry {
         "Kernel",
         "BOX",
         List.of("BOX", "GAUSSIAN"));
-    parameter(m, "WARP_SAMPLE", "amplitude", 8, -1e6, 1e6);
-    parameter(m, "WARP_SAMPLE", "frequency", .01, 1e-9, 1e6);
-    integer(
-        m,
-        "processing.WARP_SAMPLE.parameter.seedOffset",
-        "Processing / WARP_SAMPLE",
-        "Seed offset",
-        0,
-        Integer.MIN_VALUE,
-        Integer.MAX_VALUE);
+    for (var control : WarpRegistry.controls(3))
+      warpControl(m, "processing.WARP_SAMPLE.parameter.", "Processing / WARP_SAMPLE", control);
     for (String axis : List.of("x", "y", "z")) parameter(m, "OFFSET_SAMPLE", axis, 0, -1e6, 1e6);
     for (int dimension : new int[] {2, 3})
       for (String transform : TRANSFORMS) {
@@ -285,16 +277,8 @@ public final class CreationRegistry {
           for (String axis : dimension == 2 ? List.of("X", "Z") : List.of("X", "Y", "Z"))
             number(m, prefix + "pivot" + axis, group, "Pivot " + axis, 0, -1e6, 1e6);
         if (transform.equals("DOMAIN_WARP")) {
-          number(m, prefix + "amplitude", group, "Amplitude", 8, -1e6, 1e6);
-          number(m, prefix + "frequency", group, "Frequency", .01, 1e-9, 1e6);
-          integer(
-              m,
-              prefix + "seedOffset",
-              group,
-              "Seed offset",
-              0,
-              Integer.MIN_VALUE,
-              Integer.MAX_VALUE);
+          for (var control : WarpRegistry.controls(dimension))
+            warpControl(m, prefix, group, control);
         }
       }
     for (String channel : List.of("r", "g", "b"))
@@ -334,6 +318,26 @@ public final class CreationRegistry {
         "CLAMP",
         List.of("CLAMP", "EXTEND", "REPEAT", "MIRROR"));
     CONTROLS = Collections.unmodifiableMap(m);
+  }
+
+  private static void warpControl(
+      Map<String, Spec> m, String prefix, String group, WarpRegistry.Control control) {
+    Kind kind =
+        !control.options().isEmpty() && !control.numericOptions()
+            ? Kind.CHOICE
+            : control.integer() || control.key().equals("seedOffset") ? Kind.INTEGER : Kind.NUMBER;
+    double min = control.key().equals("seedOffset") ? Integer.MIN_VALUE : control.presetMinimum(),
+        max = control.key().equals("seedOffset") ? Integer.MAX_VALUE : control.presetMaximum();
+    add(
+        m,
+        prefix + control.key(),
+        group,
+        control.label(),
+        kind,
+        control.defaultValue(),
+        min,
+        max,
+        control.options());
   }
 
   private static double remapMinimum(String kind, ProcessingExtensions.Control c) {

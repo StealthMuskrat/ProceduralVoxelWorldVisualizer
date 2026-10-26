@@ -262,6 +262,7 @@ public final class ContractGenerator {
         .set("enum", JSON.valueToTree(WorldSemantics.INTERPRETATIONS));
     extensionSchema(defs);
     sourceAlgorithmSchema(defs);
+    warpSchema(defs);
     writeJSON(root.resolve("schema/project.schema.json"), schema);
     for (String[] editor :
         List.of(
@@ -426,6 +427,7 @@ public final class ContractGenerator {
     writeJSON(
         root.resolve("registries/algorithm-registry.json"), NoiseAlgorithmRegistry.registry());
     writeJSON(root.resolve("registries/noise-processing-registry.json"), processingRegistry());
+    writeJSON(root.resolve("registries/warp-registry.json"), WarpRegistry.registry());
     var funcs = new LinkedHashMap<String, Object>();
     Expression.FUNCTIONS.forEach(
         (name, fn) ->
@@ -578,7 +580,7 @@ public final class ContractGenerator {
 
   public static Map<String, Object> processingRegistry() {
     var result = new LinkedHashMap<String, Object>();
-    result.put("registryVersion", 4);
+    result.put("registryVersion", 5);
     result.put("operations", ProcessingRegistry.ITEMS);
     result.put("sampledFieldOperations", new TreeSet<>(ProcessingRegistry.SAMPLED));
     result.put(
@@ -586,6 +588,7 @@ public final class ContractGenerator {
         List.of("Source Field", "Earlier Field Prefix", "Noise Generator Field"));
     result.put("extendedOperations", ProcessingExtensions.DETAILS);
     result.put("sampleWorkLimit", NoiseCompiler.MAX_SAMPLE_WORK);
+    result.put("warpRegistry", "warp-registry.json");
     return Collections.unmodifiableMap(result);
   }
 
@@ -643,6 +646,125 @@ public final class ContractGenerator {
       rules.add(rule);
     }
     defs.withObject("/Item").set("allOf", rules);
+  }
+
+  private static ObjectNode fields(Object... entries) {
+    var result = obj();
+    for (int i = 0; i < entries.length; i += 2)
+      result.set((String) entries[i], (JsonNode) entries[i + 1]);
+    return result;
+  }
+
+  private static void warpSchema(ObjectNode defs) {
+    var controls = obj();
+    for (var control : WarpRegistry.controls(3)) {
+      var value = obj();
+      if (!control.options().isEmpty() && !control.numericOptions())
+        value.set(
+            "enum",
+            JSON.valueToTree(
+                control.key().equals("warpOrder")
+                    ? List.of("XZ", "ZX", "XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX")
+                    : control.options()));
+      else {
+        value.put("type", control.integer() ? "integer" : "number");
+        if (!control.key().startsWith("source."))
+          value.put("minimum", control.minimum()).put("maximum", control.maximum());
+      }
+      controls.set(control.key(), value);
+    }
+    controls.put("source.frequency", false);
+    var algorithmRules = JSON.createArrayNode();
+    for (var key : NoiseAlgorithms.KEYS) {
+      var sourceControls = obj();
+      for (var c : NoiseAlgorithmRegistry.parameters(key, 3))
+        if (!c.key().equals("frequency") && !c.threeDimensional())
+          sourceControls.set(
+              "source." + c.key(),
+              obj()
+                  .put("type", c.integer() ? "integer" : "number")
+                  .put("minimum", c.minimum())
+                  .put("maximum", c.maximum()));
+      var condition = fields("properties", fields("warpAlgorithm", obj().put("const", key)));
+      if (!key.equals("OPEN_SIMPLEX_2"))
+        condition.set("required", JSON.valueToTree(List.of("warpAlgorithm")));
+      algorithmRules.add(fields("if", condition, "then", fields("properties", sourceControls)));
+    }
+    var parameterSchema = fields("properties", controls, "allOf", algorithmRules);
+    for (var kind : List.of("DOMAIN_WARP", "WARP_SAMPLE")) {
+      var inputs = obj();
+      var names =
+          new ArrayList<String>(List.of("coordinates", "amplitude", "warpX", "warpY", "warpZ"));
+      if (kind.equals("WARP_SAMPLE")) names.add("field");
+      else
+        names.addAll(
+            List.of(
+                "x", "y", "z", "angle", "angleX", "angleY", "angleZ", "pivotX", "pivotY",
+                "pivotZ"));
+      for (var name : names) inputs.set(name, obj().put("$ref", "#/$defs/Binding"));
+      for (var name : WarpRegistry.COMPONENTS) {
+        var sources =
+            kind.equals("DOMAIN_WARP")
+                ? List.of("Noise Generator Field")
+                : List.of("Source Field", "Earlier Field Prefix", "Noise Generator Field");
+        var shape =
+            fields(
+                "properties",
+                fields(
+                    "sourceKind",
+                    fields("enum", JSON.valueToTree(sources)),
+                    "type",
+                    obj().put("const", "Scalar")));
+        inputs.set(
+            name,
+            fields(
+                "allOf", JSON.valueToTree(List.of(obj().put("$ref", "#/$defs/Binding"), shape))));
+      }
+      var inputMap = fields("properties", inputs);
+      inputMap.put("additionalProperties", false);
+      var then = fields("properties", fields("parameters", parameterSchema, "inputs", inputMap));
+      var condition =
+          fields(
+              "properties",
+              fields("kind", obj().put("const", kind), "enabled", obj().put("const", true)),
+              "required",
+              JSON.valueToTree(List.of("kind", "enabled")));
+      ((ArrayNode) defs.path("Item").path("allOf")).add(fields("if", condition, "then", then));
+    }
+    for (int dimension : List.of(2, 3)) {
+      var parameterProperties =
+          fields("warpOrder", fields("enum", JSON.valueToTree(WarpRegistry.orders(dimension))));
+      var boxCondition =
+          fields(
+              "properties",
+              fields("warpAlgorithm", obj().put("const", "BOX_SDF")),
+              "required",
+              JSON.valueToTree(List.of("warpAlgorithm")));
+      var conditional =
+          fields(
+              "if",
+              boxCondition,
+              "then",
+              fields("properties", fields("source.extentY", obj().put("minimum", 0))));
+      var params = fields("properties", parameterProperties);
+      if (dimension == 3) params.set("allOf", JSON.createArrayNode().add(conditional));
+      var kind = fields("enum", JSON.valueToTree(List.of("DOMAIN_WARP", "WARP_SAMPLE")));
+      var itemCondition =
+          fields(
+              "properties",
+              fields("kind", kind, "enabled", obj().put("const", true)),
+              "required",
+              JSON.valueToTree(List.of("kind", "enabled")));
+      var itemRefinement =
+          fields("if", itemCondition, "then", fields("properties", fields("parameters", params)));
+      var arrays = obj();
+      for (var name : List.of("coordinateTransforms", "processing"))
+        arrays.set(name, fields("items", itemRefinement));
+      var dimensionCondition =
+          fields("properties", fields("dimension", obj().put("const", dimension)));
+      ((ArrayNode) defs.path("Noise").path("allOf"))
+          .add(fields("if", dimensionCondition, "then", fields("properties", arrays)));
+    }
   }
 
   static void writeJSON(Path path, Object value) throws Exception {

@@ -488,24 +488,23 @@ public final class PropertyPanel {
             }
             ImGui.textWrapped("Angles are degrees; positive Y rotation turns +X toward +Z.");
           } else if (item.kind.equals("DOMAIN_WARP")) {
-            transformControl(n, item, i, "amplitude", 8);
-            parameter(item, "frequency", .01);
-            parameter(item, "seedOffset", 0);
-            for (String axis : n.dimension == 2 ? List.of("X", "Z") : List.of("X", "Y", "Z")) {
-              String name = "warp" + axis;
-              f.bool(
-                  "External " + name,
-                  item.inputs.containsKey(name),
-                  v -> {
-                    if (v) item.inputs.put(name, Binding.constant(0));
-                    else item.inputs.remove(name);
-                  });
-              if (item.inputs.containsKey(name)) {
-                ImGui.pushID(name);
-                binding(n, item, i, item.inputs.get(name));
-                ImGui.popID();
-              }
-            }
+            f.bool(
+                "Bind amplitude",
+                item.inputs.containsKey("amplitude"),
+                value -> {
+                  if (value)
+                    item.inputs.put(
+                        "amplitude",
+                        Binding.constant(
+                            item.parameters
+                                .getOrDefault("amplitude", ProjectIO.JSON.valueToTree(8))
+                                .asDouble()));
+                  else item.inputs.remove("amplitude");
+                });
+            if (item.inputs.containsKey("amplitude"))
+              binding(n, item, i, item.inputs.get("amplitude"));
+            warpControls(n, item, i, true);
+
           } else
             for (String axis : n.dimension == 2 ? List.of("x", "z") : List.of("x", "y", "z"))
               transformControl(n, item, i, axis, item.kind.equals("SCALE") ? 1 : 0);
@@ -692,7 +691,8 @@ public final class PropertyPanel {
             if (ImGui.treeNode(
                 "Input: " + e.getKey() + " [" + e.getValue().type + "]###input-properties")) {
               revealSearchField(item.uuid, "inputs/" + e.getKey());
-              if (e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind))
+              if ((e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind))
+                  || item.kind.equals("WARP_SAMPLE") && WarpRegistry.component(e.getKey()))
                 fieldBinding(n, i, e.getValue());
               else binding(n, item, i, e.getValue());
               if (item.kind.equals("EXPRESSION")) namedInput(item, e.getKey());
@@ -851,9 +851,7 @@ public final class PropertyPanel {
                     v -> item.parameters.put("kernel", ProjectIO.JSON.valueToTree(v)));
               }
               if (item.kind.equals("WARP_SAMPLE")) {
-                parameter(item, "amplitude", 8);
-                parameter(item, "frequency", .01);
-                parameter(item, "seedOffset", 0);
+                warpControls(n, item, i, false);
               }
             }
             default -> {}
@@ -1538,7 +1536,7 @@ public final class PropertyPanel {
       ImGui.textWrapped(
           item.kind.equals("FALLOFF")
               ? "Unit input; X position from -extent to 2*extent, Y/Z=0. Authored centers and"
-                    + " domain apply."
+                  + " domain apply."
               : "Input from -1 to 2; raw output. Display only.");
     } catch (RuntimeException invalid) {
       ImGui.textWrapped("Preview unavailable: " + invalid.getMessage());
@@ -1596,6 +1594,158 @@ public final class PropertyPanel {
     if (item.inputs.containsKey(name)) binding(noise, item, index, item.inputs.get(name));
     else parameter(item, name, fallback);
     ImGui.popID();
+  }
+
+  private final Map<UUID, Set<String>> warpControlKeys = new HashMap<>();
+
+  Set<String> probeWarpControls(UUID item) {
+    return Set.copyOf(warpControlKeys.getOrDefault(item, Set.of()));
+  }
+
+  private void warpControls(Noise noise, Item item, int index, boolean coordinateStage) {
+    var submitted = new LinkedHashSet<String>();
+    warpControlKeys.put(item.uuid, submitted);
+    ImGui.textWrapped(WarpRegistry.SEMANTICS);
+    ImGui.textWrapped(
+        "Algorithm seed: mix(generator seed + raw IEEE bits of seedOffset). External fields keep"
+            + " their own seed. Numeric components remain stage values; sampled components"
+            + " reevaluate at the warp query location.");
+    String prefix =
+        coordinateStage
+            ? "transform" + noise.dimension + "D.DOMAIN_WARP."
+            : "processing.WARP_SAMPLE.parameter.";
+    var visible = new HashSet<String>();
+    for (var c : WarpRegistry.visibleControls(item, noise.dimension)) visible.add(c.key());
+    var controls = new ArrayList<>(WarpRegistry.controls(noise.dimension));
+    if (navigationTarget != null && item.uuid.equals(navigationTarget.control())) {
+      String target = Objects.requireNonNullElse(navigationTarget.parameter(), "");
+      for (var control : WarpRegistry.controls(3))
+        if (target.equals("parameters/" + control.key())
+            && controls.stream().noneMatch(c -> c.key().equals(control.key())))
+          controls.add(control);
+    }
+    for (var control : controls) {
+      String key = control.key();
+      boolean targeted =
+          navigationTarget != null
+              && item.uuid.equals(navigationTarget.control())
+              && ("parameters/" + key).equals(navigationTarget.parameter());
+      if (!targeted && !visible.contains(key)
+          || coordinateStage && key.equals("amplitude") && item.inputs.containsKey("amplitude"))
+        continue;
+      submitted.add(key);
+      ImGui.pushID(key);
+      String id = prefix + key, label = state.metadata.label(id, control.label());
+      var current =
+          item.parameters.getOrDefault(key, ProjectIO.JSON.valueToTree(control.defaultValue()));
+      if (!control.options().isEmpty()) {
+        var choices = new ArrayList<DraftChoicePicker.Choice>();
+        for (int option = 0; option < control.options().size(); option++) {
+          String name = control.options().get(option);
+          choices.add(
+              new DraftChoicePicker.Choice(
+                  control.numericOptions() ? Integer.toString(option) : name,
+                  state.metadata.option(id, name),
+                  name));
+        }
+        String cache = "warp:" + id;
+        var previous = catalogues.get(cache);
+        if (!choices.equals(previous)) {
+          previous = List.copyOf(choices);
+          catalogues.put(cache, previous);
+        }
+        String selected =
+            control.numericOptions()
+                ? current.isNumber() && current.doubleValue() == Math.rint(current.doubleValue())
+                    ? Integer.toString(current.intValue())
+                    : current.toString()
+                : current.asText();
+        draftChoices.draw(
+            label,
+            selected,
+            previous,
+            null,
+            value -> {
+              item.parameters.put(
+                  key,
+                  control.numericOptions()
+                      ? ProjectIO.JSON.valueToTree(Integer.parseInt(value))
+                      : ProjectIO.JSON.valueToTree(value));
+              noiseChanged();
+            });
+        parameterCenters.put(item.uuid + ":" + key, draftChoices.buttonCenter());
+      } else {
+        double[] slider = {current.asDouble()};
+        if (ImGui.sliderScalar(
+            "##warp-slider",
+            slider,
+            control.presetMinimum(),
+            control.presetMaximum(),
+            control.integer() ? "%.0f" : "%.5f")) {
+          item.parameters.put(
+              key,
+              ProjectIO.JSON.valueToTree(
+                  control.integer() ? StrictMath.rint(slider[0]) : slider[0]));
+          noiseChanged();
+        }
+        f.number(
+            label,
+            item.parameters
+                .getOrDefault(key, ProjectIO.JSON.valueToTree(control.defaultValue()))
+                .asDouble(),
+            value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value)));
+        var lo = ImGui.getItemRectMin();
+        var hi = ImGui.getItemRectMax();
+        parameterCenters.put(
+            item.uuid + ":" + key,
+            new float[] {lo.x + Math.min(80, (hi.x - lo.x) * .25f), (lo.y + hi.y) / 2});
+      }
+      metadataTooltip(id);
+      revealSearchField(item.uuid, "parameters/" + key);
+      ImGui.popID();
+    }
+    for (int axis : noise.dimension == 2 ? new int[] {0, 2} : new int[] {0, 1, 2}) {
+      String fieldKey = WarpRegistry.COMPONENTS.get(axis),
+          numericKey = "warp" + (axis == 0 ? "X" : axis == 1 ? "Y" : "Z");
+      ImGui.pushID(fieldKey);
+      String current =
+          item.inputs.containsKey(fieldKey)
+              ? item.inputs.containsKey(numericKey) ? "CONFLICT" : "SAMPLED_FIELD"
+              : item.inputs.containsKey(numericKey) ? "STAGE_VALUE" : "ALGORITHM";
+      f.choice(
+          "Displacement " + numericKey.substring(4),
+          current,
+          List.of("ALGORITHM", "STAGE_VALUE", "SAMPLED_FIELD"),
+          value -> {
+            if (!value.equals("SAMPLED_FIELD")) item.inputs.remove(fieldKey);
+            if (!value.equals("STAGE_VALUE")) item.inputs.remove(numericKey);
+            if (value.equals("SAMPLED_FIELD"))
+              item.inputs.putIfAbsent(
+                  fieldKey, coordinateStage ? Binding.noiseField(null) : Binding.sourceField());
+            if (value.equals("STAGE_VALUE"))
+              item.inputs.putIfAbsent(numericKey, Binding.constant(0));
+          });
+      revealSearchField(item.uuid, "inputs/" + fieldKey);
+      if (item.inputs.containsKey(fieldKey)) {
+        if (coordinateStage) {
+          var binding = item.inputs.get(fieldKey);
+          noisePicker(
+              "Displacement field",
+              binding.noiseGeneratorUuid,
+              value -> binding.noiseGeneratorUuid = value);
+          f.choice(
+              "Projection",
+              binding.projection,
+              List.of("XZ", "XY", "YZ"),
+              value -> binding.projection = value);
+          f.number("Inserted slice coordinate", binding.slice, value -> binding.slice = value);
+          referenceLinks(binding.noiseGeneratorUuid);
+        } else ImGui.textWrapped("Configure this sampled component in its Input row above.");
+      }
+      if (item.inputs.containsKey(numericKey))
+        binding(noise, item, index, item.inputs.get(numericKey));
+      ImGui.popID();
+    }
   }
 
   private void fieldBinding(Noise n, int index, Binding b) {

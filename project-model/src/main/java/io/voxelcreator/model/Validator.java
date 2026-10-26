@@ -207,7 +207,9 @@ public final class Validator {
         if (bookmark.name == null || bookmark.name.isBlank())
           error("INVALID_ID", path + "/name", "Name required");
         if (tab.threeDimensional() != (bookmark.y != null))
-          error("INVALID_BOOKMARK", path + "/y",
+          error(
+              "INVALID_BOOKMARK",
+              path + "/y",
               tab.threeDimensional() ? "3D bookmark requires Y" : "2D bookmark has no Y");
       }
     }
@@ -252,6 +254,10 @@ public final class Validator {
         for (var e : item.inputs.entrySet()) {
           binding(e.getValue(), params, earlier, item.enabled, q + "/inputs/" + e.getKey());
           if (list == n.coordinateTransforms
+              && !(item.kind.equals("DOMAIN_WARP")
+                  && Set.of("displacementX", "displacementY", "displacementZ").contains(e.getKey())
+                  && e.getValue() != null
+                  && e.getValue().sourceKind.equals("Noise Generator Field"))
               && e.getValue() != null
               && Set.of(
                       "Source Result",

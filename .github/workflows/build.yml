@@ -129,6 +129,14 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ScalarRemappingConsumer build/scalar-remapping/remapping-project.json 3.25 fixtures/remapping-vectors.json build/scalar-remapping
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ScalarRemappingConsumer fixtures/scalar-remapping.json .5 fixtures/remapping-vectors.json
           python scripts/verify_scalar_remapping.py build/scalar-remapping
+      - name: Shared warp controls and sampled displacements
+        run: |
+          python scripts/generate_warp_vectors.py build/warp-reference-vectors.json
+          cmp fixtures/warp-vectors.json build/warp-reference-vectors.json
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WarpControlsProbe build/warp-controls
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WarpConsumer build/warp-controls/warp-project.json 198 fixtures/warp-vectors.json build/warp-controls
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WarpConsumer fixtures/warp-fields.json 55 fixtures/warp-vectors.json
+          python scripts/verify_warp_controls.py build/warp-controls
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -154,6 +162,7 @@ jobs:
             build/trace-workflow/
             build/algorithm-reference/
             build/scalar-remapping/
+            build/warp-controls/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -360,6 +369,17 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_scalar_remapping.py build/scalar-remapping
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows shared warp controls and sampled displacements
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WarpControlsProbe build/warp-controls
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.WarpConsumer build/warp-controls/warp-project.json 198 fixtures/warp-vectors.json build/warp-controls
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.WarpConsumer fixtures/warp-fields.json 55 fixtures/warp-vectors.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_warp_controls.py build/warp-controls
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -409,6 +429,7 @@ jobs:
             build/trace-workflow/
             build/algorithm-reference/
             build/scalar-remapping/
+            build/warp-controls/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/
