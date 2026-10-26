@@ -228,4 +228,121 @@ class NoiseImageRowsTest {
       assertEquals("new", c.memory().source());
     }
   }
+
+  @Test
+  void horizontalDiagonalAndSubsampledGridsReuseOnlyExactOverlaps() {
+    try (var c = new NoiseImageRows()) {
+      var calls = new AtomicInteger();
+      NoiseAlgorithms.Field f =
+          (x, y, z) -> {
+            calls.incrementAndGet();
+            return x * .5 + z * 3;
+          };
+      sample(c, "a", 1, f, 8, 0, 0, 1, BUDGET, false);
+      var horizontal = sample(c, "a", 2, f, 8, 1, 0, 1, BUDGET, false);
+      assertEquals(8, horizontal.statistics().sampledValues());
+      assertEquals(56, horizontal.statistics().reusedValues());
+      assertEquals(72, calls.get());
+      var diagonal = sample(c, "a", 3, f, 8, 2, 1, 1, BUDGET, false);
+      assertEquals(15, diagonal.statistics().sampledValues());
+      assertEquals(49, diagonal.statistics().reusedValues());
+      assertEquals(87, calls.get());
+      var back = sample(c, "a", 4, f, 8, 0, 0, 1, BUDGET, false);
+      assertEquals(0, back.statistics().sampledValues());
+      for (int z = 0; z < 8; z++)
+        for (int x = 0; x < 8; x++)
+          assertEquals((2 + (x - 4.)) * .5 + (1 + (z - 4.)) * 3, diagonal.value(x, z));
+    }
+    try (var c = new NoiseImageRows()) {
+      NoiseAlgorithms.Field f = (x, y, z) -> x - z;
+      sample(c, "a", 1, f, 8, 0, 0, 1, BUDGET, false);
+      var zoom = sample(c, "a", 2, f, 8, 0, 0, 2, BUDGET, false);
+      assertEquals(16, zoom.statistics().reusedValues());
+      assertEquals(48, zoom.statistics().sampledValues());
+      assertEquals(0, zoom.statistics().reusedRows());
+      // Returning to a finer axis can assemble a complete row from retained fragments.
+      assertEquals(0, sample(c, "a", 3, f, 8, 0, 0, 1, BUDGET, false).statistics().sampledValues());
+    }
+  }
+
+  @Test
+  void overlappingCoordinatesCanAssembleRowsAcrossDifferentAxesAndSizes() {
+    try (var c = new NoiseImageRows()) {
+      NoiseAlgorithms.Field f = (x, y, z) -> x + z;
+      sample(c, "a", 1, f, 2, -1, 0, 1, BUDGET, false); // X -2,-1, Z -1,0
+      sample(c, "a", 2, f, 2, 1, 0, 1, BUDGET, false); // X 0,1
+      var whole = sample(c, "a", 3, f, 4, 0, 0, 1, BUDGET, false);
+      assertEquals(8, whole.statistics().sampledValues());
+      assertEquals(8, whole.statistics().reusedValues());
+      assertEquals(2, whole.statistics().reusedRows());
+      for (int z = 0; z < 4; z++)
+        for (int x = 0; x < 4; x++) assertEquals(x + z - 4., whole.value(x, z));
+    }
+  }
+
+  @Test
+  void nearlyEqualCoordinatesAreNeverSnappedAndSignedZeroSurvivesFallbackSearch() {
+    try (var c = new NoiseImageRows()) {
+      NoiseAlgorithms.Field f = (x, y, z) -> x - z;
+      sample(c, "a", 1, f, 4, 1, 1, 1, BUDGET, false);
+      var shifted = sample(c, "a", 2, f, 4, Math.nextUp(1.), 1, 1, BUDGET, false);
+      int expected = 0;
+      for (int x = 0; x < 4; x++) {
+        double query = Math.nextUp(1.) + (x - 2.);
+        boolean found = false;
+        for (int old = 0; old < 4; old++)
+          found |= Double.doubleToLongBits(query) == Double.doubleToLongBits(1. + (old - 2.));
+        if (!found) expected += 4;
+      }
+      assertEquals(expected, shifted.statistics().sampledValues());
+      assertTrue(expected > 0);
+    }
+    try (var c = new NoiseImageRows()) {
+      NoiseAlgorithms.Field f =
+          (x, y, z) -> Double.doubleToRawLongBits(x) == Double.doubleToRawLongBits(-0.) ? -1 : 1;
+      sample(c, "a", 1, f, 2, -0., 1, Double.MIN_VALUE, BUDGET, false);
+      var plus = sample(c, "a", 2, f, 1, 0., 1, Double.MIN_VALUE, BUDGET, false);
+      assertEquals(1, plus.value(0, 0));
+      assertEquals(1, plus.statistics().sampledValues());
+    }
+  }
+
+  @Test
+  void cancellationAndFailureAfterOverlapNeverRetainAnAssembledPartialRow() {
+    try (var c = new NoiseImageRows()) {
+      NoiseAlgorithms.Field f = (x, y, z) -> x + z;
+      sample(c, "a", 1, f, 4, 0, 0, 1, BUDGET, false);
+      int before = c.memory().rows();
+      var token = new CancellationToken();
+      assertThrows(
+          CancellationException.class,
+          () ->
+              c.sample(
+                  "a",
+                  2,
+                  (x, y, z) -> {
+                    token.cancel();
+                    return 7;
+                  },
+                  4,
+                  1,
+                  0,
+                  1,
+                  BUDGET,
+                  false,
+                  token));
+      assertEquals(before, c.memory().rows());
+      assertThrows(
+          ArithmeticException.class,
+          () -> sample(c, "a", 3, (x, y, z) -> Double.NaN, 4, 1, 0, 1, BUDGET, false));
+      assertEquals(before, c.memory().rows());
+      var valid = sample(c, "a", 4, f, 4, 1, 0, 1, BUDGET, false);
+      assertEquals(4, valid.statistics().sampledValues());
+      assertEquals(12, valid.statistics().reusedValues());
+      c.budget(0);
+      var disabled = sample(c, "a", 5, f, 4, 2, 0, 1, BUDGET, false);
+      assertEquals(16, disabled.statistics().sampledValues());
+      assertEquals(0, disabled.statistics().retainedBytes());
+    }
+  }
 }

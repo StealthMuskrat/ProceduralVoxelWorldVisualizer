@@ -32,7 +32,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 | A24 cancellation | PARTIAL | Immediate explicit-token queued cleanup, independent sharing, running abandonment/rejoin and async collection lease cleanup tested; broader mid-stage stress remains |
 | A25 backpressure | PASS | Consumer future holds max-in-flight capacity; bounded scheduling assertion |
 | A26 failures/closure | PARTIAL | Generation/delivery policies, bounded fair priorities, overload/closure cleanup, global cache reclamation and protected user-managed policy tested; broader stress remains |
-| A27 2D viewport | PARTIAL | Engine image sampling and modes implemented; tile cache/UI acceptance remains |
+| A27 2D viewport | PARTIAL | Bounded exact-coordinate row/overlap cache and native recolor/vertical/horizontal reuse checks; full world-tile/UI acceptance remains |
 | A28 3D viewport | PARTIAL | Threshold, marching tetrahedra, points, ray-marched volume and X/Y/Z slices; numerical native volume probe; streamed threshold/point display implemented; volume/isosurface streaming remains |
 | A29 world inspector | PARTIAL | Exact stage pairs and four preview modes, removal ghosts, bounded canonical noise explanations, actual comparisons/provenance and guarded snapshot-scoped control links; full GUI scenarios remain |
 | A30 bookmarks | PARTIAL | Independent coordinate lists, searchable clipped choices, owned Add/Rename, Update/Delete and tab-owned navigation; native mouse/text/Cancel/Undo probe added; full gesture/hardware matrix remains |

@@ -322,9 +322,10 @@ public final class Viewports implements AutoCloseable {
     properties.assertSmokeWorldControlsRendered();
     properties.assertSmokeExpressionRendered();
     System.out.println("EXACT_WORLD_STAGE_PREVIEWS_PASS");
-    if (!smokeImageRecolor || !smokeImagePan || !smokeImageReturn)
+    if (!smokeImageRecolor || !smokeImagePan || !smokeImageReturn || !smokeImageHorizontal)
       throw new IllegalStateException("2D image cache reuse was not observed");
-    System.out.println("EXACT_2D_ROW_CACHE_NATIVE_PASS recolor / one-row pan / return view");
+    System.out.println(
+        "EXACT_2D_ROW_CACHE_NATIVE_PASS recolor / one-row pan / return view / one-column pan");
     System.out.println("THREE_ENGINE_VIEWPORTS_PASS");
     System.out.println("RAYMARCHED_VOLUME_AND_XYZ_SLICES_PASS");
   }
@@ -342,7 +343,7 @@ public final class Viewports implements AutoCloseable {
    * Smoke phases advance only after the actual stage preview completed, with timeout in Desktop.
    */
   public boolean smokePhaseReady(int frame) {
-    if (frame == 39 || frame == 59 || frame == 79 || frame == 99) {
+    if (frame == 39 || frame == 59 || frame == 79 || frame == 99 || frame == 119) {
       var v = views[0];
       if (!v.completed || v.failedPreview || v.activeJob || v.dirty || v.imageStatistics == null)
         return false;
@@ -350,10 +351,13 @@ public final class Viewports implements AutoCloseable {
       if (frame == 59) smokeImageRecolor = stats.sampledRows() == 0 && stats.reusedRows() == 256;
       if (frame == 79) smokeImagePan = stats.sampledRows() == 1 && stats.reusedRows() == 255;
       if (frame == 99) smokeImageReturn = stats.sampledRows() == 0 && stats.reusedRows() == 256;
+      if (frame == 119)
+        smokeImageHorizontal = stats.sampledValues() == 256 && stats.reusedValues() == 256 * 255;
       return frame == 39
           || frame == 59 && smokeImageRecolor
           || frame == 79 && smokeImagePan
-          || frame == 99 && smokeImageReturn;
+          || frame == 99 && smokeImageReturn
+          || frame == 119 && smokeImageHorizontal;
     }
     String required =
         switch (frame) {
@@ -366,7 +370,7 @@ public final class Viewports implements AutoCloseable {
     return required == null || views[2].completedModes.contains(required);
   }
 
-  private boolean smokeImageRecolor, smokeImagePan, smokeImageReturn;
+  private boolean smokeImageRecolor, smokeImagePan, smokeImageReturn, smokeImageHorizontal;
 
   public void smokePhase(int frame) {
     if (frame == 40) {
@@ -379,6 +383,10 @@ public final class Viewports implements AutoCloseable {
     }
     if (frame == 80) {
       views[0].panZ -= views[0].step;
+      mark(views[0]);
+    }
+    if (frame == 100) {
+      views[0].panX += views[0].step;
       mark(views[0]);
     }
     if (frame == 335 || frame == 355)

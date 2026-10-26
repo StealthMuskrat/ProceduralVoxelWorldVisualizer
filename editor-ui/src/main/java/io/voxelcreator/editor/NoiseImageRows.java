@@ -10,7 +10,18 @@ public final class NoiseImageRows implements AutoCloseable {
   public static final long MAX_BYTES = 4L << 20;
 
   public record Statistics(
-      int sampledRows, int reusedRows, int retainedRows, long retainedBytes, long limitBytes) {}
+      int sampledRows,
+      int reusedRows,
+      int retainedRows,
+      long retainedBytes,
+      long limitBytes,
+      int sampledValues,
+      int reusedValues) {
+    public Statistics(
+        int sampledRows, int reusedRows, int retainedRows, long retainedBytes, long limitBytes) {
+      this(sampledRows, reusedRows, retainedRows, retainedBytes, limitBytes, 0, 0);
+    }
+  }
 
   public record Memory(String source, int rows, long bytes, long limitBytes) {}
 
@@ -64,6 +75,23 @@ public final class NoiseImageRows implements AutoCloseable {
   private record Key(Axis x, long z) {}
 
   private record Row(double[] values, long weight) {}
+
+  private record Candidate(Key key, Row row) {}
+
+  /**
+   * Owned references to immutable rows; eviction/source changes cannot mutate these observations.
+   */
+  private synchronized List<Candidate> candidates(long lease, long z) {
+    if (lease != generation || closed) return List.of();
+    var result = new ArrayList<Candidate>();
+    for (var entry : rows.entrySet())
+      if (entry.getKey().z == z) result.add(new Candidate(entry.getKey(), entry.getValue()));
+    return result;
+  }
+
+  private synchronized void touch(long lease, Key key) {
+    if (lease == generation && !closed) rows.get(key);
+  }
 
   private LinkedHashMap<Key, Row> rows = new LinkedHashMap<>(16, .75f, true);
   private String source;
@@ -168,15 +196,37 @@ public final class NoiseImageRows implements AutoCloseable {
     var axis = new Axis(xs);
     long lease = begin(key, version, budget, force);
     double[] values = new double[side * side];
-    int sampled = 0, reused = 0;
+    int sampled = 0, reused = 0, sampledValues = 0, reusedValues = 0;
     for (int z = 0; z < side; z++) {
       check(token);
       var rowKey = new Key(axis, Double.doubleToLongBits(zs[z]));
       var row = get(lease, rowKey);
       if (row == null) {
         double[] data = new double[side];
+        boolean[] found = new boolean[side];
+        int copied = 0;
+        // Positive steps produce a sorted X axis, including repeated representable coordinates.
+        // Search exact doubles only: nearby coordinates must still execute the scalar program.
+        for (var candidate : candidates(lease, rowKey.z)) {
+          check(token);
+          boolean used = false;
+          for (int x = 0; x < side; x++) {
+            if ((x & 31) == 0) check(token);
+            if (found[x]) continue;
+            int index = Arrays.binarySearch(candidate.key.x.values, xs[x]);
+            if (index >= 0) {
+              data[x] = candidate.row.values[index];
+              found[x] = true;
+              copied++;
+              used = true;
+            }
+          }
+          if (used) touch(lease, candidate.key);
+          if (copied == side) break;
+        }
         for (int x = 0; x < side; x++) {
           if ((x & 31) == 0) check(token);
+          if (found[x]) continue;
           double value = field.sample(xs[x], 0, zs[z]);
           if (!Double.isFinite(value))
             throw new ArithmeticException("Nonfinite 2D preview sample at " + xs[x] + "," + zs[z]);
@@ -185,8 +235,14 @@ public final class NoiseImageRows implements AutoCloseable {
         check(token);
         row = new Row(data, rowBytes(side));
         put(lease, rowKey, row);
-        sampled++;
-      } else reused++;
+        sampledValues += side - copied;
+        reusedValues += copied;
+        if (copied == side) reused++;
+        else sampled++;
+      } else {
+        reused++;
+        reusedValues += side;
+      }
       System.arraycopy(row.values, 0, values, z * side, side);
     }
     check(token);
@@ -194,7 +250,14 @@ public final class NoiseImageRows implements AutoCloseable {
     return new Image(
         side,
         values,
-        new Statistics(sampled, reused, memory.rows, memory.bytes, memory.limitBytes));
+        new Statistics(
+            sampled,
+            reused,
+            memory.rows,
+            memory.bytes,
+            memory.limitBytes,
+            sampledValues,
+            reusedValues));
   }
 
   @Override

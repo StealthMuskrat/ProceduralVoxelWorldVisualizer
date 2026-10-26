@@ -37,6 +37,7 @@ public final class ImageRowsReference {
         "initial", "recolor", "vertical", "return", "horizontal", "zoom", "forced", "sourceChanged"
       };
       int[] sampled = {256, 0, 1, 0, 256, 256, 256, 256};
+      int[] sampledValues = {65536, 0, 256, 0, 256, 49024, 65536, 65536};
       for (int phase = 0; phase < names.length; phase++) {
         if (phase == 2) panZ += step;
         if (phase == 3) panZ -= step;
@@ -65,7 +66,7 @@ public final class ImageRowsReference {
         require(
             image.statistics().sampledRows() == sampled[phase],
             "Wrong row work: " + names[phase] + " " + image.statistics());
-        require(calls.get() - before == sampled[phase] * 256, "Wrong sampler-call count");
+        require(calls.get() - before == sampledValues[phase], "Wrong sampler-call count");
         var raw = ByteBuffer.allocate(256 * 256 * 8);
         var pixels = ByteBuffer.allocate(256 * 256 * 4);
         int[] histogram = new int[64];
@@ -92,6 +93,11 @@ public final class ImageRowsReference {
         row.put("mode", mode);
         row.put("sampledRows", image.statistics().sampledRows());
         row.put("reusedRows", image.statistics().reusedRows());
+        require(image.statistics().sampledValues() == sampledValues[phase], "Wrong value work");
+        require(
+            image.statistics().reusedValues() == 65536 - sampledValues[phase], "Wrong value reuse");
+        row.put("sampledValues", image.statistics().sampledValues());
+        row.put("reusedValues", image.statistics().reusedValues());
         row.put("retainedBytes", image.statistics().retainedBytes());
         row.put("limitBytes", image.statistics().limitBytes());
         row.put("rawSha256", hash(raw.array()));
