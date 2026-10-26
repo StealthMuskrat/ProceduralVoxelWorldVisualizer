@@ -182,6 +182,10 @@ jobs:
           java -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImageRowsReference build/image-rows
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ImageRowsConsumer build/image-rows
           python scripts/verify_image_rows.py build/image-rows
+      - name: Native 2D image input
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.NoiseImageInputProbe build/image-input
+          python scripts/verify_image_input.py build/image-input
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -218,6 +222,7 @@ jobs:
             build/curve-wrapping/
             build/curve-controls/
             build/image-rows/
+            build/image-input/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -515,6 +520,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_image_rows.py build/image-rows
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows native 2D image input
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.NoiseImageInputProbe build/image-input
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_image_input.py build/image-input
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -575,6 +587,7 @@ jobs:
             build/curve-wrapping/
             build/curve-controls/
             build/image-rows/
+            build/image-input/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/

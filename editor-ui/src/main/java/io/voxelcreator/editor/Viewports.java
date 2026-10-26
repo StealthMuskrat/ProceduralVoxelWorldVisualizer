@@ -783,13 +783,7 @@ public final class Viewports implements AutoCloseable {
       if (v.kind == 0) {
         try {
           var before = new NoiseImageNavigation(v.panX, v.panZ, v.step);
-          var after = before;
-          if (ImGui.isMouseDragging(0))
-            after = after.pan(io.getMouseDeltaX() / w, io.getMouseDeltaY() / h);
-          if (io.getMouseWheel() != 0)
-            after =
-                after.zoom(
-                    (io.getMousePosX() - px) / w, (io.getMousePosY() - py) / h, io.getMouseWheel());
+          var after = NoiseImageInput.navigate(before, hovered, px, py, w, h);
           if (!after.equals(before)) {
             v.panX = after.x();
             v.panZ = after.z();
