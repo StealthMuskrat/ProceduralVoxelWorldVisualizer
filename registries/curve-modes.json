@@ -1,0 +1,55 @@
+{
+  "formatVersion": 1,
+  "projectFormat": 2,
+  "interpolation": [
+    {
+      "key": "STEP",
+      "help": "Use the left point between knots; an exact knot uses its own value."
+    },
+    {
+      "key": "LINEAR",
+      "help": "Connect neighboring points with a straight line."
+    },
+    {
+      "key": "SMOOTH",
+      "help": "Use a shape-preserving monotone cubic between neighboring points."
+    },
+    {
+      "key": "BEZIER",
+      "help": "Use endpoint slopes and handles one third of the segment width."
+    }
+  ],
+  "outside": [
+    {
+      "key": "CLAMP",
+      "help": "Outside the domain, use the nearest endpoint value."
+    },
+    {
+      "key": "EXTEND",
+      "help": "Continue the first or last segment's endpoint slope outside the domain."
+    },
+    {
+      "key": "REPEAT",
+      "help": "Repeat beyond the domain; the configured maximum keeps its exact endpoint value."
+    },
+    {
+      "key": "MIRROR",
+      "help": "Reflect the curve on alternating domain intervals."
+    }
+  ],
+  "handles": [
+    {
+      "key": "AUTO",
+      "help": "Follow the curve's monotone slopes; handles cannot be dragged directly."
+    },
+    {
+      "key": "ALIGNED",
+      "help": "Keep incoming and outgoing slopes equal when either handle is edited."
+    },
+    {
+      "key": "FREE",
+      "help": "Edit incoming and outgoing slopes independently."
+    }
+  ],
+  "knotPolicy": "Numeric equality, including signed zero; exact knots return stored values"
+}

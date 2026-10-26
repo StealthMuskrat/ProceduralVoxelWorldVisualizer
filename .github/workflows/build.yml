@@ -172,6 +172,11 @@ jobs:
           python scripts/curve_wrapping_reference.py fixtures/curve-wrapping-vectors.json --check
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveWrappingProbe build/curve-wrapping
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveWrappingConsumer fixtures/curve-wrapping-vectors.json build/curve-wrapping/curve-wrapping-project.json build/curve-wrapping
+      - name: Curve mode domain and context controls
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveControlsProbe build/curve-controls
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveControlsConsumer build/curve-controls/curve-controls-project.json
+          python scripts/verify_curve_controls.py build/curve-controls
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -206,6 +211,7 @@ jobs:
             build/curve-navigation/
             build/curve-preview/
             build/curve-wrapping/
+            build/curve-controls/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -485,6 +491,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurveWrappingConsumer fixtures/curve-wrapping-vectors.json build/curve-wrapping/curve-wrapping-project.json build/curve-wrapping
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows curve mode domain and context controls
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveControlsProbe build/curve-controls
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurveControlsConsumer build/curve-controls/curve-controls-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_curve_controls.py build/curve-controls
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -543,6 +558,7 @@ jobs:
             build/curve-navigation/
             build/curve-preview/
             build/curve-wrapping/
+            build/curve-controls/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/

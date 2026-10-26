@@ -2,6 +2,7 @@ package io.voxelcreator.editor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.voxelcreator.core.*;
+import io.voxelcreator.model.CurveModes;
 import io.voxelcreator.model.ProjectData.*;
 import io.voxelcreator.model.ProjectIO;
 import java.util.*;
@@ -303,20 +304,8 @@ public final class CreationRegistry {
                   : key.equals("max") || key.equals("endValue") ? 1 : 0,
           -1e6,
           1e6);
-    choice(
-        m,
-        "curve.interpolation",
-        "Curve",
-        "Interpolation",
-        "LINEAR",
-        List.of("STEP", "LINEAR", "SMOOTH", "BEZIER"));
-    choice(
-        m,
-        "curve.outsideDomain",
-        "Curve",
-        "Outside domain",
-        "CLAMP",
-        List.of("CLAMP", "EXTEND", "REPEAT", "MIRROR"));
+    choice(m, "curve.interpolation", "Curve", "Interpolation", "LINEAR", CurveModes.INTERPOLATIONS);
+    choice(m, "curve.outsideDomain", "Curve", "Outside domain", "CLAMP", CurveModes.OUTSIDE);
     CONTROLS = Collections.unmodifiableMap(m);
   }
 

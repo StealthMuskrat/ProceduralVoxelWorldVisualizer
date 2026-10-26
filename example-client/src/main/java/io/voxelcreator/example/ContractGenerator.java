@@ -129,6 +129,7 @@ public final class ContractGenerator {
         root.resolve("registries/resource-hierarchy.json"), ResourceGraph.hierarchyRegistry());
     writeJSON(root.resolve("registries/bookmark-navigation.json"), BookmarkTransactions.registry());
     writeJSON(root.resolve("registries/noise-authoring.json"), NoiseAuthoring.registry());
+    writeJSON(root.resolve("registries/curve-modes.json"), CurveModes.registry());
     writeJSON(
         root.resolve("registries/trace-navigation.json"),
         Map.of(
@@ -153,11 +154,11 @@ public final class ContractGenerator {
     for (String field : List.of("uuid", "min", "max", "outsideDomain", "points"))
       ((ArrayNode) defs.path("Curve").path("required")).add(field);
     ((ObjectNode) defs.path("Curve").path("properties").path("outsideDomain"))
-        .set("enum", JSON.valueToTree(List.of("CLAMP", "EXTEND", "REPEAT", "MIRROR")));
+        .set("enum", JSON.valueToTree(CurveModes.OUTSIDE));
     ((ObjectNode) defs.path("Point").path("properties").path("handleMode"))
-        .set("enum", JSON.valueToTree(List.of("AUTO", "ALIGNED", "FREE")));
+        .set("enum", JSON.valueToTree(CurveModes.HANDLES));
     ((ObjectNode) defs.path("Point").path("properties").path("segmentInterpolation"))
-        .set("enum", JSON.valueToTree(List.of("STEP", "LINEAR", "SMOOTH", "BEZIER")));
+        .set("enum", JSON.valueToTree(CurveModes.INTERPOLATIONS));
 
     for (String channel : List.of("r", "g", "b"))
       ((ObjectNode) defs.path("Color").path("properties").path(channel))

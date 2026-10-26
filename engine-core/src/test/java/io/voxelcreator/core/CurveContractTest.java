@@ -9,6 +9,31 @@ import org.junit.jupiter.api.Test;
 
 public class CurveContractTest {
   @Test
+  void canonicalModeChoicesMatchIndependentSmallVectorsAndRejectAliases() {
+    var expected = Map.of("CLAMP", 0., "EXTEND", -.25, "REPEAT", .75, "MIRROR", .25);
+    for (String outside : CurveModes.OUTSIDE) {
+      var c = new Curve();
+      c.outsideDomain = outside;
+      assertEquals(expected.get(outside).doubleValue(), new ScalarCurve(c).sample(-.25));
+    }
+    for (String interpolation : CurveModes.INTERPOLATIONS) {
+      var c = new Curve();
+      c.points.getFirst().segmentInterpolation = interpolation;
+      assertEquals(interpolation.equals("STEP") ? 0 : .25, new ScalarCurve(c).sample(.25), 1e-14);
+      assertEquals(1, new ScalarCurve(c).sample(1));
+    }
+    for (String mode : CurveModes.HANDLES) {
+      var c = new Curve();
+      c.points.getFirst().segmentInterpolation = "BEZIER";
+      c.points.forEach(p -> p.handleMode = mode);
+      assertEquals(mode.equals("AUTO") ? .25 : .15625, new ScalarCurve(c).sample(.25), 1e-14);
+    }
+    var c = new Curve();
+    c.outsideDomain = "repeat";
+    assertThrows(IllegalArgumentException.class, () -> new ScalarCurve(c));
+  }
+
+  @Test
   void autoAlignedAndFreeHaveDistinctValidatedSemantics() {
     var c = new Curve();
     c.points.getFirst().segmentInterpolation = "BEZIER";

@@ -4,6 +4,7 @@ import imgui.*;
 import imgui.flag.*;
 import imgui.type.*;
 import io.voxelcreator.core.ScalarCurve;
+import io.voxelcreator.model.CurveModes;
 import io.voxelcreator.model.ProjectData.*;
 import java.util.*;
 import java.util.function.Consumer;
@@ -92,6 +93,22 @@ public final class CurveDialog {
         });
   }
 
+  String probeError() {
+    return session.error();
+  }
+
+  private void modeChoice(String label, String value, List<String> options, Consumer<String> set) {
+    if (ImGui.beginCombo(label, value)) {
+      for (String option : options) {
+        if (ImGui.selectable(option, option.equals(value))) set.accept(option);
+        controlRect(label + "/" + option);
+      }
+      ImGui.endCombo();
+    }
+    controlRect(label);
+    fields.tooltip(CurveModes.help(value));
+  }
+
   private void stopDrag() {
     dragging = false;
     tangentPoint = null;
@@ -160,6 +177,7 @@ public final class CurveDialog {
                   c.min = v;
                   c.points.getFirst().x = v;
                 }));
+    controlRect("domainMin");
     fields.number(
         "Domain maximum",
         curve.max,
@@ -169,12 +187,15 @@ public final class CurveDialog {
                   c.max = v;
                   c.points.getLast().x = v;
                 }));
+    controlRect("domainMax");
     fields.number("Display minimum", curve.displayMin, v -> session.edit(c -> c.displayMin = v));
+    controlRect("displayMin");
     fields.number("Display maximum", curve.displayMax, v -> session.edit(c -> c.displayMax = v));
-    fields.choice(
+    controlRect("displayMax");
+    modeChoice(
         "Outside domain",
         curve.outsideDomain,
-        List.of("CLAMP", "EXTEND", "REPEAT", "MIRROR"),
+        CurveModes.OUTSIDE,
         v -> session.edit(c -> c.outsideDomain = v));
     fields.bool("Grid", grid, v -> grid = v);
     ImGui.sameLine();
@@ -403,13 +424,17 @@ public final class CurveDialog {
         selected.clear();
         session.curve().points.forEach(p -> selected.add(p.uuid));
       }
+      controlRect("menu/selectAll");
       if (ImGui.menuItem("Clear Selection")) selected.clear();
+      controlRect("menu/clear");
       if (ImGui.menuItem("Delete Selected Interior Points")) deleteSelected();
+      controlRect("menu/delete");
       if (ImGui.menuItem("Fit View")) {
         stopDrag();
         session.endGesture();
         view.fit();
       }
+      controlRect("menu/fit");
       ImGui.endPopup();
     }
     ImGui.textDisabled(
@@ -439,18 +464,19 @@ public final class CurveDialog {
       else
         ImGui.textDisabled(String.format(Locale.ROOT, "Endpoint X %.5f (domain locked)", point.x));
       fields.number("Y", point.y, v -> session.edit(c -> CurveEditSession.point(c, id).y = v));
-      fields.choice(
+      controlRect("pointY");
+      modeChoice(
           "Next segment",
           point.segmentInterpolation,
-          List.of("STEP", "LINEAR", "SMOOTH", "BEZIER"),
+          CurveModes.INTERPOLATIONS,
           v -> session.edit(c -> CurveEditSession.point(c, id).segmentInterpolation = v));
       int index = curve.points.indexOf(point);
       if (point.segmentInterpolation.equals("BEZIER")
           || index > 0 && curve.points.get(index - 1).segmentInterpolation.equals("BEZIER")) {
-        fields.choice(
+        modeChoice(
             "Handle mode",
             point.handleMode,
-            List.of("AUTO", "ALIGNED", "FREE"),
+            CurveModes.HANDLES,
             v ->
                 session.edit(
                     c -> {

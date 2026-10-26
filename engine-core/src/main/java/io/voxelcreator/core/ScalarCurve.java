@@ -1,5 +1,6 @@
 package io.voxelcreator.core;
 
+import io.voxelcreator.model.CurveModes;
 import io.voxelcreator.model.ProjectData.Curve;
 
 /**
@@ -34,13 +35,13 @@ public final class ScalarCurve {
     outside = c.outsideDomain;
     var identities = new java.util.HashSet<java.util.UUID>();
     identities.add(c.uuid);
-    if (!java.util.Set.of("CLAMP", "EXTEND", "REPEAT", "MIRROR").contains(outside))
+    if (!CurveModes.OUTSIDE.contains(outside))
       throw new IllegalArgumentException("Outside domain policy");
     for (int i = 0; i < n; i++) {
       var p = c.points.get(i);
       if (p.uuid == null || !identities.add(p.uuid))
         throw new IllegalArgumentException("Curve/point identities must be unique and non-null");
-      if (!java.util.Set.of("AUTO", "ALIGNED", "FREE").contains(p.handleMode))
+      if (!CurveModes.HANDLES.contains(p.handleMode))
         throw new IllegalArgumentException("Handle mode");
       if (p.handleMode.equals("ALIGNED") && p.inTangent != p.outTangent)
         throw new IllegalArgumentException("Aligned handles require matching slopes");
@@ -55,7 +56,7 @@ public final class ScalarCurve {
           || !Double.isFinite(out[i])
           || (i > 0 && x[i] <= x[i - 1]))
         throw new IllegalArgumentException("Strict finite increasing X required");
-      if (!java.util.Set.of("STEP", "LINEAR", "SMOOTH", "BEZIER").contains(interpolation[i]))
+      if (!CurveModes.INTERPOLATIONS.contains(interpolation[i]))
         throw new IllegalArgumentException("Interpolation kind");
     }
     if (x[0] != c.min || x[n - 1] != c.max)
