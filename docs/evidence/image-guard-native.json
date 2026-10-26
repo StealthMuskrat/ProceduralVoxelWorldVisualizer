@@ -1,0 +1,68 @@
+{
+  "popupAfter" : {
+    "x" : -35.24999999999999,
+    "z" : 25.10000000000001,
+    "step" : 0.7500000000000001
+  },
+  "escapeRestored" : true,
+  "v" : 0.35,
+  "u" : 0.25,
+  "panned" : {
+    "x" : -26.849999999999994,
+    "z" : 41.10000000000001,
+    "step" : 0.7500000000000001
+  },
+  "outsideDy" : -200.0,
+  "outsideDx" : 360.0,
+  "popupBlocked" : true,
+  "saturatedNoWork" : true,
+  "freshDragAfterCancel" : true,
+  "foreignDragIgnored" : true,
+  "guardRecovery" : true,
+  "before" : {
+    "x" : -17.25,
+    "z" : 31.5,
+    "step" : 0.75
+  },
+  "released" : true,
+  "panBefore" : {
+    "x" : -17.249999999999993,
+    "z" : 31.500000000000004,
+    "step" : 0.7500000000000001
+  },
+  "focusBlocked" : true,
+  "zoomed" : {
+    "x" : -29.69072540727754,
+    "z" : 24.035564755633473,
+    "step" : 0.5556136655112884
+  },
+  "focusAfter" : {
+    "x" : -40.05,
+    "z" : 19.766666666666673,
+    "step" : 0.7500000000000001
+  },
+  "outsideIgnored" : true,
+  "formatVersion" : 3,
+  "heldWheelIgnored" : true,
+  "focusBefore" : {
+    "x" : -40.05,
+    "z" : 19.766666666666673,
+    "step" : 0.7500000000000001
+  },
+  "popupBefore" : {
+    "x" : -35.24999999999999,
+    "z" : 25.10000000000001,
+    "step" : 0.7500000000000001
+  },
+  "viewOnly" : true,
+  "outsidePan" : {
+    "x" : -134.85000000000002,
+    "z" : 147.7666666666667,
+    "step" : 0.7500000000000001
+  },
+  "captureBefore" : {
+    "x" : -26.849999999999994,
+    "z" : 41.10000000000001,
+    "step" : 0.7500000000000001
+  }
+}

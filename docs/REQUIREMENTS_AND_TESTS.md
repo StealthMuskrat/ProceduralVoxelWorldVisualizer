@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The captured 2D pan batch passed `clean test build dependencyNotices releaseJars` with **722 tests across 90 suites, no failures/errors/skips**. Expanded native events cover outside-image capture, foreign-drag rejection, held-wheel suppression, Escape restoration, cancelled-held movement and fresh drag recovery; Python independently checks recorded outside-pan geometry. Existing GL/image/engine checks remain in CI. See [capture evidence](evidence/IMAGE_CAPTURE_VALIDATION.md). Local schemas passed. Full physical pointer/OS-window/focus/DPI, Windows 11 hardware and complete acceptance remain separate.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The 2D popup/window-focus guard batch passed `clean test build dependencyNotices releaseJars` with **722 tests across 90 suites, no failures/errors/skips**. Native ImGui popup/focus transfers check blocked pan/wheel, dropped capture, no held-button resumption and fresh-drag recovery; Python verifies recorded blocked poses. Existing GL/image/engine checks remain in CI. See [guard evidence](evidence/IMAGE_GUARD_VALIDATION.md). Local schemas passed. OS application focus, physical mouse/DPI, Windows 11 hardware and complete acceptance remain separate.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
