@@ -18,7 +18,19 @@ public final class CurveDialog {
   private final ImBoolean open = new ImBoolean(true);
   private final Set<UUID> selected = new LinkedHashSet<>();
   private boolean grid = true, snapX = false, snapY = false, dragging = false;
-  private double stepX = .05, stepY = .05, zoom = 1, panX = 0, panY = 0, dragX, dragY;
+  private double stepX = .05, stepY = .05, dragX, dragY;
+  private final CurveView view = new CurveView();
+  private boolean panning;
+  private double panMouseX, panMouseY;
+
+  CurveView.Bounds probeView() {
+    return view.bounds();
+  }
+
+  double probeZoom() {
+    return view.zoom();
+  }
+
   private boolean focused;
   private UUID tangentPoint;
   private int tangentSide;
@@ -68,10 +80,13 @@ public final class CurveDialog {
   private void stopDrag() {
     dragging = false;
     tangentPoint = null;
+    panning = false;
+    view.endPan();
   }
 
   public CurveDialog(Curve curve, Consumer<Curve> apply) {
     session = new CurveEditSession(curve);
+    view.synchronize(curve.min, curve.max, curve.displayMin, curve.displayMax);
     this.apply = apply;
   }
 
@@ -95,8 +110,8 @@ public final class CurveDialog {
     selected.clear();
     selected.add(id);
     var c = session.curve();
-    panX = point.get().x - (c.min / 2 + c.max / 2);
-    panY = point.get().y - (c.displayMin / 2 + c.displayMax / 2);
+    view.synchronize(c.min, c.max, c.displayMin, c.displayMax);
+    view.centerAt(point.get().x, point.get().y);
     return true;
   }
 
@@ -111,6 +126,7 @@ public final class CurveDialog {
 
   public void cancel() {
     session.cancelGesture();
+    view.cancelPan();
     stopDrag();
     open.set(false);
   }
@@ -176,9 +192,11 @@ public final class CurveDialog {
     controlRect("redo");
     ImGui.sameLine();
     if (ImGui.button("Fit")) {
-      zoom = 1;
-      panX = panY = 0;
+      stopDrag();
+      session.endGesture();
+      view.fit();
     }
+    controlRect("fit");
     curve = session.curve();
     var compiled = new ScalarCurve(curve);
     float px = ImGui.getCursorScreenPosX(),
@@ -197,12 +215,32 @@ public final class CurveDialog {
     handleCenters.clear();
     boolean hovered = ImGui.isItemHovered();
     var io = ImGui.getIO();
-    double span = curve.max - curve.min,
-        yspan = curve.displayMax - curve.displayMin,
-        lo = curve.min + panX - span * (1 / zoom - 1) / 2,
-        hi = lo + span / zoom,
-        ylo = curve.displayMin + panY - yspan * (1 / zoom - 1) / 2,
-        yhi = ylo + yspan / zoom;
+    view.synchronize(curve.min, curve.max, curve.displayMin, curve.displayMax);
+    if (hovered && !dragging && ImGui.isMouseClicked(2)) {
+      panning = true;
+      panMouseX = io.getMousePosX();
+      panMouseY = io.getMousePosY();
+      view.beginPan();
+    }
+    if (panning) {
+      if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+        view.cancelPan();
+        panning = false;
+      } else {
+        view.pan((panMouseX - io.getMousePosX()) / w, (io.getMousePosY() - panMouseY) / h);
+        panMouseX = io.getMousePosX();
+        panMouseY = io.getMousePosY();
+        if (!ImGui.isMouseDown(2)) {
+          view.endPan();
+          panning = false;
+        }
+      }
+    }
+    if (hovered && !dragging && !panning && io.getMouseWheel() != 0)
+      view.wheel(
+          (io.getMousePosX() - px) / w, (py + h - io.getMousePosY()) / h, io.getMouseWheel());
+    var bounds = view.bounds();
+    double lo = bounds.minX(), hi = bounds.maxX(), ylo = bounds.minY(), yhi = bounds.maxY();
     double mx = lo + (io.getMousePosX() - px) / w * (hi - lo),
         my = yhi - (io.getMousePosY() - py) / h * (yhi - ylo);
     var draw = ImGui.getWindowDrawList();
@@ -277,13 +315,7 @@ public final class CurveDialog {
       }
     }
     draw.popClipRect();
-    if (hovered) {
-      if (io.getMouseWheel() != 0)
-        zoom = Math.max(.1, Math.min(100, zoom * Math.exp(io.getMouseWheel() * .12)));
-      if (ImGui.isMouseDragging(2)) {
-        panX -= io.getMouseDeltaX() / w * (hi - lo);
-        panY += io.getMouseDeltaY() / h * (yhi - ylo);
-      }
+    if (hovered && !panning) {
       if (ImGui.isMouseClicked(0)) {
         if (handleHit != null) {
           tangentPoint = handleHit;
@@ -351,8 +383,9 @@ public final class CurveDialog {
       if (ImGui.menuItem("Clear Selection")) selected.clear();
       if (ImGui.menuItem("Delete Selected Interior Points")) deleteSelected();
       if (ImGui.menuItem("Fit View")) {
-        zoom = 1;
-        panX = panY = 0;
+        stopDrag();
+        session.endGesture();
+        view.fit();
       }
       ImGui.endPopup();
     }

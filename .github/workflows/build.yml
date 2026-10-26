@@ -159,6 +159,10 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurvePointProbe build/curve-point
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurvePointConsumer build/curve-point/curve-point-project.json
+      - name: Curve view navigation and authoring isolation
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveNavigationProbe build/curve-navigation
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveNavigationConsumer build/curve-navigation/curve-navigation-project.json
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -190,6 +194,7 @@ jobs:
             build/expanded-expression/
             build/curve-gesture/
             build/curve-point/
+            build/curve-navigation/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -446,6 +451,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurvePointConsumer build/curve-point/curve-point-project.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows curve view navigation and authoring isolation
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveNavigationProbe build/curve-navigation
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurveNavigationConsumer build/curve-navigation/curve-navigation-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -501,6 +513,7 @@ jobs:
             build/expanded-expression/
             build/curve-gesture/
             build/curve-point/
+            build/curve-navigation/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/
