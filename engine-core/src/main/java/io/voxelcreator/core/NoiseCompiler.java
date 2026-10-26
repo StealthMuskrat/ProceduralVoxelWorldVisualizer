@@ -628,6 +628,36 @@ public final class NoiseCompiler {
                       a.scalar(c),
                       kind.equals("SMOOTH_SUBTRACTION") ? -b.scalar(c) : b.scalar(c),
                       smoothness);
+        } else if (ProcessingExtensions.REMAPPING.contains(kind)) {
+          var plan = ScalarRemapping.compile(item, dimension);
+          require(a, "Scalar", item);
+          var weight = bound.get("weight");
+          var position = bound.get("position");
+          if (kind.equals("BLEND")) {
+            require(b, "Scalar", item);
+            if (weight != null) require(weight, "Scalar", item);
+          } else if (kind.equals("FALLOFF") && position != null)
+            require(position, dimension == 2 ? "Coordinates2D" : "Coordinates3D", item);
+          for (String key : bound.keySet())
+            if (!key.equals("a")
+                && !(kind.equals("BLEND") && Set.of("b", "weight").contains(key))
+                && !(kind.equals("FALLOFF") && key.equals("position")))
+              throw new IllegalArgumentException(kind + ": unsupported input " + key);
+          eval =
+              kind.equals("BLEND")
+                  ? (c, k) -> {
+                    double w =
+                        plan.effectiveWeight(weight == null ? plan.weight() : weight.scalar(c));
+                    if (w == 0) return plan.output(a.scalar(c));
+                    if (w == 1 && plan.mode().equals("LERP")) return plan.output(b.scalar(c));
+                    return plan.combine(a.scalar(c), b.scalar(c), w);
+                  }
+                  : (c, k) ->
+                      plan.sample(
+                          a.scalar(c),
+                          position == null ? c.x : position.number.get(c, 0),
+                          dimension == 2 ? 0 : position == null ? c.y : position.number.get(c, 1),
+                          position == null ? c.z : position.number.get(c, dimension == 2 ? 1 : 2));
         } else if (kind.equals("CURVE")) {
           require(a, "Scalar", item);
           var curve = ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class);
@@ -1290,37 +1320,6 @@ public final class NoiseCompiler {
       case "EQUAL" -> a == b ? 1 : 0;
       case "NOT_EQUAL" -> a != b ? 1 : 0;
       case "NOT" -> a == 0 ? 1 : 0;
-      case "CLAMP" -> Expression.clamp(a, p.value(Parameter.MIN), p.value(Parameter.MAX));
-      case "REMAP" -> {
-        double t =
-            (a - p.value(Parameter.INPUT_MIN))
-                / (p.value(Parameter.INPUT_MAX) - p.value(Parameter.INPUT_MIN));
-        double v =
-            p.value(Parameter.OUTPUT_MIN)
-                + t * (p.value(Parameter.OUTPUT_MAX) - p.value(Parameter.OUTPUT_MIN));
-        yield p.clamp
-            ? Expression.clamp(v, p.value(Parameter.OUTPUT_MIN), p.value(Parameter.OUTPUT_MAX))
-            : v;
-      }
-      case "TERRACE" -> {
-        double levels = p.value(Parameter.LEVELS);
-        double cell = StrictMath.floor(a * levels),
-            fraction = a * levels - cell,
-            transition = p.value(Parameter.TRANSITION);
-        double blend =
-            transition == 0 ? 0 : Expression.clamp((fraction - 1 + transition) / transition, 0, 1);
-        blend = blend * blend * (3 - 2 * blend);
-        yield (cell + blend) / levels;
-      }
-      case "FALLOFF" -> {
-        double extent = p.value(Parameter.EXTENT),
-            d =
-                StrictMath.sqrt(
-                    StrictMath.pow(c.x - p.value(Parameter.CENTER_X), 2)
-                        + (dim == 2 ? 0 : StrictMath.pow(c.y - p.value(Parameter.CENTER_Y), 2))
-                        + StrictMath.pow(c.z - p.value(Parameter.CENTER_Z), 2));
-        yield a * (1 - Expression.clamp(d / extent, 0, 1));
-      }
       case "COMPOSE3", "COORDINATES3" ->
           in.get(component == 0 ? "x" : component == 1 ? "y" : "z").scalar(c);
       case "COMPOSE2", "COORDINATES2" -> in.get(component == 0 ? "x" : "z").scalar(c);

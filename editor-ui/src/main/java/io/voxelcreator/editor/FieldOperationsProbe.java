@@ -143,7 +143,8 @@ public final class FieldOperationsProbe {
         "expression", ProjectIO.JSON.valueToTree(dimension == 2 ? "x*x+3*z*z" : "x*x+2*y*y+3*z*z"));
     noise.processing.add(expression);
     for (var key : ProcessingExtensions.DETAILS.keySet()) {
-      if (!ProcessingExtensions.supports(key, dimension)) continue;
+      if (ProcessingExtensions.REMAPPING.contains(key)
+          || !ProcessingExtensions.supports(key, dimension)) continue;
       var item = ProcessingRegistry.create(key, key.toLowerCase(Locale.ROOT), dimension);
       if (ProcessingExtensions.CALCULUS.contains(key))
         item.inputs.put("field", Binding.earlierField(expression.uuid));

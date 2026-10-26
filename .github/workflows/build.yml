@@ -121,6 +121,14 @@ jobs:
         with:
           name: Linux-algorithm-bits
           path: build/algorithm-reference/algorithm-jvm-bits.json
+      - name: Scalar remapping and weighted combination workflow
+        run: |
+          python scripts/generate_remapping_vectors.py build/remapping-reference-vectors.json
+          cmp fixtures/remapping-vectors.json build/remapping-reference-vectors.json
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ScalarRemappingProbe build/scalar-remapping
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ScalarRemappingConsumer build/scalar-remapping/remapping-project.json 3.25 fixtures/remapping-vectors.json build/scalar-remapping
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ScalarRemappingConsumer fixtures/scalar-remapping.json .5 fixtures/remapping-vectors.json
+          python scripts/verify_scalar_remapping.py build/scalar-remapping
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -145,6 +153,7 @@ jobs:
             build/field-operations/
             build/trace-workflow/
             build/algorithm-reference/
+            build/scalar-remapping/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -340,6 +349,17 @@ jobs:
         with:
           name: Windows-algorithm-bits
           path: build/algorithm-reference/algorithm-jvm-bits.json
+      - name: Windows scalar remapping and weighted combination workflow
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ScalarRemappingProbe build/scalar-remapping
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ScalarRemappingConsumer build/scalar-remapping/remapping-project.json 3.25 fixtures/remapping-vectors.json build/scalar-remapping
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ScalarRemappingConsumer fixtures/scalar-remapping.json .5 fixtures/remapping-vectors.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_scalar_remapping.py build/scalar-remapping
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -388,6 +408,7 @@ jobs:
             build/field-operations/
             build/trace-workflow/
             build/algorithm-reference/
+            build/scalar-remapping/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/

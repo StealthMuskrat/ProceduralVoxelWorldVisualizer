@@ -482,7 +482,7 @@ class FieldOperationsTest {
 
   @Test
   void registryMetadataIsImmutableAndFactorySignaturesAreExplicit() {
-    assertEquals(12, ProcessingExtensions.DETAILS.size());
+    assertEquals(17, ProcessingExtensions.DETAILS.size());
     assertThrows(UnsupportedOperationException.class, () -> ProcessingExtensions.DETAILS.clear());
     assertThrows(
         UnsupportedOperationException.class,

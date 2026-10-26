@@ -33,7 +33,9 @@ public final class ProcessingExtensions {
 
     public JsonNode value(Item item) {
       var value = item.parameters.getOrDefault(key, ProjectIO.JSON.valueToTree(defaultValue));
-      if (!options.isEmpty()) {
+      if (defaultValue instanceof Boolean) {
+        if (!value.isBoolean()) throw new InvalidControl(key, key + ": expected Boolean");
+      } else if (!options.isEmpty()) {
         if (!value.isTextual() || !options.contains(value.textValue()))
           throw new InvalidControl(key, key + ": choose " + options);
       } else if (!value.isNumber()
@@ -202,7 +204,122 @@ public final class ProcessingExtensions {
           List.of(number("smoothness", "Smoothness", 1, Double.MIN_VALUE, Double.MAX_VALUE)),
           "Polynomial smooth maximum: intersection=max(a,b), subtraction=max(a,-b); raw signed"
               + " values.");
+    put(
+        m,
+        "REMAP",
+        false,
+        "Scalar",
+        "Scalar",
+        List.of(
+            number("inputMin", "Input minimum", -1, -Double.MAX_VALUE, Double.MAX_VALUE),
+            number("inputMax", "Input maximum", 1, -Double.MAX_VALUE, Double.MAX_VALUE),
+            number("outputMin", "Output minimum", 0, -Double.MAX_VALUE, Double.MAX_VALUE),
+            number("outputMax", "Output maximum", 1, -Double.MAX_VALUE, Double.MAX_VALUE),
+            bool("clamp", "Clamp output", false)),
+        "Affine mapping with distinct input endpoints; descending ranges are supported. Optional"
+            + " output clamp uses sorted output bounds.");
+    put(
+        m,
+        "CLAMP",
+        false,
+        "Scalar",
+        "Scalar",
+        List.of(
+            number("min", "Minimum", 0, -Double.MAX_VALUE, Double.MAX_VALUE),
+            number("max", "Maximum", 1, -Double.MAX_VALUE, Double.MAX_VALUE)),
+        "Inclusive clamp with ordered minimum and maximum; no automatic endpoint swapping.");
+    put(
+        m,
+        "TERRACE",
+        false,
+        "Scalar",
+        "Scalar",
+        List.of(
+            new Control(
+                "levels", "Levels per unit", 8, 1, Double.MAX_VALUE, true, List.of(), false),
+            number("transition", "Transition fraction", 0, 0, 1)),
+        "Uniform steps floor(value * levels) / levels, including signed values. Smooth transition"
+            + " occupies the final fraction of each interval; exact knots start the next interval."
+            + " No output clamp.");
+    var falloff = centers();
+    falloff.add(0, choice("domain", "Distance domain", "COORDINATES", "COORDINATES", "INPUT"));
+    falloff.add(
+        1,
+        choice(
+            "metric",
+            "Distance metric",
+            "EUCLIDEAN",
+            "EUCLIDEAN",
+            "CHEBYSHEV",
+            "MANHATTAN",
+            "AXIS"));
+    falloff.add(2, axis("x"));
+    falloff.add(number("extent", "Extent", 64, Double.MIN_VALUE, Double.MAX_VALUE));
+    falloff.add(
+        choice(
+            "shape", "Falloff shape", "LINEAR", "LINEAR", "SMOOTHSTEP", "SMOOTHERSTEP", "COSINE"));
+    falloff.add(choice("outside", "Outside extent", "CLAMP", "CLAMP", "EXTEND"));
+    put(
+        m,
+        "FALLOFF",
+        false,
+        "Scalar",
+        "Scalar",
+        falloff,
+        "Multiply the signed input by 1 - shape(distance / extent). Coordinates use transformed"
+            + " space or an explicit typed position. INPUT uses abs(input - centerX). CLAMP holds"
+            + " distance ratio in [0,1]; EXTEND extrapolates the selected shape. No output"
+            + " normalization.");
+    put(
+        m,
+        "BLEND",
+        false,
+        "Scalar",
+        "Scalar",
+        List.of(
+            choice(
+                "mode",
+                "Combination mode",
+                "LERP",
+                "LERP",
+                "ADD",
+                "SUBTRACT",
+                "MULTIPLY",
+                "DIVIDE",
+                "MIN",
+                "MAX"),
+            number("weight", "Blend weight", .5, -Double.MAX_VALUE, Double.MAX_VALUE),
+            choice("weightPolicy", "Weight policy", "RAW", "RAW", "CLAMP"),
+            choice("outputPolicy", "Output policy", "RAW", "RAW", "CLAMP_01")),
+        "LERP blends a toward b. Other modes blend a toward the named combination of a and b."
+            + " Optional Scalar weight binding overrides the numeric weight. RAW extrapolates and"
+            + " preserves signed values; explicit policies clamp weight or output. Zero/one weights"
+            + " select endpoints without evaluating unused branches.");
     DETAILS = Collections.unmodifiableMap(m);
+  }
+
+  private static Control bool(String key, String label, boolean value) {
+    return new Control(key, label, value, 0, 0, false, List.of(), false);
+  }
+
+  private static Control choice(String key, String label, String value, String... options) {
+    return new Control(key, label, value, 0, 0, false, List.of(options), false);
+  }
+
+  public static final Set<String> REMAPPING =
+      Set.of("REMAP", "CLAMP", "TERRACE", "FALLOFF", "BLEND");
+
+  /** Presentation only; inactive settings are retained and validated, never rewritten on draw. */
+  public static boolean visible(Item item, Control control, int dimension) {
+    if (dimension == 2 && control.threeDimensional()) return false;
+    if (!item.kind.equals("FALLOFF")) return true;
+    String domain =
+        item.parameters.getOrDefault("domain", ProjectIO.JSON.valueToTree("COORDINATES")).asText();
+    String metric =
+        item.parameters.getOrDefault("metric", ProjectIO.JSON.valueToTree("EUCLIDEAN")).asText();
+    if (domain.equals("INPUT"))
+      return !Set.of("metric", "axis", "centerY", "centerZ").contains(control.key());
+    return !control.key().equals("axis") || metric.equals("AXIS");
   }
 
   private static Control number(String key, String label, double value, double min, double max) {

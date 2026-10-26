@@ -578,7 +578,7 @@ public final class ContractGenerator {
 
   public static Map<String, Object> processingRegistry() {
     var result = new LinkedHashMap<String, Object>();
-    result.put("registryVersion", 3);
+    result.put("registryVersion", 4);
     result.put("operations", ProcessingRegistry.ITEMS);
     result.put("sampledFieldOperations", new TreeSet<>(ProcessingRegistry.SAMPLED));
     result.put(
@@ -595,7 +595,9 @@ public final class ContractGenerator {
       var properties = obj();
       for (var control : entry.getValue().controls()) {
         var value = obj();
-        if (!control.options().isEmpty()) value.set("enum", JSON.valueToTree(control.options()));
+        if (control.defaultValue() instanceof Boolean) value.put("type", "boolean");
+        else if (!control.options().isEmpty())
+          value.set("enum", JSON.valueToTree(control.options()));
         else {
           value.put("type", control.integer() ? "integer" : "number");
           value.put("minimum", control.minimum()).put("maximum", control.maximum());
@@ -618,8 +620,14 @@ public final class ContractGenerator {
         inputs.set("coordinates", obj().put("$ref", "#/$defs/Binding"));
       } else if (ProcessingExtensions.SHAPES.contains(entry.getKey()))
         inputs.set("position", obj().put("$ref", "#/$defs/Binding"));
-      else
-        for (String key : List.of("a", "b")) inputs.set(key, obj().put("$ref", "#/$defs/Binding"));
+      else {
+        for (String key : ProcessingRegistry.ITEMS.get(entry.getKey()).inputs())
+          inputs.set(key, obj().put("$ref", "#/$defs/Binding"));
+        if (entry.getKey().equals("BLEND"))
+          inputs.set("weight", obj().put("$ref", "#/$defs/Binding"));
+        if (entry.getKey().equals("FALLOFF"))
+          inputs.set("position", obj().put("$ref", "#/$defs/Binding"));
+      }
       var inputMap = obj().put("additionalProperties", false);
       inputMap.set("properties", inputs);
       thenProperties.set("inputs", inputMap);

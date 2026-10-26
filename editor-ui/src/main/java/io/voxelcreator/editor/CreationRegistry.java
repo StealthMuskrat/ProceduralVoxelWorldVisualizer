@@ -165,35 +165,21 @@ public final class CreationRegistry {
               id,
               "Processing / " + entry.getKey(),
               control.label(),
-              control.integer() ? Kind.INTEGER : Kind.NUMBER,
+              control.defaultValue() instanceof Boolean
+                  ? Kind.BOOLEAN
+                  : control.integer() ? Kind.INTEGER : Kind.NUMBER,
               control.defaultValue(),
-              control.minimum(),
-              control.maximum(),
+              ProcessingExtensions.REMAPPING.contains(entry.getKey())
+                  ? remapMinimum(entry.getKey(), control)
+                  : control.minimum(),
+              ProcessingExtensions.REMAPPING.contains(entry.getKey())
+                  ? remapMaximum(entry.getKey(), control)
+                  : control.maximum(),
               List.of());
       }
     parameter(m, "CONSTANT", "value", 0, -1e6, 1e6);
-    parameter(m, "REMAP", "inputMin", -1, -1e6, 1e6);
-    parameter(m, "REMAP", "inputMax", 1, -1e6, 1e6);
-    parameter(m, "REMAP", "outputMin", 0, -1e6, 1e6);
-    parameter(m, "REMAP", "outputMax", 1, -1e6, 1e6);
-    add(
-        m,
-        "processing.REMAP.parameter.clamp",
-        "Processing / REMAP",
-        "Clamp output",
-        Kind.BOOLEAN,
-        false,
-        0,
-        0,
-        List.of());
-    parameter(m, "CLAMP", "min", 0, -1e6, 1e6);
-    parameter(m, "CLAMP", "max", 1, -1e6, 1e6);
-    integer(
-        m, "processing.TERRACE.parameter.levels", "Processing / TERRACE", "Levels", 8, 1, 65536);
-    parameter(m, "TERRACE", "transition", 0, 0, 1);
-    parameter(m, "FALLOFF", "extent", 64, 1e-9, 1e6);
-    for (String op : List.of("FALLOFF", "SPHERE"))
-      for (String axis : List.of("X", "Y", "Z")) parameter(m, op, "center" + axis, 0, -1e6, 1e6);
+    for (String axis : List.of("X", "Y", "Z"))
+      parameter(m, "SPHERE", "center" + axis, 0, -1e6, 1e6);
     parameter(m, "SPHERE", "radius", 16, 0, 1e6);
     for (String axis : List.of("X", "Y", "Z")) parameter(m, "BOX", "extent" + axis, 16, 0, 1e6);
     parameter(m, "SMOOTH_UNION", "smoothness", 1, 1e-9, 1e6);
@@ -348,6 +334,17 @@ public final class CreationRegistry {
         "CLAMP",
         List.of("CLAMP", "EXTEND", "REPEAT", "MIRROR"));
     CONTROLS = Collections.unmodifiableMap(m);
+  }
+
+  private static double remapMinimum(String kind, ProcessingExtensions.Control c) {
+    if (c.defaultValue() instanceof Boolean) return 0;
+    if (c.key().equals("extent")) return 1e-9;
+    return Math.max(c.minimum(), -1e6);
+  }
+
+  private static double remapMaximum(String kind, ProcessingExtensions.Control c) {
+    if (c.defaultValue() instanceof Boolean) return 0;
+    return c.key().equals("levels") ? 65536 : Math.min(c.maximum(), 1e6);
   }
 
   private static void parameter(

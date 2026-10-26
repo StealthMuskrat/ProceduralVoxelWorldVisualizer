@@ -65,6 +65,7 @@ public final class ProcessingRegistry {
         "OR");
     add(m, "Logic & Selection", "Boolean", "a", "NOT");
     add(m, "Logic & Selection", "Scalar", "condition,true,false", "SELECT");
+    add(m, "Noise Generators", "Scalar", "a,b", "BLEND");
     add(m, "Remapping & Curves", "Scalar", "a", "REMAP", "CURVE", "TERRACE", "FALLOFF", "CLAMP");
     add(m, "Vectors", "Vector3", "x,y,z", "COMPOSE3");
     add(m, "Vectors", "Vector2", "x,z", "COMPOSE2");

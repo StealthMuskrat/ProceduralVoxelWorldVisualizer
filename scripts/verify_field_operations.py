@@ -9,10 +9,10 @@ contract=root/'contracts'
 schema=json.loads((contract/'schema/project.schema.json').read_text());jsonschema.Draft202012Validator.check_schema(schema)
 validator=jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker());validator.validate(p)
 registry=json.loads((contract/'registries/noise-processing-registry.json').read_text())
-assert registry['registryVersion']==3 and len(registry['extendedOperations'])==12
+assert registry['registryVersion']==4 and len(registry['extendedOperations'])==17
 for dimension,rows in [(2,p['noise2D']),(3,p['noise3D'])]:
  n=rows[0];items={i['kind']:i for i in n['processing']};assert items['GRADIENT']['resultType']==f'Vector{dimension}'
- expected={k for k,d in registry['extendedOperations'].items() if dimension in d['dimensions']}
+ expected={k for k,d in registry['extendedOperations'].items() if dimension in d['dimensions'] and k not in {'REMAP','CLAMP','TERRACE','FALLOFF','BLEND'}}
  assert set(items)-{'EXPRESSION'}==expected
  assert all('field' in items[k]['inputs'] for k in expected & set(registry['sampledFieldOperations']))
  if dimension==2:

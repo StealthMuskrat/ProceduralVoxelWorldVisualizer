@@ -713,30 +713,6 @@ public final class PropertyPanel {
           }
           if (ProcessingExtensions.DETAILS.containsKey(item.kind)) extensionControls(n, item);
           switch (item.kind) {
-            case "REMAP" -> {
-              parameter(item, "inputMin", -1);
-              parameter(item, "inputMax", 1);
-              parameter(item, "outputMin", 0);
-              parameter(item, "outputMax", 1);
-              f.bool(
-                  "Clamp output",
-                  item.parameters.containsKey("clamp") && item.parameters.get("clamp").asBoolean(),
-                  v -> item.parameters.put("clamp", ProjectIO.JSON.valueToTree(v)));
-            }
-            case "CLAMP" -> {
-              parameter(item, "min", 0);
-              parameter(item, "max", 1);
-            }
-            case "TERRACE" -> {
-              parameter(item, "levels", 8);
-              parameter(item, "transition", 0);
-            }
-            case "FALLOFF" -> {
-              parameter(item, "extent", 64);
-              parameter(item, "centerX", 0);
-              if (n.dimension == 3) parameter(item, "centerY", 0);
-              parameter(item, "centerZ", 0);
-            }
             case "CONSTANT" ->
                 constantEditor(
                     item.resultType,
@@ -1412,6 +1388,26 @@ public final class PropertyPanel {
   }
 
   private void parameter(Item item, String key, double def) {
+    if (ProcessingExtensions.REMAPPING.contains(item.kind)) {
+      var control = CreationRegistry.get("processing." + item.kind + ".parameter." + key);
+      double[] slider = {
+        item.parameters.containsKey(key) ? item.parameters.get(key).asDouble() : def
+      };
+      if (ImGui.sliderScalar(
+          "##slider-" + key,
+          slider,
+          control.minimum(),
+          control.maximum(),
+          control.kind() == CreationRegistry.Kind.INTEGER ? "%.0f" : "%.5f")) {
+        item.parameters.put(
+            key,
+            ProjectIO.JSON.valueToTree(
+                control.kind() == CreationRegistry.Kind.INTEGER
+                    ? StrictMath.rint(slider[0])
+                    : slider[0]));
+        noiseChanged();
+      }
+    }
     f.number(
         state.metadata.label("processing." + item.kind + ".parameter." + key, key),
         item.parameters.containsKey(key) ? item.parameters.get(key).asDouble() : def,
@@ -1429,29 +1425,76 @@ public final class PropertyPanel {
     var detail = ProcessingExtensions.DETAILS.get(item.kind);
     ImGui.textWrapped(detail.description());
     for (var control : detail.controls()) {
-      if (noise.dimension == 2 && control.threeDimensional()) continue;
+      boolean targeted =
+          navigationTarget != null
+              && item.uuid.equals(navigationTarget.control())
+              && ("parameters/" + control.key()).equals(navigationTarget.parameter());
+      if (!targeted && !ProcessingExtensions.visible(item, control, noise.dimension)) continue;
       String key = control.key();
       String id = "processing." + item.kind + ".parameter." + key;
       String label = state.metadata.label(id, control.label());
-      if (control.options().isEmpty())
+      if (control.defaultValue() instanceof Boolean defaultValue) {
+        f.bool(
+            label,
+            item.parameters.containsKey(key) ? item.parameters.get(key).asBoolean() : defaultValue,
+            value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value)));
+        metadataTooltip(id);
+        revealSearchField(item.uuid, "parameters/" + key);
+      } else if (control.options().isEmpty())
         parameter(item, key, ((Number) control.defaultValue()).doubleValue());
       else {
         List<String> options =
             noise.dimension == 2 && key.equals("axis") ? List.of("x", "z") : control.options();
-        f.choice(
-            label,
-            item.parameters.containsKey(key)
-                ? item.parameters.get(key).asText()
-                : control.defaultValue().toString(),
-            options,
-            value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value)));
+        if (ProcessingExtensions.REMAPPING.contains(item.kind)) {
+          var choices =
+              options.stream()
+                  .map(
+                      value ->
+                          new DraftChoicePicker.Choice(
+                              value, state.metadata.option(id, value), value))
+                  .toList();
+          String cache = "manipulation-choice:" + id + ":" + noise.dimension;
+          var previous = catalogues.get(cache);
+          if (!choices.equals(previous)) {
+            previous = choices;
+            catalogues.put(cache, previous);
+          }
+          draftChoices.draw(
+              label,
+              item.parameters.containsKey(key)
+                  ? item.parameters.get(key).asText()
+                  : control.defaultValue().toString(),
+              previous,
+              null,
+              value -> {
+                item.parameters.put(key, ProjectIO.JSON.valueToTree(value));
+                noiseChanged();
+              });
+          parameterCenters.put(item.uuid + ":" + key, draftChoices.buttonCenter());
+        } else
+          f.choice(
+              label,
+              item.parameters.containsKey(key)
+                  ? item.parameters.get(key).asText()
+                  : control.defaultValue().toString(),
+              options,
+              value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value)));
         metadataTooltip(id);
         revealSearchField(item.uuid, "parameters/" + key);
       }
     }
-    if (ProcessingExtensions.SHAPES.contains(item.kind)) {
+    if (ProcessingExtensions.REMAPPING.contains(item.kind)) remappingPreview(noise, item);
+    if (item.kind.equals("BLEND"))
       f.bool(
-          "Explicit shape position",
+          "Field-driven weight",
+          item.inputs.containsKey("weight"),
+          value -> {
+            if (value) item.inputs.put("weight", Binding.constant(.5));
+            else item.inputs.remove("weight");
+          });
+    if (ProcessingExtensions.SHAPES.contains(item.kind) || item.kind.equals("FALLOFF")) {
+      f.bool(
+          item.kind.equals("FALLOFF") ? "Explicit falloff position" : "Explicit shape position",
           item.inputs.containsKey("position"),
           value -> {
             if (!value) item.inputs.remove("position");
@@ -1462,9 +1505,43 @@ public final class PropertyPanel {
               item.inputs.put("position", binding);
             }
           });
+      if (!item.kind.equals("FALLOFF"))
+        ImGui.textWrapped(
+            "Negative distance is inside; zero is on the surface. Default position uses transformed"
+                + " definition coordinates.");
+    }
+  }
+
+  private void remappingPreview(Noise noise, Item item) {
+    if (item.kind.equals("BLEND")) return;
+    try {
+      var plan = ScalarRemapping.compile(item, noise.dimension);
+      float[] values = new float[65];
+      for (int i = 0; i < values.length; i++) {
+        double u = -1 + 3.0 * i / (values.length - 1);
+        double coordinate =
+            item.kind.equals("FALLOFF")
+                ? u
+                    * item.parameters
+                        .getOrDefault("extent", ProjectIO.JSON.valueToTree(64))
+                        .doubleValue()
+                : 0;
+        double value = plan.sample(item.kind.equals("FALLOFF") ? 1 : u, coordinate, 0, 0);
+        if (!Double.isFinite(value) || Math.abs(value) > Float.MAX_VALUE) {
+          ImGui.textWrapped(
+              "Preview exceeds display range; canonical evaluation reports numeric failures.");
+          return;
+        }
+        values[i] = (float) value;
+      }
+      ImGui.plotLines("Transfer preview###remapping-preview", values, values.length);
       ImGui.textWrapped(
-          "Negative distance is inside; zero is on the surface. Default position uses transformed"
-              + " definition coordinates.");
+          item.kind.equals("FALLOFF")
+              ? "Unit input; X position from -extent to 2*extent, Y/Z=0. Authored centers and"
+                    + " domain apply."
+              : "Input from -1 to 2; raw output. Display only.");
+    } catch (RuntimeException invalid) {
+      ImGui.textWrapped("Preview unavailable: " + invalid.getMessage());
     }
   }
 
