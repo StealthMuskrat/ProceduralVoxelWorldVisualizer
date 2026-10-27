@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The viewport selection-recovery batch passed `clean test build dependencyNotices releaseJars` with **735 tests across 92 suites, no failures/errors/skips**. Expanded native production controls select 3D, verify independent tab filters, clear/reselect 2D and delete/Undo-restore a selected generator. Empty/missing selections submit no work; recovery publishes valid previews. See [selection recovery evidence](evidence/VIEWPORT_RECOVERY_VALIDATION.md). Local schemas passed. Full streaming-removal/physical pointer/DPI, Windows 11 hardware and complete acceptance remain separate.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The streaming-source recovery batch passed `clean test build dependencyNotices releaseJars` with **735 tests across 92 suites, no failures/errors/skips**. Native production controls start bounded 3D streaming, verify generated data, clear/reselect and delete/Undo the source, asserting CPU scene/compiler/setup and GPU renderer release while unavailable and rebuilding afterward. See [stream recovery evidence](evidence/STREAM_RECOVERY_VALIDATION.md). Local schemas passed. Full visible-mesh/Point Cloud/World/load/DPI, Windows 11 hardware and complete acceptance remain separate.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
