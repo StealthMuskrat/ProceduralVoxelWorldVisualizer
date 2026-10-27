@@ -1,0 +1,95 @@
+{
+  "implementation_sha": "d7800e5da8bbd76a7d3c70520a25f71ace2827a2",
+  "workflow_run": {
+    "id": 40507623190,
+    "url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40507623190",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "jobs": [
+    {
+      "id": 122200880894,
+      "name": "linux",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40507623190/job/122200880894"
+    },
+    {
+      "id": 122200881155,
+      "name": "windows",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40507623190/job/122200881155"
+    },
+    {
+      "id": 122202502569,
+      "name": "reproducibility",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40507623190/job/122202502569"
+    }
+  ],
+  "new_bounds_test_cases": 8,
+  "junit_results": "Full Gradle test tasks passed; raw XML is retained in the linked Linux evidence artifact. Totals were not recounted after the workspace disconnected.",
+  "artifacts": [
+    {
+      "id": 12736495941,
+      "name": "Linux-algorithm-bits",
+      "url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40507623190/artifacts/12736495941"
+    },
+    {
+      "id": 12736295497,
+      "name": "Windows-jar-hashes",
+      "url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40507623190/artifacts/12736295497"
+    },
+    {
+      "id": 12736071086,
+      "name": "Linux-jar-hashes",
+      "url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40507623190/artifacts/12736071086"
+    },
+    {
+      "id": 12735961555,
+      "name": "Windows-algorithm-bits",
+      "url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40507623190/artifacts/12735961555"
+    },
+    {
+      "id": 12735687470,
+      "name": "linux-evidence",
+      "url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40507623190/artifacts/12735687470"
+    },
+    {
+      "id": 12735473345,
+      "name": "windows-development-build",
+      "url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40507623190/artifacts/12735473345"
+    }
+  ],
+  "selected_log_lines": {
+    "linux": [
+      "2026-10-27T12:56:34.1431286Z BUILD SUCCESSFUL in 45s",
+      "2026-10-27T12:56:46.1221130Z Exact voxel regression hashes PASS",
+      "2026-10-27T12:57:16.0812022Z EXACT_WORLD_STAGE_PREVIEWS_PASS",
+      "2026-10-27T12:58:04.7885518Z STREAM_RENDERER_FALLBACK_PASS startup-frame cleanup / fixed publication / explicit recovery",
+      "2026-10-27T12:58:04.7886738Z VISIBLE_FALLBACK_CAMERA_PASS independent RGBA digests / visible pixels / native orbit-zoom-pan"
+    ],
+    "windows": [
+      "2026-10-27T12:56:33.8286186Z BUILD SUCCESSFUL in 44s",
+      "2026-10-27T12:56:44.6902872Z Exact voxel regression hashes PASS",
+      "2026-10-27T12:57:04.3471870Z EXACT_WORLD_STAGE_PREVIEWS_PASS",
+      "2026-10-27T12:58:02.8960707Z STREAM_RENDERER_FALLBACK_PASS startup-frame cleanup / fixed publication / explicit recovery",
+      "2026-10-27T12:58:02.8961186Z VISIBLE_FALLBACK_CAMERA_PASS independent RGBA digests / visible pixels / native orbit-zoom-pan",
+      "2026-10-27T12:58:38.6944382Z EXACT_WORLD_STAGE_PREVIEWS_PASS"
+    ]
+  },
+  "local_checks": {
+    "diff": "pass",
+    "schema_families": "pass",
+    "mandatory_gradle": "attempted; Java launcher failed with missing libjli.so (exit 127)",
+    "workspace": "disconnected after implementation upload; final evidence/publication completed through GitHub"
+  },
+  "unverified": [
+    "Native World-click fixture for fixed/fallback bounds",
+    "Streamed picking against unloaded/display-LOD regions",
+    "Full interactive/DPI/load acceptance",
+    "Windows 11 hardware"
+  ]
+}
