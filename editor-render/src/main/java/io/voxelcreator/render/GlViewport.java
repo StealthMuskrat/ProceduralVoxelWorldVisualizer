@@ -55,6 +55,17 @@ public final class GlViewport implements AutoCloseable {
     sceneActive = false;
   }
 
+  /**
+   * Release hidden streaming resources when the viewport has no live source. Render thread only.
+   */
+  public void releaseScene() {
+    sceneActive = false;
+    if (sceneRenderer != null) sceneRenderer.close();
+    sceneRenderer = null;
+    sceneBudget = 0;
+    sceneWanted = java.util.Set.of();
+  }
+
   private float displayMin = -1, displayMax = 1, volumeOpacity = .12f, volumeThreshold = 0;
   private int volumeSteps = 192;
 

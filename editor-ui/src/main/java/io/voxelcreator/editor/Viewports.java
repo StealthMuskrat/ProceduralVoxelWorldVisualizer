@@ -107,6 +107,36 @@ public final class Viewports implements AutoCloseable {
     return generatorPicker.noneCenter();
   }
 
+  void probeStreaming3D() {
+    smokeTab = 1;
+    views[1].fixed = false;
+    views[1].mode = "Threshold Voxels";
+    views[1].threshold = .75;
+    state.user.visualization.streaming = true;
+    mark(views[1]);
+  }
+
+  boolean probeStream3DReady() {
+    var v = views[1];
+    return v.scene != null && v.scene.statistics().generated() > 0 && v.gl.sceneRenderer() != null;
+  }
+
+  long probeStream3DGenerated() {
+    return views[1].scene.statistics().generated();
+  }
+
+  boolean probeStream3DReleased() {
+    var v = views[1];
+    return v.scene == null
+        && v.compiler == null
+        && v.setup.get() == null
+        && v.gl.sceneRenderer() == null;
+  }
+
+  String probeSourceStatus(int kind) {
+    return views[kind].message;
+  }
+
   private void admissionControl(String key) {
     if (admissionProbe)
       admissionControls.put(
@@ -788,6 +818,8 @@ public final class Viewports implements AutoCloseable {
         && System.nanoTime() - v.lastSubmit
             > 1_000_000_000L / state.user.editor.opportunitiesPerSecond) submit(v);
     if (!source) {
+      v.gl.releaseScene();
+      v.activeSceneKey = "";
       v.message =
           missingSource
               ? "Selected generator is missing; choose another or restore it"
@@ -798,7 +830,7 @@ public final class Viewports implements AutoCloseable {
       ImGui.textWrapped(
           missingSource
               ? "The selected generator no longer exists. Choose another generator or undo its"
-                    + " deletion."
+                  + " deletion."
               : "Create a "
                   + (v.kind == 0 ? "2D" : "3D")
                   + " noise generator in Resources, then select it above. The project starts"

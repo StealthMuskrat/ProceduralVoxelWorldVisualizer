@@ -15,6 +15,7 @@ import org.lwjgl.opengl.GL;
 /** Production viewport controls and real bounded editor queue, with a native GL/ImGui context. */
 public final class PreviewAdmissionProbe {
   private static Viewports views;
+  private static EditorState probeState;
 
   public static void main(String[] args) throws Exception {
     var out = Path.of(args[0]).toAbsolutePath();
@@ -40,6 +41,7 @@ public final class PreviewAdmissionProbe {
         io.getFonts().addFontDefault();
         io.getFonts().build();
         try (var state = new EditorState(new UserConfig(), false)) {
+          probeState = state;
           state.user.editor.opportunitiesPerSecond = 20;
           require(
               state.change(
@@ -229,13 +231,52 @@ public final class PreviewAdmissionProbe {
                 authored.equals(ProjectIO.JSON.valueToTree(state.project()))
                     && target.equals(views.probeGeneratorSelection(0)),
                 "Undo did not restore selection/project");
+            state.user.performance.renderDistance = 0;
+            state.user.performance.verticalDistance = 0;
+            state.user.performance.streamChunks = 27;
+            views.probeStreaming3D();
+            until(views::probeStream3DReady);
+            long streamGenerated = views.probeStream3DGenerated();
+            click("generator", 0);
+            frames(3);
+            clickPoint(views.probeGeneratorNone(), 0);
+            frames(5);
+            require(
+                views.probeGeneratorSelection(1) == null && views.probeStream3DReleased(),
+                "Clear did not release CPU/GPU streaming scene");
+            click("generator", 0);
+            frames(3);
+            clickPoint(views.probeGeneratorOption(spatialId), 0);
+            until(views::probeStream3DReady);
+            require(
+                state.change(p -> p.noise3D.removeIf(n -> n.uuid.equals(spatialId))),
+                "Streaming delete rejected");
+            frames(5);
+            require(
+                spatialId.equals(views.probeGeneratorSelection(1))
+                    && views.probeSourceStatus(1).contains("missing")
+                    && views.probeStream3DReleased(),
+                "Missing streaming source retained CPU/GPU resources");
+            state.document.undo();
+            state.revision++;
+            until(views::probeStream3DReady);
+            require(
+                authored.equals(ProjectIO.JSON.valueToTree(state.project())),
+                "Streaming Undo did not restore project");
+            views.probeNoiseTab(0);
+            frames(3);
             double raw = views.probeAcceptedImage().sample(.5, .5).raw();
             require(raw == .75, "Retry changed field result");
             Files.writeString(
                 out.resolve("preview-admission-native.json"),
                 ProjectIO.JSON.writeValueAsString(
                     Map.ofEntries(
-                        Map.entry("formatVersion", 3),
+                        Map.entry("formatVersion", 4),
+                        Map.entry("streamGenerated", streamGenerated),
+                        Map.entry("streamClearReleased", true),
+                        Map.entry("streamDeleteReleased", true),
+                        Map.entry("streamReselect", true),
+                        Map.entry("streamUndoRestored", true),
                         Map.entry("spatialRows", spatialRows),
                         Map.entry("spatialUuid", spatialId.toString()),
                         Map.entry("independentFilters", true),
@@ -309,6 +350,7 @@ public final class PreviewAdmissionProbe {
   }
 
   private static void frame() {
+    probeState.drain();
     ImGui.newFrame();
     ImGui.setNextWindowPos(20, 20, ImGuiCond.Always);
     ImGui.setNextWindowSize(950, 750, ImGuiCond.Always);
