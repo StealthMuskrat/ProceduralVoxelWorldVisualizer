@@ -1,0 +1,75 @@
+{
+  "formatVersion" : 2,
+  "stream" : {
+    "hits" : [ {
+      "x" : 31,
+      "finalType" : 0,
+      "mode" : "After",
+      "chunkX" : 0,
+      "z" : 0,
+      "y" : 0
+    }, {
+      "x" : 31,
+      "finalType" : 0,
+      "mode" : "Before",
+      "chunkX" : 0,
+      "z" : 0,
+      "y" : 0
+    }, {
+      "x" : 31,
+      "finalType" : 0,
+      "mode" : "Only Changes",
+      "chunkX" : 0,
+      "z" : 0,
+      "y" : 0
+    }, {
+      "x" : -1,
+      "finalType" : 0,
+      "mode" : "Travel",
+      "chunkX" : -1,
+      "z" : 0,
+      "y" : 0
+    } ],
+    "gpuReplacementRejected" : true,
+    "unloadedMiss" : true,
+    "epochReused" : true
+  },
+  "closedPublicationRejected" : true,
+  "obsoleteZoomRejected" : true,
+  "obsoleteModeRejected" : true,
+  "emptyMiss" : true,
+  "viewOnly" : true,
+  "hits" : [ {
+    "centerX" : 0.25,
+    "side" : 8,
+    "z" : 0,
+    "y" : 0,
+    "x" : 3,
+    "finalType" : 0,
+    "mode" : "After"
+  }, {
+    "centerX" : 0.25,
+    "side" : 8,
+    "z" : 0,
+    "y" : 0,
+    "x" : 3,
+    "finalType" : 0,
+    "mode" : "Before"
+  }, {
+    "centerX" : -0.25,
+    "side" : 3,
+    "z" : 0,
+    "y" : 0,
+    "x" : 0,
+    "finalType" : 0,
+    "mode" : "Only Changes"
+  }, {
+    "centerX" : 0.25,
+    "side" : 8,
+    "z" : 0,
+    "y" : 0,
+    "x" : 3,
+    "finalType" : 0,
+    "mode" : "Fallback"
+  } ]
+}

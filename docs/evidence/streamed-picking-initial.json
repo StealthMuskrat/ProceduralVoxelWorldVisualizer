@@ -1,0 +1,16 @@
+{
+  "implementation_sha": "86b4465402d9ab0310ec15693a171c91a66e7f19",
+  "run": 40514286387,
+  "run_url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40514286387",
+  "linux_job": 122224029698,
+  "observed_result": "editor-render:test failed: 41 tests completed, 5 failed",
+  "failures": [
+    "loadedHaloAndOccupiedCameraCellsDoNotExtendDrawnCoverage",
+    "pendingLodReplacementKeepsTheDisplayedCellInputUntilGpuCommit",
+    "onlyAcknowledgedAndActuallyDrawnVersionsCanBePicked",
+    "retainedCoarseCellsAreAccountedAndReleasedAfterFineCommit",
+    "invalidationForeignEpochAndClosureCannotRestorePickingCells"
+  ],
+  "failure_kind": "awaitUpload timeout before a mesh could be generated at the 27-entry limit",
+  "fix": "Required halo precedes optional preload; optional entries are reclaimed for missing required data without increasing the entry limit. Two explicit completion/travel regressions added; original assertions retained."
+}

@@ -2018,8 +2018,8 @@ public final class Viewports implements AutoCloseable {
                       acceptTrace(found, p, revision);
                       if (streamingPick && streamedHit.orElseThrow().displayProxy()) {
                         inspectorPickHint =
-                            "Display LOD proxy hit: this exact stage cell is EMPTY. Move closer for"
-                                + " detail or inspect this coordinate.";
+                            "Display LOD proxy hit: this exact preview cell is EMPTY. Move closer"
+                                + " for detail or inspect this coordinate.";
                         state.status = inspectorPickHint;
                       }
                       inspect[0] = cell.x();
