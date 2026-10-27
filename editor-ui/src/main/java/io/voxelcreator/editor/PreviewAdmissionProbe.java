@@ -1,15 +1,20 @@
 package io.voxelcreator.editor;
 
 import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.opengl.GL33.*;
 
 import imgui.*;
 import imgui.flag.*;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
+import java.awt.image.BufferedImage;
 import java.nio.file.*;
+import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.BooleanSupplier;
+import javax.imageio.ImageIO;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL;
 
 /** Production viewport controls and real bounded editor queue, with a native GL/ImGui context. */
@@ -286,6 +291,9 @@ public final class PreviewAdmissionProbe {
                     views.probeStream3DReady()
                         && !views.probeStreamSourceFailed()
                         && views.probeStream3DEpoch() != retainedEpoch);
+            long invisibleEpoch = views.probeStream3DEpoch();
+            views.probeVisibleFallbackSource();
+            until(() -> views.probeStream3DReady() && views.probeStream3DEpoch() != invisibleEpoch);
             views.probeFailNextRendererStartup();
             click("toolbar", 0);
             until(views::probeFixedFallbackReady);
@@ -293,6 +301,57 @@ public final class PreviewAdmissionProbe {
             require(
                 views.probeSourceStatus(1).contains("fixed fallback"),
                 "Startup fallback status missing");
+            var visibleBefore = observe(out, "fallback-before");
+            require(visibleBefore.inkPixels() > 100, "Fixed fallback mesh was not visible");
+            long visualRevision = state.revision, visualHistory = state.document.historyBytes();
+            long beforeOrbitStamp = views.probeSubmissionStamp(1);
+            var surface = views.probeAdmissionControl("image");
+            io.addMousePosEvent(surface[0], surface[1]);
+            frame();
+            io.addMouseButtonEvent(0, true);
+            frame();
+            io.addMousePosEvent(surface[0] + 40, surface[1] + 12);
+            frame();
+            io.addMouseButtonEvent(0, false);
+            frames(2);
+            var visibleOrbit = observe(out, "fallback-orbit");
+            require(
+                visibleOrbit.inkPixels() > 100
+                    && !visibleOrbit.sha256().equals(visibleBefore.sha256()),
+                "Orbit did not change visible fallback");
+            require(
+                beforeOrbitStamp == views.probeSubmissionStamp(1),
+                "Orbit regenerated procedural data");
+            io.addMouseWheelEvent(0, 2);
+            frames(3);
+            var visibleZoom = observe(out, "fallback-zoom");
+            require(
+                visibleZoom.inkPixels() > visibleOrbit.inkPixels(),
+                "Wheel zoom did not enlarge visible fallback");
+            require(
+                beforeOrbitStamp == views.probeSubmissionStamp(1),
+                "Zoom regenerated procedural data");
+            io.addMousePosEvent(surface[0], surface[1]);
+            frame();
+            io.addMouseButtonEvent(2, true);
+            frame();
+            io.addMousePosEvent(surface[0] - 220, surface[1]);
+            frame();
+            io.addMouseButtonEvent(2, false);
+            frame();
+            until(
+                () ->
+                    views.probeFixedFallbackReady()
+                        && views.probeSubmissionStamp(1) > beforeOrbitStamp);
+            var visiblePan = observe(out, "fallback-pan");
+            require(
+                visiblePan.inkPixels() > 100 && !visiblePan.sha256().equals(visibleZoom.sha256()),
+                "Pan failed to rebuild visible fallback");
+            require(
+                authored.equals(ProjectIO.JSON.valueToTree(state.project()))
+                    && visualRevision == state.revision
+                    && visualHistory == state.document.historyBytes(),
+                "Camera gestures changed authored state");
             long startupFallbackStamp = views.probeSubmissionStamp(1);
             long settledUntil = System.nanoTime() + 150_000_000L;
             while (System.nanoTime() < settledUntil) frame();
@@ -315,7 +374,14 @@ public final class PreviewAdmissionProbe {
                 out.resolve("preview-admission-native.json"),
                 ProjectIO.JSON.writeValueAsString(
                     Map.ofEntries(
-                        Map.entry("formatVersion", 6),
+                        Map.entry("formatVersion", 7),
+                        Map.entry("visibleBefore", visibleBefore),
+                        Map.entry("visibleOrbit", visibleOrbit),
+                        Map.entry("visibleZoom", visibleZoom),
+                        Map.entry("visiblePan", visiblePan),
+                        Map.entry("orbitZoomNoGeneration", true),
+                        Map.entry("panRebuilt", true),
+                        Map.entry("cameraViewOnly", true),
                         Map.entry("rendererStartupFallback", true),
                         Map.entry("rendererFrameFallback", true),
                         Map.entry("rendererResourcesReleased", true),
@@ -366,6 +432,42 @@ public final class PreviewAdmissionProbe {
       if (window != 0) glfwDestroyWindow(window);
       glfwTerminate();
     }
+  }
+
+  private record Observation(
+      int width, int height, int inkPixels, String sha256, String rgbaFile, String pngFile) {}
+
+  private static Observation observe(Path out, String name) throws Exception {
+    int old = glGetInteger(GL_TEXTURE_BINDING_2D);
+    glBindTexture(GL_TEXTURE_2D, views.probe3DTexture());
+    int width = glGetTexLevelParameteri(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH);
+    int height = glGetTexLevelParameteri(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT);
+    require(width > 0 && height > 0, "No rendered fallback texture");
+    var pixels = BufferUtils.createByteBuffer(width * height * 4);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glBindTexture(GL_TEXTURE_2D, old);
+    byte[] raw = new byte[pixels.capacity()];
+    pixels.get(raw);
+    int ink = 0;
+    var picture = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+    for (int y = 0; y < height; y++)
+      for (int x = 0; x < width; x++) {
+        int offset = (y * width + x) * 4;
+        int r = Byte.toUnsignedInt(raw[offset]),
+            g = Byte.toUnsignedInt(raw[offset + 1]),
+            b = Byte.toUnsignedInt(raw[offset + 2]);
+        if (Math.max(Math.max(Math.abs(r - 14), Math.abs(g - 19)), Math.abs(b - 26)) > 6) ink++;
+        picture.setRGB(x, height - 1 - y, 0xff000000 | r << 16 | g << 8 | b);
+      }
+    Files.write(out.resolve(name + ".rgba"), raw);
+    ImageIO.write(picture, "png", out.resolve(name + ".png").toFile());
+    return new Observation(
+        width,
+        height,
+        ink,
+        HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(raw)),
+        name + ".rgba",
+        name + ".png");
   }
 
   private static void contextRetry() {

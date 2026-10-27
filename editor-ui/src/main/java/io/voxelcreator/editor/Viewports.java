@@ -172,6 +172,17 @@ public final class Viewports implements AutoCloseable {
         && v.gl.sceneRenderer() == null;
   }
 
+  void probeVisibleFallbackSource() {
+    var v = views[1];
+    v.threshold = .25;
+    v.camera.distance = 60;
+    mark(v);
+  }
+
+  int probe3DTexture() {
+    return views[1].gl.texture();
+  }
+
   private void admissionControl(String key) {
     if (admissionProbe)
       admissionControls.put(
