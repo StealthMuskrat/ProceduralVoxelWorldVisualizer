@@ -1,0 +1,13 @@
+{
+  "retainedImage" : true,
+  "viewOnly" : true,
+  "toolbarRetry" : true,
+  "otherViewsUnblocked" : true,
+  "queueCapacity" : 8,
+  "formatVersion" : 1,
+  "contextRetry" : true,
+  "workers" : 2,
+  "queueMessage" : "Preview queue is full; Regenerate to retry",
+  "budgetMessage" : "Preview exceeds configured budget; reduce extent",
+  "raw" : 0.25
+}
