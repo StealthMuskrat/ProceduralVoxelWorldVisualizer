@@ -64,3 +64,6 @@ TraceSnapshot classifies an accepted result as current, an earlier revision of t
 
 
 The fixed marching-tetrahedra analysis path now has exact shared-edge interpolation order, outward winding/normals, overflow-safe finite interpolation, row cancellation and an explicit output cap. Its working-memory admission includes the corner grid and peak mesh growth. See [bounded isosurface extraction](ISOSURFACE_EXTRACTION.md). This supplies seam and lifecycle contracts for fixed meshes; it does not add streaming continuous geometry to the packed voxel arena.
+
+
+The bounded volume path now uses immutable finite affine texture encoding, canonical-to-GPU transfer coefficients and owned sampling/encoding cancellation. Controls operate on accepted texture metadata without resampling, including extreme/tiny/neighboring ranges. Parallel ray slabs have explicit float-boundary handling. See [volume encoding and transfer](VOLUME_ENCODING_AND_TRANSFER.md). These are fixed-analysis contracts; they do not add a streaming volume atlas.
