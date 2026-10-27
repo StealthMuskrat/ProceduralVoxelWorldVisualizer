@@ -286,6 +286,27 @@ public final class PreviewAdmissionProbe {
                     views.probeStream3DReady()
                         && !views.probeStreamSourceFailed()
                         && views.probeStream3DEpoch() != retainedEpoch);
+            views.probeFailNextRendererStartup();
+            click("toolbar", 0);
+            until(views::probeFixedFallbackReady);
+            require(views.probeStream3DReleased(), "Startup fallback retained CPU/GPU resources");
+            require(
+                views.probeSourceStatus(1).contains("fixed fallback"),
+                "Startup fallback status missing");
+            long startupFallbackStamp = views.probeSubmissionStamp(1);
+            long settledUntil = System.nanoTime() + 150_000_000L;
+            while (System.nanoTime() < settledUntil) frame();
+            require(
+                startupFallbackStamp == views.probeSubmissionStamp(1),
+                "Fixed fallback kept retrying");
+            click("toolbar", 0);
+            until(() -> views.probeStream3DReady() && !views.probeFixedFallbackReady());
+            views.probeFailNextRendererFrame();
+            until(views::probeFixedFallbackReady);
+            require(views.probeStream3DReleased(), "Frame fallback retained CPU/GPU resources");
+            long frameFallbackStamp = views.probeSubmissionStamp(1);
+            click("toolbar", 0);
+            until(() -> views.probeStream3DReady() && !views.probeFixedFallbackReady());
             views.probeNoiseTab(0);
             frames(3);
             double raw = views.probeAcceptedImage().sample(.5, .5).raw();
@@ -294,7 +315,14 @@ public final class PreviewAdmissionProbe {
                 out.resolve("preview-admission-native.json"),
                 ProjectIO.JSON.writeValueAsString(
                     Map.ofEntries(
-                        Map.entry("formatVersion", 5),
+                        Map.entry("formatVersion", 6),
+                        Map.entry("rendererStartupFallback", true),
+                        Map.entry("rendererFrameFallback", true),
+                        Map.entry("rendererResourcesReleased", true),
+                        Map.entry("rendererRetryRecovered", true),
+                        Map.entry("fixedFallbackStable", true),
+                        Map.entry("startupFallbackStamp", startupFallbackStamp),
+                        Map.entry("frameFallbackStamp", frameFallbackStamp),
                         Map.entry("sourceFailureRetained", true),
                         Map.entry("sourceFailureNoRetry", true),
                         Map.entry("sourceRetryRecovered", true),

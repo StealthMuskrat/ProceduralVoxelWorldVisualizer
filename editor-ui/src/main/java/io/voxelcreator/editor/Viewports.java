@@ -40,6 +40,10 @@ public final class Viewports implements AutoCloseable {
 
   private final ResourcePicker generatorPicker;
   private boolean admissionProbe;
+  private final java.util.concurrent.atomic.AtomicBoolean probeRendererStartupFailure =
+      new java.util.concurrent.atomic.AtomicBoolean();
+  private final java.util.concurrent.atomic.AtomicBoolean probeRendererFrameFailure =
+      new java.util.concurrent.atomic.AtomicBoolean();
   private final java.util.concurrent.atomic.AtomicBoolean probeStreamCompileFailure =
       new java.util.concurrent.atomic.AtomicBoolean();
   private final Map<String, float[]> admissionControls = new HashMap<>();
@@ -149,6 +153,23 @@ public final class Viewports implements AutoCloseable {
 
   boolean probeStreamSourceFailed() {
     return views[1].failedPreview && !views[1].streamFallback;
+  }
+
+  void probeFailNextRendererStartup() {
+    probeRendererStartupFailure.set(true);
+  }
+
+  void probeFailNextRendererFrame() {
+    probeRendererFrameFailure.set(true);
+  }
+
+  boolean probeFixedFallbackReady() {
+    var v = views[1];
+    return v.streamFallback
+        && !usesStreaming(v)
+        && probeNoiseReady(1)
+        && v.scene == null
+        && v.gl.sceneRenderer() == null;
   }
 
   private void admissionControl(String key) {
@@ -786,7 +807,7 @@ public final class Viewports implements AutoCloseable {
             && v.noise != null
             && !generatorPicker.contains(v.kind == 0 ? "noise2D" : "noise3D", v.noise);
     boolean source = v.kind == 2 || v.noise != null && !missingSource;
-    boolean streaming = source && wantsStreaming(v);
+    boolean streaming = source && usesStreaming(v);
     if (streaming) streaming = stream(v);
     else stopStream(v);
     Preview ready = v.ready.take();
@@ -823,7 +844,8 @@ public final class Viewports implements AutoCloseable {
         }
         v.hoverSampler = ready.sampler;
         v.histogram = ready.histogram;
-        v.message = "Ready";
+        v.message =
+            v.streamFallback ? "Ready (fixed fallback; Regenerate retries streaming)" : "Ready";
         v.completed = true;
       }
     }
@@ -1065,7 +1087,7 @@ public final class Viewports implements AutoCloseable {
         v.panY = cy;
         v.panX = cx;
         v.panZ = cz;
-        if (!wantsStreaming(v)) mark(v);
+        if (!usesStreaming(v)) mark(v);
       }
     }
   }
@@ -1084,6 +1106,22 @@ public final class Viewports implements AutoCloseable {
         && !v.fixed
         && (v.kind == 2
             || v.kind == 1 && (v.mode.equals("Threshold Voxels") || v.mode.equals("Point Cloud")));
+  }
+
+  private boolean usesStreaming(View v) {
+    return wantsStreaming(v) && !(v.streamFallback && sceneKey(v).equals(v.failedKey));
+  }
+
+  private void rendererFallback(View v, String key) {
+    if (v.scene != null) v.scene.close();
+    v.scene = null;
+    v.gl.releaseScene();
+    v.gpuBudget = 0;
+    v.activeSceneKey = "";
+    v.failedKey = key;
+    v.streamFallback = true;
+    v.failedPreview = false;
+    v.dirty = true;
   }
 
   private ChunkScene.Config sceneConfig(View v, boolean points) {
@@ -1215,15 +1253,12 @@ public final class Viewports implements AutoCloseable {
         v.completed = false;
         try {
           v.gl.scene(v.scene.epoch(), state.user.performance.sceneGpuMiB << 20);
+          if (admissionProbe && probeRendererStartupFailure.compareAndSet(true, false))
+            throw new IllegalStateException("Injected streaming renderer startup failure");
           v.gpuBudget = state.user.performance.sceneGpuMiB;
           v.gl.setPalette(setup.palette);
         } catch (RuntimeException gpu) {
-          v.scene.close();
-          v.scene = null;
-          v.gl.sceneDisabled();
-          v.failedKey = key;
-          v.streamFallback = true;
-          v.dirty = true;
+          rendererFallback(v, key);
           state.notify(
               "Error", "Streaming renderer unavailable; using fixed preview: " + gpu.getMessage());
           return false;
@@ -1241,6 +1276,8 @@ public final class Viewports implements AutoCloseable {
           v.scene.invalidateUploads();
           v.gpuBudget = state.user.performance.sceneGpuMiB;
         }
+        if (admissionProbe && probeRendererFrameFailure.compareAndSet(true, false))
+          throw new IllegalStateException("Injected streaming renderer frame failure");
         gpu.beginFrame();
         for (var removed : v.scene.removed()) gpu.remove(removed);
         int budget = state.user.performance.uploadKiB * 1024;
@@ -1344,11 +1381,7 @@ public final class Viewports implements AutoCloseable {
                           + " bytes remain"
                       : "");
       } catch (RuntimeException gpu) {
-        v.scene.close();
-        v.scene = null;
-        v.gl.sceneDisabled();
-        v.failedKey = key;
-        v.dirty = true;
+        rendererFallback(v, key);
         state.error(
             "STREAM_RENDER_FAILED",
             EditorEvents.Subsystem.RENDERING,
@@ -1767,7 +1800,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void pick(View v, float nx, float ny, float aspect) {
-    if (wantsStreaming(v)
+    if (usesStreaming(v)
         ? v.scene == null
             || !v.activeSceneKey.equals(sceneKey(v))
             || v.gl.sceneRenderer() == null
