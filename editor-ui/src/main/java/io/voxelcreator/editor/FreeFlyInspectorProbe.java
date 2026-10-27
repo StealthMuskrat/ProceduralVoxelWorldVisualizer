@@ -158,7 +158,8 @@ final class FreeFlyInspectorProbe {
     p.voxelTypes.add(type);
     var source = new Noise();
     source.id = "flight-constant";
-    source.algorithm.kind = "CONSTANT";
+    source.dimension = 3;
+    source.algorithm.key = "CONSTANT";
     source.algorithm.parameters.put("value", 1d);
     p.noise3D.add(source);
     var layer = new Layer();
@@ -247,7 +248,9 @@ final class FreeFlyInspectorProbe {
 
   private static void click(float x, float y) {
     ImGui.getIO().addMousePosEvent(x, y);
-    frame();
+    // Captured cursor cannot hover another window first: that delta is mouse look.
+    // Submit the focus-changing position and press in the same native input frame.
+    if (!views.flying()) frame();
     ImGui.getIO().addMouseButtonEvent(0, true);
     frame();
     ImGui.getIO().addMouseButtonEvent(0, false);
