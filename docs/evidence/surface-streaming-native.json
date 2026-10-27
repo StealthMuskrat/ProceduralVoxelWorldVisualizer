@@ -1,0 +1,49 @@
+{
+  "formatVersion" : 1,
+  "surfaceUnits" : 128,
+  "voxelUnits" : 2,
+  "packedBytes" : 393216,
+  "maximumUploadBytes" : 4096,
+  "relocatedBytes" : 393792,
+  "left" : [ 255, 0, 0, 255 ],
+  "right" : [ 0, 255, 0, 255 ],
+  "fallbackHash" : "24a45f40c80643a6ad7d1de74b53026500eb92b3c6023cc77a06f08d81a985a1",
+  "compactedHash" : "24a45f40c80643a6ad7d1de74b53026500eb92b3c6023cc77a06f08d81a985a1",
+  "indirectParity" : true,
+  "fixedPixel" : [ 45, 89, 44, 255 ],
+  "stages" : [ {
+    "name" : "stream-origin",
+    "pixel" : [ 45, 89, 44, 255 ],
+    "chunk" : [ 0, 0, 0 ],
+    "reserved" : 575248,
+    "cpuBytes" : 3844704,
+    "epoch" : 7,
+    "resident" : 14
+  }, {
+    "name" : "stream-positive",
+    "pixel" : [ 45, 89, 44, 255 ],
+    "chunk" : [ 1, 0, 0 ],
+    "reserved" : 0,
+    "cpuBytes" : 8159064,
+    "epoch" : 7,
+    "resident" : 27
+  }, {
+    "name" : "stream-negative",
+    "pixel" : [ 45, 89, 44, 255 ],
+    "chunk" : [ -1, 0, 0 ],
+    "reserved" : 0,
+    "cpuBytes" : 8159064,
+    "epoch" : 7,
+    "resident" : 27
+  }, {
+    "name" : "stream-return",
+    "pixel" : [ 45, 89, 44, 255 ],
+    "chunk" : [ -1, 0, 0 ],
+    "reserved" : 575248,
+    "cpuBytes" : 2118960,
+    "epoch" : 8,
+    "resident" : 8
+  } ],
+  "viewOnly" : true,
+  "fixedReturn" : true
+}
