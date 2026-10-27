@@ -40,6 +40,8 @@ public final class Viewports implements AutoCloseable {
 
   private final ResourcePicker generatorPicker;
   private boolean admissionProbe;
+  private final java.util.concurrent.atomic.AtomicBoolean probeStreamCompileFailure =
+      new java.util.concurrent.atomic.AtomicBoolean();
   private final Map<String, float[]> admissionControls = new HashMap<>();
 
   void probeAdmissionSource(UUID noise) {
@@ -137,6 +139,18 @@ public final class Viewports implements AutoCloseable {
     return views[kind].message;
   }
 
+  void probeFailNextStreamCompilation() {
+    probeStreamCompileFailure.set(true);
+  }
+
+  long probeStream3DEpoch() {
+    return views[1].scene == null ? -1 : views[1].scene.epoch();
+  }
+
+  boolean probeStreamSourceFailed() {
+    return views[1].failedPreview && !views[1].streamFallback;
+  }
+
   private void admissionControl(String key) {
     if (admissionProbe)
       admissionControls.put(
@@ -167,7 +181,7 @@ public final class Viewports implements AutoCloseable {
     Future<?> compiler;
     final OwnedPreviewMailbox<SceneSetup> setup = new OwnedPreviewMailbox<>();
     int gpuBudget;
-    boolean streamingObserved;
+    boolean streamingObserved, streamFallback;
     double frameMillis = 16;
 
     String stageMode = "Final";
@@ -1118,7 +1132,7 @@ public final class Viewports implements AutoCloseable {
   private boolean stream(View v) {
     if (v.kind == 1 && v.noise == null) return true;
     String key = sceneKey(v);
-    if (key.equals(v.failedKey)) return false;
+    if (key.equals(v.failedKey)) return !v.streamFallback;
     long now = System.nanoTime();
     if ((v.scene == null || !v.activeSceneKey.equals(key))
         && !v.requestedKey.equals(key)
@@ -1141,6 +1155,9 @@ public final class Viewports implements AutoCloseable {
                     if (!v.setup.current(id)) return;
                     SceneSetup result;
                     try {
+                      if (admissionProbe && probeStreamCompileFailure.compareAndSet(true, false))
+                        throw new IllegalStateException(
+                            "Injected streaming source compilation failure");
                       var sourcePalette = palette(snapshot, kind);
                       var source =
                           PreviewSources.create(
@@ -1167,14 +1184,21 @@ public final class Viewports implements AutoCloseable {
         v.requestedKey = "";
       } else if (setup.error != null) {
         v.failedKey = key;
+        v.streamFallback = false;
+        v.failedPreview = true;
+        v.force = false;
+        v.message = "Source compilation failed; previous display retained; Regenerate to retry";
         v.requestedKey = "";
         v.dirty = true;
         state.error(
             "STREAM_SOURCE_FAILED",
             EditorEvents.Subsystem.RENDERING,
             "Streaming source failed: " + setup.error);
-        return false;
+        return true;
       } else {
+        v.failedPreview = false;
+        v.failedKey = "";
+        v.streamFallback = false;
         if (v.scene != null) v.scene.close();
         UUID profileProject = state.project().project.uuid;
         v.scene =
@@ -1198,6 +1222,7 @@ public final class Viewports implements AutoCloseable {
           v.scene = null;
           v.gl.sceneDisabled();
           v.failedKey = key;
+          v.streamFallback = true;
           v.dirty = true;
           state.notify(
               "Error", "Streaming renderer unavailable; using fixed preview: " + gpu.getMessage());

@@ -263,6 +263,28 @@ public final class PreviewAdmissionProbe {
             require(
                 authored.equals(ProjectIO.JSON.valueToTree(state.project())),
                 "Streaming Undo did not restore project");
+            long retainedEpoch = views.probeStream3DEpoch();
+            views.probeFailNextStreamCompilation();
+            click("toolbar", 0);
+            until(views::probeStreamSourceFailed);
+            require(
+                retainedEpoch == views.probeStream3DEpoch(),
+                "Source failure replaced last valid scene");
+            long failedStamp = views.probeSubmissionStamp(1);
+            frames(10);
+            require(
+                failedStamp == views.probeSubmissionStamp(1)
+                    && retainedEpoch == views.probeStream3DEpoch(),
+                "Source failure retried or fell through to fixed generation");
+            require(
+                views.probeSourceStatus(1).contains("Regenerate"),
+                "Source failure lacks retry status");
+            click("toolbar", 0);
+            until(
+                () ->
+                    views.probeStream3DReady()
+                        && !views.probeStreamSourceFailed()
+                        && views.probeStream3DEpoch() != retainedEpoch);
             views.probeNoiseTab(0);
             frames(3);
             double raw = views.probeAcceptedImage().sample(.5, .5).raw();
@@ -271,7 +293,11 @@ public final class PreviewAdmissionProbe {
                 out.resolve("preview-admission-native.json"),
                 ProjectIO.JSON.writeValueAsString(
                     Map.ofEntries(
-                        Map.entry("formatVersion", 4),
+                        Map.entry("formatVersion", 5),
+                        Map.entry("sourceFailureRetained", true),
+                        Map.entry("sourceFailureNoRetry", true),
+                        Map.entry("sourceRetryRecovered", true),
+                        Map.entry("retainedStreamEpoch", retainedEpoch),
                         Map.entry("streamGenerated", streamGenerated),
                         Map.entry("streamClearReleased", true),
                         Map.entry("streamDeleteReleased", true),

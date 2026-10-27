@@ -1,7 +1,7 @@
 import json,sys
 from pathlib import Path
 r=json.loads((Path(sys.argv[1])/'preview-admission-native.json').read_text())
-assert r['formatVersion']==4 and r['workers']==2 and r['queueCapacity']==8
+assert r['formatVersion']==5 and r['workers']==2 and r['queueCapacity']==8
 assert 'configured budget' in r['budgetMessage'] and 'queue is full' in r['queueMessage']
 assert r['raw']==.75
 assert all(r[k] is True for k in ['retainedImage','contextRetry','toolbarRetry','otherViewsUnblocked','viewOnly'])
@@ -21,3 +21,7 @@ print('VIEWPORT_SELECTION_RECOVERY_PASS 3D / independent filters / clear / missi
 assert r['streamGenerated']>0
 assert all(r[k] is True for k in ['streamClearReleased','streamDeleteReleased','streamReselect','streamUndoRestored'])
 print('VIEWPORT_STREAM_RECOVERY_PASS generated / clear-delete CPU-GPU release / reselect / Undo')
+
+assert r['retainedStreamEpoch']>0
+assert all(r[k] is True for k in ['sourceFailureRetained','sourceFailureNoRetry','sourceRetryRecovered'])
+print('STREAM_SOURCE_FAILURE_PASS retained epoch / no fixed fallback / explicit retry')
