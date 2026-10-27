@@ -36,7 +36,8 @@ public final class Viewports implements AutoCloseable {
   private final UiFields fields = new UiFields();
   private int active = 0;
   private int drawnView = -1;
-  private boolean viewportFocused, flightImageVisible, surfacePressed;
+  private boolean viewportFocused, flightImageVisible, sliceImageVisible, surfacePressed;
+  private SliceImageView.Sample probeSliceHover;
   private String probeFlightInput = "";
   private boolean probeOrbitContextVisible;
   private int smokeTab = -1;
@@ -328,6 +329,57 @@ public final class Viewports implements AutoCloseable {
     }
   }
 
+  void probeSlice(
+      UUID noise, SlicePlane plane, int side, int slice, double u, double vertical, double step) {
+    admissionProbe = true;
+    smokeTab = 1;
+    var v = views[1];
+    v.noise = noise;
+    v.mode = "Slices";
+    v.fixed = false;
+    v.slicePlane = plane;
+    v.slice = slice;
+    v.size = side;
+    v.step = step;
+    v.panX = plane == SlicePlane.X ? 0 : u;
+    v.panY = plane == SlicePlane.X ? u : plane == SlicePlane.Z ? vertical : 0;
+    v.panZ = plane == SlicePlane.Z ? 0 : vertical;
+    v.sliceInput.reset();
+    mark(v);
+  }
+
+  void probeSliceRequest(SlicePlane plane, int side, int slice) {
+    var v = views[1];
+    v.slicePlane = plane;
+    v.size = side;
+    v.slice = slice;
+    mark(v);
+  }
+
+  void probeSliceTab() {
+    smokeTab = 1;
+  }
+
+  SliceNavigation probeSliceNavigation() {
+    return sliceNavigation(views[1]);
+  }
+
+  SliceImageView probeSliceView() {
+    return views[1].displayedSlice;
+  }
+
+  SliceImageView.Sample probeSliceHover() {
+    return probeSliceHover;
+  }
+
+  Coordinates probeSlicePicked() {
+    return views[1].pickedBookmark;
+  }
+
+  double[] probeSliceRaw() {
+    return views[1].raw.clone();
+  }
+
   boolean probeNoiseReady(int kind) {
     var v = views[kind];
     return v.completed && !v.dirty && !v.activeJob && !v.failedPreview;
@@ -412,13 +464,23 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void admissionControl(String key) {
-    if (admissionProbe)
+    if (admissionProbe) {
       admissionControls.put(
           key,
           new float[] {
             (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
             (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
           });
+      if (key.equals("image"))
+        admissionControls.put(
+            "image-bounds",
+            new float[] {
+              ImGui.getItemRectMinX(),
+              ImGui.getItemRectMinY(),
+              ImGui.getItemRectMaxX() - ImGui.getItemRectMinX(),
+              ImGui.getItemRectMaxY() - ImGui.getItemRectMinY()
+            });
+    }
   }
 
   private static final class View {
@@ -429,6 +491,7 @@ public final class Viewports implements AutoCloseable {
     final OrbitGesture orbit = new OrbitGesture();
     final NoiseImageRows imageRows = new NoiseImageRows();
     final NoiseImageInput imageInput = new NoiseImageInput();
+    final SliceInput sliceInput = new SliceInput();
     NoiseImageRows.Statistics imageStatistics;
     NoiseImageView displayedImage;
     VoxelRaycast.Bounds fixedPickBounds;
@@ -451,9 +514,8 @@ public final class Viewports implements AutoCloseable {
     String mode;
     double panX = 0, panZ = 0, panY = 16, step = 1, threshold = 0;
     int size = 32, slice = 0, volumeSteps = 192;
-    SlicePlane slicePlane = SlicePlane.Y, displayedSlicePlane = SlicePlane.Y;
-    int displayedSlice;
-    double displayedStep = 1;
+    SlicePlane slicePlane = SlicePlane.Y;
+    SliceImageView displayedSlice;
     double volumeMin = -1, volumeMax = 1, volumeOpacity = .12;
     final Set<String> completedModes = new HashSet<>();
     boolean fixed = false, dirty = true, activeJob = false, force = false;
@@ -611,7 +673,8 @@ public final class Viewports implements AutoCloseable {
       String error,
       VolumeData volume,
       NoiseImageRows.Statistics imageStatistics,
-      NoiseImageView imageView) {
+      NoiseImageView imageView,
+      SliceImageView sliceView) {
     Preview(
         long epoch,
         Mesh mesh,
@@ -626,7 +689,7 @@ public final class Viewports implements AutoCloseable {
         VolumeData volume) {
       this(
           epoch, mesh, image, raw, width, origin, palette, histogram, sampler, error, volume, null,
-          null);
+          null, null);
     }
 
     Preview(
@@ -642,7 +705,7 @@ public final class Viewports implements AutoCloseable {
         String error) {
       this(
           epoch, mesh, image, raw, width, origin, palette, histogram, sampler, error, null, null,
-          null);
+          null, null);
     }
   }
 
@@ -682,6 +745,8 @@ public final class Viewports implements AutoCloseable {
     drawnView = -1;
     viewportFocused = false;
     flightImageVisible = false;
+    sliceImageVisible = false;
+    probeSliceHover = null;
     surfacePressed = false;
     probeOrbitContextVisible = false;
     inspectorHintVisible = inspectorTraceVisible = inspectorDraftNoticeVisible = false;
@@ -711,6 +776,7 @@ public final class Viewports implements AutoCloseable {
     for (var v : views) {
       if (v.kind != drawnView) v.flight.pause();
       if (v.kind != drawnView || !flightImageVisible) v.orbit.reset();
+      if (v.kind != drawnView || !sliceImageVisible) v.sliceInput.reset();
       v.flight.reconcile(flightEligible(v), inspector.get());
     }
     syncFlightCursor();
@@ -885,6 +951,7 @@ public final class Viewports implements AutoCloseable {
             if (!Objects.equals(v.noise, id)) {
               v.noise = id;
               v.imageInput.reset();
+              v.sliceInput.reset();
               v.pickedBookmark = null;
               mark(v);
             }
@@ -975,6 +1042,15 @@ public final class Viewports implements AutoCloseable {
                 mark(v);
               });
           ImGui.textDisabled("Image axes " + v.slicePlane.axes());
+          if (v.displayedSlice != null)
+            ImGui.textDisabled(
+                String.format(
+                    Locale.ROOT,
+                    "Displayed: %s slice %d, extent %d, spacing %.5g",
+                    v.displayedSlice.plane(),
+                    v.displayedSlice.slice(),
+                    v.displayedSlice.side(),
+                    v.displayedSlice.step()));
         }
       }
       fields.integer(
@@ -1092,11 +1168,7 @@ public final class Viewports implements AutoCloseable {
           else v.gl.setMesh(ready.mesh);
           v.image = false;
         }
-        if (v.mode.equals("Slices")) {
-          v.displayedSlicePlane = v.slicePlane;
-          v.displayedSlice = v.slice;
-          v.displayedStep = v.step;
-        }
+        if (v.kind == 1) v.displayedSlice = ready.sliceView;
         v.completedModes.add(
             v.kind == 2
                 ? v.stageMode
@@ -1134,6 +1206,7 @@ public final class Viewports implements AutoCloseable {
               ? "Selected generator is missing; choose another or restore it"
               : "No generator selected";
       v.imageInput.reset();
+      v.sliceInput.reset();
       v.pickedBookmark = null;
       ImGui.spacing();
       ImGui.textWrapped(
@@ -1170,7 +1243,8 @@ public final class Viewports implements AutoCloseable {
     float cursorX = ImGui.getCursorPosX(), cursorY = ImGui.getCursorPosY();
     ImGui.image(v.gl.texture(), w, h, 0, v.image ? 0 : 1, 1, v.image ? 1 : 0);
     flightImageVisible = v.kind > 0 && !(v.kind == 1 && v.mode.equals("Slices"));
-    if (flightImageVisible) {
+    sliceImageVisible = v.kind == 1 && v.mode.equals("Slices");
+    if (flightImageVisible || sliceImageVisible) {
       // Own image presses so a camera drag cannot also move the containing ImGui window.
       ImGui.setCursorPos(cursorX, cursorY);
       ImGui.invisibleButton(
@@ -1208,7 +1282,7 @@ public final class Viewports implements AutoCloseable {
     var io = ImGui.getIO();
     boolean enteredFlight = false;
     surfacePressed =
-        flightImageVisible
+        (flightImageVisible || sliceImageVisible)
             && hovered
             && (ImGui.isMouseClicked(0) || ImGui.isMouseClicked(1) || ImGui.isMouseClicked(2));
     if (surfacePressed
@@ -1244,6 +1318,7 @@ public final class Viewports implements AutoCloseable {
     OrbitGesture.Click orbitClick = orbitInput(v, hovered);
     if (hovered
         && !flightImageVisible
+        && !sliceImageVisible
         && (ImGui.isMouseClicked(1)
             || ImGui.isMouseReleased(0)
                 && Math.abs(ImGui.getMouseDragDeltaX(0)) < 3
@@ -1252,6 +1327,7 @@ public final class Viewports implements AutoCloseable {
       rememberPicked(v, px, py, w, h);
       ImGui.openPopup("viewport-context");
     }
+    if (sliceImageVisible && hovered && ImGui.isMouseClicked(1)) rememberPicked(v, px, py, w, h);
     if (flightImageVisible
         ? ImGui.beginPopup("viewport-context")
         : ImGui.beginPopupContextItem("viewport-context")) {
@@ -1291,6 +1367,19 @@ public final class Viewports implements AutoCloseable {
         state.status = "2D navigation exceeds finite coordinate range";
       }
     }
+    if (sliceImageVisible) {
+      try {
+        var before = sliceNavigation(v);
+        var result = v.sliceInput.navigate(before, surfaceEligible(v), hovered, px, py, w, h);
+        if (!before.equals(result.navigation())) {
+          applySliceNavigation(v, before, result.navigation());
+          mark(v);
+        }
+        if (result.picked()) rememberPicked(v, px, py, w, h);
+      } catch (IllegalArgumentException invalid) {
+        state.status = "Slice navigation exceeds finite coordinate range";
+      }
+    }
     if (hovered) {
       if (v.kind == 0) {
         String sample = "Waiting for a displayed preview";
@@ -1312,50 +1401,20 @@ public final class Viewports implements AutoCloseable {
         }
         ImGui.textDisabled(sample);
       } else if (v.kind == 1 && v.mode.equals("Slices")) {
-        if (ImGui.isMouseDragging(0) || ImGui.isMouseDragging(2)) {
-          double du = -io.getMouseDeltaX() / w * v.size * v.step,
-              dv = -io.getMouseDeltaY() / h * v.size * v.step;
-          if (v.slicePlane == SlicePlane.X) {
-            v.panY += du;
-            v.camera.focus.y += du;
-          } else {
-            v.panX += du;
-            v.camera.focus.x += du;
-          }
-          if (v.slicePlane == SlicePlane.Z) {
-            v.panY += dv;
-            v.camera.focus.y += dv;
-          } else {
-            v.panZ += dv;
-            v.camera.focus.z += dv;
-          }
-          mark(v);
-        }
-        if (io.getMouseWheel() != 0) {
-          v.step = Math.max(.0001, Math.min(10000, v.step * Math.exp(-io.getMouseWheel() * .15)));
-          mark(v);
-        }
-        if (v.hoverSampler != null && v.image) {
-          SlicePlane plane = v.displayedSlicePlane;
-          double
-              u =
-                  (plane == SlicePlane.X ? v.origin.y : v.origin.x)
-                      + (io.getMousePosX() - px) / w * v.size * v.displayedStep,
-              vv =
-                  (plane == SlicePlane.Z ? v.origin.y : v.origin.z)
-                      + (io.getMousePosY() - py) / h * v.size * v.displayedStep;
-          double x = plane.x(u, vv, v.displayedSlice),
-              y = plane.y(u, vv, v.displayedSlice),
-              z = plane.z(u, vv, v.displayedSlice);
+        if (v.displayedSlice != null && v.image) {
           try {
+            var sample =
+                v.displayedSlice.sample((io.getMousePosX() - px) / w, (io.getMousePosY() - py) / h);
+            probeSliceHover = sample;
+            var point = sample.point();
             ImGui.textDisabled(
                 String.format(
                     Locale.ROOT,
                     "X %.5f Y %.5f Z %.5f  Raw %.8f",
-                    x,
-                    y,
-                    z,
-                    v.hoverSampler.sample(x, y, z)));
+                    point.x(),
+                    point.y(),
+                    point.z(),
+                    sample.raw()));
           } catch (RuntimeException failure) {
             ImGui.textDisabled("Sample failed: " + failure.getMessage());
           }
@@ -1717,6 +1776,7 @@ public final class Viewports implements AutoCloseable {
 
   private void release(View v) {
     v.orbit.reset();
+    v.sliceInput.reset();
     if (v.camera.flying) v.camera.leaveFly();
     v.flight.exit();
     syncFlightCursor();
@@ -1759,13 +1819,45 @@ public final class Viewports implements AutoCloseable {
   }
 
   private boolean flightEligible(View v) {
+    return flightImageVisible && surfaceEligible(v);
+  }
+
+  private boolean surfaceEligible(View v) {
     return drawnView == v.kind
-        && flightImageVisible
+        && (flightImageVisible || sliceImageVisible)
         && viewportFocused
         && glfwGetWindowAttribBoolean(handle, GLFW_FOCUSED)
         && (!ImGui.getIO().getWantTextInput() || surfacePressed)
-        && !ShortcutKeys.popup()
-        && !(v.kind == 1 && v.mode.equals("Slices"));
+        && !ShortcutKeys.popup();
+  }
+
+  private static SliceNavigation sliceNavigation(View v) {
+    return new SliceNavigation(
+        v.slicePlane,
+        v.slice,
+        v.slicePlane == SlicePlane.X ? v.panY : v.panX,
+        v.slicePlane == SlicePlane.Z ? v.panY : v.panZ,
+        v.step,
+        v.size);
+  }
+
+  private static void applySliceNavigation(View v, SliceNavigation before, SliceNavigation after) {
+    double du = after.u() - before.u(), dv = after.v() - before.v();
+    if (v.slicePlane == SlicePlane.X) {
+      v.panY = after.u();
+      v.camera.focus.y += du;
+    } else {
+      v.panX = after.u();
+      v.camera.focus.x += du;
+    }
+    if (v.slicePlane == SlicePlane.Z) {
+      v.panY = after.v();
+      v.camera.focus.y += dv;
+    } else {
+      v.panZ = after.v();
+      v.camera.focus.z += dv;
+    }
+    v.step = after.step();
   }
 
   private void syncFlightCursor() {
@@ -1818,7 +1910,10 @@ public final class Viewports implements AutoCloseable {
     double panX = v.panX, panZ = v.panZ, step = v.step, threshold = v.threshold;
     int slice = v.slice;
     SlicePlane slicePlane = v.slicePlane;
-    double centerY = v.fixed ? v.panY : v.camera.flying ? v.camera.position.y : v.camera.focus.y;
+    double centerY =
+        v.fixed || mode.equals("Slices")
+            ? v.panY
+            : v.camera.flying ? v.camera.position.y : v.camera.focus.y;
     boolean fixed = v.fixed;
     final long cacheBudget = (long) state.user.performance.cacheMiB * 1024 * 1024;
     final boolean freshImage = v.force;
@@ -1904,8 +1999,16 @@ public final class Viewports implements AutoCloseable {
                             null,
                             null,
                             imageStatistics,
-                            kind == 0
-                                ? new NoiseImageView(panX, panZ, step, side, sampler)
+                            kind == 0 ? new NoiseImageView(panX, panZ, step, side, sampler) : null,
+                            kind == 1
+                                ? new SliceImageView(
+                                    slicePlane,
+                                    slice,
+                                    slicePlane == SlicePlane.X ? origin.y : origin.x,
+                                    slicePlane == SlicePlane.Z ? origin.y : origin.z,
+                                    step,
+                                    side,
+                                    sampler)
                                 : null));
                   } else if (kind == 1 && mode.equals("Volume")) {
                     var sampler = new NoiseCompiler(snapshot, snapshot.project.seed).compile(noise);
@@ -2141,21 +2244,12 @@ public final class Viewports implements AutoCloseable {
             v.displayedImage.at(
                 (io.getMousePosX() - px) / width, (io.getMousePosY() - py) / height);
         v.pickedBookmark = BookmarkTransactions.capture(Tab.NOISE_2D, point.x(), 0, point.z());
-      } else if (v.kind == 1 && v.mode.equals("Slices") && v.image) {
-        var plane = v.displayedSlicePlane;
-        double
-            u =
-                (plane == SlicePlane.X ? v.origin.y : v.origin.x)
-                    + (io.getMousePosX() - px) / width * v.size * v.displayedStep,
-            vertical =
-                (plane == SlicePlane.Z ? v.origin.y : v.origin.z)
-                    + (io.getMousePosY() - py) / height * v.size * v.displayedStep;
+      } else if (v.kind == 1 && v.mode.equals("Slices") && v.image && v.displayedSlice != null) {
+        var point =
+            v.displayedSlice.at(
+                (io.getMousePosX() - px) / width, (io.getMousePosY() - py) / height);
         v.pickedBookmark =
-            BookmarkTransactions.capture(
-                Tab.NOISE_3D,
-                plane.x(u, vertical, v.displayedSlice),
-                plane.y(u, vertical, v.displayedSlice),
-                plane.z(u, vertical, v.displayedSlice));
+            BookmarkTransactions.capture(Tab.NOISE_3D, point.x(), point.y(), point.z());
       }
     } catch (IllegalArgumentException failure) {
       v.pickedBookmark = null;

@@ -137,3 +137,48 @@ assert all(orbit[key] is True for key in ['outsideCaptured', 'panWithoutMenu', '
     'longPressIgnored', 'stickyDrag', 'foreignIgnored', 'escapeRollback', 'focusCanceled',
     'tabCanceled', 'middleAxisLocked', 'wheelSuppressed', 'freshPickRecovered', 'viewOnly'])
 print('ORBIT_INPUT_PASS independent orbit-pan-middle arithmetic / captured outside / pan-context separation / sticky drags / focus-tab-Escape cleanup / view-only')
+
+slice_root = Path(sys.argv[1]) / 'slice-input'
+slices = json.loads((slice_root / 'slice-input-native.json').read_text())
+slice_project = json.loads((slice_root / 'slice-project.json').read_text())
+assert slices['formatVersion'] == 1
+assert [row['plane'] for row in slices['samples']] == ['X', 'Y', 'Z']
+
+def slice_point(row, x, y):
+    u = row['origin'][0] + x * row['side'] * row['step']
+    v = row['origin'][1] + y * row['side'] * row['step']
+    return {'X': [row['slice'], u, v], 'Y': [u, row['slice'], v],
+            'Z': [u, v, row['slice']]}[row['plane']]
+
+def affine(point):
+    return point[0] + 10 * point[1] + 100 * point[2]
+
+for row in slices['samples'] + [slices['pending'], slices['refreshed']]:
+    expected = slice_point(row, *row['pointer'])
+    assert all(math.isclose(a, b, rel_tol=0, abs_tol=1e-9) for a, b in zip(expected, row['point']))
+    assert math.isclose(affine(expected), row['raw'], rel_tol=0, abs_tol=1e-9)
+for row in slices['samples'] + [slices['refreshed']]:
+    last = (row['side'] - 1) / row['side']
+    assert math.isclose(affine(slice_point(row, 0, 0)), row['first'], rel_tol=0, abs_tol=1e-9)
+    assert math.isclose(affine(slice_point(row, last, last)), row['last'], rel_tol=0, abs_tol=1e-9)
+assert all(row['origin'] == [-10.25, 9.5] and row['side'] == 8 and row['slice'] == -3
+           for row in slices['samples'])
+before, after = slices['zoomBefore'], slices['zoomAfter']
+assert before == [-7.25, 12.5, .75, 8]
+assert math.isclose(after[2], .75 * math.exp(-.3), rel_tol=0, abs_tol=1e-12)
+for axis in (0, 1):
+    offset = slices['anchor'][axis] * before[3] - before[3] / 2
+    assert math.isclose(before[axis] + offset * before[2], after[axis] + offset * after[2], abs_tol=1e-10)
+assert [pan['button'] for pan in slices['pans']] == [0, 2]
+for pan in slices['pans']:
+    b, a = pan['before'], pan['after']
+    assert math.isclose(a[0], b[0] - pan['du'] * b[3] * b[2], abs_tol=1e-10)
+    assert math.isclose(a[1], b[1] - pan['dv'] * b[3] * b[2], abs_tol=1e-10)
+assert (slices['pending']['plane'], slices['pending']['side'], slices['pending']['slice']) == ('X', 8, -3)
+assert (slices['refreshed']['plane'], slices['refreshed']['side'], slices['refreshed']['slice']) == ('Z', 16, 9)
+assert slices['picked'] == [math.floor(v) for v in slices['pending']['point']]
+assert slice_project['noise3D'][0]['processing'][0]['parameters']['expression'] == 'x + 10*y + 100*z'
+assert all(slices[key] is True for key in ['allPlanes', 'anchoredZoom', 'outsidePan', 'wheelSuppressed',
+    'escapeRollback', 'foreignIgnored', 'focusCanceled', 'tabCanceled', 'requestSuperseded', 'pendingGeometry',
+    'bookmarkGeometry', 'manualPreview', 'immutableAccepted', 'viewOnly'])
+print('SLICE_INPUT_PASS independent XYZ affine grid-hover / anchored zoom / captured left-middle / cancellation / immutable pending bookmark geometry / view-only')

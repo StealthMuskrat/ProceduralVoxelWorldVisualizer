@@ -313,6 +313,7 @@ public final class WorldPickingProbe {
         InspectorFreshnessProbe.run(out.resolve("inspector-freshness"), window);
         FreeFlyInspectorProbe.run(out.resolve("free-fly"), window);
         OrbitInputProbe.run(out.resolve("orbit-input"), window);
+        SliceInputProbe.run(out.resolve("slice-input"), window);
       } finally {
         ImGui.destroyContext();
       }
