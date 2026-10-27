@@ -37,6 +37,7 @@ public final class Viewports implements AutoCloseable {
   private int active = 0;
   private int drawnView = -1;
   private boolean viewportFocused, flightImageVisible;
+  private String probeFlightInput = "";
   private int smokeTab = -1;
   private final InspectorRequests traceRequests = new InspectorRequests();
   private final InspectorTask inspectorTask = new InspectorTask();
@@ -259,6 +260,10 @@ public final class Viewports implements AutoCloseable {
 
   boolean probeCameraFlying(int kind) {
     return views[kind].camera.flying;
+  }
+
+  String probeFlightInput() {
+    return probeFlightInput;
   }
 
   void probeAdmissionSource(UUID noise) {
@@ -1177,6 +1182,28 @@ public final class Viewports implements AutoCloseable {
     var io = ImGui.getIO();
     boolean enteredFlight = false;
     v.flight.reconcile(flightEligible(v), inspector.get());
+    if (admissionProbe)
+      probeFlightInput =
+          "kind="
+              + v.kind
+              + " focused="
+              + viewportFocused
+              + " native="
+              + glfwGetWindowAttribBoolean(handle, GLFW_FOCUSED)
+              + " hovered="
+              + hovered
+              + " text="
+              + io.getWantTextInput()
+              + " popup="
+              + ShortcutKeys.popup()
+              + " eligible="
+              + flightEligible(v)
+              + " ctrl="
+              + io.getKeyCtrl()
+              + " clicked="
+              + ImGui.isMouseClicked(0)
+              + " mode="
+              + v.flight.mode();
     if (hovered
         && (ImGui.isMouseClicked(1)
             || ImGui.isMouseReleased(0)

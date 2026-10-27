@@ -179,11 +179,12 @@ final class FreeFlyInspectorProbe {
     ImGui.getIO().addMousePosEvent(p[0], p[1]);
     frame();
     key(ImGuiKey.ModCtrl, true);
+    frame();
     ImGui.getIO().addMouseButtonEvent(0, true);
     frame();
     require(
         views.probeFlightMode(2) == ViewportFlight.Mode.CAPTURED,
-        "Ctrl+click did not capture flight");
+        "Ctrl+click did not capture flight: " + views.probeFlightInput());
     cursor(GLFW_CURSOR_DISABLED);
     ImGui.getIO().addMouseButtonEvent(0, false);
     key(ImGuiKey.ModCtrl, false);
