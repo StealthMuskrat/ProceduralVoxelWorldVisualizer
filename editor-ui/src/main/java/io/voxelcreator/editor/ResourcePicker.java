@@ -19,7 +19,7 @@ public final class ResourcePicker {
   }
 
   private final Map<Integer, Widget> widgets = new LinkedHashMap<>(16, .75f, true);
-  private boolean probeOpen;
+  private boolean probeOpen, focused;
   private final Map<UUID, float[]> optionBounds = new HashMap<>();
   private int submitted;
   private float[] buttonBounds, noneBounds;
@@ -65,6 +65,7 @@ public final class ResourcePicker {
       ImGui.openPopup("resource-choice");
       probeOpen = false;
     }
+    focused = ImGui.isItemActive() || ImGui.isItemFocused();
     buttonBounds =
         new float[] {
           (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
@@ -131,6 +132,10 @@ public final class ResourcePicker {
 
   float[] noneCenter() {
     return noneBounds.clone();
+  }
+
+  boolean focused() {
+    return focused;
   }
 
   float[] buttonCenter() {

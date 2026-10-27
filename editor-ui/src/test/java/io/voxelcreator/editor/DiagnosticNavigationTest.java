@@ -75,6 +75,90 @@ class DiagnosticNavigationTest {
   }
 
   @Test
+  void bindingLeavesResolveExactDecodedNamesAndVectorComponents() {
+    var p = project();
+    var item = p.noise2D.getFirst().processing.getFirst();
+    var binding = Binding.constant(2);
+    for (String field :
+        List.of(
+            "type",
+            "sourceKind",
+            "value",
+            "parameterUuid",
+            "itemUuid",
+            "noiseGeneratorUuid",
+            "ambientKey",
+            "projection",
+            "slice")) {
+      var t =
+          new EditorEvents.Target(
+              p.project.uuid,
+              p.noise2D.getFirst().uuid,
+              item.uuid,
+              "inputs/a/b~c",
+              "/noise2D/7/processing/19/inputs/a~1b~0c/" + field,
+              false);
+      assertEquals(field, DiagnosticNavigation.bindingField(t, "a/b~c", binding));
+    }
+    binding.type = "Coordinates3D";
+    for (int i = 0; i < 3; i++) {
+      var t =
+          new EditorEvents.Target(
+              p.project.uuid,
+              p.noise2D.getFirst().uuid,
+              item.uuid,
+              "inputs/coordinates",
+              "/noise2D/7/coordinateTransforms/19/inputs/coordinates/value/" + i,
+              false);
+      assertEquals("value/" + i, DiagnosticNavigation.bindingField(t, "coordinates", binding));
+    }
+  }
+
+  @Test
+  void wrongBindingAndParameterNamedInputsCannotRedirectLeafFocus() {
+    var p = project();
+    var b = Binding.constant(2);
+    var base = target(p);
+    for (String pointer :
+        List.of(
+            "/noise2D/0/processing/0/inputs/other/type",
+            "/noise2D/0/processing/0/parameters/inputs/bias/type",
+            "/runtime/inputs/bias/type")) {
+      var t =
+          new EditorEvents.Target(
+              base.project(), base.resource(), base.control(), "inputs/bias", pointer, false);
+      assertEquals("value", DiagnosticNavigation.bindingField(t, "bias", b));
+    }
+  }
+
+  @Test
+  void inputLinksWithoutStructuralLeavesFocusTheCurrentSourceEditor() {
+    var base = target(project());
+    for (var entry :
+        Map.of(
+                "Constant",
+                "value",
+                "Shared Parameter",
+                "parameterUuid",
+                "Earlier Result",
+                "itemUuid",
+                "Noise Generator Reference",
+                "noiseGeneratorUuid",
+                "Ambient Value",
+                "ambientKey",
+                "Source Result",
+                "sourceKind")
+            .entrySet()) {
+      var b = Binding.constant(2);
+      b.sourceKind = entry.getKey();
+      assertEquals(entry.getValue(), DiagnosticNavigation.bindingField(base, "bias", b));
+    }
+    var b = Binding.constant(2);
+    b.type = "Vector2";
+    assertEquals("value/0", DiagnosticNavigation.bindingField(base, "bias", b));
+  }
+
+  @Test
   void historicalUuidTargetsSurviveReorderButNotDeletionOrNewProjects() {
     var p = project();
     var t = target(p);

@@ -34,7 +34,7 @@ public final class DraftChoicePicker {
 
   private final Map<Integer, Widget> widgets = new LinkedHashMap<>(16, .75f, true);
   private final Map<String, float[]> options = new HashMap<>();
-  private boolean open;
+  private boolean open, focused;
   private int submitted;
   private float[] buttonCenter;
 
@@ -55,6 +55,7 @@ public final class DraftChoicePicker {
             AppMetadata.uiText(preview) + "  v###draft-choice",
             Math.max(100, Math.min(330, ImGui.getContentRegionAvailX() * .7f)),
             0);
+    focused = ImGui.isItemActive() || ImGui.isItemFocused();
     var lo = ImGui.getItemRectMin();
     var hi = ImGui.getItemRectMax();
     buttonCenter = new float[] {(lo.x + hi.x) / 2, (lo.y + hi.y) / 2};
@@ -105,6 +106,10 @@ public final class DraftChoicePicker {
       ImGui.endPopup();
     }
     ImGui.popID();
+  }
+
+  boolean focused() {
+    return focused;
   }
 
   float[] buttonCenter() {

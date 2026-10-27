@@ -250,3 +250,27 @@ assert cases['CLEAN_EXIT']['exits'] == 1 and cases['CLEAN_EXIT']['dirty'] is Fal
 assert (file_root / 'named.json' / 'sentinel').read_text() == 'retained'
 assert not list(file_root.glob('.voxel-save-*'))
 print('PROJECT_FILES_PASS independent 20-case transition states / committed save bytes / retained failure destinations / no stale transition on retry / temp cleanup')
+
+input_root = Path(sys.argv[1]) / 'input-bindings'
+bindings = json.loads((input_root / 'input-binding-native.json').read_text())
+binding_project = json.loads((input_root / 'input-binding-project.json').read_text())
+assert bindings['formatVersion'] == 1
+assert bindings['selected'] == ['first/extra', 'second/alpha', 'first/extra', 'second/alpha']
+assert bindings['focused'] == ['first/bias/value', 'second/beta/value', 'translate/x/value', 'translate/coordinates/value/1']
+assert bindings['diagnosticInput'] == 'inputs/bias'
+noise = binding_project['noise2D'][0]
+first, second = noise['processing']
+transform = noise['coordinateTransforms'][0]
+assert noise['outputBinding']['itemUuid'] == first['uuid']
+assert first['parameters']['expression'] == 'bias+extra+x+2*z'
+assert second['parameters']['expression'] == 'alpha+beta'
+assert first['inputs']['bias']['value'] == 3.25 and first['inputs']['extra']['value'] == 3
+assert second['inputs']['alpha']['value'] == 7 and second['inputs']['beta']['value'] == 11
+assert transform['inputs']['x']['value'] == 4
+assert transform['inputs']['coordinates']['type'] == 'Coordinates2D'
+x, z = transform['inputs']['coordinates']['value']
+x += transform['inputs']['x']['value']
+expected = first['inputs']['bias']['value'] + first['inputs']['extra']['value'] + x + 2*z
+assert bindings['before'] == 5 and bindings['after'] == expected == 26.25
+assert all(bindings[key] is True for key in ['draftPreserved', 'navigationOnly', 'oneUndoRedo', 'foreignRejected'])
+print('INPUT_BINDING_PASS independent saved typed bindings / exact component focus / one-shot per-item choices / transformed 26.25 / single Undo-Redo / draft ownership')

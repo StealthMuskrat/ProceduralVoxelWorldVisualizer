@@ -28,6 +28,49 @@ public final class DiagnosticNavigation {
         && Objects.equals(target.parameter(), "inputs/" + name);
   }
 
+  /** Resolve only the exact named binding's serialized leaf, never a historical array index. */
+  static String bindingField(EditorEvents.Target target, String name, Binding binding) {
+    String pointer = Objects.requireNonNullElse(target.pointer(), "");
+    String[] tokens = pointer.split("/", -1);
+    String field = null;
+    for (int i = 1; i + 2 < tokens.length; i++)
+      if (i >= 3
+          && Set.of("processing", "coordinateTransforms", "control").contains(tokens[i - 2])
+          && tokens[i].equals("inputs")
+          && tokens[i + 1].replace("~1", "/").replace("~0", "~").equals(name)) {
+        String leaf = tokens[i + 2];
+        if (Set.of(
+                "type",
+                "sourceKind",
+                "value",
+                "parameterUuid",
+                "itemUuid",
+                "noiseGeneratorUuid",
+                "ambientKey",
+                "projection",
+                "slice")
+            .contains(leaf)) {
+          field = leaf;
+          if (leaf.equals("value") && i + 3 < tokens.length && tokens[i + 3].matches("[012]"))
+            field += "/" + tokens[i + 3];
+        }
+        break;
+      }
+    if (field == null)
+      field =
+          switch (binding.sourceKind) {
+            case "Constant" -> "value";
+            case "Shared Parameter" -> "parameterUuid";
+            case "Earlier Result", "Earlier Field Prefix" -> "itemUuid";
+            case "Noise Generator Reference", "Noise Generator Field" -> "noiseGeneratorUuid";
+            case "Ambient Value" -> "ambientKey";
+            default -> "sourceKind";
+          };
+    if (field.equals("value") && !Set.of("Scalar", "Boolean").contains(binding.type))
+      field = "value/0";
+    return field;
+  }
+
   public static boolean available(
       ProjectData project, UUID selected, Object draft, EditorEvents.Target target) {
     if (target == null || !Objects.equals(project.project.uuid, target.project())) return false;

@@ -142,12 +142,26 @@ public final class PropertyPanel {
 
   private UUID focusedControl;
   private EditorEvents.Target navigationTarget;
+  private Object navigationDraft;
+  private boolean bindingFocusSubmitted;
+  private final NoiseInputSelection inputSelection = new NoiseInputSelection();
   private boolean searchScroll;
 
   public boolean goToProblem(EditorEvents.Target target) {
     if (!state.navigate(target)) return false;
     focusedControl = target.control();
     navigationTarget = target;
+    navigationDraft = state.draft;
+    bindingFocusSubmitted = false;
+    focusedBinding = null;
+    if (state.draft instanceof Noise noise
+        && target.control() != null
+        && target.parameter() != null
+        && target.parameter().startsWith("inputs/"))
+      for (var items : List.of(noise.processing, noise.coordinateTransforms))
+        for (var item : items)
+          if (item.uuid.equals(target.control()))
+            inputSelection.select(noise, item, target.parameter().substring(7));
     expressionFocusSubmitted = false;
     searchScroll = true;
     return true;
@@ -263,6 +277,7 @@ public final class PropertyPanel {
 
   public void draw() {
     parameterCenters.clear();
+    bindingRects.clear();
     sourceControlCenters.clear();
     sourceControlKeys.clear();
     resourcePicker.synchronize();
@@ -647,11 +662,9 @@ public final class PropertyPanel {
                 v -> item.resultType = v);
           for (var e : selectedInputs(item)) {
             ImGui.pushID(e.getKey());
-            if (DiagnosticNavigation.inputTarget(navigationTarget, item.uuid, e.getKey()))
-              ImGui.setNextItemOpen(true, ImGuiCond.Always);
+            if (inputNavigation(item, e.getKey())) ImGui.setNextItemOpen(true, ImGuiCond.Always);
             if (ImGui.treeNode(
                 "Input: " + e.getKey() + " [" + e.getValue().type + "]###input-properties")) {
-              revealSearchField(item.uuid, "inputs/" + e.getKey());
               if ((e.getKey().equals("field") && ProcessingRegistry.SAMPLED.contains(item.kind))
                   || item.kind.equals("WARP_SAMPLE") && WarpRegistry.component(e.getKey()))
                 fieldBinding(n, i, e.getValue());
@@ -1120,7 +1133,6 @@ public final class PropertyPanel {
 
   private Item inputOwner;
   private long inputVersion = -1;
-  private String inputKey;
   private List<DraftChoicePicker.Choice> inputChoices = List.of();
 
   private final Map<String, float[]> expressionRects = new HashMap<>();
@@ -1281,22 +1293,23 @@ public final class PropertyPanel {
                           entry.getValue().type + " / " + entry.getValue().sourceKind))
               .toList();
     }
-    if (navigationTarget != null && item.uuid.equals(navigationTarget.control())) {
-      String path = Objects.requireNonNullElse(navigationTarget.parameter(), "");
-      for (String name : item.inputs.keySet()) if (path.equals("inputs/" + name)) inputKey = name;
-    }
-    if (!item.inputs.containsKey(inputKey)) inputKey = item.inputs.keySet().iterator().next();
+    var noise = (Noise) state.draft;
+    String inputKey = inputSelection.current(noise, item);
     draftChoices.draw(
         "Input control",
         inputKey,
         inputChoices,
         null,
         value -> {
-          inputKey = value;
+          inputSelection.select(noise, item, value);
+          searchScroll = false;
+          bindingFocusSubmitted = false;
           f.clear();
         });
+    bindingRects.put(item.uuid + ":picker", draftChoices.buttonCenter());
     ImGui.setNextItemOpen(true, ImGuiCond.Once);
-    return List.of(Map.entry(inputKey, item.inputs.get(inputKey)));
+    String current = inputSelection.current(noise, item);
+    return List.of(Map.entry(current, item.inputs.get(current)));
   }
 
   private void namedInput(Item item, String key) {
@@ -1856,73 +1869,207 @@ public final class PropertyPanel {
   }
 
   private void fieldBinding(Noise n, int index, Binding b) {
-    f.choice(
-        "Sampled field",
-        b.sourceKind,
-        List.of("Source Field", "Earlier Field Prefix", "Noise Generator Field"),
-        v -> {
-          NoiseAuthoring.source(b, v);
-          b.type = "Scalar";
-        });
+    Item item = n.processing.get(index);
+    bindingField(
+        item,
+        b,
+        "sourceKind",
+        () ->
+            f.choice(
+                "Sampled field",
+                b.sourceKind,
+                List.of("Source Field", "Earlier Field Prefix", "Noise Generator Field"),
+                v -> {
+                  NoiseAuthoring.source(b, v);
+                  b.type = "Scalar";
+                }));
     if (b.sourceKind.equals("Earlier Field Prefix")) {
-      localChoice(
-          n,
-          "Prefix ends at",
-          "prefix",
-          n.processing.get(index).uuid,
-          "Scalar",
-          b.itemUuid,
-          value -> b.itemUuid = value);
+      bindingField(
+          item,
+          b,
+          "itemUuid",
+          () ->
+              localChoice(
+                  n,
+                  "Prefix ends at",
+                  "prefix",
+                  item.uuid,
+                  "Scalar",
+                  b.itemUuid,
+                  value -> b.itemUuid = value));
       localLink(n, b.itemUuid);
-      ImGui.textWrapped(
-          "Reevaluates this earlier result and its dependencies at each requested location.");
     } else if (b.sourceKind.equals("Noise Generator Field")) {
-      noisePicker("Field resource", b.noiseGeneratorUuid, u -> b.noiseGeneratorUuid = u);
-      f.choice("Projection", b.projection, List.of("XZ", "XY", "YZ"), v -> b.projection = v);
-      f.number("Inserted slice coordinate", b.slice, v -> b.slice = v);
+      bindingField(
+          item,
+          b,
+          "noiseGeneratorUuid",
+          () -> noisePicker("Field resource", b.noiseGeneratorUuid, u -> b.noiseGeneratorUuid = u));
+      bindingField(
+          item,
+          b,
+          "projection",
+          () ->
+              f.choice(
+                  "Projection", b.projection, List.of("XZ", "XY", "YZ"), v -> b.projection = v));
+      bindingField(
+          item, b, "slice", () -> f.number("Inserted slice coordinate", b.slice, v -> b.slice = v));
       referenceLinks(b.noiseGeneratorUuid);
     }
   }
 
+  private boolean inputNavigation(Item item, String name) {
+    return searchScroll
+        && navigationDraft == state.draft
+        && navigationTarget != null
+        && Objects.equals(navigationTarget.project(), state.project().project.uuid)
+        && Objects.equals(navigationTarget.resource(), state.selected)
+        && DiagnosticNavigation.inputTarget(navigationTarget, item.uuid, name);
+  }
+
+  private final Map<String, float[]> bindingRects = new HashMap<>();
+  private String focusedBinding;
+
+  private void bindingField(Item item, Binding binding, String field, Runnable draw) {
+    String name =
+        item.inputs.entrySet().stream()
+            .filter(e -> e.getValue() == binding)
+            .map(Map.Entry::getKey)
+            .findFirst()
+            .orElse(null);
+    boolean targeted =
+        name != null
+            && inputNavigation(item, name)
+            && field.equals(DiagnosticNavigation.bindingField(navigationTarget, name, binding));
+    if (targeted && !bindingFocusSubmitted) {
+      ImGui.setKeyboardFocusHere();
+      bindingFocusSubmitted = true;
+    }
+    draw.run();
+    String key = item.uuid + ":" + name + ":" + field;
+    bindingRects.put(
+        key,
+        new float[] {
+          (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
+          (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
+        });
+    boolean acknowledged =
+        switch (field) {
+          case "parameterUuid", "itemUuid" -> draftChoices.focused();
+          case "noiseGeneratorUuid" -> resourcePicker.focused();
+          default -> ImGui.isItemActive() || ImGui.isItemFocused();
+        };
+    if (targeted) {
+      ImGui.setScrollHereY(.25f);
+      if (acknowledged) {
+        focusedBinding = key;
+        searchScroll = false;
+        bindingFocusSubmitted = false;
+      }
+    }
+  }
+
+  float[] probeBindingControl(UUID item, String name, String field) {
+    return bindingRects.get(item + ":" + name + ":" + field);
+  }
+
+  float[] probeInputPicker(UUID item) {
+    return bindingRects.get(item + ":picker");
+  }
+
+  float[] probeInputOption(String name) {
+    return draftChoices.option(name);
+  }
+
+  String probeInputSelection(Item item) {
+    return inputSelection.current((Noise) state.draft, item);
+  }
+
+  String probeFocusedBinding() {
+    return focusedBinding;
+  }
+
   private void binding(Noise n, Item item, int index, Binding b) {
-    f.choice("Type", b.type, NoiseAuthoring.TYPES, v -> NoiseAuthoring.type(b, v));
+    bindingField(
+        item,
+        b,
+        "type",
+        () -> f.choice("Type", b.type, NoiseAuthoring.TYPES, v -> NoiseAuthoring.type(b, v)));
     boolean coordinateStage = n.coordinateTransforms.contains(item);
-    f.choice(
-        "Source",
-        b.sourceKind,
-        NoiseDraftIndex.sources(b.type, coordinateStage),
-        v -> NoiseAuthoring.source(b, v));
+    bindingField(
+        item,
+        b,
+        "sourceKind",
+        () ->
+            f.choice(
+                "Source",
+                b.sourceKind,
+                NoiseDraftIndex.sources(b.type, coordinateStage),
+                v -> NoiseAuthoring.source(b, v)));
     switch (b.sourceKind) {
-      case "Constant" -> constantEditor(b.type, b.value, v -> b.value = v);
+      case "Constant" ->
+          constantEditor(
+              b.type, b.value, v -> b.value = v, (key, draw) -> bindingField(item, b, key, draw));
       case "Shared Parameter" -> {
-        localChoice(
-            n,
-            "Parameter",
-            "parameter",
-            item.uuid,
-            b.type,
-            b.parameterUuid,
-            value -> b.parameterUuid = value);
+        bindingField(
+            item,
+            b,
+            "parameterUuid",
+            () ->
+                localChoice(
+                    n,
+                    "Parameter",
+                    "parameter",
+                    item.uuid,
+                    b.type,
+                    b.parameterUuid,
+                    value -> b.parameterUuid = value));
         localLink(n, b.parameterUuid);
       }
       case "Ambient Value" ->
-          f.choice(
-              "Ambient",
-              b.ambientKey == null ? "" : b.ambientKey,
-              new ArrayList<>(NoiseCompiler.AMBIENT),
-              v -> b.ambientKey = v);
+          bindingField(
+              item,
+              b,
+              "ambientKey",
+              () ->
+                  f.choice(
+                      "Ambient",
+                      b.ambientKey == null ? "" : b.ambientKey,
+                      new ArrayList<>(NoiseCompiler.AMBIENT),
+                      v -> b.ambientKey = v));
       case "Earlier Result" -> {
-        localChoice(
-            n, "Result", "earlier", item.uuid, b.type, b.itemUuid, value -> b.itemUuid = value);
+        bindingField(
+            item,
+            b,
+            "itemUuid",
+            () ->
+                localChoice(
+                    n,
+                    "Result",
+                    "earlier",
+                    item.uuid,
+                    b.type,
+                    b.itemUuid,
+                    value -> b.itemUuid = value));
         localLink(n, b.itemUuid);
       }
       case "Source Result" -> {
         if (ImGui.smallButton("Go To Source Control")) focusLocal(n, null, "algorithm");
       }
       case "Noise Generator Reference" -> {
-        noisePicker("Resource", b.noiseGeneratorUuid, u -> b.noiseGeneratorUuid = u);
-        f.choice("Projection", b.projection, List.of("XZ", "XY", "YZ"), v -> b.projection = v);
-        f.number("Slice coordinate", b.slice, v -> b.slice = v);
+        bindingField(
+            item,
+            b,
+            "noiseGeneratorUuid",
+            () -> noisePicker("Resource", b.noiseGeneratorUuid, u -> b.noiseGeneratorUuid = u));
+        bindingField(
+            item,
+            b,
+            "projection",
+            () ->
+                f.choice(
+                    "Projection", b.projection, List.of("XZ", "XY", "YZ"), v -> b.projection = v));
+        bindingField(
+            item, b, "slice", () -> f.number("Slice coordinate", b.slice, v -> b.slice = v));
         referenceLinks(b.noiseGeneratorUuid);
       }
       default -> {}
@@ -1930,16 +2077,27 @@ public final class PropertyPanel {
   }
 
   private void constantEditor(String type, JsonNode value, Consumer<JsonNode> set) {
+    constantEditor(type, value, set, (key, draw) -> draw.run());
+  }
+
+  private void constantEditor(
+      String type, JsonNode value, Consumer<JsonNode> set, BiConsumer<String, Runnable> field) {
     if (type.equals("Boolean"))
-      f.bool(
-          "Value",
-          value != null && value.asBoolean(),
-          v -> set.accept(ProjectIO.JSON.valueToTree(v)));
+      field.accept(
+          "value",
+          () ->
+              f.bool(
+                  "Value",
+                  value != null && value.asBoolean(),
+                  v -> set.accept(ProjectIO.JSON.valueToTree(v))));
     else if (type.equals("Scalar"))
-      f.number(
-          "Value",
-          value == null ? 0 : value.asDouble(),
-          v -> set.accept(ProjectIO.JSON.valueToTree(v)));
+      field.accept(
+          "value",
+          () ->
+              f.number(
+                  "Value",
+                  value == null ? 0 : value.asDouble(),
+                  v -> set.accept(ProjectIO.JSON.valueToTree(v))));
     else {
       int count = type.endsWith("2") || type.endsWith("2D") ? 2 : 3;
       double[] vec = new double[count];
@@ -1947,13 +2105,16 @@ public final class PropertyPanel {
         vec[i] = value != null && value.isArray() && value.size() > i ? value.get(i).asDouble() : 0;
       for (int i = 0; i < count; i++) {
         final int k = i;
-        f.number(
-            count == 2 ? (i == 0 ? "X" : "Z") : List.of("X", "Y", "Z").get(i),
-            vec[i],
-            v -> {
-              vec[k] = v;
-              set.accept(ProjectIO.JSON.valueToTree(vec));
-            });
+        field.accept(
+            "value/" + i,
+            () ->
+                f.number(
+                    count == 2 ? (k == 0 ? "X" : "Z") : List.of("X", "Y", "Z").get(k),
+                    vec[k],
+                    v -> {
+                      vec[k] = v;
+                      set.accept(ProjectIO.JSON.valueToTree(vec));
+                    }));
       }
     }
   }
