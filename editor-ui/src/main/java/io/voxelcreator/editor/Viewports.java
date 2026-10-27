@@ -836,7 +836,43 @@ public final class Viewports implements AutoCloseable {
       NoiseImageRows.Statistics imageStatistics,
       NoiseImageView imageView,
       SliceImageView sliceView,
-      VolumeWindows.Statistics volumeWindowStatistics) {
+      VolumeWindows.Statistics volumeWindowStatistics,
+      VolumeTextureUpload.Region volumeRegion) {
+    Preview(
+        long epoch,
+        Mesh mesh,
+        int[] image,
+        double[] raw,
+        int width,
+        Vector3d origin,
+        int[] palette,
+        float[] histogram,
+        NoiseAlgorithms.Field sampler,
+        String error,
+        VolumeData volume,
+        NoiseImageRows.Statistics imageStatistics,
+        NoiseImageView imageView,
+        SliceImageView sliceView,
+        VolumeWindows.Statistics volumeWindowStatistics) {
+      this(
+          epoch,
+          mesh,
+          image,
+          raw,
+          width,
+          origin,
+          palette,
+          histogram,
+          sampler,
+          error,
+          volume,
+          imageStatistics,
+          imageView,
+          sliceView,
+          volumeWindowStatistics,
+          null);
+    }
+
     Preview(
         long epoch,
         Mesh mesh,
@@ -1378,7 +1414,8 @@ public final class Viewports implements AutoCloseable {
       } else {
         if (ready.volume != null) {
           try {
-            if (!v.gl.stageVolume(ready.volume, (long) state.user.performance.sceneGpuMiB << 20))
+            if (!v.gl.stageVolume(
+                ready.volume, (long) state.user.performance.sceneGpuMiB << 20, ready.volumeRegion))
               volumeUploadFailed(
                   v,
                   "Volume replacement exceeds GPU MiB; previous display retained; reduce extent or"
@@ -1419,8 +1456,13 @@ public final class Viewports implements AutoCloseable {
               profile.gauge(
                   Profiler.Kind.UPLOAD_BYTES,
                   Profiler.Unit.BYTES,
-                  v.gl.volumeStatistics().lastBytes(),
-                  "Volume upload bytes per frame");
+                  v.gl.volumeStatistics().lastHostBytes(),
+                  "Volume host upload bytes per frame");
+              profile.gauge(
+                  Profiler.Kind.UPLOAD_BYTES,
+                  Profiler.Unit.BYTES,
+                  v.gl.volumeStatistics().lastCopiedBytes(),
+                  "Volume resident copy bytes per frame");
             }
           }
           if (!v.gl.volumeStatistics().pending()) {
@@ -1833,6 +1875,7 @@ public final class Viewports implements AutoCloseable {
     var lease = v.volumeWindows.begin(v.volumeSourceKey, epoch, cacheLimit);
     var token = v.ready.token(epoch);
     var snapshot = v.volumeSnapshot;
+    var sourceKey = v.volumeSourceKey;
     var noise = v.volumeNoise;
     v.force = false;
     v.dirty = false;
@@ -1871,7 +1914,9 @@ public final class Viewports implements AutoCloseable {
                           null,
                           null,
                           null,
-                          window.statistics()));
+                          window.statistics(),
+                          new VolumeTextureUpload.Region(
+                              sourceKey, bounds.x(), bounds.y(), bounds.z())));
                   outcome = Profiler.Outcome.SUCCESS;
                 } catch (CancellationException stopped) {
                   // An obsolete complete tile may be reused, but no obsolete window publishes.

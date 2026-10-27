@@ -322,6 +322,7 @@ public final class WorldPickingProbe {
         SurfaceStreamingProbe.run(out.resolve("surface-streaming"), window);
         VolumeUploadProbe.run(out.resolve("volume-upload"), window);
         VolumeStreamingProbe.run(out.resolve("volume-streaming"), window);
+        VolumeOverlapProbe.run(out.resolve("volume-overlap"));
       } finally {
         ImGui.destroyContext();
       }

@@ -144,6 +144,22 @@ public final class VolumeData {
     target.put(samples, offset, target.remaining());
   }
 
+  /** Gather a bounded rectangular encoded region into reusable packed staging. */
+  void copyRegion(
+      int x, int y, int z, int width, int height, int depth, java.nio.FloatBuffer target) {
+    Objects.requireNonNull(target);
+    if (width <= 0 || height <= 0 || depth <= 0)
+      throw new IllegalArgumentException("Positive volume region required");
+    Objects.checkFromIndexSize(x, width, size);
+    Objects.checkFromIndexSize(y, height, size);
+    Objects.checkFromIndexSize(z, depth, size);
+    int count = width * height * depth;
+    if (target.remaining() < count) throw new java.nio.BufferOverflowException();
+    for (int dz = 0; dz < depth; dz++)
+      for (int dy = 0; dy < height; dy++)
+        target.put(samples, ((z + dz) * size + y + dy) * size + x, width);
+  }
+
   private float encoded(int x, int y, int z) {
     if (x < 0 || y < 0 || z < 0 || x >= size || y >= size || z >= size)
       throw new IndexOutOfBoundsException();

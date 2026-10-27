@@ -483,3 +483,9 @@ assert 0 < vs['maximumUiBytes'] <= 16384
 vproject = json.loads((vs_root / 'volume-streaming-project.json').read_text())
 assert vproject['noise3D'][0]['processing'][0]['parameters']['expression'] == '0'
 print('VOLUME_STREAMING_PASS independent seam-spanning texels / optics / signed window origins / cache reuse / compiled source epochs / manual regeneration / cancellation-queue-budget recovery / fixed return')
+
+# Production streaming must reuse resident overlap without changing source epochs or display results.
+assert [s['copiedBytes'] for s in stages[:7]] == [0, 524288, 1048576, 2097152, 2621440, 3145728, 3145728]
+assert stages[7]['copiedBytes'] == stages[6]['copiedBytes']  # Source regeneration requires fresh texels.
+from verify_volume_overlap import verify as verify_overlap
+verify_overlap(Path(sys.argv[1]) / 'volume-overlap')

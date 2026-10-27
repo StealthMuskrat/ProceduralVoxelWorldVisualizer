@@ -333,7 +333,9 @@ final class VolumeStreamingProbe {
         "compilations",
         memory.compilations(),
         "cacheBytes",
-        memory.bytes());
+        memory.bytes(),
+        "copiedBytes",
+        views.probeVolumeStatistics().copiedBytes());
   }
 
   private static List<Integer> readPixel(GlViewport gl, int side) {

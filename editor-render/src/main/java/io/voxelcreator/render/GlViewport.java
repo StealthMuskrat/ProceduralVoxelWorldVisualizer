@@ -11,7 +11,7 @@ public final class GlViewport implements AutoCloseable {
   private int texture, framebuffer, depth, width, height, vao, vbo, program, palette;
   private Mesh mesh = new Mesh(new float[0], false);
   private boolean image = false, volume = false, retainFrame;
-  private int volumeProgram;
+  private int volumeProgram, volumeCopyRead, volumeCopyDraw;
   private final VolumeTextureUpload volumeUpload;
   private SceneGpuRenderer sceneRenderer;
   private int sceneBudget, paletteWidth = 256;
@@ -156,6 +156,67 @@ public final class GlViewport implements AutoCloseable {
                 }
               }
 
+              public boolean supportsCopies() {
+                return true;
+              }
+
+              public void copy(
+                  int source,
+                  int sx,
+                  int sy,
+                  int sz,
+                  int destination,
+                  int dx,
+                  int dy,
+                  int dz,
+                  int w,
+                  int h) {
+                if (volumeCopyRead == 0) volumeCopyRead = glGenFramebuffers();
+                if (volumeCopyDraw == 0) volumeCopyDraw = glGenFramebuffers();
+                int read = glGetInteger(GL_READ_FRAMEBUFFER_BINDING),
+                    draw = glGetInteger(GL_DRAW_FRAMEBUFFER_BINDING);
+                boolean scissor = glIsEnabled(GL_SCISSOR_TEST);
+                try {
+                  glBindFramebuffer(GL_READ_FRAMEBUFFER, volumeCopyRead);
+                  glFramebufferTextureLayer(
+                      GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, source, 0, sz);
+                  glReadBuffer(GL_COLOR_ATTACHMENT0);
+                  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, volumeCopyDraw);
+                  glFramebufferTextureLayer(
+                      GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, destination, 0, dz);
+                  glDrawBuffer(GL_COLOR_ATTACHMENT0);
+                  if (glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE
+                      || glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+                    throw new IllegalStateException("Incomplete volume copy framebuffer");
+                  glDisable(GL_SCISSOR_TEST);
+                  glBlitFramebuffer(
+                      sx,
+                      sy,
+                      sx + w,
+                      sy + h,
+                      dx,
+                      dy,
+                      dx + w,
+                      dy + h,
+                      GL_COLOR_BUFFER_BIT,
+                      GL_NEAREST);
+                  int error = glGetError();
+                  if (error != GL_NO_ERROR)
+                    throw new IllegalStateException("Volume copy GL error " + error);
+                } finally {
+                  // Detach before retiring textures; hidden FBO references must not retain old
+                  // storage.
+                  glBindFramebuffer(GL_READ_FRAMEBUFFER, volumeCopyRead);
+                  glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 0, 0, 0);
+                  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, volumeCopyDraw);
+                  glFramebufferTextureLayer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 0, 0, 0);
+                  glBindFramebuffer(GL_READ_FRAMEBUFFER, read);
+                  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw);
+                  if (scissor) glEnable(GL_SCISSOR_TEST);
+                  else glDisable(GL_SCISSOR_TEST);
+                }
+              }
+
               public void delete(int id) {
                 glDeleteTextures(id);
               }
@@ -208,7 +269,11 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public boolean stageVolume(VolumeData data, long gpuBudget) {
-    if (!volumeUpload.stage(data, gpuBudget)) return false;
+    return stageVolume(data, gpuBudget, null);
+  }
+
+  public boolean stageVolume(VolumeData data, long gpuBudget, VolumeTextureUpload.Region region) {
+    if (!volumeUpload.stage(data, gpuBudget, region)) return false;
     // Once its arena is retired, keep a previous streamed framebuffer through cancellation/failure.
     if (sceneActive) retainFrame = true;
     releaseScene();
@@ -458,6 +523,8 @@ public final class GlViewport implements AutoCloseable {
     glDeleteProgram(program);
     glDeleteProgram(volumeProgram);
     volumeUpload.close();
+    glDeleteFramebuffers(volumeCopyRead);
+    glDeleteFramebuffers(volumeCopyDraw);
     glDeleteBuffers(vbo);
     glDeleteVertexArrays(vao);
     glDeleteTextures(texture);

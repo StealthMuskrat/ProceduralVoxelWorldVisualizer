@@ -198,7 +198,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
           python scripts/verify_input_preferences.py build/input-probe/user-config.json
       - name: Strict OpenGL 3.0 arena reference
-        run: LIBGL_ALWAYS_SOFTWARE=1 MESA_GL_VERSION_OVERRIDE=3.0 MESA_GLSL_VERSION_OVERRIDE=130 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe --require-gl30
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 MESA_GL_VERSION_OVERRIDE=3.0 MESA_GLSL_VERSION_OVERRIDE=130 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe --require-gl30
+          python scripts/verify_volume_overlap.py build/world-picking/volume-overlap-gl30
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -564,6 +566,8 @@ jobs:
           $env:MESA_GLSL_VERSION_OVERRIDE = '130'
           try {
             & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe --require-gl30
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            python scripts/verify_volume_overlap.py build/world-picking/volume-overlap-gl30
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           } finally {
             Remove-Item Env:MESA_GL_VERSION_OVERRIDE -ErrorAction SilentlyContinue

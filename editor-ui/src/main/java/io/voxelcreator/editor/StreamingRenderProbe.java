@@ -15,7 +15,7 @@ import org.lwjgl.opengl.GL;
  * parity.
  */
 public final class StreamingRenderProbe {
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     System.setProperty("joml.nounsafe", "true");
     if (!glfwInit()) throw new IllegalStateException("GLFW init");
     long window = 0;
@@ -113,6 +113,8 @@ public final class StreamingRenderProbe {
             "STREAMING_RENDER_NATIVE_PASS packed / budgeted upload / culling / palette / indirect="
                 + GL.getCapabilities().OpenGL43);
       }
+      if (Arrays.asList(args).contains("--require-gl30"))
+        VolumeOverlapProbe.run(java.nio.file.Path.of("build/world-picking/volume-overlap-gl30"));
     } finally {
       if (window != 0) glfwDestroyWindow(window);
       glfwTerminate();
