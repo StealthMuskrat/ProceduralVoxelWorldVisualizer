@@ -419,6 +419,73 @@ public final class Viewports implements AutoCloseable {
     mark(views[1]);
   }
 
+  void probeSurface(UUID noise, boolean fixed, double x, double y, double z) {
+    var v = views[1];
+    smokeTab = 1;
+    v.noise = noise;
+    v.mode = "Isosurface";
+    v.fixed = fixed;
+    v.threshold = 0;
+    v.size = 16;
+    v.camera.flying = false;
+    v.camera.focus.set(x, y, z);
+    v.camera.yaw = 0;
+    v.camera.pitch = 0;
+    v.camera.distance = 80;
+    v.panX = x;
+    v.panY = y;
+    v.panZ = z;
+    state.user.visualization.streaming = true;
+    mark(v);
+  }
+
+  long probeSurfaceEpoch() {
+    return views[1].scene == null ? 0 : views[1].scene.epoch();
+  }
+
+  boolean probeSurfaceReady() {
+    var v = views[1];
+    return v.scene != null
+        && v.scene.statistics().meshes() > 0
+        && v.gl.sceneRenderer() != null
+        && v.gl.sceneRenderer().hasData();
+  }
+
+  void probeSurfaceTravel(double x, double y, double z) {
+    views[1].camera.focus.set(x, y, z);
+  }
+
+  boolean probeSurfaceChunk(int x, int y, int z) {
+    var gpu = views[1].gl.sceneRenderer();
+    return gpu != null && gpu.pickingVersions().containsKey(new ChunkPos(x, y, z));
+  }
+
+  java.util.List<Integer> probeSurfacePixel() {
+    org.lwjgl.opengl.GL11.glBindTexture(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, views[1].gl.texture());
+    int[] width = {0}, height = {0};
+    org.lwjgl.opengl.GL11.glGetTexLevelParameteriv(
+        org.lwjgl.opengl.GL11.GL_TEXTURE_2D, 0, org.lwjgl.opengl.GL11.GL_TEXTURE_WIDTH, width);
+    org.lwjgl.opengl.GL11.glGetTexLevelParameteriv(
+        org.lwjgl.opengl.GL11.GL_TEXTURE_2D, 0, org.lwjgl.opengl.GL11.GL_TEXTURE_HEIGHT, height);
+    var all = org.lwjgl.BufferUtils.createByteBuffer(width[0] * height[0] * 4);
+    org.lwjgl.opengl.GL11.glGetTexImage(
+        org.lwjgl.opengl.GL11.GL_TEXTURE_2D,
+        0,
+        org.lwjgl.opengl.GL11.GL_RGBA,
+        org.lwjgl.opengl.GL11.GL_UNSIGNED_BYTE,
+        all);
+    int at = ((height[0] / 2) * width[0] + width[0] / 2) * 4;
+    return java.util.List.of(
+        Byte.toUnsignedInt(all.get(at)),
+        Byte.toUnsignedInt(all.get(at + 1)),
+        Byte.toUnsignedInt(all.get(at + 2)),
+        Byte.toUnsignedInt(all.get(at + 3)));
+  }
+
+  ChunkScene.Statistics probeSurfaceStatistics() {
+    return views[1].scene.statistics();
+  }
+
   boolean probeStream3DReady() {
     var v = views[1];
     return v.scene != null && v.scene.statistics().generated() > 0 && v.gl.sceneRenderer() != null;
@@ -1025,6 +1092,9 @@ public final class Viewports implements AutoCloseable {
                 if (!v.mode.equals("Volume")) mark(v);
               }
             });
+        if (v.mode.equals("Isosurface") && wantsStreaming(v))
+          ImGui.textDisabled(
+              "Camera-relative surface chunks; use Fixed analysis for maximum position precision.");
         if (v.mode.equals("Volume")) {
           fields.number(
               "Display minimum",
@@ -1503,7 +1573,10 @@ public final class Viewports implements AutoCloseable {
     return state.user.visualization.streaming
         && !v.fixed
         && (v.kind == 2
-            || v.kind == 1 && (v.mode.equals("Threshold Voxels") || v.mode.equals("Point Cloud")));
+            || v.kind == 1
+                && (v.mode.equals("Threshold Voxels")
+                    || v.mode.equals("Point Cloud")
+                    || v.mode.equals("Isosurface")));
   }
 
   private boolean usesStreaming(View v) {
@@ -1581,7 +1654,7 @@ public final class Viewports implements AutoCloseable {
         int kind = v.kind;
         UUID noise = v.noise, stage = v.stage;
         double threshold = v.threshold;
-        String mode = v.stageMode;
+        String mode = v.stageMode, representation = v.mode;
         v.requestedKey = key;
         v.lastSubmit = now;
         try {
@@ -1597,7 +1670,14 @@ public final class Viewports implements AutoCloseable {
                       var sourcePalette = palette(snapshot, kind);
                       var source =
                           PreviewSources.create(
-                              snapshot, state.engine, kind, noise, threshold, mode, stage);
+                              snapshot,
+                              state.engine,
+                              kind,
+                              noise,
+                              threshold,
+                              mode,
+                              stage,
+                              representation);
                       result = new SceneSetup(id, key, source, sourcePalette, null);
                     } catch (Throwable failure) {
                       result =

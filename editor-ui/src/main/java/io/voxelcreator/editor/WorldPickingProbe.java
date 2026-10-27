@@ -319,6 +319,7 @@ public final class WorldPickingProbe {
         InputBindingProbe.run(out.resolve("input-bindings"), window);
         IsosurfaceProbe.run(out.resolve("isosurface"));
         VolumeEncodingProbe.run(out.resolve("volume-encoding"));
+        SurfaceStreamingProbe.run(out.resolve("surface-streaming"), window);
       } finally {
         ImGui.destroyContext();
       }

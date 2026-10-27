@@ -384,3 +384,32 @@ assert {'ordinary','zero-opacity','huge-half','huge-quarter','tiny-min','tiny-ha
     'adjacent-lower','normal-adjacent-upper','normal-adjacent-lower','normal-adjacent-filtered','maximum-opacity','parallel-miss','parallel-boundary','inside','diagonal',
     'gradient-huge','gradient-tiny'} == volume_ids
 print('VOLUME_ENCODING_PASS independent Decimal transfer / decoded canonical texels / 23 Beer-Lambert pixel cases / slab rays / threshold signs / control-only reuse')
+
+import struct
+surface_root = Path(sys.argv[1]) / 'surface-streaming'
+surface = json.loads((surface_root / 'surface-streaming-native.json').read_text())
+surface_project = json.loads((surface_root / 'surface-streaming-project.json').read_text())
+packed = (surface_root / 'surface-packed.bin').read_bytes()
+assert surface['formatVersion'] == 1 and len(packed) == surface['packedBytes'] and len(packed) % 48 == 0
+assert surface['surfaceUnits'] == 128 and surface['voxelUnits'] == 2
+vertices = []
+for i in range(0,len(packed),16):
+    x,y,z,nx,ny,nz,ao,pad,material = struct.unpack_from('<3H3bBHI',packed,i)
+    assert 0 <= x <= 4096 and 0 <= y <= 4096 and z == round(16.257*128)
+    assert (nx,ny,nz,ao,pad,material) == (0,0,-127,255,0,128)
+    vertices.append([x/128,y/128,z/128,0,0,-1,128])
+assert math.isclose(surface_area(vertices),1024,rel_tol=0,abs_tol=1e-9)
+assert surface['left'] == [255,0,0,255] and surface['right'] == [0,255,0,255]
+assert 0 < surface['maximumUploadBytes'] <= 4096 and surface['relocatedBytes'] > 0
+assert surface['fallbackHash'] == surface['compactedHash'] and surface['indirectParity'] is True
+stages = surface['stages']
+assert [row['name'] for row in stages] == ['stream-origin','stream-positive','stream-negative','stream-return']
+assert [row['chunk'] for row in stages] == [[0,0,0],[1,0,0],[-1,0,0],[-1,0,0]]
+assert stages[0]['epoch'] == stages[1]['epoch'] == stages[2]['epoch'] != stages[3]['epoch']
+for row in stages:
+    assert row['resident'] <= 27 and row['cpuBytes'] + row['reserved'] <= 256 * 1024**2
+    assert all(abs(a-b)<=2 for a,b in zip(row['pixel'],[45.15,89.25,43.75,255]))
+assert all(abs(a-b)<=2 for a,b in zip(surface['fixedPixel'],[45.15,89.25,43.75,255]))
+assert surface['viewOnly'] is True and surface['fixedReturn'] is True
+assert surface_project['noise3D'][0]['processing'][0]['parameters']['expression'] == 'z - 16.25'
+print('SURFACE_STREAMING_PASS independent packed quantum/normal/area / mixed arena pixels / bounded publication / compaction parity / signed travel epochs / fixed return / view-only')

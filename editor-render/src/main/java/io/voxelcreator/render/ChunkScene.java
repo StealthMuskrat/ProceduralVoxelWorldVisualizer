@@ -18,6 +18,10 @@ public final class ChunkScene implements AutoCloseable {
   public interface Source extends AutoCloseable {
     SceneChunk load(ChunkPos position, CancellationToken token) throws Exception;
 
+    default boolean surfaces() {
+      return false;
+    }
+
     default void close() {}
   }
 
@@ -74,6 +78,7 @@ public final class ChunkScene implements AutoCloseable {
   private static final AtomicLong EPOCHS = new AtomicLong();
   private final long epoch = EPOCHS.incrementAndGet();
   private final Source source;
+  private final boolean surfaces;
   private final Function<ChunkPos, Profiler.Scope> profiling;
   private final ExecutorService executor;
   private Config config;
@@ -87,7 +92,7 @@ public final class ChunkScene implements AutoCloseable {
   private long sequence, frame, cpuBytes, reserved, generated, meshes, discarded;
   private int active;
   private String status = "Loading nearby chunks";
-  private boolean closed, rejected;
+  private boolean closed, rejected, budgetBlocked;
   private String lastError;
   private Vector3d center = new Vector3d(), eye = new Vector3d();
 
@@ -135,6 +140,9 @@ public final class ChunkScene implements AutoCloseable {
       Function<ChunkPos, Profiler.Scope> profiling) {
     this.profiling = Objects.requireNonNull(profiling);
     this.source = Objects.requireNonNull(source);
+    surfaces = source.surfaces();
+    if (surfaces && config.points)
+      throw new IllegalArgumentException("Surface scene cannot use points");
     this.executor = Objects.requireNonNull(executor);
     this.config = config;
     this.pressure = Objects.requireNonNull(pressure);
@@ -187,6 +195,7 @@ public final class ChunkScene implements AutoCloseable {
     this.center.set(center);
     this.eye.set(eye);
     frame++;
+    budgetBlocked = false;
     drain(completions);
     plan();
     evict();
@@ -217,7 +226,10 @@ public final class ChunkScene implements AutoCloseable {
       if (entry.working || entry.failed) continue;
       if (entry.data == null) {
         if (!pressure.acceptExpensive()) continue;
-        long bytes = 16L * config.size * config.size * config.size;
+        long bytes =
+            surfaces
+                ? 128L + 8L * (config.size + 1) * (config.size + 1) * (config.size + 1)
+                : 16L * config.size * config.size * config.size;
         if (admit(bytes)) {
           submitData(entry, bytes);
         }
@@ -225,14 +237,16 @@ public final class ChunkScene implements AutoCloseable {
       }
       if (!wanted.contains(position)) continue;
       int selected =
-          LodSelector.choose(
-              position,
-              config.size,
-              this.eye,
-              entry.targetLod,
-              config.lodStart,
-              config.quality,
-              pressure.lodBias());
+          surfaces
+              ? 0
+              : LodSelector.choose(
+                  position,
+                  config.size,
+                  this.eye,
+                  entry.targetLod,
+                  config.lodStart,
+                  config.quality,
+                  pressure.lodBias());
       if (selected != entry.targetLod) {
         entry.targetLod = selected;
         entry.dirty = true;
@@ -241,24 +255,29 @@ public final class ChunkScene implements AutoCloseable {
       if (entry.mesh != null && signature == entry.meshSignature && !entry.dirty) continue;
       // Wait for requested neighbors before first meshing; all faces/AO use matching immutable halo
       // snapshots.
-      if (!haloReady(position)) continue;
+      if (!surfaces && !haloReady(position)) continue;
       long bytes =
-          3
-              * ((576L * config.size * config.size * config.size) / (1L << selected)
-                  + 4096L * config.size * config.size);
+          surfaces
+              ? SceneChunk.surfaceWorkingBytes(config.size)
+              : 3
+                  * ((576L * config.size * config.size * config.size) / (1L << selected)
+                      + 4096L * config.size * config.size);
       if (admit(bytes)) submitMesh(entry, bytes, signature, selected);
     }
     status =
         lastError != null
             ? "Chunk failed; Regenerate to retry: " + lastError
-            : pressure.level() > 0
-                ? pressure.message()
-                : active > 0 ? "Streaming nearby chunks" : "Ready";
+            : budgetBlocked
+                ? "Scene CPU budget reached; previous display retained"
+                : pressure.level() > 0
+                    ? pressure.message()
+                    : active > 0 ? "Streaming nearby chunks" : "Ready";
   }
 
   private boolean admit(long bytes) {
     if (cpuBytes + reserved + bytes <= config.cpuBytes) return true;
     rejected = true;
+    budgetBlocked = true;
     status = "Scene CPU budget reached; previous display retained";
     return false;
   }
@@ -276,12 +295,13 @@ public final class ChunkScene implements AutoCloseable {
         }
     for (var position : wanted) {
       loadWindow.add(position);
-      for (int z = -1; z <= 1; z++)
-        for (int y = -1; y <= 1; y++)
-          for (int x = -1; x <= 1; x++) {
-            var neighbor = safe(position.x() + x, position.y() + y, position.z() + z);
-            if (neighbor != null) loadWindow.add(neighbor);
-          }
+      if (!surfaces)
+        for (int z = -1; z <= 1; z++)
+          for (int y = -1; y <= 1; y++)
+            for (int x = -1; x <= 1; x++) {
+              var neighbor = safe(position.x() + x, position.y() + y, position.z() + z);
+              if (neighbor != null) loadWindow.add(neighbor);
+            }
     }
     required.clear();
     required.addAll(loadWindow);
@@ -333,7 +353,8 @@ public final class ChunkScene implements AutoCloseable {
                   var data = source.load(entry.position, token);
                   if (data == null
                       || !data.position().equals(entry.position)
-                      || data.size() != config.size)
+                      || data.size() != config.size
+                      || data.surface() != surfaces)
                     throw new IllegalArgumentException("Source returned a mismatched chunk");
                   token.throwIfCancelled();
                   ready.add(new Result(entry.position, id, data, null, null, 0, null));
@@ -374,7 +395,7 @@ public final class ChunkScene implements AutoCloseable {
                 Result completion;
                 try {
                   token.throwIfCancelled();
-                  var lod = new DisplayLod(data, level);
+                  var lod = surfaces ? null : new DisplayLod(data, level);
                   MeshBuilder.Cells cells =
                       (x, y, z) -> {
                         if (x >= 0 && y >= 0 && z >= 0 && x < size && y < size && z < size)
@@ -391,9 +412,11 @@ public final class ChunkScene implements AutoCloseable {
                                 Math.floorMod(z, size));
                       };
                   var mesh =
-                      points
-                          ? VoxelMesher.points(size, cells, 1 << level)
-                          : VoxelMesher.greedy(size, cells);
+                      surfaces
+                          ? data.surfaceMesh(token)
+                          : points
+                              ? VoxelMesher.points(size, cells, 1 << level)
+                              : VoxelMesher.greedy(size, cells);
                   token.throwIfCancelled();
                   completion = new Result(entry.position, id, null, lod, mesh, signature, null);
                   outcome = Profiler.Outcome.SUCCESS;
@@ -496,6 +519,7 @@ public final class ChunkScene implements AutoCloseable {
   }
 
   private long signature(Entry entry) {
+    if (surfaces) return 1;
     long value = entry.targetLod + 1;
     for (int z = -1; z <= 1; z++)
       for (int y = -1; y <= 1; y++)
@@ -586,7 +610,7 @@ public final class ChunkScene implements AutoCloseable {
           && entry.mesh != null
           && !entry.uploaded
           && entry.meshSignature == signature(entry)
-          && entry.lod.level() == entry.targetLod) {
+          && (surfaces || entry.lod.level() == entry.targetLod)) {
         if (result.size() >= count
             || bytes + entry.mesh.byteSize() > byteBudget && !result.isEmpty()) break;
         result.add(new Upload(epoch, entry.position, entry.version, entry.mesh, entry.lod));
@@ -609,7 +633,9 @@ public final class ChunkScene implements AutoCloseable {
   }
 
   private static long meshBytes(Entry entry) {
-    return (entry.mesh == null ? 0 : entry.mesh.retainedBytes() + entry.lod.bytes())
+    return (entry.mesh == null
+            ? 0
+            : entry.mesh.retainedBytes() + (entry.lod == null ? 0 : entry.lod.bytes()))
         + (entry.displayedLod == null || entry.displayedLod == entry.lod
             ? 0
             : entry.displayedLod.bytes());
@@ -617,7 +643,7 @@ public final class ChunkScene implements AutoCloseable {
 
   /** UI-thread traversal of the immutable cell inputs matching the versions actually drawn. */
   public Optional<Pick> pick(Camera.Ray ray, double distance, Map<ChunkPos, Long> drawnVersions) {
-    if (closed) return Optional.empty();
+    if (closed || surfaces) return Optional.empty();
     Objects.requireNonNull(drawnVersions);
     int n = config.size;
     var hit =

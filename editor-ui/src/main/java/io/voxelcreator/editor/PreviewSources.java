@@ -19,8 +19,30 @@ public final class PreviewSources {
       double threshold,
       String mode,
       UUID stage) {
+    return create(snapshot, engine, kind, noise, threshold, mode, stage, "Threshold Voxels");
+  }
+
+  public static ChunkScene.Source create(
+      ProjectData snapshot,
+      NoiseGeneratorEngine engine,
+      int kind,
+      UUID noise,
+      double threshold,
+      String mode,
+      UUID stage,
+      String representation) {
     if (kind == 1) {
       var field = new NoiseCompiler(snapshot, snapshot.project.seed).compile(noise);
+      if (representation.equals("Isosurface"))
+        return new ChunkScene.Source() {
+          public boolean surfaces() {
+            return true;
+          }
+
+          public SceneChunk load(ChunkPos position, CancellationToken token) {
+            return SceneChunk.isosurface(position, 32, token, field::sample, threshold);
+          }
+        };
       return (position, token) -> SceneChunk.sampled(position, 32, token, field::sample, threshold);
     }
     var compiled = new CompiledProject(snapshot);

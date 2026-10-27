@@ -62,7 +62,8 @@ public final class SceneGpuRenderer implements AutoCloseable {
     }
   }
 
-  private record Resident(long version, ArenaAllocator.Slice slice, int count, boolean points) {}
+  private record Resident(
+      long version, ArenaAllocator.Slice slice, int count, boolean points, int unitsPerBlock) {}
 
   private record Draw(ChunkPos position, int offset, int count) {}
 
@@ -203,7 +204,8 @@ public final class SceneGpuRenderer implements AutoCloseable {
                 complete.version(),
                 pendingSlice,
                 complete.mesh().vertexCount(),
-                complete.mesh().points()));
+                complete.mesh().points(),
+                complete.mesh().unitsPerBlock()));
     if (old != null) arena.release(old.slice);
     pending = null;
     pendingSlice = null;
@@ -289,7 +291,12 @@ public final class SceneGpuRenderer implements AutoCloseable {
         var layout = compaction.layout();
         resident.replaceAll(
             (position, entry) ->
-                new Resident(entry.version, layout.target(entry.slice), entry.count, entry.points));
+                new Resident(
+                    entry.version,
+                    layout.target(entry.slice),
+                    entry.count,
+                    entry.points,
+                    entry.unitsPerBlock));
         arena.commitCompaction(layout);
         compaction = null;
         compactions++;
@@ -338,8 +345,8 @@ public final class SceneGpuRenderer implements AutoCloseable {
     drawnVersions.clear();
     indirect = useIndirect && GL.getCapabilities().OpenGL43;
     var frustum = new FrustumIntersection(matrix);
-    var triangles = new ArrayList<Draw>();
-    var points = new ArrayList<Draw>();
+    var triangles = new TreeMap<Integer, List<Draw>>();
+    var points = new TreeMap<Integer, List<Draw>>();
     for (var entry : resident.entrySet()) {
       var p = entry.getKey();
       if (!wanted.contains(p) || retiring.contains(p)) continue;
@@ -354,7 +361,9 @@ public final class SceneGpuRenderer implements AutoCloseable {
       var value = entry.getValue();
       if (value.count > 0) {
         drawnVersions.put(p, value.version);
-        var destination = value.points ? points : triangles;
+        var destination =
+            (value.points ? points : triangles)
+                .computeIfAbsent(value.unitsPerBlock, ignored -> new ArrayList<>());
         if (compaction == null) destination.add(new Draw(p, value.slice.offset(), value.count));
         else
           for (var segment : compaction.segments(value.slice))
@@ -376,14 +385,17 @@ public final class SceneGpuRenderer implements AutoCloseable {
     glDisable(GL_BLEND);
     glDisable(GL_CULL_FACE);
     glPointSize(3);
-    draw(triangles, GL_TRIANGLES, origin, size);
-    draw(points, GL_POINTS, origin, size);
+    for (var batch : triangles.entrySet())
+      draw(batch.getValue(), GL_TRIANGLES, origin, size, batch.getKey());
+    for (var batch : points.entrySet())
+      draw(batch.getValue(), GL_POINTS, origin, size, batch.getKey());
     glBindVertexArray(0);
     glUseProgram(0);
   }
 
-  private void draw(List<Draw> entries, int mode, Vector3d origin, int size) {
+  private void draw(List<Draw> entries, int mode, Vector3d origin, int size, int unitsPerBlock) {
     if (entries.isEmpty()) return;
+    glUniform1f(glGetUniformLocation(program, "positionScale"), 1f / unitsPerBlock);
     if (indirect) {
       FloatBuffer offsets = BufferUtils.createFloatBuffer(entries.size() * 3);
       IntBuffer batch = BufferUtils.createIntBuffer(entries.size() * 4);
@@ -431,8 +443,8 @@ public final class SceneGpuRenderer implements AutoCloseable {
         """
         #version 130
         in vec3 position;in vec3 normal;in uint typeId;in float occlusion;in vec3 chunkOffset;
-        uniform mat4 matrix;out vec3 N;out float AO;flat out uint type;out float distanceToEye;
-        void main(){vec4 clip=matrix*vec4(position*.5+chunkOffset,1);gl_Position=clip;N=normal;AO=occlusion;type=typeId;distanceToEye=clip.w;}
+        uniform mat4 matrix;uniform float positionScale;out vec3 N;out float AO;flat out uint type;out float distanceToEye;
+        void main(){vec4 clip=matrix*vec4(position*positionScale+chunkOffset,1);gl_Position=clip;N=normal;AO=occlusion;type=typeId;distanceToEye=clip.w;}
         """;
     String fragment =
         """
