@@ -4,6 +4,7 @@ import static org.lwjgl.glfw.GLFW.*;
 
 import imgui.*;
 import imgui.flag.*;
+import io.voxelcreator.core.ProcessingRegistry;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
 import io.voxelcreator.render.SlicePlane;
