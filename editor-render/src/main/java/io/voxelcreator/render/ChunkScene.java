@@ -196,7 +196,8 @@ public final class ChunkScene implements AutoCloseable {
     }
     var priority = new ArrayList<>(loadWindow);
     priority.sort(
-        Comparator.comparingDouble((ChunkPos p) -> distanceSquared(p, this.center))
+        Comparator.comparing((ChunkPos p) -> !required.contains(p))
+            .thenComparingDouble(p -> distanceSquared(p, this.center))
             .thenComparing(Comparator.naturalOrder()));
     for (var position : priority) {
       if (active >= (pressure.preload() ? config.jobs : 1)) break;
@@ -549,6 +550,28 @@ public final class ChunkScene implements AutoCloseable {
         cpuBytes -= meshBytes(entry);
         removed.add(entry.position);
         iterator.remove();
+      }
+    }
+    int missing = (int) required.stream().filter(p -> !entries.containsKey(p)).count();
+    int reclaim = Math.max(0, entries.size() + missing - config.dataChunks);
+    if (reclaim > 0) {
+      var optional =
+          entries.values().stream()
+              .filter(e -> !required.contains(e.position))
+              .sorted(
+                  Comparator.comparing((Entry e) -> e.displayed)
+                      .thenComparing(
+                          Comparator.comparingDouble(
+                                  (Entry e) -> distanceSquared(e.position, center))
+                              .reversed()))
+              .toList();
+      for (var entry : optional) {
+        if (reclaim-- <= 0) break;
+        cancel(entry);
+        if (entry.data != null) cpuBytes -= entry.data.bytes();
+        cpuBytes -= meshBytes(entry);
+        removed.add(entry.position);
+        entries.remove(entry.position);
       }
     }
   }

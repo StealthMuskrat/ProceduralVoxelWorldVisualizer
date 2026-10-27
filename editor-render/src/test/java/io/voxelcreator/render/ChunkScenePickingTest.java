@@ -46,6 +46,31 @@ class ChunkScenePickingTest {
   }
 
   @Test
+  void requiredHaloCompletesBeforeOptionalPreloadAtTheMinimumChunkLimit() throws Exception {
+    try (var workers = Executors.newFixedThreadPool(2);
+        var scene = new ChunkScene(solid(), workers, config())) {
+      var upload = awaitUpload(scene, FOCUS, NEAR, 0);
+      assertEquals(27, scene.statistics().generated());
+      assertEquals(27, scene.statistics().resident());
+      assertEquals(new ChunkPos(0, 0, 0), upload.position());
+    }
+  }
+
+  @Test
+  void crossingTheChunkBoundaryReclaimsOptionalHaloDataWithoutExceedingTheLimit() throws Exception {
+    try (var workers = Executors.newFixedThreadPool(2);
+        var scene = new ChunkScene(solid(), workers, config())) {
+      var first = awaitUpload(scene, FOCUS, NEAR, 0);
+      scene.uploaded(first);
+      var next = awaitUpload(scene, new Vector3d(-.5, 2.5, 2.5), new Vector3d(-.5, 2.5, 2.5), 0);
+      assertEquals(new ChunkPos(-1, 0, 0), next.position());
+      assertEquals(27, scene.statistics().resident());
+      assertEquals(36, scene.statistics().generated());
+      assertTrue(scene.statistics().cpuBytes() + scene.statistics().reserved() <= 64L << 20);
+    }
+  }
+
+  @Test
   void onlyAcknowledgedAndActuallyDrawnVersionsCanBePicked() throws Exception {
     try (var workers = Executors.newFixedThreadPool(2);
         var scene = new ChunkScene(solid(), workers, config())) {
