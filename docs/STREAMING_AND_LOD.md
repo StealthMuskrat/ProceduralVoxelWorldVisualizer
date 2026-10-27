@@ -61,3 +61,6 @@ Every result/miss/error first finishes only its owning slot and checks the share
 ## Historical trace refresh
 
 TraceSnapshot classifies an accepted result as current, an earlier revision of the current project, or another project. Inspector and shared TracePanel use the same classification. Refresh Displayed Trace re-evaluates an older same-project trace at its displayed coordinate using committed current data, leaving entered XYZ unchanged. It uses the existing owned coordinate job/retry/cancel path and does not request preview generation. Historical values remain immutable in Logs; refreshed source links use the new snapshot. A foreign-project result remains read-only and does not offer this refresh action; explicit Trace Coordinate inspects the current project. Empty/null trace presentation resets submitted row/step and control telemetry.
+
+
+The fixed marching-tetrahedra analysis path now has exact shared-edge interpolation order, outward winding/normals, overflow-safe finite interpolation, row cancellation and an explicit output cap. Its working-memory admission includes the corner grid and peak mesh growth. See [bounded isosurface extraction](ISOSURFACE_EXTRACTION.md). This supplies seam and lifecycle contracts for fixed meshes; it does not add streaming continuous geometry to the packed voxel arena.
