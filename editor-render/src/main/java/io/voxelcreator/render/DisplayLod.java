@@ -66,6 +66,10 @@ public final class DisplayLod {
     return level;
   }
 
+  int exactType(int x, int y, int z) {
+    return exact.get(x, y, z);
+  }
+
   public int factor() {
     return factor;
   }

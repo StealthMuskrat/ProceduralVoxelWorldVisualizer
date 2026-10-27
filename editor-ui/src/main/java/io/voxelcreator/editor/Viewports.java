@@ -23,6 +23,7 @@ public final class Viewports implements AutoCloseable {
   private final PropertyPanel properties;
   private TracePanel tracePanel;
   private TraceSnapshot traceSnapshot;
+  private String inspectorPickHint = "";
 
   public void tracePanel(TracePanel panel) {
     tracePanel = panel;
@@ -113,6 +114,38 @@ public final class Viewports implements AutoCloseable {
   boolean probeWorldFallbackReady() {
     var v = views[2];
     return probeWorldReady() && v.streamFallback && v.scene == null && v.gl.sceneRenderer() == null;
+  }
+
+  void probeWorldStream(UUID stage, String mode) {
+    probeWorld(stage, mode, 8, .25);
+    var v = views[2];
+    v.fixed = false;
+    v.camera.distance = 60;
+    v.rebuildSerial++;
+    v.force = true;
+    state.user.visualization.streaming = true;
+    mark(v);
+  }
+
+  boolean probeWorldStreamReady(int chunkX) {
+    var v = views[2];
+    var gpu = v.gl.sceneRenderer();
+    return usesStreaming(v)
+        && v.activeSceneKey.equals(sceneKey(v))
+        && v.compiler == null
+        && v.scene != null
+        && gpu != null
+        && v.scene.statistics().activeJobs() == 0
+        && gpu.pickingVersions().keySet().equals(Set.of(new ChunkPos(chunkX, 0, 0)));
+  }
+
+  void probeWorldTravel(double x) {
+    views[2].camera.focus.x = x;
+    inspector.set(false);
+  }
+
+  long probeWorldStreamEpoch() {
+    return views[2].scene.epoch();
   }
 
   Coordinates probeWorldPicked() {
@@ -1917,10 +1950,34 @@ public final class Viewports implements AutoCloseable {
     var ray = v.camera.ray(nx, ny, aspect, v.origin);
     boolean streamingPick = usesStreaming(v);
     var displayedBounds = v.fixedPickBounds;
-    ProjectData p = ProjectIO.copy(state.project());
     observePickView();
     long revision = state.revision;
     var request = traceRequests.begin(revision, true);
+    var sourceScene = v.scene;
+    var sourceGpu = v.gl.sceneRenderer();
+    var drawn = streamingPick ? sourceGpu.pickingVersions() : Map.<ChunkPos, Long>of();
+    Optional<ChunkScene.Pick> streamedHit;
+    try {
+      streamedHit = streamingPick ? sourceScene.pick(ray, 1000, drawn) : Optional.empty();
+    } catch (RuntimeException failure) {
+      state.status = failure.getMessage();
+      return;
+    }
+    if (streamingPick && streamedHit.isEmpty()) {
+      v.pickedBookmark = null;
+      inspectorPickHint = "";
+      inspector.set(true);
+      state.status = "No occupied voxel in displayed chunks; enter a coordinate to inspect EMPTY";
+      return;
+    }
+    java.util.function.BooleanSupplier current =
+        () ->
+            traceRequests.current(request, state.revision)
+                && (!streamingPick
+                    || v.scene == sourceScene
+                        && v.gl.sceneRenderer() == sourceGpu
+                        && drawn.equals(sourceGpu.pickingVersions()));
+    ProjectData p = ProjectIO.copy(state.project());
     UUID selectedStage = v.stage;
     String selectedMode = v.stageMode;
     try {
@@ -1949,15 +2006,22 @@ public final class Viewports implements AutoCloseable {
                         : after;
                   };
               var hit =
-                  VoxelRaycast.firstOccupied(
-                      ray, 1000, streamingPick ? evaluator : displayedBounds.restrict(evaluator));
+                  streamingPick
+                      ? streamedHit.map(ChunkScene.Pick::position)
+                      : VoxelRaycast.firstOccupied(ray, 1000, displayedBounds.restrict(evaluator));
               if (hit.isPresent()) {
                 BlockPos cell = hit.get();
                 GenerationTrace found = world.trace(cell);
                 state.uiQueue.offer(
                     () -> {
-                      if (!traceRequests.current(request, state.revision)) return;
+                      if (!current.getAsBoolean()) return;
                       acceptTrace(found, p, revision);
+                      if (streamingPick && streamedHit.orElseThrow().displayProxy()) {
+                        inspectorPickHint =
+                            "Display LOD proxy hit: this exact stage cell is EMPTY. Move closer for"
+                                + " detail or inspect this coordinate.";
+                        state.status = inspectorPickHint;
+                      }
                       inspect[0] = cell.x();
                       inspect[1] = cell.y();
                       inspect[2] = cell.z();
@@ -1968,16 +2032,16 @@ public final class Viewports implements AutoCloseable {
               }
               state.uiQueue.offer(
                   () -> {
-                    if (!traceRequests.current(request, state.revision)) return;
+                    if (!current.getAsBoolean()) return;
                     v.pickedBookmark = null;
+                    inspectorPickHint = "";
                     inspector.set(true);
                     state.status = "No occupied voxel hit; enter a coordinate to inspect EMPTY";
                   });
             } catch (Exception e) {
               state.uiQueue.offer(
                   () -> {
-                    if (traceRequests.current(request, state.revision))
-                      state.notify("Error", e.getMessage());
+                    if (current.getAsBoolean()) state.notify("Error", e.getMessage());
                   });
             }
           });
@@ -1987,6 +2051,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void acceptTrace(GenerationTrace result, ProjectData snapshot, long revision) {
+    inspectorPickHint = "";
     traceSnapshot = new TraceSnapshot(snapshot, revision, result);
     state.publishTrace(traceSnapshot);
   }
@@ -1995,6 +2060,7 @@ public final class Viewports implements AutoCloseable {
     if (!inspector.get()) return;
     ImGui.setNextWindowSize(600, 600, ImGuiCond.FirstUseEver);
     ImGui.begin("Voxel Inspector", inspector);
+    if (!inspectorPickHint.isEmpty()) ImGui.textWrapped(inspectorPickHint);
     ImGui.inputInt3("XYZ", inspect);
     if (ImGui.smallButton("Add Bookmark at Coordinate"))
       bookmarkPanel.openAdd(Tab.WORLD, new Coordinates(inspect[0], inspect[1], inspect[2]));

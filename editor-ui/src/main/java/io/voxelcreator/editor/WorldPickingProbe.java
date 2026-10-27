@@ -148,6 +148,83 @@ public final class WorldPickingProbe {
                     views.probeInspectorTrace().trace().finalType()));
             retained = views.probeInspectorTrace();
 
+            var streamHits = new ArrayList<Map<String, Object>>();
+            for (String mode : List.of("After", "Before", "Only Changes")) {
+              views.probeWorldStream(mode.equals("After") ? set : clear, mode);
+              until(() -> views.probeWorldStreamReady(0));
+              click();
+              until(views::probeInspectorOpen);
+              require(
+                  new Coordinates(31, 0, 0).equals(views.probeWorldPicked()),
+                  "Streaming pick selected an unshown cell near the camera");
+              streamHits.add(
+                  Map.of(
+                      "mode",
+                      mode,
+                      "chunkX",
+                      0,
+                      "x",
+                      31,
+                      "y",
+                      0,
+                      "z",
+                      0,
+                      "finalType",
+                      views.probeInspectorTrace().trace().finalType()));
+            }
+            click(250);
+            until(views::probeInspectorOpen);
+            require(
+                views.probeWorldPicked() == null && state.status.contains("displayed chunks"),
+                "Unshown procedural solid region did not miss");
+            var streamRetained = views.probeInspectorTrace();
+            try (var hold = holdWorkers()) {
+              click();
+              require(!state.background.getQueue().isEmpty(), "Stream trace was not queued");
+              state.user.performance.sceneGpuMiB =
+                  state.user.performance.sceneGpuMiB == 32 ? 48 : 32;
+              frame();
+            }
+            until(() -> views.probeWorldStreamReady(0) && idle());
+            frames(3);
+            require(
+                !views.probeInspectorOpen() && views.probeInspectorTrace() == streamRetained,
+                "GPU replacement allowed obsolete streamed trace publication");
+            long streamEpoch = views.probeWorldStreamEpoch();
+            views.probeWorldTravel(-.25);
+            until(() -> views.probeWorldStreamReady(-1));
+            click();
+            until(views::probeInspectorOpen);
+            require(
+                new Coordinates(-1, 0, 0).equals(views.probeWorldPicked())
+                    && streamEpoch == views.probeWorldStreamEpoch(),
+                "Negative chunk travel picked an old display or recreated the source");
+            streamHits.add(
+                Map.of(
+                    "mode",
+                    "Travel",
+                    "chunkX",
+                    -1,
+                    "x",
+                    -1,
+                    "y",
+                    0,
+                    "z",
+                    0,
+                    "finalType",
+                    views.probeInspectorTrace().trace().finalType()));
+            var streamReport =
+                Map.of(
+                    "hits",
+                    streamHits,
+                    "unloadedMiss",
+                    true,
+                    "gpuReplacementRejected",
+                    true,
+                    "epochReused",
+                    true);
+            retained = views.probeInspectorTrace();
+
             views.probeWorld(set, "After", 8, .25);
             until(views::probeWorldReady);
             try (var hold = holdWorkers()) {
@@ -205,7 +282,9 @@ public final class WorldPickingProbe {
                 ProjectIO.JSON.writeValueAsString(
                     Map.of(
                         "formatVersion",
-                        1,
+                        2,
+                        "stream",
+                        streamReport,
                         "hits",
                         hits,
                         "emptyMiss",
@@ -294,12 +373,16 @@ public final class WorldPickingProbe {
   }
 
   private static void click() {
+    click(0);
+  }
+
+  private static void click(float offset) {
     views.probeHideInspector();
     frames(2);
     var p = views.probeAdmissionControl("image");
     require(p != null, "Missing World image");
     var io = ImGui.getIO();
-    io.addMousePosEvent(p[0], p[1]);
+    io.addMousePosEvent(p[0] + offset, p[1]);
     frame();
     io.addMouseButtonEvent(0, true);
     frame();

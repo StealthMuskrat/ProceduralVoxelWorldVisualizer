@@ -72,6 +72,10 @@ public final class StreamingRenderProbe {
         view.sceneView(origin, wanted, false, false, 0);
         view.render(129, 129, matrix, true, 1);
         byte[] fallback = read(view);
+        if (!gpu.pickingVersions()
+            .equals(Map.of(new ChunkPos(0, 0, 0), 1L, new ChunkPos(1, 0, 0), 1L)))
+          throw new AssertionError(
+              "Picking coverage included empty/culled or missing drawn chunks");
         if (gpu.statistics().visible() != 2
             || gpu.statistics().culled() != 1
             || gpu.statistics().draws() != 2)
@@ -96,6 +100,14 @@ public final class StreamingRenderProbe {
         if (Byte.toUnsignedInt(recolored[left + 2]) < 245 || gpu.statistics().gpuBytes() != bytes)
           throw new AssertionError("Palette-only refresh changed geometry or failed");
         if (glGetError() != GL_NO_ERROR) throw new AssertionError("OpenGL error");
+        var empty = new ChunkPos(0, 0, 1);
+        upload(gpu, new ChunkScene.Upload(1, empty, 2, VoxelMesher.greedy(32, (x, y, z) -> 0)));
+        var withEmpty = new HashSet<>(wanted);
+        withEmpty.add(empty);
+        view.sceneView(origin, withEmpty, false, false, 0);
+        view.render(129, 129, matrix, true, 1);
+        if (gpu.pickingVersions().containsKey(empty) || gpu.pickingVersions().size() != 2)
+          throw new AssertionError("Empty allocation entered the picking coverage");
         verifyCompaction(view, matrix, origin);
         System.out.println(
             "STREAMING_RENDER_NATIVE_PASS packed / budgeted upload / culling / palette / indirect="
@@ -132,6 +144,8 @@ public final class StreamingRenderProbe {
     Set<ChunkPos> wanted = Set.of(left, right);
     byte[] baseline = renderRead(view, matrix, origin, wanted, false);
     byte[] leftOnly = renderRead(view, matrix, origin, Set.of(left), false);
+    if (!gpu.pickingVersions().equals(Map.of(left, 1L)))
+      throw new AssertionError("Picking coverage retained a non-displayed resident");
     gpu.remove(gap);
     gpu.remove(spacer);
     gpu.remove(tail);
@@ -186,6 +200,8 @@ public final class StreamingRenderProbe {
     if (!Arrays.equals(rightOnly, renderRead(view, matrix, origin, Set.of(right), false)))
       throw new AssertionError("Explicit partial relocation changed the remaining mesh");
     gpu.epoch(10);
+    if (!gpu.pickingVersions().isEmpty())
+      throw new AssertionError("New epoch retained picking coverage");
     if (gpu.hasData()
         || gpu.compacting()
         || gpu.pending()

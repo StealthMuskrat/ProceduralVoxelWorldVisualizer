@@ -74,6 +74,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
   private int vao, vbo, origins, commands, program;
   private final ArenaAllocator arena;
   private final Map<ChunkPos, Resident> resident = new LinkedHashMap<>();
+  private final Map<ChunkPos, Long> drawnVersions = new HashMap<>();
   private long epoch = -1, uploaded;
   private int visible, culled, draws;
   private boolean indirect;
@@ -116,12 +117,18 @@ public final class SceneGpuRenderer implements AutoCloseable {
     retiring.clear();
     arena.reset();
     resident.clear();
+    drawnVersions.clear();
     epoch = value;
     uploaded = relocated = 0;
   }
 
   public boolean hasData() {
     return !resident.isEmpty();
+  }
+
+  /** Versions submitted by the latest render; excludes empty, culled and retiring allocations. */
+  public Map<ChunkPos, Long> pickingVersions() {
+    return Map.copyOf(drawnVersions);
   }
 
   public void beginFrame() {
@@ -136,7 +143,8 @@ public final class SceneGpuRenderer implements AutoCloseable {
 
   public boolean contains(ChunkScene.Upload upload) {
     var entry = resident.get(upload.position());
-    return entry != null
+    return upload.epoch() == epoch
+        && entry != null
         && !retiring.contains(upload.position())
         && entry.version == upload.version();
   }
@@ -203,6 +211,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
   }
 
   public void remove(ChunkPos position) {
+    drawnVersions.remove(position);
     if (compaction != null) {
       if (resident.containsKey(position)) retiring.add(position);
       return;
@@ -326,6 +335,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
       boolean ao,
       float fogDistance) {
     visible = culled = draws = 0;
+    drawnVersions.clear();
     indirect = useIndirect && GL.getCapabilities().OpenGL43;
     var frustum = new FrustumIntersection(matrix);
     var triangles = new ArrayList<Draw>();
@@ -343,6 +353,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
       visible++;
       var value = entry.getValue();
       if (value.count > 0) {
+        drawnVersions.put(p, value.version);
         var destination = value.points ? points : triangles;
         if (compaction == null) destination.add(new Draw(p, value.slice.offset(), value.count));
         else
@@ -469,6 +480,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
     compactionRequested = false;
     retiring.clear();
     resident.clear();
+    drawnVersions.clear();
     pending = null;
     pendingSlice = null;
     arena.reset();

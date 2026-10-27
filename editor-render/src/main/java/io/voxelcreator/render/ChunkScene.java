@@ -2,6 +2,7 @@ package io.voxelcreator.render;
 
 import io.voxelcreator.api.CancellationToken;
 import io.voxelcreator.api.Profiler;
+import io.voxelcreator.storage.BlockPos;
 import io.voxelcreator.storage.ChunkPos;
 import java.util.*;
 import java.util.concurrent.*;
@@ -49,7 +50,14 @@ public final class ChunkScene implements AutoCloseable {
     }
   }
 
-  public record Upload(long epoch, ChunkPos position, long version, PackedMesh mesh) {}
+  public record Upload(
+      long epoch, ChunkPos position, long version, PackedMesh mesh, DisplayLod cells) {
+    public Upload(long epoch, ChunkPos position, long version, PackedMesh mesh) {
+      this(epoch, position, version, mesh, null);
+    }
+  }
+
+  public record Pick(BlockPos position, boolean displayProxy) {}
 
   public record Statistics(
       int resident,
@@ -87,6 +95,8 @@ public final class ChunkScene implements AutoCloseable {
     final ChunkPos position;
     SceneChunk data;
     DisplayLod lod;
+    DisplayLod displayedLod;
+    long displayedVersion;
     PackedMesh mesh;
     long version, jobId, meshSignature, lastUsed, reservation;
     int targetLod = -1;
@@ -458,10 +468,10 @@ public final class ChunkScene implements AutoCloseable {
         generated++;
         entry.dirty = true;
       } else {
-        if (entry.mesh != null) cpuBytes -= entry.mesh.retainedBytes() + entry.lod.bytes();
+        cpuBytes -= meshBytes(entry);
         entry.mesh = result.mesh;
         entry.lod = result.lod;
-        cpuBytes += result.mesh.retainedBytes() + result.lod.bytes();
+        cpuBytes += meshBytes(entry);
         entry.meshSignature = result.signature;
         entry.dirty = false;
         entry.uploaded = false;
@@ -519,11 +529,10 @@ public final class ChunkScene implements AutoCloseable {
           e.uploaded = false;
           e.dirty = true;
           removed.add(e.position);
-          if (e.mesh != null) {
-            cpuBytes -= e.mesh.retainedBytes() + e.lod.bytes();
-            e.mesh = null;
-            e.lod = null;
-          }
+          cpuBytes -= meshBytes(e);
+          e.mesh = null;
+          e.lod = e.displayedLod = null;
+          e.displayedVersion = 0;
         } else result.add(e.position);
       }
     return Set.copyOf(result);
@@ -537,7 +546,7 @@ public final class ChunkScene implements AutoCloseable {
           || cpuBytes > config.cpuBytes && !wanted.contains(entry.position)) {
         cancel(entry);
         if (entry.data != null) cpuBytes -= entry.data.bytes();
-        if (entry.mesh != null) cpuBytes -= entry.mesh.retainedBytes() + entry.lod.bytes();
+        cpuBytes -= meshBytes(entry);
         removed.add(entry.position);
         iterator.remove();
       }
@@ -557,25 +566,74 @@ public final class ChunkScene implements AutoCloseable {
           && entry.lod.level() == entry.targetLod) {
         if (result.size() >= count
             || bytes + entry.mesh.byteSize() > byteBudget && !result.isEmpty()) break;
-        result.add(new Upload(epoch, entry.position, entry.version, entry.mesh));
+        result.add(new Upload(epoch, entry.position, entry.version, entry.mesh, entry.lod));
         bytes += entry.mesh.byteSize();
       }
     return List.copyOf(result);
   }
 
   public void uploaded(Upload upload) {
+    if (closed || upload.epoch != epoch) return;
     Entry entry = entries.get(upload.position);
-    if (entry != null) {
+    if (entry != null && upload.version >= entry.displayedVersion) {
+      cpuBytes -= meshBytes(entry);
       entry.displayed = true;
+      entry.displayedLod = upload.cells;
+      entry.displayedVersion = upload.version;
       if (entry.version == upload.version) entry.uploaded = true;
+      cpuBytes += meshBytes(entry);
     }
+  }
+
+  private static long meshBytes(Entry entry) {
+    return (entry.mesh == null ? 0 : entry.mesh.retainedBytes() + entry.lod.bytes())
+        + (entry.displayedLod == null || entry.displayedLod == entry.lod
+            ? 0
+            : entry.displayedLod.bytes());
+  }
+
+  /** UI-thread traversal of the immutable cell inputs matching the versions actually drawn. */
+  public Optional<Pick> pick(Camera.Ray ray, double distance, Map<ChunkPos, Long> drawnVersions) {
+    if (closed) return Optional.empty();
+    Objects.requireNonNull(drawnVersions);
+    int n = config.size;
+    var hit =
+        VoxelRaycast.firstOccupied(
+            ray,
+            distance,
+            (x, y, z) -> {
+              var p = new ChunkPos(Math.floorDiv(x, n), Math.floorDiv(y, n), Math.floorDiv(z, n));
+              var e = entries.get(p);
+              return e != null
+                      && e.displayedLod != null
+                      && Objects.equals(drawnVersions.get(p), e.displayedVersion)
+                  ? e.displayedLod.get(
+                      Math.floorMod(x, n), Math.floorMod(y, n), Math.floorMod(z, n))
+                  : 0;
+            });
+    return hit.map(
+        p -> {
+          var e =
+              entries.get(
+                  new ChunkPos(
+                      Math.floorDiv(p.x(), n), Math.floorDiv(p.y(), n), Math.floorDiv(p.z(), n)));
+          boolean proxy =
+              e.displayedLod.exactType(
+                      Math.floorMod(p.x(), n), Math.floorMod(p.y(), n), Math.floorMod(p.z(), n))
+                  == 0;
+          return new Pick(p, proxy);
+        });
   }
 
   public void invalidateUploads() {
     for (var entry : entries.values()) {
+      cpuBytes -= meshBytes(entry);
       entry.uploaded = false;
       entry.displayed = false;
+      entry.displayedLod = null;
+      entry.displayedVersion = 0;
       entry.dirty = true;
+      cpuBytes += meshBytes(entry);
     }
   }
 
