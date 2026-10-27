@@ -36,7 +36,12 @@ public final class Viewports implements AutoCloseable {
   private final UiFields fields = new UiFields();
   private int active = 0;
   private int drawnView = -1;
-  private boolean viewportFocused, flightImageVisible, sliceImageVisible, surfacePressed;
+  private boolean viewportFocused,
+      flightImageVisible,
+      sliceImageVisible,
+      noiseImageVisible,
+      surfacePressed;
+  private NoiseImageView.Sample probeImageHover;
   private SliceImageView.Sample probeSliceHover;
   private String probeFlightInput = "";
   private boolean probeOrbitContextVisible;
@@ -304,6 +309,18 @@ public final class Viewports implements AutoCloseable {
     return views[0].displayedImage;
   }
 
+  NoiseImageNavigation probeImageNavigation() {
+    return new NoiseImageNavigation(views[0].panX, views[0].panZ, views[0].step);
+  }
+
+  NoiseImageView.Sample probeImageHover() {
+    return probeImageHover;
+  }
+
+  Coordinates probeImagePicked() {
+    return views[0].pickedBookmark;
+  }
+
   String probeAdmissionMessage() {
     return views[0].message;
   }
@@ -492,6 +509,7 @@ public final class Viewports implements AutoCloseable {
     final NoiseImageRows imageRows = new NoiseImageRows();
     final NoiseImageInput imageInput = new NoiseImageInput();
     final SliceInput sliceInput = new SliceInput();
+    final ImageContextGesture imageContext = new ImageContextGesture();
     NoiseImageRows.Statistics imageStatistics;
     NoiseImageView displayedImage;
     VoxelRaycast.Bounds fixedPickBounds;
@@ -746,6 +764,8 @@ public final class Viewports implements AutoCloseable {
     viewportFocused = false;
     flightImageVisible = false;
     sliceImageVisible = false;
+    noiseImageVisible = false;
+    probeImageHover = null;
     probeSliceHover = null;
     surfacePressed = false;
     probeOrbitContextVisible = false;
@@ -777,12 +797,13 @@ public final class Viewports implements AutoCloseable {
       if (v.kind != drawnView) v.flight.pause();
       if (v.kind != drawnView || !flightImageVisible) v.orbit.reset();
       if (v.kind != drawnView || !sliceImageVisible) v.sliceInput.reset();
+      if (v.kind != drawnView || !noiseImageVisible) v.imageInput.reset();
+      if (v.kind != drawnView || !(sliceImageVisible || noiseImageVisible)) v.imageContext.reset();
       v.flight.reconcile(flightEligible(v), inspector.get());
     }
     syncFlightCursor();
     observePickView();
     reconcileInspectorTask();
-    if (active != 0) views[0].imageInput.reset();
     drawInspector();
     for (var v : views) v.flight.reconcile(flightEligible(v), inspector.get());
     syncFlightCursor();
@@ -952,6 +973,7 @@ public final class Viewports implements AutoCloseable {
               v.noise = id;
               v.imageInput.reset();
               v.sliceInput.reset();
+              v.imageContext.reset();
               v.pickedBookmark = null;
               mark(v);
             }
@@ -1207,6 +1229,7 @@ public final class Viewports implements AutoCloseable {
               : "No generator selected";
       v.imageInput.reset();
       v.sliceInput.reset();
+      v.imageContext.reset();
       v.pickedBookmark = null;
       ImGui.spacing();
       ImGui.textWrapped(
@@ -1244,7 +1267,8 @@ public final class Viewports implements AutoCloseable {
     ImGui.image(v.gl.texture(), w, h, 0, v.image ? 0 : 1, 1, v.image ? 1 : 0);
     flightImageVisible = v.kind > 0 && !(v.kind == 1 && v.mode.equals("Slices"));
     sliceImageVisible = v.kind == 1 && v.mode.equals("Slices");
-    if (flightImageVisible || sliceImageVisible) {
+    noiseImageVisible = v.kind == 0;
+    if (flightImageVisible || sliceImageVisible || noiseImageVisible) {
       // Own image presses so a camera drag cannot also move the containing ImGui window.
       ImGui.setCursorPos(cursorX, cursorY);
       ImGui.invisibleButton(
@@ -1282,7 +1306,7 @@ public final class Viewports implements AutoCloseable {
     var io = ImGui.getIO();
     boolean enteredFlight = false;
     surfacePressed =
-        (flightImageVisible || sliceImageVisible)
+        (flightImageVisible || sliceImageVisible || noiseImageVisible)
             && hovered
             && (ImGui.isMouseClicked(0) || ImGui.isMouseClicked(1) || ImGui.isMouseClicked(2));
     if (surfacePressed
@@ -1316,21 +1340,12 @@ public final class Viewports implements AutoCloseable {
               + " mode="
               + v.flight.mode();
     OrbitGesture.Click orbitClick = orbitInput(v, hovered);
-    if (hovered
-        && !flightImageVisible
-        && !sliceImageVisible
-        && (ImGui.isMouseClicked(1)
-            || ImGui.isMouseReleased(0)
-                && Math.abs(ImGui.getMouseDragDeltaX(0)) < 3
-                && Math.abs(ImGui.getMouseDragDeltaY(0)) < 3)) rememberPicked(v, px, py, w, h);
-    if (orbitClick == OrbitGesture.Click.CONTEXT) {
+    boolean imageContext = imageContextInput(v, hovered);
+    if (orbitClick == OrbitGesture.Click.CONTEXT || imageContext) {
       rememberPicked(v, px, py, w, h);
       ImGui.openPopup("viewport-context");
     }
-    if (sliceImageVisible && hovered && ImGui.isMouseClicked(1)) rememberPicked(v, px, py, w, h);
-    if (flightImageVisible
-        ? ImGui.beginPopup("viewport-context")
-        : ImGui.beginPopupContextItem("viewport-context")) {
+    if (ImGui.beginPopup("viewport-context")) {
       probeOrbitContextVisible = true;
       if (v.kind == 0) {
         for (String mode : List.of("Grayscale", "Heatmap", "Contour", "Threshold", "Histogram"))
@@ -1356,13 +1371,16 @@ public final class Viewports implements AutoCloseable {
     if (v.kind == 0) {
       try {
         var before = new NoiseImageNavigation(v.panX, v.panZ, v.step);
-        var after = v.imageInput.navigate(before, hovered, px, py, w, h);
+        var after = before;
+        if (surfaceEligible(v)) after = v.imageInput.navigate(before, hovered, px, py, w, h);
+        else v.imageInput.reset();
         if (!after.equals(before)) {
           v.panX = after.x();
           v.panZ = after.z();
           v.step = after.step();
           mark(v);
         }
+        if (v.imageInput.picked()) rememberPicked(v, px, py, w, h);
       } catch (IllegalArgumentException failure) {
         state.status = "2D navigation exceeds finite coordinate range";
       }
@@ -1386,7 +1404,9 @@ public final class Viewports implements AutoCloseable {
         if (v.displayedImage != null) {
           try {
             var observation =
-                v.displayedImage.sample((io.getMousePosX() - px) / w, (io.getMousePosY() - py) / h);
+                v.displayedImage.sample(
+                    (io.getMousePosX() - px) / (double) w, (io.getMousePosY() - py) / (double) h);
+            probeImageHover = observation;
             sample =
                 String.format(
                     Locale.ROOT,
@@ -1778,6 +1798,8 @@ public final class Viewports implements AutoCloseable {
   private void release(View v) {
     v.orbit.reset();
     v.sliceInput.reset();
+    v.imageContext.reset();
+    v.imageInput.reset();
     if (v.camera.flying) v.camera.leaveFly();
     v.flight.exit();
     syncFlightCursor();
@@ -1825,7 +1847,7 @@ public final class Viewports implements AutoCloseable {
 
   private boolean surfaceEligible(View v) {
     return drawnView == v.kind
-        && (flightImageVisible || sliceImageVisible)
+        && (flightImageVisible || sliceImageVisible || noiseImageVisible)
         && viewportFocused
         && glfwGetWindowAttribBoolean(handle, GLFW_FOCUSED)
         && (!ImGui.getIO().getWantTextInput() || surfacePressed)
@@ -1864,6 +1886,26 @@ public final class Viewports implements AutoCloseable {
   private void syncFlightCursor() {
     int mode = flying() ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL;
     if (glfwGetInputMode(handle, GLFW_CURSOR) != mode) glfwSetInputMode(handle, GLFW_CURSOR, mode);
+  }
+
+  private boolean imageContextInput(View v, boolean hovered) {
+    if (!(noiseImageVisible || sliceImageVisible) || !surfaceEligible(v)) {
+      v.imageContext.reset();
+      return false;
+    }
+    var io = ImGui.getIO();
+    if (v.imageContext.active()) {
+      if (ImGui.isKeyPressed(ImGuiKey.Escape, false)
+          || ImGui.isMouseDown(0)
+          || ImGui.isMouseDown(2)) v.imageContext.reset();
+      else if (ImGui.isMouseReleased(1))
+        return v.imageContext.release(
+            io.getMousePosX(), io.getMousePosY(), ImGui.getTime(), hovered);
+      else if (!ImGui.isMouseDown(1)) v.imageContext.reset();
+      else v.imageContext.move(io.getMousePosX(), io.getMousePosY());
+    } else if (hovered && ImGui.isMouseClicked(1) && !ImGui.isMouseDown(0) && !ImGui.isMouseDown(2))
+      v.imageContext.begin(io.getMousePosX(), io.getMousePosY(), ImGui.getTime());
+    return false;
   }
 
   private void publish(View v, Preview result) {
@@ -2243,7 +2285,8 @@ public final class Viewports implements AutoCloseable {
         }
         var point =
             v.displayedImage.at(
-                (io.getMousePosX() - px) / width, (io.getMousePosY() - py) / height);
+                (io.getMousePosX() - px) / (double) width,
+                (io.getMousePosY() - py) / (double) height);
         v.pickedBookmark = BookmarkTransactions.capture(Tab.NOISE_2D, point.x(), 0, point.z());
       } else if (v.kind == 1 && v.mode.equals("Slices") && v.image && v.displayedSlice != null) {
         var point =

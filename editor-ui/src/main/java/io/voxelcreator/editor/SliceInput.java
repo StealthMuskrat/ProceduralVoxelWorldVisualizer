@@ -62,7 +62,7 @@ final class SliceInput {
     }
     if (!hovered) return new Result(before, false);
     for (int candidate = 0; candidate <= 2; candidate += 2)
-      if (ImGui.isMouseClicked(candidate)) {
+      if (ImGui.isMouseClicked(candidate) && !ImGui.isMouseDown(1)) {
         baseline = last = before;
         button = candidate;
         startX = io.getMousePosX();

@@ -182,3 +182,36 @@ assert all(slices[key] is True for key in ['allPlanes', 'anchoredZoom', 'outside
     'escapeRollback', 'foreignIgnored', 'focusCanceled', 'tabCanceled', 'requestSuperseded', 'pendingGeometry',
     'bookmarkGeometry', 'manualPreview', 'immutableAccepted', 'viewOnly'])
 print('SLICE_INPUT_PASS independent XYZ affine grid-hover / anchored zoom / captured left-middle / cancellation / immutable pending bookmark geometry / view-only')
+
+image_root = Path(sys.argv[1]) / 'image-gestures'
+images = json.loads((image_root / 'image-gestures-native.json').read_text())
+image_project = json.loads((image_root / 'image-gestures-project.json').read_text())
+assert images['formatVersion'] == 1
+b, a = images['before'], images['released']
+w, h = images['pressDimensions']
+assert images['pressDimensions'] != images['resizedDimensions']
+assert images['releaseDelta'] == [80, 40]
+assert math.isclose(a[0], b[0] - 80 / w * 256 * b[2], rel_tol=0, abs_tol=1e-9)
+assert math.isclose(a[1], b[1] - 40 / h * 256 * b[2], rel_tol=0, abs_tol=1e-9)
+assert a[2] == b[2]
+assert [row['kind'] for row in images['samples']] == ['2D-left', '2D-context', 'slice-context']
+for row in images['samples']:
+    u, v = row['pointer']
+    if row['kind'].startswith('2D'):
+        expected = [u * 256 - 128, 0, v * 256 - 128]
+        raw = expected[0] + 100 * expected[2]
+        picked = [math.floor(expected[0]), math.floor(expected[2])]
+    else:
+        expected = [-10.25 + u * 6, -3, 9.5 + v * 6]
+        raw = affine(expected)
+        picked = [math.floor(x) for x in expected]
+    assert all(math.isclose(x, y, rel_tol=0, abs_tol=1e-9) for x, y in zip(expected, row['point']))
+    assert math.isclose(raw, row['raw'], rel_tol=0, abs_tol=1e-9)
+    assert row['picked'] == picked
+assert image_project['noise2D'][0]['processing'][0]['parameters']['expression'] == 'x + 100*z'
+assert image_project['noise3D'][0]['processing'][0]['parameters']['expression'] == 'x + 10*y + 100*z'
+assert all(images[key] is True for key in ['resizeStable', 'finalReleaseApplied', 'foreignBookmarkRetained',
+    'escapeBookmarkRetained', 'collapseCanceled', 'heldWheelSuppressed', 'shortContexts',
+    'longContextsIgnored', 'stickyContextsIgnored', 'foreignContextsIgnored',
+    'focusContextsCanceled', 'buttonArbitration', 'acceptedGeometry', 'manualUnchanged', 'viewOnly'])
+print('IMAGE_GESTURES_PASS independent press-size/release pan / accepted double coordinates / owned bookmarks / collapse / shared context arbitration / view-only')
