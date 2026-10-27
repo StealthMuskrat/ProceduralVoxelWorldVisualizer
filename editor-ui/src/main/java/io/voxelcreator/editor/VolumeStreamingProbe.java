@@ -250,6 +250,7 @@ final class VolumeStreamingProbe {
         untilReady(-128, 0, 0);
         report.put("queueRetry", true);
         generation = views.probeVolumeMemory().generation();
+        state.user.editor.autoRegenerate = true;
         views.probeVolume(id, 16, -16);
         until(() -> views.probeNoiseReady(1) && views.probeVolumeWindow() == null);
         require(
