@@ -33,7 +33,8 @@ public final class Viewports implements AutoCloseable {
   private final UiFields fields = new UiFields();
   private int active = 0;
   private int smokeTab = -1;
-  private long traceSerial = 0;
+  private final InspectorRequests traceRequests = new InspectorRequests();
+  private PickView observedPickView;
   private final ImBoolean inspector = new ImBoolean(false);
   private final int[] inspect = {0, 0, 0};
   private final BookmarkPanel bookmarkPanel;
@@ -47,6 +48,88 @@ public final class Viewports implements AutoCloseable {
   private final java.util.concurrent.atomic.AtomicBoolean probeStreamCompileFailure =
       new java.util.concurrent.atomic.AtomicBoolean();
   private final Map<String, float[]> admissionControls = new HashMap<>();
+
+  private record PickView(
+      int tab,
+      long epoch,
+      double x,
+      double y,
+      double z,
+      double yaw,
+      double pitch,
+      double distance,
+      boolean flying) {}
+
+  private void observePickView() {
+    var v = views[2];
+    var eye = v.camera.eye();
+    var current =
+        new PickView(
+            active,
+            v.epoch,
+            eye.x,
+            eye.y,
+            eye.z,
+            v.camera.yaw,
+            v.camera.pitch,
+            v.camera.distance,
+            v.camera.flying);
+    if (!current.equals(observedPickView)) {
+      observedPickView = current;
+      traceRequests.viewChanged();
+    }
+  }
+
+  void probeWorld(UUID stage, String mode, int side, double centerX) {
+    admissionProbe = true;
+    smokeTab = 2;
+    var v = views[2];
+    v.fixed = true;
+    v.stage = stage;
+    v.stageMode = mode;
+    v.size = side;
+    v.panX = centerX;
+    v.panY = v.panZ = .25;
+    v.camera.focus.set(centerX, .25, .25);
+    v.camera.yaw = Math.PI / 2;
+    v.camera.pitch = 0;
+    v.camera.distance = 20;
+    inspector.set(false);
+    mark(v);
+  }
+
+  boolean probeWorldReady() {
+    return probeNoiseReady(2);
+  }
+
+  void probeWorldFallback(UUID stage) {
+    probeWorld(stage, "After", 8, .25);
+    views[2].fixed = false;
+    state.user.visualization.streaming = true;
+    probeFailNextRendererStartup();
+    mark(views[2]);
+  }
+
+  boolean probeWorldFallbackReady() {
+    var v = views[2];
+    return probeWorldReady() && v.streamFallback && v.scene == null && v.gl.sceneRenderer() == null;
+  }
+
+  Coordinates probeWorldPicked() {
+    return views[2].pickedBookmark;
+  }
+
+  TraceSnapshot probeInspectorTrace() {
+    return traceSnapshot;
+  }
+
+  boolean probeInspectorOpen() {
+    return inspector.get();
+  }
+
+  void probeHideInspector() {
+    inspector.set(false);
+  }
 
   void probeAdmissionSource(UUID noise) {
     admissionProbe = true;
@@ -467,6 +550,7 @@ public final class Viewports implements AutoCloseable {
       ImGui.endTabBar();
     }
     ImGui.end();
+    observePickView();
     if (active != 0) views[0].imageInput.reset();
     drawInspector();
     bookmarkPanel.drawDialogs();
@@ -1423,6 +1507,10 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void mark(View v) {
+    if (v.kind == 2) {
+      traceRequests.viewChanged();
+      v.pickedBookmark = null;
+    }
     v.dirty = true;
     v.admission.changed();
     v.failedPreview = false;
@@ -1830,7 +1918,9 @@ public final class Viewports implements AutoCloseable {
     boolean streamingPick = usesStreaming(v);
     var displayedBounds = v.fixedPickBounds;
     ProjectData p = ProjectIO.copy(state.project());
-    long request = ++traceSerial, revision = state.revision;
+    observePickView();
+    long revision = state.revision;
+    var request = traceRequests.begin(revision, true);
     UUID selectedStage = v.stage;
     String selectedMode = v.stageMode;
     try {
@@ -1866,7 +1956,7 @@ public final class Viewports implements AutoCloseable {
                 GenerationTrace found = world.trace(cell);
                 state.uiQueue.offer(
                     () -> {
-                      if (request != traceSerial || revision != state.revision) return;
+                      if (!traceRequests.current(request, state.revision)) return;
                       acceptTrace(found, p, revision);
                       inspect[0] = cell.x();
                       inspect[1] = cell.y();
@@ -1878,12 +1968,17 @@ public final class Viewports implements AutoCloseable {
               }
               state.uiQueue.offer(
                   () -> {
-                    if (request != traceSerial || revision != state.revision) return;
+                    if (!traceRequests.current(request, state.revision)) return;
+                    v.pickedBookmark = null;
                     inspector.set(true);
                     state.status = "No occupied voxel hit; enter a coordinate to inspect EMPTY";
                   });
             } catch (Exception e) {
-              state.uiQueue.offer(() -> state.notify("Error", e.getMessage()));
+              state.uiQueue.offer(
+                  () -> {
+                    if (traceRequests.current(request, state.revision))
+                      state.notify("Error", e.getMessage());
+                  });
             }
           });
     } catch (RejectedExecutionException e) {
@@ -1905,7 +2000,8 @@ public final class Viewports implements AutoCloseable {
       bookmarkPanel.openAdd(Tab.WORLD, new Coordinates(inspect[0], inspect[1], inspect[2]));
     if (ImGui.button("Trace Coordinate")) {
       var p = ProjectIO.copy(state.project());
-      long request = ++traceSerial, revision = state.revision;
+      long revision = state.revision;
+      var request = traceRequests.begin(revision, false);
       BlockPos pos = new BlockPos(inspect[0], inspect[1], inspect[2]);
       try {
         state.background.execute(
@@ -1914,11 +2010,15 @@ public final class Viewports implements AutoCloseable {
                 var result = world.trace(pos);
                 state.uiQueue.offer(
                     () -> {
-                      if (request == traceSerial && revision == state.revision)
+                      if (traceRequests.current(request, state.revision))
                         acceptTrace(result, p, revision);
                     });
               } catch (Exception e) {
-                state.uiQueue.offer(() -> state.notify("Error", e.getMessage()));
+                state.uiQueue.offer(
+                    () -> {
+                      if (traceRequests.current(request, state.revision))
+                        state.notify("Error", e.getMessage());
+                    });
               }
             });
       } catch (RejectedExecutionException e) {
@@ -1931,6 +2031,7 @@ public final class Viewports implements AutoCloseable {
 
   @Override
   public void close() {
+    traceRequests.close();
     for (var v : views) {
       v.ready.close();
       v.setup.close();

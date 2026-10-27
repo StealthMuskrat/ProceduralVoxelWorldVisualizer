@@ -190,6 +190,10 @@ jobs:
         run: |
           LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreviewAdmissionProbe build/preview-admission
           python scripts/verify_preview_admission.py build/preview-admission
+      - name: Native World picking and stale-result guards
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldPickingProbe build/world-picking
+          python scripts/verify_world_picking.py build/world-picking
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -228,6 +232,7 @@ jobs:
             build/image-rows/
             build/image-input/
             build/preview-admission/
+            build/world-picking/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -539,6 +544,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_preview_admission.py build/preview-admission
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows native World picking and stale-result guards
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldPickingProbe build/world-picking
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_world_picking.py build/world-picking
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -601,6 +613,7 @@ jobs:
             build/image-rows/
             build/image-input/
             build/preview-admission/
+            build/world-picking/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/
