@@ -1898,6 +1898,8 @@ public final class PropertyPanel {
                   b.itemUuid,
                   value -> b.itemUuid = value));
       localLink(n, b.itemUuid);
+      ImGui.textWrapped(
+          "Reevaluates this earlier result and its dependencies at each requested location.");
     } else if (b.sourceKind.equals("Noise Generator Field")) {
       bindingField(
           item,

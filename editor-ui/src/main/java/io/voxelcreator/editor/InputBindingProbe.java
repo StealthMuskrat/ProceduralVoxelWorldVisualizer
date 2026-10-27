@@ -85,6 +85,25 @@ final class InputBindingProbe {
           "Item return lost independent selection");
       selections.add("second/" + panel.probeInputSelection(second));
 
+      for (String field : List.of("type", "sourceKind")) {
+        reveal(first, "bias", "/noise2D/0/processing/0/inputs/bias/" + field);
+        untilFocused(first, "bias", field);
+      }
+      reveal(first, "flag", "");
+      untilFocused(first, "flag", "value");
+      reveal(first, "shared", "");
+      untilFocused(first, "shared", "parameterUuid");
+      reveal(second, "earlier", "");
+      untilFocused(second, "earlier", "itemUuid");
+      reveal(second, "ambient", "");
+      untilFocused(second, "ambient", "ambientKey");
+      reveal(first, "reference", "");
+      untilFocused(first, "reference", "noiseGeneratorUuid");
+      for (String field : List.of("projection", "slice")) {
+        reveal(first, "reference", "/noise2D/0/processing/0/inputs/reference/" + field);
+        untilFocused(first, "reference", field);
+      }
+
       reveal(transform, "x", "/noise2D/0/coordinateTransforms/0/inputs/x/value");
       untilFocused(transform, "x", "value");
       frames(3);
@@ -159,10 +178,34 @@ final class InputBindingProbe {
     first.parameters.put("expression", ProjectIO.JSON.valueToTree("bias+extra+x+2*z"));
     first.inputs.put("bias", Binding.constant(2));
     first.inputs.put("extra", Binding.constant(3));
+    var flag = Binding.constant(0);
+    flag.type = "Boolean";
+    flag.value = ProjectIO.JSON.valueToTree(true);
+    first.inputs.put("flag", flag);
+    var parameter = new Parameter();
+    parameter.id = "shared-value";
+    parameter.value = ProjectIO.JSON.valueToTree(13);
+    n.sharedParameters.add(parameter);
+    var shared = Binding.source();
+    shared.sourceKind = "Shared Parameter";
+    shared.parameterUuid = parameter.uuid;
+    first.inputs.put("shared", shared);
+    var external = new Noise();
+    external.id = "external";
+    external.algorithm.key = "CONSTANT";
+    var reference = Binding.source();
+    reference.sourceKind = "Noise Generator Reference";
+    reference.noiseGeneratorUuid = external.uuid;
+    first.inputs.put("reference", reference);
     var second = ProcessingRegistry.create("EXPRESSION", "second");
     second.parameters.put("expression", ProjectIO.JSON.valueToTree("alpha+beta"));
     second.inputs.put("alpha", Binding.constant(7));
     second.inputs.put("beta", Binding.constant(11));
+    second.inputs.put("earlier", Binding.earlier(first.uuid));
+    var ambient = Binding.source();
+    ambient.sourceKind = "Ambient Value";
+    ambient.ambientKey = "x";
+    second.inputs.put("ambient", ambient);
     n.processing.addAll(List.of(first, second));
     n.outputBinding = Binding.earlier(first.uuid);
     var transform = new Item();
@@ -175,7 +218,7 @@ final class InputBindingProbe {
     coordinates.value = ProjectIO.JSON.valueToTree(new double[] {0, 0});
     transform.inputs.put("coordinates", coordinates);
     n.coordinateTransforms.add(transform);
-    p.noise2D.add(n);
+    p.noise2D.addAll(List.of(n, external));
   }
 
   private static double sample() {

@@ -256,7 +256,10 @@ bindings = json.loads((input_root / 'input-binding-native.json').read_text())
 binding_project = json.loads((input_root / 'input-binding-project.json').read_text())
 assert bindings['formatVersion'] == 1
 assert bindings['selected'] == ['first/extra', 'second/alpha', 'first/extra', 'second/alpha']
-assert bindings['focused'] == ['first/bias/value', 'second/beta/value', 'translate/x/value', 'translate/coordinates/value/1']
+assert bindings['focused'] == ['first/bias/value', 'second/beta/value', 'first/bias/type',
+    'first/bias/sourceKind', 'first/flag/value', 'first/shared/parameterUuid', 'second/earlier/itemUuid',
+    'second/ambient/ambientKey', 'first/reference/noiseGeneratorUuid', 'first/reference/projection',
+    'first/reference/slice', 'translate/x/value', 'translate/coordinates/value/1']
 assert bindings['diagnosticInput'] == 'inputs/bias'
 noise = binding_project['noise2D'][0]
 first, second = noise['processing']
@@ -266,6 +269,11 @@ assert first['parameters']['expression'] == 'bias+extra+x+2*z'
 assert second['parameters']['expression'] == 'alpha+beta'
 assert first['inputs']['bias']['value'] == 3.25 and first['inputs']['extra']['value'] == 3
 assert second['inputs']['alpha']['value'] == 7 and second['inputs']['beta']['value'] == 11
+assert first['inputs']['flag']['value'] is True and first['inputs']['flag']['type'] == 'Boolean'
+assert first['inputs']['shared']['parameterUuid'] == noise['sharedParameters'][0]['uuid']
+assert first['inputs']['reference']['noiseGeneratorUuid'] == binding_project['noise2D'][1]['uuid']
+assert second['inputs']['earlier']['itemUuid'] == first['uuid']
+assert second['inputs']['ambient']['ambientKey'] == 'x'
 assert transform['inputs']['x']['value'] == 4
 assert transform['inputs']['coordinates']['type'] == 'Coordinates2D'
 x, z = transform['inputs']['coordinates']['value']
