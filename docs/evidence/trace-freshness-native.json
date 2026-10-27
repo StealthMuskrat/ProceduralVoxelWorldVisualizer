@@ -1,0 +1,17 @@
+{
+  "formatVersion" : 1,
+  "projectChangeCanceled" : true,
+  "emptyTraceCountersReset" : true,
+  "newProjectTrace" : [ 7, 0, 0, 0 ],
+  "manualPreviewUnchanged" : true,
+  "sourceLinksRefreshed" : true,
+  "newTraceViewOnly" : true,
+  "refreshViewOnly" : true,
+  "oldSnapshotImmutable" : true,
+  "refreshed" : [ 3, 0, 0, 0 ],
+  "foreignRefreshUnavailable" : true,
+  "refreshPreservedDraft" : true,
+  "initial" : [ 3, 0, 0, 1 ],
+  "foreignReadOnly" : true,
+  "entered" : [ 7, 0, 0 ]
+}
