@@ -26,3 +26,27 @@ for hit in stream['hits']:
     assert hit['y'] == hit['z'] == 0 and hit['finalType'] == 0
 assert all(stream[key] is True for key in ['unloadedMiss', 'gpuReplacementRejected', 'epochReused'])
 print('STREAMED_WORLD_PICKING_PASS drawn chunk faces / negative travel / unshown miss / GPU replacement / stage ghosts')
+
+proxy_root = Path(sys.argv[1]) / 'lod-proxy'
+proxy = json.loads((proxy_root / 'world-lod-picking-native.json').read_text())
+project = json.loads((proxy_root / 'world-lod-project.json').read_text())
+assert proxy['formatVersion'] == 1
+assert [layer['defaults']['action'] for layer in project['worldGenerator']['layers']] == ['SET', 'SET', 'CLEAR']
+plane = next(noise for noise in project['noise3D'] if noise['id'] == 'plane')
+assert plane['processing'][0]['parameters']['expression'] == 'x == 28 ? 1 : -1'
+# Half of the 2x2x2 cell group is occupied: inclusive majority fills x=29,
+# although exact preview occupancy is at x=28. The later fill/CLEAR leaves x=29 solid.
+occupied = sum(x == 28 for x in (28, 29) for y in (2, 3) for z in (2, 3))
+assert occupied * 2 == 2 ** 3
+expected = [('After', 29, True, 1), ('Only Changes', 29, True, 1), ('Refined', 28, False, 0)]
+assert len(proxy['observations']) == len(expected)
+for row, (mode, x, coarse, final_type) in zip(proxy['observations'], expected):
+    assert (row['mode'], row['x'], row['y'], row['z'], row['proxy'], row['finalType']) == (mode, x, 2, 2, coarse, final_type)
+    assert 0 < row['traceRows'] <= 30
+    if coarse:
+        assert 'X 29, Y 2, Z 2' in row['hint'] and 'exact preview' in row['hint'] and 'full world' in row['hint']
+    else:
+        assert row['hint'] == ''
+assert all(proxy[key] is True for key in ['coordinateTraceClearedHint', 'streamMissClearedTrace',
+    'fixedMissClearedTrace', 'retainedLogs', 'coordinateTraceRecovered', 'sceneEpochReused', 'viewOnly'])
+print('WORLD_LOD_PICKING_INDEPENDENT_PASS half-occupied proxy / unchanged occupied full world / exact refinement / Inspector miss recovery / retained Logs')

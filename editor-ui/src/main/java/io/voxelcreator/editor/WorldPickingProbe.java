@@ -305,6 +305,7 @@ public final class WorldPickingProbe {
             if (!closed) views.close();
           }
         }
+        WorldLodPickingProbe.run(out.resolve("lod-proxy"), window);
       } finally {
         ImGui.destroyContext();
       }

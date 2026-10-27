@@ -37,3 +37,9 @@ A coarse occupied proxy can cover an exact EMPTY preview cell. That coordinate o
 The renderer Upload record now carries its immutable DisplayLod input; its four-argument constructor remains available for existing callers. Record-pattern/reflection clients must account for the additional component. This renderer-only change does not change exact chunk, archive, project or headless-engine formats.
 
 Required visible chunks and their halo now take priority over optional preload by distance. When the chunk-entry limit is full, optional entries are reclaimed to make room for missing required data, keeping previously displayed entries until other optional entries have been considered. This prevents preload/retained halo data from starving meshing at the minimum 27-chunk limit. Hard admission still applies when the entire configured required window exceeds that limit.
+
+## Inspector feedback after a pick
+
+Coarse proxy feedback includes the picked integer coordinate and explains that the exact preview is empty while the trace describes the full world. In Only Changes, an empty preview cell can be an unchanged occupied full-world cell. A successful exact pick or explicit Trace Coordinate replaces that feedback. Fixed and streamed misses clear the Inspector's current trace and show coordinate-recovery instructions; previously published traces remain in the bounded Logs history. Explicit coordinate completion updates the status to its accepted coordinate.
+
+Native coverage uses an isolated three-stage world (SET a plane at x=28, SET everywhere, CLEAR the plane), actual coarse World image clicks, the production TracePanel and Trace Coordinate button, and wheel refinement. At LOD1 the proxy coordinate x=29 is empty in the selected preview but occupied in the full world; after refinement x=28 is a genuine removal ghost with final EMPTY. The fixture also checks fixed/streamed misses and retained Logs without authored changes.

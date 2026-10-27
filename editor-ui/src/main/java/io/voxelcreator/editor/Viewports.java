@@ -24,6 +24,7 @@ public final class Viewports implements AutoCloseable {
   private TracePanel tracePanel;
   private TraceSnapshot traceSnapshot;
   private String inspectorPickHint = "";
+  private boolean inspectorHintVisible, inspectorTraceVisible;
 
   public void tracePanel(TracePanel panel) {
     tracePanel = panel;
@@ -146,6 +147,33 @@ public final class Viewports implements AutoCloseable {
 
   long probeWorldStreamEpoch() {
     return views[2].scene.epoch();
+  }
+
+  void probeWorldProxyView(UUID stage, String mode) {
+    probeWorldStream(stage, mode);
+    var v = views[2];
+    v.camera.focus.set(16, 2.5, 2.5);
+    v.camera.distance = 64;
+  }
+
+  Optional<ChunkScene.Pick> probeWorldCenterPick() {
+    var v = views[2];
+    return v.scene == null || v.gl.sceneRenderer() == null
+        ? Optional.empty()
+        : v.scene.pick(
+            v.camera.ray(0, 0, 1, v.origin), 1000, v.gl.sceneRenderer().pickingVersions());
+  }
+
+  String probeInspectorFeedback() {
+    return inspectorPickHint;
+  }
+
+  boolean probeInspectorTraceVisible() {
+    return inspectorTraceVisible;
+  }
+
+  boolean probeInspectorHintVisible() {
+    return inspectorHintVisible;
   }
 
   Coordinates probeWorldPicked() {
@@ -565,6 +593,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void draw() {
+    inspectorHintVisible = inspectorTraceVisible = false;
     views[0].imageRows.budget(
         Math.min(
             (long) state.user.performance.cacheMiB << 20,
@@ -1964,10 +1993,7 @@ public final class Viewports implements AutoCloseable {
       return;
     }
     if (streamingPick && streamedHit.isEmpty()) {
-      v.pickedBookmark = null;
-      inspectorPickHint = "";
-      inspector.set(true);
-      state.status = "No occupied voxel in displayed chunks; enter a coordinate to inspect EMPTY";
+      showPickMiss(v, "No occupied voxel in displayed chunks; enter a coordinate to inspect EMPTY");
       return;
     }
     java.util.function.BooleanSupplier current =
@@ -2018,8 +2044,14 @@ public final class Viewports implements AutoCloseable {
                       acceptTrace(found, p, revision);
                       if (streamingPick && streamedHit.orElseThrow().displayProxy()) {
                         inspectorPickHint =
-                            "Display LOD proxy hit: this exact preview cell is EMPTY. Move closer"
-                                + " for detail or inspect this coordinate.";
+                            String.format(
+                                Locale.ROOT,
+                                "Coarse preview hit at X %d, Y %d, Z %d. This cell is empty in the"
+                                    + " exact preview; the trace shows the full world at this"
+                                    + " coordinate. Move closer for detail.",
+                                cell.x(),
+                                cell.y(),
+                                cell.z());
                         state.status = inspectorPickHint;
                       }
                       inspect[0] = cell.x();
@@ -2033,10 +2065,7 @@ public final class Viewports implements AutoCloseable {
               state.uiQueue.offer(
                   () -> {
                     if (!current.getAsBoolean()) return;
-                    v.pickedBookmark = null;
-                    inspectorPickHint = "";
-                    inspector.set(true);
-                    state.status = "No occupied voxel hit; enter a coordinate to inspect EMPTY";
+                    showPickMiss(v, "No occupied voxel hit; enter a coordinate to inspect EMPTY");
                   });
             } catch (Exception e) {
               state.uiQueue.offer(
@@ -2053,14 +2082,32 @@ public final class Viewports implements AutoCloseable {
   private void acceptTrace(GenerationTrace result, ProjectData snapshot, long revision) {
     inspectorPickHint = "";
     traceSnapshot = new TraceSnapshot(snapshot, revision, result);
+    state.status =
+        String.format(
+            Locale.ROOT,
+            "Trace ready at X %d, Y %d, Z %d",
+            result.position().x(),
+            result.position().y(),
+            result.position().z());
     state.publishTrace(traceSnapshot);
+  }
+
+  private void showPickMiss(View v, String message) {
+    v.pickedBookmark = null;
+    traceSnapshot = null;
+    inspectorPickHint = message;
+    inspector.set(true);
+    state.status = message;
   }
 
   private void drawInspector() {
     if (!inspector.get()) return;
     ImGui.setNextWindowSize(600, 600, ImGuiCond.FirstUseEver);
     ImGui.begin("Voxel Inspector", inspector);
-    if (!inspectorPickHint.isEmpty()) ImGui.textWrapped(inspectorPickHint);
+    if (!inspectorPickHint.isEmpty()) {
+      ImGui.textWrapped(inspectorPickHint);
+      inspectorHintVisible = true;
+    }
     ImGui.inputInt3("XYZ", inspect);
     if (ImGui.smallButton("Add Bookmark at Coordinate"))
       bookmarkPanel.openAdd(Tab.WORLD, new Coordinates(inspect[0], inspect[1], inspect[2]));
@@ -2091,7 +2138,11 @@ public final class Viewports implements AutoCloseable {
         state.notify("Warning", "Inspector queue is full");
       }
     }
-    if (traceSnapshot != null && tracePanel != null) tracePanel.draw(traceSnapshot);
+    admissionControl("trace-coordinate");
+    if (traceSnapshot != null && tracePanel != null) {
+      tracePanel.draw(traceSnapshot);
+      inspectorTraceVisible = true;
+    }
     ImGui.end();
   }
 
