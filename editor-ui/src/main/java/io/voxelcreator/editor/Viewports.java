@@ -1274,6 +1274,7 @@ public final class Viewports implements AutoCloseable {
         mark(v);
       }
       admissionControl("context");
+      if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) ImGui.closeCurrentPopup();
       ImGui.endPopup();
     }
     if (v.kind == 0) {
