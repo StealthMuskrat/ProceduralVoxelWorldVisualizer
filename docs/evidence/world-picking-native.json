@@ -1,0 +1,41 @@
+{
+  "obsoleteModeRejected" : true,
+  "closedPublicationRejected" : true,
+  "emptyMiss" : true,
+  "viewOnly" : true,
+  "formatVersion" : 1,
+  "hits" : [ {
+    "finalType" : 0,
+    "x" : 3,
+    "y" : 0,
+    "z" : 0,
+    "side" : 8,
+    "centerX" : 0.25,
+    "mode" : "After"
+  }, {
+    "finalType" : 0,
+    "x" : 3,
+    "y" : 0,
+    "z" : 0,
+    "side" : 8,
+    "centerX" : 0.25,
+    "mode" : "Before"
+  }, {
+    "finalType" : 0,
+    "x" : 0,
+    "y" : 0,
+    "z" : 0,
+    "side" : 3,
+    "centerX" : -0.25,
+    "mode" : "Only Changes"
+  }, {
+    "finalType" : 0,
+    "x" : 3,
+    "y" : 0,
+    "z" : 0,
+    "side" : 8,
+    "centerX" : 0.25,
+    "mode" : "Fallback"
+  } ],
+  "obsoleteZoomRejected" : true
+}
