@@ -1,0 +1,69 @@
+{
+  "formatVersion" : 4,
+  "coordinateTraceRecovered" : true,
+  "coordinateWork" : {
+    "queueRetry" : true,
+    "tabIndependent" : true,
+    "cancelReleasedQueue" : true,
+    "replacementBounded" : true,
+    "runtimeFailureRetained" : true,
+    "queueRejected" : true,
+    "runtimeRetry" : true,
+    "draft" : {
+      "restoreCanceledPending" : true,
+      "lateWorldPickRejected" : true,
+      "restored" : [ 29, 2, 2 ],
+      "edited" : [ 30, 2, 2 ],
+      "restoreWithoutWork" : true,
+      "closedWorldPickRejected" : true,
+      "logsUnchanged" : true,
+      "worldWork" : {
+        "replacementBounded" : true,
+        "cancelReleasedQueue" : true,
+        "cameraCanceled" : true,
+        "retryHit" : [ 3, 0, 0 ],
+        "tabCanceled" : true,
+        "queueRejected" : true,
+        "queueRetry" : true,
+        "retryFinalType" : 1,
+        "logsRetained" : true
+      }
+    },
+    "editCanceled" : true,
+    "pendingVisible" : true
+  },
+  "fixedMissClearedTrace" : true,
+  "sceneEpochReused" : true,
+  "coordinateTraceClearedHint" : true,
+  "retainedLogs" : true,
+  "streamMissClearedTrace" : true,
+  "viewOnly" : true,
+  "observations" : [ {
+    "proxy" : true,
+    "traceRows" : 11,
+    "finalType" : 1,
+    "mode" : "After",
+    "hint" : "Coarse preview hit at X 29, Y 2, Z 2. This cell is empty in the exact preview; the trace shows the full world at this coordinate. Move closer for detail.",
+    "x" : 29,
+    "y" : 2,
+    "z" : 2
+  }, {
+    "proxy" : true,
+    "traceRows" : 11,
+    "finalType" : 1,
+    "mode" : "Only Changes",
+    "hint" : "Coarse preview hit at X 29, Y 2, Z 2. This cell is empty in the exact preview; the trace shows the full world at this coordinate. Move closer for detail.",
+    "x" : 29,
+    "y" : 2,
+    "z" : 2
+  }, {
+    "proxy" : false,
+    "traceRows" : 11,
+    "finalType" : 0,
+    "mode" : "Refined",
+    "hint" : "",
+    "x" : 28,
+    "y" : 2,
+    "z" : 2
+  } ]
+}
