@@ -133,7 +133,8 @@ public final class ProfilePanel {
     ImGui.text(
         String.format(
             Locale.ROOT,
-            "CPU: %,d resident + %,d reserved bytes | GPU: %,d / %,d vertex arena bytes used",
+            "CPU: %,d resident + %,d reserved bytes | GPU data: %,d bytes | vertex arena"
+                + " allocation: %,d bytes",
             rendering.cpuBytes(),
             rendering.reserved(),
             rendering.gpuBytes(),

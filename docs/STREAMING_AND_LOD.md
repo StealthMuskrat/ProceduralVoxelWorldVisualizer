@@ -67,3 +67,5 @@ The fixed marching-tetrahedra analysis path now has exact shared-edge interpolat
 
 
 The bounded volume path now uses immutable finite affine texture encoding, canonical-to-GPU transfer coefficients and owned sampling/encoding cancellation. Controls operate on accepted texture metadata without resampling, including extreme/tiny/neighboring ranges. Parallel ray slabs have explicit float-boundary handling. See [volume encoding and transfer](VOLUME_ENCODING_AND_TRANSFER.md). These are fixed-analysis contracts; they do not add a streaming volume atlas.
+
+Bounded fixed-volume textures now use admitted, incremental replacement uploads. The old framebuffer and accepted origin/encoding remain until the complete candidate publishes; request changes cancel incomplete candidates and hidden scalar textures are reclaimed. The configured upload-byte limit and separate active/candidate scalar texture reservation apply here too. See [volume uploads](VOLUME_UPLOADS.md). This does not add a streaming volume atlas.
