@@ -47,3 +47,7 @@ Native coverage uses an isolated three-stage world (SET a plane at x=28, SET eve
 ## Coordinate trace jobs
 
 Explicit Trace Coordinate owns at most one pending editor job. Starting another coordinate request cancels/reclaims its queued predecessor; XYZ edits, Cancel Trace, Inspector closure, a new World pick and viewport closure invalidate obsolete work. Pending feedback identifies the requested coordinate and labels any retained payload as the previous result. Explicit coordinate work stays independent of camera/tab navigation; project revision changes cancel it. A full queue or evaluation failure leaves the prior trace/Logs intact and gives an explicit Trace Coordinate retry action. Successful completion clears progress/failure feedback. Cancellation requests interruption for running work; it is not hard preemption of engine evaluation.
+
+## Entered and traced coordinates
+
+Inspector XYZ is an editable coordinate, separate from the current immutable trace. A visible notice names the displayed trace coordinate when XYZ differs. Use Traced Coordinate restores those integers without moving the camera, regenerating the preview or publishing another trace. Restoration cancels pending coordinate work. Every XYZ edit invalidates either kind of pending Inspector request, including a World pick, so a late hit cannot overwrite typed input. Closing the Inspector likewise invalidates pending World picks as well as coordinate jobs. Previously published trace history is retained.

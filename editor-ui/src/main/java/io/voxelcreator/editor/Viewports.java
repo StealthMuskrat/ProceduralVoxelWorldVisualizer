@@ -24,7 +24,7 @@ public final class Viewports implements AutoCloseable {
   private TracePanel tracePanel;
   private TraceSnapshot traceSnapshot;
   private String inspectorPickHint = "";
-  private boolean inspectorHintVisible, inspectorTraceVisible;
+  private boolean inspectorHintVisible, inspectorTraceVisible, inspectorDraftNoticeVisible;
 
   public void tracePanel(TracePanel panel) {
     tracePanel = panel;
@@ -187,7 +187,15 @@ public final class Viewports implements AutoCloseable {
   }
 
   BlockPos probeInspectorCoordinate() {
+    return inspectorCoordinate();
+  }
+
+  private BlockPos inspectorCoordinate() {
     return new BlockPos(inspect[0], inspect[1], inspect[2]);
+  }
+
+  boolean probeInspectorDraftNoticeVisible() {
+    return inspectorDraftNoticeVisible;
   }
 
   Coordinates probeWorldPicked() {
@@ -607,7 +615,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void draw() {
-    inspectorHintVisible = inspectorTraceVisible = false;
+    inspectorHintVisible = inspectorTraceVisible = inspectorDraftNoticeVisible = false;
     if (coordinateTrace.pending()
         && !traceRequests.current(coordinateTrace.request(), state.revision))
       cancelCoordinateTrace("Project changed; Trace Coordinate to use the current project.", false);
@@ -974,6 +982,7 @@ public final class Viewports implements AutoCloseable {
           ImGui.textDisabled("SET: voxel palette | CLEAR: red removal ghosts | unchanged: hidden");
       }
       if (ImGui.button("Inspect Coordinate")) inspector.set(true);
+      admissionControl("inspect-coordinate");
       ImGui.sameLine();
       ImGui.textDisabled("Read-only procedural world");
     }
@@ -2158,7 +2167,7 @@ public final class Viewports implements AutoCloseable {
                         coordinateTraceFeedback =
                             String.format(
                                 Locale.ROOT,
-                                "Trace failed at X %d, Y %d, Z %d. Trace" + " Coordinate to retry.",
+                                "Trace failed at X %d, Y %d, Z %d. Trace Coordinate to retry.",
                                 pos.x(),
                                 pos.y(),
                                 pos.z());
@@ -2175,12 +2184,40 @@ public final class Viewports implements AutoCloseable {
     }
   }
 
+  private boolean inspectorCoordinatesDiffer() {
+    return traceSnapshot != null && !traceSnapshot.trace().position().equals(inspectorCoordinate());
+  }
+
+  private void restoreTracedCoordinate() {
+    var point = traceSnapshot.trace().position();
+    cancelCoordinateTrace("", true);
+    inspect[0] = point.x();
+    inspect[1] = point.y();
+    inspect[2] = point.z();
+    state.status =
+        String.format(
+            Locale.ROOT,
+            "Inspector coordinates restored to X %d, Y %d, Z %d",
+            point.x(),
+            point.y(),
+            point.z());
+  }
+
   private void drawInspector() {
     if (!inspector.get()) return;
     ImGui.setNextWindowSize(600, 600, ImGuiCond.FirstUseEver);
     ImGui.begin("Voxel Inspector", inspector);
-    if (!inspector.get() && coordinateTrace.pending())
-      cancelCoordinateTrace("Coordinate trace canceled when Inspector closed.", true);
+    if (admissionProbe) {
+      var position = ImGui.getWindowPos();
+      var size = ImGui.getWindowSize();
+      float halfTitle = ImGui.getFrameHeight() / 2;
+      admissionControls.put(
+          "inspector-close", new float[] {position.x + size.x - halfTitle, position.y + halfTitle});
+    }
+    if (!inspector.get()) {
+      cancelCoordinateTrace("", true);
+      state.status = "Inspector closed.";
+    }
     if (!coordinateTraceFeedback.isEmpty()) ImGui.textWrapped(coordinateTraceFeedback);
     if (!coordinateTrace.pending()
         && !inspectorPickHint.isEmpty()
@@ -2188,8 +2225,11 @@ public final class Viewports implements AutoCloseable {
       ImGui.textWrapped(inspectorPickHint);
       inspectorHintVisible = true;
     }
-    if (ImGui.inputInt3("XYZ", inspect) && coordinateTrace.pending())
-      cancelCoordinateTrace("Coordinate changed; Trace Coordinate to continue.", true);
+    if (ImGui.inputInt3("XYZ", inspect)) {
+      boolean wasPending = coordinateTrace.pending();
+      cancelCoordinateTrace(
+          wasPending ? "Coordinate changed; Trace Coordinate to continue." : "", true);
+    }
     if (admissionProbe)
       admissionControls.put(
           "trace-x",
@@ -2197,6 +2237,20 @@ public final class Viewports implements AutoCloseable {
             ImGui.getItemRectMinX() + (ImGui.getItemRectMaxX() - ImGui.getItemRectMinX()) / 6,
             (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
           });
+    if (inspectorCoordinatesDiffer()) {
+      var point = traceSnapshot.trace().position();
+      ImGui.textWrapped(
+          String.format(
+              Locale.ROOT,
+              "XYZ differs from the displayed trace at X %d, Y %d, Z %d. Trace the entered"
+                  + " coordinate or use the traced coordinate.",
+              point.x(),
+              point.y(),
+              point.z()));
+      inspectorDraftNoticeVisible = true;
+      if (ImGui.smallButton("Use Traced Coordinate")) restoreTracedCoordinate();
+      admissionControl("trace-restore");
+    }
     if (ImGui.smallButton("Add Bookmark at Coordinate"))
       bookmarkPanel.openAdd(Tab.WORLD, new Coordinates(inspect[0], inspect[1], inspect[2]));
     if (ImGui.button("Trace Coordinate")) startCoordinateTrace();
@@ -2207,7 +2261,8 @@ public final class Viewports implements AutoCloseable {
       admissionControl("trace-cancel");
     }
     if (traceSnapshot != null && tracePanel != null) {
-      if (!coordinateTraceFeedback.isEmpty()) ImGui.textDisabled("Previous trace result");
+      if (!coordinateTraceFeedback.isEmpty() || inspectorCoordinatesDiffer())
+        ImGui.textDisabled("Previous trace result");
       tracePanel.draw(traceSnapshot);
       inspectorTraceVisible = true;
     }

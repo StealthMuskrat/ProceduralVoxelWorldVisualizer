@@ -122,7 +122,7 @@ final class WorldLodPickingProbe {
             ProjectIO.JSON.writeValueAsString(
                 Map.of(
                     "formatVersion",
-                    2,
+                    3,
                     "coordinateWork",
                     coordinateWork,
                     "observations",
@@ -149,7 +149,7 @@ final class WorldLodPickingProbe {
     }
   }
 
-  private static Map<String, Boolean> coordinateWorkflow() throws Exception {
+  private static Map<String, Object> coordinateWorkflow() throws Exception {
     var retained = views.probeInspectorTrace();
     int logCount = state.traces.size();
     long logBytes = state.traces.bytes();
@@ -240,7 +240,10 @@ final class WorldLodPickingProbe {
     until(() -> !views.probeCoordinateTracePending() && views.probeInspectorTrace() != beforeTab);
     views.probeNoiseTab(2);
     frames(2);
+    var draft = draftWorkflow();
     return Map.of(
+        "draft",
+        draft,
         "pendingVisible",
         true,
         "cancelReleasedQueue",
@@ -258,6 +261,98 @@ final class WorldLodPickingProbe {
         "queueRetry",
         true,
         "tabIndependent",
+        true);
+  }
+
+  private static Map<String, Object> draftWorkflow() throws Exception {
+    var retained = views.probeInspectorTrace();
+    require(
+        retained.trace().position().equals(new BlockPos(29, 2, 2)),
+        "Unexpected starting trace for coordinate draft");
+    views.probeWorld(state.project().worldGenerator.layers.get(1).uuid, "After", 8, .25);
+    until(views::probeWorldReady);
+    int count = state.traces.size();
+    long bytes = state.traces.bytes();
+    long stamp = views.probeSubmissionStamp(2);
+    try (var hold = holdWorkers()) {
+      clickImage(0);
+      require(state.background.getQueue().size() == 1, "World pick was not queued");
+      control("inspect-coordinate");
+      editX(30);
+      frames(2);
+      require(
+          views.probeInspectorDraftNoticeVisible(), "Changed XYZ lacked displayed-trace notice");
+      require(
+          state.background.getQueue().size() == 1,
+          "World pick no longer tests delayed publication");
+    }
+    until(WorldLodPickingProbe::idle);
+    frames(3);
+    var edited = views.probeInspectorCoordinate();
+    require(
+        edited.equals(new BlockPos(30, 2, 2)) && views.probeInspectorTrace() == retained,
+        "Late World pick overwrote entered XYZ or the displayed trace");
+    require(
+        state.traces.size() == count && state.traces.bytes() == bytes,
+        "Edited World pick published into Logs");
+    control("trace-restore");
+    frames(2);
+    var restored = views.probeInspectorCoordinate();
+    require(
+        restored.equals(new BlockPos(29, 2, 2))
+            && !views.probeInspectorDraftNoticeVisible()
+            && views.probeInspectorTrace() == retained
+            && stamp == views.probeSubmissionStamp(2),
+        "Restoring traced XYZ retraced, rebuilt, or retained the draft notice");
+
+    editX(30);
+    try (var hold = holdWorkers()) {
+      control("trace-coordinate");
+      require(views.probeCoordinateTracePending(), "Restore case lacked pending coordinate work");
+      control("trace-restore");
+      frames(2);
+      require(
+          !views.probeCoordinateTracePending() && state.background.getQueue().isEmpty(),
+          "Restoring traced coordinate did not release pending coordinate work");
+    }
+    until(WorldLodPickingProbe::idle);
+    frames(3);
+    require(
+        views.probeInspectorCoordinate().equals(restored)
+            && views.probeInspectorTrace() == retained
+            && state.traces.size() == count
+            && state.traces.bytes() == bytes,
+        "Restoring pending XYZ published a canceled trace");
+
+    try (var hold = holdWorkers()) {
+      clickImage(0);
+      require(state.background.getQueue().size() == 1, "Close case lacked queued World pick");
+      control("inspect-coordinate");
+      control("inspector-close");
+      require(!views.probeInspectorOpen(), "Native Inspector close did not close the window");
+    }
+    until(WorldLodPickingProbe::idle);
+    frames(3);
+    require(
+        !views.probeInspectorOpen()
+            && views.probeInspectorTrace() == retained
+            && state.traces.size() == count
+            && state.traces.bytes() == bytes,
+        "Delayed World pick reopened the Inspector or published after closure");
+    return Map.of(
+        "edited",
+        List.of(edited.x(), edited.y(), edited.z()),
+        "restored",
+        List.of(restored.x(), restored.y(), restored.z()),
+        "lateWorldPickRejected",
+        true,
+        "restoreWithoutWork",
+        true,
+        "restoreCanceledPending",
+        true,
+        "closedWorldPickRejected",
+        true,
+        "logsUnchanged",
         true);
   }
 

@@ -7,11 +7,13 @@ import org.junit.jupiter.api.Test;
 class InspectorRequestsTest {
   @Test
   void explicitCancellationRejectsCurrentWorkAndAllowsAnotherRequest() {
-    var gate = new InspectorRequests();
-    var request = gate.begin(4, false);
-    gate.cancelCurrent();
-    assertFalse(gate.current(request, 4));
-    assertTrue(gate.current(gate.begin(4, false), 4));
+    for (boolean viewBound : new boolean[] {false, true}) {
+      var gate = new InspectorRequests();
+      var request = gate.begin(4, viewBound);
+      gate.cancelCurrent();
+      assertFalse(gate.current(request, 4));
+      assertTrue(gate.current(gate.begin(4, viewBound), 4));
+    }
   }
 
   @Test
