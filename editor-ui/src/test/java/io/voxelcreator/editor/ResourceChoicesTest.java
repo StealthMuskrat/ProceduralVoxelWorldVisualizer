@@ -81,4 +81,41 @@ class ResourceChoicesTest {
     assertEquals(2, a.rows(index, "voxel", "stone").size());
     assertThrows(UnsupportedOperationException.class, () -> index.all().clear());
   }
+
+  @Test
+  void dimensionScopedViewportChoicesKeepUuidAcrossRenameAndRejectForeignDimension() {
+    var p = new ProjectData();
+    var a = new Noise();
+    a.id = "shared";
+    p.noise2D.add(a);
+    var b = new Noise();
+    b.id = "shared";
+    b.dimension = 3;
+    p.noise3D.add(b);
+    var choices = new ResourceChoices();
+    var index = new ResourceTreeIndex(p);
+    assertEquals(
+        List.of(a.uuid),
+        choices.rows(index, "noise2D", "shared").stream()
+            .map(ResourceTreeIndex.Node::uuid)
+            .toList());
+    assertEquals(
+        List.of(b.uuid),
+        choices.rows(index, "noise3D", "shared").stream()
+            .map(ResourceTreeIndex.Node::uuid)
+            .toList());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> ResourceChoices.choose(index, "noise2D", b.uuid, true));
+    a.id = "renamed";
+    var renamed = new ResourceTreeIndex(p);
+    assertEquals(a.uuid, ResourceChoices.choose(renamed, "noise2D", a.uuid, true));
+    assertEquals("renamed", choices.rows(renamed, "noise2D", "renamed").getFirst().id());
+    p.noise2D.clear();
+    var removed = new ResourceTreeIndex(p);
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> ResourceChoices.choose(removed, "noise2D", a.uuid, true));
+    assertNull(ResourceChoices.choose(removed, "noise2D", null, true));
+  }
 }

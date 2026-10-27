@@ -38,6 +38,7 @@ public final class Viewports implements AutoCloseable {
   private final int[] inspect = {0, 0, 0};
   private final BookmarkPanel bookmarkPanel;
 
+  private final ResourcePicker generatorPicker;
   private boolean admissionProbe;
   private final Map<String, float[]> admissionControls = new HashMap<>();
 
@@ -70,6 +71,18 @@ public final class Viewports implements AutoCloseable {
 
   String probeAdmissionMessage() {
     return views[0].message;
+  }
+
+  UUID probeGeneratorSelection(int kind) {
+    return views[kind].noise;
+  }
+
+  float[] probeGeneratorOption(UUID id) {
+    return generatorPicker.optionCenter(id);
+  }
+
+  int probeGeneratorRows() {
+    return generatorPicker.submitted();
   }
 
   private void admissionControl(String key) {
@@ -301,6 +314,7 @@ public final class Viewports implements AutoCloseable {
 
   public Viewports(EditorState state, PropertyPanel properties, long handle) {
     this.state = state;
+    generatorPicker = new ResourcePicker(state);
     this.properties = properties;
     this.handle = handle;
     bookmarkPanel =
@@ -506,21 +520,22 @@ public final class Viewports implements AutoCloseable {
       v.gl.setPalette(palette(state.project(), 2));
     v.revision = state.revision;
     if (v.kind < 2) {
-      List<Noise> list = v.kind == 0 ? state.project().noise2D : state.project().noise3D;
-      String label =
-          list.stream()
-              .filter(n -> n.uuid.equals(v.noise))
-              .map(n -> n.id)
-              .findFirst()
-              .orElse("Select a noise generator...");
-      if (ImGui.beginCombo("Generator", label)) {
-        for (var n : list)
-          if (ImGui.selectable(n.id)) {
-            v.noise = n.uuid;
-            mark(v);
-          }
-        ImGui.endCombo();
-      }
+      ImGui.pushID("viewport-generator-" + v.kind);
+      generatorPicker.draw(
+          "Generator",
+          v.kind == 0 ? "noise2D" : "noise3D",
+          v.noise,
+          "No generator selected",
+          id -> {
+            if (!Objects.equals(v.noise, id)) {
+              v.noise = id;
+              v.imageInput.reset();
+              v.pickedBookmark = null;
+              mark(v);
+            }
+          });
+      if (admissionProbe) admissionControls.put("generator", generatorPicker.buttonCenter());
+      ImGui.popID();
     }
     if (ImGui.button("Regenerate")) {
       v.force = true;

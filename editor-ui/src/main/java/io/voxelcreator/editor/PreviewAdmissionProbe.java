@@ -49,6 +49,19 @@ public final class PreviewAdmissionProbe {
                     n.algorithm.key = "CONSTANT";
                     n.algorithm.parameters.put("value", .25);
                     p.noise2D.add(n);
+                    for (int i = 0; i < 63; i++) {
+                      var option = new Noise();
+                      option.id = i == 62 ? "viewport-target" : "option-" + i;
+                      option.algorithm.key = "CONSTANT";
+                      option.algorithm.parameters.put("value", .75);
+                      p.noise2D.add(option);
+                    }
+                    var other = new Noise();
+                    other.id = "viewport-target";
+                    other.dimension = 3;
+                    other.algorithm.key = "CONSTANT";
+                    other.algorithm.parameters.put("value", .5);
+                    p.noise3D.add(other);
                   }),
               "Fixture rejected");
           var authored = ProjectIO.JSON.valueToTree(state.project());
@@ -57,6 +70,39 @@ public final class PreviewAdmissionProbe {
             views = viewport;
             views.probeAdmissionSource(state.project().noise2D.getFirst().uuid);
             until(views::probeAdmissionReady);
+            var originalSelection = views.probeGeneratorSelection(0);
+            var otherSelection = views.probeGeneratorSelection(1);
+            var target = state.project().noise2D.getLast().uuid;
+            click("generator", 0);
+            frames(3);
+            int unfilteredRows = views.probeGeneratorRows();
+            require(unfilteredRows > 0 && unfilteredRows < 64, "Generator list was not clipped");
+            io.addInputCharactersUTF8("viewport-target");
+            frames(3);
+            int filteredRows = views.probeGeneratorRows();
+            require(filteredRows == 1, "Generator filter mixed dimensions or missed target");
+            require(
+                Objects.equals(originalSelection, views.probeGeneratorSelection(0)),
+                "Filtering changed selection");
+            var option = views.probeGeneratorOption(target);
+            clickPoint(option, 0);
+            until(views::probeAdmissionReady);
+            require(target.equals(views.probeGeneratorSelection(0)), "UUID selection failed");
+            require(
+                Objects.equals(otherSelection, views.probeGeneratorSelection(1)),
+                "2D picker changed 3D selection");
+            var selectedImage = views.probeAcceptedImage();
+            require(selectedImage.sample(.5, .5).raw() == .75, "Selected sampler not published");
+            click("generator", 0);
+            frames(2);
+            io.addKeyEvent(ImGuiKey.Escape, true);
+            frame();
+            io.addKeyEvent(ImGuiKey.Escape, false);
+            frame();
+            require(
+                target.equals(views.probeGeneratorSelection(0))
+                    && views.probeAcceptedImage() == selectedImage,
+                "Picker Escape changed selection or image");
             var initial = views.probeAcceptedImage();
             require(initial != null, "No initial image");
             state.user.performance.previewCellBudget = 65535;
@@ -122,12 +168,18 @@ public final class PreviewAdmissionProbe {
                     && history == state.document.historyBytes(),
                 "Preview controls changed authored state");
             double raw = views.probeAcceptedImage().sample(.5, .5).raw();
-            require(raw == .25, "Retry changed field result");
+            require(raw == .75, "Retry changed field result");
             Files.writeString(
                 out.resolve("preview-admission-native.json"),
                 ProjectIO.JSON.writeValueAsString(
                     Map.ofEntries(
-                        Map.entry("formatVersion", 1),
+                        Map.entry("formatVersion", 2),
+                        Map.entry("unfilteredRows", unfilteredRows),
+                        Map.entry("filteredRows", filteredRows),
+                        Map.entry("generatorCount", 64),
+                        Map.entry("generatorUuid", target.toString()),
+                        Map.entry("dimensionScoped", true),
+                        Map.entry("pickerEscape", true),
                         Map.entry("budgetMessage", budgetMessage),
                         Map.entry("queueMessage", queueMessage),
                         Map.entry("workers", 2),
@@ -139,8 +191,8 @@ public final class PreviewAdmissionProbe {
                         Map.entry("viewOnly", true),
                         Map.entry("raw", raw))));
             System.out.println(
-                "PREVIEW_ADMISSION_NATIVE_PASS budget / real full queue / retained image / context"
-                    + " retry / toolbar retry / view-only");
+                "PREVIEW_ADMISSION_NATIVE_PASS searchable UUID generator / budget / real full queue"
+                    + " / retained image / context retry / toolbar retry / view-only");
           }
         }
       } finally {
@@ -161,6 +213,10 @@ public final class PreviewAdmissionProbe {
   private static void click(String name, int button) {
     var p = views.probeAdmissionControl(name);
     require(p != null, "Missing control " + name);
+    clickPoint(p, button);
+  }
+
+  private static void clickPoint(float[] p, int button) {
     var io = ImGui.getIO();
     io.addMousePosEvent(p[0], p[1]);
     frame();

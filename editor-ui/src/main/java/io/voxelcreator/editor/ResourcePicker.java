@@ -21,6 +21,7 @@ public final class ResourcePicker {
   private boolean probeOpen;
   private final Map<UUID, float[]> optionBounds = new HashMap<>();
   private int submitted;
+  private float[] buttonBounds;
   private io.voxelcreator.model.ProjectData observedProject;
   private long observedRevision;
 
@@ -58,6 +59,11 @@ public final class ResourcePicker {
       ImGui.openPopup("resource-choice");
       probeOpen = false;
     }
+    buttonBounds =
+        new float[] {
+          (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
+          (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
+        };
     if (ImGui.isItemHovered() && current != null) ImGui.setTooltip(preview + " / " + current);
     ImGui.sameLine();
     ImGui.text(label);
@@ -102,6 +108,10 @@ public final class ResourcePicker {
       ImGui.endPopup();
     }
     ImGui.popID();
+  }
+
+  float[] buttonCenter() {
+    return buttonBounds.clone();
   }
 
   void probeOpen() {
