@@ -44,6 +44,7 @@ final class ImageGestureProbe {
       long revision = state.revision, history = state.document.historyBytes();
       views = new Viewports(state, new PropertyPanel(state), window);
       try {
+        views.probeNoiseTab(0);
         views.probeAdmissionSource(state.project().noise2D.getFirst().uuid);
         until(views::probeAdmissionReady);
         frames(3);
