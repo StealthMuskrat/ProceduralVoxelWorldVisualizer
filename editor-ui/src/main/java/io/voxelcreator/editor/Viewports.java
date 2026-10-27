@@ -450,6 +450,40 @@ public final class Viewports implements AutoCloseable {
     return views[1].message;
   }
 
+  void probeVolumeStream(UUID noise, int side, double x, double y, double z) {
+    probeVolume(noise, side, x);
+    var v = views[1];
+    v.fixed = false;
+    v.camera.focus.set(x, y, z);
+    v.volumeOpacity = .01;
+    state.user.visualization.streaming = true;
+    mark(v);
+  }
+
+  void probeVolumeTravel(double x, double y, double z) {
+    views[1].camera.focus.set(x, y, z);
+  }
+
+  VolumeWindows.Memory probeVolumeMemory() {
+    return views[1].volumeWindows.memory();
+  }
+
+  VolumeWindows.Statistics probeVolumeWindow() {
+    return views[1].displayedVolumeWindow;
+  }
+
+  void probeVolumeRegenerate() {
+    var v = views[1];
+    v.force = true;
+    v.rebuildSerial++;
+    mark(v);
+  }
+
+  void probeVolumeTransfer(double opacity, double threshold) {
+    views[1].volumeOpacity = opacity;
+    views[1].threshold = threshold;
+  }
+
   void probeSurface(UUID noise, boolean fixed, double x, double y, double z) {
     var v = views[1];
     smokeTab = 1;
@@ -641,6 +675,11 @@ public final class Viewports implements AutoCloseable {
     final PreviewMailbox<Preview> ready = new PreviewMailbox<>();
     final PreviewAdmission admission = new PreviewAdmission();
     Preview pendingVolume;
+    final VolumeWindows volumeWindows = new VolumeWindows();
+    ProjectData volumeSnapshot;
+    UUID volumeNoise;
+    String volumeSourceKey = "", volumeRequestTag = "";
+    VolumeWindows.Statistics displayedVolumeWindow;
     String message = "Ready";
     Vector3d origin = new Vector3d();
     double[] raw;
@@ -721,7 +760,8 @@ public final class Viewports implements AutoCloseable {
     boolean indirect = false;
     for (var v : views) {
       var volume = v.gl.volumeStatistics();
-      cpu += volume.cpuBytes();
+      cpu += volume.cpuBytes() + v.volumeWindows.memory().bytes();
+      reserved += v.volumeWindows.memory().workingBytes();
       gpu += volume.activeBytes() + volume.pendingBytes();
       uploads += volume.lastBytes();
       if (v.scene != null) {
@@ -795,7 +835,41 @@ public final class Viewports implements AutoCloseable {
       VolumeData volume,
       NoiseImageRows.Statistics imageStatistics,
       NoiseImageView imageView,
-      SliceImageView sliceView) {
+      SliceImageView sliceView,
+      VolumeWindows.Statistics volumeWindowStatistics) {
+    Preview(
+        long epoch,
+        Mesh mesh,
+        int[] image,
+        double[] raw,
+        int width,
+        Vector3d origin,
+        int[] palette,
+        float[] histogram,
+        NoiseAlgorithms.Field sampler,
+        String error,
+        VolumeData volume,
+        NoiseImageRows.Statistics imageStatistics,
+        NoiseImageView imageView,
+        SliceImageView sliceView) {
+      this(
+          epoch,
+          mesh,
+          image,
+          raw,
+          width,
+          origin,
+          palette,
+          histogram,
+          sampler,
+          error,
+          volume,
+          imageStatistics,
+          imageView,
+          sliceView,
+          null);
+    }
+
     Preview(
         long epoch,
         Mesh mesh,
@@ -1154,7 +1228,11 @@ public final class Viewports implements AutoCloseable {
           fields.integer(
               "Ray steps", v.volumeSteps, x -> v.volumeSteps = Math.max(16, Math.min(512, x)));
           ImGui.textDisabled(
-              "Ray-marched canonical scalar texture; display controls do not alter generation.");
+              "Ray-marched scalar texture; display controls do not alter generation.");
+          if (wantsStreaming(v))
+            ImGui.textDisabled(
+                "Camera-relative window in whole 32-cell chunks; Fixed bounds keeps the exact"
+                    + " analysis extent.");
         }
         if (v.mode.equals("Slices")) {
           fields.choice(
@@ -1281,10 +1359,17 @@ public final class Viewports implements AutoCloseable {
             && !generatorPicker.contains(v.kind == 0 ? "noise2D" : "noise3D", v.noise);
     boolean source = v.kind == 2 || v.noise != null && !missingSource;
     boolean streaming = source && usesStreaming(v);
-    if (streaming) streaming = stream(v);
-    else stopStream(v);
+    boolean volumeStreaming = streaming && v.kind == 1 && v.mode.equals("Volume");
+    if (volumeStreaming) {
+      stopStream(v);
+      streamVolume(v);
+    } else {
+      stopVolumeStream(v);
+      if (streaming) streaming = stream(v);
+      else stopStream(v);
+    }
     Preview ready = v.ready.take();
-    if (ready != null && ready.epoch == v.epoch && !streaming && source) {
+    if (ready != null && ready.epoch == v.epoch && (!streaming || volumeStreaming) && source) {
       v.activeJob = false;
       if (ready.error != null) {
         v.message = "Failed; previous display retained";
@@ -1317,7 +1402,8 @@ public final class Viewports implements AutoCloseable {
               v,
               "Volume replacement exceeds GPU MiB; previous display retained; raise GPU MiB and"
                   + " Regenerate");
-        else if (stats.cpuBytes() > (long) state.user.performance.sceneCpuMiB << 20)
+        else if (stats.cpuBytes() + v.volumeWindows.memory().bytes()
+            > (long) state.user.performance.sceneCpuMiB << 20)
           volumeUploadFailed(v, "Volume upload exceeds CPU MiB; raise CPU MiB and Regenerate");
         else {
           var profile = state.engine.profiler().scope(0, state.project().project.uuid, null);
@@ -1663,6 +1749,7 @@ public final class Viewports implements AutoCloseable {
         v.kind == 2
             ? v.stageMode
             : v.mode + (v.mode.equals("Slices") ? " " + v.slicePlane.name() : ""));
+    v.displayedVolumeWindow = ready.volumeWindowStatistics;
     v.origin.set(ready.origin);
     v.fixedPickBounds = v.kind == 2 ? VoxelRaycast.Bounds.cube(ready.origin, ready.width) : null;
     v.gl.setPalette(ready.palette);
@@ -1674,7 +1761,150 @@ public final class Viewports implements AutoCloseable {
     v.hoverSampler = ready.sampler;
     v.histogram = ready.histogram;
     v.message = v.streamFallback ? "Ready (fixed fallback; Regenerate retries streaming)" : "Ready";
+    if (ready.volumeWindowStatistics != null
+        && !v.volumeSourceKey.equals(fingerprint(v) + "|" + v.noise + "|" + v.rebuildSerial))
+      v.message = "Ready (manual source retained; Regenerate to update)";
     v.completed = true;
+  }
+
+  private void stopVolumeStream(View v) {
+    if (v.volumeSnapshot == null) return;
+    mark(v);
+    v.volumeWindows.clear();
+    v.volumeSnapshot = null;
+    v.volumeNoise = null;
+    v.volumeSourceKey = "";
+  }
+
+  private void streamVolume(View v) {
+    String desired = fingerprint(v) + "|" + v.noise + "|" + v.rebuildSerial;
+    if (!desired.equals(v.volumeSourceKey)
+        && (v.volumeSnapshot == null || state.user.editor.autoRegenerate || v.force)) {
+      v.volumeSnapshot = ProjectIO.copy(state.project());
+      v.volumeNoise = v.noise;
+      v.volumeSourceKey = desired;
+      v.volumeRequestTag = "";
+    }
+    var center = v.camera.flying ? v.camera.position : v.camera.focus;
+    VolumeWindows.Bounds bounds;
+    try {
+      bounds = VolumeWindows.Bounds.around(center.x, center.y, center.z, v.size);
+    } catch (IllegalArgumentException invalid) {
+      if (!v.failedPreview) {
+        mark(v);
+        v.failedPreview = true;
+        v.dirty = false;
+        v.message = invalid.getMessage() + "; previous display retained";
+      }
+      return;
+    }
+    String tag = v.volumeSourceKey + "|" + bounds;
+    if (!tag.equals(v.volumeRequestTag)) {
+      mark(v);
+      v.volumeRequestTag = tag;
+    }
+    long working = VolumeWindows.workingBytes(bounds.side());
+    long cpuLimit = (long) state.user.performance.sceneCpuMiB << 20;
+    long cacheLimit =
+        Math.min((long) state.user.performance.cacheMiB << 20, Math.max(0, cpuLimit - working));
+    v.volumeWindows.budget(cacheLimit);
+    if ((v.dirty || v.activeJob)
+        && !v.failedPreview
+        && (working > cpuLimit
+            || bounds.side() > state.user.performance.maxPreviewDimension
+            || (long) bounds.side() * bounds.side() * bounds.side()
+                > state.user.performance.previewCellBudget)) {
+      mark(v);
+      v.volumeRequestTag = tag;
+      v.dirty = false;
+      volumeUploadFailed(
+          v, "Streaming volume exceeds CPU/extent budget; reduce extent or use Fixed bounds");
+      return;
+    }
+    if (!v.dirty || v.activeJob || v.failedPreview) return;
+    if (System.nanoTime() - v.lastSubmit
+        <= 1_000_000_000L / state.user.editor.opportunitiesPerSecond) return;
+    if (4L * bounds.side() * bounds.side() * bounds.side() + v.gl.volumeStatistics().activeBytes()
+        > (long) state.user.performance.sceneGpuMiB << 20) {
+      volumeUploadFailed(v, "Streaming volume replacement exceeds GPU MiB");
+      return;
+    }
+    long epoch = v.epoch;
+    var lease = v.volumeWindows.begin(v.volumeSourceKey, epoch, cacheLimit);
+    var token = v.ready.token(epoch);
+    var snapshot = v.volumeSnapshot;
+    var noise = v.volumeNoise;
+    v.force = false;
+    v.dirty = false;
+    v.activeJob = true;
+    v.lastSubmit = System.nanoTime();
+    v.message = "Sampling camera-relative volume...";
+    try {
+      v.job =
+          state.background.submit(
+              () -> {
+                var profile = state.engine.profiler().scope(0, snapshot.project.uuid, null);
+                long stamp = profile == null ? 0 : profile.begin();
+                var outcome = Profiler.Outcome.CANCELLED;
+                try {
+                  var window =
+                      v.volumeWindows.sample(
+                          lease,
+                          bounds,
+                          () -> new NoiseCompiler(snapshot, snapshot.project.seed).compile(noise),
+                          token);
+                  token.throwIfCancelled();
+                  publish(
+                      v,
+                      new Preview(
+                          epoch,
+                          null,
+                          null,
+                          null,
+                          bounds.side(),
+                          new Vector3d(bounds.x(), bounds.y(), bounds.z()),
+                          palette(snapshot, 1),
+                          new float[64],
+                          window.field(),
+                          null,
+                          window.volume(),
+                          null,
+                          null,
+                          null,
+                          window.statistics()));
+                  outcome = Profiler.Outcome.SUCCESS;
+                } catch (CancellationException stopped) {
+                  // An obsolete complete tile may be reused, but no obsolete window publishes.
+                } catch (Throwable failure) {
+                  outcome = Profiler.Outcome.FAILED;
+                  publish(
+                      v,
+                      new Preview(
+                          epoch,
+                          null,
+                          null,
+                          null,
+                          0,
+                          new Vector3d(),
+                          new int[256],
+                          new float[64],
+                          null,
+                          String.valueOf(failure.getMessage())));
+                } finally {
+                  if (stamp != 0)
+                    profile.finish(
+                        stamp,
+                        Profiler.Kind.PREVIEW,
+                        noise,
+                        "Camera-relative volume sampling",
+                        outcome);
+                }
+              });
+    } catch (RejectedExecutionException full) {
+      v.activeJob = false;
+      v.failedPreview = true;
+      v.message = "Volume preview queue full; previous display retained; Regenerate to retry";
+    }
   }
 
   private boolean wantsStreaming(View v) {
@@ -1684,7 +1914,8 @@ public final class Viewports implements AutoCloseable {
             || v.kind == 1
                 && (v.mode.equals("Threshold Voxels")
                     || v.mode.equals("Point Cloud")
-                    || v.mode.equals("Isosurface")));
+                    || v.mode.equals("Isosurface")
+                    || v.mode.equals("Volume")));
   }
 
   private boolean usesStreaming(View v) {
@@ -2104,6 +2335,7 @@ public final class Viewports implements AutoCloseable {
 
   private void mark(View v) {
     v.pendingVolume = null;
+    v.volumeRequestTag = "";
     v.gl.cancelVolume();
     if (v.kind == 2) {
       pickViewChanged();
@@ -2878,6 +3110,8 @@ public final class Viewports implements AutoCloseable {
       state.background.purge();
       stopStream(v);
       v.imageRows.close();
+      v.volumeWindows.close();
+      v.volumeSnapshot = null;
       v.pendingVolume = null;
       v.gl.close();
     }

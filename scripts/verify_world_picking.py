@@ -438,3 +438,48 @@ assert all(vu[k] for k in ['unpackRestored', 'rejectionRetained', 'cancelRetaine
 vproject = json.loads((upload_root / 'volume-upload-project.json').read_text())
 assert [n['processing'][0]['parameters']['expression'] for n in vproject['noise3D']] == ['1', '0']
 print('VOLUME_UPLOAD_PASS independent float texels / byte sums / analytical optics / accepted origins and versions / cancellation-admission-retry / view-only')
+
+# Independent moving scalar-window addressing, transfer, cache and publication replay.
+vs_root = Path(sys.argv[1]) / 'volume-streaming'
+vs = json.loads((vs_root / 'volume-streaming-native.json').read_text())
+assert vs['formatVersion'] == 1
+binary = (vs_root / 'volume-window.bin').read_bytes()
+assert len(binary) == 4 * 64**3
+for i, (value,) in enumerate(struct.iter_unpack('<f', binary)):
+    x, y, z = i % 64 - 31.5, i // 64 % 64 - 31.5, i // (64*64) - 31.5
+    assert value == .5 + (x + 2*y + 4*z) / 512, (i, value)
+affine = vs['affine']
+assert affine['bounds'] == {'side': 64, 'x': -32, 'y': -32, 'z': -32}
+assert affine['sampledChunks'] == 8 and affine['uploadBytes'] == 4 * 64**3
+assert 0 < affine['maximumUploadBytes'] <= 16384
+transmittance = math.exp(-.5 * .01 * 64)
+expect = [255 * (1-transmittance+transmittance*.055), 255*transmittance*.075, 255*transmittance*.1, 255]
+assert all(abs(a-b) <= 2 for a,b in zip(affine['pixel'], expect))
+stages = vs['stages']
+assert [s['name'] for s in stages] == ['origin','positive-x','negative-x','return','positive-y','positive-z',
+                                      'manual-retained','regenerated','cancel-successor','stream-return']
+assert [s['origin'] for s in stages] == [[-32,-32,-32],[0,-32,-32],[-64,-32,-32],[-32,-32,-32],
+                                        [-32,0,-32],[-32,0,0],[32,0,0],[32,0,0],[-128,0,0],[-32,-32,-32]]
+assert stages[0]['sampledChunks'] == 8
+assert (stages[1]['sampledChunks'], stages[1]['reusedChunks']) == (4,4)
+assert (stages[3]['sampledChunks'], stages[3]['reusedChunks']) == (0,8)
+assert len({s['generation'] for s in stages[:7]}) == 1
+assert all(s['compilations'] == 1 for s in stages[:7])
+assert stages[7]['generation'] > stages[6]['generation'] and stages[7]['compilations'] == 2
+assert stages[-1]['generation'] > stages[8]['generation'] and stages[-1]['sampledChunks'] == 8
+for i, s in enumerate(stages):
+    assert s['sampledChunks'] + s['reusedChunks'] == 8
+    assert 0 <= s['cacheBytes'] <= 64*1024*1024
+    value = 1 if i < 7 else 0
+    assert s['value'] == value
+    t = math.exp(-value * .01 * 64)
+    # Heatmap endpoint at t=1 is (127,0,0); a zero field has zero optical density.
+    base = [127,0,0] if value else [0,0,127]
+    expected = [(1-t)*base[c] + t*255*[.055,.075,.1][c] for c in range(3)] + [255]
+    assert all(abs(a-b) <= 2 for a,b in zip(s['pixel'], expected)), s
+assert all(vs[k] for k in ['navigationViewOnly','postEditViewOnly','fixedReturn','transferReused',
+                          'canceledUpload','gpuRejected','queueRetry'])
+assert 0 < vs['maximumUiBytes'] <= 16384
+vproject = json.loads((vs_root / 'volume-streaming-project.json').read_text())
+assert vproject['noise3D'][0]['processing'][0]['parameters']['expression'] == '0'
+print('VOLUME_STREAMING_PASS independent seam-spanning texels / optics / signed window origins / cache reuse / compiled source epochs / manual regeneration / cancellation-queue-budget recovery / fixed return')

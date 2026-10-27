@@ -321,6 +321,7 @@ public final class WorldPickingProbe {
         VolumeEncodingProbe.run(out.resolve("volume-encoding"));
         SurfaceStreamingProbe.run(out.resolve("surface-streaming"), window);
         VolumeUploadProbe.run(out.resolve("volume-upload"), window);
+        VolumeStreamingProbe.run(out.resolve("volume-streaming"), window);
       } finally {
         ImGui.destroyContext();
       }

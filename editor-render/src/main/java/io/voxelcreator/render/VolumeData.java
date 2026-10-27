@@ -101,6 +101,13 @@ public final class VolumeData {
           max = Math.max(max, value);
         }
       }
+    return encodeOwned(size, raw, min, max, token);
+  }
+
+  /** Package-owned canonical staging is never retained or exposed after float publication. */
+  static VolumeData encodeOwned(
+      int size, double[] raw, double min, double max, CancellationToken token) {
+    token.throwIfCancelled();
     var encoding = encoding(min, max);
     float[] encoded = new float[raw.length];
     for (int z = 0; z < size; z++)
