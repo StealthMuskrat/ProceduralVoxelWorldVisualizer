@@ -1715,6 +1715,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void release(View v) {
+    v.orbit.reset();
     if (v.camera.flying) v.camera.leaveFly();
     v.flight.exit();
     syncFlightCursor();
