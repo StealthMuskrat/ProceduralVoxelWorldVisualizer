@@ -1255,7 +1255,7 @@ public final class Viewports implements AutoCloseable {
           Float.MAX_VALUE,
           w,
           100);
-      h -= 110;
+      h = Math.max(16, h - 110);
     }
     if (v.kind == 1 && v.mode.equals("Volume"))
       v.gl.volumeAppearance(v.volumeMin, v.volumeMax, v.volumeOpacity, v.threshold, v.volumeSteps);
