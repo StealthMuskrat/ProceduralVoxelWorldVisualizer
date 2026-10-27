@@ -57,8 +57,8 @@ public final class VolumeData {
 
   private static Encoding encoding(double min, double max) {
     double magnitude = Math.max(Math.abs(min), Math.abs(max));
-    if (magnitude == 0 || magnitude >= 1e-30 && magnitude <= 1e30)
-      return new Encoding(0, 1, min, max);
+    if (min == max) return new Encoding(min, magnitude == 0 ? 1 : magnitude, min, max);
+    if (magnitude >= 1e-30 && magnitude <= 1e30) return new Encoding(0, 1, min, max);
     double span = max - min;
     if (!Double.isFinite(span)) return new Encoding(0, magnitude, min, max);
     return new Encoding(min, span == 0 ? magnitude : span, min, max);

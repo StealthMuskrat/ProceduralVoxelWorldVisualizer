@@ -340,7 +340,7 @@ from decimal import Decimal, localcontext
 volume_root = Path(sys.argv[1]) / 'volume-encoding'
 volume = json.loads((volume_root / 'volume-encoding-native.json').read_text())
 volume_project = json.loads((volume_root / 'volume-encoding-project.json').read_text())
-assert volume['formatVersion'] == 1 and len(volume['cases']) == len(volume_project['noise3D']) == 20
+assert volume['formatVersion'] == 1 and len(volume['cases']) == len(volume_project['noise3D']) == 23
 volume_ids = set()
 for row, noise in zip(volume['cases'], volume_project['noise3D']):
     volume_ids.add(row['id'])
@@ -381,6 +381,6 @@ for row, noise in zip(volume['cases'], volume_project['noise3D']):
     assert all(abs(a-b)<=2 for a,b in zip(row['pixel'][:3],expected)) and row['pixel'][3] == 255
 assert {'ordinary','zero-opacity','huge-half','huge-quarter','tiny-min','tiny-half','huge-filtered',
     'tiny-filtered','wide-zero','wide-negative-filtered','wide-negative-accepted','adjacent-upper',
-    'adjacent-lower','maximum-opacity','parallel-miss','parallel-boundary','inside','diagonal',
+    'adjacent-lower','normal-adjacent-upper','normal-adjacent-lower','normal-adjacent-filtered','maximum-opacity','parallel-miss','parallel-boundary','inside','diagonal',
     'gradient-huge','gradient-tiny'} == volume_ids
-print('VOLUME_ENCODING_PASS independent Decimal transfer / decoded canonical texels / 20 Beer-Lambert pixel cases / slab rays / threshold signs / control-only reuse')
+print('VOLUME_ENCODING_PASS independent Decimal transfer / decoded canonical texels / 23 Beer-Lambert pixel cases / slab rays / threshold signs / control-only reuse')

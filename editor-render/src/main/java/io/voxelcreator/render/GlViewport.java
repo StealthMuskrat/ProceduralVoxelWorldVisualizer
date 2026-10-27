@@ -303,8 +303,11 @@ public final class GlViewport implements AutoCloseable {
           vec3 origin=na.xyz/na.w,direction=normalize(fa.xyz/fa.w-origin);
           float enter=0.0,exit=1e30;
           for(int axis=0;axis<3;axis++){
-            if(abs(direction[axis])<1e-8){
-              if(origin[axis]<0.0||origin[axis]>extent){color=vec4(background,1);return;}
+            // Unprojection and fullscreen interpolation can move an exact boundary by a few float ULPs.
+            float boundaryTolerance=8.0*1.1920929e-7*max(1.0,extent);
+            if(abs(direction[axis])<8.0*1.1920929e-7){
+              if(origin[axis]<-boundaryTolerance||origin[axis]>extent+boundaryTolerance){color=vec4(background,1);return;}
+              origin[axis]=clamp(origin[axis],0.0,extent);
             }else{
               float a=-origin[axis]/direction[axis],b=(extent-origin[axis])/direction[axis];
               enter=max(enter,min(a,b));exit=min(exit,max(a,b));

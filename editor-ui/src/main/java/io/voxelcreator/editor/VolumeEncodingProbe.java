@@ -62,6 +62,9 @@ final class VolumeEncodingProbe {
             c("wide-negative-accepted", -tiny, -big, big, -tiny, .5, .5),
             c("adjacent-upper", big, Math.nextDown(big), big, 0, .5, 1),
             c("adjacent-lower", Math.nextDown(big), Math.nextDown(big), big, 0, .5, 0),
+            c("normal-adjacent-upper", 1, Math.nextDown(1.0), 1, 0, .5, 1),
+            c("normal-adjacent-lower", Math.nextDown(1.0), Math.nextDown(1.0), 1, 0, .5, 0),
+            c("normal-adjacent-filtered", Math.nextDown(1.0), 0, 1, 1, .5, 0),
             c("maximum-opacity", 1, 0, 1, 0, 10, 1),
             new Case("parallel-miss", 1, 0, 1, 0, .5, 1, "constant", 6, 2, 10, 0),
             new Case("parallel-boundary", 1, 0, 1, 0, .5, 1, "constant", 0, 2, 10, 0),
@@ -175,7 +178,7 @@ final class VolumeEncodingProbe {
         out.resolve("volume-encoding-native.json"),
         ProjectIO.JSON.writeValueAsString(Map.of("formatVersion", 1, "cases", rows)));
     System.out.println(
-        "VOLUME_ENCODING_NATIVE_PASS 20 compiled-field optics cases / extreme-tiny-neighbor ranges"
+        "VOLUME_ENCODING_NATIVE_PASS 23 compiled-field optics cases / extreme-tiny-neighbor ranges"
             + " / threshold signs / parallel-inside-diagonal rays / controls without resampling /"
             + " finite transfer");
   }

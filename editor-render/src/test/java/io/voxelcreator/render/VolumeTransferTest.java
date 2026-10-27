@@ -40,9 +40,12 @@ class VolumeTransferTest {
 
   @Test
   void adjacentHugeBoundsResolveBothUniformEndpoints() {
-    double lo = Math.nextDown(Double.MAX_VALUE), hi = Double.MAX_VALUE;
-    assertEquals(0, transfer(lo, lo, hi, 0).mapped(encoded(lo)), 0);
-    assertEquals(1, transfer(hi, lo, hi, 0).mapped(encoded(hi)), 0);
+    for (double hi : new double[] {Double.MAX_VALUE, 1, 1e-100}) {
+      double lo = Math.nextDown(hi);
+      assertEquals(0, transfer(lo, lo, hi, 0).mapped(encoded(lo)), 0);
+      assertEquals(1, transfer(hi, lo, hi, 0).mapped(encoded(hi)), 0);
+      assertTrue(encoded(lo) < transfer(lo, 0, hi, hi).threshold());
+    }
   }
 
   @Test
