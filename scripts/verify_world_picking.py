@@ -30,7 +30,7 @@ print('STREAMED_WORLD_PICKING_PASS drawn chunk faces / negative travel / unshown
 proxy_root = Path(sys.argv[1]) / 'lod-proxy'
 proxy = json.loads((proxy_root / 'world-lod-picking-native.json').read_text())
 project = json.loads((proxy_root / 'world-lod-project.json').read_text())
-assert proxy['formatVersion'] == 3
+assert proxy['formatVersion'] == 4
 assert [layer['defaults']['action'] for layer in project['worldGenerator']['layers']] == ['SET', 'SET', 'CLEAR']
 plane = next(noise for noise in project['noise3D'] if noise['id'] == 'plane')
 assert plane['processing'][0]['parameters']['expression'] == 'x == 100 ? 1/(x-100) : x == 28 ? 1 : -1'
@@ -61,3 +61,9 @@ assert draft['edited'] == [30, 2, 2] and draft['restored'] == [29, 2, 2]
 assert all(draft[key] is True for key in ['lateWorldPickRejected', 'restoreWithoutWork',
     'restoreCanceledPending', 'closedWorldPickRejected', 'logsUnchanged'])
 print('INSPECTOR_COORDINATE_DRAFT_PASS typed XYZ survives late World hit / restore without work / queued cancellation / native window closure')
+
+world_work = draft['worldWork']
+assert world_work['retryHit'] == [3, 0, 0] and world_work['retryFinalType'] == 1
+assert all(world_work[key] is True for key in ['replacementBounded', 'cancelReleasedQueue',
+    'queueRejected', 'queueRetry', 'cameraCanceled', 'tabCanceled', 'logsRetained'])
+print('INSPECTOR_WORLD_TASK_PASS one queued pick / Cancel Pick / real full-queue retry / camera-tab reclamation / retained Logs')

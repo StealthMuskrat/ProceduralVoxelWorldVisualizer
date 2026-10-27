@@ -7,13 +7,74 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
-class CoordinateTraceTaskTest {
+class InspectorTaskTest {
   private static final BlockPos POINT = new BlockPos(-2, 3, 4);
+
+  @Test
+  void worldPicksOwnUnknownOrKnownCoordinatesAndCanReplaceCoordinateWork() {
+    var gate = new InspectorRequests();
+    try (var task = new InspectorTask()) {
+      var coordinate = gate.begin(1, false);
+      task.begin(coordinate, POINT);
+      var old = new FutureTask<>(() -> 1);
+      task.attach(coordinate, old);
+      var pick = gate.begin(1, true);
+      task.begin(pick, null);
+      assertTrue(old.isCancelled());
+      assertNull(task.coordinate());
+      assertTrue(task.request().viewBound());
+      var known = gate.begin(1, true);
+      task.begin(known, POINT);
+      assertFalse(task.finish(pick));
+      assertEquals(POINT, task.coordinate());
+      assertTrue(task.finish(known));
+    }
+  }
+
+  @Test
+  void aRunningPredecessorThatIgnoresInterruptionCannotFinishTheNewRequest() throws Exception {
+    var entered = new CountDownLatch(1);
+    var release = new CountDownLatch(1);
+    var done = new CountDownLatch(1);
+    var gate = new InspectorRequests();
+    try (var workers = Executors.newSingleThreadExecutor();
+        var task = new InspectorTask()) {
+      var old = gate.begin(1, true);
+      task.begin(old, null);
+      try {
+        task.attach(
+            old,
+            workers.submit(
+                () -> {
+                  entered.countDown();
+                  while (release.getCount() != 0) {
+                    try {
+                      release.await();
+                    } catch (InterruptedException ignored) {
+                    }
+                  }
+                  done.countDown();
+                }));
+        assertTrue(entered.await(5, TimeUnit.SECONDS));
+        var next = gate.begin(1, false);
+        task.begin(next, POINT);
+        var future = new FutureTask<>(() -> 1);
+        task.attach(next, future);
+        release.countDown();
+        assertTrue(done.await(5, TimeUnit.SECONDS));
+        assertFalse(task.finish(old));
+        assertEquals(next, task.request());
+        assertFalse(future.isCancelled());
+      } finally {
+        release.countDown();
+      }
+    }
+  }
 
   @Test
   void replacementCancelsQueuedWorkAndOnlyTheLatestTaskRuns() {
     var gate = new InspectorRequests();
-    try (var task = new CoordinateTraceTask()) {
+    try (var task = new InspectorTask()) {
       var calls = new AtomicInteger();
       var first = gate.begin(1, false);
       task.begin(first, POINT);
@@ -39,7 +100,7 @@ class CoordinateTraceTaskTest {
   @Test
   void cancellationAndClosureRejectLateFutureAttachment() {
     for (boolean close : new boolean[] {false, true}) {
-      var task = new CoordinateTraceTask();
+      var task = new InspectorTask();
       var request = new InspectorRequests().begin(1, false);
       task.begin(request, POINT);
       if (close) task.close();
@@ -57,7 +118,7 @@ class CoordinateTraceTaskTest {
   @Test
   void supersededAttachmentCannotReplaceTheCurrentOwnedFuture() {
     var gate = new InspectorRequests();
-    try (var task = new CoordinateTraceTask()) {
+    try (var task = new InspectorTask()) {
       var first = gate.begin(1, false);
       task.begin(first, POINT);
       var next = gate.begin(1, false);
@@ -79,7 +140,7 @@ class CoordinateTraceTaskTest {
     var release = new CountDownLatch(1);
     var interrupted = new CountDownLatch(1);
     try (var workers = Executors.newSingleThreadExecutor();
-        var task = new CoordinateTraceTask()) {
+        var task = new InspectorTask()) {
       var request = new InspectorRequests().begin(1, false);
       task.begin(request, POINT);
       try {
@@ -109,10 +170,10 @@ class CoordinateTraceTaskTest {
   @Test
   void invalidRequestsCannotDiscardAnExistingPendingCoordinate() {
     var gate = new InspectorRequests();
-    try (var task = new CoordinateTraceTask()) {
+    try (var task = new InspectorTask()) {
       var coordinate = gate.begin(1, false);
       task.begin(coordinate, POINT);
-      assertThrows(IllegalArgumentException.class, () -> task.begin(gate.begin(1, true), POINT));
+      assertThrows(NullPointerException.class, () -> task.begin(null, POINT));
       assertThrows(NullPointerException.class, () -> task.begin(coordinate, null));
       assertEquals(coordinate, task.request());
       assertEquals(POINT, task.coordinate());

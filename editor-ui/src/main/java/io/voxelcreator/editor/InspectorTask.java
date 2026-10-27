@@ -4,10 +4,8 @@ import io.voxelcreator.storage.BlockPos;
 import java.util.Objects;
 import java.util.concurrent.Future;
 
-/**
- * UI-owned, replaceable coordinate work. Results still use the shared Inspector publication gate.
- */
-final class CoordinateTraceTask implements AutoCloseable {
+/** UI-owned, replaceable Inspector work. Results still use the shared publication gate. */
+final class InspectorTask implements AutoCloseable {
   private InspectorRequests.Request request;
   private BlockPos coordinate;
   private Future<?> future;
@@ -15,9 +13,8 @@ final class CoordinateTraceTask implements AutoCloseable {
 
   void begin(InspectorRequests.Request value, BlockPos target) {
     Objects.requireNonNull(value);
-    Objects.requireNonNull(target);
-    if (closed) throw new IllegalStateException("Coordinate tracing is closed");
-    if (value.viewBound()) throw new IllegalArgumentException("Coordinate request required");
+    if (!value.viewBound()) Objects.requireNonNull(target);
+    if (closed) throw new IllegalStateException("Inspector work is closed");
     cancel();
     request = value;
     coordinate = target;

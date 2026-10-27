@@ -51,3 +51,9 @@ Explicit Trace Coordinate owns at most one pending editor job. Starting another 
 ## Entered and traced coordinates
 
 Inspector XYZ is an editable coordinate, separate from the current immutable trace. A visible notice names the displayed trace coordinate when XYZ differs. Use Traced Coordinate restores those integers without moving the camera, regenerating the preview or publishing another trace. Restoration cancels pending coordinate work. Every XYZ edit invalidates either kind of pending Inspector request, including a World pick, so a late hit cannot overwrite typed input. Closing the Inspector likewise invalidates pending World picks as well as coordinate jobs. Previously published trace history is retained.
+
+## One owned Inspector request
+
+World picks now share the replaceable InspectorTask Future slot with explicit coordinate traces. Repeated picks, switching request kinds, XYZ edits, restore, Cancel Pick/Cancel Trace and Inspector closure reclaim canceled queued work rather than leaving obsolete ray evaluations in the editor queue. Camera/tab/preview and drawn-GPU-version changes cancel view-bound pick work; explicit coordinate requests remain independent of navigation. The Inspector can show pending pick feedback and Cancel Pick while retaining a clearly labeled previous trace. Full-queue and evaluation failures keep the prior result and offer an explicit retry.
+
+Every result/miss/error first finishes only its owning slot and checks the shared revision/request/view/coverage guards; a late predecessor cannot clear a newer request. The validity closure is released on completion/cancellation/closure. Running cancellation is best-effort interruption rather than hard engine preemption. Native coverage checks five repeated picks with one queued successor, Cancel Pick cleanup, real queue-full rejection/retry, and immediate camera/tab reclamation alongside the coordinate workflow.

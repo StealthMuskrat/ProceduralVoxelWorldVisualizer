@@ -36,8 +36,9 @@ public final class Viewports implements AutoCloseable {
   private int active = 0;
   private int smokeTab = -1;
   private final InspectorRequests traceRequests = new InspectorRequests();
-  private final CoordinateTraceTask coordinateTrace = new CoordinateTraceTask();
-  private String coordinateTraceFeedback = "";
+  private final InspectorTask inspectorTask = new InspectorTask();
+  private java.util.function.BooleanSupplier inspectorTaskValid;
+  private String inspectorTaskFeedback = "";
   private PickView observedPickView;
   private final ImBoolean inspector = new ImBoolean(false);
   private final int[] inspect = {0, 0, 0};
@@ -80,8 +81,23 @@ public final class Viewports implements AutoCloseable {
             v.camera.flying);
     if (!current.equals(observedPickView)) {
       observedPickView = current;
-      traceRequests.viewChanged();
+      pickViewChanged();
     }
+  }
+
+  private void pickViewChanged() {
+    traceRequests.viewChanged();
+    if (inspectorTask.pending() && inspectorTask.request().viewBound())
+      cancelInspectorTask("View changed; pick canceled.", false);
+  }
+
+  private void reconcileInspectorTask() {
+    if (inspectorTask.pending() && !inspectorTaskValid.getAsBoolean())
+      cancelInspectorTask(
+          inspectorTask.request().viewBound()
+              ? "Preview changed; pick canceled."
+              : "Project changed; Trace Coordinate to use the current project.",
+          false);
   }
 
   void probeWorld(UUID stage, String mode, int side, double centerX) {
@@ -179,11 +195,15 @@ public final class Viewports implements AutoCloseable {
   }
 
   boolean probeCoordinateTracePending() {
-    return coordinateTrace.pending();
+    return inspectorTask.pending() && !inspectorTask.request().viewBound();
   }
 
-  String probeCoordinateTraceFeedback() {
-    return coordinateTraceFeedback;
+  boolean probeWorldPickPending() {
+    return inspectorTask.pending() && inspectorTask.request().viewBound();
+  }
+
+  String probeInspectorTaskFeedback() {
+    return inspectorTaskFeedback;
   }
 
   BlockPos probeInspectorCoordinate() {
@@ -616,9 +636,7 @@ public final class Viewports implements AutoCloseable {
 
   public void draw() {
     inspectorHintVisible = inspectorTraceVisible = inspectorDraftNoticeVisible = false;
-    if (coordinateTrace.pending()
-        && !traceRequests.current(coordinateTrace.request(), state.revision))
-      cancelCoordinateTrace("Project changed; Trace Coordinate to use the current project.", false);
+    reconcileInspectorTask();
     views[0].imageRows.budget(
         Math.min(
             (long) state.user.performance.cacheMiB << 20,
@@ -638,6 +656,7 @@ public final class Viewports implements AutoCloseable {
     }
     ImGui.end();
     observePickView();
+    reconcileInspectorTask();
     if (active != 0) views[0].imageInput.reset();
     drawInspector();
     bookmarkPanel.drawDialogs();
@@ -1596,7 +1615,7 @@ public final class Viewports implements AutoCloseable {
 
   private void mark(View v) {
     if (v.kind == 2) {
-      traceRequests.viewChanged();
+      pickViewChanged();
       v.pickedBookmark = null;
     }
     v.dirty = true;
@@ -2007,7 +2026,7 @@ public final class Viewports implements AutoCloseable {
     var displayedBounds = v.fixedPickBounds;
     observePickView();
     long revision = state.revision;
-    cancelCoordinateTrace("", false);
+    cancelInspectorTask("", false);
     var request = traceRequests.begin(revision, true);
     var sourceScene = v.scene;
     var sourceGpu = v.gl.sceneRenderer();
@@ -2033,82 +2052,99 @@ public final class Viewports implements AutoCloseable {
     ProjectData p = ProjectIO.copy(state.project());
     UUID selectedStage = v.stage;
     String selectedMode = v.stageMode;
+    beginInspectorTask(
+        request,
+        streamedHit.map(ChunkScene.Pick::position).orElse(null),
+        current,
+        "Picking a voxel from the displayed preview...");
     try {
-      state.background.execute(
-          () -> {
-            try (var world =
-                state.engine.openWorld(
-                    new CompiledProject(p),
-                    new WorldOptions(null, 32, WorldOptions.CachePolicy.NO_CACHE, 0))) {
-              GenerationStage boundary =
-                  selectedMode.equals("Final") || selectedStage == null
-                      ? null
-                      : world.stages().stream()
-                          .filter(stage -> stage.uuid().equals(selectedStage))
-                          .findFirst()
-                          .orElse(null);
-              VoxelRaycast.Cells evaluator =
-                  (x, y, z) -> {
-                    var position = new BlockPos(x, y, z);
-                    if (boundary == null) return world.sampleStage(position, Integer.MAX_VALUE);
-                    int before = world.sampleStage(position, boundary.before());
-                    if (selectedMode.equals("Before")) return before;
-                    int after = world.sampleStage(position, boundary.after());
-                    return selectedMode.equals("Only Changes")
-                        ? (before == after ? 0 : after > 0 ? after : before)
-                        : after;
-                  };
-              var hit =
-                  streamingPick
-                      ? streamedHit.map(ChunkScene.Pick::position)
-                      : VoxelRaycast.firstOccupied(ray, 1000, displayedBounds.restrict(evaluator));
-              if (hit.isPresent()) {
-                BlockPos cell = hit.get();
-                GenerationTrace found = world.trace(cell);
-                state.uiQueue.offer(
-                    () -> {
-                      if (!current.getAsBoolean()) return;
-                      acceptTrace(found, p, revision);
-                      if (streamingPick && streamedHit.orElseThrow().displayProxy()) {
-                        inspectorPickHint =
-                            String.format(
-                                Locale.ROOT,
-                                "Coarse preview hit at X %d, Y %d, Z %d. This cell is empty in the"
-                                    + " exact preview; the trace shows the full world at this"
-                                    + " coordinate. Move closer for detail.",
-                                cell.x(),
-                                cell.y(),
-                                cell.z());
-                        state.status = inspectorPickHint;
-                      }
-                      inspect[0] = cell.x();
-                      inspect[1] = cell.y();
-                      inspect[2] = cell.z();
-                      v.pickedBookmark = new Coordinates(cell.x(), cell.y(), cell.z());
-                      inspector.set(true);
-                    });
-                return;
-              }
-              state.uiQueue.offer(
-                  () -> {
-                    if (!current.getAsBoolean()) return;
-                    showPickMiss(v, "No occupied voxel hit; enter a coordinate to inspect EMPTY");
-                  });
-            } catch (Exception e) {
-              state.uiQueue.offer(
-                  () -> {
-                    if (current.getAsBoolean()) state.notify("Error", e.getMessage());
-                  });
-            }
-          });
+      inspectorTask.attach(
+          request,
+          state.background.submit(
+              () -> {
+                try (var world =
+                    state.engine.openWorld(
+                        new CompiledProject(p),
+                        new WorldOptions(null, 32, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+                  GenerationStage boundary =
+                      selectedMode.equals("Final") || selectedStage == null
+                          ? null
+                          : world.stages().stream()
+                              .filter(stage -> stage.uuid().equals(selectedStage))
+                              .findFirst()
+                              .orElse(null);
+                  VoxelRaycast.Cells evaluator =
+                      (x, y, z) -> {
+                        var position = new BlockPos(x, y, z);
+                        if (boundary == null) return world.sampleStage(position, Integer.MAX_VALUE);
+                        int before = world.sampleStage(position, boundary.before());
+                        if (selectedMode.equals("Before")) return before;
+                        int after = world.sampleStage(position, boundary.after());
+                        return selectedMode.equals("Only Changes")
+                            ? (before == after ? 0 : after > 0 ? after : before)
+                            : after;
+                      };
+                  var hit =
+                      streamingPick
+                          ? streamedHit.map(ChunkScene.Pick::position)
+                          : VoxelRaycast.firstOccupied(
+                              ray, 1000, displayedBounds.restrict(evaluator));
+                  if (hit.isPresent()) {
+                    BlockPos cell = hit.get();
+                    GenerationTrace found = world.trace(cell);
+                    state.uiQueue.offer(
+                        () -> {
+                          if (!finishInspectorTask(request, current)) return;
+                          acceptTrace(found, p, revision);
+                          if (streamingPick && streamedHit.orElseThrow().displayProxy()) {
+                            inspectorPickHint =
+                                String.format(
+                                    Locale.ROOT,
+                                    "Coarse preview hit at X %d, Y %d, Z %d. This cell is empty in"
+                                        + " the exact preview; the trace shows the full world at"
+                                        + " this coordinate. Move closer for detail.",
+                                    cell.x(),
+                                    cell.y(),
+                                    cell.z());
+                            state.status = inspectorPickHint;
+                          }
+                          inspect[0] = cell.x();
+                          inspect[1] = cell.y();
+                          inspect[2] = cell.z();
+                          v.pickedBookmark = new Coordinates(cell.x(), cell.y(), cell.z());
+                          inspector.set(true);
+                        });
+                    return;
+                  }
+                  state.uiQueue.offer(
+                      () -> {
+                        if (!finishInspectorTask(request, current)) return;
+                        showPickMiss(
+                            v, "No occupied voxel hit; enter a coordinate to inspect EMPTY");
+                      });
+                } catch (Exception e) {
+                  state.uiQueue.offer(
+                      () -> {
+                        if (!finishInspectorTask(request, current)) return;
+                        inspectorTaskFeedback =
+                            "Pick failed; choose a voxel or Trace Coordinate to retry.";
+                        state.status = inspectorTaskFeedback;
+                        state.notify("Error", e.getMessage());
+                      });
+                }
+              }));
     } catch (RejectedExecutionException e) {
+      finishInspectorTask(request, current);
+      inspectorTaskFeedback =
+          "Inspector queue is full; choose a voxel or Trace Coordinate to retry.";
+      state.status = inspectorTaskFeedback;
       state.notify("Warning", "Inspector queue is full");
     }
   }
 
   private void acceptTrace(GenerationTrace result, ProjectData snapshot, long revision) {
     inspectorPickHint = "";
-    coordinateTraceFeedback = "";
+    inspectorTaskFeedback = "";
     traceSnapshot = new TraceSnapshot(snapshot, revision, result);
     state.status =
         String.format(
@@ -2123,17 +2159,45 @@ public final class Viewports implements AutoCloseable {
   private void showPickMiss(View v, String message) {
     v.pickedBookmark = null;
     traceSnapshot = null;
+    inspectorTaskFeedback = "";
     inspectorPickHint = message;
     inspector.set(true);
     state.status = message;
   }
 
-  private void cancelCoordinateTrace(String feedback, boolean invalidate) {
-    coordinateTrace.cancel();
+  private void cancelInspectorTask(String feedback, boolean invalidate) {
+    inspectorTask.cancel();
+    inspectorTaskValid = null;
     state.background.purge();
     if (invalidate) traceRequests.cancelCurrent();
-    coordinateTraceFeedback = feedback;
+    inspectorTaskFeedback = feedback;
     if (!feedback.isEmpty()) state.status = feedback;
+  }
+
+  private void beginInspectorTask(
+      InspectorRequests.Request request,
+      BlockPos target,
+      java.util.function.BooleanSupplier valid,
+      String feedback) {
+    inspectorTask.begin(request, target);
+    inspectorTaskValid = valid;
+    state.background.purge();
+    inspectorTaskFeedback = feedback;
+    state.status = feedback;
+  }
+
+  private boolean finishInspectorTask(
+      InspectorRequests.Request request, java.util.function.BooleanSupplier valid) {
+    if (!inspectorTask.finish(request)) return false;
+    inspectorTaskValid = null;
+    if (!valid.getAsBoolean()) {
+      inspectorTaskFeedback =
+          "Inspector request expired; choose a voxel or Trace Coordinate to retry.";
+      state.status = inspectorTaskFeedback;
+      return false;
+    }
+    inspectorTaskFeedback = "";
+    return true;
   }
 
   private void startCoordinateTrace() {
@@ -2141,13 +2205,15 @@ public final class Viewports implements AutoCloseable {
     long revision = state.revision;
     var request = traceRequests.begin(revision, false);
     var pos = new BlockPos(inspect[0], inspect[1], inspect[2]);
-    coordinateTrace.begin(request, pos);
-    state.background.purge();
-    coordinateTraceFeedback =
-        String.format(Locale.ROOT, "Tracing X %d, Y %d, Z %d...", pos.x(), pos.y(), pos.z());
-    state.status = coordinateTraceFeedback;
+    java.util.function.BooleanSupplier current =
+        () -> traceRequests.current(request, state.revision);
+    beginInspectorTask(
+        request,
+        pos,
+        current,
+        String.format(Locale.ROOT, "Tracing X %d, Y %d, Z %d...", pos.x(), pos.y(), pos.z()));
     try {
-      coordinateTrace.attach(
+      inspectorTask.attach(
           request,
           state.background.submit(
               () -> {
@@ -2155,31 +2221,29 @@ public final class Viewports implements AutoCloseable {
                   var result = world.trace(pos);
                   state.uiQueue.offer(
                       () -> {
-                        if (!traceRequests.current(request, state.revision)
-                            || !coordinateTrace.finish(request)) return;
+                        if (!finishInspectorTask(request, current)) return;
                         acceptTrace(result, p, revision);
                       });
                 } catch (Exception e) {
                   state.uiQueue.offer(
                       () -> {
-                        if (!traceRequests.current(request, state.revision)
-                            || !coordinateTrace.finish(request)) return;
-                        coordinateTraceFeedback =
+                        if (!finishInspectorTask(request, current)) return;
+                        inspectorTaskFeedback =
                             String.format(
                                 Locale.ROOT,
                                 "Trace failed at X %d, Y %d, Z %d. Trace Coordinate to retry.",
                                 pos.x(),
                                 pos.y(),
                                 pos.z());
-                        state.status = coordinateTraceFeedback;
+                        state.status = inspectorTaskFeedback;
                         state.notify("Error", e.getMessage());
                       });
                 }
               }));
     } catch (RejectedExecutionException full) {
-      coordinateTrace.finish(request);
-      coordinateTraceFeedback = "Inspector queue is full; Trace Coordinate to retry.";
-      state.status = coordinateTraceFeedback;
+      finishInspectorTask(request, current);
+      inspectorTaskFeedback = "Inspector queue is full; Trace Coordinate to retry.";
+      state.status = inspectorTaskFeedback;
       state.notify("Warning", "Inspector queue is full");
     }
   }
@@ -2190,7 +2254,7 @@ public final class Viewports implements AutoCloseable {
 
   private void restoreTracedCoordinate() {
     var point = traceSnapshot.trace().position();
-    cancelCoordinateTrace("", true);
+    cancelInspectorTask("", true);
     inspect[0] = point.x();
     inspect[1] = point.y();
     inspect[2] = point.z();
@@ -2215,19 +2279,19 @@ public final class Viewports implements AutoCloseable {
           "inspector-close", new float[] {position.x + size.x - halfTitle, position.y + halfTitle});
     }
     if (!inspector.get()) {
-      cancelCoordinateTrace("", true);
+      cancelInspectorTask("", true);
       state.status = "Inspector closed.";
     }
-    if (!coordinateTraceFeedback.isEmpty()) ImGui.textWrapped(coordinateTraceFeedback);
-    if (!coordinateTrace.pending()
+    if (!inspectorTaskFeedback.isEmpty()) ImGui.textWrapped(inspectorTaskFeedback);
+    if (!inspectorTask.pending()
         && !inspectorPickHint.isEmpty()
-        && (coordinateTraceFeedback.isEmpty() || traceSnapshot != null)) {
+        && (inspectorTaskFeedback.isEmpty() || traceSnapshot != null)) {
       ImGui.textWrapped(inspectorPickHint);
       inspectorHintVisible = true;
     }
     if (ImGui.inputInt3("XYZ", inspect)) {
-      boolean wasPending = coordinateTrace.pending();
-      cancelCoordinateTrace(
+      boolean wasPending = inspectorTask.pending();
+      cancelInspectorTask(
           wasPending ? "Coordinate changed; Trace Coordinate to continue." : "", true);
     }
     if (admissionProbe)
@@ -2255,13 +2319,15 @@ public final class Viewports implements AutoCloseable {
       bookmarkPanel.openAdd(Tab.WORLD, new Coordinates(inspect[0], inspect[1], inspect[2]));
     if (ImGui.button("Trace Coordinate")) startCoordinateTrace();
     admissionControl("trace-coordinate");
-    if (coordinateTrace.pending()) {
+    if (inspectorTask.pending()) {
       ImGui.sameLine();
-      if (ImGui.button("Cancel Trace")) cancelCoordinateTrace("Coordinate trace canceled.", true);
+      boolean pick = inspectorTask.request().viewBound();
+      if (ImGui.button(pick ? "Cancel Pick" : "Cancel Trace"))
+        cancelInspectorTask(pick ? "World pick canceled." : "Coordinate trace canceled.", true);
       admissionControl("trace-cancel");
     }
     if (traceSnapshot != null && tracePanel != null) {
-      if (!coordinateTraceFeedback.isEmpty() || inspectorCoordinatesDiffer())
+      if (!inspectorTaskFeedback.isEmpty() || inspectorCoordinatesDiffer())
         ImGui.textDisabled("Previous trace result");
       tracePanel.draw(traceSnapshot);
       inspectorTraceVisible = true;
@@ -2272,7 +2338,8 @@ public final class Viewports implements AutoCloseable {
   @Override
   public void close() {
     traceRequests.close();
-    coordinateTrace.close();
+    inspectorTask.close();
+    inspectorTaskValid = null;
     for (var v : views) {
       v.ready.close();
       v.setup.close();

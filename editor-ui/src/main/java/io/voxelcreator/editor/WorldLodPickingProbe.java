@@ -122,7 +122,7 @@ final class WorldLodPickingProbe {
             ProjectIO.JSON.writeValueAsString(
                 Map.of(
                     "formatVersion",
-                    3,
+                    4,
                     "coordinateWork",
                     coordinateWork,
                     "observations",
@@ -159,7 +159,7 @@ final class WorldLodPickingProbe {
       require(
           views.probeCoordinateTracePending()
               && views.probeInspectorTraceVisible()
-              && views.probeCoordinateTraceFeedback().contains("Tracing X 28"),
+              && views.probeInspectorTaskFeedback().contains("Tracing X 28"),
           "Pending coordinate status or previous result missing");
       control("trace-cancel");
       require(
@@ -202,7 +202,7 @@ final class WorldLodPickingProbe {
     until(
         () ->
             !views.probeCoordinateTracePending()
-                && views.probeCoordinateTraceFeedback().startsWith("Trace failed at X 100"));
+                && views.probeInspectorTaskFeedback().startsWith("Trace failed at X 100"));
     require(
         views.probeInspectorTrace() == beforeFailure
             && state.traces.size() == logCount
@@ -211,7 +211,7 @@ final class WorldLodPickingProbe {
     editX(29);
     retrace();
     require(
-        views.probeCoordinateTraceFeedback().isEmpty(),
+        views.probeInspectorTaskFeedback().isEmpty(),
         "Runtime retry did not clear failure feedback");
 
     var beforeQueue = views.probeInspectorTrace();
@@ -221,13 +221,13 @@ final class WorldLodPickingProbe {
       control("trace-coordinate");
       require(
           !views.probeCoordinateTracePending()
-              && views.probeCoordinateTraceFeedback().contains("queue is full")
+              && views.probeInspectorTaskFeedback().contains("queue is full")
               && views.probeInspectorTrace() == beforeQueue,
           "Queue rejection lacked stable retry state");
     }
     for (var future : queued) future.get(5, TimeUnit.SECONDS);
     retrace();
-    require(views.probeCoordinateTraceFeedback().isEmpty(), "Queue retry did not clear feedback");
+    require(views.probeInspectorTaskFeedback().isEmpty(), "Queue retry did not clear feedback");
     var beforeTab = views.probeInspectorTrace();
     try (var hold = holdWorkers()) {
       control("trace-coordinate");
@@ -240,7 +240,8 @@ final class WorldLodPickingProbe {
     until(() -> !views.probeCoordinateTracePending() && views.probeInspectorTrace() != beforeTab);
     views.probeNoiseTab(2);
     frames(2);
-    var draft = draftWorkflow();
+    var draft = new LinkedHashMap<>(draftWorkflow());
+    draft.put("worldWork", worldPickWorkflow());
     return Map.of(
         "draft",
         draft,
@@ -283,8 +284,8 @@ final class WorldLodPickingProbe {
       require(
           views.probeInspectorDraftNoticeVisible(), "Changed XYZ lacked displayed-trace notice");
       require(
-          state.background.getQueue().size() == 1,
-          "World pick no longer tests delayed publication");
+          state.background.getQueue().isEmpty() && !views.probeWorldPickPending(),
+          "XYZ edit did not reclaim queued World pick");
     }
     until(WorldLodPickingProbe::idle);
     frames(3);
@@ -330,6 +331,9 @@ final class WorldLodPickingProbe {
       control("inspect-coordinate");
       control("inspector-close");
       require(!views.probeInspectorOpen(), "Native Inspector close did not close the window");
+      require(
+          state.background.getQueue().isEmpty() && !views.probeWorldPickPending(),
+          "Inspector closure retained a queued pick");
     }
     until(WorldLodPickingProbe::idle);
     frames(3);
@@ -353,6 +357,104 @@ final class WorldLodPickingProbe {
         "closedWorldPickRejected",
         true,
         "logsUnchanged",
+        true);
+  }
+
+  private static Map<String, Object> worldPickWorkflow() throws Exception {
+    var retained = views.probeInspectorTrace();
+    int count = state.traces.size();
+    long bytes = state.traces.bytes();
+    try (var hold = holdWorkers()) {
+      for (int i = 0; i < 5; i++) {
+        clickImage(0);
+        require(
+            views.probeWorldPickPending() && state.background.getQueue().size() == 1,
+            "Repeated World picks accumulated work instead of replacing it");
+      }
+      control("inspect-coordinate");
+      frames(2);
+      require(
+          views.probeInspectorTaskFeedback().contains("Picking a voxel"),
+          "Pending pick feedback missing");
+      control("trace-cancel");
+      require(
+          !views.probeWorldPickPending() && state.background.getQueue().isEmpty(),
+          "Cancel Pick did not reclaim queued work");
+    }
+    until(WorldLodPickingProbe::idle);
+    frames(3);
+    require(
+        views.probeInspectorTrace() == retained
+            && state.traces.size() == count
+            && state.traces.bytes() == bytes,
+        "Canceled World picks changed the trace or Logs");
+    var queued = new ArrayList<Future<?>>();
+    try (var hold = holdWorkers()) {
+      for (int i = 0; i < 8; i++) queued.add(state.background.submit(() -> {}));
+      clickImage(0);
+      control("inspect-coordinate");
+      require(
+          !views.probeWorldPickPending()
+              && views.probeInspectorTaskFeedback().contains("queue is full")
+              && views.probeInspectorTrace() == retained,
+          "World queue rejection lost the previous result or pending state");
+    }
+    for (var future : queued) future.get(5, TimeUnit.SECONDS);
+    clickImage(0);
+    until(views::probeInspectorOpen);
+    frames(2);
+    var accepted = views.probeInspectorTrace();
+    require(
+        accepted != retained
+            && accepted.trace().position().equals(new BlockPos(3, 0, 0))
+            && accepted.trace().finalType() == 1,
+        "World queue retry did not accept its displayed voxel");
+    count = state.traces.size();
+    bytes = state.traces.bytes();
+    try (var hold = holdWorkers()) {
+      clickImage(0);
+      ImGui.getIO().addMouseWheelEvent(0, 1);
+      frame();
+      require(
+          !views.probeWorldPickPending() && state.background.getQueue().isEmpty(),
+          "Camera navigation retained queued World work");
+    }
+    until(WorldLodPickingProbe::idle);
+    frames(2);
+    try (var hold = holdWorkers()) {
+      clickImage(0);
+      views.probeNoiseTab(0);
+      frames(2);
+      require(
+          !views.probeWorldPickPending() && state.background.getQueue().isEmpty(),
+          "Tab navigation retained queued World work");
+    }
+    until(WorldLodPickingProbe::idle);
+    views.probeNoiseTab(2);
+    frames(2);
+    require(
+        views.probeInspectorTrace() == accepted
+            && state.traces.size() == count
+            && state.traces.bytes() == bytes,
+        "Canceled navigation picks published another result");
+    return Map.of(
+        "replacementBounded",
+        true,
+        "cancelReleasedQueue",
+        true,
+        "queueRejected",
+        true,
+        "queueRetry",
+        true,
+        "retryHit",
+        List.of(3, 0, 0),
+        "retryFinalType",
+        accepted.trace().finalType(),
+        "cameraCanceled",
+        true,
+        "tabCanceled",
+        true,
+        "logsRetained",
         true);
   }
 
