@@ -317,6 +317,7 @@ public final class WorldPickingProbe {
         ImageGestureProbe.run(out.resolve("image-gestures"), window);
         ProjectFileProbe.run(out.resolve("project-files"), window);
         InputBindingProbe.run(out.resolve("input-bindings"), window);
+        IsosurfaceProbe.run(out.resolve("isosurface"));
       } finally {
         ImGui.destroyContext();
       }

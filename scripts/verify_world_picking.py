@@ -282,3 +282,56 @@ expected = first['inputs']['bias']['value'] + first['inputs']['extra']['value'] 
 assert bindings['before'] == 5 and bindings['after'] == expected == 26.25
 assert all(bindings[key] is True for key in ['draftPreserved', 'navigationOnly', 'oneUndoRedo', 'foreignRejected'])
 print('INPUT_BINDING_PASS independent saved typed bindings / exact component focus / one-shot per-item choices / transformed 26.25 / single Undo-Redo / draft ownership')
+
+iso_root = Path(sys.argv[1]) / 'isosurface'
+iso = json.loads((iso_root / 'isosurface-native.json').read_text())
+iso_project = json.loads((iso_root / 'isosurface-project.json').read_text())
+assert iso['formatVersion'] == 1
+meshes = {row['name']: row for row in iso['meshes']}
+assert len(meshes) == 6
+
+def surface_vertices(row):
+    raw = row['vertices']
+    assert len(raw) % 21 == 0 and row['bytes'] == 4 * len(raw)
+    assert all(math.isfinite(v) for v in raw)
+    return [raw[i:i+7] for i in range(0, len(raw), 7)]
+
+def surface_area(vertices):
+    area = 0
+    for i in range(0, len(vertices), 3):
+        a, b, c = vertices[i:i+3]
+        u, v = [b[k]-a[k] for k in range(3)], [c[k]-a[k] for k in range(3)]
+        cross = [u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]]
+        assert sum(cross[k]*a[k+3] for k in range(3)) > 0
+        area += math.sqrt(sum(x*x for x in cross))/2
+    return area
+
+for name, expression, z, normal in [('positive','z - 2.25',2.25,-1),
+    ('negative','2.25 - z',2.25,1),
+    ('extreme','z < 3 ? -1.7976931348623157e308 : 1.7976931348623157e308',2.5,-1)]:
+    row = meshes[name]
+    assert iso_project['noise3D'][['positive','negative','extreme'].index(name)]['processing'][0]['parameters']['expression'] == expression
+    vertices = surface_vertices(row)
+    assert math.isclose(surface_area(vertices), 16, rel_tol=0, abs_tol=1e-6)
+    assert all(v[2] == z and v[3:6] == [0,0,normal] and v[6] == 128 for v in vertices)
+    assert row['samples'] == 125 and len(row['pixels']) == 25 and row['normalZ'] == normal
+    expected = 255*(.35+.65*max(0,normal*.3/math.sqrt(1.25)))
+    assert all(abs(pixel[0]-expected)<=2 and pixel[1:] == [0,0,255] for pixel in row['pixels'])
+left, right = [surface_vertices(meshes[name]) for name in ['left','right']]
+for row, origin in [(left,-2),(right,0)]:
+    surface_area(row)
+    assert all(abs(v[1]+.37*v[2]+.23*(v[0]+origin)-.8)<3e-7 for v in row)
+assert {(v[1],v[2]) for v in left if v[0]==2} == {(v[1],v[2]) for v in right if v[0]==0}
+sphere = surface_vertices(meshes['sphere'])
+surface_area(sphere)
+edges = {}
+for i in range(0,len(sphere),3):
+    for j in range(3):
+        a, b = tuple(sphere[i+j][:3]), tuple(sphere[i+(j+1)%3][:3])
+        edge = tuple(sorted((a,b)))
+        edges[edge] = edges.get(edge,0)+1
+assert edges and set(edges.values()) == {2}
+for v in sphere:
+    assert abs(sum(n*n for n in v[3:6])-1)<2e-6
+    assert sum((v[k]-2)*v[k+3] for k in range(3))>0
+print('ISOSURFACE_PASS independent affine areas / positive-complement normals / extreme finite interpolation / 75 lighting pixels / exact shared face / closed sphere edge incidence')

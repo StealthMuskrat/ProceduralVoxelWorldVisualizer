@@ -47,6 +47,15 @@ class PreviewAdmissionTest {
   }
 
   @Test
+  void isosurfaceAdmissionIncludesCornerGridAndPeakMeshGrowth() {
+    var gate = new PreviewAdmission();
+    long expected = 3 * 1008L * 16 * 16 * 16 + 8 * 17L * 17 * 17 + 65536;
+    assertEquals(
+        expected, gate.check(1, 16, "Isosurface", Long.MAX_VALUE, 256, expected).workingBytes());
+    assertFalse(gate.check(1, 16, "Isosurface", Long.MAX_VALUE, 256, expected - 1).allowed());
+  }
+
+  @Test
   void queueFailureRequiresChangedRequestAndRetainsReasonAcrossPolling() {
     var gate = new PreviewAdmission();
     gate.queueFull();

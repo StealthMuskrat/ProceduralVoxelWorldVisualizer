@@ -2074,14 +2074,21 @@ public final class Viewports implements AutoCloseable {
                     var bounds = VoxelRaycast.Bounds.snappedCube(origin, n);
                     origin.set(bounds.min().x(), bounds.min().y(), bounds.min().z());
                     int ox = (int) origin.x, oy = (int) origin.y, oz = (int) origin.z;
-                    int[] cells = new int[n * n * n];
+                    int[] cells =
+                        kind == 1 && mode.equals("Isosurface") ? null : new int[n * n * n];
                     Mesh mesh;
                     if (kind == 1) {
                       var sampler = compiled.noise3D(noise, snapshot.project.seed);
                       if (mode.equals("Isosurface")) {
                         mesh =
-                            MeshBuilder.isosurface(
-                                n, (x, y, z) -> sampler.sample(ox + x, oy + y, oz + z), threshold);
+                            IsosurfaceMesh.build(
+                                n,
+                                (x, y, z) ->
+                                    sampler.sample(
+                                        (double) ox + x, (double) oy + y, (double) oz + z),
+                                threshold,
+                                cancellation,
+                                IsosurfaceMesh.maximumMeshBytes(n));
                       } else {
                         for (int y = 0; y < n; y++) {
                           if (Thread.currentThread().isInterrupted()) return;

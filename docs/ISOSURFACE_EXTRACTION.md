@@ -1,0 +1,13 @@
+# Bounded isosurface extraction
+
+Isosurface display uses a fixed six-tetrahedron decomposition per unit cube. Samples at or above the threshold are inside; normals and triangle winding point toward lower values, outside that region. The domain is clipped to the requested cube: uniform fields produce no invented boundary caps.
+
+The mesher evaluates each of the `(size+1)^3` corner nodes once into private canonical double data. Every value and the threshold must be finite. A shared edge always interpolates from the lexicographically smaller XYZ endpoint. Opposite endpoint order cannot introduce a different floating-point seam. Ordinary finite subtraction keeps its normal evaluation order; when a difference overflows, scaled interpolation handles finite extreme endpoints. Subnormal values remain valid.
+
+Primitive scratch replaces temporary per-tetrahedron lists. Triangle orientation uses the inside-to-outside tetrahedron direction; degenerate float triangles are omitted. Normals are normalized from double cross products of the actual display vertices. Cancellation/interruption is checked before allocation, on every sampling/extraction row and before publication. Exceptions and output limits return no partial mesh.
+
+The explicit renderer API accepts a cancellation token and mesh byte cap. Complete triangles use 84 bytes and are admitted inclusively; an insufficient cap fails before growing the output. The legacy MeshBuilder entry delegates with a 256 MiB output cap. Sizes remain 1..256. A conservative worst case is 1008 output bytes per cube: six tetrahedra × two triangles × three seven-float vertices. Fixed isosurface preview admission reserves three times that output bound for buffer growth/final trimming, plus the corner grid and 64 KiB scratch allowance. The fixed viewport passes its owned cancellation token, uses this admission estimate and avoids an unrelated voxel-cell array. Previous accepted display stays governed by the existing preview mailbox.
+
+Unit contracts cover analytical affine area, winding/normals, complemented fields, threshold corners, extreme/subnormal values, exact shared-face vertices at negative/positive origins, closed-sphere topology, sampling counts, invalid input, cancellation and exact memory boundaries. Native GL checks render three compiled canonical fields and compare 75 pixels to the shader's analytical normal lighting. Saved geometry is independently replayed for area, winding, finite interpolation, shared edges and closed-sphere incidence.
+
+This improves bounded fixed analysis. Streaming isosurfaces/volumes, representative hardware measurements and full GUI/DPI/Windows 11 acceptance remain separate. Exact procedural fields, voxel generation and project/archive formats do not change.

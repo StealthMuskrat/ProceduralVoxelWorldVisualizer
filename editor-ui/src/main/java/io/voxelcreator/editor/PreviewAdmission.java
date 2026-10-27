@@ -1,5 +1,7 @@
 package io.voxelcreator.editor;
 
+import io.voxelcreator.render.IsosurfaceMesh;
+
 /** UI-thread-owned admission failure for one viewport; changed requests explicitly rearm it. */
 final class PreviewAdmission {
   record Decision(boolean allowed, long workingBytes, String message) {}
@@ -29,10 +31,12 @@ final class PreviewAdmission {
     long bytes =
         kind == 0
             ? 64L * side * side
-            : (mode.equals("Volume") ? 12L : mode.equals("Point Cloud") ? 96L : 3024L)
-                * side
-                * side
-                * side;
+            : kind == 1 && mode.equals("Isosurface")
+                ? IsosurfaceMesh.workingBytes(side)
+                : (mode.equals("Volume") ? 12L : mode.equals("Point Cloud") ? 96L : 3024L)
+                    * side
+                    * side
+                    * side;
     if (bytes > cpuBytes)
       return reject("Preview exceeds working-memory budget; reduce extent or raise CPU MiB");
     return new Decision(true, bytes, "");
