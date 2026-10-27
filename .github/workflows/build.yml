@@ -186,6 +186,10 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.NoiseImageInputProbe build/image-input
           python scripts/verify_image_input.py build/image-input
+      - name: Native preview budget and queue recovery
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreviewAdmissionProbe build/preview-admission
+          python scripts/verify_preview_admission.py build/preview-admission
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -223,6 +227,7 @@ jobs:
             build/curve-controls/
             build/image-rows/
             build/image-input/
+            build/preview-admission/
             build/benchmark.csv
             build/storage-benchmark.csv
   windows:
@@ -527,6 +532,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_image_input.py build/image-input
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows native preview budget and queue recovery
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreviewAdmissionProbe build/preview-admission
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_preview_admission.py build/preview-admission
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh
         run: |
@@ -588,6 +600,7 @@ jobs:
             build/curve-controls/
             build/image-rows/
             build/image-input/
+            build/preview-admission/
             build/benchmark.csv
             build/storage-benchmark.csv
             **/build/test-results/

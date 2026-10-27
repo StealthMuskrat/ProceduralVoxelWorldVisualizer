@@ -38,6 +38,50 @@ public final class Viewports implements AutoCloseable {
   private final int[] inspect = {0, 0, 0};
   private final BookmarkPanel bookmarkPanel;
 
+  private boolean admissionProbe;
+  private final Map<String, float[]> admissionControls = new HashMap<>();
+
+  void probeAdmissionSource(UUID noise) {
+    admissionProbe = true;
+    views[0].noise = noise;
+    mark(views[0]);
+  }
+
+  float[] probeAdmissionControl(String key) {
+    return admissionControls.get(key);
+  }
+
+  boolean probeAdmissionReady() {
+    var v = views[0];
+    return v.completed && !v.dirty && !v.activeJob && !v.failedPreview;
+  }
+
+  boolean probeAdmissionBlocked() {
+    return views[0].admission.blocked() && views[0].failedPreview;
+  }
+
+  boolean probeOtherAdmissionBlocked() {
+    return views[1].admission.blocked() || views[2].admission.blocked();
+  }
+
+  NoiseImageView probeAcceptedImage() {
+    return views[0].displayedImage;
+  }
+
+  String probeAdmissionMessage() {
+    return views[0].message;
+  }
+
+  private void admissionControl(String key) {
+    if (admissionProbe)
+      admissionControls.put(
+          key,
+          new float[] {
+            (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
+            (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
+          });
+  }
+
   private static final class View {
     final int kind;
     final GlViewport gl = new GlViewport();
@@ -483,6 +527,7 @@ public final class Viewports implements AutoCloseable {
       v.rebuildSerial++;
       mark(v);
     }
+    admissionControl("toolbar");
     ImGui.sameLine();
     fields.bool(
         "Auto",
@@ -732,6 +777,7 @@ public final class Viewports implements AutoCloseable {
           (int) w, (int) h, v.camera.matrix(w / h, v.origin), state.user.visualization.unlit, 1);
     float px = ImGui.getCursorScreenPosX(), py = ImGui.getCursorScreenPosY();
     ImGui.image(v.gl.texture(), w, h, 0, v.image ? 0 : 1, 1, v.image ? 1 : 0);
+    admissionControl("image");
     boolean hovered = ImGui.isItemHovered();
     if (v.kind == 0 && state.user.visualization.grid) {
       var draw = ImGui.getWindowDrawList();
@@ -779,6 +825,7 @@ public final class Viewports implements AutoCloseable {
         v.rebuildSerial++;
         mark(v);
       }
+      admissionControl("context");
       ImGui.endPopup();
     }
     if (v.kind == 0) {
