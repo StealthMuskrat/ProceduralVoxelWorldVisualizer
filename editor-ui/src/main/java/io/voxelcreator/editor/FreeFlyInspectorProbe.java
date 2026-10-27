@@ -11,12 +11,12 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.function.BooleanSupplier;
 
-/** Real image/key/window input and native cursor ownership through the Inspector handoff. */
+/** Image/key input, native ImGui focus and GLFW cursor ownership through the Inspector handoff. */
 final class FreeFlyInspectorProbe {
   private static Viewports views;
   private static EditorState state;
   private static long window;
-  private static float[] other;
+  private static boolean focusOther;
 
   static void run(Path out, long handle) throws Exception {
     Files.createDirectories(out);
@@ -79,7 +79,7 @@ final class FreeFlyInspectorProbe {
 
         enter();
         same(moved, "Resume changed pose");
-        click(other[0], other[1]);
+        focusOther = true;
         frames(2);
         paused(moved, "Another ImGui window did not suspend flight");
         key(ImGuiKey.Escape, true);
@@ -274,18 +274,17 @@ final class FreeFlyInspectorProbe {
     glfwPollEvents();
     state.drain();
     ImGui.newFrame();
+    if (focusOther) {
+      ImGui.setWindowFocus("Flight Probe Other");
+      focusOther = false;
+    }
     ImGui.setNextWindowPos(20, 20, ImGuiCond.Always);
     ImGui.setNextWindowSize(950, 750, ImGuiCond.Always);
     views.draw();
     ImGui.setNextWindowPos(990, 30, ImGuiCond.Always);
     ImGui.setNextWindowSize(190, 110, ImGuiCond.Always);
     ImGui.begin("Flight Probe Other");
-    ImGui.button("Other window");
-    other =
-        new float[] {
-          (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
-          (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
-        };
+    ImGui.text("Other focus target");
     ImGui.end();
     ImGui.render();
   }

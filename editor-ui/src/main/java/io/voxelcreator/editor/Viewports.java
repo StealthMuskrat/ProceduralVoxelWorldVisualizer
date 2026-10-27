@@ -1181,6 +1181,16 @@ public final class Viewports implements AutoCloseable {
 
     var io = ImGui.getIO();
     boolean enteredFlight = false;
+    if (flightImageVisible
+        && hovered
+        && ImGui.isMouseClicked(0)
+        && io.getKeyCtrl()
+        && glfwGetWindowAttribBoolean(handle, GLFW_FOCUSED)
+        && !ShortcutKeys.popup()) {
+      // The entry click explicitly transfers focus; ImGui otherwise does this at frame end.
+      ImGui.setWindowFocus("Visualizers");
+      viewportFocused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
+    }
     v.flight.reconcile(flightEligible(v), inspector.get());
     if (admissionProbe)
       probeFlightInput =
