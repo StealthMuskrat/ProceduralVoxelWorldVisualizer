@@ -1,0 +1,12 @@
+{
+  "implementation": "39deddcbe9067f848aa784b062ce0a34aedcfff4",
+  "workflowRun": 40542227385,
+  "platform": "linux",
+  "counts": {
+    "suites": 99,
+    "tests": 778,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

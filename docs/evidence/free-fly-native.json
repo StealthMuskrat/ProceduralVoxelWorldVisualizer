@@ -1,0 +1,19 @@
+{
+  "formatVersion" : 1,
+  "initial" : [ 20.25, 0.25, 0.2500000000000012, 1.5707963267948966, 0.0, 20.0 ],
+  "moved" : [ 18.24999989569187, 0.25, 0.250000000000001, 1.5707963267948966, 0.0, 20.0 ],
+  "hit" : [ 3, 0, 0, 1 ],
+  "entered" : [ 7, 0, 0 ],
+  "entryConsumed" : true,
+  "inspectorSuspended" : true,
+  "posePreserved" : true,
+  "textEditingPaused" : true,
+  "closeDidNotCapture" : true,
+  "otherWindowPaused" : true,
+  "otherEscapeIgnored" : true,
+  "tabPaused" : true,
+  "explicitResume" : true,
+  "escapeOrbit" : true,
+  "closeReleased" : true,
+  "viewOnly" : true
+}
