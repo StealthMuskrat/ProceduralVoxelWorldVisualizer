@@ -215,3 +215,38 @@ assert all(images[key] is True for key in ['resizeStable', 'finalReleaseApplied'
     'longContextsIgnored', 'stickyContextsIgnored', 'foreignContextsIgnored',
     'focusContextsCanceled', 'buttonArbitration', 'acceptedGeometry', 'manualUnchanged', 'viewOnly'])
 print('IMAGE_GESTURES_PASS independent press-size/release pan / accepted double coordinates / owned bookmarks / collapse / shared context arbitration / view-only')
+
+file_root = Path(sys.argv[1]) / 'project-files'
+files = json.loads((file_root / 'project-files-native.json').read_text())
+assert files['formatVersion'] == 1
+cases = {row['id']: row for row in files['cases']}
+assert len(cases) == len(files['cases']) == 20
+for intent in ['NEW', 'OPEN', 'EXIT']:
+    for decision in ['SAVE', 'DISCARD', 'CANCEL']:
+        row = cases[f'{intent}-{decision}']
+        canceled = decision == 'CANCEL'
+        seed = 41 if canceled or intent == 'EXIT' else 0 if intent == 'NEW' else 99
+        assert row['seed'] == seed
+        assert row['noiseCount'] == (0 if not canceled and intent in ['NEW', 'OPEN'] else 1)
+        assert row['dirty'] == (canceled or intent == 'EXIT' and decision == 'DISCARD')
+        assert row['phase'] == 'IDLE'
+        assert row['replacements'] == (1 if not canceled and intent in ['NEW', 'OPEN'] else 0)
+        assert row['exits'] == (1 if not canceled and intent == 'EXIT' else 0)
+    for suffix in ['saved', 'retry']:
+        saved = json.loads((file_root / f'{intent}-{suffix}.json').read_text())
+        assert saved['project']['seed'] == 41 and saved['noise2D'][0]['id'] == 'owned'
+    row = cases[f'{intent}-FAILED_SAVE_RETRY']
+    assert row['seed'] == 41 and row['dirty'] is False and row['phase'] == 'IDLE'
+    assert row['replacements'] == row['exits'] == 0
+    assert (file_root / f'{intent}-blocked' / 'sentinel').read_text() == 'retained'
+    row = cases[f'{intent}-PATH_CANCEL']
+    assert row['seed'] == 41 and row['dirty'] is True and row['phase'] == 'IDLE'
+    assert row['replacements'] == row['exits'] == 0
+for name in ['GUARD_ESCAPE', 'PATH_ESCAPE', 'NAMED_SAVE_FAILURE']:
+    row = cases[name]
+    assert row['dirty'] is True and row['phase'] == 'IDLE' and row['exits'] == row['replacements'] == 0
+assert cases['FAILED_OPEN_RETRY']['seed'] == 99 and cases['FAILED_OPEN_RETRY']['replacements'] == 1
+assert cases['CLEAN_EXIT']['exits'] == 1 and cases['CLEAN_EXIT']['dirty'] is False
+assert (file_root / 'named.json' / 'sentinel').read_text() == 'retained'
+assert not list(file_root.glob('.voxel-save-*'))
+print('PROJECT_FILES_PASS independent 20-case transition states / committed save bytes / retained failure destinations / no stale transition on retry / temp cleanup')

@@ -48,8 +48,8 @@ public final class Desktop extends Application {
       endpoint = new ImString(2048),
       origins = new ImString(2048);
   private String settingsPage = "User Settings", settingsCategory = "Appearance", fileAction = "";
-  private boolean filePending = false, guardPending = false;
-  private Runnable pendingTransition;
+  private boolean filePending = false;
+  private ProjectFileDialog projectFiles;
   private ProjectData projectDraft;
   private ProjectData importCandidate;
   private ResourceImport.Plan importPlan;
@@ -117,6 +117,9 @@ public final class Desktop extends Application {
             target -> {
               if (state.canNavigate(target)) sourceNavigation.request(target);
             });
+    projectFiles =
+        new ProjectFileDialog(
+            state, resources::reset, () -> glfwSetWindowShouldClose(handle, true));
     views = new Viewports(state, properties, handle);
     views.tracePanel(new TracePanel(state, sourceNavigation));
     diagnostics.tracePanel(new TracePanel(state, sourceNavigation));
@@ -124,7 +127,7 @@ public final class Desktop extends Application {
         handle,
         window -> {
           glfwSetWindowShouldClose(handle, false);
-          transition(() -> glfwSetWindowShouldClose(handle, true));
+          projectFiles.workflow.request(ProjectFileWorkflow.Intent.EXIT);
         });
     if (Arrays.asList(launchArgs).contains("--smoke")) {
       smokeFrames = 480;
@@ -180,7 +183,7 @@ public final class Desktop extends Application {
     sourceNavigation.draw();
     auxiliary();
     fileDialogs();
-    guardDialog();
+    projectFiles.draw();
     statusBar();
     shortcuts();
     if (System.nanoTime() - preferenceSave > 5_000_000_000L) {
@@ -435,7 +438,7 @@ public final class Desktop extends Application {
       if (ImGui.beginMenu("File")) {
         for (String action : List.of("New", "Open", "Save", "SaveAs", "Import", "Export"))
           if (ImGui.menuItem(Shortcuts.action(action).label(), binding(action))) command(action);
-        if (ImGui.menuItem("Exit")) transition(() -> glfwSetWindowShouldClose(handle, true));
+        if (ImGui.menuItem("Exit")) projectFiles.workflow.request(ProjectFileWorkflow.Intent.EXIT);
         ImGui.endMenu();
       }
       if (ImGui.beginMenu("Edit")) {
@@ -479,62 +482,6 @@ public final class Desktop extends Application {
     }
   }
 
-  private void transition(Runnable action) {
-    if (state.document.dirty()) {
-      pendingTransition = action;
-      guardPending = true;
-    } else action.run();
-  }
-
-  private void guardDialog() {
-    if (guardPending) {
-      ImGui.openPopup("Unsaved Project");
-      guardPending = false;
-    }
-    if (ImGui.beginPopupModal("Unsaved Project", ImGuiWindowFlags.AlwaysAutoResize)) {
-      ImGui.text("Save changes before continuing?");
-      if (ImGui.button("Save")) {
-        ImGui.closeCurrentPopup();
-        save(false);
-      }
-      ImGui.sameLine();
-      if (ImGui.button("Don't Save")) {
-        var next = pendingTransition;
-        pendingTransition = null;
-        ImGui.closeCurrentPopup();
-        if (next != null) next.run();
-      }
-      ImGui.sameLine();
-      if (ImGui.button("Cancel")) {
-        pendingTransition = null;
-        ImGui.closeCurrentPopup();
-      }
-      ImGui.endPopup();
-    }
-  }
-
-  private void save(boolean as) {
-    if (as || state.document.path() == null) {
-      openFile("Save");
-      return;
-    }
-    try {
-      state.document.save(state.document.path());
-      state.notify("Information", "Project saved");
-      completeTransition();
-    } catch (Exception e) {
-      state.error(
-          "PROJECT_SAVE_FAILED", EditorEvents.Subsystem.PROJECT, "Save failed: " + e.getMessage());
-      pendingTransition = null;
-    }
-  }
-
-  private void completeTransition() {
-    var next = pendingTransition;
-    pendingTransition = null;
-    if (next != null) next.run();
-  }
-
   private void openFile(String action) {
     fileAction = action;
     if (action.equals("Export")) resources.beginExport();
@@ -559,22 +506,9 @@ public final class Desktop extends Application {
         ImGui.endChild();
       }
       if (ImGui.button(fileAction)) {
-        Path path = Path.of(pathInput.get());
         try {
+          Path path = Path.of(pathInput.get());
           switch (fileAction) {
-            case "Open" -> {
-              var issues = state.document.open(path);
-              if (!issues.isEmpty()) throw new IOException(issues.toString());
-              state.revision++;
-              state.selected = null;
-              state.draft = null;
-              resources.reset();
-              state.notify("Information", "Project opened");
-            }
-            case "Save" -> {
-              state.document.save(path);
-              state.notify("Information", "Project saved");
-            }
             case "Export" -> {
               if (resources.exportSelection.isEmpty())
                 throw new IOException("Select resources to export");
@@ -598,7 +532,6 @@ public final class Desktop extends Application {
             }
           }
           ImGui.closeCurrentPopup();
-          if (fileAction.equals("Save")) completeTransition();
         } catch (Exception e) {
           state.error(
               "FILE_" + fileAction.toUpperCase(Locale.ROOT) + "_FAILED",
@@ -610,7 +543,6 @@ public final class Desktop extends Application {
       }
       ImGui.sameLine();
       if (ImGui.button("Cancel")) {
-        pendingTransition = null;
         ImGui.closeCurrentPopup();
       }
       if (smokeFrames > 0 && 480 - smokeFrames == 236 && fileAction.equals("Export"))
@@ -1049,15 +981,10 @@ public final class Desktop extends Application {
 
   private void command(String action) {
     switch (action) {
-      case "New" ->
-          transition(
-              () -> {
-                state.newSession();
-                resources.reset();
-              });
-      case "Open" -> transition(() -> openFile("Open"));
-      case "Save" -> save(false);
-      case "SaveAs" -> save(true);
+      case "New" -> projectFiles.workflow.request(ProjectFileWorkflow.Intent.NEW);
+      case "Open" -> projectFiles.workflow.request(ProjectFileWorkflow.Intent.OPEN);
+      case "Save" -> projectFiles.workflow.save(false);
+      case "SaveAs" -> projectFiles.workflow.save(true);
       case "Import", "Export" -> openFile(action);
       case "Undo" -> {
         if (state.document.canUndo()) {

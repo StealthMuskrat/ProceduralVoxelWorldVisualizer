@@ -1,0 +1,13 @@
+# Project file transitions
+
+New, Open Project, Exit and native window close share one owned project transition. A dirty committed document prompts Save / Don't Save / Cancel. Clean documents proceed directly. An open guard or project path dialog owns its action: another project command cannot replace it.
+
+Save writes the committed document, including its existing explicit-save semantics. Unapplied Properties text is a separate draft and is not silently committed by saving. Saving a named document uses its current path; a new document or Save As opens Project File Location. Both path and guard dialogs support Cancel and Escape.
+
+A successful required save runs its queued action once. Canceling the save path aborts the action. Any failed save also aborts it, including a malformed path or a failed atomic replacement. The path dialog stays open with an inline error so the user can fix the destination. A subsequent successful retry saves only; it cannot unexpectedly create a new project, open another project or exit. The user can request that action again after saving. A failed named save reports through Logs/Notifications and leaves the current session intact.
+
+Don't Save authorizes the requested transition without changing the document's saved baseline. If Open is subsequently canceled or fails, the old document remains dirty. Opening parses and validates a candidate before replacing the current project. Failed attempts retain the path, project, selection, unapplied draft, revision and Undo history. A successful open clears old selection/draft/multi-selection/validation state and history only after the candidate has committed. Source-link freshness still uses project identity.
+
+The existing atomic writer uses a flushed temporary sibling and atomic replacement where supported, with a replacement fallback. Temporary files are removed after a failed write. Project parsing and path creation are both inside error handling. Import/export retains its resource workflow and now also catches malformed path construction.
+
+`ProjectFileWorkflowTest` covers transactional state and malformed paths. The native ProjectFileProbe runs the production dialog with real ImGui mouse/key/text events and real filesystem I/O. It checks all nine dirty New/Open/Exit decisions, all three save-path cancellations, guard/path Escape, three failed-save retries, failed-open retention/retry, named-save failure and clean exit. Exit uses a counted callback in this fixture; Desktop connects the same callback to GLFW close. These checks do not certify physical window-manager input, every file dialog gesture, every platform permission failure or Windows 11 hardware.
