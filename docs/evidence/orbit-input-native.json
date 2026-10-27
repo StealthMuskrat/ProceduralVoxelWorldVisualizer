@@ -1,0 +1,42 @@
+{
+  "formatVersion" : 1,
+  "observations" : [ {
+    "kind" : "orbit",
+    "dx" : -490.0,
+    "dy" : 35.0,
+    "after" : [ 0.25, 0.25, 0.25, 5.4907963267948965, 0.28, 20.0 ],
+    "before" : [ 0.25, 0.25, 0.25, 1.5707963267948966, 0.0, 20.0 ]
+  }, {
+    "kind" : "pan",
+    "dx" : -490.0,
+    "dy" : -25.0,
+    "after" : [ 1.0000000000000009, 0.25, -14.45, 1.5707963267948966, 0.0, 20.0 ],
+    "before" : [ 0.25, 0.25, 0.25, 1.5707963267948966, 0.0, 20.0 ]
+  }, {
+    "kind" : "middleXZ",
+    "dx" : 15.0,
+    "dy" : 25.0,
+    "after" : [ -0.35, 0.25, -0.75, 1.5707963267948966, 0.0, 20.0 ],
+    "before" : [ 0.25, 0.25, 0.25, 1.5707963267948966, 0.0, 20.0 ]
+  }, {
+    "kind" : "middleY",
+    "dx" : 15.0,
+    "dy" : 25.0,
+    "after" : [ 0.25, -0.75, 0.25, 1.5707963267948966, 0.0, 20.0 ],
+    "before" : [ 0.25, 0.25, 0.25, 1.5707963267948966, 0.0, 20.0 ]
+  } ],
+  "hit" : [ 3, 0, 0, 1 ],
+  "outsideCaptured" : true,
+  "panWithoutMenu" : true,
+  "shortContext" : true,
+  "longPressIgnored" : true,
+  "stickyDrag" : true,
+  "foreignIgnored" : true,
+  "escapeRollback" : true,
+  "focusCanceled" : true,
+  "tabCanceled" : true,
+  "middleAxisLocked" : true,
+  "wheelSuppressed" : true,
+  "freshPickRecovered" : true,
+  "viewOnly" : true
+}
