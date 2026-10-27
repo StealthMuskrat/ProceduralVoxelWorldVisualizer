@@ -1,0 +1,42 @@
+{
+  "formatVersion" : 1,
+  "samples" : [ {
+    "pointer" : [ 0.2494646680942184, 0.7490706319702602 ],
+    "point" : [ -64.13704496788009, 0.0, 63.76208178438662 ],
+    "kind" : "2D-left",
+    "raw" : 6312.071133470783,
+    "picked" : [ -65, 63 ]
+  }, {
+    "pointer" : [ 0.3993576017130621, 0.5985130111524164 ],
+    "point" : [ -25.7644539614561, 0.0, 25.219330855018598 ],
+    "kind" : "2D-context",
+    "raw" : 2496.1686315404036,
+    "picked" : [ -26, 25 ]
+  }, {
+    "pointer" : [ 0.2494646680942184, 0.75 ],
+    "point" : [ -8.75321199143469, -3.0, 14.0 ],
+    "kind" : "slice-context",
+    "raw" : 1361.2467880085653,
+    "picked" : [ -9, -3, 14 ]
+  } ],
+  "before" : [ 0.0, 0.0, 1.0 ],
+  "released" : [ -21.927194860813703, -19.033457249070633, 1.0 ],
+  "pressDimensions" : [ 934.0, 538.0 ],
+  "resizedDimensions" : [ 1084.0, 588.0 ],
+  "releaseDelta" : [ 80, 40 ],
+  "resizeStable" : true,
+  "finalReleaseApplied" : true,
+  "foreignBookmarkRetained" : true,
+  "escapeBookmarkRetained" : true,
+  "collapseCanceled" : true,
+  "heldWheelSuppressed" : true,
+  "shortContexts" : true,
+  "longContextsIgnored" : true,
+  "stickyContextsIgnored" : true,
+  "foreignContextsIgnored" : true,
+  "focusContextsCanceled" : true,
+  "buttonArbitration" : true,
+  "acceptedGeometry" : true,
+  "manualUnchanged" : true,
+  "viewOnly" : true
+}

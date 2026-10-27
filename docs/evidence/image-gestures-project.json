@@ -1,0 +1,101 @@
+{
+  "formatVersion" : 2,
+  "project" : {
+    "uuid" : "8d0aa5d0-c8e6-41b5-8f52-dc4d03e2cbb6",
+    "seed" : 0,
+    "minY" : -64,
+    "maxY" : 319,
+    "rootOrder" : { }
+  },
+  "voxelTypes" : [ ],
+  "voxelGroups" : [ ],
+  "voxelSets" : [ ],
+  "noise2D" : [ {
+    "uuid" : "3c788229-8cd9-48be-bcf5-919d29717877",
+    "id" : "image-affine",
+    "dimension" : 2,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "CONSTANT",
+      "parameters" : {
+        "frequency" : 0.01,
+        "value" : 0.0
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ {
+      "uuid" : "d71b6e55-7dd4-4baf-a279-1cf5c7a7afb6",
+      "id" : "image-affine-expression",
+      "kind" : "EXPRESSION",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "expression" : "x + 100*z"
+      },
+      "inputs" : { }
+    } ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Earlier Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : "d71b6e55-7dd4-4baf-a279-1cf5c7a7afb6",
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  } ],
+  "noise3D" : [ {
+    "uuid" : "37114cf2-4d88-4e9a-ac99-a9f2bbdc8ef4",
+    "id" : "context-affine",
+    "dimension" : 3,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "CONSTANT",
+      "parameters" : {
+        "frequency" : 0.01,
+        "value" : 0.0
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ {
+      "uuid" : "04cd8872-0f3e-4d89-a315-b7471dc0e0d3",
+      "id" : "context-affine-expression",
+      "kind" : "EXPRESSION",
+      "resultType" : "Scalar",
+      "enabled" : true,
+      "parameters" : {
+        "expression" : "x + 10*y + 100*z"
+      },
+      "inputs" : { }
+    } ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Earlier Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : "04cd8872-0f3e-4d89-a315-b7471dc0e0d3",
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  } ],
+  "worldGenerator" : {
+    "uuid" : "634c4936-4445-405c-8fac-383bf3859af3",
+    "layers" : [ ]
+  },
+  "folders" : [ ],
+  "bookmarks" : {
+    "noise2D" : [ ],
+    "noise3D" : [ ],
+    "world" : [ ]
+  }
+}
