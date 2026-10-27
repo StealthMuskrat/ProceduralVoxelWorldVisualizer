@@ -1,0 +1,49 @@
+{
+  "retainedLogs" : true,
+  "streamMissClearedTrace" : true,
+  "viewOnly" : true,
+  "observations" : [ {
+    "y" : 2,
+    "z" : 2,
+    "proxy" : true,
+    "traceRows" : 11,
+    "finalType" : 1,
+    "mode" : "After",
+    "hint" : "Coarse preview hit at X 29, Y 2, Z 2. This cell is empty in the exact preview; the trace shows the full world at this coordinate. Move closer for detail.",
+    "x" : 29
+  }, {
+    "y" : 2,
+    "z" : 2,
+    "proxy" : true,
+    "traceRows" : 11,
+    "finalType" : 1,
+    "mode" : "Only Changes",
+    "hint" : "Coarse preview hit at X 29, Y 2, Z 2. This cell is empty in the exact preview; the trace shows the full world at this coordinate. Move closer for detail.",
+    "x" : 29
+  }, {
+    "y" : 2,
+    "z" : 2,
+    "proxy" : false,
+    "traceRows" : 11,
+    "finalType" : 0,
+    "mode" : "Refined",
+    "hint" : "",
+    "x" : 28
+  } ],
+  "formatVersion" : 2,
+  "coordinateTraceRecovered" : true,
+  "coordinateWork" : {
+    "runtimeRetry" : true,
+    "replacementBounded" : true,
+    "cancelReleasedQueue" : true,
+    "editCanceled" : true,
+    "runtimeFailureRetained" : true,
+    "tabIndependent" : true,
+    "pendingVisible" : true,
+    "queueRejected" : true,
+    "queueRetry" : true
+  },
+  "fixedMissClearedTrace" : true,
+  "sceneEpochReused" : true,
+  "coordinateTraceClearedHint" : true
+}

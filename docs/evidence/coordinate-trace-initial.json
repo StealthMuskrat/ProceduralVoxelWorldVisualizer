@@ -1,0 +1,11 @@
+{
+  "implementation_sha": "bfe5db5a721a9edd09320bd2b65371c73d29c012",
+  "run": 40522942363,
+  "run_url": "https://github.com/StealthMuskrat/ProceduralVoxelWorldVisualizer/actions/runs/40522942363",
+  "linux_job": 122254650276,
+  "observed_failure": "WorldLodPickingProbe retrace timeout after full-queue rejection; status remained Inspector queue is full",
+  "location": "coordinateWorkflow retry at line 229 in the initial implementation",
+  "cause": "The probe reused Trace Coordinate geometry from before feedback inserted another layout row. The simulated retry missed the button.",
+  "fix": "Use the control helper to submit two current layout frames and recapture the button rectangle before every retrace click. Timeout and result assertions unchanged.",
+  "earlier_native_checks": "Pending/cancel, XYZ edit, one queued replacement, runtime failure and runtime retry had already completed."
+}

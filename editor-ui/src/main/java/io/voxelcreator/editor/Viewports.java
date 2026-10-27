@@ -2158,8 +2158,7 @@ public final class Viewports implements AutoCloseable {
                         coordinateTraceFeedback =
                             String.format(
                                 Locale.ROOT,
-                                "Trace failed at X %d, Y %d, Z %d. Previous result retained; Trace"
-                                    + " Coordinate to retry.",
+                                "Trace failed at X %d, Y %d, Z %d. Trace" + " Coordinate to retry.",
                                 pos.x(),
                                 pos.y(),
                                 pos.z());
@@ -2170,8 +2169,7 @@ public final class Viewports implements AutoCloseable {
               }));
     } catch (RejectedExecutionException full) {
       coordinateTrace.finish(request);
-      coordinateTraceFeedback =
-          "Inspector queue is full; Trace Coordinate to retry. Previous result retained.";
+      coordinateTraceFeedback = "Inspector queue is full; Trace Coordinate to retry.";
       state.status = coordinateTraceFeedback;
       state.notify("Warning", "Inspector queue is full");
     }
@@ -2205,8 +2203,7 @@ public final class Viewports implements AutoCloseable {
     admissionControl("trace-coordinate");
     if (coordinateTrace.pending()) {
       ImGui.sameLine();
-      if (ImGui.button("Cancel Trace"))
-        cancelCoordinateTrace("Coordinate trace canceled. Previous result retained.", true);
+      if (ImGui.button("Cancel Trace")) cancelCoordinateTrace("Coordinate trace canceled.", true);
       admissionControl("trace-cancel");
     }
     if (traceSnapshot != null && tracePanel != null) {
