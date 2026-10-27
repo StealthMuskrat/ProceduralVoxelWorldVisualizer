@@ -1,0 +1,92 @@
+{
+  "formatVersion" : 1,
+  "samples" : [ {
+    "plane" : "X",
+    "slice" : -3,
+    "side" : 8,
+    "origin" : [ -10.25, 9.5 ],
+    "step" : 0.75,
+    "pointer" : [ 0.2494646680942184, 0.75 ],
+    "point" : [ -3.0, -8.75321199143469, 14.0 ],
+    "raw" : 1309.4678800856532,
+    "first" : 844.5,
+    "last" : 1422.0
+  }, {
+    "plane" : "Y",
+    "slice" : -3,
+    "side" : 8,
+    "origin" : [ -10.25, 9.5 ],
+    "step" : 0.75,
+    "pointer" : [ 0.2494646680942184, 0.75 ],
+    "point" : [ -8.75321199143469, -3.0, 14.0 ],
+    "raw" : 1361.2467880085653,
+    "first" : 909.75,
+    "last" : 1440.0
+  }, {
+    "plane" : "Z",
+    "slice" : -3,
+    "side" : 8,
+    "origin" : [ -10.25, 9.5 ],
+    "step" : 0.75,
+    "pointer" : [ 0.2494646680942184, 0.75 ],
+    "point" : [ -8.75321199143469, 14.0, -3.0 ],
+    "raw" : -168.75321199143468,
+    "first" : -215.25,
+    "last" : -157.5
+  } ],
+  "anchor" : [ 0.2494646680942184, 0.75 ],
+  "zoomBefore" : [ -7.25, 12.5, 0.75, 8.0 ],
+  "zoomAfter" : [ -7.639605158632621, 12.888772668977424, 0.5556136655112884, 8.0 ],
+  "pans" : [ {
+    "du" : -0.5246252676659529,
+    "dv" : 0.08064516129032258,
+    "after" : [ -4.102248394004283, 12.016129032258064, 0.75, 8.0 ],
+    "before" : [ -7.25, 12.5, 0.75, 8.0 ],
+    "button" : 0
+  }, {
+    "du" : -0.5246252676659529,
+    "dv" : 0.08064516129032258,
+    "after" : [ -4.102248394004283, 12.016129032258064, 0.75, 8.0 ],
+    "before" : [ -7.25, 12.5, 0.75, 8.0 ],
+    "button" : 2
+  } ],
+  "pending" : {
+    "plane" : "X",
+    "slice" : -3,
+    "side" : 8,
+    "origin" : [ -10.25, 9.5 ],
+    "step" : 0.75,
+    "pointer" : [ 0.2494646680942184, 0.75 ],
+    "point" : [ -3.0, -8.75321199143469, 14.0 ],
+    "raw" : 1309.4678800856532,
+    "first" : 0.0,
+    "last" : 0.0
+  },
+  "refreshed" : {
+    "plane" : "Z",
+    "slice" : 9,
+    "side" : 16,
+    "origin" : [ -6.0, -13.25 ],
+    "step" : 0.75,
+    "pointer" : [ 0.2494646680942184, 0.75 ],
+    "point" : [ -3.006423982869379, -4.25, 9.0 ],
+    "raw" : 854.4935760171306,
+    "first" : 761.5,
+    "last" : 885.25
+  },
+  "picked" : [ -3, -9, 14 ],
+  "allPlanes" : true,
+  "anchoredZoom" : true,
+  "outsidePan" : true,
+  "wheelSuppressed" : true,
+  "escapeRollback" : true,
+  "foreignIgnored" : true,
+  "focusCanceled" : true,
+  "tabCanceled" : true,
+  "requestSuperseded" : true,
+  "pendingGeometry" : true,
+  "bookmarkGeometry" : true,
+  "manualPreview" : true,
+  "immutableAccepted" : true,
+  "viewOnly" : true
+}
