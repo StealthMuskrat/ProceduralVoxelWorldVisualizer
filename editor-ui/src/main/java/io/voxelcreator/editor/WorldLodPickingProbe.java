@@ -372,9 +372,7 @@ final class WorldLodPickingProbe {
 
   private static void retrace() {
     var previous = views.probeInspectorTrace();
-    var button = views.probeAdmissionControl("trace-coordinate");
-    require(button != null, "No Trace Coordinate control");
-    clickPoint(button[0], button[1]);
+    control("trace-coordinate");
     until(() -> views.probeInspectorTrace() != null && views.probeInspectorTrace() != previous);
     frames(2);
   }
