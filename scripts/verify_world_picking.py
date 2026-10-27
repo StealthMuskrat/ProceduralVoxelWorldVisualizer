@@ -86,3 +86,23 @@ assert all(fresh[key] is True for key in ['projectChangeCanceled', 'refreshPrese
     'refreshViewOnly', 'manualPreviewUnchanged', 'oldSnapshotImmutable', 'sourceLinksRefreshed',
     'foreignReadOnly', 'foreignRefreshUnavailable', 'newTraceViewOnly', 'emptyTraceCountersReset'])
 print('INSPECTOR_FRESHNESS_PASS committed SET-CLEAR / queued cancellation / refresh preserves XYZ / changed-source link recovery / foreign read-only / new empty-project trace')
+
+flight_root = Path(sys.argv[1]) / 'free-fly'
+flight = json.loads((flight_root / 'free-fly-native.json').read_text())
+flight_project = json.loads((flight_root / 'free-fly-project.json').read_text())
+assert flight['formatVersion'] == 1 and flight['hit'] == [3, 0, 0, 1]
+assert flight['entered'] == [7, 0, 0]
+initial, moved = flight['initial'], flight['moved']
+assert len(initial) == len(moved) == 6
+assert all(math.isfinite(value) for value in initial + moved)
+assert math.isclose(initial[0], 20.25, abs_tol=1e-12)
+assert math.isclose(initial[1], .25, abs_tol=1e-12) and math.isclose(initial[2], .25, abs_tol=1e-12)
+assert math.isclose(initial[3], math.pi / 2, abs_tol=1e-12) and initial[4:] == [0, 20]
+assert math.isclose(moved[0], initial[0] - 2, abs_tol=1e-6)
+assert all(math.isclose(a, b, abs_tol=1e-12) for a, b in zip(initial[1:], moved[1:]))
+assert flight_project['worldGenerator']['layers'][0]['defaults']['action'] == 'SET'
+assert flight_project['noise3D'][0]['algorithm']['parameters']['value'] == 1
+assert all(flight[key] is True for key in ['entryConsumed', 'inspectorSuspended', 'posePreserved',
+    'textEditingPaused', 'closeDidNotCapture', 'otherWindowPaused', 'otherEscapeIgnored',
+    'tabPaused', 'explicitResume', 'escapeOrbit', 'closeReleased', 'viewOnly'])
+print('FREE_FLY_INSPECTOR_PASS entry consumed / analytical movement and hit / paused Inspector typing / focus-tab safety / explicit resume / Escape / native cursor cleanup / view-only')

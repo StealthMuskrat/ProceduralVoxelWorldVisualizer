@@ -35,6 +35,8 @@ public final class Viewports implements AutoCloseable {
   private final View[] views = {new View(0), new View(1), new View(2)};
   private final UiFields fields = new UiFields();
   private int active = 0;
+  private int drawnView = -1;
+  private boolean viewportFocused, flightImageVisible;
   private int smokeTab = -1;
   private final InspectorRequests traceRequests = new InspectorRequests();
   private final InspectorTask inspectorTask = new InspectorTask();
@@ -245,6 +247,24 @@ public final class Viewports implements AutoCloseable {
     inspector.set(false);
   }
 
+  ViewportFlight.Mode probeFlightMode(int kind) {
+    return views[kind].flight.mode();
+  }
+
+  double[] probeCameraPose(int kind) {
+    var c = views[kind].camera;
+    var eye = c.eye();
+    return new double[] {eye.x, eye.y, eye.z, c.yaw, c.pitch, c.distance};
+  }
+
+  boolean probeCameraFlying(int kind) {
+    return views[kind].camera.flying;
+  }
+
+  void probeInteractiveTabs() {
+    smokeTab = -1;
+  }
+
   void probeAdmissionSource(UUID noise) {
     admissionProbe = true;
     views[0].noise = noise;
@@ -394,6 +414,7 @@ public final class Viewports implements AutoCloseable {
     final int kind;
     final GlViewport gl = new GlViewport();
     final Camera camera = new Camera();
+    final ViewportFlight flight = new ViewportFlight();
     final NoiseImageRows imageRows = new NoiseImageRows();
     final NoiseImageInput imageInput = new NoiseImageInput();
     NoiseImageRows.Statistics imageStatistics;
@@ -553,7 +574,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   public boolean flying() {
-    return Arrays.stream(views).anyMatch(v -> v.camera.flying);
+    return Arrays.stream(views).anyMatch(v -> v.flight.captured());
   }
 
   public int compactArenas() {
@@ -646,6 +667,9 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void draw() {
+    drawnView = -1;
+    viewportFocused = false;
+    flightImageVisible = false;
     inspectorHintVisible = inspectorTraceVisible = inspectorDraftNoticeVisible = false;
     inspectorFreshnessNoticeVisible = false;
     if (admissionProbe) admissionControls.remove("trace-refresh");
@@ -654,13 +678,18 @@ public final class Viewports implements AutoCloseable {
         Math.min(
             (long) state.user.performance.cacheMiB << 20,
             Math.max(0, ((long) state.user.performance.sceneCpuMiB << 20) - 64L * 256 * 256)));
-    ImGui.begin("Visualizers");
+    boolean visible = ImGui.begin("Visualizers");
+    viewportFocused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Visualizers", 1f));
-    if (ImGui.beginTabBar("view-tabs")) {
+    if (visible && ImGui.beginTabBar("view-tabs")) {
       for (int k = 0; k < 3; k++) {
         String name = k == 0 ? "2D Noise" : k == 1 ? "3D Noise" : "World";
-        if (ImGui.beginTabItem(name, smokeTab == k ? ImGuiTabItemFlags.SetSelected : 0)) {
+        boolean selected =
+            ImGui.beginTabItem(name, smokeTab == k ? ImGuiTabItemFlags.SetSelected : 0);
+        admissionControl("tab-" + k);
+        if (selected) {
           active = k;
+          drawnView = k;
           drawView(views[k]);
           ImGui.endTabItem();
         }
@@ -668,10 +697,17 @@ public final class Viewports implements AutoCloseable {
       ImGui.endTabBar();
     }
     ImGui.end();
+    for (var v : views) {
+      if (v.kind != drawnView) v.flight.pause();
+      v.flight.reconcile(flightEligible(v), inspector.get());
+    }
+    syncFlightCursor();
     observePickView();
     reconcileInspectorTask();
     if (active != 0) views[0].imageInput.reset();
     drawInspector();
+    for (var v : views) v.flight.reconcile(flightEligible(v), inspector.get());
+    syncFlightCursor();
     bookmarkPanel.drawDialogs();
   }
 
@@ -967,9 +1003,11 @@ public final class Viewports implements AutoCloseable {
             });
       }
       ImGui.textDisabled(
-          v.camera.flying
+          v.flight.captured()
               ? "Free-fly: WASD / Space / Shift; Esc to release"
-              : "Orbit: drag left; pan right; wheel zoom; Ctrl+click free-fly");
+              : v.camera.flying
+                  ? "Free-fly paused: Ctrl+click viewport to resume; Esc in viewport exits"
+                  : "Orbit: drag left; pan right; wheel zoom; Ctrl+click free-fly");
     }
     bookmarkPanel.draw(Tab.values()[v.kind]);
     if (v.kind == 2) {
@@ -1118,6 +1156,7 @@ public final class Viewports implements AutoCloseable {
           (int) w, (int) h, v.camera.matrix(w / h, v.origin), state.user.visualization.unlit, 1);
     float px = ImGui.getCursorScreenPosX(), py = ImGui.getCursorScreenPosY();
     ImGui.image(v.gl.texture(), w, h, 0, v.image ? 0 : 1, 1, v.image ? 1 : 0);
+    flightImageVisible = v.kind > 0 && !(v.kind == 1 && v.mode.equals("Slices"));
     admissionControl("image");
     boolean hovered = ImGui.isItemHovered();
     if (v.kind == 0 && state.user.visualization.grid) {
@@ -1143,6 +1182,8 @@ public final class Viewports implements AutoCloseable {
     }
 
     var io = ImGui.getIO();
+    boolean enteredFlight = false;
+    v.flight.reconcile(flightEligible(v), inspector.get());
     if (hovered
         && (ImGui.isMouseClicked(1)
             || ImGui.isMouseReleased(0)
@@ -1253,6 +1294,16 @@ public final class Viewports implements AutoCloseable {
           }
         }
       } else {
+        if (!v.flight.captured()
+            && ImGui.isMouseClicked(0)
+            && io.getKeyCtrl()
+            && flightEligible(v)) {
+          for (var other : views) if (other != v) other.flight.pause();
+          if (!v.camera.flying) v.camera.enterFly();
+          v.flight.enter();
+          syncFlightCursor();
+          enteredFlight = true;
+        }
         if (!v.camera.flying) {
           if (ImGui.isMouseDragging(0) && !io.getKeyCtrl())
             v.camera.orbit(io.getMouseDeltaX(), io.getMouseDeltaY());
@@ -1265,10 +1316,8 @@ public final class Viewports implements AutoCloseable {
             }
           }
           v.camera.zoom(io.getMouseWheel());
-          if (ImGui.isMouseClicked(0) && io.getKeyCtrl()) {
-            v.camera.enterFly();
-            glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-          } else if (v.kind == 2
+          if (v.kind == 2
+              && !io.getKeyCtrl()
               && ImGui.isMouseReleased(0)
               && Math.abs(ImGui.getMouseDragDeltaX(0)) < 3
               && Math.abs(ImGui.getMouseDragDeltaY(0)) < 3)
@@ -1280,20 +1329,23 @@ public final class Viewports implements AutoCloseable {
         }
       }
     }
-    if (v.camera.flying) {
-      if (ImGui.isKeyPressed(ImGuiKey.Escape)
-          || !glfwGetWindowAttribBoolean(handle, GLFW_FOCUSED)) {
+    if (v.camera.flying && !enteredFlight) {
+      if (ImGui.isKeyPressed(ImGuiKey.Escape, false)
+          && (v.flight.captured() || flightEligible(v))) {
         release(v);
-      } else {
-        v.camera.orbit(io.getMouseDeltaX(), io.getMouseDeltaY());
-        v.camera.move(
-            (ImGui.isKeyDown(ImGuiKey.W) ? 1 : 0) - (ImGui.isKeyDown(ImGuiKey.S) ? 1 : 0),
-            (ImGui.isKeyDown(ImGuiKey.D) ? 1 : 0) - (ImGui.isKeyDown(ImGuiKey.A) ? 1 : 0),
-            (ImGui.isKeyDown(ImGuiKey.Space) ? 1 : 0) - (io.getKeyShift() ? 1 : 0),
-            io.getDeltaTime());
+      } else if (v.flight.captured()) {
         if (v.kind == 2 && ImGui.isMouseClicked(0)) {
-          release(v);
+          v.flight.inspect();
+          inspector.set(true);
+          syncFlightCursor();
           pick(v, 0, 0, w / h);
+        } else {
+          v.camera.orbit(io.getMouseDeltaX(), io.getMouseDeltaY());
+          v.camera.move(
+              (ImGui.isKeyDown(ImGuiKey.W) ? 1 : 0) - (ImGui.isKeyDown(ImGuiKey.S) ? 1 : 0),
+              (ImGui.isKeyDown(ImGuiKey.D) ? 1 : 0) - (ImGui.isKeyDown(ImGuiKey.A) ? 1 : 0),
+              (ImGui.isKeyDown(ImGuiKey.Space) ? 1 : 0) - (io.getKeyShift() ? 1 : 0),
+              io.getDeltaTime());
         }
       }
     }
@@ -1618,8 +1670,24 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void release(View v) {
-    v.camera.leaveFly();
-    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    if (v.camera.flying) v.camera.leaveFly();
+    v.flight.exit();
+    syncFlightCursor();
+  }
+
+  private boolean flightEligible(View v) {
+    return drawnView == v.kind
+        && flightImageVisible
+        && viewportFocused
+        && glfwGetWindowAttribBoolean(handle, GLFW_FOCUSED)
+        && !ImGui.getIO().getWantTextInput()
+        && !ShortcutKeys.popup()
+        && !(v.kind == 1 && v.mode.equals("Slices"));
+  }
+
+  private void syncFlightCursor() {
+    int mode = flying() ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL;
+    if (glfwGetInputMode(handle, GLFW_CURSOR) != mode) glfwSetInputMode(handle, GLFW_CURSOR, mode);
   }
 
   private void publish(View v, Preview result) {
@@ -2374,6 +2442,7 @@ public final class Viewports implements AutoCloseable {
     inspectorTask.close();
     inspectorTaskValid = null;
     for (var v : views) {
+      release(v);
       v.ready.close();
       v.setup.close();
       if (v.job != null) v.job.cancel(true);
