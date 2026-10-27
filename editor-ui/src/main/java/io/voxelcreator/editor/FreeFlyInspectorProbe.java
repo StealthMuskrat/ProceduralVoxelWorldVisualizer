@@ -38,7 +38,6 @@ final class FreeFlyInspectorProbe {
       try {
         views.probeWorld(null, "Final", 8, .25);
         until(views::probeWorldReady);
-        views.probeInteractiveTabs();
         double[] initial = views.probeCameraPose(2);
         enter();
         require(
@@ -89,10 +88,10 @@ final class FreeFlyInspectorProbe {
         frame();
         paused(moved, "Escape in another window exited the paused camera");
         enter();
-        control("tab-0");
+        views.probeNoiseTab(0);
         frames(3);
         paused(moved, "Tab switch retained capture");
-        control("tab-2");
+        views.probeNoiseTab(2);
         frames(3);
         paused(moved, "Returning to World stole capture");
         enter();

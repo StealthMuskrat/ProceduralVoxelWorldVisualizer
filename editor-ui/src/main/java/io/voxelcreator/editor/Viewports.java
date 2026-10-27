@@ -261,10 +261,6 @@ public final class Viewports implements AutoCloseable {
     return views[kind].camera.flying;
   }
 
-  void probeInteractiveTabs() {
-    smokeTab = -1;
-  }
-
   void probeAdmissionSource(UUID noise) {
     admissionProbe = true;
     views[0].noise = noise;
@@ -684,10 +680,7 @@ public final class Viewports implements AutoCloseable {
     if (visible && ImGui.beginTabBar("view-tabs")) {
       for (int k = 0; k < 3; k++) {
         String name = k == 0 ? "2D Noise" : k == 1 ? "3D Noise" : "World";
-        boolean selected =
-            ImGui.beginTabItem(name, smokeTab == k ? ImGuiTabItemFlags.SetSelected : 0);
-        admissionControl("tab-" + k);
-        if (selected) {
+        if (ImGui.beginTabItem(name, smokeTab == k ? ImGuiTabItemFlags.SetSelected : 0)) {
           active = k;
           drawnView = k;
           drawView(views[k]);
