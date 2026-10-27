@@ -130,6 +130,13 @@ public final class VolumeData {
     return samples.clone();
   }
 
+  /** Copy only the requested encoded texels into bounded render-thread staging. */
+  void copySamples(int offset, java.nio.FloatBuffer target) {
+    Objects.requireNonNull(target);
+    Objects.checkFromIndexSize(offset, target.remaining(), samples.length);
+    target.put(samples, offset, target.remaining());
+  }
+
   private float encoded(int x, int y, int z) {
     if (x < 0 || y < 0 || z < 0 || x >= size || y >= size || z >= size)
       throw new IndexOutOfBoundsException();

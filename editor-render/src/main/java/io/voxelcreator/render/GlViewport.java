@@ -11,7 +11,8 @@ public final class GlViewport implements AutoCloseable {
   private int texture, framebuffer, depth, width, height, vao, vbo, program, palette;
   private Mesh mesh = new Mesh(new float[0], false);
   private boolean image = false, volume = false;
-  private int volumeTexture, volumeProgram, volumeSize;
+  private int volumeProgram;
+  private final VolumeTextureUpload volumeUpload;
   private SceneGpuRenderer sceneRenderer;
   private int sceneBudget, paletteWidth = 256;
   private boolean sceneActive, sceneIndirect = true, sceneAo = true;
@@ -21,6 +22,7 @@ public final class GlViewport implements AutoCloseable {
   private int[] lastPalette;
 
   public SceneGpuRenderer scene(long epoch, int bytes) {
+    volumeUpload.clear();
     if (sceneRenderer == null || sceneBudget != bytes) {
       if (sceneRenderer != null) sceneRenderer.close();
       sceneRenderer = null;
@@ -67,7 +69,6 @@ public final class GlViewport implements AutoCloseable {
   }
 
   private VolumeTransfer.Settings volumeSettings = new VolumeTransfer.Settings(-1, 1, .12, 0, 192);
-  private VolumeData.Encoding volumeEncoding;
 
   public GlViewport() {
     texture = glGenTextures();
@@ -77,7 +78,87 @@ public final class GlViewport implements AutoCloseable {
     vbo = glGenBuffers();
     palette = glGenTextures();
     program = link();
-    volumeTexture = glGenTextures();
+    volumeUpload =
+        new VolumeTextureUpload(
+            new VolumeTextureUpload.Backend() {
+              public int allocate(int size) {
+                if (size > glGetInteger(GL_MAX_3D_TEXTURE_SIZE))
+                  throw new IllegalArgumentException("Volume exceeds device texture limit");
+                int id = glGenTextures();
+                int unpack = glGetInteger(GL_PIXEL_UNPACK_BUFFER_BINDING);
+                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+                glBindTexture(GL_TEXTURE_3D, id);
+                try {
+                  glTexImage3D(
+                      GL_TEXTURE_3D,
+                      0,
+                      GL_R32F,
+                      size,
+                      size,
+                      size,
+                      0,
+                      GL_RED,
+                      GL_FLOAT,
+                      (ByteBuffer) null);
+                  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+                  int error = glGetError();
+                  if (error != GL_NO_ERROR)
+                    throw new IllegalStateException("Volume allocation GL error " + error);
+                  return id;
+                } catch (RuntimeException | Error failure) {
+                  glDeleteTextures(id);
+                  throw failure;
+                } finally {
+                  glBindTexture(GL_TEXTURE_3D, 0);
+                  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, unpack);
+                }
+              }
+
+              public void write(
+                  int id, int x, int y, int z, int w, int h, int d, FloatBuffer values) {
+                glBindTexture(GL_TEXTURE_3D, id);
+                int alignment = glGetInteger(GL_UNPACK_ALIGNMENT);
+                int swap = glGetInteger(GL_UNPACK_SWAP_BYTES);
+                int row = glGetInteger(GL_UNPACK_ROW_LENGTH),
+                    height = glGetInteger(GL_UNPACK_IMAGE_HEIGHT);
+                int skipX = glGetInteger(GL_UNPACK_SKIP_PIXELS),
+                    skipY = glGetInteger(GL_UNPACK_SKIP_ROWS),
+                    skipZ = glGetInteger(GL_UNPACK_SKIP_IMAGES);
+                int unpack = glGetInteger(GL_PIXEL_UNPACK_BUFFER_BINDING);
+                try {
+                  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+                  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+                  glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
+                  glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                  glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+                  glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+                  glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+                  glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
+                  glTexSubImage3D(GL_TEXTURE_3D, 0, x, y, z, w, h, d, GL_RED, GL_FLOAT, values);
+                  int error = glGetError();
+                  if (error != GL_NO_ERROR)
+                    throw new IllegalStateException("Volume upload GL error " + error);
+                } finally {
+                  glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
+                  glPixelStorei(GL_UNPACK_SWAP_BYTES, swap);
+                  glPixelStorei(GL_UNPACK_ROW_LENGTH, row);
+                  glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, height);
+                  glPixelStorei(GL_UNPACK_SKIP_PIXELS, skipX);
+                  glPixelStorei(GL_UNPACK_SKIP_ROWS, skipY);
+                  glPixelStorei(GL_UNPACK_SKIP_IMAGES, skipZ);
+                  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, unpack);
+                  glBindTexture(GL_TEXTURE_3D, 0);
+                }
+              }
+
+              public void delete(int id) {
+                glDeleteTextures(id);
+              }
+            });
     volumeProgram = linkVolume();
   }
 
@@ -86,6 +167,7 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void setImage(int w, int h, int[] rgba) {
+    volumeUpload.clear();
     image = true;
     sceneActive = false;
     volume = false;
@@ -100,6 +182,7 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void setMesh(Mesh next) {
+    volumeUpload.clear();
     image = false;
     sceneActive = false;
     volume = false;
@@ -115,30 +198,44 @@ public final class GlViewport implements AutoCloseable {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
+  /** Synchronous compatibility entry point; editor previews use stage/advanceVolume. */
   public void setVolume(VolumeData data) {
-    image = false;
-    volume = true;
-    sceneActive = false;
-    volumeSize = data.size();
-    volumeEncoding = data.encoding();
-    glBindTexture(GL_TEXTURE_3D, volumeTexture);
-    glTexImage3D(
-        GL_TEXTURE_3D,
-        0,
-        GL_R32F,
-        volumeSize,
-        volumeSize,
-        volumeSize,
-        0,
-        GL_RED,
-        GL_FLOAT,
-        data.copySamples());
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glBindTexture(GL_TEXTURE_3D, 0);
+    stageVolume(data, Long.MAX_VALUE);
+    advanceVolume(Integer.MAX_VALUE);
+  }
+
+  public boolean stageVolume(VolumeData data, long gpuBudget) {
+    // The retained framebuffer survives retiring hidden streaming allocations.
+    releaseScene();
+    return volumeUpload.stage(data, gpuBudget);
+  }
+
+  public int advanceVolume(int byteBudget) {
+    long version = volumeUpload.statistics().version();
+    int written = volumeUpload.advance(byteBudget);
+    if (volumeUpload.statistics().version() != version) {
+      image = false;
+      volume = true;
+      sceneActive = false;
+    }
+    return written;
+  }
+
+  public VolumeTextureUpload.Resident volumeResident() {
+    return volumeUpload.resident();
+  }
+
+  public void cancelVolume() {
+    volumeUpload.cancel();
+  }
+
+  public void releaseVolume() {
+    volumeUpload.clear();
+    volume = false;
+  }
+
+  public VolumeTextureUpload.Statistics volumeStatistics() {
+    return volumeUpload.statistics();
   }
 
   public void volumeAppearance(
@@ -164,7 +261,8 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void render(int w, int h, Matrix4f matrix, boolean unlit, float alpha) {
-    if (image || sceneActive && !sceneRenderer.hasData()) return;
+    if (volumeUpload.statistics().pending() || image || sceneActive && !sceneRenderer.hasData())
+      return;
     w = Math.max(16, Math.min(4096, w));
     h = Math.max(16, Math.min(4096, h));
     int oldFbo = glGetInteger(GL_FRAMEBUFFER_BINDING);
@@ -211,15 +309,15 @@ public final class GlViewport implements AutoCloseable {
           glGetUniformLocation(volumeProgram, "inverseMatrix"),
           false,
           new Matrix4f(matrix).invert().get(new float[16]));
-      glUniform1f(glGetUniformLocation(volumeProgram, "extent"), volumeSize);
-      var transfer = VolumeTransfer.of(volumeEncoding, volumeSettings);
+      glUniform1f(glGetUniformLocation(volumeProgram, "extent"), volumeUpload.resident().size());
+      var transfer = VolumeTransfer.of(volumeUpload.resident().encoding(), volumeSettings);
       glUniform1f(glGetUniformLocation(volumeProgram, "opacity"), transfer.opacity());
       glUniform1f(glGetUniformLocation(volumeProgram, "threshold"), transfer.threshold());
       glUniform2f(
           glGetUniformLocation(volumeProgram, "displayTransfer"), transfer.gain(), transfer.bias());
       glUniform1i(glGetUniformLocation(volumeProgram, "steps"), transfer.steps());
       glActiveTexture(GL_TEXTURE1);
-      glBindTexture(GL_TEXTURE_3D, volumeTexture);
+      glBindTexture(GL_TEXTURE_3D, volumeUpload.resident().texture());
       glUniform1i(glGetUniformLocation(volumeProgram, "density"), 1);
       glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D, palette);
@@ -351,7 +449,7 @@ public final class GlViewport implements AutoCloseable {
     if (sceneRenderer != null) sceneRenderer.close();
     glDeleteProgram(program);
     glDeleteProgram(volumeProgram);
-    glDeleteTextures(volumeTexture);
+    volumeUpload.close();
     glDeleteBuffers(vbo);
     glDeleteVertexArrays(vao);
     glDeleteTextures(texture);

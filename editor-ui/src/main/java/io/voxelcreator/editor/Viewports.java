@@ -419,6 +419,37 @@ public final class Viewports implements AutoCloseable {
     mark(views[1]);
   }
 
+  void probeVolume(UUID noise, int side, double center) {
+    var v = views[1];
+    smokeTab = 1;
+    v.noise = noise;
+    v.mode = "Volume";
+    v.fixed = true;
+    v.size = side;
+    v.panX = v.panY = v.panZ = center;
+    v.camera.flying = false;
+    v.camera.focus.set(center, center, center);
+    v.camera.yaw = v.camera.pitch = 0;
+    v.camera.distance = 80;
+    v.volumeMin = 0;
+    v.volumeMax = 1;
+    v.volumeOpacity = .1;
+    v.threshold = 0;
+    mark(v);
+  }
+
+  VolumeTextureUpload.Statistics probeVolumeStatistics() {
+    return views[1].gl.volumeStatistics();
+  }
+
+  Vector3d probeVolumeOrigin() {
+    return new Vector3d(views[1].origin);
+  }
+
+  String probeVolumeMessage() {
+    return views[1].message;
+  }
+
   void probeSurface(UUID noise, boolean fixed, double x, double y, double z) {
     var v = views[1];
     smokeTab = 1;
@@ -609,6 +640,7 @@ public final class Viewports implements AutoCloseable {
     Future<?> job;
     final PreviewMailbox<Preview> ready = new PreviewMailbox<>();
     final PreviewAdmission admission = new PreviewAdmission();
+    Preview pendingVolume;
     String message = "Ready";
     Vector3d origin = new Vector3d();
     double[] raw;
@@ -688,6 +720,10 @@ public final class Viewports implements AutoCloseable {
     long capacity = 0, free = 0, largest = 0, moved = 0, remaining = 0, compactions = 0;
     boolean indirect = false;
     for (var v : views) {
+      var volume = v.gl.volumeStatistics();
+      cpu += volume.cpuBytes();
+      gpu += volume.activeBytes() + volume.pendingBytes();
+      uploads += volume.lastBytes();
       if (v.scene != null) {
         var s = v.scene.statistics();
         cpu += s.cpuBytes();
@@ -827,6 +863,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void draw() {
+    for (var view : views) view.gl.advanceVolume(0);
     drawnView = -1;
     viewportFocused = false;
     flightImageVisible = false;
@@ -1254,33 +1291,63 @@ public final class Viewports implements AutoCloseable {
         v.failedPreview = true;
         state.error("PREVIEW_FAILED", EditorEvents.Subsystem.RENDERING, ready.error);
       } else {
-        if (ready.image != null) {
-          v.gl.setImage(ready.width, ready.width, ready.image);
-          v.image = true;
-        } else {
-          if (ready.volume != null) v.gl.setVolume(ready.volume);
-          else v.gl.setMesh(ready.mesh);
-          v.image = false;
+        if (ready.volume != null) {
+          try {
+            if (!v.gl.stageVolume(ready.volume, (long) state.user.performance.sceneGpuMiB << 20))
+              volumeUploadFailed(
+                  v,
+                  "Volume replacement exceeds GPU MiB; previous display retained; reduce extent or"
+                      + " raise GPU MiB, then Regenerate");
+            else {
+              v.pendingVolume = ready;
+              v.activeJob = true;
+            }
+          } catch (RuntimeException failure) {
+            volumeUploadFailed(v, failure.getMessage());
+          }
+        } else acceptPreview(v, ready);
+      }
+    }
+    if (v.pendingVolume != null) {
+      try {
+        var stats = v.gl.volumeStatistics();
+        if (stats.activeBytes() + stats.pendingBytes()
+            > (long) state.user.performance.sceneGpuMiB << 20)
+          volumeUploadFailed(
+              v,
+              "Volume replacement exceeds GPU MiB; previous display retained; raise GPU MiB and"
+                  + " Regenerate");
+        else {
+          var profile = state.engine.profiler().scope(0, state.project().project.uuid, null);
+          long stamp = profile == null ? 0 : profile.begin();
+          var outcome = Profiler.Outcome.FAILED;
+          try {
+            v.gl.advanceVolume(state.user.performance.uploadKiB * 1024);
+            outcome = Profiler.Outcome.SUCCESS;
+          } finally {
+            if (stamp != 0) {
+              profile.finish(
+                  stamp, Profiler.Kind.UPLOAD_CPU, v.noise, "Volume texture upload", outcome);
+              profile.gauge(
+                  Profiler.Kind.UPLOAD_BYTES,
+                  Profiler.Unit.BYTES,
+                  v.gl.volumeStatistics().lastBytes(),
+                  "Volume upload bytes per frame");
+            }
+          }
+          if (!v.gl.volumeStatistics().pending()) {
+            var complete = v.pendingVolume;
+            v.pendingVolume = null;
+            v.activeJob = false;
+            acceptPreview(v, complete);
+          } else
+            v.message =
+                "Uploading volume: "
+                    + v.gl.volumeStatistics().remainingBytes()
+                    + " bytes remaining; previous display retained";
         }
-        if (v.kind == 1) v.displayedSlice = ready.sliceView;
-        v.completedModes.add(
-            v.kind == 2
-                ? v.stageMode
-                : v.mode + (v.mode.equals("Slices") ? " " + v.slicePlane.name() : ""));
-        v.origin.set(ready.origin);
-        v.fixedPickBounds =
-            v.kind == 2 ? VoxelRaycast.Bounds.cube(ready.origin, ready.width) : null;
-        v.gl.setPalette(ready.palette);
-        v.raw = ready.raw;
-        if (v.kind == 0) {
-          v.imageStatistics = ready.imageStatistics;
-          v.displayedImage = ready.imageView;
-        }
-        v.hoverSampler = ready.sampler;
-        v.histogram = ready.histogram;
-        v.message =
-            v.streamFallback ? "Ready (fixed fallback; Regenerate retries streaming)" : "Ready";
-        v.completed = true;
+      } catch (RuntimeException failure) {
+        volumeUploadFailed(v, failure.getMessage());
       }
     }
     if (source
@@ -1293,6 +1360,8 @@ public final class Viewports implements AutoCloseable {
         && System.nanoTime() - v.lastSubmit
             > 1_000_000_000L / state.user.editor.opportunitiesPerSecond) submit(v);
     if (!source) {
+      v.pendingVolume = null;
+      v.gl.releaseVolume();
       v.gl.releaseScene();
       v.activeSceneKey = "";
       v.message =
@@ -1567,6 +1636,43 @@ public final class Viewports implements AutoCloseable {
       v.keyNoise = v.noise;
     }
     return v.fingerprint;
+  }
+
+  private void volumeUploadFailed(View v, String detail) {
+    v.gl.cancelVolume();
+    v.pendingVolume = null;
+    v.activeJob = false;
+    v.failedPreview = true;
+    v.message =
+        "Volume upload failed: " + detail + "; previous display retained; Regenerate to retry";
+    state.error("VOLUME_UPLOAD_FAILED", EditorEvents.Subsystem.RENDERING, detail);
+  }
+
+  private void acceptPreview(View v, Preview ready) {
+    if (ready.image != null) {
+      v.gl.setImage(ready.width, ready.width, ready.image);
+      v.image = true;
+    } else {
+      if (ready.volume == null) v.gl.setMesh(ready.mesh);
+      v.image = false;
+    }
+    if (v.kind == 1) v.displayedSlice = ready.sliceView;
+    v.completedModes.add(
+        v.kind == 2
+            ? v.stageMode
+            : v.mode + (v.mode.equals("Slices") ? " " + v.slicePlane.name() : ""));
+    v.origin.set(ready.origin);
+    v.fixedPickBounds = v.kind == 2 ? VoxelRaycast.Bounds.cube(ready.origin, ready.width) : null;
+    v.gl.setPalette(ready.palette);
+    v.raw = ready.raw;
+    if (v.kind == 0) {
+      v.imageStatistics = ready.imageStatistics;
+      v.displayedImage = ready.imageView;
+    }
+    v.hoverSampler = ready.sampler;
+    v.histogram = ready.histogram;
+    v.message = v.streamFallback ? "Ready (fixed fallback; Regenerate retries streaming)" : "Ready";
+    v.completed = true;
   }
 
   private boolean wantsStreaming(View v) {
@@ -1995,6 +2101,8 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void mark(View v) {
+    v.pendingVolume = null;
+    v.gl.cancelVolume();
     if (v.kind == 2) {
       pickViewChanged();
       v.pickedBookmark = null;
@@ -2022,6 +2130,13 @@ public final class Viewports implements AutoCloseable {
     if (!admission.allowed()) {
       v.message = admission.message();
       v.failedPreview = true;
+      return;
+    }
+    if (v.kind == 1
+        && v.mode.equals("Volume")
+        && 4L * n * n * n + v.gl.volumeStatistics().activeBytes()
+            > (long) state.user.performance.sceneGpuMiB << 20) {
+      volumeUploadFailed(v, "Volume replacement exceeds GPU MiB; reduce extent or raise GPU MiB");
       return;
     }
     long working = admission.workingBytes();

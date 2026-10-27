@@ -320,6 +320,7 @@ public final class WorldPickingProbe {
         IsosurfaceProbe.run(out.resolve("isosurface"));
         VolumeEncodingProbe.run(out.resolve("volume-encoding"));
         SurfaceStreamingProbe.run(out.resolve("surface-streaming"), window);
+        VolumeUploadProbe.run(out.resolve("volume-upload"), window);
       } finally {
         ImGui.destroyContext();
       }

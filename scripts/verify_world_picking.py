@@ -413,3 +413,28 @@ assert all(abs(a-b)<=2 for a,b in zip(surface['fixedPixel'],[45.15,89.25,43.75,2
 assert surface['viewOnly'] is True and surface['fixedReturn'] is True
 assert surface_project['noise3D'][0]['processing'][0]['parameters']['expression'] == 'z - 16.25'
 print('SURFACE_STREAMING_PASS independent packed quantum/normal/area / mixed arena pixels / bounded publication / compaction parity / signed travel epochs / fixed return / view-only')
+
+# Independent staged volume texture/optics and UI publication replay.
+upload_root = Path(sys.argv[1]) / 'volume-upload'
+vu = json.loads((upload_root / 'volume-upload-native.json').read_text())
+assert vu['formatVersion'] == 1 and vu['side'] == 17 and vu['byteBudget'] == 79
+assert sum(vu['writes']) == 4 * 17**3 and all(0 < n <= 79 and n % 4 == 0 for n in vu['writes'])
+assert len(vu['texels']) == 17**3
+for i, value in enumerate(vu['texels']):
+    expected = struct.unpack('<f', struct.pack('<f', ((i % 17) + .5) / 17))[0]
+    assert struct.pack('<f', value) == struct.pack('<f', expected), (i, value, expected)
+assert vu['encoding']['offset'] == 0 and vu['encoding']['scale'] == 1
+transmittance = math.exp(-.5 * .1 * 17)
+assert abs(vu['transmittance'] - transmittance) < 1e-14
+expected_pixel = [255 * (1 - transmittance + transmittance * .055),
+                  255 * transmittance * .075, 255 * transmittance * .1, 255]
+assert all(abs(a-b) <= 2 for a, b in zip(vu['pixel'], expected_pixel))
+assert len(vu['retainedHash']) == 64
+assert 0 < vu['uiMaxBytes'] <= 16384
+assert vu['uiVersions'] == [1, 2, 3]
+assert vu['uiOrigins'] == [[0, 0, 0], [-24, -24, -24], [32, 32, 32]]
+assert all(vu[k] for k in ['unpackRestored', 'rejectionRetained', 'cancelRetained', 'closed',
+                          'uiCanceled', 'uiGpuRejected', 'viewOnly'])
+vproject = json.loads((upload_root / 'volume-upload-project.json').read_text())
+assert [n['processing'][0]['parameters']['expression'] for n in vproject['noise3D']] == ['1', '0']
+print('VOLUME_UPLOAD_PASS independent float texels / byte sums / analytical optics / accepted origins and versions / cancellation-admission-retry / view-only')
