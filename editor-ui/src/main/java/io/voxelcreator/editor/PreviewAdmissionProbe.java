@@ -62,6 +62,12 @@ public final class PreviewAdmissionProbe {
                     other.algorithm.key = "CONSTANT";
                     other.algorithm.parameters.put("value", .5);
                     p.noise3D.add(other);
+                    var spatial = new Noise();
+                    spatial.id = "spatial-other";
+                    spatial.dimension = 3;
+                    spatial.algorithm.key = "CONSTANT";
+                    spatial.algorithm.parameters.put("value", .5);
+                    p.noise3D.add(spatial);
                   }),
               "Fixture rejected");
           var authored = ProjectIO.JSON.valueToTree(state.project());
@@ -104,6 +110,40 @@ public final class PreviewAdmissionProbe {
                     && views.probeAcceptedImage() == selectedImage,
                 "Picker Escape changed selection or image");
             require(!ShortcutKeys.popup(), "Picker Escape left popup open");
+            views.probeNoiseTab(1);
+            frames(3);
+            click("generator", 0);
+            frames(3);
+            int spatialRows = views.probeGeneratorRows();
+            require(spatialRows == 2, "3D picker inherited 2D filter or mixed dimensions");
+            io.addInputCharactersUTF8("spatial-other");
+            frames(3);
+            require(views.probeGeneratorRows() == 1, "3D filter failed");
+            var spatialId = state.project().noise3D.getLast().uuid;
+            clickPoint(views.probeGeneratorOption(spatialId), 0);
+            until(() -> views.probeNoiseReady(1));
+            require(
+                spatialId.equals(views.probeGeneratorSelection(1))
+                    && target.equals(views.probeGeneratorSelection(0)),
+                "Independent 3D selection failed");
+            views.probeNoiseTab(0);
+            frames(3);
+            click("generator", 0);
+            frames(3);
+            require(views.probeGeneratorRows() == 1, "2D filter state was overwritten by 3D");
+            clickPoint(views.probeGeneratorNone(), 0);
+            frames(3);
+            require(
+                views.probeGeneratorSelection(0) == null
+                    && spatialId.equals(views.probeGeneratorSelection(1)),
+                "Clear crossed tabs");
+            long clearedStamp = views.probeSubmissionStamp(0);
+            frames(4);
+            require(clearedStamp == views.probeSubmissionStamp(0), "Cleared source submitted work");
+            click("generator", 0);
+            frames(3);
+            clickPoint(views.probeGeneratorOption(target), 0);
+            until(views::probeAdmissionReady);
             var initial = views.probeAcceptedImage();
             require(initial != null, "No initial image");
             state.user.performance.previewCellBudget = 65535;
@@ -168,13 +208,40 @@ public final class PreviewAdmissionProbe {
                     && revision == state.revision
                     && history == state.document.historyBytes(),
                 "Preview controls changed authored state");
+            var beforeDelete = views.probeAcceptedImage();
+            long deletionStamp = views.probeSubmissionStamp(0);
+            require(
+                state.change(p -> p.noise2D.removeIf(n -> n.uuid.equals(target))),
+                "Delete fixture rejected");
+            frames(5);
+            require(
+                target.equals(views.probeGeneratorSelection(0))
+                    && views.probeAdmissionMessage().contains("missing"),
+                "Missing UUID was not retained/reported");
+            require(
+                deletionStamp == views.probeSubmissionStamp(0)
+                    && views.probeAcceptedImage() == beforeDelete,
+                "Missing source submitted work or discarded observation");
+            state.document.undo();
+            state.revision++;
+            until(views::probeAdmissionReady);
+            require(
+                authored.equals(ProjectIO.JSON.valueToTree(state.project()))
+                    && target.equals(views.probeGeneratorSelection(0)),
+                "Undo did not restore selection/project");
             double raw = views.probeAcceptedImage().sample(.5, .5).raw();
             require(raw == .75, "Retry changed field result");
             Files.writeString(
                 out.resolve("preview-admission-native.json"),
                 ProjectIO.JSON.writeValueAsString(
                     Map.ofEntries(
-                        Map.entry("formatVersion", 2),
+                        Map.entry("formatVersion", 3),
+                        Map.entry("spatialRows", spatialRows),
+                        Map.entry("spatialUuid", spatialId.toString()),
+                        Map.entry("independentFilters", true),
+                        Map.entry("clearReselect", true),
+                        Map.entry("missingNoWork", true),
+                        Map.entry("deleteUndo", true),
                         Map.entry("unfilteredRows", unfilteredRows),
                         Map.entry("filteredRows", filteredRows),
                         Map.entry("generatorCount", 64),

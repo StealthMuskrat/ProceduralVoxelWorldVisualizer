@@ -22,7 +22,7 @@ public final class ResourcePicker {
   private boolean probeOpen;
   private final Map<UUID, float[]> optionBounds = new HashMap<>();
   private int submitted;
-  private float[] buttonBounds;
+  private float[] buttonBounds, noneBounds;
   private io.voxelcreator.model.ProjectData observedProject;
   private long observedRevision;
 
@@ -37,6 +37,11 @@ public final class ResourcePicker {
       observedProject = state.project();
       observedRevision = state.revision;
     }
+  }
+
+  public boolean contains(String kind, UUID id) {
+    synchronize();
+    return ResourceChoices.accepts(cache.get(state.project(), state.revision).get(id), kind);
   }
 
   public void draw(
@@ -83,9 +88,16 @@ public final class ResourcePicker {
       if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
       ImGui.setNextItemWidth(340);
       ImGui.inputTextWithHint("##query", "Filter IDs...", widget.filter);
-      if (noneLabel != null && ImGui.selectable(noneLabel + "###none", current == null)) {
-        change.accept(ResourceChoices.choose(index, kind, null, true));
-        ImGui.closeCurrentPopup();
+      if (noneLabel != null) {
+        if (ImGui.selectable(noneLabel + "###none", current == null)) {
+          change.accept(ResourceChoices.choose(index, kind, null, true));
+          ImGui.closeCurrentPopup();
+        }
+        noneBounds =
+            new float[] {
+              (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
+              (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
+            };
       }
       var rows = widget.choices.rows(index, kind, widget.filter.get());
       ImGui.text(rows.size() + " matching resource(s)");
@@ -115,6 +127,10 @@ public final class ResourcePicker {
       ImGui.endPopup();
     }
     ImGui.popID();
+  }
+
+  float[] noneCenter() {
+    return noneBounds.clone();
   }
 
   float[] buttonCenter() {

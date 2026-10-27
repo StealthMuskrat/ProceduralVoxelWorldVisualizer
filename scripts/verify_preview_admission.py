@@ -1,7 +1,7 @@
 import json,sys
 from pathlib import Path
 r=json.loads((Path(sys.argv[1])/'preview-admission-native.json').read_text())
-assert r['formatVersion']==2 and r['workers']==2 and r['queueCapacity']==8
+assert r['formatVersion']==3 and r['workers']==2 and r['queueCapacity']==8
 assert 'configured budget' in r['budgetMessage'] and 'queue is full' in r['queueMessage']
 assert r['raw']==.75
 assert all(r[k] is True for k in ['retainedImage','contextRetry','toolbarRetry','otherViewsUnblocked','viewOnly'])
@@ -12,3 +12,8 @@ UUID(r['generatorUuid'])
 assert 0<r['unfilteredRows']<r['generatorCount']==64
 assert r['filteredRows']==1 and r['dimensionScoped'] is True and r['pickerEscape'] is True
 print('VIEWPORT_GENERATOR_PYTHON_PASS clipped / filtered / dimension-scoped UUID / Escape')
+
+UUID(r['spatialUuid'])
+assert r['spatialRows']==2
+assert all(r[k] is True for k in ['independentFilters','clearReselect','missingNoWork','deleteUndo'])
+print('VIEWPORT_SELECTION_RECOVERY_PASS 3D / independent filters / clear / missing / Undo')

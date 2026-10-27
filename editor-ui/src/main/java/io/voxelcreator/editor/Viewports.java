@@ -85,6 +85,28 @@ public final class Viewports implements AutoCloseable {
     return generatorPicker.submitted();
   }
 
+  void probeNoiseTab(int kind) {
+    smokeTab = kind;
+    if (kind == 1) {
+      views[1].fixed = true;
+      views[1].mode = "Volume";
+      views[1].size = 16;
+    }
+  }
+
+  boolean probeNoiseReady(int kind) {
+    var v = views[kind];
+    return v.completed && !v.dirty && !v.activeJob && !v.failedPreview;
+  }
+
+  long probeSubmissionStamp(int kind) {
+    return views[kind].lastSubmit;
+  }
+
+  float[] probeGeneratorNone() {
+    return generatorPicker.noneCenter();
+  }
+
   private void admissionControl(String key) {
     if (admissionProbe)
       admissionControls.put(
@@ -710,11 +732,16 @@ public final class Viewports implements AutoCloseable {
       ImGui.sameLine();
       ImGui.textDisabled("Read-only procedural world");
     }
-    boolean streaming = wantsStreaming(v);
+    boolean missingSource =
+        v.kind < 2
+            && v.noise != null
+            && !generatorPicker.contains(v.kind == 0 ? "noise2D" : "noise3D", v.noise);
+    boolean source = v.kind == 2 || v.noise != null && !missingSource;
+    boolean streaming = source && wantsStreaming(v);
     if (streaming) streaming = stream(v);
     else stopStream(v);
     Preview ready = v.ready.take();
-    if (ready != null && ready.epoch == v.epoch && !streaming) {
+    if (ready != null && ready.epoch == v.epoch && !streaming && source) {
       v.activeJob = false;
       if (ready.error != null) {
         v.message = "Failed; previous display retained";
@@ -751,7 +778,6 @@ public final class Viewports implements AutoCloseable {
         v.completed = true;
       }
     }
-    boolean source = v.kind == 2 || v.noise != null;
     if (source
         && !streaming
         && (!v.failedPreview || v.force)
@@ -762,12 +788,21 @@ public final class Viewports implements AutoCloseable {
         && System.nanoTime() - v.lastSubmit
             > 1_000_000_000L / state.user.editor.opportunitiesPerSecond) submit(v);
     if (!source) {
+      v.message =
+          missingSource
+              ? "Selected generator is missing; choose another or restore it"
+              : "No generator selected";
       v.imageInput.reset();
+      v.pickedBookmark = null;
       ImGui.spacing();
       ImGui.textWrapped(
-          "Create a "
-              + (v.kind == 0 ? "2D" : "3D")
-              + " noise generator in Resources, then select it above. The project starts empty.");
+          missingSource
+              ? "The selected generator no longer exists. Choose another generator or undo its"
+                    + " deletion."
+              : "Create a "
+                  + (v.kind == 0 ? "2D" : "3D")
+                  + " noise generator in Resources, then select it above. The project starts"
+                  + " empty.");
       return;
     }
     float w = Math.max(16, ImGui.getContentRegionAvailX()),
