@@ -38,6 +38,13 @@ public final class VoxelRaycast {
       return new Bounds(new BlockPos(lo[0], lo[1], lo[2]), new BlockPos(hi[0], hi[1], hi[2]));
     }
 
+    /** Floors the requested lower corner so fixed meshes and samplers share integer cells. */
+    public static Bounds snappedCube(Vector3d origin, int side) {
+      Objects.requireNonNull(origin);
+      return cube(
+          new Vector3d(Math.floor(origin.x), Math.floor(origin.y), Math.floor(origin.z)), side);
+    }
+
     public boolean contains(int x, int y, int z) {
       return x >= min.x()
           && x <= max.x()

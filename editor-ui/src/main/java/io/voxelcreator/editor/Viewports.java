@@ -201,6 +201,7 @@ public final class Viewports implements AutoCloseable {
     final NoiseImageInput imageInput = new NoiseImageInput();
     NoiseImageRows.Statistics imageStatistics;
     NoiseImageView displayedImage;
+    VoxelRaycast.Bounds fixedPickBounds;
     UUID noise, stage, keyNoise;
     long keyRevision = -1, rebuildSerial = 0;
     String geometryKey = "",
@@ -847,6 +848,8 @@ public final class Viewports implements AutoCloseable {
                 ? v.stageMode
                 : v.mode + (v.mode.equals("Slices") ? " " + v.slicePlane.name() : ""));
         v.origin.set(ready.origin);
+        v.fixedPickBounds =
+            v.kind == 2 ? VoxelRaycast.Bounds.cube(ready.origin, ready.width) : null;
         v.gl.setPalette(ready.palette);
         v.raw = ready.raw;
         if (v.kind == 0) {
@@ -1563,6 +1566,8 @@ public final class Viewports implements AutoCloseable {
                             null,
                             volume));
                   } else {
+                    var bounds = VoxelRaycast.Bounds.snappedCube(origin, n);
+                    origin.set(bounds.min().x(), bounds.min().y(), bounds.min().z());
                     int ox = (int) origin.x, oy = (int) origin.y, oz = (int) origin.z;
                     int[] cells = new int[n * n * n];
                     Mesh mesh;
@@ -1665,7 +1670,7 @@ public final class Viewports implements AutoCloseable {
                             mesh,
                             null,
                             null,
-                            0,
+                            n,
                             origin,
                             palette,
                             new float[64],
@@ -1816,15 +1821,14 @@ public final class Viewports implements AutoCloseable {
             || !v.activeSceneKey.equals(sceneKey(v))
             || v.gl.sceneRenderer() == null
             || !v.gl.sceneRenderer().hasData()
-        : v.dirty || v.activeJob || v.failedPreview) {
+        : v.dirty || v.activeJob || v.failedPreview || v.fixedPickBounds == null) {
       state.status =
           "Preview is rebuilding or outdated; use Inspect Coordinate or Regenerate before picking";
       return;
     }
     var ray = v.camera.ray(nx, ny, aspect, v.origin);
     boolean streamingPick = usesStreaming(v);
-    var displayedOrigin = new Vector3d(v.origin);
-    int displayedSize = v.size;
+    var displayedBounds = v.fixedPickBounds;
     ProjectData p = ProjectIO.copy(state.project());
     long request = ++traceSerial, revision = state.revision;
     UUID selectedStage = v.stage;
@@ -1856,12 +1860,7 @@ public final class Viewports implements AutoCloseable {
                   };
               var hit =
                   VoxelRaycast.firstOccupied(
-                      ray,
-                      1000,
-                      streamingPick
-                          ? evaluator
-                          : VoxelRaycast.Bounds.cube(displayedOrigin, displayedSize)
-                              .restrict(evaluator));
+                      ray, 1000, streamingPick ? evaluator : displayedBounds.restrict(evaluator));
               if (hit.isPresent()) {
                 BlockPos cell = hit.get();
                 GenerationTrace found = world.trace(cell);

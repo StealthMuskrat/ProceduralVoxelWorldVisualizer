@@ -121,6 +121,22 @@ class VoxelRaycastBoundsTest {
   }
 
   @Test
+  void fractionalLowerCornersAndOddExtentsUseTheSameIntegerCellsAsTheMesh() {
+    var requested = new Vector3d(-2.75, .25, 1.5);
+    var bounds = VoxelRaycast.Bounds.snappedCube(requested, 3);
+    assertEquals(new BlockPos(-3, 0, 1), bounds.min());
+    assertEquals(new BlockPos(-1, 2, 3), bounds.max());
+    assertEquals(new Vector3d(-2.75, .25, 1.5), requested);
+    assertEquals(
+        new BlockPos(-1, 1, 2),
+        VoxelRaycast.firstOccupied(ray(5, 1.5, 2.5, -1, 0, 0), 10, bounds.restrict((x, y, z) -> 1))
+            .orElseThrow());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> VoxelRaycast.Bounds.snappedCube(new Vector3d(Double.NaN, 0, 0), 3));
+  }
+
+  @Test
   void cubeBoundsValidateShapeAndInclusiveMaximumWithoutIntegerOverflow() {
     assertEquals(
         Integer.MAX_VALUE,
