@@ -200,6 +200,10 @@ final class ProjectFileProbe {
       state.document.save(path);
       dialog.workflow.save(true);
       frames(3);
+      click("Cancel", false);
+      // A fresh same-kind request can arrive before an intervening idle draw.
+      dialog.workflow.save(true);
+      frames(3);
       click("Cancel");
       require(
           path.equals(state.document.path()) && !state.document.dirty(),
@@ -271,6 +275,10 @@ final class ProjectFileProbe {
   }
 
   private static void click(String label) {
+    click(label, true);
+  }
+
+  private static void click(String label, boolean settle) {
     frames(2);
     var center = dialog.probeControl(label);
     require(
@@ -282,7 +290,7 @@ final class ProjectFileProbe {
     frame();
     io.addMouseButtonEvent(0, false);
     frame();
-    frames(2);
+    if (settle) frames(2);
   }
 
   private static void text(String text) {

@@ -51,7 +51,10 @@ final class ProjectFileDialog {
       if (button("Cancel")) workflow.cancel();
     }
     if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) workflow.cancel();
-    if (workflow.phase() != phase) ImGui.closeCurrentPopup();
+    if (workflow.phase() != phase) {
+      ImGui.closeCurrentPopup();
+      shown = ProjectFileWorkflow.Phase.IDLE;
+    }
     ImGui.endPopup();
   }
 
