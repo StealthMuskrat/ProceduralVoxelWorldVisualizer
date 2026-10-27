@@ -10,7 +10,7 @@ import org.lwjgl.BufferUtils;
 public final class GlViewport implements AutoCloseable {
   private int texture, framebuffer, depth, width, height, vao, vbo, program, palette;
   private Mesh mesh = new Mesh(new float[0], false);
-  private boolean image = false, volume = false;
+  private boolean image = false, volume = false, retainFrame;
   private int volumeProgram;
   private final VolumeTextureUpload volumeUpload;
   private SceneGpuRenderer sceneRenderer;
@@ -23,6 +23,7 @@ public final class GlViewport implements AutoCloseable {
 
   public SceneGpuRenderer scene(long epoch, int bytes) {
     volumeUpload.clear();
+    retainFrame = false;
     if (sceneRenderer == null || sceneBudget != bytes) {
       if (sceneRenderer != null) sceneRenderer.close();
       sceneRenderer = null;
@@ -168,6 +169,7 @@ public final class GlViewport implements AutoCloseable {
 
   public void setImage(int w, int h, int[] rgba) {
     volumeUpload.clear();
+    retainFrame = false;
     image = true;
     sceneActive = false;
     volume = false;
@@ -183,6 +185,7 @@ public final class GlViewport implements AutoCloseable {
 
   public void setMesh(Mesh next) {
     volumeUpload.clear();
+    retainFrame = false;
     image = false;
     sceneActive = false;
     volume = false;
@@ -205,15 +208,18 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public boolean stageVolume(VolumeData data, long gpuBudget) {
-    // The retained framebuffer survives retiring hidden streaming allocations.
+    if (!volumeUpload.stage(data, gpuBudget)) return false;
+    // Once its arena is retired, keep a previous streamed framebuffer through cancellation/failure.
+    if (sceneActive) retainFrame = true;
     releaseScene();
-    return volumeUpload.stage(data, gpuBudget);
+    return true;
   }
 
   public int advanceVolume(int byteBudget) {
     long version = volumeUpload.statistics().version();
     int written = volumeUpload.advance(byteBudget);
     if (volumeUpload.statistics().version() != version) {
+      retainFrame = false;
       image = false;
       volume = true;
       sceneActive = false;
@@ -261,8 +267,10 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void render(int w, int h, Matrix4f matrix, boolean unlit, float alpha) {
-    if (volumeUpload.statistics().pending() || image || sceneActive && !sceneRenderer.hasData())
-      return;
+    if (retainFrame
+        || volumeUpload.statistics().pending()
+        || image
+        || sceneActive && !sceneRenderer.hasData()) return;
     w = Math.max(16, Math.min(4096, w));
     h = Math.max(16, Math.min(4096, h));
     int oldFbo = glGetInteger(GL_FRAMEBUFFER_BINDING);

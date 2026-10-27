@@ -2876,6 +2876,7 @@ public final class Viewports implements AutoCloseable {
       state.background.purge();
       stopStream(v);
       v.imageRows.close();
+      v.pendingVolume = null;
       v.gl.close();
     }
   }

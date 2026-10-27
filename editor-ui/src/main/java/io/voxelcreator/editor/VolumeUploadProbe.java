@@ -126,6 +126,35 @@ final class VolumeUploadProbe {
       // The backend leaves the 3D binding neutral; close assertions use resident plus GL object
       // count semantics in contracts.
       require(pendingId == 0, "Volume allocation binding leak");
+      var gpu = viewport.scene(12, 1 << 20);
+      var chunk = new io.voxelcreator.storage.ChunkPos(0, 0, 0);
+      var cube =
+          VoxelMesher.greedy(
+              4, (x, y, z) -> x >= 0 && y >= 0 && z >= 0 && x < 4 && y < 4 && z < 4 ? 1 : 0);
+      require(gpu.stage(new ChunkScene.Upload(12, chunk, 1, cube)), "Transition scene admission");
+      require(gpu.advance(1 << 20) != null, "Transition scene upload");
+      camera.position.set(2, 2, 10);
+      matrix = camera.matrix(1, new Vector3d());
+      viewport.sceneView(new Vector3d(), Set.of(chunk), false, false, 0);
+      viewport.render(65, 65, matrix, true, 1);
+      var scenePixels = read(viewport, 65);
+      require(
+          pixel(scenePixels, 65).equals(List.of(255, 0, 0, 255)), "Transition scene fixture empty");
+      require(
+          !viewport.stageVolume(field, bytes - 1), "Transition admission unexpectedly succeeded");
+      viewport.render(65, 65, matrix, true, 1);
+      require(
+          Arrays.equals(scenePixels, read(viewport, 65)),
+          "Admission rejection retired accepted scene");
+      viewport.stageVolume(field, bytes);
+      viewport.advanceVolume(4);
+      viewport.cancelVolume();
+      viewport.render(97, 97, matrix, true, 1);
+      require(
+          Arrays.equals(scenePixels, read(viewport, 65)),
+          "Canceled volume lost retired scene framebuffer");
+      viewport.stageVolume(empty, 256);
+      report.put("sceneTransitionRetained", true);
       report.put("side", 17);
       report.put("byteBudget", 79);
       report.put("writes", writes);

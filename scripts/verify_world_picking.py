@@ -434,7 +434,7 @@ assert 0 < vu['uiMaxBytes'] <= 16384
 assert vu['uiVersions'] == [1, 2, 3]
 assert vu['uiOrigins'] == [[0, 0, 0], [-24, -24, -24], [32, 32, 32]]
 assert all(vu[k] for k in ['unpackRestored', 'rejectionRetained', 'cancelRetained', 'closed',
-                          'uiCanceled', 'uiGpuRejected', 'viewOnly'])
+                          'uiCanceled', 'uiGpuRejected', 'viewOnly', 'sceneTransitionRetained'])
 vproject = json.loads((upload_root / 'volume-upload-project.json').read_text())
 assert [n['processing'][0]['parameters']['expression'] for n in vproject['noise3D']] == ['1', '0']
 print('VOLUME_UPLOAD_PASS independent float texels / byte sums / analytical optics / accepted origins and versions / cancellation-admission-retry / view-only')
