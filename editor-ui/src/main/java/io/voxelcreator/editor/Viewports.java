@@ -1404,7 +1404,8 @@ public final class Viewports implements AutoCloseable {
         if (v.displayedSlice != null && v.image) {
           try {
             var sample =
-                v.displayedSlice.sample((io.getMousePosX() - px) / w, (io.getMousePosY() - py) / h);
+                v.displayedSlice.sample(
+                    (io.getMousePosX() - px) / (double) w, (io.getMousePosY() - py) / (double) h);
             probeSliceHover = sample;
             var point = sample.point();
             ImGui.textDisabled(
@@ -2247,7 +2248,8 @@ public final class Viewports implements AutoCloseable {
       } else if (v.kind == 1 && v.mode.equals("Slices") && v.image && v.displayedSlice != null) {
         var point =
             v.displayedSlice.at(
-                (io.getMousePosX() - px) / width, (io.getMousePosY() - py) / height);
+                (io.getMousePosX() - px) / (double) width,
+                (io.getMousePosY() - py) / (double) height);
         v.pickedBookmark =
             BookmarkTransactions.capture(Tab.NOISE_3D, point.x(), point.y(), point.z());
       }
