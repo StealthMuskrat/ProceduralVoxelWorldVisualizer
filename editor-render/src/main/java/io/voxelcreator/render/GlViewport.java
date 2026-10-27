@@ -66,8 +66,8 @@ public final class GlViewport implements AutoCloseable {
     sceneWanted = java.util.Set.of();
   }
 
-  private float displayMin = -1, displayMax = 1, volumeOpacity = .12f, volumeThreshold = 0;
-  private int volumeSteps = 192;
+  private VolumeTransfer.Settings volumeSettings = new VolumeTransfer.Settings(-1, 1, .12, 0, 192);
+  private VolumeData.Encoding volumeEncoding;
 
   public GlViewport() {
     texture = glGenTextures();
@@ -120,6 +120,7 @@ public final class GlViewport implements AutoCloseable {
     volume = true;
     sceneActive = false;
     volumeSize = data.size();
+    volumeEncoding = data.encoding();
     glBindTexture(GL_TEXTURE_3D, volumeTexture);
     glTexImage3D(
         GL_TEXTURE_3D,
@@ -142,20 +143,7 @@ public final class GlViewport implements AutoCloseable {
 
   public void volumeAppearance(
       double min, double max, double opacity, double threshold, int steps) {
-    if (!Double.isFinite(min)
-        || !Double.isFinite(max)
-        || min >= max
-        || !Double.isFinite(opacity)
-        || opacity < 0
-        || !Double.isFinite(threshold)
-        || steps < 16
-        || steps > 512) throw new IllegalArgumentException("Volume display controls");
-    displayMin = (float) Math.max(-1e30, Math.min(1e30, min));
-    displayMax = (float) Math.max(-1e30, Math.min(1e30, max));
-    if (displayMax <= displayMin) displayMax = Math.nextUp(displayMin);
-    volumeOpacity = (float) Math.min(10, opacity);
-    volumeThreshold = (float) Math.max(-Float.MAX_VALUE, Math.min(Float.MAX_VALUE, threshold));
-    volumeSteps = steps;
+    volumeSettings = new VolumeTransfer.Settings(min, max, opacity, threshold, steps);
   }
 
   public void setPalette(int[] colors) {
@@ -224,10 +212,12 @@ public final class GlViewport implements AutoCloseable {
           false,
           new Matrix4f(matrix).invert().get(new float[16]));
       glUniform1f(glGetUniformLocation(volumeProgram, "extent"), volumeSize);
-      glUniform1f(glGetUniformLocation(volumeProgram, "opacity"), volumeOpacity);
-      glUniform1f(glGetUniformLocation(volumeProgram, "threshold"), volumeThreshold);
-      glUniform2f(glGetUniformLocation(volumeProgram, "displayRange"), displayMin, displayMax);
-      glUniform1i(glGetUniformLocation(volumeProgram, "steps"), volumeSteps);
+      var transfer = VolumeTransfer.of(volumeEncoding, volumeSettings);
+      glUniform1f(glGetUniformLocation(volumeProgram, "opacity"), transfer.opacity());
+      glUniform1f(glGetUniformLocation(volumeProgram, "threshold"), transfer.threshold());
+      glUniform2f(
+          glGetUniformLocation(volumeProgram, "displayTransfer"), transfer.gain(), transfer.bias());
+      glUniform1i(glGetUniformLocation(volumeProgram, "steps"), transfer.steps());
       glActiveTexture(GL_TEXTURE1);
       glBindTexture(GL_TEXTURE_3D, volumeTexture);
       glUniform1i(glGetUniformLocation(volumeProgram, "density"), 1);
@@ -307,19 +297,25 @@ public final class GlViewport implements AutoCloseable {
         #version 130
         in vec2 screen;out vec4 color;
         uniform mat4 inverseMatrix;uniform sampler3D density;uniform sampler2D palette;
-        uniform float extent,opacity,threshold;uniform vec2 displayRange;uniform int steps;
+        uniform float extent,opacity,threshold;uniform vec2 displayTransfer;uniform int steps;
         void main(){
           vec3 background=vec3(.055,.075,.1);vec4 na=inverseMatrix*vec4(screen,-1,1),fa=inverseMatrix*vec4(screen,1,1);
           vec3 origin=na.xyz/na.w,direction=normalize(fa.xyz/fa.w-origin);
-          vec3 safeDirection=vec3(abs(direction.x)<1e-7?1e-7:direction.x,abs(direction.y)<1e-7?1e-7:direction.y,abs(direction.z)<1e-7?1e-7:direction.z);
-          vec3 t0=-origin/safeDirection,t1=(vec3(extent)-origin)/safeDirection;
-          vec3 lo=min(t0,t1),hi=max(t0,t1);float enter=max(0.0,max(lo.x,max(lo.y,lo.z))),exit=min(hi.x,min(hi.y,hi.z));
+          float enter=0.0,exit=1e30;
+          for(int axis=0;axis<3;axis++){
+            if(abs(direction[axis])<1e-8){
+              if(origin[axis]<0.0||origin[axis]>extent){color=vec4(background,1);return;}
+            }else{
+              float a=-origin[axis]/direction[axis],b=(extent-origin[axis])/direction[axis];
+              enter=max(enter,min(a,b));exit=min(exit,max(a,b));
+            }
+          }
           if(exit<=enter){color=vec4(background,1);return;}
           float stepLength=(exit-enter)/float(steps);vec3 accumulated=vec3(0);float transmittance=1.0;
           for(int i=0;i<512;i++){
             if(i>=steps||transmittance<.005)break;
             vec3 p=origin+direction*(enter+(float(i)+.5)*stepLength);float raw=texture(density,p/extent).r;
-            if(raw>=threshold){float t=clamp((raw-displayRange.x)/(displayRange.y-displayRange.x),0.0,1.0),a=1.0-exp(-t*opacity*stepLength);
+            if(raw>=threshold){float t=clamp(raw*displayTransfer.x+displayTransfer.y,0.0,1.0),a=1.0-exp(-t*opacity*stepLength);
               vec3 base=texture(palette,vec2((t*255.0+.5)/256.0,.5)).rgb;accumulated+=transmittance*a*base;transmittance*=1.0-a;}
           }
           color=vec4(accumulated+transmittance*background,1);

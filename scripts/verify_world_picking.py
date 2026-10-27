@@ -335,3 +335,52 @@ for v in sphere:
     assert abs(sum(n*n for n in v[3:6])-1)<2e-6
     assert sum((v[k]-2)*v[k+3] for k in range(3))>0
 print('ISOSURFACE_PASS independent affine areas / positive-complement normals / extreme finite interpolation / 75 lighting pixels / exact shared face / closed sphere edge incidence')
+
+from decimal import Decimal, localcontext
+volume_root = Path(sys.argv[1]) / 'volume-encoding'
+volume = json.loads((volume_root / 'volume-encoding-native.json').read_text())
+volume_project = json.loads((volume_root / 'volume-encoding-project.json').read_text())
+assert volume['formatVersion'] == 1 and len(volume['cases']) == len(volume_project['noise3D']) == 20
+volume_ids = set()
+for row, noise in zip(volume['cases'], volume_project['noise3D']):
+    volume_ids.add(row['id'])
+    assert noise['id'] == row['id'] and noise['processing'][0]['parameters']['expression'] == row['expression']
+    settings, enc, transfer = row['settings'], row['encoding'], row['transfer']
+    assert enc['scale'] > 0 and all(math.isfinite(v) for v in enc.values())
+    assert all(math.isfinite(v) for v in transfer.values()) and len(row['texels']) == 64
+    assert row['sampleCount'] == (0 if row['id'] == 'zero-opacity' else 64)
+    assert all(math.isfinite(v) for v in row['texels'])
+    desired = [row['coefficient'] * (.5 + (z+.5)/16) if row['kind'] == 'gradient' else row['coefficient']
+               for z in range(4) for y in range(4) for x in range(4)]
+    for encoded, canonical in zip(row['texels'], desired):
+        decoded = max(enc['min'], min(enc['max'], enc['offset'] + encoded*enc['scale']))
+        assert math.isclose(decoded, canonical, rel_tol=2e-7, abs_tol=0)
+    with localcontext() as context:
+        context.prec = 1000
+        low, high = Decimal.from_float(settings['min']), Decimal.from_float(settings['max'])
+        normalized = [float(max(Decimal(0), min(Decimal(1), (Decimal.from_float(v)-low)/(high-low))))
+                      if v >= settings['threshold'] else 0 for v in desired]
+    mean = (normalized[0]+normalized[-1])/2
+    assert math.isclose(row['mean'], mean, rel_tol=0, abs_tol=1e-12)
+    o, d = row['origin'], row['direction']
+    assert math.isclose(sum(v*v for v in d), 1, rel_tol=0, abs_tol=1e-12)
+    enter, leave = 0, math.inf
+    for a, b in zip(o, d):
+        if abs(b) < 1e-12:
+            if a < 0 or a > 4:
+                leave = -math.inf
+                break
+        else:
+            t0, t1 = sorted([-a/b, (4-a)/b])
+            enter, leave = max(enter,t0), min(leave,t1)
+    path = max(0, leave-enter)
+    assert math.isclose(path,row['path'],rel_tol=0,abs_tol=1e-10)
+    transmittance = math.exp(-mean*min(10,settings['opacity'])*path)
+    assert math.isclose(transmittance,row['transmittance'],rel_tol=0,abs_tol=1e-12)
+    expected = [255*(1-transmittance+transmittance*.055),255*transmittance*.075,255*transmittance*.1]
+    assert all(abs(a-b)<=2 for a,b in zip(row['pixel'][:3],expected)) and row['pixel'][3] == 255
+assert {'ordinary','zero-opacity','huge-half','huge-quarter','tiny-min','tiny-half','huge-filtered',
+    'tiny-filtered','wide-zero','wide-negative-filtered','wide-negative-accepted','adjacent-upper',
+    'adjacent-lower','maximum-opacity','parallel-miss','parallel-boundary','inside','diagonal',
+    'gradient-huge','gradient-tiny'} == volume_ids
+print('VOLUME_ENCODING_PASS independent Decimal transfer / decoded canonical texels / 20 Beer-Lambert pixel cases / slab rays / threshold signs / control-only reuse')

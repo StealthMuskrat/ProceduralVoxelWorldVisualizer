@@ -1020,8 +1020,10 @@ public final class Viewports implements AutoCloseable {
             "Threshold",
             v.threshold,
             x -> {
-              v.threshold = x;
-              if (!v.mode.equals("Volume")) mark(v);
+              if (Double.isFinite(x)) {
+                v.threshold = x;
+                if (!v.mode.equals("Volume")) mark(v);
+              }
             });
         if (v.mode.equals("Volume")) {
           fields.number(
@@ -2055,7 +2057,8 @@ public final class Viewports implements AutoCloseable {
                                 : null));
                   } else if (kind == 1 && mode.equals("Volume")) {
                     var sampler = new NoiseCompiler(snapshot, snapshot.project.seed).compile(noise);
-                    var volume = VolumeData.sample(n, origin.x, origin.y, origin.z, sampler);
+                    var volume =
+                        VolumeData.sample(n, origin.x, origin.y, origin.z, sampler, cancellation);
                     publish(
                         v,
                         new Preview(

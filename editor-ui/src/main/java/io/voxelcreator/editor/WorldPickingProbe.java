@@ -318,6 +318,7 @@ public final class WorldPickingProbe {
         ProjectFileProbe.run(out.resolve("project-files"), window);
         InputBindingProbe.run(out.resolve("input-bindings"), window);
         IsosurfaceProbe.run(out.resolve("isosurface"));
+        VolumeEncodingProbe.run(out.resolve("volume-encoding"));
       } finally {
         ImGui.destroyContext();
       }
