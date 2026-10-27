@@ -30,10 +30,10 @@ print('STREAMED_WORLD_PICKING_PASS drawn chunk faces / negative travel / unshown
 proxy_root = Path(sys.argv[1]) / 'lod-proxy'
 proxy = json.loads((proxy_root / 'world-lod-picking-native.json').read_text())
 project = json.loads((proxy_root / 'world-lod-project.json').read_text())
-assert proxy['formatVersion'] == 1
+assert proxy['formatVersion'] == 2
 assert [layer['defaults']['action'] for layer in project['worldGenerator']['layers']] == ['SET', 'SET', 'CLEAR']
 plane = next(noise for noise in project['noise3D'] if noise['id'] == 'plane')
-assert plane['processing'][0]['parameters']['expression'] == 'x == 28 ? 1 : -1'
+assert plane['processing'][0]['parameters']['expression'] == 'x == 100 ? 1/(x-100) : x == 28 ? 1 : -1'
 # Half of the 2x2x2 cell group is occupied: inclusive majority fills x=29,
 # although exact preview occupancy is at x=28. The later fill/CLEAR leaves x=29 solid.
 occupied = sum(x == 28 for x in (28, 29) for y in (2, 3) for z in (2, 3))
@@ -50,3 +50,8 @@ for row, (mode, x, coarse, final_type) in zip(proxy['observations'], expected):
 assert all(proxy[key] is True for key in ['coordinateTraceClearedHint', 'streamMissClearedTrace',
     'fixedMissClearedTrace', 'retainedLogs', 'coordinateTraceRecovered', 'sceneEpochReused', 'viewOnly'])
 print('WORLD_LOD_PICKING_INDEPENDENT_PASS half-occupied proxy / unchanged occupied full world / exact refinement / Inspector miss recovery / retained Logs')
+
+coordinate = proxy['coordinateWork']
+assert all(coordinate[key] is True for key in ['pendingVisible', 'cancelReleasedQueue', 'editCanceled',
+    'replacementBounded', 'runtimeFailureRetained', 'runtimeRetry', 'queueRejected', 'queueRetry', 'tabIndependent'])
+print('INSPECTOR_COORDINATE_TASK_PASS native pending-cancel / XYZ edit / one queued replacement / runtime failure / queue retry / tab independence')

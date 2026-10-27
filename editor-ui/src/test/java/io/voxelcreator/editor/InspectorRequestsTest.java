@@ -6,6 +6,15 @@ import org.junit.jupiter.api.Test;
 
 class InspectorRequestsTest {
   @Test
+  void explicitCancellationRejectsCurrentWorkAndAllowsAnotherRequest() {
+    var gate = new InspectorRequests();
+    var request = gate.begin(4, false);
+    gate.cancelCurrent();
+    assertFalse(gate.current(request, 4));
+    assertTrue(gate.current(gate.begin(4, false), 4));
+  }
+
+  @Test
   void aNewerIntentSupersedesBothCoordinateAndViewportWork() {
     var gate = new InspectorRequests();
     var pick = gate.begin(4, true);

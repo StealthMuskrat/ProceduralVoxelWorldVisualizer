@@ -1,7 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.*;
-import imgui.flag.ImGuiCond;
+import imgui.flag.*;
 import io.voxelcreator.api.CompiledProject;
 import io.voxelcreator.core.ProcessingRegistry;
 import io.voxelcreator.model.*;
@@ -9,6 +9,7 @@ import io.voxelcreator.model.ProjectData.*;
 import io.voxelcreator.storage.BlockPos;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.BooleanSupplier;
 
 /**
@@ -108,6 +109,8 @@ final class WorldLodPickingProbe {
         require(
             state.traces.bytes() == retainedBytes && state.traces.size() == retainedCount,
             "Fixed miss removed retained log traces");
+        retrace();
+        var coordinateWork = coordinateWorkflow();
         require(
             authored.equals(ProjectIO.JSON.valueToTree(state.project()))
                 && revision == state.revision
@@ -119,7 +122,9 @@ final class WorldLodPickingProbe {
             ProjectIO.JSON.writeValueAsString(
                 Map.of(
                     "formatVersion",
-                    1,
+                    2,
+                    "coordinateWork",
+                    coordinateWork,
                     "observations",
                     observations,
                     "coordinateTraceClearedHint",
@@ -142,6 +147,175 @@ final class WorldLodPickingProbe {
                 + " recovery / retained Logs / view-only");
       }
     }
+  }
+
+  private static Map<String, Boolean> coordinateWorkflow() throws Exception {
+    var retained = views.probeInspectorTrace();
+    int logCount = state.traces.size();
+    long logBytes = state.traces.bytes();
+    try (var hold = holdWorkers()) {
+      control("trace-coordinate");
+      frames(2);
+      require(
+          views.probeCoordinateTracePending()
+              && views.probeInspectorTraceVisible()
+              && views.probeCoordinateTraceFeedback().contains("Tracing X 28"),
+          "Pending coordinate status or previous result missing");
+      control("trace-cancel");
+      require(
+          !views.probeCoordinateTracePending() && state.background.getQueue().isEmpty(),
+          "Cancel did not release queued coordinate work");
+    }
+    until(WorldLodPickingProbe::idle);
+    frames(3);
+    require(
+        views.probeInspectorTrace() == retained
+            && state.traces.size() == logCount
+            && state.traces.bytes() == logBytes,
+        "Canceled request published or lost prior trace");
+
+    try (var hold = holdWorkers()) {
+      control("trace-coordinate");
+      require(views.probeCoordinateTracePending(), "Edit case did not queue coordinate work");
+      editX(29);
+      require(
+          !views.probeCoordinateTracePending() && state.background.getQueue().isEmpty(),
+          "XYZ edit did not cancel obsolete queued work");
+      control("trace-coordinate");
+      control("trace-coordinate");
+      require(
+          views.probeCoordinateTracePending() && state.background.getQueue().size() == 1,
+          "Replacement accumulated queued coordinate jobs");
+    }
+    until(() -> !views.probeCoordinateTracePending() && views.probeInspectorTrace() != retained);
+    frames(2);
+    require(
+        views.probeInspectorTrace().trace().position().equals(new BlockPos(29, 2, 2))
+            && views.probeInspectorTrace().trace().finalType() == 1,
+        "Replacement published the wrong coordinate");
+
+    var beforeFailure = views.probeInspectorTrace();
+    logCount = state.traces.size();
+    logBytes = state.traces.bytes();
+    editX(100);
+    control("trace-coordinate");
+    until(
+        () ->
+            !views.probeCoordinateTracePending()
+                && views.probeCoordinateTraceFeedback().startsWith("Trace failed at X 100"));
+    require(
+        views.probeInspectorTrace() == beforeFailure
+            && state.traces.size() == logCount
+            && state.traces.bytes() == logBytes,
+        "Runtime failure replaced prior trace or Logs");
+    editX(29);
+    retrace();
+    require(
+        views.probeCoordinateTraceFeedback().isEmpty(),
+        "Runtime retry did not clear failure feedback");
+
+    var beforeQueue = views.probeInspectorTrace();
+    var queued = new ArrayList<Future<?>>();
+    try (var hold = holdWorkers()) {
+      for (int i = 0; i < 8; i++) queued.add(state.background.submit(() -> {}));
+      control("trace-coordinate");
+      require(
+          !views.probeCoordinateTracePending()
+              && views.probeCoordinateTraceFeedback().contains("queue is full")
+              && views.probeInspectorTrace() == beforeQueue,
+          "Queue rejection lacked stable retry state");
+    }
+    for (var future : queued) future.get(5, TimeUnit.SECONDS);
+    retrace();
+    require(views.probeCoordinateTraceFeedback().isEmpty(), "Queue retry did not clear feedback");
+    var beforeTab = views.probeInspectorTrace();
+    try (var hold = holdWorkers()) {
+      control("trace-coordinate");
+      views.probeNoiseTab(0);
+      frames(2);
+      require(
+          views.probeCoordinateTracePending(),
+          "Tab navigation canceled an explicit coordinate request");
+    }
+    until(() -> !views.probeCoordinateTracePending() && views.probeInspectorTrace() != beforeTab);
+    views.probeNoiseTab(2);
+    frames(2);
+    return Map.of(
+        "pendingVisible",
+        true,
+        "cancelReleasedQueue",
+        true,
+        "editCanceled",
+        true,
+        "replacementBounded",
+        true,
+        "runtimeFailureRetained",
+        true,
+        "runtimeRetry",
+        true,
+        "queueRejected",
+        true,
+        "queueRetry",
+        true,
+        "tabIndependent",
+        true);
+  }
+
+  private record WorkerHold(CountDownLatch release, List<Future<?>> workers)
+      implements AutoCloseable {
+    public void close() throws Exception {
+      release.countDown();
+      for (var worker : workers) worker.get(5, TimeUnit.SECONDS);
+    }
+  }
+
+  private static WorkerHold holdWorkers() throws Exception {
+    var release = new CountDownLatch(1);
+    var entered = new CountDownLatch(2);
+    var workers = new ArrayList<Future<?>>();
+    for (int i = 0; i < 2; i++)
+      workers.add(
+          state.background.submit(
+              () -> {
+                entered.countDown();
+                try {
+                  if (!release.await(20, TimeUnit.SECONDS))
+                    throw new AssertionError("Held worker timeout");
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+              }));
+    require(entered.await(5, TimeUnit.SECONDS), "Coordinate workers were not held");
+    return new WorkerHold(release, workers);
+  }
+
+  private static boolean idle() {
+    return state.background.getActiveCount() == 0 && state.background.getQueue().isEmpty();
+  }
+
+  private static void control(String name) {
+    frames(2);
+    var button = views.probeAdmissionControl(name);
+    require(button != null, "No Inspector control " + name);
+    clickPoint(button[0], button[1]);
+  }
+
+  private static void editX(int value) {
+    control("trace-x");
+    var io = ImGui.getIO();
+    io.addKeyEvent(ImGuiKey.ModCtrl, true);
+    io.addKeyEvent(ImGuiKey.A, true);
+    frame();
+    io.addKeyEvent(ImGuiKey.A, false);
+    io.addKeyEvent(ImGuiKey.ModCtrl, false);
+    frame();
+    io.addInputCharactersUTF8(Integer.toString(value));
+    frame();
+    io.addKeyEvent(ImGuiKey.Enter, true);
+    frame();
+    io.addKeyEvent(ImGuiKey.Enter, false);
+    frames(2);
+    require(views.probeInspectorCoordinate().x() == value, "Native XYZ edit failed");
   }
 
   private static Map<String, Object> observe(String mode, int x, boolean proxy, int finalType) {
@@ -217,7 +391,8 @@ final class WorldLodPickingProbe {
     plane.algorithm.key = "CONSTANT";
     plane.algorithm.parameters.put("value", 0.);
     var expression = ProcessingRegistry.create("EXPRESSION", "plane-expression", 3);
-    expression.parameters.put("expression", ProjectIO.JSON.valueToTree("x == 28 ? 1 : -1"));
+    expression.parameters.put(
+        "expression", ProjectIO.JSON.valueToTree("x == 100 ? 1/(x-100) : x == 28 ? 1 : -1"));
     plane.processing.add(expression);
     plane.outputBinding = Binding.earlier(expression.uuid);
     p.noise3D.add(plane);

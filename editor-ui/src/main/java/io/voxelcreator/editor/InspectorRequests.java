@@ -16,6 +16,10 @@ final class InspectorRequests {
     viewVersion++;
   }
 
+  void cancelCurrent() {
+    serial++;
+  }
+
   boolean current(Request request, long revision) {
     return !closed
         && request.serial == serial
