@@ -11,6 +11,12 @@ import java.util.*;
  * Immutable source-scoped trace presentation. Navigation never replays a historical array index.
  */
 public final class TraceSnapshot {
+  public enum Freshness {
+    CURRENT,
+    PROJECT_CHANGED,
+    OTHER_PROJECT
+  }
+
   public record Row(String label, String value, EditorEvents.Target target) {}
 
   private final UUID project;
@@ -90,6 +96,11 @@ public final class TraceSnapshot {
 
   public UUID project() {
     return project;
+  }
+
+  public Freshness freshness(UUID currentProject, long currentRevision) {
+    if (!project.equals(currentProject)) return Freshness.OTHER_PROJECT;
+    return revision == currentRevision ? Freshness.CURRENT : Freshness.PROJECT_CHANGED;
   }
 
   public String summary() {

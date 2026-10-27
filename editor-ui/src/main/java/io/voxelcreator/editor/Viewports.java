@@ -25,6 +25,7 @@ public final class Viewports implements AutoCloseable {
   private TraceSnapshot traceSnapshot;
   private String inspectorPickHint = "";
   private boolean inspectorHintVisible, inspectorTraceVisible, inspectorDraftNoticeVisible;
+  private boolean inspectorFreshnessNoticeVisible;
 
   public void tracePanel(TracePanel panel) {
     tracePanel = panel;
@@ -216,6 +217,16 @@ public final class Viewports implements AutoCloseable {
 
   boolean probeInspectorDraftNoticeVisible() {
     return inspectorDraftNoticeVisible;
+  }
+
+  TraceSnapshot.Freshness probeInspectorFreshness() {
+    return traceSnapshot == null
+        ? null
+        : traceSnapshot.freshness(state.project().project.uuid, state.revision);
+  }
+
+  boolean probeInspectorFreshnessNoticeVisible() {
+    return inspectorFreshnessNoticeVisible;
   }
 
   Coordinates probeWorldPicked() {
@@ -636,6 +647,8 @@ public final class Viewports implements AutoCloseable {
 
   public void draw() {
     inspectorHintVisible = inspectorTraceVisible = inspectorDraftNoticeVisible = false;
+    inspectorFreshnessNoticeVisible = false;
+    if (admissionProbe) admissionControls.remove("trace-refresh");
     reconcileInspectorTask();
     views[0].imageRows.budget(
         Math.min(
@@ -2201,10 +2214,13 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void startCoordinateTrace() {
+    startCoordinateTrace(inspectorCoordinate());
+  }
+
+  private void startCoordinateTrace(BlockPos pos) {
     var p = ProjectIO.copy(state.project());
     long revision = state.revision;
     var request = traceRequests.begin(revision, false);
-    var pos = new BlockPos(inspect[0], inspect[1], inspect[2]);
     java.util.function.BooleanSupplier current =
         () -> traceRequests.current(request, state.revision);
     beginInspectorTask(
@@ -2281,6 +2297,23 @@ public final class Viewports implements AutoCloseable {
     if (!inspector.get()) {
       cancelInspectorTask("", true);
       state.status = "Inspector closed.";
+    }
+    if (traceSnapshot != null) {
+      var freshness = traceSnapshot.freshness(state.project().project.uuid, state.revision);
+      if (freshness == TraceSnapshot.Freshness.PROJECT_CHANGED) {
+        ImGui.textWrapped(
+            "Project changed since this trace. Refresh its displayed coordinate in the current"
+                + " project; entered XYZ stays unchanged.");
+        inspectorFreshnessNoticeVisible = true;
+        if (ImGui.smallButton("Refresh Displayed Trace"))
+          startCoordinateTrace(traceSnapshot.trace().position());
+        admissionControl("trace-refresh");
+      } else if (freshness == TraceSnapshot.Freshness.OTHER_PROJECT) {
+        ImGui.textWrapped(
+            "This trace belongs to another project. Enter a coordinate and use Trace Coordinate to"
+                + " inspect the current project.");
+        inspectorFreshnessNoticeVisible = true;
+      }
     }
     if (!inspectorTaskFeedback.isEmpty()) ImGui.textWrapped(inspectorTaskFeedback);
     if (!inspectorTask.pending()

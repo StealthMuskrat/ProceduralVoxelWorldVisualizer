@@ -24,6 +24,8 @@ public final class TracePanel {
   }
 
   public void draw(TraceSnapshot value) {
+    submittedSteps = submittedRows = 0;
+    goToCenter = null;
     if (snapshot != value) {
       snapshot = value;
       step = row = 0;
@@ -36,9 +38,10 @@ public final class TracePanel {
       return;
     }
     ImGui.textWrapped(shortText(value.summary(), 1024));
-    if (!value.project().equals(state.project().project.uuid))
+    var freshness = value.freshness(state.project().project.uuid, state.revision);
+    if (freshness == TraceSnapshot.Freshness.OTHER_PROJECT)
       ImGui.textWrapped("Historical project: source links are unavailable.");
-    else if (value.revision() != state.revision)
+    else if (freshness == TraceSnapshot.Freshness.PROJECT_CHANGED)
       ImGui.textWrapped(
           "Project changed after this trace. Values belong to its snapshot; changed source links"
               + " require a new trace.");
@@ -54,7 +57,6 @@ public final class TracePanel {
     }
     if (!message.isEmpty()) ImGui.textWrapped(message);
     var steps = value.trace().steps();
-    submittedSteps = 0;
     if (steps.isEmpty()) {
       ImGui.textWrapped(
           "No active operation was reached (including coordinates outside project Y bounds).");
@@ -99,7 +101,6 @@ public final class TracePanel {
       row = 0;
     }
     ImGui.text(filtered.size() + " observations and controls");
-    submittedRows = 0;
     ImGui.beginChild("trace-values", 0, 180, true);
     var values = new ImGuiListClipper();
     try {
@@ -121,7 +122,6 @@ public final class TracePanel {
       values.destroy();
     }
     ImGui.endChild();
-    goToCenter = null;
     if (!filtered.isEmpty()) {
       row = Math.min(row, filtered.size() - 1);
       var selected = rows.get(filtered.get(row));

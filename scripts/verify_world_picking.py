@@ -67,3 +67,22 @@ assert world_work['retryHit'] == [3, 0, 0] and world_work['retryFinalType'] == 1
 assert all(world_work[key] is True for key in ['replacementBounded', 'cancelReleasedQueue',
     'queueRejected', 'queueRetry', 'cameraCanceled', 'tabCanceled', 'logsRetained'])
 print('INSPECTOR_WORLD_TASK_PASS one queued pick / Cancel Pick / real full-queue retry / camera-tab reclamation / retained Logs')
+
+fresh_root = Path(sys.argv[1]) / 'inspector-freshness'
+fresh = json.loads((fresh_root / 'inspector-freshness-native.json').read_text())
+before = json.loads((fresh_root / 'freshness-before.json').read_text())
+after = json.loads((fresh_root / 'freshness-after.json').read_text())
+empty = json.loads((fresh_root / 'freshness-empty.json').read_text())
+assert fresh['formatVersion'] == 1
+assert before['project']['uuid'] == after['project']['uuid'] != empty['project']['uuid']
+assert before['worldGenerator']['layers'][0]['uuid'] == after['worldGenerator']['layers'][0]['uuid']
+assert before['worldGenerator']['layers'][0]['defaults']['action'] == 'SET'
+assert after['worldGenerator']['layers'][0]['defaults']['action'] == 'CLEAR'
+assert before['noise3D'][0]['algorithm']['parameters']['value'] == 1
+assert empty['noise3D'] == [] and empty['voxelTypes'] == [] and empty['worldGenerator']['layers'] == []
+assert fresh['initial'] == [3, 0, 0, 1] and fresh['refreshed'] == [3, 0, 0, 0]
+assert fresh['entered'] == [7, 0, 0] and fresh['newProjectTrace'] == [7, 0, 0, 0]
+assert all(fresh[key] is True for key in ['projectChangeCanceled', 'refreshPreservedDraft',
+    'refreshViewOnly', 'manualPreviewUnchanged', 'oldSnapshotImmutable', 'sourceLinksRefreshed',
+    'foreignReadOnly', 'foreignRefreshUnavailable', 'newTraceViewOnly', 'emptyTraceCountersReset'])
+print('INSPECTOR_FRESHNESS_PASS committed SET-CLEAR / queued cancellation / refresh preserves XYZ / changed-source link recovery / foreign read-only / new empty-project trace')

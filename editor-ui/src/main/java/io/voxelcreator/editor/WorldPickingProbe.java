@@ -306,6 +306,7 @@ public final class WorldPickingProbe {
           }
         }
         WorldLodPickingProbe.run(out.resolve("lod-proxy"), window);
+        InspectorFreshnessProbe.run(out.resolve("inspector-freshness"), window);
       } finally {
         ImGui.destroyContext();
       }
