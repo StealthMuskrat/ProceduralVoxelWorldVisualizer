@@ -32,6 +32,10 @@ public final class WorldPickingProbe {
       glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
       window = glfwCreateWindow(64, 64, "World picking probe", 0, 0);
       require(window != 0, "GL context");
+      glfwShowWindow(window);
+      glfwFocusWindow(window);
+      glfwPollEvents();
+      require(glfwGetWindowAttrib(window, GLFW_FOCUSED) != 0, "World probe window focus");
       glfwMakeContextCurrent(window);
       GL.createCapabilities();
       ImGui.createContext();
@@ -308,6 +312,7 @@ public final class WorldPickingProbe {
         WorldLodPickingProbe.run(out.resolve("lod-proxy"), window);
         InspectorFreshnessProbe.run(out.resolve("inspector-freshness"), window);
         FreeFlyInspectorProbe.run(out.resolve("free-fly"), window);
+        OrbitInputProbe.run(out.resolve("orbit-input"), window);
       } finally {
         ImGui.destroyContext();
       }

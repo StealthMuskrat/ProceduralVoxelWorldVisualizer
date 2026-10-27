@@ -1,0 +1,11 @@
+# Owned orbit gestures
+
+3D and World images own their orbit-mode mouse presses. A left drag rotates, right drag pans relative to the original orientation, and middle drag moves the focus in world X/Z. Ctrl+middle captures the world-Y mode at press time; changing Ctrl during that drag does not switch axes. Ctrl+left remains free-fly entry. Image presses also take ImGui item ownership so a camera drag cannot move the surrounding window.
+
+Each gesture retains its original camera pose and pointer coordinates. Movement begins after more than three pixels of Euclidean displacement, then uses total displacement from that baseline. It continues outside the image while that viewport retains focus. Intermediate frames, temporary pitch clamping and leaving/reentering the image do not accumulate incremental drift. The last release-frame displacement is applied too. The wheel is ignored while any mouse button is held.
+
+A release inside the image becomes a World pick or right-click context menu only when the gesture never crossed the movement threshold and lasted at most 0.35 seconds. A drag that returns to its start remains a drag. Long right presses do not open menus. Releases outside the image do not become clicks. A press begun elsewhere cannot be adopted on entering the image.
+
+Escape restores the original pose and cancels the held gesture. Window/application focus loss, a popup, tab/image changes, viewport collapse/closure and external camera navigation cancel ownership while retaining the latest valid pose. Returning focus or a held pointer does not resume a canceled gesture; a fresh press is required. Teleport or another camera update cannot be overwritten by an older held gesture.
+
+Short right-click menus retain existing Teleport, Add Bookmark and Regenerate actions. 2D image and orthogonal-slice navigation retain their existing handlers. Orbit/navigation state remains outside project data and Undo history. No generation, engine API, schema or archive changes are introduced. Native input/focus fixtures and independent arithmetic provide scoped evidence; physical OS input/focus, DPI, full GUI and Windows 11 hardware acceptance remain separate.

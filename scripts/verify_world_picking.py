@@ -106,3 +106,34 @@ assert all(flight[key] is True for key in ['entryConsumed', 'inspectorSuspended'
     'textEditingPaused', 'closeDidNotCapture', 'otherWindowPaused', 'otherEscapeIgnored',
     'tabPaused', 'explicitResume', 'escapeOrbit', 'closeReleased', 'viewOnly'])
 print('FREE_FLY_INSPECTOR_PASS entry consumed / analytical movement and hit / paused Inspector typing / focus-tab safety / explicit resume / Escape / native cursor cleanup / view-only')
+
+orbit_root = Path(sys.argv[1]) / 'orbit-input'
+orbit = json.loads((orbit_root / 'orbit-input-native.json').read_text())
+orbit_project = json.loads((orbit_root / 'orbit-project.json').read_text())
+assert orbit['formatVersion'] == 1 and orbit['hit'] == [3, 0, 0, 1]
+assert [row['kind'] for row in orbit['observations']] == ['orbit', 'pan', 'middleXZ', 'middleY']
+for row in orbit['observations']:
+    before, after = row['before'], row['after']
+    assert len(before) == len(after) == 6
+    assert all(math.isfinite(value) for value in before + after)
+    expected = before.copy()
+    dx, dy = row['dx'], row['dy']
+    if row['kind'] == 'orbit':
+        expected[3] -= dx * .008
+        expected[4] = max(-1.5, min(1.5, expected[4] + dy * .008))
+    elif row['kind'] == 'pan':
+        speed = before[5] * .0015
+        expected[0] += (-math.cos(before[3]) * dx - math.sin(before[3]) * dy) * speed
+        expected[2] += (math.sin(before[3]) * dx - math.cos(before[3]) * dy) * speed
+    elif row['kind'] == 'middleY':
+        expected[1] -= dy * before[5] * .002
+    else:
+        expected[0] -= dx * before[5] * .002
+        expected[2] -= dy * before[5] * .002
+    assert all(math.isclose(a, b, rel_tol=0, abs_tol=1e-10) for a, b in zip(expected, after))
+assert orbit_project['worldGenerator']['layers'][0]['defaults']['action'] == 'SET'
+assert orbit_project['noise3D'][0]['algorithm']['parameters']['value'] == 1
+assert all(orbit[key] is True for key in ['outsideCaptured', 'panWithoutMenu', 'shortContext',
+    'longPressIgnored', 'stickyDrag', 'foreignIgnored', 'escapeRollback', 'focusCanceled',
+    'tabCanceled', 'middleAxisLocked', 'wheelSuppressed', 'freshPickRecovered', 'viewOnly'])
+print('ORBIT_INPUT_PASS independent orbit-pan-middle arithmetic / captured outside / pan-context separation / sticky drags / focus-tab-Escape cleanup / view-only')

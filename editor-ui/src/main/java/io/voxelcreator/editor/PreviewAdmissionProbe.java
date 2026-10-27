@@ -35,6 +35,10 @@ public final class PreviewAdmissionProbe {
       glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
       window = glfwCreateWindow(64, 64, "Admission probe", 0, 0);
       require(window != 0, "GL context");
+      glfwShowWindow(window);
+      glfwFocusWindow(window);
+      glfwPollEvents();
+      require(glfwGetWindowAttrib(window, GLFW_FOCUSED) != 0, "Admission probe window focus");
       glfwMakeContextCurrent(window);
       GL.createCapabilities();
       ImGui.createContext();

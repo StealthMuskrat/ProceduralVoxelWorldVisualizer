@@ -36,8 +36,9 @@ public final class Viewports implements AutoCloseable {
   private final UiFields fields = new UiFields();
   private int active = 0;
   private int drawnView = -1;
-  private boolean viewportFocused, flightImageVisible;
+  private boolean viewportFocused, flightImageVisible, surfacePressed;
   private String probeFlightInput = "";
+  private boolean probeOrbitContextVisible;
   private int smokeTab = -1;
   private final InspectorRequests traceRequests = new InspectorRequests();
   private final InspectorTask inspectorTask = new InspectorTask();
@@ -266,6 +267,15 @@ public final class Viewports implements AutoCloseable {
     return probeFlightInput;
   }
 
+  double[] probeOrbitPose(int kind) {
+    var c = views[kind].camera;
+    return new double[] {c.focus.x, c.focus.y, c.focus.z, c.yaw, c.pitch, c.distance};
+  }
+
+  boolean probeOrbitContextVisible() {
+    return probeOrbitContextVisible;
+  }
+
   void probeAdmissionSource(UUID noise) {
     admissionProbe = true;
     views[0].noise = noise;
@@ -416,6 +426,7 @@ public final class Viewports implements AutoCloseable {
     final GlViewport gl = new GlViewport();
     final Camera camera = new Camera();
     final ViewportFlight flight = new ViewportFlight();
+    final OrbitGesture orbit = new OrbitGesture();
     final NoiseImageRows imageRows = new NoiseImageRows();
     final NoiseImageInput imageInput = new NoiseImageInput();
     NoiseImageRows.Statistics imageStatistics;
@@ -671,6 +682,8 @@ public final class Viewports implements AutoCloseable {
     drawnView = -1;
     viewportFocused = false;
     flightImageVisible = false;
+    surfacePressed = false;
+    probeOrbitContextVisible = false;
     inspectorHintVisible = inspectorTraceVisible = inspectorDraftNoticeVisible = false;
     inspectorFreshnessNoticeVisible = false;
     if (admissionProbe) admissionControls.remove("trace-refresh");
@@ -697,6 +710,7 @@ public final class Viewports implements AutoCloseable {
     ImGui.end();
     for (var v : views) {
       if (v.kind != drawnView) v.flight.pause();
+      if (v.kind != drawnView || !flightImageVisible) v.orbit.reset();
       v.flight.reconcile(flightEligible(v), inspector.get());
     }
     syncFlightCursor();
@@ -1153,8 +1167,20 @@ public final class Viewports implements AutoCloseable {
       v.gl.render(
           (int) w, (int) h, v.camera.matrix(w / h, v.origin), state.user.visualization.unlit, 1);
     float px = ImGui.getCursorScreenPosX(), py = ImGui.getCursorScreenPosY();
+    float cursorX = ImGui.getCursorPosX(), cursorY = ImGui.getCursorPosY();
     ImGui.image(v.gl.texture(), w, h, 0, v.image ? 0 : 1, 1, v.image ? 1 : 0);
     flightImageVisible = v.kind > 0 && !(v.kind == 1 && v.mode.equals("Slices"));
+    if (flightImageVisible) {
+      // Own image presses so a camera drag cannot also move the containing ImGui window.
+      ImGui.setCursorPos(cursorX, cursorY);
+      ImGui.invisibleButton(
+          "orbit-surface-" + v.kind,
+          w,
+          h,
+          ImGuiButtonFlags.MouseButtonLeft
+              | ImGuiButtonFlags.MouseButtonRight
+              | ImGuiButtonFlags.MouseButtonMiddle);
+    }
     admissionControl("image");
     boolean hovered = ImGui.isItemHovered();
     if (v.kind == 0 && state.user.visualization.grid) {
@@ -1181,13 +1207,14 @@ public final class Viewports implements AutoCloseable {
 
     var io = ImGui.getIO();
     boolean enteredFlight = false;
-    if (flightImageVisible
-        && hovered
-        && ImGui.isMouseClicked(0)
-        && io.getKeyCtrl()
+    surfacePressed =
+        flightImageVisible
+            && hovered
+            && (ImGui.isMouseClicked(0) || ImGui.isMouseClicked(1) || ImGui.isMouseClicked(2));
+    if (surfacePressed
         && glfwGetWindowAttribBoolean(handle, GLFW_FOCUSED)
         && !ShortcutKeys.popup()) {
-      // The entry click explicitly transfers focus; ImGui otherwise does this at frame end.
+      // A surface press explicitly transfers focus; ImGui otherwise does this at frame end.
       ImGui.setWindowFocus("Visualizers");
       viewportFocused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
     }
@@ -1214,12 +1241,21 @@ public final class Viewports implements AutoCloseable {
               + ImGui.isMouseClicked(0)
               + " mode="
               + v.flight.mode();
+    OrbitGesture.Click orbitClick = orbitInput(v, hovered);
     if (hovered
+        && !flightImageVisible
         && (ImGui.isMouseClicked(1)
             || ImGui.isMouseReleased(0)
                 && Math.abs(ImGui.getMouseDragDeltaX(0)) < 3
                 && Math.abs(ImGui.getMouseDragDeltaY(0)) < 3)) rememberPicked(v, px, py, w, h);
-    if (ImGui.beginPopupContextItem("viewport-context")) {
+    if (orbitClick == OrbitGesture.Click.CONTEXT) {
+      rememberPicked(v, px, py, w, h);
+      ImGui.openPopup("viewport-context");
+    }
+    if (flightImageVisible
+        ? ImGui.beginPopup("viewport-context")
+        : ImGui.beginPopupContextItem("viewport-context")) {
+      probeOrbitContextVisible = true;
       if (v.kind == 0) {
         for (String mode : List.of("Grayscale", "Heatmap", "Contour", "Threshold", "Histogram"))
           if (ImGui.menuItem(mode)) {
@@ -1334,31 +1370,10 @@ public final class Viewports implements AutoCloseable {
           syncFlightCursor();
           enteredFlight = true;
         }
-        if (!v.camera.flying) {
-          if (ImGui.isMouseDragging(0) && !io.getKeyCtrl())
-            v.camera.orbit(io.getMouseDeltaX(), io.getMouseDeltaY());
-          if (ImGui.isMouseDragging(1)) v.camera.pan(io.getMouseDeltaX(), io.getMouseDeltaY());
-          if (ImGui.isMouseDragging(2)) {
-            if (io.getKeyCtrl()) v.camera.focus.y -= io.getMouseDeltaY() * v.camera.distance * .002;
-            else {
-              v.camera.focus.x -= io.getMouseDeltaX() * v.camera.distance * .002;
-              v.camera.focus.z -= io.getMouseDeltaY() * v.camera.distance * .002;
-            }
-          }
-          v.camera.zoom(io.getMouseWheel());
-          if (v.kind == 2
-              && !io.getKeyCtrl()
-              && ImGui.isMouseReleased(0)
-              && Math.abs(ImGui.getMouseDragDeltaX(0)) < 3
-              && Math.abs(ImGui.getMouseDragDeltaY(0)) < 3)
-            pick(
-                v,
-                (io.getMousePosX() - px) / w * 2 - 1,
-                1 - (io.getMousePosY() - py) / h * 2,
-                w / h);
-        }
       }
     }
+    if (orbitClick == OrbitGesture.Click.PICK && v.kind == 2)
+      pick(v, (io.getMousePosX() - px) / w * 2 - 1, 1 - (io.getMousePosY() - py) / h * 2, w / h);
     if (v.camera.flying && !enteredFlight) {
       if (ImGui.isKeyPressed(ImGuiKey.Escape, false)
           && (v.flight.captured() || flightEligible(v))) {
@@ -1705,12 +1720,48 @@ public final class Viewports implements AutoCloseable {
     syncFlightCursor();
   }
 
+  private OrbitGesture.Click orbitInput(View v, boolean hovered) {
+    var io = ImGui.getIO();
+    if (!flightEligible(v) || v.camera.flying) {
+      v.orbit.reset();
+      return OrbitGesture.Click.NONE;
+    }
+    if (v.orbit.current(v.camera)) {
+      if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+        v.orbit.escape(v.camera);
+        return OrbitGesture.Click.NONE;
+      }
+      int button = v.orbit.button();
+      if (ImGui.isMouseReleased(button))
+        return v.orbit.release(
+            v.camera, io.getMousePosX(), io.getMousePosY(), ImGui.getTime(), hovered);
+      if (!ImGui.isMouseDown(button)) v.orbit.reset();
+      else v.orbit.move(v.camera, io.getMousePosX(), io.getMousePosY());
+      return OrbitGesture.Click.NONE;
+    }
+    if (!hovered) return OrbitGesture.Click.NONE;
+    for (int button = 0; button < 3; button++)
+      if (ImGui.isMouseClicked(button)) {
+        v.orbit.begin(
+            v.camera,
+            button,
+            io.getKeyCtrl(),
+            io.getMousePosX(),
+            io.getMousePosY(),
+            ImGui.getTime());
+        return OrbitGesture.Click.NONE;
+      }
+    if (!ImGui.isMouseDown(0) && !ImGui.isMouseDown(1) && !ImGui.isMouseDown(2))
+      v.camera.zoom(io.getMouseWheel());
+    return OrbitGesture.Click.NONE;
+  }
+
   private boolean flightEligible(View v) {
     return drawnView == v.kind
         && flightImageVisible
         && viewportFocused
         && glfwGetWindowAttribBoolean(handle, GLFW_FOCUSED)
-        && !ImGui.getIO().getWantTextInput()
+        && (!ImGui.getIO().getWantTextInput() || surfacePressed)
         && !ShortcutKeys.popup()
         && !(v.kind == 1 && v.mode.equals("Slices"));
   }
