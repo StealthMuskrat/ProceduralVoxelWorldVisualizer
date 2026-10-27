@@ -1317,6 +1317,8 @@ public final class Viewports implements AutoCloseable {
               v,
               "Volume replacement exceeds GPU MiB; previous display retained; raise GPU MiB and"
                   + " Regenerate");
+        else if (stats.cpuBytes() > (long) state.user.performance.sceneCpuMiB << 20)
+          volumeUploadFailed(v, "Volume upload exceeds CPU MiB; raise CPU MiB and Regenerate");
         else {
           var profile = state.engine.profiler().scope(0, state.project().project.uuid, null);
           long stamp = profile == null ? 0 : profile.begin();

@@ -39,6 +39,7 @@ class PreviewAdmissionTest {
             kind == 0
                 ? 64L * 16 * 16
                 : (mode.equals("Volume") ? 12L : mode.equals("Point Cloud") ? 96L : 3024L) * 4096;
+        if (kind != 0 && mode.equals("Volume")) expected += 65536;
         var admitted = gate.check(kind, 16, mode, Long.MAX_VALUE, 256, expected);
         assertTrue(admitted.allowed());
         assertEquals(expected, admitted.workingBytes());

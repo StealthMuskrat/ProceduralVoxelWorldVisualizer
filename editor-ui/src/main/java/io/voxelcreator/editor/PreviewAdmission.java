@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import io.voxelcreator.render.IsosurfaceMesh;
+import io.voxelcreator.render.VolumeTextureUpload;
 
 /** UI-thread-owned admission failure for one viewport; changed requests explicitly rearm it. */
 final class PreviewAdmission {
@@ -37,6 +38,7 @@ final class PreviewAdmission {
                     * side
                     * side
                     * side;
+    if (kind != 0 && mode.equals("Volume")) bytes += VolumeTextureUpload.STAGING_BYTES;
     if (bytes > cpuBytes)
       return reject("Preview exceeds working-memory budget; reduce extent or raise CPU MiB");
     return new Decision(true, bytes, "");

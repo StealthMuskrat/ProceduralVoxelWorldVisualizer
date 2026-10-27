@@ -6,6 +6,8 @@ import org.lwjgl.BufferUtils;
 
 /** Render-thread-owned, bounded texture replacement; only a complete candidate becomes resident. */
 public final class VolumeTextureUpload implements AutoCloseable {
+  public static final int STAGING_BYTES = 65536;
+
   public interface Backend {
     int allocate(int size);
 
@@ -32,7 +34,7 @@ public final class VolumeTextureUpload implements AutoCloseable {
       boolean pending) {}
 
   private final Backend backend;
-  private final FloatBuffer scratch = BufferUtils.createFloatBuffer(16384);
+  private FloatBuffer scratch = BufferUtils.createFloatBuffer(STAGING_BYTES / Float.BYTES);
   private Resident active, candidate;
   private VolumeData data;
   private int cursor, lastBytes;
@@ -100,7 +102,9 @@ public final class VolumeTextureUpload implements AutoCloseable {
       }
       return lastBytes;
     } catch (RuntimeException | Error failure) {
+      int written = lastBytes;
       cancel();
+      lastBytes = written;
       throw failure;
     }
   }
@@ -115,7 +119,7 @@ public final class VolumeTextureUpload implements AutoCloseable {
         active == null ? 0 : active.bytes(),
         bytes,
         bytes - 4L * cursor,
-        data == null ? 0 : bytes + 4L * scratch.capacity(),
+        closed ? 0 : STAGING_BYTES + bytes,
         uploaded,
         lastBytes,
         version,
@@ -148,5 +152,6 @@ public final class VolumeTextureUpload implements AutoCloseable {
     if (closed) return;
     closed = true;
     clear();
+    scratch = null;
   }
 }

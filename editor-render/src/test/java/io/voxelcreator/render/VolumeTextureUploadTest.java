@@ -10,7 +10,7 @@ class VolumeTextureUploadTest {
   static final class Memory implements VolumeTextureUpload.Backend {
     final Map<Integer, float[]> textures = new HashMap<>();
     final Map<Integer, Integer> sizes = new HashMap<>();
-    int next, writes, maxWrite;
+    int next, writes, maxWrite, failAfter = Integer.MAX_VALUE;
     boolean allocationFailure, writeFailure;
 
     public int allocate(int size) {
@@ -22,7 +22,7 @@ class VolumeTextureUploadTest {
     }
 
     public void write(int texture, int x, int y, int z, int w, int h, int d, FloatBuffer values) {
-      if (writeFailure) throw new IllegalStateException("write");
+      if (writeFailure || writes == failAfter) throw new IllegalStateException("write");
       assertEquals(w * h * d, values.remaining());
       maxWrite = Math.max(maxWrite, values.remaining() * 4);
       writes++;
@@ -65,7 +65,7 @@ class VolumeTextureUploadTest {
         }
         assertEquals(4L * side * side * side, bytes);
         assertEquals(1, upload.statistics().version());
-        assertEquals(0, upload.statistics().cpuBytes());
+        assertEquals(65536, upload.statistics().cpuBytes());
         assertArrayEquals(data.copySamples(), memory.textures.get(upload.resident().texture()));
         assertTrue(memory.maxWrite <= 65536);
       }
@@ -113,7 +113,7 @@ class VolumeTextureUploadTest {
       upload.cancel();
       assertEquals(Set.of(1), memory.textures.keySet());
       assertEquals(0, upload.statistics().remainingBytes());
-      assertEquals(0, upload.statistics().cpuBytes());
+      assertEquals(65536, upload.statistics().cpuBytes());
       assertEquals(0, upload.advance(1000));
     }
   }
@@ -144,6 +144,21 @@ class VolumeTextureUploadTest {
   }
 
   @Test
+  void failureAfterOneSuccessfulRegionAccountsSubmittedBytesAndReclaimsCandidate() {
+    var memory = new Memory();
+    try (var upload = new VolumeTextureUpload(memory)) {
+      upload.stage(data(65), 4L * 65 * 65 * 65);
+      memory.failAfter = 1;
+      assertThrows(IllegalStateException.class, () -> upload.advance(100000));
+      assertEquals(3 * 65 * 65 * 4, upload.statistics().lastBytes());
+      assertEquals(upload.statistics().lastBytes(), upload.statistics().uploadedBytes());
+      assertFalse(upload.statistics().pending());
+      assertNull(upload.resident());
+      assertTrue(memory.textures.isEmpty());
+    }
+  }
+
+  @Test
   void closeDisposesBothAllocationsAndRejectsFutureWork() {
     var memory = new Memory();
     var upload = new VolumeTextureUpload(memory);
@@ -156,6 +171,7 @@ class VolumeTextureUploadTest {
     assertThrows(IllegalStateException.class, () -> upload.advance(4));
     assertThrows(IllegalStateException.class, () -> upload.stage(data(2), 1000));
     assertNull(upload.resident());
+    assertEquals(0, upload.statistics().cpuBytes());
   }
 
   @Test
