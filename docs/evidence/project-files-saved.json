@@ -1,0 +1,52 @@
+{
+  "formatVersion" : 2,
+  "project" : {
+    "uuid" : "96bf2c1c-1ae8-450c-b082-02f6e852e82c",
+    "seed" : 41,
+    "minY" : -64,
+    "maxY" : 319,
+    "rootOrder" : { }
+  },
+  "voxelTypes" : [ ],
+  "voxelGroups" : [ ],
+  "voxelSets" : [ ],
+  "noise2D" : [ {
+    "uuid" : "77578772-1712-4f5e-8c1d-7990e941d345",
+    "id" : "owned",
+    "dimension" : 2,
+    "parentFolderUuid" : null,
+    "algorithm" : {
+      "key" : "CONSTANT",
+      "parameters" : {
+        "frequency" : 0.01
+      }
+    },
+    "seedOffset" : 0,
+    "coordinateTransforms" : [ ],
+    "processing" : [ ],
+    "sharedParameters" : [ ],
+    "pinnedControls" : [ ],
+    "outputBinding" : {
+      "sourceKind" : "Source Result",
+      "type" : "Scalar",
+      "ambientKey" : null,
+      "value" : null,
+      "parameterUuid" : null,
+      "itemUuid" : null,
+      "noiseGeneratorUuid" : null,
+      "projection" : "XZ",
+      "slice" : 0.0
+    }
+  } ],
+  "noise3D" : [ ],
+  "worldGenerator" : {
+    "uuid" : "477a3868-8c59-47d3-b389-4c8e8c6b098e",
+    "layers" : [ ]
+  },
+  "folders" : [ ],
+  "bookmarks" : {
+    "noise2D" : [ ],
+    "noise3D" : [ ],
+    "world" : [ ]
+  }
+}

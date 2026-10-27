@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The image-gesture batch passed `clean test build dependencyNotices releaseJars` with **798 tests across 103 suites, no failures/errors/skips**. 2D pans retain press-time dimensions through resize, apply final-release movement and guard picked coordinates with owned short clicks. 2D/slice menus share explicit short-right-click ownership. Native checks cover resize/release math, foreign/canceled bookmark retention, collapse, held wheel, competing buttons, long/sticky/foreign/focus-canceled context input, accepted geometry and document/history invariance. See [image evidence](evidence/IMAGE_GESTURES_VALIDATION.md). Prior slice/orbit/free-fly, historical freshness, owned-job, queue recovery, draft and picking workflows still pass. Local schemas/diff/Python checks, packaged launcher and cross-platform JAR comparison passed; local Java lacks libjli.so. Running cancellation is best-effort; arbitrary stress/timing, physical input, full GUI/DPI and Windows 11 hardware acceptance remain separate.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The project-file transition batch passed `clean test build dependencyNotices releaseJars` with **807 tests across 104 suites, no failures/errors/skips**. New/Open/Exit own one Save / Don't Save / Cancel decision; failed or canceled saving aborts that transition, and a later retry saves only. Malformed paths are caught, failed opens preserve document/draft/selection/history and successful opens clear old selection state. Both dialogs support Escape and immediate reopening. Production native modal/file-I/O checks cover 20 cases per platform, with independent saved-JSON/state replay. See [project-file evidence](evidence/PROJECT_FILE_TRANSITIONS_VALIDATION.md). Prior image/slice/orbit/free-fly, freshness, Inspector ownership and picking workflows still pass. Local schemas/diff/Python checks, packaged launcher and cross-platform JAR comparison passed; local Java lacks libjli.so. Physical window-manager input, arbitrary I/O failures, full GUI/DPI and Windows 11 hardware acceptance remain separate.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -10,7 +10,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 | A02 transactional open | PASS | EngineContractTest.transactionalLoadUndoAndAtomicSave |
 | A03 noise validation | PARTIAL | Candidate/innermost compiler locations, UUID navigation and rejected-draft preservation tested; full control GUI coverage remains |
 | A04 disabled drafts | PASS | EngineContractTest.rejectsCyclesBadBindingsAndAllowsDisabledDraft |
-| A05 save/transitions | PARTIAL | Atomic-save/document tests; all dirty dialog actions need GUI certification |
+| A05 save/transitions | PARTIAL | Owned New/Open/Exit Save-Discard-Cancel flow, failed-save abort/retry, malformed paths and failed-open retention; nine controller tests and 20 production native modal/file-I/O scenarios; physical window close, broader failure/DPI and full GUI certification remain |
 | A06 UUID clipboard | PARTIAL | Sibling/folder clipboard, internal/external reference and live cut identity tests; complete gesture GUI matrix remains |
 | A07 import/export | PARTIAL | Dependency checkbox export and COPY/compatible REUSE/SKIP preview; conservative semantic reuse and dependent-closure tests |
 | A08 undo/redo | PARTIAL | Structural delta transactions, bounded history, array reorder, undo/redo, curve gesture coalescing tests; full GUI audit remains |
@@ -47,7 +47,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 
 | Principal trees | Tests / checks |
 |---|---|
-| 0–4, 20 | EngineContractTest transactional persistence, validation, IDs; document and schema review |
+| 0–4, 20 | EngineContractTest transactional persistence, validation, IDs; ProjectFileWorkflowTest and native ProjectFileProbe modal/file-I/O matrix; document and schema review |
 | 5–8 | MathContractTest expression inventory, noise adapter repetition, curve policies; TypedProcessingTest, FieldSamplingTest, FieldOperationsTest, CoordinateTransformTest, ExpressionPlanTest, NoiseTraceTest, TraceExplanationTest, NoiseAlgorithmRegistryTest, CompilerOptimizationTest and SamplingBatchTest typed/lazy/prefix/folding/sharing/buffer contracts |
 | 9–10 | EngineContractTest, WorldSettingsTest, WorldUseTest and WorldResourceTest: intervals, transformations, drivers, short-circuit gates, independent probability vectors, root/worker/stage invariance, imports and atomic replacement |
 | 11–12 | StorageContractTest, PaletteStorageTest and PackedArchiveTest: coordinates, dense oracle, coalescence, sparse 256³, primitive palettes, bulk replacement and independent v1/v2 binary vectors |
@@ -60,7 +60,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 ## Reproducible GUI checks still required
 
 1. Normal launch: only protected roots; create noise, edit and Apply; reject invalid expression without changing the document.
-2. Save/Don't Save/Cancel across New/Open/Exit; failed save aborts transition; failed open retains document and dirty state.
+2. Complete physical window-close and full platform/DPI Save/Don't Save/Cancel checks. The production native fixture now covers New/Open/Exit decisions, failed-save abort/retry and failed-open session retention; arbitrary I/O faults remain separate.
 3. Create voxel types/sets, layer and repeated placements; override/reset settings; reorder actions and inspect exact EMPTY and occupied coordinates.
 4. Pan/zoom and all display modes; orbit/free-fly/Inspector focus; independent coordinate bookmarks across tabs.
 5. Copy/cut/folder moves, import dependency conflicts, Undo/Redo, rename/delete dependencies.

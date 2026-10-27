@@ -1,0 +1,164 @@
+{
+  "cases" : [ {
+    "id" : "NEW-SAVE",
+    "seed" : 0,
+    "noiseCount" : 0,
+    "dirty" : false,
+    "phase" : "IDLE",
+    "replacements" : 1,
+    "exits" : 0
+  }, {
+    "id" : "NEW-DISCARD",
+    "seed" : 0,
+    "noiseCount" : 0,
+    "dirty" : false,
+    "phase" : "IDLE",
+    "replacements" : 1,
+    "exits" : 0
+  }, {
+    "id" : "NEW-CANCEL",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : true,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "OPEN-SAVE",
+    "seed" : 99,
+    "noiseCount" : 0,
+    "dirty" : false,
+    "phase" : "IDLE",
+    "replacements" : 1,
+    "exits" : 0
+  }, {
+    "id" : "OPEN-DISCARD",
+    "seed" : 99,
+    "noiseCount" : 0,
+    "dirty" : false,
+    "phase" : "IDLE",
+    "replacements" : 1,
+    "exits" : 0
+  }, {
+    "id" : "OPEN-CANCEL",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : true,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "EXIT-SAVE",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : false,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 1
+  }, {
+    "id" : "EXIT-DISCARD",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : true,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 1
+  }, {
+    "id" : "EXIT-CANCEL",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : true,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "NEW-PATH_CANCEL",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : true,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "OPEN-PATH_CANCEL",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : true,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "EXIT-PATH_CANCEL",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : true,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "GUARD_ESCAPE",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : true,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "PATH_ESCAPE",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : true,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "NEW-FAILED_SAVE_RETRY",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : false,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "OPEN-FAILED_SAVE_RETRY",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : false,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "EXIT-FAILED_SAVE_RETRY",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : false,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "FAILED_OPEN_RETRY",
+    "seed" : 99,
+    "noiseCount" : 0,
+    "dirty" : false,
+    "phase" : "IDLE",
+    "replacements" : 1,
+    "exits" : 0
+  }, {
+    "id" : "NAMED_SAVE_FAILURE",
+    "seed" : 42,
+    "noiseCount" : 1,
+    "dirty" : true,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 0
+  }, {
+    "id" : "CLEAN_EXIT",
+    "seed" : 41,
+    "noiseCount" : 1,
+    "dirty" : false,
+    "phase" : "IDLE",
+    "replacements" : 0,
+    "exits" : 1
+  } ],
+  "formatVersion" : 1
+}

@@ -1,0 +1,25 @@
+{
+  "formatVersion" : 2,
+  "project" : {
+    "uuid" : "5abf033d-c096-425f-8390-9edc66ca5e98",
+    "seed" : 99,
+    "minY" : -64,
+    "maxY" : 319,
+    "rootOrder" : { }
+  },
+  "voxelTypes" : [ ],
+  "voxelGroups" : [ ],
+  "voxelSets" : [ ],
+  "noise2D" : [ ],
+  "noise3D" : [ ],
+  "worldGenerator" : {
+    "uuid" : "5c2bcfe4-0258-4132-b36e-c2c3079606ff",
+    "layers" : [ ]
+  },
+  "folders" : [ ],
+  "bookmarks" : {
+    "noise2D" : [ ],
+    "noise3D" : [ ],
+    "world" : [ ]
+  }
+}
