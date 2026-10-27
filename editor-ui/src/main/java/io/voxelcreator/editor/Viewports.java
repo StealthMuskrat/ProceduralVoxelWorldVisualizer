@@ -129,7 +129,7 @@ public final class Viewports implements AutoCloseable {
     var v = views[1];
     return v.scene == null
         && v.compiler == null
-        && v.setup.get() == null
+        && !v.setup.pending()
         && v.gl.sceneRenderer() == null;
   }
 
@@ -156,7 +156,7 @@ public final class Viewports implements AutoCloseable {
     NoiseImageRows.Statistics imageStatistics;
     NoiseImageView displayedImage;
     UUID noise, stage, keyNoise;
-    long keyRevision = -1, rebuildSerial = 0, compileId = 0;
+    long keyRevision = -1, rebuildSerial = 0;
     String geometryKey = "",
         fingerprint = "",
         requestedKey = "",
@@ -165,7 +165,7 @@ public final class Viewports implements AutoCloseable {
     ChunkScene scene;
     final RenderPressure pressure = new RenderPressure();
     Future<?> compiler;
-    final AtomicReference<SceneSetup> setup = new AtomicReference<>();
+    final OwnedPreviewMailbox<SceneSetup> setup = new OwnedPreviewMailbox<>();
     int gpuBudget;
     boolean streamingObserved;
     double frameMillis = 16;
@@ -201,7 +201,12 @@ public final class Viewports implements AutoCloseable {
   }
 
   private record SceneSetup(
-      long id, String key, ChunkScene.Source source, int[] palette, String error) {}
+      long id, String key, ChunkScene.Source source, int[] palette, String error)
+      implements AutoCloseable {
+    public void close() {
+      if (source != null) source.close();
+    }
+  }
 
   public record StreamingStatistics(
       long cpuBytes,
@@ -1098,13 +1103,11 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void stopStream(View v) {
+    v.setup.invalidate();
     if (v.compiler != null) {
-      v.compileId++;
       v.compiler.cancel(true);
       v.compiler = null;
     }
-    var setup = v.setup.getAndSet(null);
-    if (setup != null && setup.source != null) setup.source.close();
     if (v.scene != null) {
       v.scene.close();
       v.scene = null;
@@ -1123,7 +1126,7 @@ public final class Viewports implements AutoCloseable {
         && now - v.lastSubmit > 1_000_000_000L / state.user.editor.opportunitiesPerSecond) {
       if (v.pressure.acceptExpensive() && !v.pressure.paused()) {
         if (v.compiler != null) v.compiler.cancel(true);
-        long id = ++v.compileId;
+        long id = v.setup.begin();
         var snapshot = ProjectIO.copy(state.project());
         int kind = v.kind;
         UUID noise = v.noise, stage = v.stage;
@@ -1135,26 +1138,19 @@ public final class Viewports implements AutoCloseable {
           v.compiler =
               state.background.submit(
                   () -> {
+                    if (!v.setup.current(id)) return;
                     SceneSetup result;
                     try {
+                      var sourcePalette = palette(snapshot, kind);
                       var source =
                           PreviewSources.create(
                               snapshot, state.engine, kind, noise, threshold, mode, stage);
-                      result = new SceneSetup(id, key, source, palette(snapshot, kind), null);
+                      result = new SceneSetup(id, key, source, sourcePalette, null);
                     } catch (Throwable failure) {
                       result =
                           new SceneSetup(id, key, null, null, String.valueOf(failure.getMessage()));
                     }
-                    SceneSetup ready = result;
-                    state.uiQueue.offer(
-                        () -> {
-                          if (id != v.compileId) {
-                            if (ready.source != null) ready.source.close();
-                            return;
-                          }
-                          var old = v.setup.getAndSet(ready);
-                          if (old != null && old.source != null) old.source.close();
-                        });
+                    v.setup.publish(id, result);
                   });
           v.message = "Compiling streaming source...";
         } catch (RejectedExecutionException full) {
@@ -1163,7 +1159,7 @@ public final class Viewports implements AutoCloseable {
         }
       } else v.message = v.pressure.message();
     }
-    SceneSetup setup = v.setup.getAndSet(null);
+    SceneSetup setup = v.setup.take();
     if (setup != null) {
       v.compiler = null;
       if (!setup.key.equals(key)) {
@@ -1861,6 +1857,7 @@ public final class Viewports implements AutoCloseable {
   public void close() {
     for (var v : views) {
       v.ready.close();
+      v.setup.close();
       if (v.job != null) v.job.cancel(true);
       state.background.purge();
       stopStream(v);
