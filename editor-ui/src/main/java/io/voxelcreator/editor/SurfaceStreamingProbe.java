@@ -38,7 +38,9 @@ final class SurfaceStreamingProbe {
       palette[1] = 0xff00ff00;
       viewport.setPalette(palette);
       var gpu = viewport.scene(1, 2 << 20);
-      var cube = VoxelMesher.greedy(32, (x, y, z) -> 1);
+      var cube =
+          VoxelMesher.greedy(
+              32, (x, y, z) -> x >= 0 && y >= 0 && z >= 0 && x < 32 && y < 32 && z < 32 ? 1 : 0);
       var temp = new ChunkPos(5, 0, 0);
       var surface = new ChunkPos(0, 0, 0);
       var voxel = new ChunkPos(1, 0, 0);
