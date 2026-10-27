@@ -1822,6 +1822,9 @@ public final class Viewports implements AutoCloseable {
       return;
     }
     var ray = v.camera.ray(nx, ny, aspect, v.origin);
+    boolean streamingPick = usesStreaming(v);
+    var displayedOrigin = new Vector3d(v.origin);
+    int displayedSize = v.size;
     ProjectData p = ProjectIO.copy(state.project());
     long request = ++traceSerial, revision = state.revision;
     UUID selectedStage = v.stage;
@@ -1840,20 +1843,25 @@ public final class Viewports implements AutoCloseable {
                           .filter(stage -> stage.uuid().equals(selectedStage))
                           .findFirst()
                           .orElse(null);
+              VoxelRaycast.Cells evaluator =
+                  (x, y, z) -> {
+                    var position = new BlockPos(x, y, z);
+                    if (boundary == null) return world.sampleStage(position, Integer.MAX_VALUE);
+                    int before = world.sampleStage(position, boundary.before());
+                    if (selectedMode.equals("Before")) return before;
+                    int after = world.sampleStage(position, boundary.after());
+                    return selectedMode.equals("Only Changes")
+                        ? (before == after ? 0 : after > 0 ? after : before)
+                        : after;
+                  };
               var hit =
-                  io.voxelcreator.render.VoxelRaycast.firstOccupied(
+                  VoxelRaycast.firstOccupied(
                       ray,
                       1000,
-                      (x, y, z) -> {
-                        var position = new BlockPos(x, y, z);
-                        if (boundary == null) return world.sampleStage(position, Integer.MAX_VALUE);
-                        int before = world.sampleStage(position, boundary.before());
-                        if (selectedMode.equals("Before")) return before;
-                        int after = world.sampleStage(position, boundary.after());
-                        return selectedMode.equals("Only Changes")
-                            ? (before == after ? 0 : after > 0 ? after : before)
-                            : after;
-                      });
+                      streamingPick
+                          ? evaluator
+                          : VoxelRaycast.Bounds.cube(displayedOrigin, displayedSize)
+                              .restrict(evaluator));
               if (hit.isPresent()) {
                 BlockPos cell = hit.get();
                 GenerationTrace found = world.trace(cell);
