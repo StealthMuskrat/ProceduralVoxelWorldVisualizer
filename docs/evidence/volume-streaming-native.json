@@ -1,0 +1,130 @@
+{
+  "formatVersion" : 1,
+  "affine" : {
+    "maximumUploadBytes" : 16384,
+    "uploadBytes" : 1048576,
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : 0.0693359375,
+      "max" : 0.9306640625
+    },
+    "pixel" : [ 80, 14, 19, 255 ],
+    "bounds" : {
+      "side" : 64,
+      "x" : -32,
+      "y" : -32,
+      "z" : -32
+    },
+    "sampledChunks" : 8
+  },
+  "navigationViewOnly" : true,
+  "canceledUpload" : true,
+  "gpuRejected" : true,
+  "queueRetry" : true,
+  "postEditViewOnly" : true,
+  "fixedReturn" : true,
+  "transferReused" : true,
+  "stages" : [ {
+    "name" : "origin",
+    "origin" : [ -32.0, -32.0, -32.0 ],
+    "compilations" : 1,
+    "generation" : 1,
+    "value" : 1,
+    "reusedChunks" : 0,
+    "sampledChunks" : 8,
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 2098176
+  }, {
+    "name" : "positive-x",
+    "origin" : [ 0.0, -32.0, -32.0 ],
+    "compilations" : 1,
+    "generation" : 1,
+    "value" : 1,
+    "reusedChunks" : 4,
+    "sampledChunks" : 4,
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 3147264
+  }, {
+    "name" : "negative-x",
+    "origin" : [ -64.0, -32.0, -32.0 ],
+    "compilations" : 1,
+    "generation" : 1,
+    "value" : 1,
+    "reusedChunks" : 4,
+    "sampledChunks" : 4,
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 4196352
+  }, {
+    "name" : "return",
+    "origin" : [ -32.0, -32.0, -32.0 ],
+    "compilations" : 1,
+    "generation" : 1,
+    "value" : 1,
+    "reusedChunks" : 8,
+    "sampledChunks" : 0,
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 4196352
+  }, {
+    "name" : "positive-y",
+    "origin" : [ -32.0, 0.0, -32.0 ],
+    "compilations" : 1,
+    "generation" : 1,
+    "value" : 1,
+    "reusedChunks" : 4,
+    "sampledChunks" : 4,
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 5245440
+  }, {
+    "name" : "positive-z",
+    "origin" : [ -32.0, 0.0, 0.0 ],
+    "compilations" : 1,
+    "generation" : 1,
+    "value" : 1,
+    "reusedChunks" : 4,
+    "sampledChunks" : 4,
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 6294528
+  }, {
+    "name" : "manual-retained",
+    "origin" : [ 32.0, 0.0, 0.0 ],
+    "compilations" : 1,
+    "generation" : 1,
+    "value" : 1,
+    "reusedChunks" : 1,
+    "sampledChunks" : 7,
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 8130432
+  }, {
+    "name" : "regenerated",
+    "origin" : [ 32.0, 0.0, 0.0 ],
+    "compilations" : 2,
+    "generation" : 2,
+    "value" : 0,
+    "reusedChunks" : 0,
+    "sampledChunks" : 8,
+    "pixel" : [ 14, 19, 26, 255 ],
+    "cacheBytes" : 2098176
+  }, {
+    "name" : "cancel-successor",
+    "origin" : [ -128.0, 0.0, 0.0 ],
+    "compilations" : 2,
+    "generation" : 2,
+    "value" : 0,
+    "reusedChunks" : 0,
+    "sampledChunks" : 8,
+    "pixel" : [ 14, 19, 26, 255 ],
+    "cacheBytes" : 5245440
+  }, {
+    "name" : "stream-return",
+    "origin" : [ -32.0, -32.0, -32.0 ],
+    "compilations" : 4,
+    "generation" : 6,
+    "value" : 0,
+    "reusedChunks" : 0,
+    "sampledChunks" : 8,
+    "pixel" : [ 14, 19, 26, 255 ],
+    "cacheBytes" : 2098176
+  } ],
+  "maximumUiBytes" : 16384
+}
