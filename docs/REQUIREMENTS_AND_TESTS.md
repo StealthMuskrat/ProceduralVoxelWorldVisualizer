@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The renderer-fallback batch passed `clean test build dependencyNotices releaseJars` with **742 tests across 93 suites, no failures/errors/skips**. Native startup/per-frame fault injection checks streaming CPU/GPU cleanup, fixed async publication, stable fallback and explicit Regenerate recovery. Existing source/selector/input/engine checks remain in CI. See [renderer fallback evidence](evidence/RENDERER_FALLBACK_VALIDATION.md). Local schemas passed. Driver/context-loss/visible-mesh/load/DPI, Windows 11 hardware and complete acceptance remain separate.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The visible fallback/camera batch passed `clean test build dependencyNotices releaseJars` with **742 tests across 93 suites, no failures/errors/skips**. Native GL texture readbacks verify a visible solid fixed fallback, orbit/zoom image changes without observed resubmission, and a pan-triggered fixed rebuild. Python recomputes pixel hashes/counts; PNGs were visually inspected. See [visible fallback evidence](evidence/VISIBLE_FALLBACK_VALIDATION.md). Local schemas passed. Full raycast/physical input/driver/load/DPI, Windows 11 hardware and complete acceptance remain separate.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
