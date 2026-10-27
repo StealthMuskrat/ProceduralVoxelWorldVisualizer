@@ -43,3 +43,6 @@ The editor retains project/revision, selected draft and item identity plus the o
 The buffer has fixed UTF-8 byte capacity sufficient for the language's 16,384 UTF-16 character limit. Staging rejects longer strings without truncation; oversized existing text refuses expanded opening. Live feedback includes binding errors or parser/type character ranges. This does not add token-span selection or a new serialization format.
 
 ExpressionEditSessionTest covers private cancellation/staging, incomplete text, one Apply/Undo/Redo, stale ownership and Unicode/length boundaries. ExpandedExpressionProbe drives the production modal using real keyboard/mouse events, including newline entry, Cancel, Escape and private staging. The saved multiline formula is replayed at 81 points by the external engine-only consumer. Full manual GUI, DPI and hardware acceptance remain separate.
+
+
+Named-input navigation now resolves exact binding leaves and focuses production editors, including coordinate components and custom UUID pickers. Each item's input selection is independent and navigation selects once, so later user choices remain stable. See [input binding navigation](INPUT_BINDING_NAVIGATION.md) for ownership, recovery and observed full-Properties scope.

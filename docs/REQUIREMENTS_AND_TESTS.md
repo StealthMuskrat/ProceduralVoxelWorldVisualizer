@@ -2,13 +2,13 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The project-file transition batch passed `clean test build dependencyNotices releaseJars` with **807 tests across 104 suites, no failures/errors/skips**. New/Open/Exit own one Save / Don't Save / Cancel decision; failed or canceled saving aborts that transition, and a later retry saves only. Malformed paths are caught, failed opens preserve document/draft/selection/history and successful opens clear old selection state. Both dialogs support Escape and immediate reopening. Production native modal/file-I/O checks cover 20 cases per platform, with independent saved-JSON/state replay. See [project-file evidence](evidence/PROJECT_FILE_TRANSITIONS_VALIDATION.md). Prior image/slice/orbit/free-fly, freshness, Inspector ownership and picking workflows still pass. Local schemas/diff/Python checks, packaged launcher and cross-platform JAR comparison passed; local Java lacks libjli.so. Physical window-manager input, arbitrary I/O failures, full GUI/DPI and Windows 11 hardware acceptance remain separate.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The input-binding navigation batch passed `clean test build dependencyNotices releaseJars` with **816 tests across 105 suites, no failures/errors/skips**. Input links select once, later manual choices win, and each item retains its own draft-local selection. Diagnostic leaves focus the actual binding editor. The full production Properties native workflow acknowledges 13 scalar/Boolean/type/source/reference/projection/coordinate focus destinations, repairs a rejected input by keyboard, checks independent selectors and Apply/Undo/Redo, and independently recomputes 26.25 from saved bindings. See [input-binding evidence](evidence/INPUT_BINDING_NAVIGATION_VALIDATION.md). Prior project-file, image/slice/orbit/free-fly, Inspector freshness/ownership and picking workflows still pass. Local schemas/diff/Python checks, packaged launcher and cross-platform JAR comparison passed; local Java lacks libjli.so. Specialized controls, physical input, full GUI/DPI and Windows 11 hardware acceptance remain separate.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
 | A01 empty startup | PARTIAL | Empty ProjectData defaults; normal GUI startup visual check remains |
 | A02 transactional open | PASS | EngineContractTest.transactionalLoadUndoAndAtomicSave |
-| A03 noise validation | PARTIAL | Candidate/innermost compiler locations, UUID navigation and rejected-draft preservation tested; full control GUI coverage remains |
+| A03 noise validation | PARTIAL | Candidate/innermost compiler locations, exact input-leaf focus, rejected-draft keyboard repair and UUID navigation tested through full Properties; broader control GUI coverage remains |
 | A04 disabled drafts | PASS | EngineContractTest.rejectsCyclesBadBindingsAndAllowsDisabledDraft |
 | A05 save/transitions | PARTIAL | Owned New/Open/Exit Save-Discard-Cancel flow, failed-save abort/retry, malformed paths and failed-open retention; nine controller tests and 20 production native modal/file-I/O scenarios; physical window close, broader failure/DPI and full GUI certification remain |
 | A06 UUID clipboard | PARTIAL | Sibling/folder clipboard, internal/external reference and live cut identity tests; complete gesture GUI matrix remains |
@@ -16,7 +16,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 | A08 undo/redo | PARTIAL | Structural delta transactions, bounded history, array reorder, undo/redo, curve gesture coalescing tests; full GUI audit remains |
 | A09 noise families | PARTIAL | 3,264 independent C++ comparisons, 240 exact analytic/hash and 32 exact seed vectors; 20 matching pinned Linux/Windows JVM bit digests; broader CPU/JVM matrix remains |
 | A10 manipulations | PARTIAL | Typed math/logic/vectors/remap/curves/sampling, gradients/Laplacians, bounded neighborhoods and signed-distance primitives/combinations; six types, prefix resampling and explicit coordinates tested; broader registry/GUI acceptance remains |
-| A11 canonical panel | PARTIAL | One definition, bounded typed controls, explicit structural resolution, canonical shared-parameter pins and guarded source navigation; full gesture/hardware certification remains |
+| A11 canonical panel | PARTIAL | One definition, bounded per-item draft input choices, one-shot input navigation, exact binding editor focus, explicit structural resolution, shared-parameter pins and guarded source navigation; full gesture/hardware certification remains |
 | A12 expression language | PASS | MathContractTest and ExpressionPlanTest: every function, operators, types, lazy branches/spans, folding/sharing, nonrecursive flat plans, signed zero, nesting/threads/batches and limits |
 | A13 curve editor | PARTIAL | Auto/Aligned/Free coefficient and identity tests; group snapping/tangent/local history; native curve render; complete GUI gesture matrix remains |
 | A14 voxel identities | PARTIAL | Registry/archive remapping tested; manager interactions remain |
@@ -54,7 +54,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 | 13–14 | EngineContractTest async/contexts/backpressure; independent Example; StorageContractTest archives |
 | 15–16 | Native `--smoke` visits all tabs; RendererContractTest camera; OrbitGestureTest, ViewportFlightTest, SliceNavigationTest, SliceImageViewTest and ImageContextGestureTest with native orbit/free-fly/slice/2D resize-release-context workflows; remaining manual scenarios |
 | 17 | RendererContractTest, StreamingContractTest, ChunkSceneTest and native StreamingRenderProbe; representative hardware/full GUI performance pending |
-| 18–19 | Editor service tests and native smoke; manual full UI routing pending |
+| 18–19 | Editor service tests, NoiseInputSelectionTest/DiagnosticNavigationTest and native full-Properties InputBindingProbe with saved-field replay; specialized/full UI routing pending |
 | 21–22 | `clean test build releaseJars`, external javac/java, platform smoke, deterministic package checks |
 
 ## Reproducible GUI checks still required

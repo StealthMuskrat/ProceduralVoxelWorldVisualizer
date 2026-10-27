@@ -1,0 +1,12 @@
+{
+  "before" : 5.0,
+  "foreignRejected" : true,
+  "draftPreserved" : true,
+  "oneUndoRedo" : true,
+  "focused" : [ "first/bias/value", "second/beta/value", "first/bias/type", "first/bias/sourceKind", "first/flag/value", "first/shared/parameterUuid", "second/earlier/itemUuid", "second/ambient/ambientKey", "first/reference/noiseGeneratorUuid", "first/reference/projection", "first/reference/slice", "translate/x/value", "translate/coordinates/value/1" ],
+  "selected" : [ "first/extra", "second/alpha", "first/extra", "second/alpha" ],
+  "after" : 26.25,
+  "formatVersion" : 1,
+  "navigationOnly" : true,
+  "diagnosticInput" : "inputs/bias"
+}
