@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The owned streaming-source handoff batch passed `clean test build dependencyNotices releaseJars` with **742 tests across 93 suites, no failures/errors/skips**. Seven new cases cover transfer/disposal ownership, stale and late worker completion, closure without UI drain, cleanup outside locks and close failure containment. Existing native streaming recovery and renderer/input/engine checks remain in CI. See [source handoff evidence](evidence/OWNED_SOURCE_HANDOFF_VALIDATION.md). Local schemas passed. Full shutdown/load/DPI, Windows 11 hardware and complete acceptance remain separate.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The streaming-source failure/retry batch passed `clean test build dependencyNotices releaseJars` with **742 tests across 93 suites, no failures/errors/skips**. Native source-factory injection retains the valid scene epoch and submission timestamp across multiple regeneration intervals, then production Regenerate recovers a new stream. Existing cleanup/selector/input/engine checks remain in CI. See [source failure evidence](evidence/STREAM_FAILURE_VALIDATION.md). Local schemas passed. Full compiler/GPU-fault/load/DPI, Windows 11 hardware and complete acceptance remain separate.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
