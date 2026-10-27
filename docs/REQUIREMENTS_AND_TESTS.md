@@ -2,7 +2,7 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
-Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The native production-preview retry batch passed `clean test build dependencyNotices releaseJars` with **734 tests across 92 suites, no failures/errors/skips**. Native viewport clicks exercise budget rejection, actual two-worker/eight-slot queue saturation, retained images and both Regenerate recovery paths with fresh async publication. Authored state/history and constant output are unchanged. See [native retry evidence](evidence/PREVIEW_RETRY_NATIVE_VALIDATION.md). Local schemas passed. Arbitrary load, physical OS-window/pointer/DPI, Windows 11 hardware and complete acceptance remain separate.
+Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7 and Gradle 9.2.1. The searchable viewport-generator batch passed `clean test build dependencyNotices releaseJars` with **735 tests across 92 suites, no failures/errors/skips**. Native viewport input filters/clips a 64-field catalog, excludes a same-ID 3D choice, selects a UUID, checks actual sampler publication and Escape closure, then passes existing queue/budget recovery. A unit case covers dimension/rename/deletion identity. See [viewport picker evidence](evidence/VIEWPORT_PICKER_VALIDATION.md). Local schemas passed. Full 3D/clear/missing-resource gestures, physical pointer/DPI, Windows 11 hardware and complete acceptance remain separate.
 
 | Acceptance | Status | Evidence / remaining scope |
 |---|---|---|
@@ -32,7 +32,7 @@ Latest pinned validation: Linux and Windows GitHub Actions with Temurin 25.0.4+7
 | A24 cancellation | PARTIAL | Immediate explicit-token queued cleanup, independent sharing, running abandonment/rejoin and async collection lease cleanup tested; broader mid-stage stress remains |
 | A25 backpressure | PASS | Consumer future holds max-in-flight capacity; bounded scheduling assertion |
 | A26 failures/closure | PARTIAL | Generation/delivery policies, bounded fair priorities, overload/closure cleanup, global cache reclamation and protected user-managed policy tested; broader stress remains |
-| A27 2D viewport | PARTIAL | Bounded exact-coordinate row/overlap cache and native recolor/vertical/horizontal reuse checks; full world-tile/UI acceptance remains |
+| A27 2D viewport | PARTIAL | Searchable dimension-scoped UUID selector, bounded exact-coordinate overlap cache, native selection/Escape and pan/reuse checks; full world-tile/UI acceptance remains |
 | A28 3D viewport | PARTIAL | Threshold, marching tetrahedra, points, ray-marched volume and X/Y/Z slices; numerical native volume probe; streamed threshold/point display implemented; volume/isosurface streaming remains |
 | A29 world inspector | PARTIAL | Exact stage pairs and four preview modes, removal ghosts, bounded canonical noise explanations, actual comparisons/provenance and guarded snapshot-scoped control links; full GUI scenarios remain |
 | A30 bookmarks | PARTIAL | Independent coordinate lists, searchable clipped choices, owned Add/Rename, Update/Delete and tab-owned navigation; native mouse/text/Cancel/Undo probe added; full gesture/hardware matrix remains |

@@ -1,0 +1,19 @@
+{
+  "budgetMessage" : "Preview exceeds configured budget; reduce extent",
+  "viewOnly" : true,
+  "contextRetry" : true,
+  "queueCapacity" : 8,
+  "otherViewsUnblocked" : true,
+  "raw" : 0.75,
+  "queueMessage" : "Preview queue is full; Regenerate to retry",
+  "generatorCount" : 64,
+  "unfilteredRows" : 13,
+  "formatVersion" : 2,
+  "pickerEscape" : true,
+  "generatorUuid" : "d5a1bca9-943c-4acd-878d-e41b1d73e427",
+  "filteredRows" : 1,
+  "retainedImage" : true,
+  "toolbarRetry" : true,
+  "workers" : 2,
+  "dimensionScoped" : true
+}
