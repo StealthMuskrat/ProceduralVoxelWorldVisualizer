@@ -11,6 +11,7 @@ import java.security.MessageDigest;
 import java.util.*;
 import org.joml.Vector3d;
 import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL;
 
 /**
  * OpenGL 3.0 layer blits: exact signed texels, split writes, retained display and full-upload
