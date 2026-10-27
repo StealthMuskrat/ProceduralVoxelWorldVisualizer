@@ -271,7 +271,8 @@ public final class PreviewAdmissionProbe {
                 retainedEpoch == views.probeStream3DEpoch(),
                 "Source failure replaced last valid scene");
             long failedStamp = views.probeSubmissionStamp(1);
-            frames(10);
+            long noRetryUntil = System.nanoTime() + 150_000_000L;
+            while (System.nanoTime() < noRetryUntil) frame();
             require(
                 failedStamp == views.probeSubmissionStamp(1)
                     && retainedEpoch == views.probeStream3DEpoch(),
