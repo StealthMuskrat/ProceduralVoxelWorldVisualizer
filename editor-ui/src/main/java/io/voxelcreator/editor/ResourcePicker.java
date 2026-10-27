@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.*;
+import imgui.flag.ImGuiKey;
 import imgui.type.ImString;
 import java.util.*;
 import java.util.function.Consumer;
@@ -70,6 +71,12 @@ public final class ResourcePicker {
     submitted = 0;
     optionBounds.clear();
     if (ImGui.beginPopup("resource-choice")) {
+      if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+        ImGui.closeCurrentPopup();
+        ImGui.endPopup();
+        ImGui.popID();
+        return;
+      }
       if (!widgets.containsKey(id) && widgets.size() >= 128)
         widgets.remove(widgets.keySet().iterator().next());
       var widget = widgets.computeIfAbsent(id, key -> new Widget());

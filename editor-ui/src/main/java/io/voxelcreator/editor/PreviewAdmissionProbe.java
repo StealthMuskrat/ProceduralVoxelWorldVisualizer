@@ -103,6 +103,7 @@ public final class PreviewAdmissionProbe {
                 target.equals(views.probeGeneratorSelection(0))
                     && views.probeAcceptedImage() == selectedImage,
                 "Picker Escape changed selection or image");
+            require(!ShortcutKeys.popup(), "Picker Escape left popup open");
             var initial = views.probeAcceptedImage();
             require(initial != null, "No initial image");
             state.user.performance.previewCellBudget = 65535;
