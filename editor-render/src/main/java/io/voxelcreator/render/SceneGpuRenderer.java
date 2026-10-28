@@ -345,6 +345,54 @@ public final class SceneGpuRenderer implements AutoCloseable {
         retiring.size());
   }
 
+  /** Conservative bounds of complete, non-retiring triangle geometry in camera-relative space. */
+  public DirectionalShadow.Bounds shadowBounds(Vector3d origin, Set<ChunkPos> wanted) {
+    DirectionalShadow.Bounds bounds = null;
+    for (var entry : resident.entrySet()) {
+      var value = entry.getValue();
+      var p = entry.getKey();
+      if (!wanted.contains(p) || retiring.contains(p) || value.points || value.count == 0) continue;
+      double x = (double) p.x() * 32 - origin.x,
+          y = (double) p.y() * 32 - origin.y,
+          z = (double) p.z() * 32 - origin.z;
+      var chunk = new DirectionalShadow.Bounds(x, y, z, x + 32, y + 32, z + 32);
+      bounds = bounds == null ? chunk : bounds.union(chunk);
+    }
+    return bounds;
+  }
+
+  /** A separate depth pass never changes camera draw/picking metadata or upload counters. */
+  public int renderShadow(
+      int depthProgram, Matrix4f matrix, Vector3d origin, Set<ChunkPos> wanted) {
+    int count = 0;
+    glUseProgram(depthProgram);
+    glUniformMatrix4fv(
+        glGetUniformLocation(depthProgram, "matrix"), false, matrix.get(new float[16]));
+    glBindVertexArray(vao);
+    glDisableVertexAttribArray(4);
+    for (var entry : resident.entrySet()) {
+      var value = entry.getValue();
+      var p = entry.getKey();
+      if (!wanted.contains(p) || retiring.contains(p) || value.points || value.count == 0) continue;
+      glUniform1f(glGetUniformLocation(depthProgram, "positionScale"), 1f / value.unitsPerBlock);
+      glVertexAttrib3f(
+          4,
+          (float) ((double) p.x() * 32 - origin.x),
+          (float) ((double) p.y() * 32 - origin.y),
+          (float) ((double) p.z() * 32 - origin.z));
+      if (compaction == null) {
+        glDrawArrays(GL_TRIANGLES, value.slice.offset() / 16, value.count);
+        count++;
+      } else
+        for (var segment : compaction.segments(value.slice))
+          if (segment.bytes() > 0) {
+            glDrawArrays(GL_TRIANGLES, segment.offset() / 16, segment.bytes() / 16);
+            count++;
+          }
+    }
+    return count;
+  }
+
   public void render(
       Matrix4f matrix,
       Vector3d origin,
@@ -356,6 +404,32 @@ public final class SceneGpuRenderer implements AutoCloseable {
       boolean useIndirect,
       boolean ao,
       float fogDistance) {
+    render(
+        matrix,
+        origin,
+        size,
+        wanted,
+        palette,
+        paletteWidth,
+        unlit,
+        useIndirect,
+        ao,
+        fogDistance,
+        null);
+  }
+
+  public void render(
+      Matrix4f matrix,
+      Vector3d origin,
+      int size,
+      Set<ChunkPos> wanted,
+      int palette,
+      int paletteWidth,
+      boolean unlit,
+      boolean useIndirect,
+      boolean ao,
+      float fogDistance,
+      GlShadowMap.Sampling shadow) {
     visible = culled = draws = 0;
     drawnVersions.clear();
     drawnLevels.clear();
@@ -390,6 +464,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
     }
     glUseProgram(program);
     glUniformMatrix4fv(glGetUniformLocation(program, "matrix"), false, matrix.get(new float[16]));
+    GlShadowMap.uniforms(program, shadow);
     glUniform1i(glGetUniformLocation(program, "palette"), 0);
     glUniform1i(glGetUniformLocation(program, "paletteWidth"), paletteWidth);
     glUniform1f(glGetUniformLocation(program, "unlit"), unlit ? 1 : 0);
@@ -458,17 +533,20 @@ public final class SceneGpuRenderer implements AutoCloseable {
   private int link() {
     String vertex =
         """
-        #version 130
-        in vec3 position;in vec3 normal;in uint typeId;in float occlusion;in vec3 chunkOffset;
-        uniform mat4 matrix;uniform float positionScale;out vec3 N;out float AO;flat out uint type;out float distanceToEye;
-        void main(){vec4 clip=matrix*vec4(position*positionScale+chunkOffset,1);gl_Position=clip;N=normal;AO=occlusion;type=typeId;distanceToEye=clip.w;}
-        """;
+#version 130
+in vec3 position;in vec3 normal;in uint typeId;in float occlusion;in vec3 chunkOffset;
+uniform mat4 matrix,shadowMatrix;uniform float positionScale;out vec4 lightPosition;out vec3 N;out float AO;flat out uint type;out float distanceToEye;
+void main(){vec4 clip=matrix*vec4(position*positionScale+chunkOffset,1);gl_Position=clip;lightPosition=shadowMatrix*vec4(position*positionScale+chunkOffset,1);N=normal;AO=occlusion;type=typeId;distanceToEye=clip.w;}
+""";
     String fragment =
         """
         #version 130
-        in vec3 N;in float AO;flat in uint type;in float distanceToEye;uniform sampler2D palette;uniform int paletteWidth;uniform float unlit,fogDistance,aoEnabled;out vec4 color;
-        void main(){vec3 base=texelFetch(palette,ivec2(int(type)%paletteWidth,int(type)/paletteWidth),0).rgb;float lighting=(.35+.65*max(0.0,dot(normalize(N),normalize(vec3(.4,1,.3)))))*mix(1.0,.5+.5*AO,aoEnabled);vec3 shaded=base*mix(lighting,1.0,unlit);float fog=fogDistance>0?clamp((distanceToEye-fogDistance*.55)/(fogDistance*.45),0.0,1.0):0.0;color=vec4(mix(shaded,vec3(.055,.075,.1),fog),1);}
-        """;
+        """
+            + GlShadowMap.fragment()
+            + """
+in vec3 N;in float AO;flat in uint type;in float distanceToEye;uniform sampler2D palette;uniform int paletteWidth;uniform float unlit,fogDistance,aoEnabled;out vec4 color;
+void main(){vec3 base=texelFetch(palette,ivec2(int(type)%paletteWidth,int(type)/paletteWidth),0).rgb;float lighting=(.35+.65*max(0.0,dot(normalize(N),normalize(vec3(.4,1,.3))))*shadowVisibility(N))*mix(1.0,.5+.5*AO,aoEnabled);vec3 shaded=base*mix(lighting,1.0,unlit);float fog=fogDistance>0?clamp((distanceToEye-fogDistance*.55)/(fogDistance*.45),0.0,1.0):0.0;color=vec4(mix(shaded,vec3(.055,.075,.1),fog),1);}
+""";
     int vs = shader(GL_VERTEX_SHADER, vertex),
         fs = shader(GL_FRAGMENT_SHADER, fragment),
         p = glCreateProgram();

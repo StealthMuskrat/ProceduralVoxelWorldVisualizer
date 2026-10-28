@@ -105,6 +105,11 @@ public final class ProfilePanel {
         Profiler.Unit.BYTES,
         rendering.gpuCapacityBytes(),
         "Scene GPU arena allocation");
+    scope.gauge(
+        Profiler.Kind.SCENE_GPU_BYTES,
+        Profiler.Unit.BYTES,
+        views.shadowBytes(),
+        "Shadow depth-map allocation");
   }
 
   public void draw(ImBoolean open, Viewports.StreamingStatistics rendering) {

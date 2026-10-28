@@ -1,0 +1,303 @@
+{
+  "formatVersion": 1,
+  "glVersion": "4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.4",
+  "openGL31": true,
+  "size": 129,
+  "light": [
+    0.4,
+    1,
+    0.3
+  ],
+  "cameraMatrix": [
+    0.125,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -0.013342229,
+    0.0,
+    0.0,
+    -0.125,
+    0.0,
+    0.0,
+    -2.75,
+    2.75,
+    -0.06737828,
+    1.0
+  ],
+  "colorTextureBindingRestored": true,
+  "fixedBudgetResolution": 1024,
+  "relocatedBytes": 1152,
+  "compactionSteps": 6,
+  "negativeOrigin": [
+    -536870944.0,
+    -288.0,
+    -536871008.0
+  ],
+  "mixedUnitsPerBlock": [
+    2,
+    128
+  ],
+  "cameraDraws": 1,
+  "shadowDraws": 2,
+  "disabledCleanup": true,
+  "stateRestoredAfterFailure": true,
+  "driverObjectsDeleted": true,
+  "productionStages": [
+    {
+      "arenaBytes": 4194304,
+      "requested": 2048,
+      "effective": 1024,
+      "shadowBytes": 4194304
+    },
+    {
+      "arenaBytes": 7340032,
+      "requested": 512,
+      "effective": 512,
+      "shadowBytes": 1048576
+    },
+    {
+      "arenaBytes": 8388608,
+      "requested": 512,
+      "effective": 0,
+      "shadowBytes": 0
+    }
+  ],
+  "productionEpoch": 11,
+  "productionSubmissionStamp": 263721408487,
+  "productionViewOnly": true,
+  "productionShadowBytesAfterDisable": 0,
+  "frames": [
+    {
+      "name": "fixed-off",
+      "sha256": "5680cd1c2904fed924d93990b9c318de5a2f913d624db377045f12fc72dc49fe",
+      "shadow": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "plain": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "statistics": {
+        "state": "DISABLED",
+        "resolution": 0,
+        "bytes": 0,
+        "draws": 0,
+        "detail": "Shadows disabled for this display"
+      }
+    },
+    {
+      "name": "fixed-shadow",
+      "sha256": "de95ccc7ee385923bb5435069ea807c3af371e1da2fd016570ec562cf57ee497",
+      "shadow": [
+        89,
+        89,
+        89,
+        255
+      ],
+      "plain": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "statistics": {
+        "state": "READY",
+        "resolution": 512,
+        "bytes": 1048576,
+        "draws": 1,
+        "detail": "Directional depth map / 3 x 3 PCF / 512 pixels"
+      }
+    },
+    {
+      "name": "fixed-unlit",
+      "sha256": "000c5f0461f6bc0a71532913e1cb5c1a414dd9699a216ea5400d911d3ab6e91c",
+      "shadow": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "plain": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "statistics": {
+        "state": "DISABLED",
+        "resolution": 0,
+        "bytes": 0,
+        "draws": 0,
+        "detail": "Unlit bypasses shadows"
+      }
+    },
+    {
+      "name": "stream-ground",
+      "sha256": "5680cd1c2904fed924d93990b9c318de5a2f913d624db377045f12fc72dc49fe",
+      "shadow": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "plain": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "statistics": {
+        "state": "READY",
+        "resolution": 512,
+        "bytes": 1048576,
+        "draws": 1,
+        "detail": "Directional depth map / 3 x 3 PCF / 512 pixels"
+      }
+    },
+    {
+      "name": "stream-partial",
+      "sha256": "5680cd1c2904fed924d93990b9c318de5a2f913d624db377045f12fc72dc49fe",
+      "shadow": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "plain": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "statistics": {
+        "state": "READY",
+        "resolution": 512,
+        "bytes": 1048576,
+        "draws": 1,
+        "detail": "Directional depth map / 3 x 3 PCF / 512 pixels"
+      }
+    },
+    {
+      "name": "stream-shadow",
+      "sha256": "8ea2e21c99a683be890a71c4fecc2675607a2c26f71229ee02323083d755049d",
+      "shadow": [
+        89,
+        89,
+        89,
+        255
+      ],
+      "plain": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "statistics": {
+        "state": "READY",
+        "resolution": 512,
+        "bytes": 1048576,
+        "draws": 2,
+        "detail": "Directional depth map / 3 x 3 PCF / 512 pixels"
+      }
+    },
+    {
+      "name": "stream-fog",
+      "sha256": "08f7312c5611b5d5ee3147e5c7d0bc9de7f4b03afd1eddf1270feb1c0e541c9a",
+      "shadow": [
+        70,
+        71,
+        73,
+        255
+      ],
+      "plain": [
+        180,
+        181,
+        183,
+        255
+      ],
+      "statistics": {
+        "state": "READY",
+        "resolution": 512,
+        "bytes": 1048576,
+        "draws": 2,
+        "detail": "Directional depth map / 3 x 3 PCF / 512 pixels"
+      }
+    },
+    {
+      "name": "stream-removed",
+      "sha256": "5680cd1c2904fed924d93990b9c318de5a2f913d624db377045f12fc72dc49fe",
+      "shadow": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "plain": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "statistics": {
+        "state": "READY",
+        "resolution": 512,
+        "bytes": 1048576,
+        "draws": 1,
+        "detail": "Directional depth map / 3 x 3 PCF / 512 pixels"
+      }
+    },
+    {
+      "name": "stream-negative",
+      "sha256": "8ea2e21c99a683be890a71c4fecc2675607a2c26f71229ee02323083d755049d",
+      "shadow": [
+        89,
+        89,
+        89,
+        255
+      ],
+      "plain": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "statistics": {
+        "state": "READY",
+        "resolution": 512,
+        "bytes": 1048576,
+        "draws": 2,
+        "detail": "Directional depth map / 3 x 3 PCF / 512 pixels"
+      }
+    },
+    {
+      "name": "stream-disabled",
+      "sha256": "5680cd1c2904fed924d93990b9c318de5a2f913d624db377045f12fc72dc49fe",
+      "shadow": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "plain": [
+        238,
+        238,
+        238,
+        255
+      ],
+      "statistics": {
+        "state": "DISABLED",
+        "resolution": 0,
+        "bytes": 0,
+        "draws": 0,
+        "detail": "Shadows disabled for this display"
+      }
+    }
+  ]
+}

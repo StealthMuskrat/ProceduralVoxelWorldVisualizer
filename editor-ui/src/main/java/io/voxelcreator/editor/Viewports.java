@@ -707,6 +707,7 @@ public final class Viewports implements AutoCloseable {
     Future<?> compiler;
     final OwnedPreviewMailbox<SceneSetup> setup = new OwnedPreviewMailbox<>();
     int gpuBudget;
+    String reportedShadowFailure = "";
     boolean streamingObserved, streamFallback;
     double frameMillis = 16;
 
@@ -812,8 +813,51 @@ public final class Viewports implements AutoCloseable {
    * Called even when visualizer tabs are hidden, so capture stop/replacement reclaims old queries.
    */
   public void collectGpuTimings() {
+    shadowPreferences();
     var scope = state.engine.profiler().scope(0, state.project().project.uuid, null);
     for (var view : views) view.gl.collectGpuTimings(scope);
+  }
+
+  private boolean shadowsEnabled(View v) {
+    return state.user.visualization.shadows
+        && !state.user.visualization.unlit
+        && v.kind > 0
+        && (v.kind == 2 || !Set.of("Volume", "Slices", "Point Cloud").contains(v.mode));
+  }
+
+  private int sceneGpuBudget(View v) {
+    return DirectionalShadow.arenaBytes(
+        state.user.performance.sceneGpuMiB << 20,
+        shadowsEnabled(v),
+        state.user.visualization.shadowResolution);
+  }
+
+  private void shadowPreferences() {
+    for (var v : views)
+      v.gl.shadowAppearance(
+          shadowsEnabled(v),
+          state.user.visualization.shadowResolution,
+          (long) state.user.performance.sceneGpuMiB << 20);
+  }
+
+  public void retryShadows() {
+    for (var v : views) {
+      v.gl.retryShadows();
+      v.reportedShadowFailure = "";
+    }
+  }
+
+  int probeShadowArenaBytes(int kind) {
+    var gpu = views[kind].gl.sceneRenderer();
+    return gpu == null ? 0 : gpu.statistics().capacityBytes();
+  }
+
+  public List<GlViewport.ShadowStatistics> shadowStatistics() {
+    return Arrays.stream(views).map(v -> v.gl.shadowStatistics()).toList();
+  }
+
+  public long shadowBytes() {
+    return shadowStatistics().stream().mapToLong(GlViewport.ShadowStatistics::bytes).sum();
   }
 
   public List<GpuTimerQueries.Statistics> gpuTimingStatistics() {
@@ -835,7 +879,7 @@ public final class Viewports implements AutoCloseable {
               VolumeStreamingLimits.cpuBytes(
                       0, memory.workingBytes(), v.volumeWorkingBytes, volume.cpuBytes())
                   - volume.cpuBytes());
-      gpu += volume.activeBytes() + volume.pendingBytes();
+      gpu += volume.activeBytes() + volume.pendingBytes() + v.gl.shadowStatistics().bytes();
       uploads += volume.lastBytes();
       if (v.scene != null) {
         var s = v.scene.statistics();
@@ -1046,6 +1090,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void draw() {
+    shadowPreferences();
     for (var view : views) view.gl.advanceVolume(0);
     drawnView = -1;
     viewportFocused = false;
@@ -1628,6 +1673,11 @@ public final class Viewports implements AutoCloseable {
           1,
           state.engine.profiler().scope(0, state.project().project.uuid, null),
           v.kind == 2 ? "World viewport GPU commands" : "3D Noise viewport GPU commands");
+    var shadow = v.gl.shadowStatistics();
+    if (shadow.state().equals("FAILED") && !shadow.detail().equals(v.reportedShadowFailure)) {
+      v.reportedShadowFailure = shadow.detail();
+      state.error("SHADOW_RENDER_FAILED", EditorEvents.Subsystem.RENDERING, shadow.detail());
+    } else if (!shadow.state().equals("FAILED")) v.reportedShadowFailure = "";
     float px = ImGui.getCursorScreenPosX(), py = ImGui.getCursorScreenPosY();
     float cursorX = ImGui.getCursorPosX(), cursorY = ImGui.getCursorPosY();
     ImGui.image(v.gl.texture(), w, h, 0, v.image ? 0 : 1, 1, v.image ? 1 : 0);
@@ -2267,10 +2317,10 @@ public final class Viewports implements AutoCloseable {
         v.dirty = false;
         v.completed = false;
         try {
-          v.gl.scene(v.scene.epoch(), state.user.performance.sceneGpuMiB << 20);
+          v.gl.scene(v.scene.epoch(), sceneGpuBudget(v));
           if (admissionProbe && probeRendererStartupFailure.compareAndSet(true, false))
             throw new IllegalStateException("Injected streaming renderer startup failure");
-          v.gpuBudget = state.user.performance.sceneGpuMiB;
+          v.gpuBudget = sceneGpuBudget(v);
           v.gl.setPalette(setup.palette);
         } catch (RuntimeException gpu) {
           rendererFallback(v, key);
@@ -2285,11 +2335,11 @@ public final class Viewports implements AutoCloseable {
       Vector3d center = v.camera.flying ? v.camera.position : v.camera.focus;
       v.scene.tick(center, v.camera.eye(), 4);
       try {
-        boolean resized = v.gpuBudget != state.user.performance.sceneGpuMiB;
-        var gpu = v.gl.scene(v.scene.epoch(), state.user.performance.sceneGpuMiB << 20);
+        boolean resized = v.gpuBudget != sceneGpuBudget(v);
+        var gpu = v.gl.scene(v.scene.epoch(), sceneGpuBudget(v));
         if (resized) {
           v.scene.invalidateUploads();
-          v.gpuBudget = state.user.performance.sceneGpuMiB;
+          v.gpuBudget = sceneGpuBudget(v);
         }
         if (admissionProbe && probeRendererFrameFailure.compareAndSet(true, false))
           throw new IllegalStateException("Injected streaming renderer frame failure");
@@ -2374,7 +2424,7 @@ public final class Viewports implements AutoCloseable {
             now,
             (cpu.cpuBytes() + cpu.reserved())
                 / ((double) state.user.performance.sceneCpuMiB * 1024 * 1024),
-            gpu.statistics().gpuBytes()
+            (gpu.statistics().gpuBytes() + v.gl.shadowStatistics().bytes())
                 / ((double) state.user.performance.sceneGpuMiB * 1024 * 1024),
             v.frameMillis,
             v.scene.rejected());

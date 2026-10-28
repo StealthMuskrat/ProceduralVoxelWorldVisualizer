@@ -41,6 +41,8 @@ Queued priorities, cancellation cleanup and cache ownership are documented in [S
 
 Bounded opt-in timing/metric captures, percentile inspection and explicit JSON/CSV exports are documented in [PROFILING.md](docs/PROFILING.md), including optional [GPU draw timestamps](docs/GPU_DRAW_TIMING.md).
 
+Optional bounded directional mesh shadows are documented in [DIRECTIONAL_SHADOWS.md](docs/DIRECTIONAL_SHADOWS.md).
+
 Fragmentation recovery and explicit GPU maintenance are documented in [GPU_ARENA_COMPACTION.md](docs/GPU_ARENA_COMPACTION.md).
 
 Context-aware remapping, transactional binding drafts and atomic preference persistence are documented in [KEYBOARD_INPUT.md](docs/KEYBOARD_INPUT.md).

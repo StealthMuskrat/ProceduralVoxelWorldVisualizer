@@ -16,6 +16,125 @@ public final class GlViewport implements AutoCloseable {
   private final VolumeTextureUpload volumeUpload;
   private SceneGpuRenderer sceneRenderer;
   private GpuTimerQueries gpuTimer;
+
+  public record ShadowStatistics(
+      String state, int resolution, long bytes, int draws, String detail) {}
+
+  private GlShadowMap shadowMap;
+  private DirectionalShadow.Bounds meshBounds;
+  private boolean meshBoundsChecked;
+  private boolean shadows;
+  private int shadowResolution = 1024, shadowDraws;
+  private long shadowBudget = 32L << 20;
+  private String shadowState = "DISABLED", shadowDetail = "Shadows disabled", shadowFailure = "";
+
+  public void shadowAppearance(boolean enabled, int resolution, long gpuBudget) {
+    if (!DirectionalShadow.validResolution(resolution) || gpuBudget < 0)
+      throw new IllegalArgumentException("Invalid shadow settings");
+    if (shadows != enabled || shadowResolution != resolution || shadowBudget != gpuBudget)
+      retryShadows();
+    shadows = enabled;
+    shadowResolution = resolution;
+    shadowBudget = gpuBudget;
+    if (!enabled) {
+      releaseShadows();
+      shadowState = "DISABLED";
+      shadowDetail = "Shadows disabled";
+    }
+  }
+
+  public void retryShadows() {
+    releaseShadows();
+    shadowFailure = "";
+    shadowState = "WAITING";
+    shadowDetail = "Waiting for triangle geometry";
+  }
+
+  private void releaseShadows() {
+    if (shadowMap != null) shadowMap.close();
+    shadowMap = null;
+    shadowDraws = 0;
+    if (shadowState.equals("READY")) {
+      shadowState = "WAITING";
+      shadowDetail = "Waiting for complete triangle geometry";
+    }
+  }
+
+  public ShadowStatistics shadowStatistics() {
+    return new ShadowStatistics(
+        shadowState,
+        shadowMap == null ? 0 : shadowMap.resolution(),
+        shadowMap == null ? 0 : shadowMap.bytes(),
+        shadowDraws,
+        shadowDetail);
+  }
+
+  private GlShadowMap.Sampling prepareShadow(boolean unlit) {
+    shadowDraws = 0;
+    if (!shadows || unlit || image || volume) {
+      releaseShadows();
+      shadowState = "DISABLED";
+      shadowDetail = unlit ? "Unlit bypasses shadows" : "Shadows disabled for this display";
+      return null;
+    }
+    if (!shadowFailure.isEmpty()) {
+      shadowState = "FAILED";
+      shadowDetail = "Shadows suspended: " + shadowFailure + ". Retry in User Settings.";
+      return null;
+    }
+    try {
+      if (!sceneActive && !meshBoundsChecked) {
+        meshBounds = DirectionalShadow.bounds(mesh);
+        meshBoundsChecked = true;
+      }
+      var bounds = sceneActive ? sceneRenderer.shadowBounds(sceneOrigin, sceneWanted) : meshBounds;
+      if (bounds == null) {
+        releaseShadows();
+        shadowState = "UNAVAILABLE";
+        shadowDetail = "No complete triangle geometry";
+        return null;
+      }
+      int resolution = DirectionalShadow.resolution(shadowResolution, shadowBudget);
+      long geometry = sceneActive ? sceneRenderer.statistics().capacityBytes() : mesh.bytes();
+      if (resolution == 0 || DirectionalShadow.bytes(resolution) > shadowBudget - geometry) {
+        releaseShadows();
+        shadowState = "BUDGET";
+        shadowDetail = "Shadow map deferred by configured GPU budget";
+        return null;
+      }
+      if (shadowMap == null) shadowMap = new GlShadowMap();
+      shadowMap.allocate(resolution);
+      var projection = DirectionalShadow.projection(bounds, resolution);
+      shadowDraws =
+          shadowMap.render(
+              projection,
+              (depthProgram, matrix) -> {
+                if (sceneActive)
+                  return sceneRenderer.renderShadow(depthProgram, matrix, sceneOrigin, sceneWanted);
+                glUseProgram(depthProgram);
+                glUniformMatrix4fv(
+                    glGetUniformLocation(depthProgram, "matrix"), false, matrix.get(new float[16]));
+                glUniform1f(glGetUniformLocation(depthProgram, "positionScale"), 1);
+                glBindVertexArray(vao);
+                glVertexAttrib3f(4, 0, 0, 0);
+                glDrawArrays(GL_TRIANGLES, 0, mesh.vertexCount());
+                return mesh.vertexCount() == 0 ? 0 : 1;
+              });
+      shadowState = "READY";
+      shadowDetail = "Directional depth map / 3 x 3 PCF / " + resolution + " pixels";
+      return new GlShadowMap.Sampling(shadowMap.texture(), resolution, projection);
+    } catch (RuntimeException failure) {
+      releaseShadows();
+      shadowState = "FAILED";
+      shadowFailure =
+          java.util.Objects.requireNonNullElse(
+              failure.getMessage(), failure.getClass().getSimpleName());
+      if (shadowFailure.length() > 1024) shadowFailure = shadowFailure.substring(0, 1024);
+      shadowDetail = "Shadows suspended: " + shadowFailure + ". Retry in User Settings.";
+      return null;
+    }
+  }
+
   private int sceneBudget, paletteWidth = 256;
   private boolean sceneActive, sceneIndirect = true, sceneAo = true;
   private float sceneFog;
@@ -64,6 +183,7 @@ public final class GlViewport implements AutoCloseable {
    * Release hidden streaming resources when the viewport has no live source. Render thread only.
    */
   public void releaseScene() {
+    releaseShadows();
     sceneActive = false;
     if (sceneRenderer != null) sceneRenderer.close();
     sceneRenderer = null;
@@ -254,6 +374,8 @@ public final class GlViewport implements AutoCloseable {
     sceneActive = false;
     volume = false;
     mesh = next;
+    meshBounds = null;
+    meshBoundsChecked = false;
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, next.vertices(), GL_STATIC_DRAW);
@@ -373,6 +495,28 @@ public final class GlViewport implements AutoCloseable {
   }
 
   private void renderCommands(int w, int h, Matrix4f matrix, boolean unlit, float alpha) {
+    var shadow = prepareShadow(unlit);
+    if (shadow == null) {
+      renderRaster(w, h, matrix, unlit, alpha, null);
+      return;
+    }
+    int active = glGetInteger(GL_ACTIVE_TEXTURE);
+    glActiveTexture(GL_TEXTURE3);
+    int binding = glGetInteger(GL_TEXTURE_BINDING_2D);
+    glBindTexture(GL_TEXTURE_2D, shadow.texture());
+    try {
+      // Framebuffer resize binds a 2D color texture; keep that work off the shadow sampler.
+      glActiveTexture(GL_TEXTURE0);
+      renderRaster(w, h, matrix, unlit, alpha, shadow);
+    } finally {
+      glActiveTexture(GL_TEXTURE3);
+      glBindTexture(GL_TEXTURE_2D, binding);
+      glActiveTexture(active);
+    }
+  }
+
+  private void renderRaster(
+      int w, int h, Matrix4f matrix, boolean unlit, float alpha, GlShadowMap.Sampling shadow) {
     w = Math.max(16, Math.min(4096, w));
     h = Math.max(16, Math.min(4096, h));
     int oldFbo = glGetInteger(GL_FRAMEBUFFER_BINDING);
@@ -409,7 +553,8 @@ public final class GlViewport implements AutoCloseable {
           unlit,
           sceneIndirect,
           sceneAo,
-          sceneFog);
+          sceneFog,
+          shadow);
     } else if (volume) {
       glDisable(GL_DEPTH_TEST);
       glDisable(GL_CULL_FACE);
@@ -442,6 +587,7 @@ public final class GlViewport implements AutoCloseable {
       glDisable(GL_CULL_FACE);
       glUseProgram(program);
       glUniformMatrix4fv(glGetUniformLocation(program, "matrix"), false, matrix.get(new float[16]));
+      GlShadowMap.uniforms(program, shadow);
       glUniform1f(glGetUniformLocation(program, "unlit"), unlit ? 1 : 0);
       glUniform1f(glGetUniformLocation(program, "alpha"), alpha);
       glActiveTexture(GL_TEXTURE0);
@@ -467,16 +613,17 @@ public final class GlViewport implements AutoCloseable {
   private int link() {
     String vertex =
         "#version 130\n"
-            + "in vec3 position;in vec3 normal;in float typeId;uniform mat4 matrix;out vec3 N;flat"
-            + " out float type;void"
-            + " main(){N=normal;type=typeId;gl_Position=matrix*vec4(position,1.0);}";
+            + "in vec3 position;in vec3 normal;in float typeId;uniform mat4 matrix,shadowMatrix;out"
+            + " vec4 lightPosition;out vec3 N;flat out float type;void"
+            + " main(){N=normal;type=typeId;lightPosition=shadowMatrix*vec4(position,1.0);gl_Position=matrix*vec4(position,1.0);}";
     String fragment =
         "#version 130\n"
+            + GlShadowMap.fragment()
             + "in vec3 N;flat in float type;uniform sampler2D palette;uniform int"
             + " paletteWidth;uniform float unlit;uniform float alpha;out vec4 color;void"
             + " main(){vec3"
             + " base=texelFetch(palette,ivec2(int(type)%paletteWidth,int(type)/paletteWidth),0).rgb;float"
-            + " light=mix(0.35+0.65*max(0.0,dot(normalize(N),normalize(vec3(0.4,1.0,0.3)))),1.0,unlit);color=vec4(base*light,alpha);}";
+            + " light=mix(0.35+0.65*max(0.0,dot(normalize(N),normalize(vec3(0.4,1.0,0.3))))*shadowVisibility(N),1.0,unlit);color=vec4(base*light,alpha);}";
     int vs = shader(GL_VERTEX_SHADER, vertex),
         fs = shader(GL_FRAGMENT_SHADER, fragment),
         p = glCreateProgram();
@@ -556,6 +703,7 @@ public final class GlViewport implements AutoCloseable {
 
   @Override
   public void close() {
+    releaseShadows();
     if (gpuTimer != null) gpuTimer.close();
     if (sceneRenderer != null) sceneRenderer.close();
     glDeleteProgram(program);
