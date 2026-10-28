@@ -53,16 +53,8 @@ public final class Desktop extends Application {
   private ProjectFileDialog projectFiles;
   private ProjectHistoryPanel projectHistory;
   private ProjectSettingsPanel projectSettings;
-  private ProjectData importCandidate;
-  private ResourceImport.Plan importPlan;
-  private ResourceImport.Session importSession;
-  private final ImString importFilter = new ImString(256);
-  private List<ResourceImport.Row> filteredImportRows = List.of();
-  private ResourceImport.Plan filteredImportPlan;
-  private String filteredImportQuery = "";
+  private ResourceImportPanel imports;
   private boolean smokeExportDrawn;
-  private final Map<UUID, ResourceImport.Choice> importChoices = new LinkedHashMap<>();
-  private long importRevision = -1;
   private int frameCount = 0;
   private long preferenceSave = 0;
   private static String[] launchArgs = new String[0];
@@ -131,6 +123,7 @@ public final class Desktop extends Application {
               resources.reset();
               projectSettings.cancel();
               if (projectHistory != null) projectHistory.session.clear();
+              if (imports != null) imports.cancel();
             },
             () -> glfwSetWindowShouldClose(handle, true),
             () ->
@@ -142,6 +135,8 @@ public final class Desktop extends Application {
             () ->
                 privateProjectInteraction()
                     || projectFiles.workflow.phase() != ProjectFileWorkflow.Phase.IDLE);
+    imports =
+        new ResourceImportPanel(state, this::packageInteractionBlocked, () -> validation.set(true));
     views = new Viewports(state, properties, handle);
     views.tracePanel(new TracePanel(state, sourceNavigation));
     diagnostics.tracePanel(new TracePanel(state, sourceNavigation));
@@ -506,6 +501,11 @@ public final class Desktop extends Application {
   }
 
   private void openFile(String action) {
+    if (packageInteractionBlocked() || filePending || packageFileOpen || imports.pending()) {
+      state.status =
+          "Finish the private editor or pending project action before opening a resource package";
+      return;
+    }
     fileAction = action;
     if (action.equals("Export")) resources.beginExport();
     filePending = true;
@@ -546,13 +546,8 @@ public final class Desktop extends Application {
             case "Import" -> {
               var pack = ProjectIO.JSON.readValue(path.toFile(), PortablePackage.class);
               if (pack.packageVersion != 1) throw new IOException("Unsupported package version");
-              var issues = NoiseCompiler.validate(pack.resources);
-              if (!issues.isEmpty()) throw new IOException(issues.toString());
-              importCandidate = pack.resources;
-              importChoices.clear();
-              importPlan = null;
-              importSession = null;
-              importRevision = -1;
+              if (!imports.open(pack.resources))
+                throw new IOException("Import is blocked or the package was rejected");
             }
           }
           packageFileOpen = false;
@@ -581,99 +576,7 @@ public final class Desktop extends Application {
       }
       ImGui.endPopup();
     }
-    if (importCandidate != null && !ImGui.isPopupOpen("Import Resources"))
-      ImGui.openPopup("Import Resources");
-    if (ImGui.beginPopupModal("Import Resources", ImGuiWindowFlags.AlwaysAutoResize)) {
-      if (importPlan == null || importRevision != state.revision) {
-        if (importSession == null || !importSession.current(state.project())) {
-          importSession = new ResourceImport.Session(state.project(), importCandidate);
-          importChoices.forEach(importSession::choose);
-        }
-        importPlan = importSession.preview();
-        importRevision = state.revision;
-      }
-      ImGui.textWrapped(
-          "Preview the entire import. Copies receive new UUIDs and collision-safe IDs. Reuse is"
-              + " offered only for semantically identical definitions. Skips also exclude invalid"
-              + " dependents.");
-      ImGui.inputTextWithHint(
-          "##import-filter", "Filter incoming IDs, kinds or resolution...", importFilter);
-      String query = importFilter.get().strip().toLowerCase(Locale.ROOT);
-      if (filteredImportPlan != importPlan || !filteredImportQuery.equals(query)) {
-        filteredImportRows =
-            importPlan.rows().stream()
-                .filter(
-                    row ->
-                        (row.kind()
-                                + " "
-                                + row.id()
-                                + " "
-                                + row.resolution()
-                                + " "
-                                + Objects.toString(row.targetId(), ""))
-                            .toLowerCase(Locale.ROOT)
-                            .contains(query))
-                .toList();
-        filteredImportPlan = importPlan;
-        filteredImportQuery = query;
-      }
-      ImGui.text(filteredImportRows.size() + " matching incoming resources");
-      ImGui.beginChild("import-resources", 720, 360, true);
-      var clipper = new ImGuiListClipper();
-      try {
-        clipper.begin(
-            filteredImportRows.size(),
-            3 * ImGui.getTextLineHeightWithSpacing() + ImGui.getFrameHeightWithSpacing());
-        while (clipper.step())
-          for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
-            var row = filteredImportRows.get(i);
-            ImGui.pushID(row.uuid().toString());
-            ImGui.text(row.kind() + " / " + row.id());
-            ImGui.textDisabled(
-                row.existing() == null
-                    ? "No existing identity/ID conflict"
-                    : "Existing: " + row.existing() + "; compatible: " + row.compatible());
-            var choice = importChoices.getOrDefault(row.uuid(), ResourceImport.Choice.COPY);
-            fields.choice(
-                "Resolution",
-                choice.name(),
-                row.compatible() ? List.of("COPY", "REUSE", "SKIP") : List.of("COPY", "SKIP"),
-                v -> {
-                  var resolution = ResourceImport.Choice.valueOf(v);
-                  importSession.choose(row.uuid(), resolution);
-                  importChoices.put(row.uuid(), resolution);
-                  importRevision = -1;
-                });
-            ImGui.textDisabled(
-                row.resolution() + (row.targetId() == null ? "" : " -> " + row.targetId()));
-            ImGui.popID();
-          }
-        clipper.end();
-      } finally {
-        clipper.destroy();
-      }
-      for (var issue : importPlan.diagnostics()) ImGui.textWrapped("! " + issue);
-      ImGui.endChild();
-      // A choice made while drawing rows must be previewed before it can be committed.
-      ImGui.beginDisabled(importRevision != state.revision || !importPlan.valid());
-      if (ImGui.button("Import Previewed Transaction")) {
-        if (state.change(importSession::applyTo)) {
-          importCandidate = null;
-          importPlan = null;
-          importSession = null;
-          ImGui.closeCurrentPopup();
-        }
-      }
-      ImGui.endDisabled();
-      ImGui.sameLine();
-      if (ImGui.button("Cancel")) {
-        importCandidate = null;
-        importPlan = null;
-        importSession = null;
-        ImGui.closeCurrentPopup();
-      }
-      ImGui.endPopup();
-    }
+    imports.draw();
   }
 
   public static final class PortablePackage {
@@ -1065,15 +968,25 @@ public final class Desktop extends Application {
     }
   }
 
-  private boolean privateProjectInteraction() {
+  private boolean sourceProjectInteraction() {
     return properties.searchBlocked()
         || resources.blocksProjectTransition()
         || sourceNavigation.pending()
         || findPanel.navigationPending()
-        || projectSettings.pendingChanges()
+        || projectSettings.pendingChanges();
+  }
+
+  private boolean packageInteractionBlocked() {
+    return sourceProjectInteraction()
+        || projectHistory.session.pending()
+        || projectFiles.workflow.phase() != ProjectFileWorkflow.Phase.IDLE;
+  }
+
+  private boolean privateProjectInteraction() {
+    return sourceProjectInteraction()
         || filePending
         || packageFileOpen
-        || importCandidate != null;
+        || (imports != null && imports.pending());
   }
 
   private void checkUpdates() {

@@ -157,6 +157,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpandedExpressionProbe build/expanded-expression
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExpressionRecoveryConsumer build/expanded-expression/expanded-expression-project.json 6
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
+      - name: Owned import workspace and native resolution workflow
+        run: |
+          java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImportWorkspaceProbe build/import-workspace
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ImportWorkspaceConsumer build/import-workspace
+          python scripts/verify_import_workspace.py build/import-workspace
       - name: Project history and unapplied Properties workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectHistoryProbe build/project-history
@@ -286,6 +291,7 @@ jobs:
             build/browser-edits/
             build/project-drafts/
             build/project-history/
+            build/import-workspace/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/
@@ -556,6 +562,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows owned import workspace and native resolution workflow
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImportWorkspaceProbe build/import-workspace
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ImportWorkspaceConsumer build/import-workspace
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_import_workspace.py build/import-workspace
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows project history and unapplied Properties workflow
         shell: pwsh
         run: |
@@ -783,6 +798,7 @@ jobs:
             build/browser-edits/
             build/project-drafts/
             build/project-history/
+            build/import-workspace/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/

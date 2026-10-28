@@ -17,7 +17,7 @@ Set the document's validator to the application's complete committed-definition 
 
 Publication checks that the entire destination still equals the preview base before assigning any resources. Changed settings, resource content, bookmarks or project identity reject a stale session. Refresh by constructing a new session from the current destination and reapplying its choices. Exact Undo back to the original base makes a session current again. Apply remains one document Undo action; failed Apply adds no history. Destination project UUID, seed, bounds and bookmarks remain authoritative.
 
-The desktop import modal uses this session. A resolution change disables Apply for the rest of that frame. The next frame displays the recomputed transaction before Apply becomes available. A committed destination revision refreshes the session. Cancel discards it.
+The desktop uses this model session through an [owned import workspace](IMPORT_WORKSPACE.md). A resolution change invalidates the displayed plan, and its successor must be displayed before Apply. A changed destination now requires explicit Reload Preview with retained choices rather than an automatic rebuild. Cancel/Escape releases the workspace and preserves separate Properties input. This subsequent editor implementation and its deferred definitions are uncompiled and untested under the owner testing pause; the public model session retains the value-based contract above.
 
 ## Conflict and exclusion rules
 
