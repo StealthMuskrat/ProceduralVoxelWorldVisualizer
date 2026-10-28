@@ -199,4 +199,28 @@ class SearchNavigationTest {
       assertEquals(before, ProjectIO.JSON.valueToTree(state.project()));
     }
   }
+
+  @Test
+  void openPrivateCurveBlocksDiagnosticAndControlLinksWithoutReplacingItsDraft() {
+    try (var state = state()) {
+      state.select("noise2D", state.project().noise2D.getLast().uuid);
+      var noise = (Noise) state.draft;
+      var item = noise.processing.getFirst();
+      var properties = new PropertyPanel(state);
+      var before = ProjectIO.JSON.valueToTree(state.project());
+      assertTrue(properties.goToProblem(target(state, noise.uuid, item.uuid, "curve")));
+      var dialog = properties.probeCurveDialog();
+      assertNotNull(dialog);
+      assertFalse(properties.goToProblem(target(state, noise.uuid, item.uuid, "curve/max")));
+      var other = state.project().noise2D.getFirst();
+      properties.goToControl(other.uuid, other.processing.getFirst().uuid);
+      assertSame(noise, state.draft);
+      assertEquals(noise.uuid, state.selected);
+      assertSame(dialog, properties.probeCurveDialog());
+      assertEquals(before, ProjectIO.JSON.valueToTree(state.project()));
+      properties.closeSearchCurve();
+      assertTrue(properties.goToProblem(target(state, noise.uuid, item.uuid, null)));
+      assertNull(properties.probeCurveDialog());
+    }
+  }
 }

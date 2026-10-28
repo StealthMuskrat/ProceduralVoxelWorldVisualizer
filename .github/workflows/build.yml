@@ -155,6 +155,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpandedExpressionProbe build/expanded-expression
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExpressionRecoveryConsumer build/expanded-expression/expanded-expression-project.json 6
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
+      - name: Curve diagnostic control focus workflow
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveFocusProbe build/curve-focus
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveFocusConsumer build/curve-focus/curve-focus-project.json
+          python scripts/verify_curve_focus.py build/curve-focus
       - name: Curve pointer gesture and draft workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveGestureProbe build/curve-gesture
@@ -234,6 +239,7 @@ jobs:
             build/placement-drivers/
             build/expression-recovery/
             build/expanded-expression/
+            build/curve-focus/
             build/curve-gesture/
             build/curve-point/
             build/curve-navigation/
@@ -496,6 +502,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows curve diagnostic control focus workflow
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveFocusProbe build/curve-focus
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurveFocusConsumer build/curve-focus/curve-focus-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_curve_focus.py build/curve-focus
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows curve pointer gesture and draft workflow
         shell: pwsh
         run: |
@@ -637,6 +652,7 @@ jobs:
             build/placement-drivers/
             build/expression-recovery/
             build/expanded-expression/
+            build/curve-focus/
             build/curve-gesture/
             build/curve-point/
             build/curve-navigation/

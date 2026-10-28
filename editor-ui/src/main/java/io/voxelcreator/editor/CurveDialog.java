@@ -21,6 +21,31 @@ public final class CurveDialog {
   private boolean grid = true, snapX = false, snapY = false, dragging = false;
   private double stepX = .05, stepY = .05, dragX, dragY;
   private final CurveView view = new CurveView();
+  private final CurveControlFocus controlFocus = new CurveControlFocus();
+  private CurveControlFocus.Destination focusDestination;
+
+  boolean focusControl(UUID point, String field) {
+    if (point != null && !selectPoint(point)) return false;
+    controlFocus.request(point, field);
+    return true;
+  }
+
+  String probeFocusedControl() {
+    return controlFocus.acknowledged();
+  }
+
+  private void focusField(String key, Runnable draw) {
+    boolean submitted = controlFocus.submit(key, focusDestination);
+    if (submitted) ImGui.setKeyboardFocusHere();
+    draw.run();
+    if (controlFocus.matches(key)) {
+      ImGui.setScrollHereY(.25f);
+      if (ImGui.isItemActive() || ImGui.isItemFocused()) controlFocus.acknowledge(key);
+      else if (!submitted && ImGui.isMouseClicked(0) || ImGui.isKeyPressed(ImGuiKey.Escape, false))
+        controlFocus.cancel();
+    }
+  }
+
   private boolean panning;
   private double panMouseX, panMouseY;
 
@@ -127,6 +152,7 @@ public final class CurveDialog {
   }
 
   public void shortcut(String action) {
+    controlFocus.cancel();
     if (Set.of("CurveDelete", "CurveUndo", "CurveRedo").contains(action)) stopDrag();
     switch (action) {
       case "CurveDelete" -> deleteSelected();
@@ -137,6 +163,7 @@ public final class CurveDialog {
   }
 
   public boolean selectPoint(UUID id) {
+    controlFocus.cancel();
     var point = session.curve().points.stream().filter(p -> p.uuid.equals(id)).findFirst();
     if (point.isEmpty()) return false;
     selected.clear();
@@ -152,11 +179,13 @@ public final class CurveDialog {
   }
 
   public void selectAll() {
+    controlFocus.cancel();
     selected.clear();
     session.curve().points.forEach(p -> selected.add(p.uuid));
   }
 
   public void cancel() {
+    controlFocus.cancel();
     session.cancelGesture();
     view.cancelPan();
     stopDrag();
@@ -165,38 +194,60 @@ public final class CurveDialog {
 
   public boolean draw() {
     ImGui.setNextWindowSize(840, 760, ImGuiCond.FirstUseEver);
+    if (controlFocus.windowRequest()) ImGui.setNextWindowFocus();
     ImGui.begin("Curve Editor", open);
     focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
     Curve curve = session.curve();
-    fields.number(
-        "Domain minimum",
-        curve.min,
-        v ->
-            session.edit(
-                c -> {
-                  c.min = v;
-                  c.points.getFirst().x = v;
-                }));
+    final Curve initial = curve;
+    focusDestination = controlFocus.destination(curve);
+    if (focusDestination != null && !focusDestination.explanation().isEmpty())
+      ImGui.textWrapped(focusDestination.explanation());
+    focusField(
+        "min",
+        () ->
+            fields.number(
+                "Domain minimum",
+                initial.min,
+                v ->
+                    session.edit(
+                        c -> {
+                          c.min = v;
+                          c.points.getFirst().x = v;
+                        })));
     controlRect("domainMin");
-    fields.number(
-        "Domain maximum",
-        curve.max,
-        v ->
-            session.edit(
-                c -> {
-                  c.max = v;
-                  c.points.getLast().x = v;
-                }));
+    focusField(
+        "max",
+        () ->
+            fields.number(
+                "Domain maximum",
+                initial.max,
+                v ->
+                    session.edit(
+                        c -> {
+                          c.max = v;
+                          c.points.getLast().x = v;
+                        })));
     controlRect("domainMax");
-    fields.number("Display minimum", curve.displayMin, v -> session.edit(c -> c.displayMin = v));
+    focusField(
+        "displayMin",
+        () ->
+            fields.number(
+                "Display minimum", initial.displayMin, v -> session.edit(c -> c.displayMin = v)));
     controlRect("displayMin");
-    fields.number("Display maximum", curve.displayMax, v -> session.edit(c -> c.displayMax = v));
+    focusField(
+        "displayMax",
+        () ->
+            fields.number(
+                "Display maximum", initial.displayMax, v -> session.edit(c -> c.displayMax = v)));
     controlRect("displayMax");
-    modeChoice(
-        "Outside domain",
-        curve.outsideDomain,
-        CurveModes.OUTSIDE,
-        v -> session.edit(c -> c.outsideDomain = v));
+    focusField(
+        "outsideDomain",
+        () ->
+            modeChoice(
+                "Outside domain",
+                initial.outsideDomain,
+                CurveModes.OUTSIDE,
+                v -> session.edit(c -> c.outsideDomain = v)));
     fields.bool("Grid", grid, v -> grid = v);
     ImGui.sameLine();
     fields.bool("Snap X", snapX, v -> snapX = v);
@@ -216,12 +267,14 @@ public final class CurveDialog {
           if (v > 0 && Double.isFinite(v)) stepY = v;
         });
     if (ImGui.button("Undo") && session.canUndo()) {
+      controlFocus.cancel();
       stopDrag();
       session.undo();
     }
     controlRect("undo");
     ImGui.sameLine();
     if (ImGui.button("Redo") && session.canRedo()) {
+      controlFocus.cancel();
       stopDrag();
       session.redo();
     }
@@ -250,6 +303,8 @@ public final class CurveDialog {
     pointCenters.clear();
     handleCenters.clear();
     boolean hovered = ImGui.isItemHovered();
+    if (hovered && (ImGui.isMouseClicked(0) || ImGui.isMouseClicked(1) || ImGui.isMouseClicked(2)))
+      controlFocus.cancel();
     var io = ImGui.getIO();
     view.synchronize(curve.min, curve.max, curve.displayMin, curve.displayMax);
     if (hovered && !dragging && ImGui.isMouseClicked(2)) {
@@ -460,59 +515,79 @@ public final class CurveDialog {
       UUID id = point.uuid;
       boolean endpoint = point == curve.points.getFirst() || point == curve.points.getLast();
       if (!endpoint)
-        fields.number("X", point.x, v -> session.edit(c -> CurveEditSession.point(c, id).x = v));
+        focusField(
+            "x",
+            () ->
+                fields.number(
+                    "X", point.x, v -> session.edit(c -> CurveEditSession.point(c, id).x = v)));
       else
         ImGui.textDisabled(String.format(Locale.ROOT, "Endpoint X %.5f (domain locked)", point.x));
-      fields.number("Y", point.y, v -> session.edit(c -> CurveEditSession.point(c, id).y = v));
+      focusField(
+          "y",
+          () ->
+              fields.number(
+                  "Y", point.y, v -> session.edit(c -> CurveEditSession.point(c, id).y = v)));
       controlRect("pointY");
-      modeChoice(
-          "Next segment",
-          point.segmentInterpolation,
-          CurveModes.INTERPOLATIONS,
-          v -> session.edit(c -> CurveEditSession.point(c, id).segmentInterpolation = v));
+      focusField(
+          "segmentInterpolation",
+          () ->
+              modeChoice(
+                  "Next segment",
+                  point.segmentInterpolation,
+                  CurveModes.INTERPOLATIONS,
+                  v -> session.edit(c -> CurveEditSession.point(c, id).segmentInterpolation = v)));
       int index = curve.points.indexOf(point);
       if (point.segmentInterpolation.equals("BEZIER")
           || index > 0 && curve.points.get(index - 1).segmentInterpolation.equals("BEZIER")) {
-        modeChoice(
-            "Handle mode",
-            point.handleMode,
-            CurveModes.HANDLES,
-            v ->
-                session.edit(
-                    c -> {
-                      Point p = CurveEditSession.point(c, id);
-                      var definition = new ScalarCurve(c);
-                      int pointIndex = c.points.indexOf(p);
-                      double incoming = definition.incomingSlope(pointIndex),
-                          outgoing = definition.outgoingSlope(pointIndex);
-                      p.handleMode = v;
-                      if (!v.equals("AUTO")) {
-                        p.inTangent = incoming;
-                        p.outTangent = outgoing;
-                      }
-                      if (v.equals("ALIGNED")) p.inTangent = p.outTangent;
-                    }));
+        focusField(
+            "handleMode",
+            () ->
+                modeChoice(
+                    "Handle mode",
+                    point.handleMode,
+                    CurveModes.HANDLES,
+                    v ->
+                        session.edit(
+                            c -> {
+                              Point p = CurveEditSession.point(c, id);
+                              var definition = new ScalarCurve(c);
+                              int pointIndex = c.points.indexOf(p);
+                              double incoming = definition.incomingSlope(pointIndex),
+                                  outgoing = definition.outgoingSlope(pointIndex);
+                              p.handleMode = v;
+                              if (!v.equals("AUTO")) {
+                                p.inTangent = incoming;
+                                p.outTangent = outgoing;
+                              }
+                              if (v.equals("ALIGNED")) p.inTangent = p.outTangent;
+                            })));
         if (!point.handleMode.equals("AUTO")) {
-          fields.number(
-              "Incoming slope",
-              point.inTangent,
-              v ->
-                  session.edit(
-                      c -> {
-                        Point p = CurveEditSession.point(c, id);
-                        p.inTangent = v;
-                        if (p.handleMode.equals("ALIGNED")) p.outTangent = v;
-                      }));
-          fields.number(
-              "Outgoing slope",
-              point.outTangent,
-              v ->
-                  session.edit(
-                      c -> {
-                        Point p = CurveEditSession.point(c, id);
-                        p.outTangent = v;
-                        if (p.handleMode.equals("ALIGNED")) p.inTangent = v;
-                      }));
+          focusField(
+              "inTangent",
+              () ->
+                  fields.number(
+                      "Incoming slope",
+                      point.inTangent,
+                      v ->
+                          session.edit(
+                              c -> {
+                                Point p = CurveEditSession.point(c, id);
+                                p.inTangent = v;
+                                if (p.handleMode.equals("ALIGNED")) p.outTangent = v;
+                              })));
+          focusField(
+              "outTangent",
+              () ->
+                  fields.number(
+                      "Outgoing slope",
+                      point.outTangent,
+                      v ->
+                          session.edit(
+                              c -> {
+                                Point p = CurveEditSession.point(c, id);
+                                p.outTangent = v;
+                                if (p.handleMode.equals("ALIGNED")) p.inTangent = v;
+                              })));
         } else
           ImGui.textDisabled(
               "Auto slopes follow the monotone curve. Choose Aligned/Free to drag handles.");
@@ -543,6 +618,7 @@ public final class CurveDialog {
   }
 
   private void deleteSelected() {
+    controlFocus.cancel();
     stopDrag();
     session.endGesture();
     session.removeInterior(selected);

@@ -150,6 +150,10 @@ public final class PropertyPanel {
   private boolean searchScroll;
 
   public boolean goToProblem(EditorEvents.Target target) {
+    if (searchBlocked()) {
+      state.status = "Finish or cancel the open property editor before following another control.";
+      return false;
+    }
     if (!state.navigate(target)) return false;
     focusedControl = target.control();
     navigationTarget = target;
@@ -168,6 +172,18 @@ public final class PropertyPanel {
             inputSelection.select(noise, item, target.parameter().substring(7));
     expressionFocusSubmitted = false;
     searchScroll = true;
+    if (state.draft instanceof Noise noise) {
+      var route = CurveNavigation.resolve(noise, target);
+      if (route != null) {
+        try {
+          openCurve(route.item(), route.point());
+          curve.focusControl(route.point(), route.field());
+        } catch (RuntimeException invalid) {
+          state.status = "Curve target cannot be opened: " + invalid.getMessage();
+          return false;
+        }
+      }
+    }
     return true;
   }
 
@@ -180,21 +196,7 @@ public final class PropertyPanel {
   }
 
   public boolean revealSearch(EditorEvents.Target target) {
-    if (!goToProblem(target)) return false;
-    searchScroll = true;
-    if (state.draft instanceof Noise noise && target.control() != null) {
-      for (var item : noise.processing)
-        if (curveContains(item, target.control())) {
-          try {
-            openCurve(item, target.control());
-          } catch (RuntimeException invalid) {
-            state.status = "Curve target cannot be opened: " + invalid.getMessage();
-            return false;
-          }
-          break;
-        }
-    }
-    return true;
+    return goToProblem(target);
   }
 
   private void openCurve(Item item, UUID point) {
@@ -283,6 +285,10 @@ public final class PropertyPanel {
   }
 
   public void goToControl(UUID resource, UUID control) {
+    if (searchBlocked()) {
+      state.status = "Finish or cancel the open property editor before following another control.";
+      return;
+    }
     propertyFocus.cancel();
     expressionSelection.cancel();
     searchScroll = false;
@@ -315,6 +321,10 @@ public final class PropertyPanel {
 
   public boolean curveFocused() {
     return curve != null && curve.focused();
+  }
+
+  String navigationWindow() {
+    return curve == null ? "Properties" : "Curve Editor";
   }
 
   public void curveShortcut(String action) {

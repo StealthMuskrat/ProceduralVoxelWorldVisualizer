@@ -47,8 +47,7 @@ public final class GuardedNavigation {
   }
 
   private void reveal(EditorEvents.Target target) {
-    properties.revealSearch(target);
-    focus = true;
+    focus = properties.revealSearch(target);
   }
 
   public boolean pending() {
@@ -61,7 +60,7 @@ public final class GuardedNavigation {
 
   public void draw() {
     if (focus) {
-      ImGui.setWindowFocus("Properties");
+      ImGui.setWindowFocus(properties.navigationWindow());
       focus = false;
     }
     if (prompt) {
