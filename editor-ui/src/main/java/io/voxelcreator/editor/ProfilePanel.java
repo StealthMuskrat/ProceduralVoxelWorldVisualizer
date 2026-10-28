@@ -192,8 +192,8 @@ public final class ProfilePanel {
         ImGui.textWrapped(gpu.detail());
     }
     ImGui.textDisabled(
-        "GPU_DRAW measures offscreen 3D command completion; excludes UI, presentation and"
-            + " uploads.");
+        "GPU_DRAW measures offscreen 3D commands; excludes chunk/volume transfers, UI and"
+            + " presentation.");
     ImGui.textDisabled(
         "Results expire after at most 2 s; stopping a capture discards unfinished GPU"
             + " measurements.");

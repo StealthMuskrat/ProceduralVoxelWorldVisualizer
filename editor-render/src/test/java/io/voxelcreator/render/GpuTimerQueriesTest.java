@@ -148,7 +148,7 @@ class GpuTimerQueriesTest {
   void narrowCounterExpiryBackwardsClockAndInvalidLargeDeltasProduceNoFakeSamples() {
     for (int mode = 0; mode < 3; mode++) {
       var backend = new Fake();
-      backend.bits = 30;
+      backend.bits = mode == 2 ? 64 : 30;
       time.set(100);
       try (var local = new GpuTimerQueries(backend, time::get)) {
         var scope = capture();
@@ -158,7 +158,7 @@ class GpuTimerQueriesTest {
         if (mode == 1) time.set(99);
         if (mode == 2) {
           backend.values.put(1, 0L);
-          backend.values.put(2, (1L << 30) - 1);
+          backend.values.put(2, GpuTimerQueries.MAX_AGE_NANOS);
           backend.readyAll();
         }
         assertTrue(local.poll(scope).isEmpty());
