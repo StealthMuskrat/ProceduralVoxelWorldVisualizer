@@ -549,3 +549,8 @@ verify_shadows(Path(sys.argv[1]) / "shadows")
 
 from verify_volume_light import verify as verify_volume_light
 verify_volume_light(Path(sys.argv[1]) / "volume-light")
+
+# Deferred development extension; invoked only when owner-authorized validation resumes.
+import subprocess
+subprocess.run([sys.executable, str(Path(__file__).with_name("verify_property_focus.py")),
+                str(Path(sys.argv[1]) / "property-focus")], check=True)

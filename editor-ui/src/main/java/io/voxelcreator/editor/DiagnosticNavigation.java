@@ -22,6 +22,51 @@ public final class DiagnosticNavigation {
     return diagnostic.parameterKey();
   }
 
+  /** Canonical logical control key; indices locate no current object and are never replayed. */
+  static String controlParameter(EditorEvents.Target target) {
+    String parameter = target.parameter();
+    if (parameter != null && parameter.startsWith("inputs/")) return parameter;
+    String[] tokens = Objects.requireNonNullElse(target.pointer(), "").split("/", -1);
+    // Only a noise resource's immediate collections can contribute a control leaf.
+    if (tokens.length >= 6 && Set.of("noise2D", "noise3D", "noise").contains(tokens[1])) {
+      if (target.control() == null
+          && tokens[3].equals("algorithm")
+          && tokens[4].equals("parameters")) {
+        String key = decode(tokens[5]);
+        if (parameter == null
+            || parameter.equals(key)
+            || parameter.equals("algorithm/parameters/" + key))
+          return "algorithm/parameters/" + key;
+      }
+      if (target.control() != null
+          && Set.of("processing", "coordinateTransforms", "control").contains(tokens[3])
+          && tokens.length >= 7
+          && tokens[5].equals("parameters")) {
+        String key = decode(tokens[6]);
+        if (parameter == null || parameter.equals(key) || parameter.equals("parameters/" + key))
+          return "parameters/" + key + component(tokens, 7);
+      }
+      if (target.control() != null
+          && tokens[3].equals("sharedParameters")
+          && tokens[5].equals("value")
+          && (parameter == null || parameter.equals("value")))
+        return "parameters/value" + component(tokens, 6);
+    }
+    return target.control() != null && Objects.equals(parameter, "value")
+        ? "parameters/value"
+        : parameter;
+  }
+
+  private static String component(String[] tokens, int index) {
+    return tokens.length == index + 1 && Set.of("0", "1", "2").contains(tokens[index])
+        ? "/" + tokens[index]
+        : "";
+  }
+
+  private static String decode(String token) {
+    return token.replace("~1", "/").replace("~0", "~");
+  }
+
   static boolean inputTarget(EditorEvents.Target target, UUID item, String name) {
     return target != null
         && Objects.equals(target.control(), item)

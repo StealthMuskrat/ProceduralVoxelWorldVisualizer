@@ -46,3 +46,5 @@ ExpressionEditSessionTest covers private cancellation/staging, incomplete text, 
 
 
 Named-input navigation now resolves exact binding leaves and focuses production editors, including coordinate components and custom UUID pickers. Each item's input selection is independent and navigation selects once, so later user choices remain stable. See [input binding navigation](INPUT_BINDING_NAVIGATION.md) for ownership, recovery and observed full-Properties scope.
+
+The development branch now separates keyboard activation from scroll acknowledgement and routes registered source/manipulation controls, typed/shared constants and specialized warp bindings to their actual widgets. These changes and their deferred regression/native definitions are uncompiled and untested while GitHub testing remains paused. See [property control focus](PROPERTY_CONTROL_FOCUS.md).

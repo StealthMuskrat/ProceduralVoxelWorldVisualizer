@@ -22,7 +22,7 @@ public final class NoiseItemBrowser {
   private UUID owner;
   private final Map<UUID, float[]> centers = new HashMap<>();
   private int submitted;
-  private boolean selectionChanged;
+  private boolean selectionChanged, userSelectionChanged;
   private float[] filterCenter;
 
   public int[] draw(UUID noise, NoiseDraftIndex index, Section section, UUID focus) {
@@ -104,6 +104,7 @@ public final class NoiseItemBrowser {
               ImGui.getFrameHeight())) {
             view.selected = row.uuid();
             view.reveal = true;
+            userSelectionChanged = true;
           }
           var a = ImGui.getItemRectMin();
           var b = ImGui.getItemRectMax();
@@ -137,6 +138,12 @@ public final class NoiseItemBrowser {
 
   float[] center(UUID id) {
     return centers.get(id).clone();
+  }
+
+  boolean consumeUserSelectionChanged() {
+    boolean value = userSelectionChanged;
+    userSelectionChanged = false;
+    return value;
   }
 
   boolean consumeSelectionChanged() {

@@ -1,0 +1,24 @@
+# Property control focus and specialized binding navigation
+
+Status: **implementation awaiting validation** on `codex/development-phase`. The owner has deferred GitHub testing until the program is fully developed. The source, regression definitions and native workflow in this batch have not been compiled or executed. Earlier evidence remains the last validated baseline.
+
+Following a source/problem link now has a keyboard-focus request independent of the existing scroll/location banner. Scroll helpers can finish without consuming the pending activation. The request belongs to the originating project, resource and exact private Properties draft object. It submits focus once, waits for the intended widget's actual active/focused acknowledgement, then stops requesting activation. A new request replaces it. Clear Location, another selected resource/project, replacement/reverted draft, or an explicit different item/input choice cancels outstanding work. Programmatic item revelation is distinct from the user's item selection, so opening the intended row does not cancel its request.
+
+The routed controls include:
+
+- Source algorithm selector, numeric/enumerated source parameters, exact seed-offset text and scalar output selector.
+- Processing numeric parameters, registered Boolean/enum manipulation controls, warp algorithm/mode/numeric controls, rotation order, axis/kernel choices and result-type selectors.
+- Typed Constant item values and shared-parameter values, including the exact vector component identified by a structural diagnostic. A value-level vector route selects the first component.
+- Specialized coordinate-warp displacement bindings: scalar type repair, sampled source kind, resource selector, projection and inserted slice coordinate. These use the same input-leaf routing as ordinary sampled processing fields. Sampled processing fields also expose their scalar Type control for repair.
+
+This extends the established [named-input navigation](INPUT_BINDING_NAVIGATION.md). It does not reinterpret historical array indices against the current document. Diagnostic enrichment already retains the owner/control UUID from the validated candidate; navigation uses that UUID and a logical parameter key. Recognized noise algorithm/item/shared-parameter pointer suffixes can contribute a decoded key or vector component. Unrelated or contradictory pointers do not replace an explicit key. Escaped slash/tilde names remain exact. The diagnostic record, retained event target and project/User Config schemas are unchanged.
+
+Properties keeps its own draft and provisional text until Apply. Navigation does not choose a new enum/resource value, toggle a binding, reset controls, apply text, edit document history or mark the project dirty. Custom selectors acknowledge their actual button rather than the text label drawn after it. Existing cross-resource Apply/Discard/Cancel protection and current-draft availability guards remain authoritative. Text caches reset when a draft object is replaced, including replacement with the same UUIDs.
+
+## Deferred verification
+
+`PropertyFocusTest` defines nine contracts for single submission/acknowledgement, exact keys, owner/draft cancellation, replacement requests, explicit choices, default/exact vector components and acknowledgement before submission. `NoiseControlRouteTest` defines six contracts for source/item/shared routes, historical positions, escaped keys, components, exact input preservation, unrelated paths and compiler aliases.
+
+`PropertyFocusProbe` defines a full production Properties workflow using ImGui key events. It rejects a nonfinite source draft, follows its diagnostic, repairs the source numerically, acknowledges algorithm/output/seed controls, edits typed/shared vector components, follows warp numeric/enum controls and all five specialized displacement leaves, then edits the slice by keyboard. It checks draft/document/revision/history ownership, one Apply/Undo/Redo and the independent constant-field result 2→7. `verify_property_focus.py` defines structural schema and saved-control checks, including zero displacement fields, unused typed values and raw source selection. Existing world-picking native/verifier entry points reference these definitions for the eventual validation phase; no workflow has been triggered here.
+
+This is scoped control routing. Parser token-span selection, every curve/pin/world-setting control, the full expression-editing gesture matrix, physical OS keyboard/IME and DPI/platform/hardware acceptance remain separate. No acceptance gate is promoted by these unexecuted definitions.

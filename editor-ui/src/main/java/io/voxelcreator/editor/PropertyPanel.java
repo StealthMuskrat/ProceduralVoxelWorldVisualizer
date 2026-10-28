@@ -57,6 +57,7 @@ public final class PropertyPanel {
   private MembershipDialog membershipDialog;
   private final ExpressionFeedback expressionFeedback = new ExpressionFeedback();
   private UUID last;
+  private Object lastDraft;
   private CurveDialog curve;
   private boolean smokeCurveDrawn;
 
@@ -144,6 +145,7 @@ public final class PropertyPanel {
   private EditorEvents.Target navigationTarget;
   private Object navigationDraft;
   private boolean bindingFocusSubmitted;
+  private final PropertyFocus propertyFocus = new PropertyFocus();
   private final NoiseInputSelection inputSelection = new NoiseInputSelection();
   private boolean searchScroll;
 
@@ -152,6 +154,7 @@ public final class PropertyPanel {
     focusedControl = target.control();
     navigationTarget = target;
     navigationDraft = state.draft;
+    propertyFocus.request(target, state.draft);
     bindingFocusSubmitted = false;
     focusedBinding = null;
     if (state.draft instanceof Noise noise
@@ -233,7 +236,54 @@ public final class PropertyPanel {
     }
   }
 
+  private void propertyControl(UUID control, String parameter, Runnable draw) {
+    propertyControl(control, parameter, draw, () -> ImGui.isItemActive() || ImGui.isItemFocused());
+  }
+
+  private void propertyControl(
+      UUID control, String parameter, Runnable draw, BooleanSupplier acknowledged) {
+    propertyFocus.synchronize(state.project().project.uuid, state.selected, state.draft);
+    boolean targeted = !searchBlocked() && propertyFocus.matches(control, parameter);
+    boolean submittedNow = targeted && propertyFocus.submit();
+    if (submittedNow) ImGui.setKeyboardFocusHere();
+    draw.run();
+    if (targeted) {
+      if (acknowledged.getAsBoolean()) {
+        ImGui.setScrollHereY(.25f);
+        propertyFocus.acknowledge(control + ":" + parameter);
+        searchScroll = false;
+      } else if (!submittedNow && ImGui.isMouseClicked(0)
+          || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+        propertyFocus.cancel();
+      } else ImGui.setScrollHereY(.25f);
+    }
+  }
+
+  String probeFocusedProperty() {
+    return propertyFocus.acknowledged();
+  }
+
+  private void resultType(Item item, List<String> choices, Consumer<String> update) {
+    propertyControl(
+        item.uuid, "resultType", () -> f.choice("Result type", item.resultType, choices, update));
+  }
+
+  private void parameterChoice(
+      Item item, String key, String label, List<String> choices, String fallback) {
+    propertyControl(
+        item.uuid,
+        "parameters/" + key,
+        () ->
+            f.choice(
+                label,
+                item.parameters.containsKey(key) ? item.parameters.get(key).asText() : fallback,
+                choices,
+                value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value))));
+  }
+
   public void goToControl(UUID resource, UUID control) {
+    propertyFocus.cancel();
+    searchScroll = false;
     Object object = EditorState.find(state.project(), resource);
     if (object instanceof Noise n) {
       if (!Objects.equals(state.selected, resource) || state.draft == null)
@@ -280,11 +330,13 @@ public final class PropertyPanel {
     bindingRects.clear();
     sourceControlCenters.clear();
     sourceControlKeys.clear();
+    propertyFocus.synchronize(state.project().project.uuid, state.selected, state.draft);
     resourcePicker.synchronize();
     ImGui.begin("Properties");
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Properties", 1f));
-    if (!Objects.equals(last, state.selected)) {
+    if (!Objects.equals(last, state.selected) || lastDraft != state.draft) {
       last = state.selected;
+      lastDraft = state.draft;
       f.clear();
     }
     if (state.multiSelection.size() > 1) {
@@ -302,7 +354,11 @@ public final class PropertyPanel {
             Objects.requireNonNullElse(navigationTarget.parameter(), "Resource")
                 + "  "
                 + navigationTarget.pointer());
-        if (ImGui.smallButton("Clear Location")) navigationTarget = null;
+        if (ImGui.smallButton("Clear Location")) {
+          navigationTarget = null;
+          searchScroll = false;
+          propertyFocus.cancel();
+        }
       }
       if (ImGui.button("Apply")) state.applyDraft();
       ImGui.sameLine();
@@ -325,7 +381,8 @@ public final class PropertyPanel {
           ImGui.textDisabled("More results are available in View > Validate Project.");
       }
       ImGui.separator();
-      if (state.draft instanceof Identity r) f.text("ID", r.id, v -> r.id = v);
+      if (state.draft instanceof Identity r)
+        propertyControl(null, "id", () -> f.text("ID", r.id, v -> r.id = v));
       if (state.draft instanceof Noise n) noise(n);
       else if (state.draft instanceof Layer l) {
         int stage = 0;
@@ -372,6 +429,10 @@ public final class PropertyPanel {
   }
 
   private void noise(Noise n) {
+    String sourceTarget =
+        navigationTarget != null && navigationDraft == state.draft
+            ? DiagnosticNavigation.controlParameter(navigationTarget)
+            : null;
     ImGui.text("Dimension: " + n.dimension + "D  |  Output: Scalar");
     if (!authoringMessage.isEmpty()) ImGui.textWrapped(authoringMessage);
     if (navigationTarget != null
@@ -380,35 +441,44 @@ public final class PropertyPanel {
         && !Objects.equals(navigationTarget.parameter(), "outputBinding"))
       ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Source", ImGuiTreeNodeFlags.DefaultOpen)) {
-      draftChoices.draw(
-          state.metadata.label("noise.algorithm", "Algorithm"),
-          n.algorithm.key,
-          catalogue(n, "algorithm", ALGORITHMS),
+      propertyControl(
           null,
-          value -> {
-            n.algorithm.key = value;
-            noiseChanged();
-          });
+          "algorithm",
+          () ->
+              draftChoices.draw(
+                  state.metadata.label("noise.algorithm", "Algorithm"),
+                  n.algorithm.key,
+                  catalogue(n, "algorithm", ALGORITHMS),
+                  null,
+                  value -> {
+                    n.algorithm.key = value;
+                    noiseChanged();
+                  }),
+          draftChoices::focused);
       metadataTooltip("noise.algorithm");
       ImGui.textWrapped(NoiseAlgorithmRegistry.get(n.algorithm.key).semantics());
       revealSearchField(null, "algorithm");
-      longText(
-          state.metadata.label("noise.seedOffset", "Seed offset"),
-          n.seedOffset,
-          v -> n.seedOffset = v);
+      propertyControl(
+          null,
+          "seedOffset",
+          () ->
+              longText(
+                  state.metadata.label("noise.seedOffset", "Seed offset"),
+                  n.seedOffset,
+                  v -> n.seedOffset = v));
       metadataTooltip("noise.seedOffset");
       revealSearchField(null, "seedOffset");
       sourceControlKeys.clear();
       for (var control : NoiseAlgorithmRegistry.parameters(n.algorithm.key, n.dimension)) {
         boolean targeted =
             navigationTarget != null
-                && ("algorithm/parameters/" + control.key()).equals(navigationTarget.parameter());
+                && ("algorithm/parameters/" + control.key()).equals(sourceTarget);
         if (control.visible(n.algorithm) || targeted) algorithmParameter(n, control);
       }
       if (navigationTarget != null
-          && navigationTarget.parameter() != null
-          && navigationTarget.parameter().startsWith("algorithm/parameters/")) {
-        String key = navigationTarget.parameter().substring("algorithm/parameters/".length());
+          && sourceTarget != null
+          && sourceTarget.startsWith("algorithm/parameters/")) {
+        String key = sourceTarget.substring("algorithm/parameters/".length());
         if (!sourceControlKeys.contains(key) && n.algorithm.parameters.containsKey(key)) {
           try {
             ImGui.textWrapped("Stored inactive parameter requires repair for legacy validation.");
@@ -447,6 +517,8 @@ public final class PropertyPanel {
           f.clear();
           inputNames.clear();
         }
+        if (noiseBrowser.consumeUserSelectionChanged())
+          propertyFocus.chooseControl(n.coordinateTransforms.get(i).uuid);
         var item = n.coordinateTransforms.get(i);
         ImGui.pushID(item.uuid.toString());
         focusRow(item.uuid);
@@ -468,7 +540,7 @@ public final class PropertyPanel {
                       NoiseAuthoring.Request.simple(
                           v ? NoiseAuthoring.Action.ENABLE : NoiseAuthoring.Action.DISABLE,
                           item.uuid)));
-          f.text("ID", item.id, v -> item.id = v);
+          propertyControl(item.uuid, "id", () -> f.text("ID", item.id, v -> item.id = v));
           boolean explicit = item.inputs.containsKey("coordinates");
           f.bool(
               "Explicit input coordinates",
@@ -500,13 +572,12 @@ public final class PropertyPanel {
                     item.parameters.containsKey("angle") && axis.equals("Y")
                         ? item.parameters.get("angle").asDouble()
                         : 0);
-              f.choice(
+              parameterChoice(
+                  item,
+                  "rotationOrder",
                   "Rotation order",
-                  item.parameters.containsKey("rotationOrder")
-                      ? item.parameters.get("rotationOrder").asText()
-                      : "XYZ",
                   List.of("XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX"),
-                  v -> item.parameters.put("rotationOrder", ProjectIO.JSON.valueToTree(v)));
+                  "XYZ");
             }
             ImGui.textWrapped("Angles are degrees; positive Y rotation turns +X toward +Z.");
           } else if (item.kind.equals("DOMAIN_WARP")) {
@@ -581,6 +652,8 @@ public final class PropertyPanel {
           f.clear();
           inputNames.clear();
         }
+        if (noiseBrowser.consumeUserSelectionChanged())
+          propertyFocus.chooseControl(n.processing.get(i).uuid);
         var item = n.processing.get(i);
         ImGui.pushID(item.uuid.toString());
         if (focusedControl != null && curveContains(item, focusedControl))
@@ -596,7 +669,7 @@ public final class PropertyPanel {
                 + (item.enabled ? "" : " (disabled)")
                 + "###item-properties")) {
           revealRow(item.uuid);
-          f.text("ID", item.id, v -> item.id = v);
+          propertyControl(item.uuid, "id", () -> f.text("ID", item.id, v -> item.id = v));
           f.bool(
               "Enabled",
               item.enabled,
@@ -611,9 +684,8 @@ public final class PropertyPanel {
                   ? ProcessingRegistry.ITEMS.get(item.kind).category()
                   : "Unknown operation");
           if (item.kind.equals("CONSTANT"))
-            f.choice(
-                "Result type",
-                item.resultType,
+            resultType(
+                item,
                 List.of("Scalar", "Boolean", "Vector2", "Vector3"),
                 v -> {
                   item.resultType = v;
@@ -629,37 +701,20 @@ public final class PropertyPanel {
                                       : new double[] {0, 0, 0}));
                 });
           if (item.kind.equals("SELECT"))
-            f.choice(
-                "Result type",
-                item.resultType,
+            resultType(
+                item,
                 List.of(
                     "Scalar", "Boolean", "Vector2", "Vector3", "Coordinates2D", "Coordinates3D"),
                 v -> item.resultType = v);
           if (Set.of("COORDINATES_TO_VECTOR", "VECTOR_ROTATE").contains(item.kind))
-            f.choice(
-                "Result type",
-                item.resultType,
-                List.of("Vector2", "Vector3"),
-                v -> item.resultType = v);
+            resultType(item, List.of("Vector2", "Vector3"), v -> item.resultType = v);
           if (item.kind.equals("VECTOR_TO_COORDINATES"))
-            f.choice(
-                "Result type",
-                item.resultType,
-                List.of("Coordinates2D", "Coordinates3D"),
-                v -> item.resultType = v);
+            resultType(item, List.of("Coordinates2D", "Coordinates3D"), v -> item.resultType = v);
           if (item.kind.equals("EXPRESSION")) expressionControls(n, item);
           if (java.util.Set.of("ADD", "SUBTRACT", "MULTIPLY", "DIVIDE").contains(item.kind))
-            f.choice(
-                "Result type",
-                item.resultType,
-                List.of("Scalar", "Vector2", "Vector3"),
-                v -> item.resultType = v);
+            resultType(item, List.of("Scalar", "Vector2", "Vector3"), v -> item.resultType = v);
           if (item.kind.equals("NORMALIZE"))
-            f.choice(
-                "Result type",
-                item.resultType,
-                List.of("Vector2", "Vector3"),
-                v -> item.resultType = v);
+            resultType(item, List.of("Vector2", "Vector3"), v -> item.resultType = v);
           for (var e : selectedInputs(item)) {
             ImGui.pushID(e.getKey());
             if (inputNavigation(item, e.getKey())) ImGui.setNextItemOpen(true, ImGuiCond.Always);
@@ -691,7 +746,8 @@ public final class PropertyPanel {
                 constantEditor(
                     item.resultType,
                     item.parameters.get("value"),
-                    v -> item.parameters.put("value", v));
+                    v -> item.parameters.put("value", v),
+                    (key, draw) -> propertyControl(item.uuid, "parameters/" + key, draw));
             case "SPHERE" -> {
               parameter(item, "radius", 16);
               parameter(item, "centerX", 0);
@@ -706,29 +762,18 @@ public final class PropertyPanel {
             case "SMOOTH_UNION" -> parameter(item, "smoothness", 1);
             case "COMPONENT" -> parameter(item, "component", 0);
             case "PROJECT_VECTOR", "PROJECT_COORDINATES", "EXPAND_VECTOR", "EXPAND_COORDINATES" ->
-                f.choice(
-                    "Retained axes",
-                    item.parameters.containsKey("axes")
-                        ? item.parameters.get("axes").asText()
-                        : "XZ",
-                    List.of("XZ", "XY", "YZ"),
-                    v -> item.parameters.put("axes", ProjectIO.JSON.valueToTree(v)));
+                parameterChoice(item, "axes", "Retained axes", List.of("XZ", "XY", "YZ"), "XZ");
             case "VECTOR_ROTATE" -> {
               parameter(item, "angle", 0);
-              f.choice(
-                  "Rotation axis",
-                  item.parameters.containsKey("axis") ? item.parameters.get("axis").asText() : "x",
-                  List.of("x", "y", "z"),
-                  v -> item.parameters.put("axis", ProjectIO.JSON.valueToTree(v)));
+              parameterChoice(item, "axis", "Rotation axis", List.of("x", "y", "z"), "x");
             }
             case "COORDINATE" -> {
-              String axis =
-                  item.parameters.containsKey("axis") ? item.parameters.get("axis").asText() : "x";
-              f.choice(
+              parameterChoice(
+                  item,
+                  "axis",
                   "Axis",
-                  axis,
                   n.dimension == 2 ? List.of("x", "z") : List.of("x", "y", "z"),
-                  v -> item.parameters.put("axis", ProjectIO.JSON.valueToTree(v)));
+                  "x");
             }
             case "CURVE" -> {
               if (ImGui.button("Edit Curve"))
@@ -798,23 +843,16 @@ public final class PropertyPanel {
               if (item.kind.equals("DERIVATIVE") || item.kind.equals("SMOOTH_FILTER"))
                 parameter(item, "spacing", 1);
               if (item.kind.equals("DERIVATIVE"))
-                f.choice(
+                parameterChoice(
+                    item,
+                    "axis",
                     "Axis",
-                    item.parameters.containsKey("axis")
-                        ? item.parameters.get("axis").asText()
-                        : "x",
                     n.dimension == 2 ? List.of("x", "z") : List.of("x", "y", "z"),
-                    v -> item.parameters.put("axis", ProjectIO.JSON.valueToTree(v)));
+                    "x");
               if (item.kind.equals("SMOOTH_FILTER")) {
                 parameter(item, "radius", 1);
                 parameter(item, "strength", 1);
-                f.choice(
-                    "Kernel",
-                    item.parameters.containsKey("kernel")
-                        ? item.parameters.get("kernel").asText()
-                        : "BOX",
-                    List.of("BOX", "GAUSSIAN"),
-                    v -> item.parameters.put("kernel", ProjectIO.JSON.valueToTree(v)));
+                parameterChoice(item, "kernel", "Kernel", List.of("BOX", "GAUSSIAN"), "BOX");
               }
               if (item.kind.equals("WARP_SAMPLE")) {
                 warpControls(n, item, i, false);
@@ -852,12 +890,18 @@ public final class PropertyPanel {
           f.clear();
           inputNames.clear();
         }
+        if (noiseBrowser.consumeUserSelectionChanged())
+          propertyFocus.chooseControl(n.sharedParameters.get(parameterIndex).uuid);
         var p = n.sharedParameters.get(parameterIndex);
         ImGui.pushID(p.uuid.toString());
         revealRow(p.uuid);
-        f.text("ID", p.id, v -> p.id = v);
+        propertyControl(p.uuid, "id", () -> f.text("ID", p.id, v -> p.id = v));
         ImGui.text(p.type);
-        constantEditor(p.type, p.value, v -> p.value = v);
+        constantEditor(
+            p.type,
+            p.value,
+            v -> p.value = v,
+            (key, draw) -> propertyControl(p.uuid, "parameters/" + key, draw));
         if (ImGui.smallButton("Pin Control")) {
           var pin = new Pin();
           pin.targetUuid = p.uuid;
@@ -909,18 +953,23 @@ public final class PropertyPanel {
       ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Output", ImGuiTreeNodeFlags.DefaultOpen)) {
       revealSearchField(null, "outputBinding");
-      draftChoices.draw(
-          "Scalar output",
-          n.outputBinding.sourceKind.equals("Source Result")
-              ? null
-              : Objects.toString(n.outputBinding.itemUuid, null),
-          index(n).choices("output", null, "Scalar"),
-          "Raw source",
-          value -> {
-            n.outputBinding =
-                value == null ? Binding.source() : Binding.earlier(UUID.fromString(value));
-            noiseChanged();
-          });
+      propertyControl(
+          null,
+          "outputBinding",
+          () ->
+              draftChoices.draw(
+                  "Scalar output",
+                  n.outputBinding.sourceKind.equals("Source Result")
+                      ? null
+                      : Objects.toString(n.outputBinding.itemUuid, null),
+                  index(n).choices("output", null, "Scalar"),
+                  "Raw source",
+                  value -> {
+                    n.outputBinding =
+                        value == null ? Binding.source() : Binding.earlier(UUID.fromString(value));
+                    noiseChanged();
+                  }),
+          draftChoices::focused);
     }
   }
 
@@ -1013,10 +1062,8 @@ public final class PropertyPanel {
   }
 
   private void focusLocal(Noise noise, UUID uuid, String path) {
-    focusedControl = uuid;
-    navigationTarget =
-        new EditorEvents.Target(state.project().project.uuid, noise.uuid, uuid, path, "", false);
-    searchScroll = true;
+    goToProblem(
+        new EditorEvents.Target(state.project().project.uuid, noise.uuid, uuid, path, "", false));
   }
 
   private void dependencies(Noise noise, UUID uuid) {
@@ -1179,12 +1226,12 @@ public final class PropertyPanel {
   }
 
   private void expressionControls(Noise n, Item item) {
-    f.choice(
-        "Result type", item.resultType, List.of("Scalar", "Boolean"), v -> item.resultType = v);
+    resultType(item, List.of("Scalar", "Boolean"), v -> item.resultType = v);
     String expr =
         item.parameters.containsKey("expression") ? item.parameters.get("expression").asText() : "";
     boolean expressionTarget =
-        searchScroll
+        navigationDraft == state.draft
+            && searchScroll
             && navigationTarget != null
             && item.uuid.equals(navigationTarget.control())
             && Set.of("expression", "parameters/expression")
@@ -1302,6 +1349,7 @@ public final class PropertyPanel {
         null,
         value -> {
           inputSelection.select(noise, item, value);
+          propertyFocus.cancel();
           searchScroll = false;
           bindingFocusSubmitted = false;
           f.clear();
@@ -1451,17 +1499,24 @@ public final class PropertyPanel {
         previous = List.copyOf(options);
         catalogues.put(cache, previous);
       }
-      draftChoices.draw(
-          state.metadata.label(id, control.label()),
-          Double.isFinite(current) && current == Math.rint(current)
-              ? Integer.toString((int) current)
-              : Double.toString(current),
-          previous,
+      var sourceOptions = previous;
+      double choiceValue = current;
+      propertyControl(
           null,
-          value -> {
-            noise.algorithm.parameters.put(key, Double.parseDouble(value));
-            noiseChanged();
-          });
+          "algorithm/parameters/" + key,
+          () ->
+              draftChoices.draw(
+                  state.metadata.label(id, control.label()),
+                  Double.isFinite(choiceValue) && choiceValue == Math.rint(choiceValue)
+                      ? Integer.toString((int) choiceValue)
+                      : Double.toString(choiceValue),
+                  sourceOptions,
+                  null,
+                  value -> {
+                    noise.algorithm.parameters.put(key, Double.parseDouble(value));
+                    noiseChanged();
+                  }),
+          draftChoices::focused);
     } else {
       ImGui.pushID(id);
       double[] slider = {current};
@@ -1476,10 +1531,15 @@ public final class PropertyPanel {
         noiseChanged();
         current = noise.algorithm.parameters.get(key);
       }
-      f.number(
-          state.metadata.label(id, control.label()),
-          current,
-          value -> noise.algorithm.parameters.put(key, value));
+      double inputValue = current;
+      propertyControl(
+          null,
+          "algorithm/parameters/" + key,
+          () ->
+              f.number(
+                  state.metadata.label(id, control.label()),
+                  inputValue,
+                  value -> noise.algorithm.parameters.put(key, value)));
       ImGui.popID();
     }
     var lo = ImGui.getItemRectMin();
@@ -1526,10 +1586,14 @@ public final class PropertyPanel {
         noiseChanged();
       }
     }
-    f.number(
-        state.metadata.label("processing." + item.kind + ".parameter." + key, key),
-        item.parameters.containsKey(key) ? item.parameters.get(key).asDouble() : def,
-        v -> item.parameters.put(key, ProjectIO.JSON.valueToTree(v)));
+    propertyControl(
+        item.uuid,
+        "parameters/" + key,
+        () ->
+            f.number(
+                state.metadata.label("processing." + item.kind + ".parameter." + key, key),
+                item.parameters.containsKey(key) ? item.parameters.get(key).asDouble() : def,
+                v -> item.parameters.put(key, ProjectIO.JSON.valueToTree(v))));
     var lo = ImGui.getItemRectMin();
     var hi = ImGui.getItemRectMax();
     parameterCenters.put(
@@ -1546,16 +1610,23 @@ public final class PropertyPanel {
       boolean targeted =
           navigationTarget != null
               && item.uuid.equals(navigationTarget.control())
-              && ("parameters/" + control.key()).equals(navigationTarget.parameter());
+              && ("parameters/" + control.key())
+                  .equals(DiagnosticNavigation.controlParameter(navigationTarget));
       if (!targeted && !ProcessingExtensions.visible(item, control, noise.dimension)) continue;
       String key = control.key();
       String id = "processing." + item.kind + ".parameter." + key;
       String label = state.metadata.label(id, control.label());
       if (control.defaultValue() instanceof Boolean defaultValue) {
-        f.bool(
-            label,
-            item.parameters.containsKey(key) ? item.parameters.get(key).asBoolean() : defaultValue,
-            value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value)));
+        propertyControl(
+            item.uuid,
+            "parameters/" + key,
+            () ->
+                f.bool(
+                    label,
+                    item.parameters.containsKey(key)
+                        ? item.parameters.get(key).asBoolean()
+                        : defaultValue,
+                    value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value))));
         metadataTooltip(id);
         revealSearchField(item.uuid, "parameters/" + key);
       } else if (control.options().isEmpty())
@@ -1577,26 +1648,36 @@ public final class PropertyPanel {
             previous = choices;
             catalogues.put(cache, previous);
           }
-          draftChoices.draw(
-              label,
-              item.parameters.containsKey(key)
-                  ? item.parameters.get(key).asText()
-                  : control.defaultValue().toString(),
-              previous,
-              null,
-              value -> {
-                item.parameters.put(key, ProjectIO.JSON.valueToTree(value));
-                noiseChanged();
-              });
+          var extensionOptions = previous;
+          propertyControl(
+              item.uuid,
+              "parameters/" + key,
+              () ->
+                  draftChoices.draw(
+                      label,
+                      item.parameters.containsKey(key)
+                          ? item.parameters.get(key).asText()
+                          : control.defaultValue().toString(),
+                      extensionOptions,
+                      null,
+                      value -> {
+                        item.parameters.put(key, ProjectIO.JSON.valueToTree(value));
+                        noiseChanged();
+                      }),
+              draftChoices::focused);
           parameterCenters.put(item.uuid + ":" + key, draftChoices.buttonCenter());
         } else
-          f.choice(
-              label,
-              item.parameters.containsKey(key)
-                  ? item.parameters.get(key).asText()
-                  : control.defaultValue().toString(),
-              options,
-              value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value)));
+          propertyControl(
+              item.uuid,
+              "parameters/" + key,
+              () ->
+                  f.choice(
+                      label,
+                      item.parameters.containsKey(key)
+                          ? item.parameters.get(key).asText()
+                          : control.defaultValue().toString(),
+                      options,
+                      value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value))));
         metadataTooltip(id);
         revealSearchField(item.uuid, "parameters/" + key);
       }
@@ -1738,7 +1819,8 @@ public final class PropertyPanel {
     for (var c : WarpRegistry.visibleControls(item, noise.dimension)) visible.add(c.key());
     var controls = new ArrayList<>(WarpRegistry.controls(noise.dimension));
     if (navigationTarget != null && item.uuid.equals(navigationTarget.control())) {
-      String target = Objects.requireNonNullElse(navigationTarget.parameter(), "");
+      String target =
+          Objects.requireNonNullElse(DiagnosticNavigation.controlParameter(navigationTarget), "");
       for (var control : WarpRegistry.controls(3))
         if (target.equals("parameters/" + control.key())
             && controls.stream().noneMatch(c -> c.key().equals(control.key())))
@@ -1749,7 +1831,8 @@ public final class PropertyPanel {
       boolean targeted =
           navigationTarget != null
               && item.uuid.equals(navigationTarget.control())
-              && ("parameters/" + key).equals(navigationTarget.parameter());
+              && ("parameters/" + key)
+                  .equals(DiagnosticNavigation.controlParameter(navigationTarget));
       if (!targeted && !visible.contains(key)
           || coordinateStage && key.equals("amplitude") && item.inputs.containsKey("amplitude"))
         continue;
@@ -1780,19 +1863,25 @@ public final class PropertyPanel {
                     ? Integer.toString(current.intValue())
                     : current.toString()
                 : current.asText();
-        draftChoices.draw(
-            label,
-            selected,
-            previous,
-            null,
-            value -> {
-              item.parameters.put(
-                  key,
-                  control.numericOptions()
-                      ? ProjectIO.JSON.valueToTree(Integer.parseInt(value))
-                      : ProjectIO.JSON.valueToTree(value));
-              noiseChanged();
-            });
+        var warpOptions = previous;
+        propertyControl(
+            item.uuid,
+            "parameters/" + key,
+            () ->
+                draftChoices.draw(
+                    label,
+                    selected,
+                    warpOptions,
+                    null,
+                    value -> {
+                      item.parameters.put(
+                          key,
+                          control.numericOptions()
+                              ? ProjectIO.JSON.valueToTree(Integer.parseInt(value))
+                              : ProjectIO.JSON.valueToTree(value));
+                      noiseChanged();
+                    }),
+            draftChoices::focused);
         parameterCenters.put(item.uuid + ":" + key, draftChoices.buttonCenter());
       } else {
         double[] slider = {current.asDouble()};
@@ -1808,12 +1897,16 @@ public final class PropertyPanel {
                   control.integer() ? StrictMath.rint(slider[0]) : slider[0]));
           noiseChanged();
         }
-        f.number(
-            label,
-            item.parameters
-                .getOrDefault(key, ProjectIO.JSON.valueToTree(control.defaultValue()))
-                .asDouble(),
-            value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value)));
+        propertyControl(
+            item.uuid,
+            "parameters/" + key,
+            () ->
+                f.number(
+                    label,
+                    item.parameters
+                        .getOrDefault(key, ProjectIO.JSON.valueToTree(control.defaultValue()))
+                        .asDouble(),
+                    value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value))));
         var lo = ImGui.getItemRectMin();
         var hi = ImGui.getItemRectMax();
         parameterCenters.put(
@@ -1845,21 +1938,11 @@ public final class PropertyPanel {
             if (value.equals("STAGE_VALUE"))
               item.inputs.putIfAbsent(numericKey, Binding.constant(0));
           });
-      revealSearchField(item.uuid, "inputs/" + fieldKey);
+      if (!item.inputs.containsKey(fieldKey) && !item.inputs.containsKey(numericKey))
+        revealSearchField(item.uuid, "inputs/" + fieldKey);
       if (item.inputs.containsKey(fieldKey)) {
         if (coordinateStage) {
-          var binding = item.inputs.get(fieldKey);
-          noisePicker(
-              "Displacement field",
-              binding.noiseGeneratorUuid,
-              value -> binding.noiseGeneratorUuid = value);
-          f.choice(
-              "Projection",
-              binding.projection,
-              List.of("XZ", "XY", "YZ"),
-              value -> binding.projection = value);
-          f.number("Inserted slice coordinate", binding.slice, value -> binding.slice = value);
-          referenceLinks(binding.noiseGeneratorUuid);
+          fieldBinding(noise, item, item.inputs.get(fieldKey), true);
         } else ImGui.textWrapped("Configure this sampled component in its Input row above.");
       }
       if (item.inputs.containsKey(numericKey))
@@ -1869,7 +1952,15 @@ public final class PropertyPanel {
   }
 
   private void fieldBinding(Noise n, int index, Binding b) {
-    Item item = n.processing.get(index);
+    fieldBinding(n, n.processing.get(index), b, false);
+  }
+
+  private void fieldBinding(Noise n, Item item, Binding b, boolean coordinateStage) {
+    bindingField(
+        item,
+        b,
+        "type",
+        () -> f.choice("Type", b.type, List.of("Scalar"), value -> b.type = value));
     bindingField(
         item,
         b,
@@ -1878,7 +1969,9 @@ public final class PropertyPanel {
             f.choice(
                 "Sampled field",
                 b.sourceKind,
-                List.of("Source Field", "Earlier Field Prefix", "Noise Generator Field"),
+                coordinateStage
+                    ? List.of("Noise Generator Field")
+                    : List.of("Source Field", "Earlier Field Prefix", "Noise Generator Field"),
                 v -> {
                   NoiseAuthoring.source(b, v);
                   b.type = "Scalar";
