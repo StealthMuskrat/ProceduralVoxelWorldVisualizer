@@ -1,0 +1,143 @@
+{
+  "formatVersion": 1,
+  "glVersion": "4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.4",
+  "openGL31": true,
+  "supported": true,
+  "counterBits": 64,
+  "receipts": [
+    {
+      "sequence": 1,
+      "captureId": "fac51b77-b18b-422d-b464-943008967763",
+      "offsetNanos": 2301450,
+      "label": "fixed-mesh",
+      "counterBits": 64,
+      "startHex": "38c05c5c1d",
+      "endHex": "38c05d7204",
+      "elapsedNanos": 71143,
+      "recorded": true
+    },
+    {
+      "sequence": 2,
+      "captureId": "fac51b77-b18b-422d-b464-943008967763",
+      "offsetNanos": 8127957,
+      "label": "volume",
+      "counterBits": 64,
+      "startHex": "38c0b3d6f3",
+      "endHex": "38c0e0b6f5",
+      "elapsedNanos": 2940930,
+      "recorded": true
+    },
+    {
+      "sequence": 3,
+      "captureId": "fac51b77-b18b-422d-b464-943008967763",
+      "offsetNanos": 16465607,
+      "label": "streamed-scene",
+      "counterBits": 64,
+      "startHex": "38c132ee31",
+      "endHex": "38c133b8a6",
+      "elapsedNanos": 51829,
+      "recorded": true
+    }
+  ],
+  "frames": [
+    {
+      "name": "fixed-mesh",
+      "framebufferHash": "9c71e45a95e4696d93b05585fae140385c29e0d8da1f103b4d1694695d573d0d",
+      "pixel": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "name": "volume",
+      "framebufferHash": "8abb582c72bf5656d3c6c22a46a5a813ffc9148ed24388bad0efbc14c4579d73",
+      "pixel": [
+        1,
+        2,
+        2,
+        255
+      ]
+    },
+    {
+      "name": "streamed-scene",
+      "framebufferHash": "6d19936ee8f2f4c300a8dab7d788695c4bb892a822f73b842727ff4a2dbde57a",
+      "pixel": [
+        255,
+        0,
+        0,
+        255
+      ]
+    }
+  ],
+  "stoppedStatistics": {
+    "state": "IDLE",
+    "counterBits": 64,
+    "allocatedQueries": 0,
+    "pending": 0,
+    "submitted": 3,
+    "recorded": 3,
+    "skipped": 0,
+    "discarded": 0,
+    "lastNanos": 51829,
+    "detail": "Capture off; unfinished GPU measurements discarded"
+  },
+  "replacementReceipts": [
+    {
+      "sequence": 5,
+      "captureId": "854c057c-7d43-480e-bf80-74249d208e87",
+      "offsetNanos": 2885007,
+      "label": "replacement",
+      "counterBits": 64,
+      "startHex": "38c231637e",
+      "endHex": "38c2320264",
+      "elapsedNanos": 40678,
+      "recorded": true
+    }
+  ],
+  "captureReplaced": true,
+  "stopDiscarded": true,
+  "driverNamesDeleted": true,
+  "productionGpuSamples": 2,
+  "productionStatistics": [
+    {
+      "state": "IDLE",
+      "counterBits": 0,
+      "allocatedQueries": 0,
+      "pending": 0,
+      "submitted": 0,
+      "recorded": 0,
+      "skipped": 0,
+      "discarded": 0,
+      "lastNanos": 0,
+      "detail": "Start a capture to measure GPU draws"
+    },
+    {
+      "state": "IDLE",
+      "counterBits": 64,
+      "allocatedQueries": 0,
+      "pending": 0,
+      "submitted": 6,
+      "recorded": 2,
+      "skipped": 6,
+      "discarded": 4,
+      "lastNanos": 1951460,
+      "detail": "Capture off; unfinished GPU measurements discarded"
+    },
+    {
+      "state": "IDLE",
+      "counterBits": 0,
+      "allocatedQueries": 0,
+      "pending": 0,
+      "submitted": 0,
+      "recorded": 0,
+      "skipped": 0,
+      "discarded": 0,
+      "lastNanos": 0,
+      "detail": "Start a capture to measure GPU draws"
+    }
+  ],
+  "profileUiDrawn": true,
+  "viewOnly": true
+}

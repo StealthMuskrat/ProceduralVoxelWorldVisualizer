@@ -1,0 +1,102 @@
+{
+  "formatVersion": 1,
+  "glVersion": "3.0 Mesa 25.2.8-0ubuntu0.24.04.4",
+  "openGL31": false,
+  "supported": true,
+  "counterBits": 64,
+  "receipts": [
+    {
+      "sequence": 1,
+      "captureId": "84b3c0bf-e148-4419-993b-bf0a04d50742",
+      "offsetNanos": 10515923,
+      "label": "fixed-mesh",
+      "counterBits": 64,
+      "startHex": "3a8bd2ff30",
+      "endHex": "3a8bd471e3",
+      "elapsedNanos": 94899,
+      "recorded": true
+    },
+    {
+      "sequence": 2,
+      "captureId": "84b3c0bf-e148-4419-993b-bf0a04d50742",
+      "offsetNanos": 20726176,
+      "label": "volume",
+      "counterBits": 64,
+      "startHex": "3a8c4fae99",
+      "endHex": "3a8c7ce2da",
+      "elapsedNanos": 2962497,
+      "recorded": true
+    },
+    {
+      "sequence": 3,
+      "captureId": "84b3c0bf-e148-4419-993b-bf0a04d50742",
+      "offsetNanos": 57129606,
+      "label": "streamed-scene",
+      "counterBits": 64,
+      "startHex": "3a8e7ae332",
+      "endHex": "3a8e7bb8d9",
+      "elapsedNanos": 54695,
+      "recorded": true
+    }
+  ],
+  "frames": [
+    {
+      "pixel": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "framebufferHash": "9c71e45a95e4696d93b05585fae140385c29e0d8da1f103b4d1694695d573d0d",
+      "name": "fixed-mesh"
+    },
+    {
+      "pixel": [
+        1,
+        2,
+        2,
+        255
+      ],
+      "framebufferHash": "8abb582c72bf5656d3c6c22a46a5a813ffc9148ed24388bad0efbc14c4579d73",
+      "name": "volume"
+    },
+    {
+      "pixel": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "framebufferHash": "6d19936ee8f2f4c300a8dab7d788695c4bb892a822f73b842727ff4a2dbde57a",
+      "name": "streamed-scene"
+    }
+  ],
+  "stoppedStatistics": {
+    "state": "IDLE",
+    "counterBits": 64,
+    "allocatedQueries": 0,
+    "pending": 0,
+    "submitted": 3,
+    "recorded": 3,
+    "skipped": 0,
+    "discarded": 0,
+    "lastNanos": 54695,
+    "detail": "Capture off; unfinished GPU measurements discarded"
+  },
+  "replacementReceipts": [
+    {
+      "sequence": 5,
+      "captureId": "dabe7acd-9b28-490f-b55f-35347c2721b3",
+      "offsetNanos": 483310,
+      "label": "replacement",
+      "counterBits": 64,
+      "startHex": "3a919d133c",
+      "endHex": "3a919df2ef",
+      "elapsedNanos": 57267,
+      "recorded": true
+    }
+  ],
+  "captureReplaced": true,
+  "stopDiscarded": true,
+  "driverNamesDeleted": true
+}
