@@ -973,7 +973,8 @@ public final class Desktop extends Application {
         || resources.blocksProjectTransition()
         || sourceNavigation.pending()
         || findPanel.navigationPending()
-        || projectSettings.pendingChanges();
+        || projectSettings.pendingChanges()
+        || (views != null && views.bookmarkInteractionPending());
   }
 
   private boolean packageInteractionBlocked() {

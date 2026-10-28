@@ -55,6 +55,10 @@ public final class Viewports implements AutoCloseable {
   private final int[] inspect = {0, 0, 0};
   private final BookmarkPanel bookmarkPanel;
 
+  boolean bookmarkInteractionPending() {
+    return bookmarkPanel.pending();
+  }
+
   private final ResourcePicker generatorPicker;
   private boolean admissionProbe;
   private final java.util.concurrent.atomic.AtomicBoolean probeRendererStartupFailure =
