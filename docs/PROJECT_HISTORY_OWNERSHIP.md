@@ -1,0 +1,33 @@
+# Project history and private input
+
+Status: **implemented, awaiting validation** on `codex/development-phase`. Compilation, regression/native execution and independent replay remain deferred under the owner testing pause. No passing count or acceptance status advances.
+
+## Explicit history decisions
+
+The Edit menu and configured project Undo/Redo shortcuts now share one project-history session and modal. An unchanged Properties draft permits an immediate step. Canonical private edits and retained invalid seed text require **Discard Draft and Undo/Redo** or **Cancel**; Escape cancels. Discard occurs only after the requested history entry is successfully reconstructed and published. A failed or stale action leaves the private draft available.
+
+Undo/Redo operates on the existing committed delta. The history guard does not create a draft transaction first, so it cannot accidentally undo only a newly applied draft or clear the Redo future through an implicit Apply. Properties Apply remains a separate explicit action. An empty history direction does nothing and opens no draft decision.
+
+One pending direction owns the exact project object/revision, saved path and dirty baseline, selected UUID and ordered selection, exact Properties draft object, serialized draft value and raw seed revision through the existing project-action ownership snapshot. Another request cannot replace it. Changed ownership or a newly opened private interaction aborts the old discard decision. Save/Save As changes that affect ownership require a fresh history request. Cancellation remains available without discarding newer input.
+
+Desktop uses a shared private-project-interaction predicate for file and history entry points. Private curve/expression/typed-item/membership editors, browser forms/decisions/inline rename/drag, source/Find decisions, edited Project Settings and import/export dialogs block project history. Pending file decisions and pending history decisions also block each other. The curve editor retains its own existing local history and focus scope; text inputs retain the established shortcut exclusions. No shortcut ID, binding or preference schema changes.
+
+## Publication, selection and model compatibility
+
+`DocumentSession.undo()` and `redo()` keep their public void signatures. Each now peeks at its delta, reconstructs a separate candidate and runs the session's current validator before moving either stack or publishing the candidate. A reconstruction exception, validation exception or nonempty validation result preserves the active document object, both stacks and byte accounting. Validation rejection throws `IllegalStateException`; a validator's own runtime exception remains visible to headless callers. Successful steps retain structural-delta history, its existing capacity limits and total accounting. Empty steps skip reconstruction/validation. This does not promise recovery from allocation failure or side effects inside an application-supplied validator.
+
+This is a behavior change for public model clients that replace the validator or mutate document data outside transactions: history candidates must now pass the current validation policy. Normal history still reconstructs earlier accepted project states. No persisted project, archive, registry or engine sampler schema changes. The engine JAR includes the changed model implementation when next built; no new byte-identity claim is made.
+
+After a successful editor step, revision advances once and Properties refreshes from the committed resource. The shared browser/history selection reconciler removes missing UUIDs, retains an existing active member when possible and keeps only siblings in that member's current scope. Undoing creation of the selected resource clears selection and private seed ownership. Redo restores the resource's original UUID without replaying the previous UI navigation. Undoing a move cannot leave a mixed-parent selection.
+
+History movement updates dirty state against the existing explicit-save baseline and never writes the saved file. Selection, focus, User Config and viewport state remain outside project history. Failed movement increments no editor revision and reports `PROJECT_HISTORY_FAILED` through existing project diagnostics. There is no automatic skip, repair, recovery file or save on failure.
+
+## Deferred definitions and limits
+
+`DocumentHistoryFailureTest` defines four model contracts for rejected Undo, rejected/throwing Redo, reconstruction failure before stack movement and empty history. Unsupported direct model corruption is used only as fault injection, then restored before retry. `ProjectHistorySessionTest` defines twelve editor contracts, including canonical/raw Cancel for both directions, explicit discard without applying, deleted/split selection cleanup, a twelve-case stale-discard matrix, rejected validation with retry, empty history, pending-direction ownership, late blockers, unchanged saved bytes, changed save baselines and mutual file/history blocking.
+
+`ProjectHistoryProbe` defines production history-modal mouse/Escape workflows. Property/raw edits are staged fixtures, and it uses the same panel request path as Desktop commands. It cancels Undo, rejects a changed-raw-text Discard, undoes a joint source edit/resource creation, reconciles the deleted selected resource, cancels and accepts Redo, injects a history validation rejection, checks late private blockers and preserves User Config. Explicit saves record Before/Edit/Undo/Redo; saved values are 0.25 versus 0.75/0.5, and seed 17 appears only in the edited/redone state. Dirty state changes on both directions and total history accounting remains constant.
+
+`ProjectHistoryConsumer` defines engine-JAR-only replay of 486 exact scalar values and 576 EMPTY voxels across roots 2/4 and signed chunks, restored UUIDs, and public-model validation failure/retry. `verify_project_history.py` defines independent complete Before=Undo and Edit=Redo comparisons plus exact values, identities, schema and native-report checks. Linux/Windows workflow entries and artifact retention are prepared while keeping development-branch trigger exclusions unchanged. None has run in this batch.
+
+Actual configured key dispatch for these new guards, every private-window interaction, physical mouse/focus/DPI behavior, pathological large history performance, arbitrary custom validator behavior, every structural delta and Windows 11 acceptance remain pending. The native definition uses an injected blocker and counted assertions; it is not complete desktop or hardware certification. Earlier curve/shortcut/history passing evidence remains scoped to its recorded source.

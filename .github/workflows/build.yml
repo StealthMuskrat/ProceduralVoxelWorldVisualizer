@@ -157,6 +157,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpandedExpressionProbe build/expanded-expression
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExpressionRecoveryConsumer build/expanded-expression/expanded-expression-project.json 6
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
+      - name: Project history and unapplied Properties workflow
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectHistoryProbe build/project-history
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectHistoryConsumer build/project-history
+          python scripts/verify_project_history.py build/project-history
       - name: Project transitions and unapplied Properties workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectDraftTransitionProbe build/project-drafts
@@ -280,6 +285,7 @@ jobs:
             build/browser-selection/
             build/browser-edits/
             build/project-drafts/
+            build/project-history/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/
@@ -550,6 +556,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows project history and unapplied Properties workflow
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectHistoryProbe build/project-history
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ProjectHistoryConsumer build/project-history
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_project_history.py build/project-history
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows project transitions and unapplied Properties workflow
         shell: pwsh
         run: |
@@ -767,6 +782,7 @@ jobs:
             build/browser-selection/
             build/browser-edits/
             build/project-drafts/
+            build/project-history/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/

@@ -128,6 +128,18 @@ public final class EditorState implements AutoCloseable {
     if (discard || changedOwner || draft == null) refreshDraft();
   }
 
+  /** Retain surviving siblings after a committed structural edit or history movement. */
+  void reconcileSelection(Collection<UUID> requested, UUID active) {
+    var entries = new LinkedHashMap<UUID, ResourceGraph.Entry>();
+    ResourceGraph.entries(project()).forEach(e -> entries.put(e.uuid(), e));
+    var ids = new ArrayList<>(new LinkedHashSet<>(requested));
+    ids.removeIf(id -> !entries.containsKey(id));
+    if (!ids.contains(active)) active = ids.isEmpty() ? null : ids.getLast();
+    String scope = active == null ? "" : entries.get(active).scope();
+    ids.removeIf(id -> !entries.get(id).scope().equals(scope));
+    selectResources(ids, active, scope, true);
+  }
+
   public void refreshDraft() {
     if (validationScope.equals("Rejected edit")
         || validationScope.equals("Rejected Properties seed input")) {

@@ -51,6 +51,7 @@ public final class Desktop extends Application {
   private boolean filePending = false;
   private boolean packageFileOpen;
   private ProjectFileDialog projectFiles;
+  private ProjectHistoryPanel projectHistory;
   private ProjectSettingsPanel projectSettings;
   private ProjectData importCandidate;
   private ResourceImport.Plan importPlan;
@@ -129,17 +130,18 @@ public final class Desktop extends Application {
             () -> {
               resources.reset();
               projectSettings.cancel();
+              if (projectHistory != null) projectHistory.session.clear();
             },
             () -> glfwSetWindowShouldClose(handle, true),
             () ->
-                properties.searchBlocked()
-                    || resources.blocksProjectTransition()
-                    || sourceNavigation.pending()
-                    || findPanel.navigationPending()
-                    || projectSettings.pendingChanges()
-                    || filePending
-                    || packageFileOpen
-                    || importCandidate != null);
+                privateProjectInteraction()
+                    || (projectHistory != null && projectHistory.session.pending()));
+    projectHistory =
+        new ProjectHistoryPanel(
+            state,
+            () ->
+                privateProjectInteraction()
+                    || projectFiles.workflow.phase() != ProjectFileWorkflow.Phase.IDLE);
     views = new Viewports(state, properties, handle);
     views.tracePanel(new TracePanel(state, sourceNavigation));
     diagnostics.tracePanel(new TracePanel(state, sourceNavigation));
@@ -204,6 +206,7 @@ public final class Desktop extends Application {
     auxiliary();
     fileDialogs();
     projectFiles.draw();
+    projectHistory.draw();
     statusBar();
     shortcuts();
     if (System.nanoTime() - preferenceSave > 5_000_000_000L) {
@@ -1036,20 +1039,8 @@ public final class Desktop extends Application {
       case "Save" -> projectFiles.workflow.save(false);
       case "SaveAs" -> projectFiles.workflow.save(true);
       case "Import", "Export" -> openFile(action);
-      case "Undo" -> {
-        if (state.document.canUndo()) {
-          state.document.undo();
-          state.revision++;
-          state.refreshDraft();
-        }
-      }
-      case "Redo" -> {
-        if (state.document.canRedo()) {
-          state.document.redo();
-          state.revision++;
-          state.refreshDraft();
-        }
-      }
+      case "Undo" -> projectHistory.request(ProjectHistorySession.Direction.UNDO);
+      case "Redo" -> projectHistory.request(ProjectHistorySession.Direction.REDO);
       case "Find" -> {
         find.set(true);
         findPanel.clearReferences();
@@ -1072,6 +1063,17 @@ public final class Desktop extends Application {
       case "CurveDelete", "CurveUndo", "CurveRedo" -> properties.curveShortcut(action);
       default -> throw new IllegalArgumentException("Unknown editor command " + action);
     }
+  }
+
+  private boolean privateProjectInteraction() {
+    return properties.searchBlocked()
+        || resources.blocksProjectTransition()
+        || sourceNavigation.pending()
+        || findPanel.navigationPending()
+        || projectSettings.pendingChanges()
+        || filePending
+        || packageFileOpen
+        || importCandidate != null;
   }
 
   private void checkUpdates() {

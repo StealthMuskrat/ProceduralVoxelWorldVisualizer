@@ -57,19 +57,22 @@ public final class DocumentSession {
   }
 
   public void undo() {
-    if (!undo.isEmpty()) {
-      var delta = undo.pop();
-      active = delta.apply(active, false);
-      redo.push(delta);
-    }
+    step(undo, redo, false);
   }
 
   public void redo() {
-    if (!redo.isEmpty()) {
-      var delta = redo.pop();
-      active = delta.apply(active, true);
-      undo.push(delta);
-    }
+    step(redo, undo, true);
+  }
+
+  private void step(Deque<ProjectDelta> source, Deque<ProjectDelta> destination, boolean forward) {
+    if (source.isEmpty()) return;
+    var delta = source.peek();
+    var candidate = delta.apply(active, forward);
+    var issues = validator.apply(candidate);
+    if (!issues.isEmpty()) throw new IllegalStateException("History candidate rejected: " + issues);
+    destination.push(delta);
+    source.pop();
+    active = candidate;
   }
 
   public boolean canUndo() {

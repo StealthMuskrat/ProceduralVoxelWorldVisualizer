@@ -102,17 +102,9 @@ final class ResourceEditSession {
   }
 
   private void reconcile(ResourceBrowserEdits.Selection requested) {
-    var entries = new LinkedHashMap<UUID, ResourceGraph.Entry>();
-    ResourceGraph.entries(state.project()).forEach(e -> entries.put(e.uuid(), e));
-    var ids =
-        new ArrayList<>(
-            new LinkedHashSet<>(requested == null ? state.multiSelection : requested.ids()));
-    ids.removeIf(id -> !entries.containsKey(id));
-    UUID active = requested == null ? state.selected : requested.active();
-    if (!ids.contains(active)) active = ids.isEmpty() ? null : ids.getLast();
-    String scope = active == null ? "" : entries.get(active).scope();
-    ids.removeIf(id -> !entries.get(id).scope().equals(scope));
-    state.selectResources(ids, active, scope, true);
+    state.reconcileSelection(
+        requested == null ? state.multiSelection : requested.ids(),
+        requested == null ? state.selected : requested.active());
   }
 
   void clear() {
