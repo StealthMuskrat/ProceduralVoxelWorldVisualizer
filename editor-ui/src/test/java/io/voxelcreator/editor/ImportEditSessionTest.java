@@ -10,6 +10,33 @@ import org.junit.jupiter.api.Test;
 
 /** Deferred contracts for explicit preview review, reload and separate private Properties state. */
 class ImportEditSessionTest {
+  @Test
+  void reusedValidatorDiagnosticsStayVisibleAcrossRepeatedAttemptsAndThrownFailureCanRetry() {
+    try (var state = state()) {
+      var session = new ImportEditSession(state, incoming());
+      var preview = session.preview();
+      session.markShown(preview);
+      var rejection = List.of(Diagnostic.error("SAME_LIST", "/fixture", "Rejected"));
+      state.document.setValidator(p -> rejection);
+      for (int attempt = 0; attempt < 2; attempt++) {
+        assertEquals(ImportEditSession.Result.REJECTED, session.apply());
+        assertEquals(1, session.issueCount());
+        assertEquals(rejection, session.applyIssues());
+      }
+      state.document.setValidator(
+          p -> {
+            throw new IllegalStateException();
+          });
+      assertEquals(ImportEditSession.Result.REJECTED, session.apply());
+      assertEquals(0, session.issueCount());
+      assertTrue(session.applyIssues().isEmpty());
+      assertSame(preview, session.preview());
+      assertTrue(session.canApply());
+      state.document.setValidator(NoiseCompiler::validate);
+      assertEquals(ImportEditSession.Result.APPLIED, session.apply());
+    }
+  }
+
   private static Noise noise(String id, double value) {
     var n = new Noise();
     n.id = id;

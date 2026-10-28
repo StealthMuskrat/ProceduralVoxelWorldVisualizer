@@ -1,5 +1,6 @@
 package io.voxelcreator.editor;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.voxelcreator.model.*;
 import java.util.*;
 
@@ -7,16 +8,24 @@ import java.util.*;
 final class ProjectSettingsSession {
   static final List<String> FIELDS = List.of("seed", "minY", "maxY");
   static final int MAX_CHARACTERS = 128;
+  private final EditorState editor;
   private final ProjectData project;
+  private final UUID projectId;
+  private final JsonNode projectBase;
   private final long revision;
   private final long baseSeed;
   private final int baseMinY, baseMaxY;
   private final Map<String, String> text = new LinkedHashMap<>();
   private List<Diagnostic> cached, applyIssues = List.of();
-  private boolean closed;
+  private int issueCount;
+  private String applyFailure = "";
+  private boolean closed, forcedStale;
 
   ProjectSettingsSession(EditorState state) {
+    editor = state;
     project = state.project();
+    projectId = project.project.uuid;
+    projectBase = ProjectIO.JSON.valueToTree(project);
     revision = state.revision;
     baseSeed = project.project.seed;
     baseMinY = project.project.minY;
@@ -37,14 +46,20 @@ final class ProjectSettingsSession {
     text(field);
     if (Objects.requireNonNull(value).length() > MAX_CHARACTERS)
       throw new IllegalArgumentException("Project setting text limit " + MAX_CHARACTERS);
-    text.put(field, Objects.requireNonNull(value));
+    if (text.get(field).equals(value)) return;
+    text.put(field, value);
     cached = null;
     applyIssues = List.of();
+    issueCount = 0;
+    applyFailure = "";
   }
 
   boolean current(EditorState state) {
     return !closed
+        && !forcedStale
+        && state == editor
         && state.project() == project
+        && Objects.equals(projectId, project.project.uuid)
         && state.revision == revision
         && project.project.seed == baseSeed
         && project.project.minY == baseMinY
@@ -113,15 +128,40 @@ final class ProjectSettingsSession {
     return applyIssues;
   }
 
+  int issueCount() {
+    return issueCount;
+  }
+
+  String applyFailure() {
+    return applyFailure;
+  }
+
   boolean apply(EditorState state) {
+    return apply(state, Map.copyOf(text));
+  }
+
+  boolean apply(EditorState state, Map<String, String> displayed) {
     if (!current(state))
       throw new IllegalStateException(
           closed
               ? "Project Settings is closed"
               : "The project changed. Discard and reload Project Settings before applying.");
+    if (!displayed.keySet().equals(Set.copyOf(FIELDS)))
+      throw new IllegalStateException("All three Project Settings fields are required");
+    for (var field : FIELDS)
+      if (!Objects.equals(text.get(field), displayed.get(field)))
+        throw new IllegalStateException(
+            "Displayed " + field + " differs from the private input; correct it before applying.");
+    if (!projectBase.equals(ProjectIO.JSON.valueToTree(state.project()))) {
+      forcedStale = true;
+      throw new IllegalStateException(
+          "The project changed. Discard and reload Project Settings before applying.");
+    }
     var problems = validate();
     if (!problems.isEmpty()) {
       applyIssues = problems;
+      issueCount = problems.size();
+      applyFailure = "";
       state.issues = problems;
       state.validationScope = "Rejected Project Settings";
       for (var problem : problems)
@@ -130,13 +170,17 @@ final class ProjectSettingsSession {
     }
     long seed = Long.parseLong(text.get("seed"));
     int minY = Integer.parseInt(text.get("minY")), maxY = Integer.parseInt(text.get("maxY"));
-    if (!state.change(
-        p -> {
-          p.project.seed = seed;
-          p.project.minY = minY;
-          p.project.maxY = maxY;
-        })) {
-      applyIssues = List.copyOf(state.issues);
+    var result =
+        state.changeResult(
+            p -> {
+              p.project.seed = seed;
+              p.project.minY = minY;
+              p.project.maxY = maxY;
+            });
+    applyIssues = result.issues();
+    issueCount = result.issueCount();
+    applyFailure = result.failure();
+    if (!result.applied()) {
       return false;
     }
     closed = true;
@@ -145,6 +189,9 @@ final class ProjectSettingsSession {
 
   void cancel() {
     closed = true;
+    applyIssues = List.of();
+    issueCount = 0;
+    applyFailure = "";
   }
 
   static String field(EditorEvents.Target target) {

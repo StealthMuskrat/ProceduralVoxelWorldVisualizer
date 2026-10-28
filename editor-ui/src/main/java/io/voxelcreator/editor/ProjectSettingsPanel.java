@@ -15,6 +15,7 @@ public final class ProjectSettingsPanel {
   private final PropertyFocus focus = new PropertyFocus();
   private boolean focusWindow;
   private String message = "";
+  private int diagnosticRows;
 
   public ProjectSettingsPanel(EditorState state) {
     this.state = state;
@@ -55,6 +56,8 @@ public final class ProjectSettingsPanel {
     focus.cancel();
     message = "";
     focusWindow = false;
+    diagnosticRows = 0;
+    controls.clear();
   }
 
   boolean pendingChanges() {
@@ -63,8 +66,9 @@ public final class ProjectSettingsPanel {
 
   /** Called inside the shared Settings window; true closes that window after Apply/Cancel. */
   public boolean draw() {
-    if (session == null || session.closed()) reload();
     controls.clear();
+    diagnosticRows = 0;
+    if (session == null || session.closed()) return true;
     if (focusWindow) {
       ImGui.setWindowFocus("Project Settings");
       focusWindow = false;
@@ -76,8 +80,12 @@ public final class ProjectSettingsPanel {
       ImGui.textWrapped(
           "The project changed while these settings were open. This private text is preserved;"
               + " discard and reload before applying.");
-      if (ImGui.button("Discard and Reload")) reload();
+      boolean reload = ImGui.button("Discard and Reload");
       control("reload");
+      if (reload) {
+        reload();
+        return false;
+      }
     }
     ImGui.textWrapped(
         "Apply validates these values against the complete current project. Changes remain private"
@@ -112,17 +120,31 @@ public final class ProjectSettingsPanel {
     }
     var problems = session.validate();
     for (var problem : problems) ImGui.textWrapped("! " + problem.message());
-    if (problems.isEmpty())
-      for (var problem : session.applyIssues().stream().limit(8).toList())
-        ImGui.textWrapped("! " + problem.jsonPointer() + ": " + problem.message());
-    if (!message.isEmpty()) ImGui.textWrapped("! " + message);
+    if (problems.isEmpty() && session.issueCount() > 0) {
+      ImGui.beginChild("project-settings-diagnostics", 0, 110, true);
+      for (var problem : session.applyIssues().stream().limit(8).toList()) {
+        diagnosticRows++;
+        ImGui.textWrapped("! " + bounded(problem.jsonPointer() + ": " + problem.message(), 1024));
+      }
+      ImGui.endChild();
+      ImGui.textDisabled(session.issueCount() + " candidate diagnostic(s); showing up to eight.");
+    }
+    if (!message.isEmpty()) ImGui.textWrapped("! " + bounded(message, 512));
     boolean done = false;
+    ImGui.beginDisabled(!current);
     if (ImGui.button("Apply")) {
       try {
-        done = session.apply(state);
+        var displayed = new LinkedHashMap<String, String>();
+        for (var field : ProjectSettingsSession.FIELDS)
+          displayed.put(field, buffers.get(field).get());
+        done = session.apply(state, displayed);
         if (!done)
           message =
-              "Project Settings were rejected. Correct the values or inspect Validation Results.";
+              session.applyFailure().isEmpty()
+                  ? "Project Settings were rejected. Correct the values or inspect Validation"
+                      + " Results."
+                  : "Project Settings could not be applied. Your text is preserved; retry or"
+                      + " inspect Logs.";
       } catch (RuntimeException invalid) {
         message =
             Objects.requireNonNullElse(
@@ -130,11 +152,17 @@ public final class ProjectSettingsPanel {
       }
     }
     control("apply");
+    ImGui.endDisabled();
     ImGui.sameLine();
     if (ImGui.button("Cancel")) done = true;
     control("cancel");
     if (done) cancel();
     return done;
+  }
+
+  private static String bounded(String text, int limit) {
+    text = Objects.requireNonNullElse(text, "");
+    return text.length() > limit ? text.substring(0, limit - 1) + "…" : text;
   }
 
   private void control(String key) {
@@ -153,5 +181,17 @@ public final class ProjectSettingsPanel {
 
   String text(String field) {
     return session.text(field);
+  }
+
+  int diagnosticRows() {
+    return diagnosticRows;
+  }
+
+  int candidateIssueCount() {
+    return session == null ? 0 : session.issueCount();
+  }
+
+  String applyFailure() {
+    return session == null ? "" : session.applyFailure();
   }
 }

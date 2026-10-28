@@ -98,27 +98,24 @@ public final class MembershipEditSession {
     if (!valid.containsAll(values))
       throw new IllegalArgumentException("A selected voxel type no longer exists");
     var candidate = values();
-    var previousIssues = state.issues;
-    boolean applied =
-        state.change(
+    var result =
+        state.changeResult(
             p -> {
               var target = ResourceGraph.find(p, owner);
               if (target == null || !(target.resource() instanceof Membership m))
                 throw new IllegalArgumentException("Membership resource no longer exists");
               m.voxelTypeUuids = new ArrayList<>(candidate);
             });
-    if (applied) {
+    if (result.applied()) {
       draft.voxelTypeUuids = new ArrayList<>(candidate);
       closed = true;
       applyIssues = List.of();
       issueCount = 0;
     } else {
-      // Runtime failures leave EditorState.issues unchanged; do not present earlier diagnostics.
-      var rejected = state.issues == previousIssues ? List.<Diagnostic>of() : state.issues;
-      issueCount = rejected.size();
-      applyIssues = rejected.stream().limit(256).toList();
+      issueCount = result.issueCount();
+      applyIssues = result.issues();
     }
-    return applied;
+    return result.applied();
   }
 
   /** Cheap draw-time ownership check; Apply also compares complete opening resource values. */

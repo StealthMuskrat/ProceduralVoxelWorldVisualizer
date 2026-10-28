@@ -40,3 +40,5 @@ Six deferred `MembershipOwnershipTest` definitions cover equal-value draft repla
 
 
 [Owned export workspace](EXPORT_WORKSPACE.md) subsequently freezes the committed source, requires explicit stale reload and exact displayed-preview publication, and preserves retry/Cancel lifetimes. The lower-level cache API remains available; this editor extension and its deferred definitions remain uncompiled/untested under the owner testing pause.
+
+[Attempt-owned transaction feedback](PROJECT_CHANGE_FEEDBACK.md) subsequently replaces shared diagnostic-list identity inference for membership retries, including repeated use of the same validator rejection list. Its implementation and deferred definitions remain uncompiled/untested.

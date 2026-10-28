@@ -13,6 +13,7 @@ public final class ProjectSettingsProbe {
   private static EditorState state;
   private static ProjectSettingsPanel panel;
   private static boolean visible;
+  private static boolean collapsed;
 
   public static void main(String[] args) throws Exception {
     var out = Path.of(args[0]).toAbsolutePath();
@@ -70,6 +71,66 @@ public final class ProjectSettingsProbe {
         state.revision++;
         require(initial.equals(ProjectIO.JSON.valueToTree(state.project())), "Fixture edit Undo");
 
+        // Reusing a validator's list must keep current details; a later exception has none.
+        open("seed");
+        type("17");
+        var rejection =
+            java.util.stream.IntStream.range(0, 300)
+                .mapToObj(
+                    i -> Diagnostic.error("RETRY_FIXTURE", "/fixture/" + i, "detail".repeat(1000)))
+                .toList();
+        int[] attempts = {0};
+        state.document.setValidator(
+            p -> {
+              attempts[0]++;
+              return rejection;
+            });
+        for (int attempt = 0; attempt < 2; attempt++) {
+          click(panel.controlAt("apply"));
+          frames(3);
+          require(
+              visible && panel.candidateIssueCount() == 300 && panel.diagnosticRows() == 8,
+              "Repeated rejection lost current bounded candidate details");
+          require(
+              panel.controlAt("apply")[1] < 650 && panel.controlAt("cancel")[1] < 650,
+              "Candidate details pushed actions beyond the native fixture window");
+        }
+        state.document.setValidator(
+            p -> {
+              attempts[0]++;
+              throw new IllegalStateException();
+            });
+        click(panel.controlAt("apply"));
+        frames(3);
+        require(
+            visible
+                && panel.candidateIssueCount() == 0
+                && panel.diagnosticRows() == 0
+                && panel.applyFailure().contains("IllegalStateException")
+                && panel.text("seed").equals("17"),
+            "Thrown validation reused earlier details or lost raw input");
+        require(
+            state.events.snapshot().stream()
+                .anyMatch(
+                    e ->
+                        e.code().equals("PROJECT_EDIT_FAILED")
+                            && e.actionRequired()
+                            && e.subsystem() == EditorEvents.Subsystem.PROJECT),
+            "Thrown validation lacks an actionable project error");
+        collapsed = true;
+        frames(3);
+        require(attempts[0] == 3 && visible, "Collapsed host repeated an attempt or closed input");
+        collapsed = false;
+        frames(3);
+        require(panel.text("seed").equals("17"), "Collapsed host lost private text");
+        state.document.setValidator(NoiseCompiler::validate);
+        require(
+            state.seedInputs.edit(state, "seedOffset", "Seed", "+").isEmpty(),
+            "Raw Properties seed fixture");
+        require(
+            initial.equals(ProjectIO.JSON.valueToTree(state.project())),
+            "Rejected attempts changed the project");
+
         long revision = state.revision, history = state.document.historyBytes();
         open("seed");
         type("17");
@@ -101,6 +162,7 @@ public final class ProjectSettingsProbe {
         require(
             state.draft == privateDraft && state.project().noise2D.getFirst().id.equals("context"),
             "Settings applied the resource draft");
+        require(state.seedInputs.text("seedOffset").equals("+"), "Settings applied raw seed text");
         var applied = ProjectIO.JSON.valueToTree(state.project());
         state.document.undo();
         state.revision++;
@@ -114,27 +176,24 @@ public final class ProjectSettingsProbe {
         Files.writeString(
             out.resolve("project-settings-native.json"),
             ProjectIO.JSON.writeValueAsString(
-                Map.of(
-                    "formatVersion",
-                    1,
-                    "focused",
-                    List.of("seed", "minY", "maxY"),
-                    "before",
-                    639,
-                    "after",
-                    24,
-                    "invalidTextRetained",
-                    true,
-                    "staleApplyRejected",
-                    true,
-                    "explicitReload",
-                    true,
-                    "cancel",
-                    true,
-                    "resourceDraftPreserved",
-                    true,
-                    "oneUndoRedo",
-                    true)));
+                Map.ofEntries(
+                    Map.entry("formatVersion", 1),
+                    Map.entry("focused", List.of("seed", "minY", "maxY")),
+                    Map.entry("before", 639),
+                    Map.entry("after", 24),
+                    Map.entry("invalidTextRetained", true),
+                    Map.entry("staleApplyRejected", true),
+                    Map.entry("explicitReload", true),
+                    Map.entry("cancel", true),
+                    Map.entry("resourceDraftPreserved", true),
+                    Map.entry("oneUndoRedo", true),
+                    Map.entry("sameListRetryDetails", true),
+                    Map.entry("throwDetailsCleared", true),
+                    Map.entry("collapsedInputPreserved", true),
+                    Map.entry("rawSeedPreserved", true),
+                    Map.entry("candidateDiagnostics", 300),
+                    Map.entry("visibleDiagnostics", 8),
+                    Map.entry("rejectedAttempts", attempts[0]))));
         System.out.println(
             "PROJECT_SETTINGS_NATIVE_PASS exact raw text / diagnostic focus / stale guard / reload"
                 + " / Cancel / one Apply-Undo-Redo");
@@ -230,8 +289,8 @@ public final class ProjectSettingsProbe {
     if (visible) {
       ImGui.setNextWindowPos(0, 0, ImGuiCond.Always);
       ImGui.setNextWindowSize(850, 650, ImGuiCond.Always);
-      ImGui.begin("Project Settings");
-      if (panel.draw()) visible = false;
+      ImGui.setNextWindowCollapsed(collapsed, ImGuiCond.Always);
+      if (ImGui.begin("Project Settings") && panel.draw()) visible = false;
       ImGui.end();
     }
     ImGui.render();

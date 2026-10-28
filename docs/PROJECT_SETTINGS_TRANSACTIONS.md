@@ -31,3 +31,5 @@ Unsupported project metadata, including file format version and root-order inter
 Full Desktop menu/page-switch/window-X gestures, physical keyboard/IME/DPI cases, arbitrary focus/scroll layouts and complete project-lifecycle/GUI/hardware acceptance remain pending. Earlier evidence remains scoped to its recorded source.
 
 The subsequent [project transition guard](PROJECT_DRAFT_TRANSITIONS.md) blocks New/Open/Exit while Project Settings contains pending raw input. Unmodified sessions are canceled after successful project replacement. These changes remain unvalidated.
+
+[Project transaction feedback and settings recovery](PROJECT_CHANGE_FEEDBACK.md) adds per-attempt bounded diagnostics, exact displayed-string checks, logical/source-value ownership, explicit consumed-panel lifetimes and collapsed-host handling. Its sixteen regression definitions and expanded native/report definitions remain uncompiled/untested under the owner testing pause.

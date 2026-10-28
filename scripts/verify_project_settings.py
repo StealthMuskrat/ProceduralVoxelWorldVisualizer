@@ -13,7 +13,10 @@ jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker(
 assert report['formatVersion'] == 1 and report['focused'] == ['seed', 'minY', 'maxY']
 assert all(report[k] is True for k in [
     'invalidTextRetained', 'staleApplyRejected', 'explicitReload', 'cancel',
-    'resourceDraftPreserved', 'oneUndoRedo'])
+    'resourceDraftPreserved', 'oneUndoRedo', 'sameListRetryDetails', 'throwDetailsCleared',
+    'collapsedInputPreserved', 'rawSeedPreserved'])
+assert report['candidateDiagnostics'] == 300 and report['visibleDiagnostics'] == 8
+assert report['rejectedAttempts'] == 3
 settings = project['project']
 assert (settings['seed'], settings['minY'], settings['maxY']) == (17, -2, 3)
 noise, = project['noise2D']

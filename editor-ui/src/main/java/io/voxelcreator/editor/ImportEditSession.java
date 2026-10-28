@@ -109,11 +109,10 @@ final class ImportEditSession {
     if (shown != model.preview()) return Result.NOT_REVIEWED;
     if (!shown.valid()) return Result.REJECTED;
     // Import only appends/reuses resources. Preserve the exact separate Properties draft/selection.
-    var previousIssues = state.issues;
-    if (!state.change(model::applyTo)) {
-      var rejected = state.issues == previousIssues ? List.<Diagnostic>of() : state.issues;
-      issueCount = rejected.size();
-      applyIssues = rejected.stream().limit(256).toList();
+    var result = state.changeResult(model::applyTo);
+    if (!result.applied()) {
+      issueCount = result.issueCount();
+      applyIssues = result.issues();
       return Result.REJECTED;
     }
     closed = true;

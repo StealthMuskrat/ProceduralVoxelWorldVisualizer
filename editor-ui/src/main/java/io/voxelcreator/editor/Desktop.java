@@ -639,7 +639,18 @@ public final class Desktop extends Application {
     if (!settingsPage.equals("User Settings") || !settingsCategory.equals("Input"))
       inputSettings.cancelCapture();
     ImGui.setNextWindowSize(750, 650, ImGuiCond.FirstUseEver);
-    ImGui.begin(settingsPage, settings);
+    boolean visible = ImGui.begin(settingsPage, settings);
+    if (!settings.get()) {
+      projectSettings.cancel();
+      inputSettings.cancelCapture();
+      ImGui.end();
+      return;
+    }
+    if (!visible) {
+      inputSettings.cancelCapture();
+      ImGui.end();
+      return;
+    }
     if (settingsPage.equals("Project Settings")) {
       if (projectSettings.draw()) settings.set(false);
     } else if (settingsPage.equals("Application Settings")) {

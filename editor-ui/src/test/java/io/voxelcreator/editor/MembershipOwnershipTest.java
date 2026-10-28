@@ -11,6 +11,23 @@ import org.junit.jupiter.api.Test;
 
 /** Deferred membership ownership, lifecycle and rejected-candidate contracts. */
 class MembershipOwnershipTest {
+  @Test
+  void reusedValidatorListRetainsCandidateDetailsOnEveryExplicitRetry() {
+    try (var state = state()) {
+      var edit = edit(state);
+      var rejection = List.of(Diagnostic.error("SAME_LIST", "/fixture", "Rejected"));
+      state.document.setValidator(p -> rejection);
+      for (int attempt = 0; attempt < 2; attempt++) {
+        assertFalse(edit.apply(state));
+        assertEquals(1, edit.issueCount());
+        assertEquals(rejection, edit.applyIssues());
+      }
+      state.document.setValidator(NoiseCompiler::validate);
+      assertTrue(edit.apply(state));
+      assertEquals(0, edit.issueCount());
+    }
+  }
+
   private EditorState state() {
     var state = new EditorState(new UserConfig(), false);
     assertTrue(

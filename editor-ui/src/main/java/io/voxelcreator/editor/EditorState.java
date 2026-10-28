@@ -80,6 +80,10 @@ public final class EditorState implements AutoCloseable {
   }
 
   public boolean change(Consumer<ProjectData> edit) {
+    return changeResult(edit).applied();
+  }
+
+  ProjectChangeResult changeResult(Consumer<ProjectData> edit) {
     try {
       var result = document.edit(edit);
       issues = result;
@@ -87,14 +91,15 @@ public final class EditorState implements AutoCloseable {
       if (result.isEmpty()) {
         revision++;
         status = "Project modified";
-        return true;
+        return ProjectChangeResult.accepted();
       }
       for (var diagnostic : result)
         reportDiagnostic(diagnostic, EditorEvents.Subsystem.PROJECT, true);
-      return false;
+      return ProjectChangeResult.rejected(result);
     } catch (RuntimeException e) {
-      notify("Error", String.valueOf(e.getMessage()));
-      return false;
+      var failure = ProjectChangeResult.failed(e);
+      error("PROJECT_EDIT_FAILED", EditorEvents.Subsystem.PROJECT, failure.failure());
+      return failure;
     }
   }
 
