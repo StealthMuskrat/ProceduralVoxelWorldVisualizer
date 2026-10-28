@@ -7,16 +7,31 @@ import java.util.*;
 
 /** Temporary membership selection; Apply changes only members in one document transaction. */
 public final class MembershipEditSession {
+  private final EditorState editor;
+  private final Membership parent;
+  private final UUID project;
+  private final String kind;
+  private final List<UUID> selection;
   private final UUID owner;
   private final JsonNode activeBase, draftBase;
   private final List<UUID> values;
   private final Set<UUID> selected;
   private long revision;
+  private boolean closed;
+  private List<Diagnostic> applyIssues = List.of();
+  private int issueCount;
 
   public MembershipEditSession(EditorState state, Membership draft) {
+    if (state.draft != draft || !Objects.equals(state.selected, draft.uuid))
+      throw new IllegalArgumentException("Select the membership's current Properties draft");
     var active = ResourceGraph.find(state.project(), draft.uuid);
     if (active == null || !(active.resource() instanceof Membership))
       throw new IllegalArgumentException("Membership resource no longer exists");
+    editor = state;
+    parent = draft;
+    project = state.project().project.uuid;
+    kind = state.selectedKind;
+    selection = List.copyOf(state.multiSelection);
     owner = draft.uuid;
     activeBase = ProjectIO.JSON.valueToTree(active.resource());
     draftBase = ProjectIO.JSON.valueToTree(draft);
@@ -45,6 +60,7 @@ public final class MembershipEditSession {
   }
 
   public void set(UUID id, boolean include) {
+    requireOpen();
     Objects.requireNonNull(id);
     if (include) {
       if (selected.add(id)) {
@@ -58,6 +74,7 @@ public final class MembershipEditSession {
   }
 
   public void setVisible(List<ResourceTreeIndex.Node> visible, boolean include) {
+    requireOpen();
     for (var node : visible) {
       if (!node.kind().equals("voxel"))
         throw new IllegalArgumentException("Membership accepts voxel types only");
@@ -66,6 +83,9 @@ public final class MembershipEditSession {
   }
 
   public boolean apply(EditorState state) {
+    requireOpen();
+    if (!currentOwner(state))
+      throw new IllegalStateException("Membership owner changed; Cancel and reopen the editor");
     var active = ResourceGraph.find(state.project(), owner);
     if (active == null
         || !activeBase.equals(ProjectIO.JSON.valueToTree(active.resource()))
@@ -78,6 +98,7 @@ public final class MembershipEditSession {
     if (!valid.containsAll(values))
       throw new IllegalArgumentException("A selected voxel type no longer exists");
     var candidate = values();
+    var previousIssues = state.issues;
     boolean applied =
         state.change(
             p -> {
@@ -86,7 +107,46 @@ public final class MembershipEditSession {
                 throw new IllegalArgumentException("Membership resource no longer exists");
               m.voxelTypeUuids = new ArrayList<>(candidate);
             });
-    if (applied) draft.voxelTypeUuids = new ArrayList<>(candidate);
+    if (applied) {
+      draft.voxelTypeUuids = new ArrayList<>(candidate);
+      closed = true;
+      applyIssues = List.of();
+      issueCount = 0;
+    } else {
+      // Runtime failures leave EditorState.issues unchanged; do not present earlier diagnostics.
+      var rejected = state.issues == previousIssues ? List.<Diagnostic>of() : state.issues;
+      issueCount = rejected.size();
+      applyIssues = rejected.stream().limit(256).toList();
+    }
     return applied;
+  }
+
+  /** Cheap draw-time ownership check; Apply also compares complete opening resource values. */
+  boolean currentOwner(EditorState state) {
+    return !closed
+        && state == editor
+        && Objects.equals(project, state.project().project.uuid)
+        && state.draft == parent
+        && Objects.equals(owner, state.selected)
+        && Objects.equals(kind, state.selectedKind)
+        && selection.equals(List.copyOf(state.multiSelection));
+  }
+
+  List<Diagnostic> applyIssues() {
+    return applyIssues;
+  }
+
+  int issueCount() {
+    return issueCount;
+  }
+
+  public void cancel() {
+    closed = true;
+    applyIssues = List.of();
+    issueCount = 0;
+  }
+
+  private void requireOpen() {
+    if (closed) throw new IllegalStateException("Membership editor is closed");
   }
 }

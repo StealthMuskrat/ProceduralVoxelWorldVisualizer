@@ -57,8 +57,14 @@ public final class MembershipDialog {
     if (ImGui.button("Select Matching")) session.setVisible(displayed, true);
     ImGui.sameLine();
     if (ImGui.button("Clear Matching")) session.setVisible(displayed, false);
+    boolean current = session.currentOwner(state);
+    float footer =
+        85
+            + (current ? 0 : 40)
+            + (error.isEmpty() ? 0 : 40)
+            + (session.issueCount() == 0 ? 0 : 130);
     ImGui.beginChild(
-        "membership-options", 0, Math.max(100, ImGui.getContentRegionAvailY() - 85), true);
+        "membership-options", 0, Math.max(100, ImGui.getContentRegionAvailY() - footer), true);
     submitted = 0;
     var clipper = new ImGuiListClipper();
     try {
@@ -76,19 +82,33 @@ public final class MembershipDialog {
       clipper.destroy();
     }
     ImGui.endChild();
+    if (!current) ImGui.textWrapped("! Membership owner changed; Cancel and reopen the editor.");
     if (!error.isEmpty()) ImGui.textWrapped("! " + error);
+    if (session.issueCount() != 0) {
+      ImGui.beginChild("membership-diagnostics", 0, 110, true);
+      for (var issue : session.applyIssues().stream().limit(8).toList()) {
+        var detail = issue.toString();
+        ImGui.textWrapped(detail.length() > 1024 ? detail.substring(0, 1023) + "…" : detail);
+      }
+      ImGui.endChild();
+    }
+    if (session.issueCount() > 8)
+      ImGui.textDisabled("Only the first eight candidate diagnostics are shown here.");
+    ImGui.beginDisabled(!current);
     if (ImGui.button("Apply Members")) {
       try {
         if (session.apply(state)) {
           done = true;
           ImGui.closeCurrentPopup();
-        }
+        } else error = "Membership was not applied. Review the diagnostics or Logs, then retry.";
       } catch (RuntimeException e) {
-        error = e.getMessage();
+        error = Objects.requireNonNullElse(e.getMessage(), e.toString());
       }
     }
+    ImGui.endDisabled();
     ImGui.sameLine();
     if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      session.cancel();
       done = true;
       ImGui.closeCurrentPopup();
     }
