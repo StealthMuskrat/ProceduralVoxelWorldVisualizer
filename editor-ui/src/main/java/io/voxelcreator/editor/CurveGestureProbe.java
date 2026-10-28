@@ -82,6 +82,25 @@ public final class CurveGestureProbe {
         require(!dialog().probeCanUndo(), "One gesture made extra history");
         click(dialog().probeControl("redo"));
         check(.35, .85);
+        // Collapsing or losing application focus rolls back the held private preview.
+        holdMove(.1);
+        collapsed = true;
+        frames(2);
+        check(.35, .85);
+        collapsed = false;
+        frames(2);
+        moveHeld(.2);
+        check(.35, .85);
+        release();
+        holdMove(.1);
+        io.addFocusEvent(false);
+        frames(2);
+        check(.35, .85);
+        io.addFocusEvent(true);
+        frames(2);
+        release();
+        require(
+            dialog().selectedPoints().equals(Set.of(first, second)), "Focus recovery selection");
         // A local Undo while the pointer is held must stop the UI drag as well as the session.
         holdMove(.1);
         panel.curveShortcut("CurveUndo");
@@ -129,27 +148,19 @@ public final class CurveGestureProbe {
         Files.writeString(
             out.resolve("curve-gesture-native.json"),
             ProjectIO.JSON.writeValueAsString(
-                Map.of(
-                    "formatVersion",
-                    1,
-                    "before",
-                    .25,
-                    "after",
-                    .35,
-                    "points",
-                    4,
-                    "privateStage",
-                    true,
-                    "cancel",
-                    true,
-                    "escape",
-                    true,
-                    "altBypass",
-                    true,
-                    "oneGestureUndo",
-                    true,
-                    "oneDocumentUndoRedo",
-                    true)));
+                Map.ofEntries(
+                    Map.entry("collapseRollback", true),
+                    Map.entry("appFocusRollback", true),
+                    Map.entry("formatVersion", 1),
+                    Map.entry("before", .25),
+                    Map.entry("after", .35),
+                    Map.entry("points", 4),
+                    Map.entry("privateStage", true),
+                    Map.entry("cancel", true),
+                    Map.entry("escape", true),
+                    Map.entry("altBypass", true),
+                    Map.entry("oneGestureUndo", true),
+                    Map.entry("oneDocumentUndoRedo", true))));
         System.out.println(
             "CURVE_GESTURE_NATIVE_PASS group snap / Alt bypass / Escape / active Undo / private"
                 + " Apply / document Undo-Redo");
@@ -160,6 +171,7 @@ public final class CurveGestureProbe {
   }
 
   private static float startX, startY, plotHeight;
+  private static boolean collapsed;
   private static double pressedY, deliveredDelta;
 
   private static CurveDialog dialog() {
@@ -241,6 +253,7 @@ public final class CurveGestureProbe {
   private static void frame() {
     ImGui.newFrame();
     ImGui.setNextWindowPos(30, 30, ImGuiCond.Always);
+    ImGui.setNextWindowCollapsed(collapsed, ImGuiCond.Always);
     panel.probeCurvePanel();
     ImGui.render();
   }

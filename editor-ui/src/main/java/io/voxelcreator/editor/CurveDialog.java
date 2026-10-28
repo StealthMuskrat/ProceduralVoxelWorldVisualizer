@@ -18,9 +18,10 @@ public final class CurveDialog {
   private final UiFields fields = new UiFields();
   private final ImBoolean open = new ImBoolean(true);
   private final Set<UUID> selected = new LinkedHashSet<>();
-  private boolean grid = true, snapX = false, snapY = false, dragging = false;
-  private double stepX = .05, stepY = .05, dragX, dragY;
+  private boolean grid = true, snapX = false, snapY = false;
+  private double stepX = .05, stepY = .05;
   private final CurveView view = new CurveView();
+  private final CurvePointerGesture pointer;
   private final CurveControlFocus controlFocus = new CurveControlFocus();
   private CurveControlFocus.Destination focusDestination;
 
@@ -46,9 +47,6 @@ public final class CurveDialog {
     }
   }
 
-  private boolean panning;
-  private double panMouseX, panMouseY;
-
   CurveView.Bounds probeView() {
     return view.bounds();
   }
@@ -62,9 +60,6 @@ public final class CurveDialog {
   }
 
   private boolean focused;
-  private UUID tangentPoint;
-  private int tangentSide;
-  private double tangentX;
   private String applyError = "";
   private int previewFailures;
   private String previewFailure = "";
@@ -135,14 +130,12 @@ public final class CurveDialog {
   }
 
   private void stopDrag() {
-    dragging = false;
-    tangentPoint = null;
-    panning = false;
-    view.endPan();
+    pointer.end();
   }
 
   public CurveDialog(Curve curve, Consumer<Curve> apply) {
     session = new CurveEditSession(curve);
+    pointer = new CurvePointerGesture(session, view);
     view.synchronize(curve.min, curve.max, curve.displayMin, curve.displayMax);
     this.apply = apply;
   }
@@ -152,6 +145,7 @@ public final class CurveDialog {
   }
 
   public void shortcut(String action) {
+    if (!open.get()) return;
     controlFocus.cancel();
     if (Set.of("CurveDelete", "CurveUndo", "CurveRedo").contains(action)) stopDrag();
     switch (action) {
@@ -163,6 +157,8 @@ public final class CurveDialog {
   }
 
   public boolean selectPoint(UUID id) {
+    if (!open.get()) return false;
+    stopDrag();
     controlFocus.cancel();
     var point = session.curve().points.stream().filter(p -> p.uuid.equals(id)).findFirst();
     if (point.isEmpty()) return false;
@@ -179,6 +175,8 @@ public final class CurveDialog {
   }
 
   public void selectAll() {
+    if (!open.get()) return;
+    stopDrag();
     controlFocus.cancel();
     selected.clear();
     session.curve().points.forEach(p -> selected.add(p.uuid));
@@ -186,17 +184,31 @@ public final class CurveDialog {
 
   public void cancel() {
     controlFocus.cancel();
+    pointer.cancel();
     session.cancelGesture();
     view.cancelPan();
-    stopDrag();
+    focused = false;
     open.set(false);
   }
 
   public boolean draw() {
+    if (!open.get()) return true;
     ImGui.setNextWindowSize(840, 760, ImGuiCond.FirstUseEver);
     if (controlFocus.windowRequest()) ImGui.setNextWindowFocus();
-    ImGui.begin("Curve Editor", open);
+    boolean visible = ImGui.begin("Curve Editor", open);
+    if (!open.get()) {
+      cancel();
+      ImGui.end();
+      return true;
+    }
+    if (!visible) {
+      pointer.cancel();
+      focused = false;
+      ImGui.end();
+      return false;
+    }
     focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
+    if (!focused || ImGui.getIO().getAppFocusLost() || ShortcutKeys.popup()) pointer.cancel();
     Curve curve = session.curve();
     final Curve initial = curve;
     focusDestination = controlFocus.destination(curve);
@@ -307,29 +319,47 @@ public final class CurveDialog {
       controlFocus.cancel();
     var io = ImGui.getIO();
     view.synchronize(curve.min, curve.max, curve.displayMin, curve.displayMax);
-    if (hovered && !dragging && ImGui.isMouseClicked(2)) {
-      panning = true;
-      panMouseX = io.getMousePosX();
-      panMouseY = io.getMousePosY();
-      view.beginPan();
+    if (hovered
+        && !io.getAppFocusLost()
+        && !ShortcutKeys.popup()
+        && (ImGui.isMouseClicked(0) || ImGui.isMouseClicked(2))) {
+      ImGui.setWindowFocus("Curve Editor");
+      focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
     }
-    if (panning) {
-      if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-        view.cancelPan();
-        panning = false;
-      } else {
-        view.pan((panMouseX - io.getMousePosX()) / w, (io.getMousePosY() - panMouseY) / h);
-        panMouseX = io.getMousePosX();
-        panMouseY = io.getMousePosY();
-        if (!ImGui.isMouseDown(2)) {
-          view.endPan();
-          panning = false;
-        }
-      }
+    boolean eligible =
+        focused
+            && !io.getAppFocusLost()
+            && !ShortcutKeys.popup()
+            && io.getMousePosX() > -Float.MAX_VALUE
+            && io.getMousePosY() > -Float.MAX_VALUE;
+    var plot = new CurvePointerGesture.Plot(px, py, w, h, view.bounds());
+    if (pointer.active()
+        && (!eligible || !pointer.current(plot) || ImGui.isKeyPressed(ImGuiKey.Escape, false)))
+      pointer.cancel();
+    if (hovered
+        && eligible
+        && !pointer.active()
+        && ImGui.isMouseClicked(2)
+        && !ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        && !ImGui.isMouseDown(0)
+        && !ImGui.isMouseDown(1)) pointer.beginPan(plot, io.getMousePosX(), io.getMousePosY());
+    if (pointer.panning()) {
+      if (ImGui.isMouseDown(2))
+        pointer.move(plot, io.getMousePosX(), io.getMousePosY(), false, false, stepX, stepY);
+      else if (ImGui.isMouseReleased(2))
+        pointer.release(plot, io.getMousePosX(), io.getMousePosY(), false, false, stepX, stepY);
+      else pointer.cancel();
     }
-    if (hovered && !dragging && !panning && io.getMouseWheel() != 0)
+    if (hovered
+        && eligible
+        && !pointer.active()
+        && !ImGui.isMouseDown(0)
+        && !ImGui.isMouseDown(1)
+        && !ImGui.isMouseDown(2)
+        && io.getMouseWheel() != 0)
       view.wheel(
           (io.getMousePosX() - px) / w, (py + h - io.getMousePosY()) / h, io.getMouseWheel());
+    plot = new CurvePointerGesture.Plot(px, py, w, h, view.bounds());
     var bounds = view.bounds();
     double lo = bounds.minX(), hi = bounds.maxX(), ylo = bounds.minY(), yhi = bounds.maxY();
     double mx = lo + (io.getMousePosX() - px) / w * (hi - lo),
@@ -414,15 +444,16 @@ public final class CurveDialog {
       }
     }
     draw.popClipRect();
-    if (hovered && !panning) {
+    if (hovered
+        && eligible
+        && !pointer.active()
+        && !ImGui.isMouseDown(1)
+        && !ImGui.isMouseDown(2)
+        && !ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       if (ImGui.isMouseClicked(0)) {
         if (handleHit != null) {
-          tangentPoint = handleHit;
-          tangentSide = sideHit;
-          tangentX = handleX;
-          dragY = my;
-          session.beginGesture();
-          dragging = true;
+          pointer.beginTangent(
+              plot, io.getMousePosX(), io.getMousePosY(), handleHit, sideHit, handleX);
         } else if (hit != null) {
           if (io.getKeyShift()) {
             if (!selected.add(hit.uuid)) selected.remove(hit.uuid);
@@ -430,11 +461,7 @@ public final class CurveDialog {
             selected.clear();
             selected.add(hit.uuid);
           }
-          dragX = mx;
-          dragY = my;
-          tangentPoint = null;
-          session.beginGesture();
-          dragging = !selected.isEmpty();
+          pointer.beginPoints(plot, io.getMousePosX(), io.getMousePosY(), selected);
         } else if (!io.getKeyShift()) selected.clear();
       }
       if (ImGui.isMouseDoubleClicked(0)
@@ -451,34 +478,29 @@ public final class CurveDialog {
         }
       }
     }
-    if (dragging && ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      session.cancelGesture();
-      stopDrag();
-    }
-    if (dragging && ImGui.isMouseDown(0)) {
-      if (tangentPoint != null) {
-        Point p = CurveEditSession.point(session.curve(), tangentPoint);
-        session.moveTangent(p.uuid, tangentSide, my - dragY, tangentX);
-      } else
-        session.move(
-            selected,
-            mx - dragX,
-            my - dragY,
+    if (pointer.editing()) {
+      if (ImGui.isMouseDown(0))
+        pointer.move(
+            plot,
+            io.getMousePosX(),
+            io.getMousePosY(),
             snapX && !io.getKeyAlt(),
             snapY && !io.getKeyAlt(),
             stepX,
             stepY);
-    }
-    if (ImGui.isMouseReleased(0) && dragging) {
-      dragging = false;
-      tangentPoint = null;
-      session.endGesture();
+      else if (ImGui.isMouseReleased(0))
+        pointer.release(
+            plot,
+            io.getMousePosX(),
+            io.getMousePosY(),
+            snapX && !io.getKeyAlt(),
+            snapY && !io.getKeyAlt(),
+            stepX,
+            stepY);
+      else pointer.cancel();
     }
     if (ImGui.beginPopupContextItem("curve-actions")) {
-      if (ImGui.menuItem("Select All")) {
-        selected.clear();
-        session.curve().points.forEach(p -> selected.add(p.uuid));
-      }
+      if (ImGui.menuItem("Select All")) selectAll();
       controlRect("menu/selectAll");
       if (ImGui.menuItem("Clear Selection")) selected.clear();
       controlRect("menu/clear");
@@ -599,8 +621,8 @@ public final class CurveDialog {
     controlRect("delete");
     if (!session.error().isEmpty()) ImGui.textWrapped("! " + session.error());
     if (ImGui.button("Apply")) {
-      session.endGesture();
       stopDrag();
+      session.endGesture();
       try {
         apply.accept(session.curve());
         open.set(false);

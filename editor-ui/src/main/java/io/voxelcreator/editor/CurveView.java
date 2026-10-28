@@ -105,6 +105,20 @@ public final class CurveView {
     }
   }
 
+  /** Absolute pointer displacement from beginPan; event partitioning cannot accumulate drift. */
+  boolean panFromStart(double fractionX, double fractionY) {
+    if (panBase == null || !Double.isFinite(fractionX) || !Double.isFinite(fractionY)) return false;
+    double dx = fractionX * panBase.width(), dy = fractionY * panBase.height();
+    try {
+      current =
+          new Bounds(
+              panBase.minX() + dx, panBase.maxX() + dx, panBase.minY() + dy, panBase.maxY() + dy);
+      return true;
+    } catch (IllegalArgumentException invalid) {
+      return false;
+    }
+  }
+
   public boolean centerAt(double x, double y) {
     var before = bounds();
     try {

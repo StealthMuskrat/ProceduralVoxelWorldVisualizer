@@ -19,3 +19,6 @@ An already open private property editor blocks further control/problem links ins
 `CurveFocusConsumer` defines a public engine-JAR replay over 147 observations against independent piecewise arithmetic: `1.5*x` on the first segment and `0.5*x+0.5` on the second, with endpoint clamping. `verify_curve_focus.py` checks the native report, schema, exact knots, bindings and unchanged modes. Future Linux/Windows workflow steps and retained artifacts reference these definitions, without altering development-branch trigger exclusions. None has been executed during this batch.
 
 Opening an invalid curve that the existing private session cannot compile still reports an open failure; this batch does not add an invalid-curve repair editor. Physical keyboard/IME/DPI behavior, arbitrary window-scroll layouts, all native tangent-mode gestures and full A13/GUI/hardware acceptance remain pending. Earlier validation evidence remains scoped to its recorded source.
+
+
+[Curve pointer ownership](CURVE_POINTER_OWNERSHIP.md) subsequently adds captured drag/pan geometry, final-release processing and interruption rollback on the development branch. Its implementation and deferred definitions remain uncompiled/untested under the owner testing pause.

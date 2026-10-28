@@ -11,6 +11,11 @@ public final class CurveEditSession {
   private Curve curve, gesture;
   private final Deque<Curve> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
   private String error = "";
+  private long interactionVersion;
+
+  long interactionVersion() {
+    return interactionVersion;
+  }
 
   public CurveEditSession(Curve source) {
     curve = copy(source);
@@ -48,23 +53,30 @@ public final class CurveEditSession {
       error = "";
       return true;
     } catch (RuntimeException invalid) {
-      error = invalid.getMessage();
+      error = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
       return false;
     }
   }
 
   public void beginGesture() {
-    if (gesture == null) gesture = copy(curve);
+    if (gesture == null) {
+      gesture = copy(curve);
+      interactionVersion++;
+    }
   }
 
   /** Restore the exact pre-drag curve without publishing history or clearing redo. */
   public void cancelGesture() {
-    if (gesture != null) curve = gesture;
+    if (gesture != null) {
+      curve = gesture;
+      interactionVersion++;
+    }
     gesture = null;
     error = "";
   }
 
   public void endGesture() {
+    if (gesture != null) interactionVersion++;
     if (gesture != null && !equal(gesture, curve)) {
       undo.push(gesture);
       trim();
@@ -199,7 +211,7 @@ public final class CurveEditSession {
       error = "";
       return true;
     } catch (RuntimeException invalid) {
-      error = invalid.getMessage();
+      error = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
       return false;
     }
   }
