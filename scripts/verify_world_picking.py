@@ -498,20 +498,27 @@ vp = json.loads((vp_root / 'volume-pressure-native.json').read_text())
 assert vp['formatVersion'] == 1
 pressure_stages = vp['stages']
 assert [s['name'] for s in pressure_stages] == [
-    'configured', 'unit-grid-retained', 'reduced', 'cache-released', 'deferred', 'paused-upload',
+    'configured', 'coarse-grid', 'reduced', 'cache-released', 'deferred', 'paused-upload',
     'resumed-new-source', 'restored', 'cpu-recovered', 'budget-retry', 'paused-queue', 'queue-resumed']
-assert [s['level'] for s in pressure_stages] == [0,1,2,3,4,5,3,0,2,0,5,3]
-assert [s['side'] for s in pressure_stages] == [64,64,32,32,32,32,32,64,32,64,64,32]
+assert [s['level'] for s in pressure_stages] == [0,1,2,3,4,5,3,0,1,0,5,3]
+assert [s['side'] for s in pressure_stages] == [64,64,32,32,32,32,32,64,64,64,64,32]
 assert [s['origin'] for s in pressure_stages] == [
     [-32,-32,-32], [-32,-32,-32], [0,0,0], [0,0,0], [0,0,0], [0,0,0],
-    [-32,0,0], [-64,-32,-32], [0,0,0], [0,-32,-32], [0,-32,-32], [64,0,0]]
-assert [s['version'] for s in pressure_stages] == [1,1,2,2,2,2,3,4,5,8,8,9]
+    [-32,0,0], [-64,-32,-32], [-32,-32,-32], [0,-32,-32], [0,-32,-32], [64,0,0]]
+versions = [s['version'] for s in pressure_stages]
+assert versions[0] == 1 and versions[0] < versions[1] < versions[2]
+assert versions[2:6] == [versions[2]]*4
+assert versions[5] < versions[6] < versions[7] < versions[8] < versions[9]
+assert versions[9] == versions[10] < versions[11]
+assert [s['sampleStep'] for s in pressure_stages] == [1,2,2,2,2,2,2,1,2,1,1,2]
 assert len({s['generation'] for s in pressure_stages[:6]}) == 1
 assert pressure_stages[6]['generation'] > pressure_stages[5]['generation']
 assert len({s['generation'] for s in pressure_stages[6:]}) == 1
 assert [s['compilations'] for s in pressure_stages] == [1]*6 + [2]*6
 for i, s in enumerate(pressure_stages):
-    n = s['side']
+    side = s['side']
+    n = s['textureSide']
+    assert n*s['sampleStep'] == side
     assert s['configured'] == 64 and not s['pending'] and s['reserved'] == 0
     assert 0 <= s['cacheBytes'] <= s['cacheLimit'] <= 64*1024*1024
     if s['level'] >= 3:
@@ -523,7 +530,7 @@ for i, s in enumerate(pressure_stages):
     assert s['encoding'] == {'offset': value, 'scale': 1, 'min': value, 'max': value}
     assert raw == b'\0' * len(raw)  # Uniform canonical values encode as positive float zero.
     optical_density = 0 if s['name'] in ('deferred', 'paused-upload') else value
-    t = math.exp(-optical_density*.01*n)
+    t = math.exp(-optical_density*.01*side)
     expected = [127*(1-t)+255*t*.055, 255*t*.075, 255*t*.1, 255]
     assert all(abs(a-b) <= 2 for a,b in zip(s['pixel'], expected)), s
 assert 'deferred' in pressure_stages[4]['message']
@@ -536,7 +543,7 @@ assert queued['peak'] == 12*64**3 + 8*32**3 + 128 + 65536
 assert queued['cpuBytes'] + queued['reserved'] >= queued['peak'] and queued['queueSize'] == 1
 pressure_project = json.loads((vp_root / 'volume-pressure-project.json').read_text())
 assert pressure_project['noise3D'][0]['processing'][0]['parameters']['expression'] == '0'
-print('VOLUME_PRESSURE_PASS independent retained-source texels / reduced-extent optics / exact publication versions / ordered fallback / cache release / paused upload and queue / explicit Resume / gradual restoration / view-only')
+print('VOLUME_PRESSURE_PASS independent retained-source texels / world-extent optics / complete publication ordering / sampling-first fallback / cache release / paused upload and queue / explicit Resume / gradual restoration / view-only')
 
 from verify_surface_lod import verify as verify_surface_lod
 verify_surface_lod(Path(sys.argv[1]) / 'surface-lod')
@@ -554,3 +561,6 @@ verify_volume_light(Path(sys.argv[1]) / "volume-light")
 import subprocess
 subprocess.run([sys.executable, str(Path(__file__).with_name("verify_property_focus.py")),
                 str(Path(sys.argv[1]) / "property-focus")], check=True)
+
+from verify_volume_coarse import verify as verify_volume_coarse
+verify_volume_coarse(Path(sys.argv[1]) / "volume-coarse")

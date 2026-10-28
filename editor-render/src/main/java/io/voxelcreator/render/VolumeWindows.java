@@ -7,9 +7,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
 
-/**
- * Owned, bounded canonical scalar chunks assembled into complete camera-relative texture windows.
- */
+/** Owned, bounded scalar display chunks assembled into complete camera-relative texture windows. */
 public final class VolumeWindows implements AutoCloseable {
   public static final int CHUNK = 32;
   public static final long TILE_BYTES = 8L * CHUNK * CHUNK * CHUNK + 128;
@@ -47,14 +45,22 @@ public final class VolumeWindows implements AutoCloseable {
   public record Lease(long generation, long request) {}
 
   public record Statistics(
-      int sampledChunks, int reusedChunks, long sampledValues, long generation) {}
+      int sampledChunks, int reusedChunks, long sampledValues, long generation, int sampleStep) {
+    public Statistics {
+      VolumeData.validateSampleStep(sampleStep);
+    }
+
+    public Statistics(int sampledChunks, int reusedChunks, long sampledValues, long generation) {
+      this(sampledChunks, reusedChunks, sampledValues, generation, 1);
+    }
+  }
 
   public record Window(Bounds bounds, VolumeData volume, Field field, Statistics statistics) {}
 
   public record Memory(
       long generation, long bytes, long limit, int chunks, long workingBytes, long compilations) {}
 
-  private record Key(int x, int y, int z) {}
+  private record Key(int x, int y, int z, int sampleStep) {}
 
   private record Tile(double[] values, double min, double max) {}
 
@@ -67,10 +73,22 @@ public final class VolumeWindows implements AutoCloseable {
   private long generation, latest = Long.MIN_VALUE, bytes, limit, working, compilations;
   private boolean closed;
 
+  public static long tileBytes(int sampleStep) {
+    VolumeData.validateSampleStep(sampleStep);
+    int n = CHUNK / sampleStep;
+    return 8L * n * n * n + 128;
+  }
+
   public static long workingBytes(int side) {
+    return workingBytes(side, 1);
+  }
+
+  public static long workingBytes(int side, int sampleStep) {
     if (side < CHUNK || side > 256 || side % CHUNK != 0)
       throw new IllegalArgumentException("Volume extent");
-    return 12L * side * side * side + TILE_BYTES + VolumeTextureUpload.STAGING_BYTES;
+    VolumeData.validateSampleStep(sampleStep);
+    int n = side / sampleStep;
+    return 12L * n * n * n + tileBytes(sampleStep) + VolumeTextureUpload.STAGING_BYTES;
   }
 
   /** UI-thread admission precedes queuing; old workers can never replace this source or lease. */
@@ -128,9 +146,9 @@ public final class VolumeWindows implements AutoCloseable {
   private void trim() {
     var it = tiles.entrySet().iterator();
     while (bytes > limit && it.hasNext()) {
-      it.next();
+      var entry = it.next();
+      bytes -= tileBytes(entry.getKey().sampleStep);
       it.remove();
-      bytes -= TILE_BYTES;
     }
   }
 
@@ -146,14 +164,25 @@ public final class VolumeWindows implements AutoCloseable {
     check(lease, token);
     synchronized (this) {
       requireCurrent(lease);
-      if (TILE_BYTES > limit) return;
-      if (tiles.put(key, tile) == null) bytes += TILE_BYTES;
+      long cost = tileBytes(key.sampleStep);
+      if (cost > limit) return;
+      if (tiles.put(key, tile) == null) bytes += cost;
       trim();
     }
   }
 
   public Window sample(
       Lease lease, Bounds bounds, Supplier<Field> compiler, CancellationToken token) {
+    return sample(lease, bounds, 1, compiler, token);
+  }
+
+  public Window sample(
+      Lease lease,
+      Bounds bounds,
+      int sampleStep,
+      Supplier<Field> compiler,
+      CancellationToken token) {
+    VolumeData.validateSampleStep(sampleStep);
     Objects.requireNonNull(lease);
     Objects.requireNonNull(bounds);
     Objects.requireNonNull(compiler);
@@ -169,7 +198,7 @@ public final class VolumeWindows implements AutoCloseable {
       check(lease, token);
       Field field;
       synchronized (this) {
-        working = workingBytes(bounds.side);
+        working = workingBytes(bounds.side, sampleStep);
         field = program;
       }
       if (field == null) {
@@ -181,32 +210,37 @@ public final class VolumeWindows implements AutoCloseable {
           compilations++;
         }
       }
-      int n = bounds.side, sampled = 0, reused = 0;
+      int n = bounds.side / sampleStep, tileSide = CHUNK / sampleStep, sampled = 0, reused = 0;
       double[] raw = new double[n * n * n];
       double min = Double.POSITIVE_INFINITY, max = Double.NEGATIVE_INFINITY;
       // Reuse a complete immutable tile before considering generation; old windows never own cache
       // slots.
-      for (int z = 0; z < n; z += CHUNK)
-        for (int y = 0; y < n; y += CHUNK)
-          for (int x = 0; x < n; x += CHUNK) {
+      for (int z = 0; z < n; z += tileSide)
+        for (int y = 0; y < n; y += tileSide)
+          for (int x = 0; x < n; x += tileSide) {
             check(lease, token);
-            var key = new Key(bounds.x + x, bounds.y + y, bounds.z + z);
+            var key =
+                new Key(
+                    bounds.x + x * sampleStep,
+                    bounds.y + y * sampleStep,
+                    bounds.z + z * sampleStep,
+                    sampleStep);
             var tile = get(lease, key, token);
             if (tile == null) {
-              double[] values = new double[CHUNK * CHUNK * CHUNK];
+              double[] values = new double[tileSide * tileSide * tileSide];
               double lo = Double.POSITIVE_INFINITY, hi = Double.NEGATIVE_INFINITY;
-              for (int tz = 0; tz < CHUNK; tz++)
-                for (int ty = 0; ty < CHUNK; ty++) {
+              for (int tz = 0; tz < tileSide; tz++)
+                for (int ty = 0; ty < tileSide; ty++) {
                   check(lease, token);
-                  for (int tx = 0; tx < CHUNK; tx++) {
+                  for (int tx = 0; tx < tileSide; tx++) {
                     double value =
                         field.sample(
-                            (double) key.x + tx + .5,
-                            (double) key.y + ty + .5,
-                            (double) key.z + tz + .5);
+                            (double) key.x + (tx + .5) * sampleStep,
+                            (double) key.y + (ty + .5) * sampleStep,
+                            (double) key.z + (tz + .5) * sampleStep);
                     if (!Double.isFinite(value))
                       throw new IllegalArgumentException("Nonfinite canonical volume chunk sample");
-                    values[(tz * CHUNK + ty) * CHUNK + tx] = value;
+                    values[(tz * tileSide + ty) * tileSide + tx] = value;
                     lo = Math.min(lo, value);
                     hi = Math.max(hi, value);
                   }
@@ -217,20 +251,21 @@ public final class VolumeWindows implements AutoCloseable {
             } else reused++;
             min = Math.min(min, tile.min);
             max = Math.max(max, tile.max);
-            for (int tz = 0; tz < CHUNK; tz++)
-              for (int ty = 0; ty < CHUNK; ty++) {
+            for (int tz = 0; tz < tileSide; tz++)
+              for (int ty = 0; ty < tileSide; ty++) {
                 check(lease, token);
                 System.arraycopy(
                     tile.values,
-                    (tz * CHUNK + ty) * CHUNK,
+                    (tz * tileSide + ty) * tileSide,
                     raw,
                     ((z + tz) * n + y + ty) * n + x,
-                    CHUNK);
+                    tileSide);
               }
           }
       var volume =
           VolumeData.encodeOwned(
               n,
+              sampleStep,
               raw,
               min,
               max,
@@ -245,7 +280,11 @@ public final class VolumeWindows implements AutoCloseable {
           volume,
           field,
           new Statistics(
-              sampled, reused, (long) sampled * CHUNK * CHUNK * CHUNK, lease.generation));
+              sampled,
+              reused,
+              (long) sampled * tileSide * tileSide * tileSide,
+              lease.generation,
+              sampleStep));
     } finally {
       synchronized (this) {
         working = 0;

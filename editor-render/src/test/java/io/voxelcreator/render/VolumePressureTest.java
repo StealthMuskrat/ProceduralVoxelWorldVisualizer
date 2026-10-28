@@ -11,12 +11,14 @@ class VolumePressureTest {
       new VolumeStreamingLimits.Limits(512L << 20, 512L << 20, 128L << 20, 256L * 256 * 256, 256);
 
   @Test
-  void pressureReducesOnlyVisibilityThenCacheWhilePreservingConfiguredExtent() {
+  void pressureCoarsensSamplesBeforeReducingVisibilityAndCache() {
     assertEquals(64, VolumeStreamingLimits.plan(33, 0, LARGE, 0).side());
     for (int level = 0; level <= 5; level++) {
       var plan = VolumeStreamingLimits.plan(96, level, LARGE, 0);
       assertTrue(plan.allowed());
       assertEquals(level < 2 ? 96 : 64, plan.side());
+      assertEquals(level == 0 ? 1 : 2, plan.sampleStep());
+      assertEquals(plan.side() / plan.sampleStep(), plan.textureSide());
       assertEquals(level < 3 ? 64L << 20 : 0, plan.cacheBytes());
       assertEquals(32, VolumeStreamingLimits.plan(2, level, LARGE, 0).side());
       assertEquals(32, VolumeStreamingLimits.plan(32, level, LARGE, 0).side());
@@ -160,6 +162,7 @@ class VolumePressureTest {
           cache.sample(
               cache.begin("affine", 2, plan.cacheBytes()),
               new VolumeWindows.Bounds(plan.side(), -32, -32, -32),
+              plan.sampleStep(),
               () -> {
                 throw new AssertionError("Pressure recompiled source");
               },
@@ -168,12 +171,14 @@ class VolumePressureTest {
       assertEquals(1, small.statistics().sampledChunks());
       assertEquals(large.statistics().generation(), small.statistics().generation());
       assertEquals(1, compilations.get());
-      for (int z = 0; z < 32; z++)
-        for (int y = 0; y < 32; y++)
-          for (int x = 0; x < 32; x++) {
-            double expected = x - 31.5 + 10 * (y - 31.5) + 100 * (z - 31.5);
+      for (int z = 0; z < 16; z++)
+        for (int y = 0; y < 16; y++)
+          for (int x = 0; x < 16; x++) {
+            double expected = 2 * x - 31 + 10 * (2 * y - 31) + 100 * (2 * z - 31);
             assertEquals(expected, small.volume().value(x, y, z));
-            assertEquals(large.volume().value(x, y, z), small.volume().value(x, y, z));
+            assertEquals(
+                large.volume().interpolate(2 * x + 1, 2 * y + 1, 2 * z + 1),
+                small.volume().value(x, y, z));
           }
     }
   }

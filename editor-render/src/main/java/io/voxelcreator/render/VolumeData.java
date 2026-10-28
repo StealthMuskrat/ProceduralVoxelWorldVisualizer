@@ -22,7 +22,7 @@ public final class VolumeData {
     }
   }
 
-  private final int size;
+  private final int size, sampleStep;
   private final float[] samples;
   private final Encoding encoding;
 
@@ -40,19 +40,26 @@ public final class VolumeData {
       max = Math.max(max, value);
     }
     this.size = size;
+    sampleStep = 1;
     encoding = encoding(min, max);
     samples = owned;
     for (int i = 0; i < samples.length; i++) samples[i] = encode(samples[i], encoding);
   }
 
-  private VolumeData(int size, float[] owned, Encoding encoding) {
+  private VolumeData(int size, int sampleStep, float[] owned, Encoding encoding) {
     this.size = size;
+    this.sampleStep = sampleStep;
     samples = owned;
     this.encoding = encoding;
   }
 
   private static void size(int size) {
     if (size < 2 || size > 256) throw new IllegalArgumentException("Volume size 2..256");
+  }
+
+  public static void validateSampleStep(int sampleStep) {
+    if (sampleStep < 1 || sampleStep > 16 || (sampleStep & (sampleStep - 1)) != 0)
+      throw new IllegalArgumentException("Volume sample spacing must be 1, 2, 4, 8 or 16");
   }
 
   private static Encoding encoding(double min, double max) {
@@ -80,7 +87,20 @@ public final class VolumeData {
       double originZ,
       Field field,
       CancellationToken token) {
+    return sampleGrid(size, 1, originX, originY, originZ, field, token);
+  }
+
+  /** Canonical field sampled at coarse-cell centers for display only; size counts texels. */
+  public static VolumeData sampleGrid(
+      int size,
+      int sampleStep,
+      double originX,
+      double originY,
+      double originZ,
+      Field field,
+      CancellationToken token) {
     size(size);
+    validateSampleStep(sampleStep);
     Objects.requireNonNull(field);
     Objects.requireNonNull(token);
     if (!Double.isFinite(originX) || !Double.isFinite(originY) || !Double.isFinite(originZ))
@@ -92,7 +112,11 @@ public final class VolumeData {
       for (int y = 0; y < size; y++) {
         token.throwIfCancelled();
         for (int x = 0; x < size; x++) {
-          double value = field.sample(originX + x + .5, originY + y + .5, originZ + z + .5);
+          double value =
+              field.sample(
+                  coordinate(originX, x, sampleStep),
+                  coordinate(originY, y, sampleStep),
+                  coordinate(originZ, z, sampleStep));
           if (!Double.isFinite(value))
             throw new IllegalArgumentException(
                 "Nonfinite canonical volume sample at " + x + "," + y + "," + z);
@@ -101,12 +125,26 @@ public final class VolumeData {
           max = Math.max(max, value);
         }
       }
-    return encodeOwned(size, raw, min, max, token);
+    return encodeOwned(size, sampleStep, raw, min, max, token);
+  }
+
+  private static double coordinate(double origin, int index, int sampleStep) {
+    // Preserve historical unit-grid floating-point order, including large fixed-analysis origins.
+    return sampleStep == 1 ? origin + index + .5 : origin + (index + .5) * sampleStep;
   }
 
   /** Package-owned canonical staging is never retained or exposed after float publication. */
   static VolumeData encodeOwned(
       int size, double[] raw, double min, double max, CancellationToken token) {
+    return encodeOwned(size, 1, raw, min, max, token);
+  }
+
+  static VolumeData encodeOwned(
+      int size, int sampleStep, double[] raw, double min, double max, CancellationToken token) {
+    size(size);
+    validateSampleStep(sampleStep);
+    if (raw.length != (long) size * size * size)
+      throw new IllegalArgumentException("Volume sample count");
     token.throwIfCancelled();
     var encoding = encoding(min, max);
     float[] encoded = new float[raw.length];
@@ -119,11 +157,20 @@ public final class VolumeData {
         }
       }
     token.throwIfCancelled();
-    return new VolumeData(size, encoded, encoding);
+    return new VolumeData(size, sampleStep, encoded, encoding);
   }
 
   public int size() {
     return size;
+  }
+
+  /** World units between adjacent texture sample centers. */
+  public int sampleStep() {
+    return sampleStep;
+  }
+
+  public int extent() {
+    return size * sampleStep;
   }
 
   public Encoding encoding() {
@@ -178,7 +225,9 @@ public final class VolumeData {
     return (float) Math.max(-Float.MAX_VALUE, Math.min(Float.MAX_VALUE, value(x, y, z)));
   }
 
-  /** Matches encoded GL_LINEAR / CLAMP_TO_EDGE, decoded at a local location in [0,size]^3. */
+  /**
+   * Matches encoded GL_LINEAR / CLAMP_TO_EDGE, decoded at a local world location in [0,extent]^3.
+   */
   public double interpolate(double x, double y, double z) {
     return encoding.decode(interpolateEncoded(x, y, z));
   }
@@ -187,9 +236,9 @@ public final class VolumeData {
   double interpolateEncoded(double x, double y, double z) {
     if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z))
       throw new IllegalArgumentException("Finite location required");
-    x = Math.max(0, Math.min(size - 1, x - .5));
-    y = Math.max(0, Math.min(size - 1, y - .5));
-    z = Math.max(0, Math.min(size - 1, z - .5));
+    x = Math.max(0, Math.min(size - 1, x / sampleStep - .5));
+    y = Math.max(0, Math.min(size - 1, y / sampleStep - .5));
+    z = Math.max(0, Math.min(size - 1, z / sampleStep - .5));
     int ix = (int) x,
         iy = (int) y,
         iz = (int) z,

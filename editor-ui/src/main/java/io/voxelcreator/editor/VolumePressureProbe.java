@@ -73,12 +73,16 @@ final class VolumePressureProbe {
         long stamp = views.probeSubmissionStamp(1),
             version = views.probeVolumeStatistics().version();
         bad(1);
-        frames(2);
+        ready(64, -32, -32, -32);
         require(
-            stamp == views.probeSubmissionStamp(1)
-                && version == views.probeVolumeStatistics().version(),
-            "LOD-only pressure resampled scalars");
-        stages.add(stage("unit-grid-retained", 1, out));
+            stamp != views.probeSubmissionStamp(1)
+                && version < views.probeVolumeStatistics().version()
+                && views.probeVolumeTextureSize() == 32
+                && views.probeVolumeSampleStep() == 2,
+            "First pressure step did not reduce display sampling before extent");
+        stages.add(stage("coarse-grid", 1, out));
+        version = views.probeVolumeStatistics().version();
+        p.uploadKiB = 1;
         bad(2);
         until(() -> views.probeVolumeStatistics().pending());
         require(
@@ -88,6 +92,7 @@ final class VolumePressureProbe {
             "Partial reduced window published");
         ready(32, 0, 0, 0);
         stages.add(stage("reduced", 1, out));
+        p.uploadKiB = 16;
         require(
             views.probeVolumeMemory().generation() == generation
                 && views.probeVolumeMemory().compilations() == 1,
@@ -168,10 +173,12 @@ final class VolumePressureProbe {
         good(1);
         ready(64, -64, -32, -32);
         good(0);
+        ready(64, -64, -32, -32);
         stages.add(stage("restored", 0, out));
 
-        // A newly tightened CPU limit rejects the requested window, then level-2 visibility can
-        // recover it. Neither a failed candidate nor an automatic quality change edits preferences.
+        // A newly tightened CPU limit rejects the unit grid; level-1 display sampling can
+        // recover it before reducing visibility. Neither a failed candidate nor an automatic
+        // quality change edits preferences.
         p.sceneCpuMiB = 1;
         views.probeVolumeTravel(16, 16, 16);
         until(() -> views.probeVolumeMessage().contains("CPU MiB"));
@@ -179,16 +186,15 @@ final class VolumePressureProbe {
             views.probeVolumeResidentSize() == 64 && !views.probeVolumeStatistics().pending(),
             "CPU rejection published");
         bad(1);
-        bad(2);
-        ready(32, 0, 0, 0);
+        ready(64, -32, -32, -32);
         stages.add(stage("cpu-recovered", 0, out));
         require(
             views.probeVolumeMemory().bytes() + views.probeVolumePlan().workingBytes() <= 1L << 20,
             "Recovered CPU plan exceeds tightened limit");
         p.sceneCpuMiB = 256;
-        good(1);
-        ready(64, -32, -32, -32);
         good(0);
+        ready(64, -32, -32, -32);
+        p.uploadKiB = 1;
         views.probeVolumeTravel(48, 16, 16);
         until(() -> views.probeVolumeStatistics().pending());
         version = views.probeVolumeStatistics().version();
@@ -206,12 +212,14 @@ final class VolumePressureProbe {
         require(
             views.probeVolumePressureLevel() == 5, "Deferred budget rejection did not escalate");
         p.sceneGpuMiB = 16;
+        p.uploadKiB = 16;
         clickResume();
         ready(32, 32, 0, 0);
         good(2);
         good(1);
         ready(64, 0, -32, -32);
         good(0);
+        ready(64, 0, -32, -32);
         stages.add(stage("budget-retry", 0, out));
         report.put("deferredBudgetEscalated", true);
 
@@ -294,9 +302,9 @@ final class VolumePressureProbe {
         out.resolve("volume-pressure-native.json"), ProjectIO.JSON.writeValueAsString(report));
     glfwHideWindow(handle);
     System.out.println(
-        "VOLUME_PRESSURE_NATIVE_PASS unit grid / reduced extent / released cache / deferred windows"
-            + " / paused upload and queue / actual Resume button / source retention / budget retry"
-            + " / gradual restoration / view-only");
+        "VOLUME_PRESSURE_NATIVE_PASS coarse display samples / reduced extent / released cache /"
+            + " deferred windows / paused upload and queue / actual Resume button / source"
+            + " retention / budget retry / gradual restoration / view-only");
   }
 
   private static void bad(int expected) {
@@ -327,7 +335,7 @@ final class VolumePressureProbe {
   }
 
   private static Map<String, Object> stage(String name, int value, Path out) throws Exception {
-    int n = views.probeVolumeResidentSize();
+    int side = views.probeVolumeResidentSize(), n = views.probeVolumeTextureSize();
     var origin = views.probeVolumeOrigin();
     var encoding = views.probeVolumeEncoding();
     require(
@@ -353,7 +361,9 @@ final class VolumePressureProbe {
     row.put("name", name);
     row.put("value", value);
     row.put("encoding", encoding);
-    row.put("side", n);
+    row.put("side", side);
+    row.put("textureSide", n);
+    row.put("sampleStep", views.probeVolumeSampleStep());
     row.put("configured", views.probeVolumeConfiguredSize());
     row.put("level", views.probeVolumePressureLevel());
     row.put("origin", List.of(origin.x, origin.y, origin.z));
@@ -368,7 +378,7 @@ final class VolumePressureProbe {
     row.put("message", views.probeVolumeMessage());
     var pixel = views.probeSurfacePixel();
     boolean hit = !name.equals("deferred") && !name.equals("paused-upload");
-    double transmittance = Math.exp(-(hit ? value : 0) * .01 * n);
+    double transmittance = Math.exp(-(hit ? value : 0) * .01 * side);
     double[] background = {.055, .075, .1};
     for (int c = 0; c < 3; c++) {
       double expected =
@@ -385,6 +395,7 @@ final class VolumePressureProbe {
         () ->
             views.probeNoiseReady(1)
                 && views.probeVolumeResidentSize() == side
+                && views.probeVolumeSampleStep() == views.probeVolumePlan().sampleStep()
                 && views.probeVolumeOrigin().equals(new Vector3d(x, y, z)));
     frames(2);
   }

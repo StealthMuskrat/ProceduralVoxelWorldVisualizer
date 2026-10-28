@@ -511,7 +511,17 @@ public final class Viewports implements AutoCloseable {
 
   int probeVolumeResidentSize() {
     var resident = views[1].gl.volumeResident();
+    return resident == null ? 0 : resident.extent();
+  }
+
+  int probeVolumeTextureSize() {
+    var resident = views[1].gl.volumeResident();
     return resident == null ? 0 : resident.size();
+  }
+
+  int probeVolumeSampleStep() {
+    var resident = views[1].gl.volumeResident();
+    return resident == null ? 0 : resident.sampleStep();
   }
 
   long probeVolumeReservation() {
@@ -1536,12 +1546,27 @@ public final class Viewports implements AutoCloseable {
       var plan = v.volumePlan;
       if (plan != null)
         ImGui.textDisabled(
-            "Effective volume "
+            "Target volume "
                 + plan.side()
                 + " / configured "
                 + v.size
-                + " cells per axis | "
+                + " world units per axis | "
+                + plan.textureSide()
+                + " texels per axis, spacing "
+                + plan.sampleStep()
+                + " | "
                 + volumePressureMessage(v));
+      var resident = v.gl.volumeResident();
+      if (resident != null
+          && plan != null
+          && (resident.extent() != plan.side() || resident.sampleStep() != plan.sampleStep()))
+        ImGui.textDisabled(
+            "Accepted display: "
+                + resident.extent()
+                + " world units, "
+                + resident.size()
+                + " texels per axis, spacing "
+                + resident.sampleStep());
     } else {
       stopVolumeStream(v);
       if (streaming) streaming = stream(v);
@@ -1989,9 +2014,9 @@ public final class Viewports implements AutoCloseable {
   private String volumePressureMessage(View v) {
     return switch (v.pressure.level()) {
       case 0 -> v.pressure.paused() ? "Volume paused; Resume required" : "Full configured quality";
-      case 1 -> "Pressure: unit scalar samples retained";
-      case 2 -> "Pressure: effective volume extent reduced";
-      case 3 -> "Pressure: effective extent reduced; chunk cache released";
+      case 1 -> "Pressure: coarser display volume samples (2 world units)";
+      case 2 -> "Pressure: coarser samples and effective volume extent reduced";
+      case 3 -> "Pressure: coarser samples, reduced extent; chunk cache released";
       case 4 -> "Pressure: new volume windows deferred; previous display retained";
       default -> "Volume paused under critical pressure; Resume required";
     };
@@ -2032,8 +2057,9 @@ public final class Viewports implements AutoCloseable {
     if (v.failedPreview
         && v.volumeRejected
         && v.volumePlan != null
-        && (plan.side() != v.volumePlan.side() || plan.cacheBytes() != v.volumePlan.cacheBytes()))
-      mark(v);
+        && (plan.side() != v.volumePlan.side()
+            || plan.sampleStep() != v.volumePlan.sampleStep()
+            || plan.cacheBytes() != v.volumePlan.cacheBytes())) mark(v);
     v.volumePlan = plan;
     v.volumeWindows.budget(plan.cacheBytes());
     if (v.pressure.paused()) {
@@ -2072,7 +2098,7 @@ public final class Viewports implements AutoCloseable {
       }
       return;
     }
-    String tag = v.volumeSourceKey + "|" + bounds;
+    String tag = v.volumeSourceKey + "|" + bounds + "|spacing=" + plan.sampleStep();
     if (!tag.equals(v.volumeRequestTag)) {
       mark(v);
       v.volumeRequestTag = tag;
@@ -2113,6 +2139,7 @@ public final class Viewports implements AutoCloseable {
                       v.volumeWindows.sample(
                           lease,
                           bounds,
+                          plan.sampleStep(),
                           () -> new NoiseCompiler(snapshot, snapshot.project.seed).compile(noise),
                           token);
                   token.throwIfCancelled();
@@ -2135,7 +2162,7 @@ public final class Viewports implements AutoCloseable {
                           null,
                           window.statistics(),
                           new VolumeTextureUpload.Region(
-                              sourceKey, bounds.x(), bounds.y(), bounds.z())));
+                              sourceKey, bounds.x(), bounds.y(), bounds.z(), plan.sampleStep())));
                   outcome = Profiler.Outcome.SUCCESS;
                 } catch (CancellationException stopped) {
                   // An obsolete complete tile may be reused, but no obsolete window publishes.

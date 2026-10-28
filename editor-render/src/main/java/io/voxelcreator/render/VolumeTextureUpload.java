@@ -36,24 +36,44 @@ public final class VolumeTextureUpload implements AutoCloseable {
   }
 
   /**
-   * The source key identifies one immutable scalar sampling program on the unit cell-center grid.
+   * The source key identifies one immutable scalar program; spacing and grid phase also gate reuse.
    */
-  public record Region(String source, int x, int y, int z) {
+  public record Region(String source, int x, int y, int z, int sampleStep) {
+    public Region(String source, int x, int y, int z) {
+      this(source, x, y, z, 1);
+    }
+
     public Region {
+      VolumeData.validateSampleStep(sampleStep);
       if (source == null || source.isBlank())
         throw new IllegalArgumentException("Volume source identity");
     }
 
     private void validate(int side) {
       for (int origin : new int[] {x, y, z})
-        if ((long) origin + side > (long) Integer.MAX_VALUE + 1)
+        if ((long) origin + (long) side * sampleStep > (long) Integer.MAX_VALUE + 1)
           throw new IllegalArgumentException("Volume region exceeds signed block coordinates");
     }
   }
 
-  public record Resident(int texture, int size, VolumeData.Encoding encoding, Region region) {
+  public record Resident(
+      int texture, int size, VolumeData.Encoding encoding, Region region, int sampleStep) {
+    public Resident(int texture, int size, VolumeData.Encoding encoding, Region region) {
+      this(texture, size, encoding, region, region == null ? 1 : region.sampleStep);
+    }
+
     public Resident(int texture, int size, VolumeData.Encoding encoding) {
-      this(texture, size, encoding, null);
+      this(texture, size, encoding, null, 1);
+    }
+
+    public Resident {
+      VolumeData.validateSampleStep(sampleStep);
+      if (region != null && region.sampleStep != sampleStep)
+        throw new IllegalArgumentException("Volume resident spacing mismatch");
+    }
+
+    public int extent() {
+      return size * sampleStep;
     }
 
     public long bytes() {
@@ -135,14 +155,18 @@ public final class VolumeTextureUpload implements AutoCloseable {
     ensureOpen();
     Objects.requireNonNull(next);
     if (gpuBudget < 0) throw new IllegalArgumentException("Negative volume GPU budget");
-    if (region != null) region.validate(next.size());
+    if (region != null) {
+      region.validate(next.size());
+      if (region.sampleStep != next.sampleStep())
+        throw new IllegalArgumentException("Volume source region spacing mismatch");
+    }
     long bytes = 4L * next.size() * next.size() * next.size();
     if (bytes > gpuBudget - (active == null ? 0 : active.bytes())) return false;
     var regions = regions(next, region);
     cancel();
     int texture = backend.allocate(next.size());
     if (texture <= 0) throw new IllegalStateException("Volume texture allocation failed");
-    candidate = new Resident(texture, next.size(), next.encoding(), region);
+    candidate = new Resident(texture, next.size(), next.encoding(), region, next.sampleStep());
     data = next;
     plan = regions;
     return true;
@@ -155,26 +179,31 @@ public final class VolumeTextureUpload implements AutoCloseable {
         || active.region() == null
         || !backend.supportsCopies()
         || !region.source.equals(active.region.source)
+        || region.sampleStep != active.sampleStep
         || Double.doubleToLongBits(next.encoding().offset())
             != Double.doubleToLongBits(active.encoding.offset())
         || Double.doubleToLongBits(next.encoding().scale())
             != Double.doubleToLongBits(active.encoding.scale()))
       return List.of(new Box(0, 0, 0, n, n, n, false));
     var prior = active.region;
-    // Compare in long arithmetic before narrowing offsets at opposite signed domain edges.
-    if ((long) prior.x >= (long) region.x + n
-        || (long) region.x >= (long) prior.x + active.size
-        || (long) prior.y >= (long) region.y + n
-        || (long) region.y >= (long) prior.y + active.size
-        || (long) prior.z >= (long) region.z + n
-        || (long) region.z >= (long) prior.z + active.size)
+    long dx = (long) prior.x - region.x,
+        dy = (long) prior.y - region.y,
+        dz = (long) prior.z - region.z;
+    int step = next.sampleStep();
+    // Equal spacing alone is insufficient: centers must have the same grid phase.
+    if (dx % step != 0 || dy % step != 0 || dz % step != 0)
       return List.of(new Box(0, 0, 0, n, n, n, false));
-    int x0 = (int) Math.max(0L, (long) prior.x - region.x),
-        y0 = (int) Math.max(0L, (long) prior.y - region.y),
-        z0 = (int) Math.max(0L, (long) prior.z - region.z);
-    int x1 = (int) Math.min(n, (long) prior.x + active.size - region.x),
-        y1 = (int) Math.min(n, (long) prior.y + active.size - region.y),
-        z1 = (int) Math.min(n, (long) prior.z + active.size - region.z);
+    long px = dx / step, py = dy / step, pz = dz / step;
+    if (px >= n
+        || px + active.size <= 0
+        || py >= n
+        || py + active.size <= 0
+        || pz >= n
+        || pz + active.size <= 0) return List.of(new Box(0, 0, 0, n, n, n, false));
+    int x0 = (int) Math.max(0L, px), y0 = (int) Math.max(0L, py), z0 = (int) Math.max(0L, pz);
+    int x1 = (int) Math.min(n, px + active.size),
+        y1 = (int) Math.min(n, py + active.size),
+        z1 = (int) Math.min(n, pz + active.size);
     var result = new ArrayList<Box>(7);
     add(result, x0, y0, z0, x1 - x0, y1 - y0, z1 - z0, true);
     // Six disjoint slabs cover the complement; no destination texel is written twice.
@@ -220,9 +249,9 @@ public final class VolumeTextureUpload implements AutoCloseable {
           var to = candidate.region;
           backend.copy(
               active.texture,
-              (int) ((long) to.x + x - from.x),
-              (int) ((long) to.y + y - from.y),
-              (int) ((long) to.z + z - from.z),
+              (int) (((long) to.x - from.x) / to.sampleStep + x),
+              (int) (((long) to.y - from.y) / to.sampleStep + y),
+              (int) (((long) to.z - from.z) / to.sampleStep + z),
               candidate.texture,
               x,
               y,

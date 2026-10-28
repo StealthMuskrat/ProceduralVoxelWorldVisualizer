@@ -28,12 +28,13 @@ public final class VolumeLight {
         || x < 0
         || y < 0
         || z < 0
-        || x > volume.size()
-        || y > volume.size()
-        || z > volume.size()) throw new IllegalArgumentException("Light sample outside volume");
+        || x > volume.extent()
+        || y > volume.extent()
+        || z > volume.extent()) throw new IllegalArgumentException("Light sample outside volume");
     double length =
         Math.min(
-            (volume.size() - x) / LX, Math.min((volume.size() - y) / LY, (volume.size() - z) / LZ));
+            (volume.extent() - x) / LX,
+            Math.min((volume.extent() - y) / LY, (volume.extent() - z) / LZ));
     double step = length / settings.steps, optical = 0;
     for (int i = 0; i < settings.steps; i++) {
       double d = (i + .5) * step;

@@ -119,6 +119,7 @@ public final class StreamingRenderProbe {
         GpuTimingProbe.run(java.nio.file.Path.of("build/world-picking/gpu-timing-gl30"));
         ShadowProbe.run(java.nio.file.Path.of("build/world-picking/shadows-gl30"));
         VolumeLightProbe.run(java.nio.file.Path.of("build/world-picking/volume-light-gl30"));
+        VolumeCoarseProbe.run(java.nio.file.Path.of("build/world-picking/volume-coarse-gl30"));
       }
     } finally {
       if (window != 0) glfwDestroyWindow(window);

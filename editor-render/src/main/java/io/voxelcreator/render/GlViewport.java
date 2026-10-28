@@ -574,7 +574,7 @@ public final class GlViewport implements AutoCloseable {
           glGetUniformLocation(volumeProgram, "inverseMatrix"),
           false,
           new Matrix4f(matrix).invert().get(new float[16]));
-      glUniform1f(glGetUniformLocation(volumeProgram, "extent"), volumeUpload.resident().size());
+      glUniform1f(glGetUniformLocation(volumeProgram, "extent"), volumeUpload.resident().extent());
       var transfer = VolumeTransfer.of(volumeUpload.resident().encoding(), volumeSettings);
       glUniform1f(glGetUniformLocation(volumeProgram, "opacity"), transfer.opacity());
       glUniform1f(glGetUniformLocation(volumeProgram, "threshold"), transfer.threshold());

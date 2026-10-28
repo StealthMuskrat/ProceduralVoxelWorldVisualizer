@@ -329,6 +329,7 @@ public final class WorldPickingProbe {
         GpuTimingProbe.run(out.resolve("gpu-timing"), window);
         ShadowProbe.run(out.resolve("shadows"), window);
         VolumeLightProbe.run(out.resolve("volume-light"), window);
+        VolumeCoarseProbe.run(out.resolve("volume-coarse"));
       } finally {
         ImGui.destroyContext();
       }
