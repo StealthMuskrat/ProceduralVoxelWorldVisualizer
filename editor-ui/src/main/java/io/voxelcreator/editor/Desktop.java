@@ -810,6 +810,34 @@ public final class Desktop extends Application {
           fields.bool(
               "Distance fog", state.user.visualization.fog, v -> state.user.visualization.fog = v);
           fields.bool(
+              "Directional shadows",
+              state.user.visualization.shadows,
+              v -> state.user.visualization.shadows = v);
+          if (state.user.visualization.shadows) {
+            fields.integer(
+                "Shadow map maximum resolution",
+                state.user.visualization.shadowResolution,
+                v ->
+                    state.user.visualization.shadowResolution =
+                        v <= 512 ? 512 : v <= 1024 ? 1024 : 2048);
+            ImGui.textWrapped(
+                "Triangle meshes cast shadows from complete resident geometry. GPU budget may lower"
+                    + " resolution. Unlit, points, volumes and slices bypass shadows.");
+            if (ImGui.button("Retry shadow rendering")) views.retryShadows();
+            var shadowStats = views.shadowStatistics();
+            for (int i = 0; i < shadowStats.size(); i++) {
+              var shadow = shadowStats.get(i);
+              ImGui.textWrapped(
+                  (i == 0 ? "2D" : i == 1 ? "3D Noise" : "World")
+                      + ": "
+                      + shadow.state()
+                      + " / "
+                      + shadow.bytes()
+                      + " bytes / "
+                      + shadow.detail());
+            }
+          }
+          fields.bool(
               "Indirect drawing when supported",
               state.user.visualization.indirectDrawing,
               v -> state.user.visualization.indirectDrawing = v);

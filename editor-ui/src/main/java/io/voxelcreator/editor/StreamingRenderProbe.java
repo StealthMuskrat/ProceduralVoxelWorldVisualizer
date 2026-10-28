@@ -117,6 +117,7 @@ public final class StreamingRenderProbe {
         VolumeOverlapProbe.run(java.nio.file.Path.of("build/world-picking/volume-overlap-gl30"));
         SurfaceLodProbe.run(java.nio.file.Path.of("build/world-picking/surface-lod-gl30"));
         GpuTimingProbe.run(java.nio.file.Path.of("build/world-picking/gpu-timing-gl30"));
+        ShadowProbe.run(java.nio.file.Path.of("build/world-picking/shadows-gl30"));
       }
     } finally {
       if (window != 0) glfwDestroyWindow(window);

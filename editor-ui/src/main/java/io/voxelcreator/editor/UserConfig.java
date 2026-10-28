@@ -46,10 +46,12 @@ public final class UserConfig {
         streaming = true,
         ambientOcclusion = true,
         fog = false,
+        shadows = false,
         indirectDrawing = true;
     public String noise2DMode = "Grayscale";
     public double threshold = 0;
     public int previewSize = 32;
+    public int shadowResolution = 1024;
   }
 
   public static final class Performance {
@@ -127,6 +129,13 @@ public final class UserConfig {
             throw new IllegalArgumentException("Invalid theme component");
       }
     }
+    var visualization = tree.path("visualization");
+    if (visualization.has("shadows") && !visualization.path("shadows").isBoolean())
+      throw new IllegalArgumentException("Invalid shadows preference");
+    if (visualization.has("shadowResolution")
+        && (!visualization.path("shadowResolution").isIntegralNumber()
+            || !visualization.path("shadowResolution").canConvertToInt()))
+      throw new IllegalArgumentException("Invalid shadow resolution");
     var user = ProjectIO.JSON.treeToValue(tree, UserConfig.class);
     if (user.input == null) throw new IllegalArgumentException("Missing input preferences");
     user.input.shortcuts = Shortcuts.upgrade(user.input.shortcuts);
@@ -151,6 +160,7 @@ public final class UserConfig {
         || editor.opportunitiesPerSecond > 20
         || performance.workers < 1
         || performance.workers > 64
+        || !io.voxelcreator.render.DirectionalShadow.validResolution(visualization.shadowResolution)
         || visualization.previewSize < 2
         || visualization.previewSize > performance.maxPreviewDimension)
       throw new IllegalArgumentException("Invalid user preferences");

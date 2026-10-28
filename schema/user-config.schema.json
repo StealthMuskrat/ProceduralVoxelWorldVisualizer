@@ -881,6 +881,9 @@
         "fog" : {
           "type" : "boolean"
         },
+        "shadows" : {
+          "type" : "boolean"
+        },
         "indirectDrawing" : {
           "type" : "boolean"
         },
@@ -894,6 +897,10 @@
           "type" : "integer",
           "minimum" : -2147483648,
           "maximum" : 2147483647
+        },
+        "shadowResolution" : {
+          "type" : "integer",
+          "enum" : [ 512, 1024, 2048 ]
         }
       },
       "required" : [ "grid", "unlit", "streaming", "ambientOcclusion", "fog", "indirectDrawing", "noise2DMode", "threshold", "previewSize" ]
