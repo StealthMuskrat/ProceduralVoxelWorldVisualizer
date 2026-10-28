@@ -14,7 +14,9 @@ import java.util.function.Consumer;
  */
 public final class CurveDialog {
   private final CurveEditSession session;
-  private final Consumer<Curve> apply;
+  private final CurveApplySession publication;
+  private final EditorState ownerState;
+  private final CurveDraftEdit owner;
   private final UiFields fields = new UiFields();
   private final ImBoolean open = new ImBoolean(true);
   private final Set<UUID> selected = new LinkedHashSet<>();
@@ -60,7 +62,6 @@ public final class CurveDialog {
   }
 
   private boolean focused;
-  private String applyError = "";
   private int previewFailures;
   private String previewFailure = "";
 
@@ -134,10 +135,25 @@ public final class CurveDialog {
   }
 
   public CurveDialog(Curve curve, Consumer<Curve> apply) {
+    this(curve, apply, () -> {}, null, null);
+  }
+
+  CurveDialog(Curve curve, EditorState state, CurveDraftEdit owner, Runnable accepted) {
+    this(curve, value -> owner.stage(state, value), accepted, state, owner);
+  }
+
+  private CurveDialog(
+      Curve curve,
+      Consumer<Curve> stage,
+      Runnable accepted,
+      EditorState state,
+      CurveDraftEdit owner) {
     session = new CurveEditSession(curve);
     pointer = new CurvePointerGesture(session, view);
     view.synchronize(curve.min, curve.max, curve.displayMin, curve.displayMax);
-    this.apply = apply;
+    publication = new CurveApplySession(stage, accepted);
+    ownerState = state;
+    this.owner = owner;
   }
 
   public boolean focused() {
@@ -183,6 +199,8 @@ public final class CurveDialog {
   }
 
   public void cancel() {
+    publication.cancel();
+    if (owner != null) owner.cancel();
     controlFocus.cancel();
     pointer.cancel();
     session.cancelGesture();
@@ -192,7 +210,7 @@ public final class CurveDialog {
   }
 
   public boolean draw() {
-    if (!open.get()) return true;
+    if (!open.get() || publication.closed()) return true;
     ImGui.setNextWindowSize(840, 760, ImGuiCond.FirstUseEver);
     if (controlFocus.windowRequest()) ImGui.setNextWindowFocus();
     boolean visible = ImGui.begin("Curve Editor", open);
@@ -620,21 +638,33 @@ public final class CurveDialog {
     if (ImGui.button("Delete Selected Interior Points")) deleteSelected();
     controlRect("delete");
     if (!session.error().isEmpty()) ImGui.textWrapped("! " + session.error());
+    boolean current = owner == null || owner.current(ownerState);
+    if (!current)
+      ImGui.textWrapped(
+          "The source or selection changed. Private curve edits are preserved; Cancel and reopen"
+              + " the source before applying.");
+    ImGui.beginDisabled(!current);
     if (ImGui.button("Apply")) {
       stopDrag();
       session.endGesture();
-      try {
-        apply.accept(session.curve());
+      if (publication.apply(session.curve())) {
         open.set(false);
-      } catch (RuntimeException invalid) {
-        applyError = Objects.requireNonNullElse(invalid.getMessage(), "Curve Apply failed");
+        focused = false;
+        var failure = publication.followUpFailure();
+        if (failure != null && ownerState != null)
+          ownerState.error(
+              "CURVE_EDIT_REFRESH_FAILED",
+              EditorEvents.Subsystem.APPLICATION,
+              "Curve staged in Properties; UI refresh failed: "
+                  + Objects.requireNonNullElse(failure.getMessage(), failure.toString()));
       }
     }
     controlRect("apply");
+    ImGui.endDisabled();
     ImGui.sameLine();
     if (ImGui.button("Cancel")) cancel();
     controlRect("cancel");
-    if (!applyError.isEmpty()) ImGui.textWrapped("! " + applyError);
+    if (!publication.error().isEmpty()) ImGui.textWrapped("! " + publication.error());
     ImGui.end();
     return !open.get();
   }

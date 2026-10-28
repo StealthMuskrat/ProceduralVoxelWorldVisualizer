@@ -346,6 +346,10 @@ public final class PropertyPanel {
   }
 
   private void openCurve(Item item, UUID point) {
+    if (curve != null) {
+      state.status = "Finish or cancel the open Curve Editor before opening another curve.";
+      return;
+    }
     var publication = new CurveDraftEdit(state, (Noise) state.draft, item);
     var value =
         item.parameters.containsKey("curve")
@@ -354,10 +358,14 @@ public final class PropertyPanel {
     var dialog =
         new CurveDialog(
             value,
-            v -> {
-              publication.stage(state, v);
-              f.clear();
-              noiseChanged();
+            state,
+            publication,
+            () -> {
+              try {
+                f.clear();
+              } finally {
+                noiseChanged();
+              }
             });
     if (point != null && !dialog.selectPoint(point))
       throw new IllegalArgumentException("Curve point no longer exists");

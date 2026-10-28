@@ -22,3 +22,5 @@ Opening an invalid curve that the existing private session cannot compile still 
 
 
 [Curve pointer ownership](CURVE_POINTER_OWNERSHIP.md) subsequently adds captured drag/pan geometry, final-release processing and interruption rollback on the development branch. Its implementation and deferred definitions remain uncompiled/untested under the owner testing pause.
+
+[Curve publication ownership](CURVE_PUBLICATION_OWNERSHIP.md) adds single-use source tokens, stale-source retention and a separate accepted-staging/UI-refresh boundary. Its implementation and deferred definitions remain uncompiled/untested.

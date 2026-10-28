@@ -56,6 +56,9 @@ public final class CurveGestureProbe {
         long revision = state.revision, history = state.document.historyBytes();
         panel = new PropertyPanel(state);
         panel.probeOpenCurve();
+        var opening = dialog();
+        panel.probeOpenCurve();
+        require(dialog() == opening, "A second Edit Curve request replaced private work");
         frames(5);
         click(dialog().probePoint(first));
         drag(.076, false);
@@ -145,12 +148,19 @@ public final class CurveGestureProbe {
         state.revision++;
         near(.35, sample(state.project(), n.uuid));
         state.document.save(out.resolve("curve-gesture-project.json"));
+        publicationOwnership(state.project());
         Files.writeString(
             out.resolve("curve-gesture-native.json"),
             ProjectIO.JSON.writeValueAsString(
                 Map.ofEntries(
                     Map.entry("collapseRollback", true),
                     Map.entry("appFocusRollback", true),
+                    Map.entry("duplicateOpenPreserved", true),
+                    Map.entry("stageFailureRetry", true),
+                    Map.entry("refreshFailureConsumed", true),
+                    Map.entry("staleSourcePreserved", true),
+                    Map.entry("sourceTokenConsumed", true),
+                    Map.entry("rawSeedPreserved", true),
                     Map.entry("formatVersion", 1),
                     Map.entry("before", .25),
                     Map.entry("after", .35),
@@ -173,6 +183,116 @@ public final class CurveGestureProbe {
   private static float startX, startY, plotHeight;
   private static boolean collapsed;
   private static double pressedY, deliveredDelta;
+  private static CurveDialog standalone;
+  private static boolean standaloneDone;
+
+  /**
+   * Additional production publication paths; the arithmetic replay above keeps its exact fixture.
+   */
+  private static void publicationOwnership(ProjectData project) {
+    try (var state = new EditorState(new UserConfig(), false)) {
+      require(
+          state.change(p -> p.noise2D.add(NoiseAuthoring.copy(project.noise2D.getFirst()))),
+          "Publication fixture rejected");
+      state.select("noise2D", state.project().noise2D.getFirst().uuid);
+      var draft = (Noise) state.draft;
+      var item = draft.processing.getFirst();
+      var source = ProjectIO.JSON.convertValue(item.parameters.get("curve"), Curve.class);
+      var publication = new CurveDraftEdit(state, draft, item);
+      int[] refreshes = {0};
+      standalone =
+          new CurveDialog(
+              source,
+              state,
+              publication,
+              () -> {
+                refreshes[0]++;
+                throw new IllegalStateException();
+              });
+      standalone.probeEnable();
+      standaloneDone = false;
+      frames(4);
+      draft.id = "pending-name";
+      require(
+          state.seedInputs.edit(state, "seedOffset", "Seed offset", "-").isEmpty(),
+          "Raw seed fixture failed");
+      var committed = ProjectIO.JSON.valueToTree(state.project());
+      long revision = state.revision, history = state.document.historyBytes();
+      click(standalone.probeControl("apply"));
+      frames(3);
+      require(standaloneDone && publication.closed(), "Refresh failure reopened staging");
+      require(refreshes[0] == 1, "Refresh failure repeated staging/refresh");
+      require(
+          state.events.snapshot().stream()
+                  .filter(e -> e.code().equals("CURVE_EDIT_REFRESH_FAILED"))
+                  .filter(e -> e.message().contains("IllegalStateException") && e.actionRequired())
+                  .count()
+              == 1,
+          "Refresh failure was not reported separately from staging");
+      require(draft.id.equals("pending-name"), "Staging replaced pending ID");
+      require(state.seedInputs.text("seedOffset").equals("-"), "Staging replaced raw seed");
+      require(!state.applyDraft(), "Staging bypassed invalid raw seed");
+      require(
+          committed.equals(ProjectIO.JSON.valueToTree(state.project()))
+              && revision == state.revision
+              && history == state.document.historyBytes(),
+          "Private staging changed document/history");
+      try {
+        publication.stage(state, source);
+        throw new AssertionError("Accepted source token staged a second time");
+      } catch (IllegalStateException expected) {
+        // The source token is consumed even for an equal-value Apply.
+      }
+
+      var stale = new CurveDraftEdit(state, draft, item);
+      standalone = new CurveDialog(source, state, stale, () -> {});
+      standalone.probeEnable();
+      standaloneDone = false;
+      frames(4);
+      var privateCurve = ProjectIO.JSON.valueToTree(standalone.probeCurve());
+      var replacement = item.parameters.get("curve").deepCopy();
+      item.parameters.put("curve", replacement);
+      frames(2);
+      require(!stale.current(state), "Equal-value replacement retargeted opening");
+      click(standalone.probeControl("apply"));
+      frames(2);
+      require(!standaloneDone && !stale.closed(), "Stale Apply closed private editor");
+      require(
+          item.parameters.get("curve") == replacement
+              && privateCurve.equals(ProjectIO.JSON.valueToTree(standalone.probeCurve())),
+          "Stale Apply changed source/private curve");
+      click(standalone.probeControl("cancel"));
+      frames(2);
+      require(standaloneDone && stale.closed(), "Cancel retained stale source token");
+
+      int[] attempts = {0};
+      standalone =
+          new CurveDialog(
+              source,
+              value -> {
+                if (++attempts[0] == 1) throw new IllegalStateException();
+              });
+      standalone.probeEnable();
+      standaloneDone = false;
+      frames(4);
+      click(standalone.probeControl("apply"));
+      frames(2);
+      require(!standaloneDone && attempts[0] == 1, "Rejected staging closed or repeated");
+      require(
+          privateCurve.equals(ProjectIO.JSON.valueToTree(standalone.probeCurve())),
+          "Rejected staging changed private curve");
+      click(standalone.probeControl("apply"));
+      frames(3);
+      require(standaloneDone && attempts[0] == 2, "Corrected staging did not close exactly once");
+      require(
+          committed.equals(ProjectIO.JSON.valueToTree(state.project()))
+              && revision == state.revision
+              && history == state.document.historyBytes(),
+          "Publication fixtures changed committed state");
+    } finally {
+      standalone = null;
+    }
+  }
 
   private static CurveDialog dialog() {
     return panel.probeCurveDialog();
@@ -254,7 +374,8 @@ public final class CurveGestureProbe {
     ImGui.newFrame();
     ImGui.setNextWindowPos(30, 30, ImGuiCond.Always);
     ImGui.setNextWindowCollapsed(collapsed, ImGuiCond.Always);
-    panel.probeCurvePanel();
+    if (standalone == null) panel.probeCurvePanel();
+    else standaloneDone = standalone.draw();
     ImGui.render();
   }
 

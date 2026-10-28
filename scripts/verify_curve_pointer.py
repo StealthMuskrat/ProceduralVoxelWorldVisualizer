@@ -7,7 +7,9 @@ root = Path(sys.argv[1])
 report = json.loads((root / 'curve-gesture-native.json').read_text(encoding='utf-8'))
 assert report['formatVersion'] == 1
 for key in ('collapseRollback', 'appFocusRollback', 'privateStage', 'cancel', 'escape',
-            'altBypass', 'oneGestureUndo', 'oneDocumentUndoRedo'):
+            'altBypass', 'oneGestureUndo', 'oneDocumentUndoRedo', 'duplicateOpenPreserved',
+            'stageFailureRetry', 'refreshFailureConsumed', 'staleSourcePreserved',
+            'sourceTokenConsumed', 'rawSeedPreserved'):
     assert report[key] is True, key
 assert report['before'] == .25 and report['after'] == .35 and report['points'] == 4
 project = json.loads((root / 'curve-gesture-project.json').read_text(encoding='utf-8'))

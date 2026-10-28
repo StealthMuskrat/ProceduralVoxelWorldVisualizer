@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import io.voxelcreator.core.*;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
+import java.util.*;
 import org.junit.jupiter.api.Test;
 
 class CurveDraftEditTest {
@@ -34,6 +35,10 @@ class CurveDraftEditTest {
 
   private static CurveDraftEdit edit(EditorState s) {
     return new CurveDraftEdit(s, noise(s), item(s));
+  }
+
+  private static Curve source(EditorState s) {
+    return ProjectIO.JSON.convertValue(item(s).parameters.get("curve"), Curve.class);
   }
 
   @Test
@@ -89,6 +94,168 @@ class CurveDraftEditTest {
       var before = ProjectIO.JSON.valueToTree(state.draft);
       assertThrows(IllegalArgumentException.class, () -> edit.stage(state, curve));
       assertEquals(before, ProjectIO.JSON.valueToTree(state.draft));
+    }
+  }
+
+  @Test
+  void acceptedEqualValueCurveStillConsumesItsSourceToken() {
+    try (var state = state()) {
+      var edit = edit(state);
+      var before = ProjectIO.JSON.valueToTree(state.draft);
+      var curve = source(state);
+      edit.stage(state, curve);
+      assertTrue(edit.closed());
+      assertFalse(edit.current(state));
+      assertEquals(before, ProjectIO.JSON.valueToTree(state.draft));
+      assertThrows(IllegalStateException.class, () -> edit.stage(state, curve));
+      edit.cancel();
+      assertEquals(before, ProjectIO.JSON.valueToTree(state.draft));
+    }
+  }
+
+  @Test
+  void cancelConsumesSourceWithoutChangingPrivateOrCommittedValues() {
+    try (var state = state()) {
+      var edit = edit(state);
+      var draft = ProjectIO.JSON.valueToTree(state.draft);
+      var committed = ProjectIO.JSON.valueToTree(state.project());
+      var curve = source(state);
+      edit.cancel();
+      edit.cancel();
+      assertTrue(edit.closed());
+      assertFalse(edit.current(state));
+      assertThrows(IllegalStateException.class, () -> edit.stage(state, curve));
+      assertEquals(draft, ProjectIO.JSON.valueToTree(state.draft));
+      assertEquals(committed, ProjectIO.JSON.valueToTree(state.project()));
+    }
+  }
+
+  @Test
+  void sameValueSourceReplacementRequiresReopeningInsteadOfRetargeting() {
+    try (var state = state()) {
+      var edit = edit(state);
+      var curve = source(state);
+      var source = item(state).parameters.get("curve");
+      item(state).parameters.put("curve", source.deepCopy());
+      assertFalse(edit.current(state));
+      assertThrows(IllegalStateException.class, () -> edit.stage(state, curve));
+      assertEquals(source, item(state).parameters.get("curve"));
+      assertFalse(edit.closed());
+    }
+  }
+
+  @Test
+  void sourceValueMutationIsRejectedAtPublicationEvenWithTheSameNode() {
+    try (var state = state()) {
+      var edit = edit(state);
+      var curve = source(state);
+      ((com.fasterxml.jackson.databind.node.ObjectNode) item(state).parameters.get("curve"))
+          .put("displayMax", 9);
+      var changed = ProjectIO.JSON.valueToTree(state.draft);
+      assertTrue(edit.current(state)); // Frame-time identity check deliberately avoids full copies.
+      assertThrows(IllegalStateException.class, () -> edit.stage(state, curve));
+      assertEquals(changed, ProjectIO.JSON.valueToTree(state.draft));
+    }
+  }
+
+  @Test
+  void changedOrderedSelectionKindOrLogicalIdentityInvalidatesTheOpening() {
+    for (int mode = 0; mode < 5; mode++)
+      try (var state = state()) {
+        var edit = edit(state);
+        var curve = source(state);
+        switch (mode) {
+          case 0 -> state.multiSelection.clear();
+          case 1 -> state.selectedKind = "noise3D";
+          case 2 -> item(state).uuid = UUID.randomUUID();
+          case 3 -> noise(state).uuid = UUID.randomUUID();
+          case 4 -> state.project().project.uuid = UUID.randomUUID();
+        }
+        var draft = ProjectIO.JSON.valueToTree(state.draft);
+        assertFalse(edit.current(state));
+        assertThrows(IllegalStateException.class, () -> edit.stage(state, curve));
+        assertEquals(draft, ProjectIO.JSON.valueToTree(state.draft));
+      }
+  }
+
+  @Test
+  void unsupportedProjectMutationCannotBeOverwrittenByPrivateStaging() {
+    try (var state = state()) {
+      var edit = edit(state);
+      var curve = source(state);
+      state.project().project.seed++;
+      var draft = ProjectIO.JSON.valueToTree(state.draft);
+      assertTrue(edit.current(state));
+      assertThrows(IllegalStateException.class, () -> edit.stage(state, curve));
+      assertEquals(draft, ProjectIO.JSON.valueToTree(state.draft));
+    }
+  }
+
+  @Test
+  void unrelatedPendingFieldsAndRawSeedEditsSurviveSingleUseStaging() {
+    try (var state = state()) {
+      var edit = edit(state);
+      var curve = source(state);
+      curve.points.getLast().y = 3;
+      noise(state).id = "pending-name";
+      assertTrue(state.seedInputs.edit(state, "seedOffset", "Seed offset", "-").isEmpty());
+      var before = ProjectIO.JSON.valueToTree(state.project());
+      long revision = state.revision, history = state.document.historyBytes();
+      assertTrue(edit.current(state));
+      edit.stage(state, curve);
+      curve.points.getLast().y = 99;
+      assertEquals(3, source(state).points.getLast().y);
+      assertEquals("pending-name", noise(state).id);
+      assertEquals("-", state.seedInputs.text("seedOffset"));
+      assertFalse(state.applyDraft());
+      assertEquals(before, ProjectIO.JSON.valueToTree(state.project()));
+      assertEquals(revision, state.revision);
+      assertEquals(history, state.document.historyBytes());
+    }
+  }
+
+  @Test
+  void curveIdentityReplacementRejectsBeforeMutationAndOriginalIdentityCanRetry() {
+    try (var state = state()) {
+      var edit = edit(state);
+      var curve = source(state);
+      var identity = curve.uuid;
+      var before = ProjectIO.JSON.valueToTree(state.draft);
+      curve.uuid = UUID.randomUUID();
+      assertThrows(IllegalArgumentException.class, () -> edit.stage(state, curve));
+      assertFalse(edit.closed());
+      assertEquals(before, ProjectIO.JSON.valueToTree(state.draft));
+      curve.uuid = identity;
+      edit.stage(state, curve);
+      assertTrue(edit.closed());
+    }
+  }
+
+  @Test
+  void siblingReorderingAndASeparateEditorCannotReceiveAnOlderPublication() {
+    try (var state = state();
+        var other = state()) {
+      var selected = state.selected;
+      assertTrue(
+          state.change(
+              p -> {
+                var sibling = new Noise();
+                sibling.id = "sibling";
+                p.noise2D.add(sibling);
+              }));
+      state.select("noise2D", selected);
+      state.multiSelection.add(state.project().noise2D.getLast().uuid);
+      var edit = edit(state);
+      var curve = source(state);
+      assertFalse(edit.current(other));
+      assertThrows(IllegalStateException.class, () -> edit.stage(other, curve));
+      assertTrue(edit.current(state));
+      state.multiSelection.remove(selected);
+      state.multiSelection.add(selected);
+      var draft = ProjectIO.JSON.valueToTree(state.draft);
+      assertFalse(edit.current(state));
+      assertThrows(IllegalStateException.class, () -> edit.stage(state, curve));
+      assertEquals(draft, ProjectIO.JSON.valueToTree(state.draft));
     }
   }
 }
