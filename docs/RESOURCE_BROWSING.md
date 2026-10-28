@@ -21,3 +21,7 @@ Unit contracts check explicit mixed folder child-order vectors, descendant/conta
 `ResourceBrowserProbe` creates an isolated real ImGui context and 7,102 resources: 2,000 noise generators, 5,000 types, two folders and 50 sets/groups each. It asserts bounded submitted viewport rows, changed membership after real native scrolling, unchanged build/projection counts while scrolling, ancestor revelation and exact manager filtering. It also checks document/draft/history/revision/dirty preservation and an independent constant sample. The JSON report is independently checked by `verify_resource_browser.py`. Desktop smoke visits the real Voxel Manager alongside all existing scenarios. Both CI platforms run the probe. Full drag/drop/rename/keyboard gestures, all scroll/scale/DPI cases, representative hardware timings and complete Windows 11 GUI acceptance remain separate.
 
 The follow-up property selector, membership and export/import work is documented in [RESOURCE_SELECTION_WORKFLOWS.md](RESOURCE_SELECTION_WORKFLOWS.md).
+
+## Development-phase selection guard
+
+Row clicks and context-menu Properties in Resources and Voxel Manager now protect unapplied Properties drafts, including raw seed text and selection changes that would hide an editor in the sibling summary. Copy/Cut and drag-start no longer select an unselected context row. The source is uncompiled/untested; see [ownership, deferred definitions and remaining scope](RESOURCE_SELECTION_GUARDS.md).

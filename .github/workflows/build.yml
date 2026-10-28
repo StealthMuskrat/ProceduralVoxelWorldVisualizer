@@ -157,6 +157,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpandedExpressionProbe build/expanded-expression
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExpressionRecoveryConsumer build/expanded-expression/expanded-expression-project.json 6
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
+      - name: Browser selection and protected Properties workflow
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceSelectionProbe build/browser-selection
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.BrowserSelectionConsumer build/browser-selection/resource-selection-project.json
+          python scripts/verify_browser_selection.py build/browser-selection
       - name: Properties seed text and guarded Apply workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SeedTextProbe build/seed-text
@@ -262,6 +267,7 @@ jobs:
             build/expression-recovery/
             build/expanded-expression/
             build/seed-text/
+            build/browser-selection/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/
@@ -532,6 +538,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows browser selection and protected Properties workflow
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceSelectionProbe build/browser-selection
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.BrowserSelectionConsumer build/browser-selection/resource-selection-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_browser_selection.py build/browser-selection
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows Properties seed text and guarded Apply workflow
         shell: pwsh
         run: |
@@ -719,6 +734,7 @@ jobs:
             build/expression-recovery/
             build/expanded-expression/
             build/seed-text/
+            build/browser-selection/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/

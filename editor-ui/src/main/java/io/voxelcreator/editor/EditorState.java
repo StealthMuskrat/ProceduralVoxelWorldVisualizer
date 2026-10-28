@@ -116,6 +116,18 @@ public final class EditorState implements AutoCloseable {
     select(kind, uuid, kind, false);
   }
 
+  /** Install an already validated sibling selection; same-owner clicks retain the private draft. */
+  void selectResources(List<UUID> ids, UUID active, String scope, boolean discard) {
+    boolean changedOwner = !Objects.equals(selected, active);
+    multiSelection.clear();
+    multiSelection.addAll(ids);
+    selectionParent = scope;
+    selected = active;
+    var entry = ResourceGraph.find(project(), active);
+    selectedKind = entry == null ? "" : entry.kind();
+    if (discard || changedOwner || draft == null) refreshDraft();
+  }
+
   public void refreshDraft() {
     if (validationScope.equals("Rejected edit")
         || validationScope.equals("Rejected Properties seed input")) {

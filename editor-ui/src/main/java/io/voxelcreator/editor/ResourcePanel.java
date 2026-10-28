@@ -48,14 +48,27 @@ public final class ResourcePanel {
   public Consumer<UUID> findReferences;
   public final Set<UUID> exportSelection = new LinkedHashSet<>();
   private final ResourceExportPanel exportPanel;
+  private final ResourceSelectionSession selection;
+  private boolean selectionPrompt;
+  private UUID pendingAnchor;
+  private String selectionMessage = "";
+  private final Map<String, float[]> selectionButtons = new HashMap<>();
+  private final Map<UUID, float[]> rowCenters = new HashMap<>();
 
   public ResourcePanel(EditorState s, PropertyPanel properties) {
     state = s;
     this.properties = properties;
     exportPanel = new ResourceExportPanel(s, exportSelection);
+    selection = new ResourceSelectionSession(s);
   }
 
   public void reset() {
+    selection.clear();
+    selectionPrompt = false;
+    pendingAnchor = null;
+    selectionMessage = "";
+    selectionButtons.clear();
+    rowCenters.clear();
     clipboard = null;
     browserCache.clear();
     treeView.clear();
@@ -80,6 +93,7 @@ public final class ResourcePanel {
   }
 
   public void draw() {
+    rowCenters.clear();
     ImGui.begin("Resources");
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Resources", 1f));
     refreshBrowser();
@@ -112,6 +126,7 @@ public final class ResourcePanel {
     deleteDialog();
     placementDialog();
     manager();
+    selectionDialog();
   }
 
   public boolean focused() {
@@ -203,15 +218,14 @@ public final class ResourcePanel {
                   | ImGuiTreeNodeFlags.FramePadding
                   | (state.multiSelection.contains(node.uuid()) ? ImGuiTreeNodeFlags.Selected : 0));
       if (expanded != row.open() && filter.get().isBlank()) treeView.open(node.uuid(), expanded);
-      if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen())
-        select(node.kind(), node.uuid(), node.root() + ":" + node.parent());
+      if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen()) select(node.uuid());
     } else if (ImGui.selectable(
         (node.enabled() ? "" : "[off] ") + AppMetadata.uiText(node.id()) + "###leaf",
         state.multiSelection.contains(node.uuid()),
         0,
         0,
-        ImGui.getFrameHeight()))
-      select(node.kind(), node.uuid(), node.root() + ":" + node.parent());
+        ImGui.getFrameHeight())) select(node.uuid());
+    rememberRow(node.uuid());
     rowMenu(node.kind(), resource, node.root(), node.parent());
     drag(node.uuid(), node.root());
     if (node.kind().equals("folder")) {
@@ -232,7 +246,8 @@ public final class ResourcePanel {
         state.multiSelection.contains(resource.uuid),
         0,
         0,
-        ImGui.getFrameHeight())) select(kind, resource.uuid, root + ":" + parent);
+        ImGui.getFrameHeight())) select(resource.uuid);
+    rememberRow(resource.uuid);
     rowMenu(kind, resource, root, parent);
     drag(resource.uuid, root);
     dropBefore(resource.uuid);
@@ -339,7 +354,8 @@ public final class ResourcePanel {
         paste("operation", r.uuid);
       if (ImGui.menuItem("Rename", state.user.input.shortcuts.getOrDefault("Rename", "")))
         beginRename(r.uuid);
-      if (ImGui.menuItem("Properties")) state.select(kind, r.uuid);
+      if (ImGui.menuItem("Properties", "", false, !properties.searchBlocked()))
+        acceptSelection(selection.click(r.uuid, false), r.uuid);
       if (ImGui.menuItem("Duplicate", state.user.input.shortcuts.getOrDefault("Duplicate", "")))
         duplicate(kind, r, root, parent);
       if (ImGui.menuItem("Copy", state.user.input.shortcuts.getOrDefault("Copy", "")))
@@ -383,12 +399,9 @@ public final class ResourcePanel {
 
   private void drag(UUID id, String root) {
     if (ImGui.beginDragDropSource()) {
-      if (!state.multiSelection.contains(id)) {
-        var e = ResourceGraph.find(state.project(), id);
-        state.select(e.kind(), id, e.scope(), false);
-      }
       dragRoot = root;
-      dragSelection = List.copyOf(state.multiSelection);
+      dragSelection =
+          state.multiSelection.contains(id) ? List.copyOf(state.multiSelection) : List.of(id);
       ImGui.setDragDropPayload("resource", id.toString());
       ImGui.text("Move " + dragSelection.size() + " selected resource(s)");
       if (ResourceGraph.ORGANIZATIONAL_ROOTS.contains(root))
@@ -439,18 +452,108 @@ public final class ResourcePanel {
     ImGui.popID();
   }
 
-  private void select(String kind, UUID id, String scope) {
+  private void select(UUID id) {
+    if (properties.searchBlocked()) {
+      state.status = "Finish the private Properties editor before changing resource selection";
+      return;
+    }
     if (ImGui.getIO().getKeyShift() && rangeAnchor != null) {
       var range = ResourceTreeIndex.range(selectionRows, rangeAnchor, id);
       if (!range.isEmpty()) {
-        state.select(kind, id, scope, false);
-        state.multiSelection.clear();
-        state.multiSelection.addAll(range);
+        acceptSelection(selection.request(range, id), rangeAnchor);
         return;
       }
     }
-    state.select(kind, id, scope, ImGui.getIO().getKeyCtrl());
-    rangeAnchor = id;
+    acceptSelection(selection.click(id, ImGui.getIO().getKeyCtrl()), id);
+  }
+
+  private void acceptSelection(ResourceSelectionSession.Result result, UUID anchor) {
+    switch (result) {
+      case SELECTED -> rangeAnchor = anchor;
+      case NEEDS_DECISION -> {
+        pendingAnchor = anchor;
+        selectionMessage = "";
+        selectionPrompt = true;
+      }
+      case UNAVAILABLE -> state.status = "Selection changed; choose the resource again";
+      default -> {}
+    }
+  }
+
+  private void selectionDialog() {
+    if (selectionPrompt) {
+      ImGui.openPopup("Leave Properties for Resource Selection");
+      selectionPrompt = false;
+    }
+    if (!ImGui.beginPopupModal(
+        "Leave Properties for Resource Selection", ImGuiWindowFlags.AlwaysAutoResize)) return;
+    if (!selection.pending()) {
+      ImGui.closeCurrentPopup();
+      ImGui.endPopup();
+      return;
+    }
+    ImGui.textWrapped(
+        "Apply the current Properties draft, discard it for this selection, or cancel.");
+    var destinations = selection.destinations();
+    ImGui.textDisabled(
+        destinations.isEmpty()
+            ? "Requested selection: none"
+            : "Requested selection: " + destinations.size() + " sibling resource(s)");
+    for (int i = 0; i < Math.min(4, destinations.size()); i++) {
+      var entry = ResourceGraph.find(state.project(), destinations.get(i));
+      String label = entry == null ? "Missing resource" : entry.resource().id;
+      ImGui.bulletText(
+          AppMetadata.uiText(label.length() > 80 ? label.substring(0, 79) + "…" : label));
+    }
+    if (destinations.size() > 4) ImGui.textDisabled("… and " + (destinations.size() - 4) + " more");
+    if (!selectionMessage.isEmpty()) ImGui.textWrapped(selectionMessage);
+    for (var decision : SearchNavigation.Decision.values()) {
+      if (decision != SearchNavigation.Decision.APPLY) ImGui.sameLine();
+      boolean clicked = ImGui.button(decision.name());
+      var a = ImGui.getItemRectMin();
+      var b = ImGui.getItemRectMax();
+      selectionButtons.put(decision.name(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
+      if (clicked) {
+        var result =
+            properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
+                ? ResourceSelectionSession.Result.UNAVAILABLE
+                : selection.decide(decision);
+        if (result == ResourceSelectionSession.Result.NEEDS_DECISION)
+          selectionMessage = "Apply failed. Cancel to correct the draft, or choose Discard.";
+        else {
+          if (result == ResourceSelectionSession.Result.SELECTED) rangeAnchor = pendingAnchor;
+          else if (result == ResourceSelectionSession.Result.UNAVAILABLE)
+            state.status = "Selection or draft changed; choose the resource again";
+          selection.clear();
+          pendingAnchor = null;
+          ImGui.closeCurrentPopup();
+        }
+      }
+    }
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      selection.decide(SearchNavigation.Decision.CANCEL);
+      pendingAnchor = null;
+      ImGui.closeCurrentPopup();
+    }
+    ImGui.endPopup();
+  }
+
+  private void rememberRow(UUID id) {
+    var a = ImGui.getItemRectMin();
+    var b = ImGui.getItemRectMax();
+    rowCenters.put(id, new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
+  }
+
+  float[] probeSelectionRow(UUID id) {
+    return rowCenters.get(id);
+  }
+
+  float[] probeSelectionButton(String decision) {
+    return selectionButtons.get(decision);
+  }
+
+  boolean probeSelectionPending() {
+    return selection.pending();
   }
 
   private void create(String kind, String root, UUID parent) {
@@ -600,13 +703,9 @@ public final class ResourcePanel {
 
   private void copy(UUID id, String root, boolean cut) {
     try {
-      if (!state.multiSelection.contains(id)) {
-        var entry = ResourceGraph.find(state.project(), id);
-        state.select(entry.kind(), id, entry.scope(), false);
-      }
-      clipboard = new ResourceClipboard(state.project(), state.multiSelection, cut);
-      state.status =
-          state.multiSelection.size() + " resource(s) " + (cut ? "cut; paste to move" : "copied");
+      var ids = state.multiSelection.contains(id) ? List.copyOf(state.multiSelection) : List.of(id);
+      clipboard = new ResourceClipboard(state.project(), ids, cut);
+      state.status = ids.size() + " resource(s) " + (cut ? "cut; paste to move" : "copied");
     } catch (RuntimeException invalid) {
       state.notify("Error", invalid.getMessage());
     }
