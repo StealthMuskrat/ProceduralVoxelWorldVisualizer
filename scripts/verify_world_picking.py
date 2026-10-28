@@ -491,3 +491,48 @@ assert [s['copiedBytes'] for s in stages[:7]] == [0, 524288, 524288, 1048576, 15
 assert stages[7]['copiedBytes'] == stages[6]['copiedBytes']  # Source regeneration requires fresh texels.
 from verify_volume_overlap import verify as verify_overlap
 verify_overlap(Path(sys.argv[1]) / 'volume-overlap')
+
+# Independently replay effective scalar visibility, retained-source texels and optical output.
+vp_root = Path(sys.argv[1]) / 'volume-pressure'
+vp = json.loads((vp_root / 'volume-pressure-native.json').read_text())
+assert vp['formatVersion'] == 1
+pressure_stages = vp['stages']
+assert [s['name'] for s in pressure_stages] == [
+    'configured', 'unit-grid-retained', 'reduced', 'cache-released', 'deferred', 'paused-upload',
+    'resumed-new-source', 'restored', 'cpu-recovered', 'budget-retry', 'paused-queue', 'queue-resumed']
+assert [s['level'] for s in pressure_stages] == [0,1,2,3,4,5,3,0,2,0,5,3]
+assert [s['side'] for s in pressure_stages] == [64,64,32,32,32,32,32,64,32,64,64,32]
+assert [s['origin'] for s in pressure_stages] == [
+    [-32,-32,-32], [-32,-32,-32], [0,0,0], [0,0,0], [0,0,0], [0,0,0],
+    [-32,0,0], [-64,-32,-32], [0,0,0], [0,-32,-32], [0,-32,-32], [64,0,0]]
+assert [s['version'] for s in pressure_stages] == [1,1,2,2,2,2,3,4,5,7,7,8]
+assert len({s['generation'] for s in pressure_stages[:6]}) == 1
+assert pressure_stages[6]['generation'] > pressure_stages[5]['generation']
+assert len({s['generation'] for s in pressure_stages[6:]}) == 1
+assert [s['compilations'] for s in pressure_stages] == [1]*6 + [2]*6
+for i, s in enumerate(pressure_stages):
+    n = s['side']
+    assert s['configured'] == 64 and not s['pending'] and s['reserved'] == 0
+    assert 0 <= s['cacheBytes'] <= s['cacheLimit'] <= 64*1024*1024
+    if s['level'] >= 3:
+        assert s['cacheBytes'] == s['cacheLimit'] == 0
+    value = 1 if i < 6 else 0
+    assert s['value'] == value
+    raw = (vp_root / (s['name'] + '.bin')).read_bytes()
+    assert len(raw) == 4*n**3
+    assert all(v == value for (v,) in struct.iter_unpack('<f', raw))
+    optical_density = 0 if s['name'] in ('deferred', 'paused-upload') else value
+    t = math.exp(-optical_density*.01*n)
+    expected = [127*(1-t)+255*t*.055, 255*t*.075, 255*t*.1, 255]
+    assert all(abs(a-b) <= 2 for a,b in zip(s['pixel'], expected)), s
+assert 'deferred' in pressure_stages[4]['message']
+assert all('Resume' in pressure_stages[i]['message'] for i in (5,10))
+assert 0 < vp['maximumUploadBytes'] <= 16384
+assert all(vp[k] for k in ['initialViewOnly', 'postEditViewOnly', 'configuredPreserved',
+                         'midUploadCanceled', 'queuedReservationReclaimed', 'explicitResume'])
+queued = vp['queuedMemory']
+assert queued['peak'] == 12*64**3 + 8*32**3 + 128 + 65536
+assert queued['cpuBytes'] + queued['reserved'] >= queued['peak'] and queued['queueSize'] == 1
+pressure_project = json.loads((vp_root / 'volume-pressure-project.json').read_text())
+assert pressure_project['noise3D'][0]['processing'][0]['parameters']['expression'] == '0'
+print('VOLUME_PRESSURE_PASS independent retained-source texels / reduced-extent optics / exact publication versions / ordered fallback / cache release / paused upload and queue / explicit Resume / gradual restoration / view-only')

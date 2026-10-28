@@ -479,6 +479,42 @@ public final class Viewports implements AutoCloseable {
     mark(v);
   }
 
+  void probeVolumePressure(long now, double cpu, double gpu, double frame, boolean rejected) {
+    admissionProbe = true;
+    views[1].volumeClock = now;
+    views[1].pressure.observe(now, cpu, gpu, frame, rejected);
+  }
+
+  void probeVolumeClock(long now) {
+    views[1].volumeClock = now;
+  }
+
+  int probeVolumePressureLevel() {
+    return views[1].pressure.level();
+  }
+
+  VolumeStreamingLimits.Plan probeVolumePlan() {
+    return views[1].volumePlan;
+  }
+
+  int probeVolumeConfiguredSize() {
+    return views[1].size;
+  }
+
+  int probeVolumeResidentSize() {
+    var resident = views[1].gl.volumeResident();
+    return resident == null ? 0 : resident.size();
+  }
+
+  long probeVolumeReservation() {
+    return views[1].volumeWorkingBytes;
+  }
+
+  int probeVolumeResidentTexture() {
+    var resident = views[1].gl.volumeResident();
+    return resident == null ? 0 : resident.texture();
+  }
+
   void probeVolumeTransfer(double opacity, double threshold) {
     views[1].volumeOpacity = opacity;
     views[1].threshold = threshold;
@@ -680,6 +716,11 @@ public final class Viewports implements AutoCloseable {
     UUID volumeNoise;
     String volumeSourceKey = "", volumeRequestTag = "";
     VolumeWindows.Statistics displayedVolumeWindow;
+    long volumeWorkingBytes;
+    long volumeClock; // Native fixture's monotonic clock; zero uses System.nanoTime().
+    boolean volumeRejected;
+    VolumeStreamingLimits.Limits volumeLimits;
+    VolumeStreamingLimits.Plan volumePlan;
     String message = "Ready";
     Vector3d origin = new Vector3d();
     double[] raw;
@@ -761,7 +802,13 @@ public final class Viewports implements AutoCloseable {
     for (var v : views) {
       var volume = v.gl.volumeStatistics();
       cpu += volume.cpuBytes() + v.volumeWindows.memory().bytes();
-      reserved += v.volumeWindows.memory().workingBytes();
+      var memory = v.volumeWindows.memory();
+      reserved +=
+          Math.max(
+              0,
+              VolumeStreamingLimits.cpuBytes(
+                      0, memory.workingBytes(), v.volumeWorkingBytes, volume.cpuBytes())
+                  - volume.cpuBytes());
       gpu += volume.activeBytes() + volume.pendingBytes();
       uploads += volume.lastBytes();
       if (v.scene != null) {
@@ -1399,6 +1446,15 @@ public final class Viewports implements AutoCloseable {
     if (volumeStreaming) {
       stopStream(v);
       streamVolume(v);
+      var plan = v.volumePlan;
+      if (plan != null)
+        ImGui.textDisabled(
+            "Effective volume "
+                + plan.side()
+                + " / configured "
+                + v.size
+                + " cells per axis | "
+                + volumePressureMessage(v));
     } else {
       stopVolumeStream(v);
       if (streaming) streaming = stream(v);
@@ -1407,6 +1463,7 @@ public final class Viewports implements AutoCloseable {
     Preview ready = v.ready.take();
     if (ready != null && ready.epoch == v.epoch && (!streaming || volumeStreaming) && source) {
       v.activeJob = false;
+      v.volumeWorkingBytes = 0;
       if (ready.error != null) {
         v.message = "Failed; previous display retained";
         v.failedPreview = true;
@@ -1415,12 +1472,15 @@ public final class Viewports implements AutoCloseable {
         if (ready.volume != null) {
           try {
             if (!v.gl.stageVolume(
-                ready.volume, (long) state.user.performance.sceneGpuMiB << 20, ready.volumeRegion))
+                ready.volume,
+                (long) state.user.performance.sceneGpuMiB << 20,
+                ready.volumeRegion)) {
+              if (volumeStreaming) v.volumeRejected = true;
               volumeUploadFailed(
                   v,
                   "Volume replacement exceeds GPU MiB; previous display retained; reduce extent or"
                       + " raise GPU MiB, then Regenerate");
-            else {
+            } else {
               v.pendingVolume = ready;
               v.activeJob = true;
             }
@@ -1771,6 +1831,7 @@ public final class Viewports implements AutoCloseable {
   private void volumeUploadFailed(View v, String detail) {
     v.gl.cancelVolume();
     v.pendingVolume = null;
+    v.volumeWorkingBytes = 0;
     v.activeJob = false;
     v.failedPreview = true;
     v.message =
@@ -1792,6 +1853,7 @@ public final class Viewports implements AutoCloseable {
             ? v.stageMode
             : v.mode + (v.mode.equals("Slices") ? " " + v.slicePlane.name() : ""));
     v.displayedVolumeWindow = ready.volumeWindowStatistics;
+    v.volumeWorkingBytes = 0;
     v.origin.set(ready.origin);
     v.fixedPickBounds = v.kind == 2 ? VoxelRaycast.Bounds.cube(ready.origin, ready.width) : null;
     v.gl.setPalette(ready.palette);
@@ -1816,9 +1878,76 @@ public final class Viewports implements AutoCloseable {
     v.volumeSnapshot = null;
     v.volumeNoise = null;
     v.volumeSourceKey = "";
+    v.volumeRejected = false;
+    v.volumeLimits = null;
+    v.volumePlan = null;
+  }
+
+  private String volumePressureMessage(View v) {
+    return switch (v.pressure.level()) {
+      case 0 -> v.pressure.paused() ? "Volume paused; Resume required" : "Full configured quality";
+      case 1 -> "Pressure: unit scalar samples retained";
+      case 2 -> "Pressure: effective volume extent reduced";
+      case 3 -> "Pressure: effective extent reduced; chunk cache released";
+      case 4 -> "Pressure: new volume windows deferred; previous display retained";
+      default -> "Volume paused under critical pressure; Resume required";
+    };
   }
 
   private void streamVolume(View v) {
+    long now = v.volumeClock == 0 ? System.nanoTime() : v.volumeClock;
+    if (admissionProbe) admissionControls.remove("volume-resume");
+    var performance = state.user.performance;
+    var limits =
+        new VolumeStreamingLimits.Limits(
+            (long) performance.sceneCpuMiB << 20,
+            (long) performance.sceneGpuMiB << 20,
+            (long) performance.cacheMiB << 20,
+            performance.previewCellBudget,
+            performance.maxPreviewDimension);
+    if (!limits.equals(v.volumeLimits)) {
+      if (v.failedPreview) mark(v);
+      v.volumeLimits = limits;
+      v.volumeRejected = false;
+    }
+    var gpu = v.gl.volumeStatistics();
+    // Reclaim evictable history before measuring a newly tightened CPU budget.
+    v.volumeWindows.budget(
+        VolumeStreamingLimits.plan(v.size, v.pressure.level(), limits, gpu.activeBytes())
+            .cacheBytes());
+    var memory = v.volumeWindows.memory();
+    v.frameMillis = v.frameMillis * .9 + ImGui.getIO().getDeltaTime() * 1000 * .1;
+    v.pressure.observe(
+        now,
+        VolumeStreamingLimits.cpuBytes(
+                memory.bytes(), memory.workingBytes(), v.volumeWorkingBytes, gpu.cpuBytes())
+            / (double) limits.cpuBytes(),
+        (gpu.activeBytes() + gpu.pendingBytes()) / (double) limits.gpuBytes(),
+        v.frameMillis,
+        v.volumeRejected);
+    var plan = VolumeStreamingLimits.plan(v.size, v.pressure.level(), limits, gpu.activeBytes());
+    if (v.failedPreview
+        && v.volumeRejected
+        && v.volumePlan != null
+        && (plan.side() != v.volumePlan.side() || plan.cacheBytes() != v.volumePlan.cacheBytes()))
+      mark(v);
+    v.volumePlan = plan;
+    v.volumeWindows.budget(plan.cacheBytes());
+    if (v.pressure.paused()) {
+      if (v.activeJob || v.pendingVolume != null) mark(v);
+      v.message = volumePressureMessage(v) + "; previous display retained";
+      if (ImGui.smallButton("Resume Volume")) {
+        v.pressure.resume(now);
+        v.volumeRejected = false;
+        mark(v);
+      }
+      admissionControl("volume-resume");
+      return;
+    }
+    if (!v.pressure.acceptExpensive()) {
+      if (!v.activeJob) v.message = volumePressureMessage(v);
+      return;
+    }
     String desired = fingerprint(v) + "|" + v.noise + "|" + v.rebuildSerial;
     if (!desired.equals(v.volumeSourceKey)
         && (v.volumeSnapshot == null || state.user.editor.autoRegenerate || v.force)) {
@@ -1830,7 +1959,7 @@ public final class Viewports implements AutoCloseable {
     var center = v.camera.flying ? v.camera.position : v.camera.focus;
     VolumeWindows.Bounds bounds;
     try {
-      bounds = VolumeWindows.Bounds.around(center.x, center.y, center.z, v.size);
+      bounds = VolumeWindows.Bounds.around(center.x, center.y, center.z, plan.side());
     } catch (IllegalArgumentException invalid) {
       if (!v.failedPreview) {
         mark(v);
@@ -1845,32 +1974,17 @@ public final class Viewports implements AutoCloseable {
       mark(v);
       v.volumeRequestTag = tag;
     }
-    long working = VolumeWindows.workingBytes(bounds.side());
-    long cpuLimit = (long) state.user.performance.sceneCpuMiB << 20;
-    long cacheLimit =
-        Math.min((long) state.user.performance.cacheMiB << 20, Math.max(0, cpuLimit - working));
-    v.volumeWindows.budget(cacheLimit);
-    if ((v.dirty || v.activeJob)
-        && !v.failedPreview
-        && (working > cpuLimit
-            || bounds.side() > state.user.performance.maxPreviewDimension
-            || (long) bounds.side() * bounds.side() * bounds.side()
-                > state.user.performance.previewCellBudget)) {
+    if ((v.dirty || v.activeJob) && !v.failedPreview && !plan.allowed()) {
       mark(v);
       v.volumeRequestTag = tag;
       v.dirty = false;
-      volumeUploadFailed(
-          v, "Streaming volume exceeds CPU/extent budget; reduce extent or use Fixed bounds");
+      v.volumeRejected = true;
+      volumeUploadFailed(v, plan.rejection() + "; reduce extent or raise the configured limit");
       return;
     }
     if (!v.dirty || v.activeJob || v.failedPreview) return;
-    if (System.nanoTime() - v.lastSubmit
-        <= 1_000_000_000L / state.user.editor.opportunitiesPerSecond) return;
-    if (4L * bounds.side() * bounds.side() * bounds.side() + v.gl.volumeStatistics().activeBytes()
-        > (long) state.user.performance.sceneGpuMiB << 20) {
-      volumeUploadFailed(v, "Streaming volume replacement exceeds GPU MiB");
-      return;
-    }
+    if (now - v.lastSubmit <= 1_000_000_000L / state.user.editor.opportunitiesPerSecond) return;
+    long cacheLimit = plan.cacheBytes();
     long epoch = v.epoch;
     var lease = v.volumeWindows.begin(v.volumeSourceKey, epoch, cacheLimit);
     var token = v.ready.token(epoch);
@@ -1880,8 +1994,10 @@ public final class Viewports implements AutoCloseable {
     v.force = false;
     v.dirty = false;
     v.activeJob = true;
-    v.lastSubmit = System.nanoTime();
+    v.lastSubmit = now;
     v.message = "Sampling camera-relative volume...";
+    v.volumeRejected = false;
+    v.volumeWorkingBytes = plan.workingBytes();
     try {
       v.job =
           state.background.submit(
@@ -1948,6 +2064,8 @@ public final class Viewports implements AutoCloseable {
     } catch (RejectedExecutionException full) {
       v.activeJob = false;
       v.failedPreview = true;
+      v.volumeWorkingBytes = 0;
+      v.volumeRejected = true;
       v.message = "Volume preview queue full; previous display retained; Regenerate to retry";
     }
   }
@@ -2380,6 +2498,8 @@ public final class Viewports implements AutoCloseable {
 
   private void mark(View v) {
     v.pendingVolume = null;
+    v.volumeWorkingBytes = 0;
+    v.volumeRejected = false;
     v.volumeRequestTag = "";
     v.gl.cancelVolume();
     if (v.kind == 2) {
