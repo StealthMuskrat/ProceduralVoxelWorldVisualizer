@@ -545,6 +545,15 @@ public final class Viewports implements AutoCloseable {
     mark(v);
   }
 
+  Map<ChunkPos, Integer> probeSurfaceLevels() {
+    var gpu = views[1].gl.sceneRenderer();
+    return gpu == null ? Map.of() : gpu.drawnDetailLevels();
+  }
+
+  void probeSurfaceDistance(double distance) {
+    views[1].camera.distance = distance;
+  }
+
   long probeSurfaceEpoch() {
     return views[1].scene == null ? 0 : views[1].scene.epoch();
   }
@@ -1293,7 +1302,8 @@ public final class Viewports implements AutoCloseable {
             });
         if (v.mode.equals("Isosurface") && wantsStreaming(v))
           ImGui.textDisabled(
-              "Camera-relative surface chunks; use Fixed analysis for maximum position precision.");
+              "Camera-relative surface LOD; unit-grid chunk faces stay connected across detail"
+                  + " changes. Fixed analysis keeps the full sampled grid.");
         if (v.mode.equals("Volume")) {
           fields.number(
               "Display minimum",

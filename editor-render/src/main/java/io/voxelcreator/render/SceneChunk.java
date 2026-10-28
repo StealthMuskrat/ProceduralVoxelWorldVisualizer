@@ -126,15 +126,20 @@ public final class SceneChunk {
   }
 
   public PackedMesh surfaceMesh(CancellationToken token) {
+    return surfaceMesh(0, token);
+  }
+
+  public PackedMesh surfaceMesh(int level, CancellationToken token) {
     if (surface == null) throw new IllegalStateException("No continuous surface grid");
     int side = size + 1;
     var mesh =
-        IsosurfaceMesh.build(
+        SurfaceLodMesh.build(
             size,
+            level,
             (x, y, z) -> surface[((int) z * side + (int) y) * side + (int) x],
             threshold,
             token,
-            IsosurfaceMesh.maximumMeshBytes(size));
+            SurfaceLodMesh.maximumMeshBytes(size, level));
     token.throwIfCancelled();
     var packed = PackedMesh.surface(mesh, size, token);
     token.throwIfCancelled();
@@ -143,6 +148,13 @@ public final class SceneChunk {
 
   public static long surfaceWorkingBytes(int size) {
     return IsosurfaceMesh.workingBytes(size) + 2 * 576L * size * size * size + 65536;
+  }
+
+  public static long surfaceWorkingBytes(int size, int level) {
+    if (level == 0) return surfaceWorkingBytes(size);
+    return SurfaceLodMesh.workingBytes(size, level)
+        + 2 * (SurfaceLodMesh.maximumMeshBytes(size, level) / 7 * 4)
+        + 65536;
   }
 
   private static int SetUniform(VoxelChunk chunk) {

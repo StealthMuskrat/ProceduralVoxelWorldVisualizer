@@ -113,8 +113,10 @@ public final class StreamingRenderProbe {
             "STREAMING_RENDER_NATIVE_PASS packed / budgeted upload / culling / palette / indirect="
                 + GL.getCapabilities().OpenGL43);
       }
-      if (Arrays.asList(args).contains("--require-gl30"))
+      if (Arrays.asList(args).contains("--require-gl30")) {
         VolumeOverlapProbe.run(java.nio.file.Path.of("build/world-picking/volume-overlap-gl30"));
+        SurfaceLodProbe.run(java.nio.file.Path.of("build/world-picking/surface-lod-gl30"));
+      }
     } finally {
       if (window != 0) glfwDestroyWindow(window);
       glfwTerminate();

@@ -55,9 +55,17 @@ public final class ChunkScene implements AutoCloseable {
   }
 
   public record Upload(
-      long epoch, ChunkPos position, long version, PackedMesh mesh, DisplayLod cells) {
+      long epoch, ChunkPos position, long version, PackedMesh mesh, DisplayLod cells, int level) {
+    public Upload {
+      if (level < 0 || level > 8) throw new IllegalArgumentException("Display LOD level");
+    }
+
+    public Upload(long epoch, ChunkPos position, long version, PackedMesh mesh, DisplayLod cells) {
+      this(epoch, position, version, mesh, cells, cells == null ? 0 : cells.level());
+    }
+
     public Upload(long epoch, ChunkPos position, long version, PackedMesh mesh) {
-      this(epoch, position, version, mesh, null);
+      this(epoch, position, version, mesh, null, 0);
     }
   }
 
@@ -237,16 +245,14 @@ public final class ChunkScene implements AutoCloseable {
       }
       if (!wanted.contains(position)) continue;
       int selected =
-          surfaces
-              ? 0
-              : LodSelector.choose(
-                  position,
-                  config.size,
-                  this.eye,
-                  entry.targetLod,
-                  config.lodStart,
-                  config.quality,
-                  pressure.lodBias());
+          LodSelector.choose(
+              position,
+              config.size,
+              this.eye,
+              entry.targetLod,
+              config.lodStart,
+              config.quality,
+              pressure.lodBias());
       if (selected != entry.targetLod) {
         entry.targetLod = selected;
         entry.dirty = true;
@@ -258,7 +264,7 @@ public final class ChunkScene implements AutoCloseable {
       if (!surfaces && !haloReady(position)) continue;
       long bytes =
           surfaces
-              ? SceneChunk.surfaceWorkingBytes(config.size)
+              ? SceneChunk.surfaceWorkingBytes(config.size, selected)
               : 3
                   * ((576L * config.size * config.size * config.size) / (1L << selected)
                       + 4096L * config.size * config.size);
@@ -413,7 +419,7 @@ public final class ChunkScene implements AutoCloseable {
                       };
                   var mesh =
                       surfaces
-                          ? data.surfaceMesh(token)
+                          ? data.surfaceMesh(level, token)
                           : points
                               ? VoxelMesher.points(size, cells, 1 << level)
                               : VoxelMesher.greedy(size, cells);
@@ -519,7 +525,7 @@ public final class ChunkScene implements AutoCloseable {
   }
 
   private long signature(Entry entry) {
-    if (surfaces) return 1;
+    if (surfaces) return entry.targetLod + 1;
     long value = entry.targetLod + 1;
     for (int z = -1; z <= 1; z++)
       for (int y = -1; y <= 1; y++)
@@ -613,7 +619,9 @@ public final class ChunkScene implements AutoCloseable {
           && (surfaces || entry.lod.level() == entry.targetLod)) {
         if (result.size() >= count
             || bytes + entry.mesh.byteSize() > byteBudget && !result.isEmpty()) break;
-        result.add(new Upload(epoch, entry.position, entry.version, entry.mesh, entry.lod));
+        result.add(
+            new Upload(
+                epoch, entry.position, entry.version, entry.mesh, entry.lod, entry.targetLod));
         bytes += entry.mesh.byteSize();
       }
     return List.copyOf(result);

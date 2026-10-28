@@ -537,3 +537,6 @@ assert queued['cpuBytes'] + queued['reserved'] >= queued['peak'] and queued['que
 pressure_project = json.loads((vp_root / 'volume-pressure-project.json').read_text())
 assert pressure_project['noise3D'][0]['processing'][0]['parameters']['expression'] == '0'
 print('VOLUME_PRESSURE_PASS independent retained-source texels / reduced-extent optics / exact publication versions / ordered fallback / cache release / paused upload and queue / explicit Resume / gradual restoration / view-only')
+
+from verify_surface_lod import verify as verify_surface_lod
+verify_surface_lod(Path(sys.argv[1]) / 'surface-lod')

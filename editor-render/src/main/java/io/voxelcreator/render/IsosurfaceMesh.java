@@ -139,7 +139,7 @@ public final class IsosurfaceMesh {
     out[2] = (float) (z + p[2] + t * (q[2] - p[2]));
   }
 
-  private static final class Output {
+  static final class Output {
     private final int limit;
     private float[] vertices;
     private int count;

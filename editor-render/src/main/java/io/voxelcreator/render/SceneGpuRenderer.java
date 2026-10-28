@@ -63,7 +63,12 @@ public final class SceneGpuRenderer implements AutoCloseable {
   }
 
   private record Resident(
-      long version, ArenaAllocator.Slice slice, int count, boolean points, int unitsPerBlock) {}
+      long version,
+      ArenaAllocator.Slice slice,
+      int count,
+      boolean points,
+      int unitsPerBlock,
+      int level) {}
 
   private record Draw(ChunkPos position, int offset, int count) {}
 
@@ -76,6 +81,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
   private final ArenaAllocator arena;
   private final Map<ChunkPos, Resident> resident = new LinkedHashMap<>();
   private final Map<ChunkPos, Long> drawnVersions = new HashMap<>();
+  private final Map<ChunkPos, Integer> drawnLevels = new HashMap<>();
   private long epoch = -1, uploaded;
   private int visible, culled, draws;
   private boolean indirect;
@@ -119,6 +125,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
     arena.reset();
     resident.clear();
     drawnVersions.clear();
+    drawnLevels.clear();
     epoch = value;
     uploaded = relocated = 0;
   }
@@ -130,6 +137,11 @@ public final class SceneGpuRenderer implements AutoCloseable {
   /** Versions submitted by the latest render; excludes empty, culled and retiring allocations. */
   public Map<ChunkPos, Long> pickingVersions() {
     return Map.copyOf(drawnVersions);
+  }
+
+  /** Detail levels of the complete resident versions submitted by the latest render. */
+  public Map<ChunkPos, Integer> drawnDetailLevels() {
+    return Map.copyOf(drawnLevels);
   }
 
   public void beginFrame() {
@@ -205,7 +217,8 @@ public final class SceneGpuRenderer implements AutoCloseable {
                 pendingSlice,
                 complete.mesh().vertexCount(),
                 complete.mesh().points(),
-                complete.mesh().unitsPerBlock()));
+                complete.mesh().unitsPerBlock(),
+                complete.level()));
     if (old != null) arena.release(old.slice);
     pending = null;
     pendingSlice = null;
@@ -214,6 +227,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
 
   public void remove(ChunkPos position) {
     drawnVersions.remove(position);
+    drawnLevels.remove(position);
     if (compaction != null) {
       if (resident.containsKey(position)) retiring.add(position);
       return;
@@ -296,7 +310,8 @@ public final class SceneGpuRenderer implements AutoCloseable {
                     layout.target(entry.slice),
                     entry.count,
                     entry.points,
-                    entry.unitsPerBlock));
+                    entry.unitsPerBlock,
+                    entry.level));
         arena.commitCompaction(layout);
         compaction = null;
         compactions++;
@@ -343,6 +358,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
       float fogDistance) {
     visible = culled = draws = 0;
     drawnVersions.clear();
+    drawnLevels.clear();
     indirect = useIndirect && GL.getCapabilities().OpenGL43;
     var frustum = new FrustumIntersection(matrix);
     var triangles = new TreeMap<Integer, List<Draw>>();
@@ -361,6 +377,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
       var value = entry.getValue();
       if (value.count > 0) {
         drawnVersions.put(p, value.version);
+        drawnLevels.put(p, value.level);
         var destination =
             (value.points ? points : triangles)
                 .computeIfAbsent(value.unitsPerBlock, ignored -> new ArrayList<>());
@@ -493,6 +510,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
     retiring.clear();
     resident.clear();
     drawnVersions.clear();
+    drawnLevels.clear();
     pending = null;
     pendingSlice = null;
     arena.reset();
