@@ -37,3 +37,7 @@ GenerationTrace details expose transformed primary coordinates, matched interval
 `fixtures/world-use.json` and the independent engine Example demonstrate Y-bound 2D sampling, ordered translation, interval type selection, a mapped driver, NOT/probability gates and owned region collection. New settings/gate fields are optional in the format-2 structural schema and receive the documented defaults when absent. `fixtures/world-probability-vectors.json` records independently derived seed/hash/draw vectors. No project format version changed. Semantic validation is still mandatory; structural JSON Schema cannot express every cross-reference or interval-overlap constraint.
 
 This batch does not certify every Tree 10 GUI scenario or add general field-driven thresholds/arbitrary parameter destinations. Strength/probability are the explicit driver destinations implemented here.
+
+## Development-branch control navigation
+
+[World-setting control focus](WORLD_SETTING_CONTROL_FOCUS.md) adds one-shot activation for layer/placement settings, singleton field drivers and root conditions, with inherited-override and conditional-control fallbacks. It is implemented but uncompiled/untested under the owner GitHub testing pause. The earlier numerical/semantic evidence above does not validate this UI extension.

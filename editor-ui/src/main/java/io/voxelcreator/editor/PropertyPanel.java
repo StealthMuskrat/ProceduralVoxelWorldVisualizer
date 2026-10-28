@@ -148,6 +148,60 @@ public final class PropertyPanel {
   private final PropertyFocus propertyFocus = new PropertyFocus();
   private final NoiseInputSelection inputSelection = new NoiseInputSelection();
   private boolean searchScroll;
+  private WorldSettingNavigation.Route worldRoute;
+  private String worldSettingPath;
+  private final Map<String, float[]> worldControlCenters = new HashMap<>();
+
+  float[] probeWorldControl(String key) {
+    return worldControlCenters.get(key);
+  }
+
+  private void worldControl(String key, Runnable draw) {
+    worldControl(key, draw, () -> ImGui.isItemActive() || ImGui.isItemFocused());
+  }
+
+  private void worldControl(String key, Runnable draw, BooleanSupplier focused) {
+    propertyControl(null, key, draw, focused);
+    var lo = ImGui.getItemRectMin();
+    var hi = ImGui.getItemRectMax();
+    worldControlCenters.put(
+        key, new float[] {lo.x + Math.min(80, (hi.x - lo.x) * .25f), (lo.y + hi.y) / 2});
+  }
+
+  private void settingControl(String leaf, Runnable draw) {
+    settingControl(leaf, draw, () -> ImGui.isItemActive() || ImGui.isItemFocused());
+  }
+
+  private void settingControl(String leaf, Runnable draw, BooleanSupplier focused) {
+    if (worldSettingPath == null) {
+      draw.run();
+      return;
+    }
+    worldControl(
+        "settings/" + worldSettingPath + (leaf.isEmpty() ? "" : "/" + leaf), draw, focused);
+  }
+
+  private boolean settingTree(String label) {
+    String key = "settings/" + worldSettingPath;
+    if (worldRoute != null
+        && navigationDraft == state.draft
+        && (worldRoute.control().equals(key) || worldRoute.control().startsWith(key + "/"))
+        && propertyFocus.matches(null, worldRoute.control()))
+      ImGui.setNextItemOpen(true, ImGuiCond.Always);
+    boolean[] open = {false};
+    settingControl("", () -> open[0] = ImGui.treeNode(label));
+    return open[0];
+  }
+
+  private void nestedSetting(String suffix, Runnable draw) {
+    String previous = worldSettingPath;
+    worldSettingPath = previous == null ? null : previous + "/" + suffix;
+    try {
+      draw.run();
+    } finally {
+      worldSettingPath = previous;
+    }
+  }
 
   public boolean goToProblem(EditorEvents.Target target) {
     if (searchBlocked()) {
@@ -159,7 +213,24 @@ public final class PropertyPanel {
     navigationTarget = target;
     navigationDraft = state.draft;
     expressionSelection.cancel();
-    propertyFocus.request(target, state.draft);
+    worldRoute =
+        WorldSettingNavigation.resolve(
+            state.draft,
+            state.draft instanceof Operation op
+                ? EditorState.layerFor(state.project(), op.uuid)
+                : null,
+            target);
+    var focusTarget =
+        worldRoute == null
+            ? target
+            : new EditorEvents.Target(
+                target.project(),
+                target.resource(),
+                null,
+                worldRoute.control(),
+                target.pointer(),
+                target.settings());
+    propertyFocus.request(focusTarget, state.draft);
     bindingFocusSubmitted = false;
     focusedBinding = null;
     if (state.draft instanceof Noise noise
@@ -291,6 +362,7 @@ public final class PropertyPanel {
     }
     propertyFocus.cancel();
     expressionSelection.cancel();
+    worldRoute = null;
     searchScroll = false;
     Object object = EditorState.find(state.project(), resource);
     if (object instanceof Noise n) {
@@ -338,11 +410,28 @@ public final class PropertyPanel {
   }
 
   public void draw() {
+    worldControlCenters.clear();
     parameterCenters.clear();
     bindingRects.clear();
     sourceControlCenters.clear();
     sourceControlKeys.clear();
     propertyFocus.synchronize(state.project().project.uuid, state.selected, state.draft);
+    if (worldRoute != null) {
+      if (navigationDraft != state.draft) worldRoute = null;
+      else if (propertyFocus.matches(null, worldRoute.control())) {
+        var current =
+            WorldSettingNavigation.resolve(
+                state.draft,
+                state.draft instanceof Operation op
+                    ? EditorState.layerFor(state.project(), op.uuid)
+                    : null,
+                navigationTarget);
+        if (current == null || !current.control().equals(worldRoute.control())) {
+          propertyFocus.cancel();
+          worldRoute = null;
+        }
+      }
+    }
     resourcePicker.synchronize();
     ImGui.begin("Properties");
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Properties", 1f));
@@ -368,6 +457,7 @@ public final class PropertyPanel {
                 + navigationTarget.pointer());
         if (ImGui.smallButton("Clear Location")) {
           navigationTarget = null;
+          worldRoute = null;
           expressionSelection.cancel();
           searchScroll = false;
           propertyFocus.cancel();
@@ -405,7 +495,7 @@ public final class PropertyPanel {
         ImGui.textWrapped(
             "Folder placement and tree order are organizational. Use Run Layer Earlier/Later in"
                 + " Resources to change execution.");
-        f.bool("Enabled", l.enabled, v -> l.enabled = v);
+        worldControl("enabled", () -> f.bool("Enabled", l.enabled, v -> l.enabled = v));
         ImGui.textWrapped("Placements inherit every property below until explicitly overridden.");
         settings(l.defaults);
       } else if (state.draft instanceof Operation op) placement(op);
@@ -2284,13 +2374,19 @@ public final class PropertyPanel {
   }
 
   private void placement(Operation op) {
-    f.bool("Enabled", op.enabled, v -> op.enabled = v);
-    noisePicker("Noise generator", op.noiseGeneratorUuid, v -> op.noiseGeneratorUuid = v);
-    f.choice(
-        "Interpretation",
-        op.interpretation,
-        WorldSemantics.INTERPRETATIONS,
-        v -> op.interpretation = v);
+    worldControl("enabled", () -> f.bool("Enabled", op.enabled, v -> op.enabled = v));
+    worldControl(
+        "noiseGeneratorUuid",
+        () -> noisePicker("Noise generator", op.noiseGeneratorUuid, v -> op.noiseGeneratorUuid = v),
+        resourcePicker::focused);
+    worldControl(
+        "interpretation",
+        () ->
+            f.choice(
+                "Interpretation",
+                op.interpretation,
+                WorldSemantics.INTERPRETATIONS,
+                v -> op.interpretation = v));
     Layer layer = EditorState.layerFor(state.project(), op.uuid);
     if (layer == null) return;
     ImGui.text("Layer: " + layer.id);
@@ -2301,15 +2397,18 @@ public final class PropertyPanel {
       ImGui.pushID(key);
       revealSetting(key);
       boolean overridden = op.overrides.containsKey(key);
-      f.bool(
-          "Override " + AppMetadata.settingLabel(key),
-          overridden,
-          v -> {
-            if (v) {
-              JsonNode node = ProjectIO.JSON.valueToTree(layer.defaults);
-              op.overrides.put(key, node.get(key).deepCopy());
-            } else op.overrides.remove(key);
-          });
+      worldControl(
+          "override/" + key,
+          () ->
+              f.bool(
+                  "Override " + AppMetadata.settingLabel(key),
+                  overridden,
+                  v -> {
+                    if (v) {
+                      JsonNode node = ProjectIO.JSON.valueToTree(layer.defaults);
+                      op.overrides.put(key, node.get(key).deepCopy());
+                    } else op.overrides.remove(key);
+                  }));
       Settings effective;
       try {
         effective = SettingsResolver.resolve(layer, op);
@@ -2353,14 +2452,15 @@ public final class PropertyPanel {
   }
 
   private void revealSetting(String key) {
-    if (navigationTarget != null
-        && Objects.equals(navigationTarget.resource(), state.selected)
-        && Objects.equals(navigationTarget.parameter(), "settings/" + key)) {
+    if (worldRoute != null
+        && navigationDraft == state.draft
+        && Objects.equals(worldRoute.property(), key)) {
       if (searchScroll) {
         ImGui.setScrollHereY(.25f);
         searchScroll = false;
       }
       ThemeStyle.text("Information", "Source control: " + AppMetadata.settingLabel(key));
+      if (!worldRoute.explanation().isEmpty()) ImGui.textWrapped(worldRoute.explanation());
     }
   }
 
@@ -2373,101 +2473,131 @@ public final class PropertyPanel {
   }
 
   private void editSetting(Settings s, String key) {
+    String previous = worldSettingPath;
+    worldSettingPath = key;
+    try {
+      editSettingValue(s, key);
+    } finally {
+      worldSettingPath = previous;
+    }
+  }
+
+  private void editSettingValue(Settings s, String key) {
     revealSetting(key);
-    if (navigationTarget != null
-        && Objects.equals(navigationTarget.resource(), state.selected)
-        && Objects.equals(navigationTarget.parameter(), "settings/" + key)
-        && Set.of(
-                "samplingTransforms",
-                "parameterDrivers",
-                "typeIntervals",
-                "probabilityDriver",
-                "strengthDriver",
-                "voxelStatePredicate",
-                "fieldGates")
-            .contains(key)) ImGui.setNextItemOpen(true, ImGuiCond.Always);
     try {
       var field = Settings.class.getField(key);
-      if (field.getType() == double.class)
-        f.number(
-            AppMetadata.settingLabel(key),
-            field.getDouble(s),
-            v -> {
-              try {
-                field.setDouble(s, v);
-              } catch (Exception e) {
-                throw new IllegalStateException(e);
-              }
-            });
-      else if (field.getType() == int.class)
-        f.integer(
-            AppMetadata.settingLabel(key),
-            field.getInt(s),
-            v -> {
-              try {
-                field.setInt(s, v);
-              } catch (Exception e) {
-                throw new IllegalStateException(e);
-              }
-            });
-      else if (key.equals("seedOffset"))
-        longText(AppMetadata.settingLabel(key), s.seedOffset, v -> s.seedOffset = v);
+      if (field.getType() == double.class) {
+        double value = field.getDouble(s);
+        settingControl(
+            "",
+            () ->
+                f.number(
+                    AppMetadata.settingLabel(key),
+                    value,
+                    v -> {
+                      try {
+                        field.setDouble(s, v);
+                      } catch (Exception e) {
+                        throw new IllegalStateException(e);
+                      }
+                    }));
+      } else if (field.getType() == int.class) {
+        int value = field.getInt(s);
+        settingControl(
+            "",
+            () ->
+                f.integer(
+                    AppMetadata.settingLabel(key),
+                    value,
+                    v -> {
+                      try {
+                        field.setInt(s, v);
+                      } catch (Exception e) {
+                        throw new IllegalStateException(e);
+                      }
+                    }));
+      } else if (key.equals("seedOffset"))
+        settingControl(
+            "", () -> longText(AppMetadata.settingLabel(key), s.seedOffset, v -> s.seedOffset = v));
       else if (key.equals("action"))
-        f.choice(
-            AppMetadata.settingLabel(key),
-            s.action,
-            List.of("NO_CHANGE", "SET", "CLEAR"),
-            v -> s.action = v);
+        settingControl(
+            "",
+            () ->
+                f.choice(
+                    AppMetadata.settingLabel(key),
+                    s.action,
+                    List.of("NO_CHANGE", "SET", "CLEAR"),
+                    v -> s.action = v));
       else if (key.equals("rounding"))
-        f.choice(
-            AppMetadata.settingLabel(key),
-            s.rounding,
-            List.of("FLOOR", "CEIL", "ROUND"),
-            v -> s.rounding = v);
-      else if (key.startsWith("axis"))
-        f.choice(
-            AppMetadata.settingLabel(key),
-            (String) field.get(s),
-            WorldSemantics.AXES,
-            v -> {
-              try {
-                field.set(s, v);
-              } catch (ReflectiveOperationException e) {
-                throw new IllegalStateException(e);
-              }
-            });
-      else if (key.equals("typeSource"))
-        f.choice("Type Source", s.typeSource, WorldSemantics.TYPE_SOURCES, v -> s.typeSource = v);
+        settingControl(
+            "",
+            () ->
+                f.choice(
+                    AppMetadata.settingLabel(key),
+                    s.rounding,
+                    List.of("FLOOR", "CEIL", "ROUND"),
+                    v -> s.rounding = v));
+      else if (key.startsWith("axis")) {
+        String value = (String) field.get(s);
+        settingControl(
+            "",
+            () ->
+                f.choice(
+                    AppMetadata.settingLabel(key),
+                    value,
+                    WorldSemantics.AXES,
+                    v -> {
+                      try {
+                        field.set(s, v);
+                      } catch (ReflectiveOperationException e) {
+                        throw new IllegalStateException(e);
+                      }
+                    }));
+      } else if (key.equals("typeSource"))
+        settingControl(
+            "",
+            () ->
+                f.choice(
+                    "Type Source",
+                    s.typeSource,
+                    WorldSemantics.TYPE_SOURCES,
+                    v -> s.typeSource = v));
       else if (key.equals("samplingTransforms")) {
-        if (ImGui.treeNode("Ordered Sampling Transforms")) {
+        if (settingTree("Ordered Sampling Transforms")) {
           samplingTransforms(s.samplingTransforms);
           ImGui.treePop();
         }
       } else if (key.equals("parameterDrivers")) {
-        if (ImGui.treeNode("Numeric Parameter Drivers")) {
+        if (settingTree("Numeric Parameter Drivers")) {
           parameterDrivers(s);
           ImGui.treePop();
         }
       } else if (key.equals("typeIntervals")) {
-        if (ImGui.treeNode("Voxel Type Intervals")) {
+        if (settingTree("Voxel Type Intervals")) {
           typeIntervals(s.typeIntervals);
           ImGui.treePop();
         }
       } else if (key.equals("probabilityDriver") || key.equals("strengthDriver")) {
-        if (ImGui.treeNode(AppMetadata.settingLabel(key))) {
+        if (settingTree(AppMetadata.settingLabel(key))) {
           fieldDriver(key.equals("probabilityDriver") ? s.probabilityDriver : s.strengthDriver);
           ImGui.treePop();
         }
       } else if (key.equals("voxelTypeUuid")) {
         if (s.typeSource.equals("INTERVALS")) ImGui.textDisabled("Voxel targets: interval list");
-        else typePicker(AppMetadata.settingLabel(key), s.voxelTypeUuid, v -> s.voxelTypeUuid = v);
+        else
+          settingControl(
+              "",
+              () ->
+                  typePicker(
+                      AppMetadata.settingLabel(key), s.voxelTypeUuid, v -> s.voxelTypeUuid = v),
+              resourcePicker::focused);
       } else if (key.equals("voxelStatePredicate")) {
-        if (ImGui.treeNode("Previous Voxel State")) {
+        if (settingTree("Previous Voxel State")) {
           predicate(s.voxelStatePredicate, 0);
           ImGui.treePop();
         }
       } else if (key.equals("fieldGates")) {
-        if (ImGui.treeNode("Field Selection Gates")) {
+        if (settingTree("Field Selection Gates")) {
           gate(s.fieldGates, 0);
           ImGui.treePop();
         }
@@ -2486,29 +2616,40 @@ public final class PropertyPanel {
       ImGui.text("Maximum editor nesting reached");
       return;
     }
-    f.choice(
-        "Condition",
-        p.kind,
-        List.of(
-            "ANY",
-            "EMPTY",
-            "OCCUPIED",
-            "TYPE_IS",
-            "TYPE_IS_NOT",
-            "IN_SET",
-            "NOT_IN_SET",
-            "AND",
-            "OR"),
-        v -> p.kind = v);
-    if (p.kind.startsWith("TYPE_")) typePicker("Voxel type", p.reference, v -> p.reference = v);
+    settingControl(
+        "kind",
+        () ->
+            f.choice(
+                "Condition",
+                p.kind,
+                List.of(
+                    "ANY",
+                    "EMPTY",
+                    "OCCUPIED",
+                    "TYPE_IS",
+                    "TYPE_IS_NOT",
+                    "IN_SET",
+                    "NOT_IN_SET",
+                    "AND",
+                    "OR"),
+                v -> p.kind = v));
+    if (p.kind.startsWith("TYPE_"))
+      settingControl(
+          "reference",
+          () -> typePicker("Voxel type", p.reference, v -> p.reference = v),
+          resourcePicker::focused);
     else if (p.kind.equals("IN_SET") || p.kind.equals("NOT_IN_SET")) {
-      resourcePicker.draw("Voxel set", "set", p.reference, null, v -> p.reference = v);
+      settingControl(
+          "reference",
+          () -> resourcePicker.draw("Voxel set", "set", p.reference, null, v -> p.reference = v),
+          resourcePicker::focused);
     }
     if (p.kind.equals("AND") || p.kind.equals("OR")) {
       for (int i = 0; i < p.children.size(); i++) {
         ImGui.pushID(i);
         if (ImGui.treeNode("Clause " + (i + 1))) {
-          predicate(p.children.get(i), depth + 1);
+          var child = p.children.get(i);
+          nestedSetting("children", () -> predicate(child, depth + 1));
           if (ImGui.smallButton("Remove")) p.children.remove(i);
           ImGui.treePop();
         }
@@ -2520,32 +2661,47 @@ public final class PropertyPanel {
 
   private void gate(Gate g, int depth) {
     if (depth > 16) return;
-    f.choice(
-        "Gate",
-        g.kind,
-        WorldSemantics.GATES,
-        v -> {
-          g.kind = v;
-          if (v.equals("NOT") && g.children.isEmpty()) g.children.add(new Gate());
-        });
+    settingControl(
+        "kind",
+        () ->
+            f.choice(
+                "Gate",
+                g.kind,
+                WorldSemantics.GATES,
+                v -> {
+                  g.kind = v;
+                  if (v.equals("NOT") && g.children.isEmpty()) g.children.add(new Gate());
+                }));
     if (g.kind.equals("COMPARE") || g.kind.equals("INTERVAL")) {
-      fieldPicker("Field", g.noiseGeneratorUuid, v -> g.noiseGeneratorUuid = v);
+      settingControl(
+          "noiseGeneratorUuid",
+          () -> fieldPicker("Field", g.noiseGeneratorUuid, v -> g.noiseGeneratorUuid = v),
+          resourcePicker::focused);
       if (g.kind.equals("COMPARE"))
-        f.choice(
-            "Comparison",
-            g.comparison,
-            List.of("GE", "GT", "LE", "LT", "EQ", "NE"),
-            v -> g.comparison = v);
-      f.number("Threshold / minimum", g.threshold, v -> g.threshold = v);
+        settingControl(
+            "comparison",
+            () ->
+                f.choice(
+                    "Comparison",
+                    g.comparison,
+                    List.of("GE", "GT", "LE", "LT", "EQ", "NE"),
+                    v -> g.comparison = v));
+      settingControl(
+          "threshold", () -> f.number("Threshold / minimum", g.threshold, v -> g.threshold = v));
       if (g.kind.equals("INTERVAL")) {
-        f.number("Maximum", g.max, v -> g.max = v);
-        f.bool("Include minimum", g.includeMin, v -> g.includeMin = v);
-        f.bool("Include maximum", g.includeMax, v -> g.includeMax = v);
+        settingControl("max", () -> f.number("Maximum", g.max, v -> g.max = v));
+        settingControl(
+            "includeMin", () -> f.bool("Include minimum", g.includeMin, v -> g.includeMin = v));
+        settingControl(
+            "includeMax", () -> f.bool("Include maximum", g.includeMax, v -> g.includeMax = v));
       }
     }
     if (g.kind.equals("PROBABILITY")) {
-      f.number("Gate probability [0,1]", g.probability, v -> g.probability = v);
-      longText("Gate seed offset", g.seedOffset, v -> g.seedOffset = v);
+      settingControl(
+          "probability",
+          () -> f.number("Gate probability [0,1]", g.probability, v -> g.probability = v));
+      settingControl(
+          "seedOffset", () -> longText("Gate seed offset", g.seedOffset, v -> g.seedOffset = v));
       ImGui.textWrapped("Independent deterministic XYZ draw, stable within this gate path.");
     }
     if (g.kind.equals("AND") || g.kind.equals("OR") || g.kind.equals("NOT")) {
@@ -2553,7 +2709,8 @@ public final class PropertyPanel {
         ImGui.pushID(i);
         if (smokeWorldSettings != null) ImGui.setNextItemOpen(true, ImGuiCond.Always);
         if (ImGui.treeNode("Gate clause " + i)) {
-          gate(g.children.get(i), depth + 1);
+          var child = g.children.get(i);
+          nestedSetting("children", () -> gate(child, depth + 1));
           if (ImGui.smallButton("Remove")) g.children.remove(i);
           ImGui.treePop();
         }
@@ -2586,7 +2743,7 @@ public final class PropertyPanel {
   }
 
   private void driverNumber(String key, String label, double value, DoubleConsumer update) {
-    f.number(label, value, update);
+    settingControl(key, () -> f.number(label, value, update));
     if (parameterDriverRow >= 0) {
       var lo = ImGui.getItemRectMin();
       var hi = ImGui.getItemRectMax();
@@ -2597,9 +2754,14 @@ public final class PropertyPanel {
   }
 
   private void fieldDriver(FieldDriver d, boolean unitOutput) {
-    f.bool("Enabled", d.enabled, v -> d.enabled = v);
-    fieldPicker("Field", d.noiseGeneratorUuid, v -> d.noiseGeneratorUuid = v);
-    f.choice("Mapping", d.mapping, WorldSemantics.MAPPINGS, v -> d.mapping = v);
+    settingControl("enabled", () -> f.bool("Enabled", d.enabled, v -> d.enabled = v));
+    settingControl(
+        "noiseGeneratorUuid",
+        () -> fieldPicker("Field", d.noiseGeneratorUuid, v -> d.noiseGeneratorUuid = v),
+        resourcePicker::focused);
+    settingControl(
+        "mapping",
+        () -> f.choice("Mapping", d.mapping, WorldSemantics.MAPPINGS, v -> d.mapping = v));
     driverNumber("inputMin", "Input minimum", d.inputMin, v -> d.inputMin = v);
     driverNumber("inputMax", "Input maximum", d.inputMax, v -> d.inputMax = v);
     driverNumber(
