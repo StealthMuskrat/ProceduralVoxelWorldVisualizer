@@ -540,3 +540,6 @@ print('VOLUME_PRESSURE_PASS independent retained-source texels / reduced-extent 
 
 from verify_surface_lod import verify as verify_surface_lod
 verify_surface_lod(Path(sys.argv[1]) / 'surface-lod')
+
+from verify_gpu_timing import verify as verify_gpu_timing
+verify_gpu_timing(Path(sys.argv[1]) / 'gpu-timing')

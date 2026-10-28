@@ -808,6 +808,18 @@ public final class Viewports implements AutoCloseable {
     }
   }
 
+  /**
+   * Called even when visualizer tabs are hidden, so capture stop/replacement reclaims old queries.
+   */
+  public void collectGpuTimings() {
+    var scope = state.engine.profiler().scope(0, state.project().project.uuid, null);
+    for (var view : views) view.gl.collectGpuTimings(scope);
+  }
+
+  public List<GpuTimerQueries.Statistics> gpuTimingStatistics() {
+    return Arrays.stream(views).map(v -> v.gl.gpuTimingStatistics()).toList();
+  }
+
   public StreamingStatistics streamingStatistics() {
     long cpu = 0, reserved = 0, gpu = 0, uploads = 0;
     int chunks = 0, jobs = 0, visible = 0, culled = 0, draws = 0, compacting = 0;
@@ -1609,7 +1621,13 @@ public final class Viewports implements AutoCloseable {
       v.gl.volumeAppearance(v.volumeMin, v.volumeMax, v.volumeOpacity, v.threshold, v.volumeSteps);
     if (!v.image)
       v.gl.render(
-          (int) w, (int) h, v.camera.matrix(w / h, v.origin), state.user.visualization.unlit, 1);
+          (int) w,
+          (int) h,
+          v.camera.matrix(w / h, v.origin),
+          state.user.visualization.unlit,
+          1,
+          state.engine.profiler().scope(0, state.project().project.uuid, null),
+          v.kind == 2 ? "World viewport GPU commands" : "3D Noise viewport GPU commands");
     float px = ImGui.getCursorScreenPosX(), py = ImGui.getCursorScreenPosY();
     float cursorX = ImGui.getCursorPosX(), cursorY = ImGui.getCursorPosY();
     ImGui.image(v.gl.texture(), w, h, 0, v.image ? 0 : 1, 1, v.image ? 1 : 0);

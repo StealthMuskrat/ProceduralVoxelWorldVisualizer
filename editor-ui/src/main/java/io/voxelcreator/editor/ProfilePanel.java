@@ -41,6 +41,7 @@ public final class ProfilePanel {
 
   /** Called once per editor frame, including while the Profiler window is closed. */
   public void frame(float seconds, Viewports views) {
+    views.collectGpuTimings();
     var scope = state.engine.profiler().scope(0, state.project().project.uuid, null);
     if (scope == null) return;
     scope.gauge(
@@ -114,6 +115,14 @@ public final class ProfilePanel {
       ImBoolean open,
       Viewports.StreamingStatistics rendering,
       java.util.function.IntSupplier compact) {
+    draw(open, rendering, compact, List.of());
+  }
+
+  public void draw(
+      ImBoolean open,
+      Viewports.StreamingStatistics rendering,
+      java.util.function.IntSupplier compact,
+      List<io.voxelcreator.render.GpuTimerQueries.Statistics> gpuTimings) {
     if (!open.get()) return;
     ImGui.setNextWindowSize(1050, 800, ImGuiCond.FirstUseEver);
     ImGui.begin("Profiler", open);
@@ -162,6 +171,32 @@ public final class ProfilePanel {
               + " arenas; active uploads finish first.";
     ImGui.textDisabled(
         "Relocation shares the upload budget; no additional GPU vertex arena is allocated.");
+    for (int i = 0; i < gpuTimings.size(); i++) {
+      var gpu = gpuTimings.get(i);
+      String view = i == 0 ? "2D" : i == 1 ? "3D Noise" : "World";
+      ImGui.textDisabled(
+          view
+              + " GPU: "
+              + gpu.state()
+              + " / "
+              + gpu.pending()
+              + " pending / "
+              + gpu.recorded()
+              + " measured / "
+              + gpu.skipped()
+              + " skipped / "
+              + gpu.discarded()
+              + " discarded");
+      if (gpu.state() == io.voxelcreator.render.GpuTimerQueries.State.FAILED
+          || gpu.state() == io.voxelcreator.render.GpuTimerQueries.State.UNAVAILABLE)
+        ImGui.textWrapped(gpu.detail());
+    }
+    ImGui.textDisabled(
+        "GPU_DRAW measures offscreen 3D command completion; excludes UI, presentation and"
+            + " uploads.");
+    ImGui.textDisabled(
+        "Results expire after at most 2 s; stopping a capture discards unfinished GPU"
+            + " measurements.");
     if (ImGui.collapsingHeader("Capture limits")) {
       fields.integer("Duration (ms)", duration, v -> duration = Math.clamp(v, 100, 60000));
       fields.integer("Maximum samples", samples, v -> samples = Math.clamp(v, 64, 65536));
@@ -208,7 +243,8 @@ public final class ProfilePanel {
     if (snapshot == null) {
       ImGui.textWrapped(
           "Capture is disabled. Start to collect bounded timings and metrics. CPU-side elapsed"
-              + " timings include scheduling/preemption; GPU completion times are not measured.");
+              + " timings include scheduling/preemption. GPU_DRAW uses optional asynchronous"
+              + " GPU timestamps; unavailable contexts produce no GPU samples.");
       ImGui.textWrapped(message);
       ImGui.end();
       return;

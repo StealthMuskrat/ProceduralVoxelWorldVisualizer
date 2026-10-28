@@ -229,4 +229,80 @@ class ProfilerTest {
     assertTrue(c.recording());
     assertSame(c, profiler.current().orElseThrow());
   }
+
+  @Test
+  void externallyMeasuredDurationsKeepIssueStampAndNeverUseCpuElapsedTime() {
+    var c = profiler.start(OPTIONS);
+    var project = new UUID(0, 15);
+    var source = new UUID(0, 16);
+    var scope = profiler.scope(9, project, new ChunkPos(-1, 2, 3));
+    assertEquals(c.snapshot().captureId(), scope.captureId());
+    assertTrue(scope.recording());
+    nanos.set(100);
+    long stamp = scope.begin();
+    nanos.set(5000000);
+    assertTrue(
+        scope.recordDuration(
+            stamp, Profiler.Kind.GPU_DRAW, source, "draw", 1234, Profiler.Outcome.MEASURED));
+    var sample = c.snapshot().samples().getFirst();
+    assertEquals(100, sample.offsetNanos());
+    assertEquals(1234, sample.value());
+    assertEquals(project, sample.projectUuid());
+    assertEquals(source, sample.sourceUuid());
+    assertEquals(9, sample.contextId());
+    assertEquals(Profiler.Unit.NANOSECONDS, sample.unit());
+  }
+
+  @Test
+  void asynchronousCompletionsCannotReopenStoppedOrReplacedCaptures() {
+    var old = profiler.start(OPTIONS);
+    var scope = profiler.scope(0, null, null);
+    long stamp = scope.begin();
+    var next = profiler.start(OPTIONS);
+    assertFalse(
+        scope.recordDuration(
+            stamp, Profiler.Kind.GPU_DRAW, null, "old", 5, Profiler.Outcome.MEASURED));
+    assertFalse(scope.recording());
+    assertTrue(old.snapshot().samples().isEmpty());
+    assertTrue(next.snapshot().samples().isEmpty());
+    scope = profiler.scope(0, null, null);
+    stamp = scope.begin();
+    profiler.stop();
+    assertFalse(
+        scope.recordDuration(
+            stamp, Profiler.Kind.GPU_DRAW, null, "stopped", 5, Profiler.Outcome.MEASURED));
+    assertTrue(next.snapshot().samples().isEmpty());
+  }
+
+  @Test
+  void asynchronousDurationValidationAndGlobalLimitsRemainExact() {
+    var c = profiler.start(new Profiler.Options(1000, 64, 1, 1));
+    var scope = profiler.scope(0, null, null);
+    assertFalse(scope.recordDuration(0, null, null, null, -1, null));
+    long stamp = scope.begin();
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            scope.recordDuration(
+                -1, Profiler.Kind.GPU_DRAW, null, "bad", 1, Profiler.Outcome.MEASURED));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            scope.recordDuration(
+                stamp, Profiler.Kind.GPU_DRAW, null, "bad", -1, Profiler.Outcome.MEASURED));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            scope.recordDuration(
+                10, Profiler.Kind.GPU_DRAW, null, "future", 1, Profiler.Outcome.MEASURED));
+    for (int i = 0; i < 64; i++)
+      assertTrue(
+          scope.recordDuration(
+              stamp, Profiler.Kind.GPU_DRAW, null, "draw", i, Profiler.Outcome.MEASURED));
+    assertFalse(
+        scope.recordDuration(
+            stamp, Profiler.Kind.GPU_DRAW, null, "draw", 1, Profiler.Outcome.MEASURED));
+    assertEquals(Profiler.State.SAMPLE_LIMIT, c.snapshot().state());
+    assertEquals(64, c.snapshot().samples().size());
+  }
 }

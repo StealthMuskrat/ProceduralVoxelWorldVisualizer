@@ -921,7 +921,8 @@ public final class Desktop extends Application {
   private void drawProfiler() {
     if (!profiler.get()) return;
     if (smokeFrames > 0) smokeSchedulerDrawn = true;
-    captures.draw(profiler, views.streamingStatistics(), views::compactArenas);
+    captures.draw(
+        profiler, views.streamingStatistics(), views::compactArenas, views.gpuTimingStatistics());
   }
 
   private void drawThemes() {

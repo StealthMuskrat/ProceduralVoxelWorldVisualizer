@@ -5,7 +5,7 @@ import java.time.*;
 import java.util.*;
 import java.util.function.LongSupplier;
 
-/** Opt-in bounded CPU timings/gauges. No capture means no timing work in operation hot paths. */
+/** Opt-in bounded timings/gauges. No capture means no timing work in operation hot paths. */
 public final class Profiler implements AutoCloseable {
   public enum Kind {
     FRAME,
@@ -18,6 +18,7 @@ public final class Profiler implements AutoCloseable {
     PREVIEW,
     MESH_CPU,
     UPLOAD_CPU,
+    GPU_DRAW,
     HEAP_BYTES,
     GC_MILLIS,
     GC_COUNT,
@@ -226,8 +227,8 @@ public final class Profiler implements AutoCloseable {
       }
     }
 
-    private synchronized void record(Sample sample) {
-      if (!recording()) return;
+    private synchronized boolean record(Sample sample) {
+      if (!recording()) return false;
       if (sample.value < 0 || sample.offsetNanos < 0)
         throw new IllegalArgumentException("Negative capture measurement");
       var key =
@@ -240,11 +241,12 @@ public final class Profiler implements AutoCloseable {
               sample.label);
       if (!keys.contains(key) && keys.size() >= options.maxSeries) {
         stop(State.SERIES_LIMIT);
-        return;
+        return false;
       }
       keys.add(key);
       samples.add(sample);
       if (samples.size() >= options.maxSamples) stop(State.SAMPLE_LIMIT);
+      return true;
     }
 
     public Snapshot snapshot() {
@@ -272,6 +274,39 @@ public final class Profiler implements AutoCloseable {
       this.contextId = contextId;
       this.project = project;
       this.chunk = chunk;
+    }
+
+    public UUID captureId() {
+      return capture.id;
+    }
+
+    public boolean recording() {
+      return capture.recording();
+    }
+
+    /**
+     * Record an externally measured duration at this capture's issue stamp, never the CPU delta.
+     */
+    public boolean recordDuration(
+        long stamp, Kind kind, UUID source, String label, long elapsedNanos, Outcome outcome) {
+      if (stamp == 0) return false;
+      long offset = stamp - 1;
+      if (stamp < 0 || elapsedNanos < 0 || offset > capture.offset())
+        throw new IllegalArgumentException("Invalid asynchronous duration/stamp");
+      return capture.record(
+          new Sample(
+              offset,
+              Objects.requireNonNull(kind),
+              Unit.NANOSECONDS,
+              elapsedNanos,
+              contextId,
+              project,
+              source,
+              label(label),
+              chunk,
+              Objects.requireNonNull(outcome),
+              Thread.currentThread().threadId(),
+              label(Thread.currentThread().getName())));
     }
 
     public long begin() {

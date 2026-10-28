@@ -325,6 +325,7 @@ public final class WorldPickingProbe {
         VolumeOverlapProbe.run(out.resolve("volume-overlap"));
         VolumePressureProbe.run(out.resolve("volume-pressure"), window);
         SurfaceLodProbe.run(out.resolve("surface-lod"), window);
+        GpuTimingProbe.run(out.resolve("gpu-timing"), window);
       } finally {
         ImGui.destroyContext();
       }

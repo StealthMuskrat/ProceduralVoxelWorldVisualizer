@@ -1,0 +1,48 @@
+{
+  "formatVersion": 1,
+  "captureId": "00000000-0000-4000-8000-000000000081",
+  "startedAt": "2026-10-24T00:00:00Z",
+  "options": {
+    "durationMillis": 10000,
+    "maxSamples": 8192,
+    "maxSeries": 128,
+    "operationStride": 256
+  },
+  "state": "STOPPED",
+  "elapsedNanos": 1000000,
+  "samples": [
+    {
+      "kind": "GPU_DRAW",
+      "unit": "NANOSECONDS",
+      "contextId": 0,
+      "projectUuid": "00000000-0000-4000-8000-000000000001",
+      "sourceUuid": null,
+      "label": "World viewport GPU commands",
+      "offsetNanos": 100,
+      "value": 25,
+      "chunk": null,
+      "outcome": "MEASURED",
+      "threadId": 1,
+      "threadName": "example"
+    }
+  ],
+  "series": [
+    {
+      "kind": "GPU_DRAW",
+      "unit": "NANOSECONDS",
+      "contextId": 0,
+      "projectUuid": "00000000-0000-4000-8000-000000000001",
+      "sourceUuid": null,
+      "label": "World viewport GPU commands",
+      "count": 1,
+      "minimum": 25,
+      "maximum": 25,
+      "mean": 25.0,
+      "p50": 25,
+      "p95": 25,
+      "p99": 25,
+      "failed": 0,
+      "cancelled": 0
+    }
+  ]
+}

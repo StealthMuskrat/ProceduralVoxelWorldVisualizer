@@ -2,6 +2,7 @@ package io.voxelcreator.render;
 
 import static org.lwjgl.opengl.GL33.*;
 
+import io.voxelcreator.api.Profiler;
 import java.nio.*;
 import org.joml.Matrix4f;
 import org.lwjgl.BufferUtils;
@@ -14,6 +15,7 @@ public final class GlViewport implements AutoCloseable {
   private int volumeProgram, volumeCopyRead, volumeCopyDraw;
   private final VolumeTextureUpload volumeUpload;
   private SceneGpuRenderer sceneRenderer;
+  private GpuTimerQueries gpuTimer;
   private int sceneBudget, paletteWidth = 256;
   private boolean sceneActive, sceneIndirect = true, sceneAo = true;
   private float sceneFog;
@@ -333,11 +335,44 @@ public final class GlViewport implements AutoCloseable {
     glBindTexture(GL_TEXTURE_2D, 0);
   }
 
+  public java.util.List<GpuTimerQueries.Measurement> collectGpuTimings(Profiler.Scope scope) {
+    return gpuTimer == null ? java.util.List.of() : gpuTimer.poll(scope);
+  }
+
+  public GpuTimerQueries.Statistics gpuTimingStatistics() {
+    return gpuTimer == null ? GpuTimerQueries.idle() : gpuTimer.statistics();
+  }
+
   public void render(int w, int h, Matrix4f matrix, boolean unlit, float alpha) {
+    render(w, h, matrix, unlit, alpha, null, null);
+  }
+
+  /** Optional capture-bound GPU command timing; unchanged untimed rendering is the default. */
+  public void render(
+      int w,
+      int h,
+      Matrix4f matrix,
+      boolean unlit,
+      float alpha,
+      Profiler.Scope scope,
+      String label) {
+    if (gpuTimer != null) gpuTimer.synchronize(scope);
     if (retainFrame
         || volumeUpload.statistics().pending()
         || image
         || sceneActive && !sceneRenderer.hasData()) return;
+    if (scope != null && gpuTimer == null) gpuTimer = new GpuTimerQueries(new GlTimestampQueries());
+    long token = gpuTimer == null ? 0 : gpuTimer.begin(scope, label);
+    boolean success = false;
+    try {
+      renderCommands(w, h, matrix, unlit, alpha);
+      success = true;
+    } finally {
+      if (gpuTimer != null) gpuTimer.end(token, success);
+    }
+  }
+
+  private void renderCommands(int w, int h, Matrix4f matrix, boolean unlit, float alpha) {
     w = Math.max(16, Math.min(4096, w));
     h = Math.max(16, Math.min(4096, h));
     int oldFbo = glGetInteger(GL_FRAMEBUFFER_BINDING);
@@ -521,6 +556,7 @@ public final class GlViewport implements AutoCloseable {
 
   @Override
   public void close() {
+    if (gpuTimer != null) gpuTimer.close();
     if (sceneRenderer != null) sceneRenderer.close();
     glDeleteProgram(program);
     glDeleteProgram(volumeProgram);
