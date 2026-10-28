@@ -48,4 +48,14 @@ final class CoordinateText {
     }
     return new Coordinates(values.get("X"), values.get("Y"), values.get("Z"));
   }
+
+  Coordinates parse(Map<String, String> displayed) {
+    if (!displayed.keySet().equals(text.keySet()))
+      throw new IllegalStateException("All coordinate fields for the owning tab are required");
+    for (var axis : axes)
+      if (!Objects.equals(text.get(axis), displayed.get(axis)))
+        throw new IllegalStateException(
+            "Displayed " + axis + " differs from the private coordinate input");
+    return parse();
+  }
 }

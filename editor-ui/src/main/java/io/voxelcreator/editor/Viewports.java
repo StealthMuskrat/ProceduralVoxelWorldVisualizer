@@ -3495,6 +3495,7 @@ public final class Viewports implements AutoCloseable {
     if (closed) return;
     closed = true;
     try {
+      bookmarkPanel.cancel();
       traceRequests.close();
       inspectorTask.close();
       inspectorTaskValid = null;

@@ -17,4 +17,8 @@ report = json.loads((out / 'bookmark-input-native.json').read_text())
 assert report['formatVersion'] == 1 and report['navigationCount'] == 2
 for key in ['invalidTeleportRetained', 'overflowBookmarkRetained', 'tabOwned', 'exactEndpoints', 'callbackRetained', 'oneUndoRedo']:
     assert report[key] is True
+for key in ['displayedOverflowBlocked', 'sameUuidReopenRejected', 'renameSourcePreserved',
+            'boundedRetryDetails', 'runtimeDetailsCleared', 'privateInputsPreserved',
+            'externalCancelClosed', 'navigationErrorLogged', 'pickerFailureRetained']:
+    assert report[key] is True, key
 print('BOOKMARK_INPUT_INDEPENDENT_PASS exact 2D bookmark / absent invalid input / schema / native report')

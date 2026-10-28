@@ -12,6 +12,12 @@ public final class DocumentSession {
   private String saved = serialize(active);
   private final Deque<ProjectDelta> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
   private long historyBytes;
+  private Object sessionToken = new Object();
+
+  /** Opaque lifetime identity. Successful Open/New replaces it; edits/history/save retain it. */
+  public Object sessionToken() {
+    return sessionToken;
+  }
 
   public long historyBytes() {
     return historyBytes;
@@ -97,9 +103,12 @@ public final class DocumentSession {
   }
 
   private void replace(ProjectData p, Path f) {
+    String nextSaved = serialize(p);
+    Object nextToken = new Object();
     active = p;
     path = f;
-    saved = serialize(p);
+    saved = nextSaved;
+    sessionToken = nextToken;
     undo.clear();
     redo.clear();
     historyBytes = 0;

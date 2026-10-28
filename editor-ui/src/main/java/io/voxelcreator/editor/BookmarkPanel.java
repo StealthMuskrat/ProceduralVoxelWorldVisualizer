@@ -26,30 +26,28 @@ public final class BookmarkPanel {
   private final Map<Tab, ImString> filters = new EnumMap<>(Tab.class);
   private final Map<UUID, float[]> options = new HashMap<>();
   private final Map<String, float[]> controls = new HashMap<>();
-  private final ImString name = new ImString(4096);
-  private Draft draft;
-  private Tab owner;
-  private UUID projectUuid, worldUuid;
-  private UUID observedProject;
-  private Coordinates coordinates;
-  private CoordinateText coordinateText;
+  private ImString name = new ImString(4 * BookmarkEditSession.MAX_NAME_CHARACTERS + 1);
+  private BookmarkEditSession session;
+  private Object observedDocument;
   private final Map<String, ImString> coordinateBuffers = new LinkedHashMap<>();
-  private boolean active;
-  private String action = "", error = "";
+  private String error = "";
   private boolean pending;
+  private boolean closing;
   private int submitted;
+  private int diagnosticRows;
 
   public BookmarkPanel(EditorState state, Navigation navigation) {
-    this.state = state;
-    this.navigation = navigation;
+    this.state = Objects.requireNonNull(state);
+    this.navigation = Objects.requireNonNull(navigation);
+    observedDocument = state.document.sessionToken();
     for (Tab tab : Tab.values()) filters.put(tab, new ImString(256));
   }
 
   public void draw(Tab tab) {
-    if (!state.project().project.uuid.equals(observedProject)) {
+    if (state.document.sessionToken() != observedDocument) {
       selected.clear();
       filters.values().forEach(filter -> filter.set(""));
-      observedProject = state.project().project.uuid;
+      observedDocument = state.document.sessionToken();
     }
     var index = cache.get(state.project(), state.revision, tab);
     var current = index.get(selected.get(tab));
@@ -64,26 +62,24 @@ public final class BookmarkPanel {
       drawChoices(tab, index);
       ImGui.endPopup();
     }
-    if (button("Add Bookmark")) openAdd(tab, navigation.picked(tab));
-    ImGui.sameLine();
-    if (button("Teleport")) openTeleport(tab);
-    ImGui.beginDisabled(current == null);
-    if (button("Rename") && !active) {
+    if (button("Add Bookmark")) {
       try {
-        draft = Draft.rename(state.project(), tab, current.uuid());
-        open(tab, "Rename Bookmark", draft.coordinates());
-        name.set(draft.name());
+        openAdd(tab, navigation.picked(tab));
       } catch (RuntimeException failure) {
-        state.notify("Error", failure.getMessage());
+        state.error("BOOKMARK_DIALOG_FAILED", EditorEvents.Subsystem.APPLICATION, message(failure));
       }
     }
+    ImGui.sameLine();
+    if (button("Teleport")) openTeleport(tab);
+    ImGui.beginDisabled(current == null || pending());
+    if (button("Rename")) openRename(tab, current.uuid());
     ImGui.sameLine();
     if (button("Update Coordinates")) {
       try {
         Coordinates captured = navigation.current(tab);
         state.change(p -> BookmarkTransactions.update(p, tab, current.uuid(), captured));
       } catch (RuntimeException failure) {
-        state.notify("Error", failure.getMessage());
+        state.error("BOOKMARK_UPDATE_FAILED", EditorEvents.Subsystem.APPLICATION, message(failure));
       }
     }
     ImGui.sameLine();
@@ -114,9 +110,16 @@ public final class BookmarkPanel {
           if (ImGui.selectable(
               AppMetadata.uiText(row.label()) + "###" + row.uuid(),
               row.uuid().equals(selected.get(tab)))) {
-            selected.put(tab, row.uuid());
-            navigation.teleport(tab, row.coordinates());
-            ImGui.closeCurrentPopup();
+            try {
+              navigation.teleport(tab, row.coordinates());
+              selected.put(tab, row.uuid());
+              ImGui.closeCurrentPopup();
+            } catch (RuntimeException failure) {
+              state.error(
+                  "BOOKMARK_NAVIGATION_FAILED",
+                  EditorEvents.Subsystem.APPLICATION,
+                  message(failure));
+            }
           }
           options.put(row.uuid(), bounds());
         }
@@ -134,100 +137,137 @@ public final class BookmarkPanel {
   }
 
   public void openAdd(Tab tab, Coordinates picked) {
-    if (active) {
+    if (pending()) {
       state.status = "Finish the open bookmark dialog first";
       return;
     }
     try {
       var captured = picked == null ? navigation.current(tab) : picked;
-      draft = Draft.add(state.project(), tab, captured);
-      name.set("");
-      open(tab, "Add Bookmark", captured);
+      open(BookmarkEditSession.add(state, tab, captured));
     } catch (RuntimeException failure) {
-      state.notify("Error", failure.getMessage());
+      state.error("BOOKMARK_DIALOG_FAILED", EditorEvents.Subsystem.APPLICATION, message(failure));
     }
   }
 
   public void openTeleport(Tab tab) {
-    if (active) {
+    if (pending()) {
       state.status = "Finish the open bookmark dialog first";
       return;
     }
     try {
-      draft = null;
-      open(tab, "Teleport Coordinates", navigation.current(tab));
+      open(BookmarkEditSession.teleport(state, tab, navigation.current(tab)));
     } catch (RuntimeException failure) {
-      state.notify("Error", failure.getMessage());
+      state.error("BOOKMARK_DIALOG_FAILED", EditorEvents.Subsystem.APPLICATION, message(failure));
     }
   }
 
-  private void open(Tab tab, String action, Coordinates coordinates) {
-    owner = tab;
-    this.action = action;
-    this.coordinates = coordinates;
-    coordinateText = new CoordinateText(tab, coordinates);
+  public void openRename(Tab tab, UUID id) {
+    if (pending()) {
+      state.status = "Finish the open bookmark dialog first";
+      return;
+    }
+    try {
+      open(BookmarkEditSession.rename(state, tab, id));
+    } catch (RuntimeException failure) {
+      state.error("BOOKMARK_DIALOG_FAILED", EditorEvents.Subsystem.APPLICATION, message(failure));
+    }
+  }
+
+  private void open(BookmarkEditSession next) {
+    var buffers = new LinkedHashMap<String, ImString>();
+    for (var axis : next.axes())
+      buffers.put(axis, new ImString(next.text(axis), 4 * CoordinateText.MAX_CHARACTERS + 1));
+    var nameBuffer =
+        new ImString(next.name(), Math.addExact(Math.multiplyExact(4, next.nameLimit()), 1));
+    session = next;
+    name = nameBuffer;
+    closing = false;
     coordinateBuffers.clear();
-    for (var axis : coordinateText.axes())
-      coordinateBuffers.put(
-          axis, new ImString(coordinateText.text(axis), CoordinateText.MAX_CHARACTERS + 1));
-    active = true;
-    projectUuid = state.project().project.uuid;
-    worldUuid = state.project().worldGenerator.uuid;
+    coordinateBuffers.putAll(buffers);
     error = "";
     pending = true;
   }
 
   public void drawDialogs() {
+    diagnosticRows = 0;
+    if (session == null) {
+      if (closing && ImGui.beginPopupModal("Bookmark Coordinates")) {
+        ImGui.closeCurrentPopup();
+        ImGui.endPopup();
+      }
+      closing = false;
+      return;
+    }
     if (pending) {
       ImGui.openPopup("Bookmark Coordinates");
       pending = false;
     }
-    if (ImGui.beginPopupModal("Bookmark Coordinates", ImGuiWindowFlags.AlwaysAutoResize)) {
-      ImGui.text(action + " / " + owner.key());
-      if (draft != null) {
+    ImGui.setNextWindowSize(700, 520, ImGuiCond.FirstUseEver);
+    if (ImGui.beginPopupModal("Bookmark Coordinates")) {
+      ImGui.text(session.title() + " / " + session.tab().key());
+      if (session.named()) {
         if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
-        ImGui.inputText("Name", name, ImGuiInputTextFlags.AutoSelectAll);
+        if (ImGui.inputText("Name", name, ImGuiInputTextFlags.AutoSelectAll)) {
+          try {
+            session.editName(name.get());
+            error = "";
+          } catch (RuntimeException failure) {
+            error = message(failure);
+          }
+        }
         record("Name");
       }
-      if (draft != null && !draft.adding()) ImGui.text(draft.coordinates().label());
+      if (session.axes().isEmpty()) ImGui.text(session.renamedCoordinates().label());
       else {
-        for (var axis : coordinateText.axes()) {
+        for (var axis : session.axes()) {
           var buffer = coordinateBuffers.get(axis);
-          if (ImGui.inputText(axis, buffer)) coordinateText.edit(axis, buffer.get());
+          if (ImGui.inputText(axis, buffer)) {
+            try {
+              session.edit(axis, buffer.get());
+              error = "";
+            } catch (RuntimeException failure) {
+              error = message(failure);
+            }
+          }
           record(axis);
         }
       }
-      if (!error.isEmpty()) ImGui.textWrapped("! " + error);
+      boolean current = session.current();
+      if (!current)
+        ImGui.textWrapped(
+            "Document or bookmark changed. Your text is preserved; Cancel and reopen this dialog.");
+      if (session.result().issueCount() > 0) {
+        ImGui.beginChild("bookmark-diagnostics", 0, 110, true);
+        for (var issue : session.result().issues().stream().limit(8).toList()) {
+          diagnosticRows++;
+          ImGui.textWrapped(bounded(issue.toString()));
+        }
+        ImGui.endChild();
+        ImGui.textDisabled(
+            session.result().issueCount() + " candidate diagnostic(s); showing up to eight.");
+      }
+      if (!error.isEmpty()) ImGui.textWrapped("! " + bounded(error));
+      ImGui.beginDisabled(!current);
       if (ImGui.button("Apply")) {
         try {
-          if (!projectUuid.equals(state.project().project.uuid)
-              || !worldUuid.equals(state.project().worldGenerator.uuid)) {
-            error = "Project changed; cancel and reopen this dialog";
-          } else if (draft == null) {
-            coordinates = coordinateText.parse();
-            navigation.teleport(owner, coordinates);
+          var displayed = new LinkedHashMap<String, String>();
+          coordinateBuffers.forEach((axis, buffer) -> displayed.put(axis, buffer.get()));
+          if (session.apply(session.named() ? name.get() : null, displayed, navigation::teleport)) {
+            if (session.uuid() != null) selected.put(session.tab(), session.uuid());
             close();
           } else {
-            draft.name(name.get());
-            if (draft.adding()) {
-              coordinates = coordinateText.parse();
-              draft.coordinates(coordinates);
-            }
-            try {
-              draft.checkCurrent(state.project());
-              if (state.change(draft::applyTo)) {
-                selected.put(owner, draft.uuid());
-                close();
-              } else error = "Bookmark edit rejected: " + state.issues;
-            } catch (RuntimeException failure) {
-              error = Objects.requireNonNullElse(failure.getMessage(), "Coordinate action failed");
-            }
+            error =
+                session.result().failure().isEmpty()
+                    ? "Bookmark edit rejected. Correct the values or inspect Validation Results."
+                    : "Bookmark edit could not be applied. Your text is preserved; retry or inspect"
+                        + " Logs.";
           }
         } catch (RuntimeException failure) {
-          error = Objects.requireNonNullElse(failure.getMessage(), "Coordinate action failed");
+          error = message(failure);
         }
       }
       record("Apply");
+      ImGui.endDisabled();
       ImGui.sameLine();
       if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) close();
       record("Cancel");
@@ -236,13 +276,29 @@ public final class BookmarkPanel {
   }
 
   private void close() {
-    active = false;
-    pending = false;
-    coordinateText = null;
-    coordinateBuffers.clear();
-    draft = null;
-    error = "";
+    if (session == null) return;
+    cancel();
     ImGui.closeCurrentPopup();
+    closing = false;
+  }
+
+  public void cancel() {
+    closing = session != null || closing;
+    if (session != null) session.cancel();
+    session = null;
+    pending = false;
+    coordinateBuffers.clear();
+    name = new ImString(4 * BookmarkEditSession.MAX_NAME_CHARACTERS + 1);
+    error = "";
+  }
+
+  private static String message(RuntimeException failure) {
+    var text = failure.getMessage();
+    return text == null || text.isBlank() ? failure.toString() : text;
+  }
+
+  private static String bounded(String value) {
+    return value.length() > 1024 ? value.substring(0, 1023) + "…" : value;
   }
 
   private static float[] bounds() {
@@ -266,11 +322,11 @@ public final class BookmarkPanel {
           "Missing bookmark control "
               + id
               + "; action="
-              + action
+              + (session == null ? "closed" : session.title())
               + "; pending="
               + pending
               + "; owner="
-              + owner);
+              + (session == null ? "none" : session.tab()));
     return bounds.clone();
   }
 
@@ -287,6 +343,18 @@ public final class BookmarkPanel {
   }
 
   boolean pending() {
-    return active;
+    return session != null && !session.closed();
+  }
+
+  String rawText(String field) {
+    return field.equals("Name") ? name.get() : coordinateBuffers.get(field).get();
+  }
+
+  int candidateIssueCount() {
+    return session == null ? 0 : session.result().issueCount();
+  }
+
+  int diagnosticRows() {
+    return diagnosticRows;
   }
 }

@@ -8,6 +8,24 @@ import org.junit.jupiter.api.Test;
 /** Deferred definitions for exact provisional bookmark/teleport coordinates. */
 class CoordinateTextTest {
   @Test
+  void displayedAgreementRequiresEveryExactAxisWithoutExtrasOrEarlierParsedFallback() {
+    var input = new CoordinateText(Tab.WORLD, new Coordinates(1, 2, 3));
+    assertThrows(
+        IllegalStateException.class,
+        () -> input.parse(java.util.Map.of("X", "+1", "Y", "2", "Z", "3")));
+    assertThrows(
+        IllegalStateException.class, () -> input.parse(java.util.Map.of("X", "1", "Z", "3")));
+    assertThrows(
+        IllegalStateException.class,
+        () -> input.parse(java.util.Map.of("X", "1", "Y", "2", "Z", "3", "Q", "4")));
+    input.edit("X", "-");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> input.parse(java.util.Map.of("X", "-", "Y", "2", "Z", "3")));
+    assertEquals("-", input.text("X"));
+  }
+
+  @Test
   void invalidTextRetainsItsExactValueAndNeverReturnsEarlierCoordinates() {
     var text = new CoordinateText(Tab.WORLD, new Coordinates(1, 2, 3));
     for (var raw :
