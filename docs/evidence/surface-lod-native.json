@@ -1,0 +1,223 @@
+{
+  "formatVersion": 1,
+  "glVersion": "4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.4",
+  "openGL31": true,
+  "relocatedBytes": 694272,
+  "maximumUploadBytes": 4096,
+  "framebufferHash": "f2582c4562e539b8019c80edc74808de9284bb3d35265318edecc9bec858485b",
+  "pixel": [
+    255,
+    0,
+    0,
+    255
+  ],
+  "levels": [
+    0,
+    2,
+    5
+  ],
+  "partialLevelsRetained": true,
+  "framebufferParity": true,
+  "compactionParity": true,
+  "indirectParity": true,
+  "fixedImageReleasedArena": true,
+  "planes": [
+    {
+      "units": 128,
+      "vertices": 24576,
+      "maximumMeshBytes": 33030144,
+      "workingBytes": 137257736,
+      "level": 0,
+      "bytes": 393216
+    },
+    {
+      "units": 128,
+      "vertices": 24576,
+      "maximumMeshBytes": 33030144,
+      "workingBytes": 137257736,
+      "level": 1,
+      "bytes": 393216
+    },
+    {
+      "units": 128,
+      "vertices": 15360,
+      "maximumMeshBytes": 16515072,
+      "workingBytes": 68838152,
+      "level": 2,
+      "bytes": 245760
+    },
+    {
+      "units": 128,
+      "vertices": 10752,
+      "maximumMeshBytes": 8257536,
+      "workingBytes": 34628360,
+      "level": 3,
+      "bytes": 172032
+    },
+    {
+      "units": 128,
+      "vertices": 8448,
+      "maximumMeshBytes": 4128768,
+      "workingBytes": 17523464,
+      "level": 4,
+      "bytes": 135168
+    },
+    {
+      "units": 128,
+      "vertices": 18816,
+      "maximumMeshBytes": 2064384,
+      "workingBytes": 8971016,
+      "level": 5,
+      "bytes": 301056
+    }
+  ],
+  "fixedMeshReleasedArena": true,
+  "production": [
+    {
+      "pixel": [
+        45,
+        89,
+        44,
+        255
+      ],
+      "name": "near",
+      "epoch": 9,
+      "cpuBytes": 1831336,
+      "reserved": 575248,
+      "chunk": [
+        0,
+        0,
+        0
+      ],
+      "level": 0
+    },
+    {
+      "pixel": [
+        45,
+        89,
+        44,
+        255
+      ],
+      "name": "far",
+      "epoch": 9,
+      "cpuBytes": 3048272,
+      "reserved": 575248,
+      "chunk": [
+        0,
+        0,
+        0
+      ],
+      "level": 3
+    },
+    {
+      "pixel": [
+        45,
+        89,
+        44,
+        255
+      ],
+      "name": "high-quality",
+      "epoch": 9,
+      "cpuBytes": 7148736,
+      "reserved": 575248,
+      "chunk": [
+        0,
+        0,
+        0
+      ],
+      "level": 2
+    },
+    {
+      "pixel": [
+        45,
+        89,
+        44,
+        255
+      ],
+      "name": "low-quality",
+      "epoch": 9,
+      "cpuBytes": 7901016,
+      "reserved": 0,
+      "chunk": [
+        0,
+        0,
+        0
+      ],
+      "level": 4
+    },
+    {
+      "pixel": [
+        45,
+        89,
+        44,
+        255
+      ],
+      "name": "quality-restored",
+      "epoch": 9,
+      "cpuBytes": 7937880,
+      "reserved": 0,
+      "chunk": [
+        0,
+        0,
+        0
+      ],
+      "level": 3
+    },
+    {
+      "pixel": [
+        45,
+        89,
+        44,
+        255
+      ],
+      "name": "near-return",
+      "epoch": 9,
+      "cpuBytes": 8159064,
+      "reserved": 0,
+      "chunk": [
+        0,
+        0,
+        0
+      ],
+      "level": 0
+    },
+    {
+      "pixel": [
+        45,
+        89,
+        44,
+        255
+      ],
+      "name": "negative",
+      "epoch": 9,
+      "cpuBytes": 8159064,
+      "reserved": 0,
+      "chunk": [
+        -1,
+        0,
+        0
+      ],
+      "level": 0
+    },
+    {
+      "pixel": [
+        45,
+        89,
+        44,
+        255
+      ],
+      "name": "stream-return",
+      "epoch": 10,
+      "cpuBytes": 3269456,
+      "reserved": 575248,
+      "chunk": [
+        -1,
+        0,
+        0
+      ],
+      "level": 0
+    }
+  ],
+  "viewOnly": true,
+  "fixedReturn": true
+}

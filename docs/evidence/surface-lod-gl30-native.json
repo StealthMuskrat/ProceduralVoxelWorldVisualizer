@@ -1,0 +1,74 @@
+{
+  "formatVersion": 1,
+  "glVersion": "3.0 Mesa 25.2.8-0ubuntu0.24.04.4",
+  "openGL31": false,
+  "relocatedBytes": 694272,
+  "maximumUploadBytes": 4096,
+  "framebufferHash": "f2582c4562e539b8019c80edc74808de9284bb3d35265318edecc9bec858485b",
+  "pixel": [
+    255,
+    0,
+    0,
+    255
+  ],
+  "levels": [
+    0,
+    2,
+    5
+  ],
+  "partialLevelsRetained": true,
+  "framebufferParity": true,
+  "compactionParity": true,
+  "indirectParity": true,
+  "fixedImageReleasedArena": true,
+  "planes": [
+    {
+      "workingBytes": 137257736,
+      "level": 0,
+      "bytes": 393216,
+      "units": 128,
+      "vertices": 24576,
+      "maximumMeshBytes": 33030144
+    },
+    {
+      "workingBytes": 137257736,
+      "level": 1,
+      "bytes": 393216,
+      "units": 128,
+      "vertices": 24576,
+      "maximumMeshBytes": 33030144
+    },
+    {
+      "workingBytes": 68838152,
+      "level": 2,
+      "bytes": 245760,
+      "units": 128,
+      "vertices": 15360,
+      "maximumMeshBytes": 16515072
+    },
+    {
+      "workingBytes": 34628360,
+      "level": 3,
+      "bytes": 172032,
+      "units": 128,
+      "vertices": 10752,
+      "maximumMeshBytes": 8257536
+    },
+    {
+      "workingBytes": 17523464,
+      "level": 4,
+      "bytes": 135168,
+      "units": 128,
+      "vertices": 8448,
+      "maximumMeshBytes": 4128768
+    },
+    {
+      "workingBytes": 8971016,
+      "level": 5,
+      "bytes": 301056,
+      "units": 128,
+      "vertices": 18816,
+      "maximumMeshBytes": 2064384
+    }
+  ]
+}
