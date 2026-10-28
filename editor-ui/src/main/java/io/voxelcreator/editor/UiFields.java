@@ -48,7 +48,7 @@ public final class UiFields {
 
   public void number(String label, double value, DoubleConsumer set) {
     ImDouble b = new ImDouble(value);
-    if (ImGui.inputDouble(label, b, 0, 0, "%.5f")) {
+    if (ImGui.inputDouble(label, b, 0, 0, "%.17g")) {
       set.accept(b.get());
       changed.run();
     }
