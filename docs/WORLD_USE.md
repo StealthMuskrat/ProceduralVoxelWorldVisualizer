@@ -41,3 +41,5 @@ This batch does not certify every Tree 10 GUI scenario or add general field-driv
 ## Development-branch control navigation
 
 [World-setting control focus](WORLD_SETTING_CONTROL_FOCUS.md) adds one-shot activation for layer/placement settings, singleton field drivers and root conditions, with inherited-override and conditional-control fallbacks. It is implemented but uncompiled/untested under the owner GitHub testing pause. The earlier numerical/semantic evidence above does not validate this UI extension.
+
+[Provisional seed inputs](PROVISIONAL_SEED_INPUTS.md) extend source/layer/placement/gate seed authoring with exact long parsing, explicit restoration and Apply/navigation guards. This UI implementation remains unvalidated under the owner testing pause; serialized seed values and engine semantics are unchanged.

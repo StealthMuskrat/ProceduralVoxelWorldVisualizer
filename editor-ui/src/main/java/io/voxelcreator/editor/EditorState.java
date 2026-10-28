@@ -37,6 +37,7 @@ public final class EditorState implements AutoCloseable {
   private String selectionParent = "";
   public final EditorEvents events = new EditorEvents();
   public final TraceHistory traces = new TraceHistory();
+  final DraftSeedInputs seedInputs = new DraftSeedInputs();
 
   public long publishTrace(TraceSnapshot trace) {
     var entry =
@@ -116,7 +117,8 @@ public final class EditorState implements AutoCloseable {
   }
 
   public void refreshDraft() {
-    if (validationScope.equals("Rejected edit")) {
+    if (validationScope.equals("Rejected edit")
+        || validationScope.equals("Rejected Properties seed input")) {
       issues = List.of();
       validationScope = "Committed project";
     }
@@ -125,9 +127,17 @@ public final class EditorState implements AutoCloseable {
         obj == null
             ? null
             : ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(obj), obj.getClass());
+    seedInputs.synchronize(this);
   }
 
   public boolean applyDraft() {
+    var provisional = seedInputs.diagnostics(this);
+    if (!provisional.isEmpty()) {
+      issues = provisional;
+      validationScope = "Rejected Properties seed input";
+      for (var issue : issues) reportDiagnostic(issue, EditorEvents.Subsystem.PROJECT, true);
+      return false;
+    }
     Object copy = draft;
     if (copy instanceof Identity identity) {
       boolean ok = change(p -> replace(p, identity.uuid, copy));
@@ -256,6 +266,7 @@ public final class EditorState implements AutoCloseable {
     document.newProject();
     selected = null;
     draft = null;
+    seedInputs.synchronize(this);
     selectedKind = "";
     multiSelection.clear();
     revision++;

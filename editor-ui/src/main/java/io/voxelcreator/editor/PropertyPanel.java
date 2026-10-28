@@ -477,6 +477,7 @@ public final class PropertyPanel {
   }
 
   public void draw() {
+    seedCenters.clear();
     worldControlCenters.clear();
     parameterCenters.clear();
     bindingRects.clear();
@@ -501,6 +502,10 @@ public final class PropertyPanel {
     }
     resourcePicker.synchronize();
     ImGui.begin("Properties");
+    if (probeSeedTop) {
+      ImGui.setScrollY(0);
+      probeSeedTop = false;
+    }
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Properties", 1f));
     if (!Objects.equals(last, state.selected) || lastDraft != state.draft) {
       last = state.selected;
@@ -530,6 +535,7 @@ public final class PropertyPanel {
           propertyFocus.cancel();
         }
       }
+      seedProblems();
       if (ImGui.button("Apply")) state.applyDraft();
       ImGui.sameLine();
       if (ImGui.button("Revert")) {
@@ -2546,7 +2552,10 @@ public final class PropertyPanel {
                     if (v) {
                       JsonNode node = ProjectIO.JSON.valueToTree(layer.defaults);
                       op.overrides.put(key, node.get(key).deepCopy());
-                    } else op.overrides.remove(key);
+                    } else {
+                      seedPrefix("settings/" + key, false);
+                      op.overrides.remove(key);
+                    }
                   }));
       Settings effective;
       try {
@@ -2561,7 +2570,10 @@ public final class PropertyPanel {
         editSetting(effective, key);
         JsonNode node = ProjectIO.JSON.valueToTree(effective);
         op.overrides.put(key, node.get(key).deepCopy());
-        if (ImGui.smallButton("Reset to Layer Default")) op.overrides.remove(key);
+        if (ImGui.smallButton("Reset to Layer Default")) {
+          seedPrefix("settings/" + key, false);
+          op.overrides.remove(key);
+        }
       } else {
         JsonNode node = ProjectIO.JSON.valueToTree(effective);
         ImGui.textWrapped(AppMetadata.settingLabel(key) + ": " + settingValue(key, node.get(key)));
@@ -2809,7 +2821,10 @@ public final class PropertyPanel {
                 WorldSemantics.GATES,
                 v -> {
                   g.kind = v;
-                  if (v.equals("NOT") && g.children.isEmpty()) g.children.add(new Gate());
+                  if (v.equals("NOT") && g.children.isEmpty()) {
+                    changedGateSeeds();
+                    g.children.add(new Gate());
+                  }
                 }));
     if (g.kind.equals("COMPARE") || g.kind.equals("INTERVAL")) {
       settingControl(
@@ -2849,14 +2864,19 @@ public final class PropertyPanel {
         if (smokeWorldSettings != null) ImGui.setNextItemOpen(true, ImGuiCond.Always);
         if (ImGui.treeNode("Gate clause " + i)) {
           var child = g.children.get(i);
-          nestedSetting("children", () -> gate(child, depth + 1));
-          if (ImGui.smallButton("Remove")) g.children.remove(i);
+          nestedSetting("children/" + i, () -> gate(child, depth + 1));
+          if (ImGui.smallButton("Remove")) {
+            changedGateSeeds();
+            g.children.remove(i);
+          }
           ImGui.treePop();
         }
         ImGui.popID();
       }
-      if ((!g.kind.equals("NOT") || g.children.isEmpty()) && ImGui.button("Add Gate"))
+      if ((!g.kind.equals("NOT") || g.children.isEmpty()) && ImGui.button("Add Gate")) {
+        changedGateSeeds();
         g.children.add(new Gate());
+      }
     }
   }
 
@@ -3104,15 +3124,151 @@ public final class PropertyPanel {
       transforms.add(new SamplingTransform());
   }
 
+  private static final class SeedText {
+    final ImString buffer;
+    long model;
+    boolean invalid;
+
+    SeedText(String text, long value) {
+      buffer = new ImString(text, DraftSeedInputs.MAX_CHARACTERS + 1);
+      model = value;
+    }
+  }
+
+  private final LinkedHashMap<String, SeedText> seedTexts = new LinkedHashMap<>(16, .75f, true);
+  private Object seedOwner;
+  private final Map<String, float[]> seedCenters = new HashMap<>();
+  private boolean probeSeedTop;
+
+  void probeSeedProblems() {
+    probeSeedTop = true;
+  }
+
+  float[] probeSeedControl(String key) {
+    return seedCenters.get(key);
+  }
+
+  private void synchronizeSeeds() {
+    state.seedInputs.synchronize(state);
+    if (seedOwner != state.seedInputs.owner()) {
+      seedOwner = state.seedInputs.owner();
+      seedTexts.clear();
+      seedCenters.clear();
+    }
+  }
+
+  private void seedPrefix(String prefix, boolean orphan) {
+    synchronizeSeeds();
+    if (orphan) state.seedInputs.orphan(state, prefix);
+    else state.seedInputs.discardPrefix(state, prefix);
+    seedTexts.keySet().removeIf(key -> DraftSeedInputs.within(key, prefix));
+  }
+
+  private void changedGateSeeds() {
+    if (worldSettingPath != null) seedPrefix("settings/" + worldSettingPath, true);
+  }
+
+  private void seedProblems() {
+    synchronizeSeeds();
+    var problems = state.seedInputs.problems(state);
+    if (problems.isEmpty()) return;
+    ImGui.textWrapped(
+        "! "
+            + problems.size()
+            + " seed input(s) need correction or explicit restoration before Apply.");
+    if (ImGui.smallButton("Restore All Seed Text")) {
+      state.seedInputs.clear(state);
+      seedTexts.clear();
+    }
+    var restoreMin = ImGui.getItemRectMin();
+    var restoreMax = ImGui.getItemRectMax();
+    seedCenters.put(
+        "restoreAll",
+        new float[] {(restoreMin.x + restoreMax.x) / 2, (restoreMin.y + restoreMax.y) / 2});
+    int shown = 0;
+    for (var problem : problems) {
+      if (shown++ == 8) {
+        ImGui.textDisabled("Restore or correct the shown inputs to reveal more.");
+        break;
+      }
+      ImGui.pushID(problem.id());
+      if (ImGui.smallButton("Restore")) {
+        state.seedInputs.discard(state, problem.id());
+        seedTexts.remove(problem.path());
+      }
+      ImGui.sameLine();
+      if (ImGui.smallButton("Go To Seed"))
+        goToProblem(
+            EditorEvents.Target.diagnostic(
+                state.project().project.uuid, problem.diagnostic(state.selected)));
+      ImGui.sameLine();
+      String label =
+          problem.label()
+              + ": "
+              + problem.text()
+              + (problem.orphan() ? " (changed gate tree)" : "");
+      ImGui.text(AppMetadata.uiText(label.length() > 80 ? label.substring(0, 79) + "…" : label));
+      if (ImGui.isItemHovered()) ImGui.setTooltip(problem.path() + "\n" + label);
+      ImGui.popID();
+    }
+  }
+
   private void longText(String label, long value, java.util.function.LongConsumer set) {
-    f.text(
-        label,
-        Long.toString(value),
-        v -> {
-          try {
-            set.accept(Long.parseLong(v));
-          } catch (NumberFormatException ignored) {
-          }
-        });
+    // Smoke-only standalone controls have no Properties transaction to own raw input.
+    if (state.draft == null) {
+      f.text(
+          label,
+          Long.toString(value),
+          text -> {
+            try {
+              set.accept(Long.parseLong(text));
+            } catch (NumberFormatException invalid) {
+              state.status = "A signed 64-bit seed is required";
+            }
+          });
+      return;
+    }
+    synchronizeSeeds();
+    String key =
+        worldSettingPath == null
+            ? "seedOffset"
+            : "settings/"
+                + worldSettingPath
+                + (worldSettingPath.equals("seedOffset") ? "" : "/seedOffset");
+    String pending = state.seedInputs.text(key);
+    SeedText input = seedTexts.get(key);
+    if (input == null) {
+      if (seedTexts.size() >= DraftSeedInputs.MAX_FIELDS)
+        seedTexts.remove(seedTexts.keySet().iterator().next());
+      input = new SeedText(pending == null ? Long.toString(value) : pending, value);
+      input.invalid = pending != null;
+      seedTexts.put(key, input);
+    } else if (pending != null) {
+      if (!input.buffer.get().equals(pending)) input.buffer.set(pending);
+      input.invalid = true;
+    } else if (input.model != value || input.invalid) {
+      input.buffer.set(Long.toString(value));
+      input.model = value;
+      input.invalid = false;
+    }
+    if (ImGui.inputText(label, input.buffer)) {
+      try {
+        var parsed = state.seedInputs.edit(state, key, label, input.buffer.get());
+        input.invalid = parsed.isEmpty();
+        if (parsed.isPresent()) {
+          set.accept(parsed.getAsLong());
+          input.model = parsed.getAsLong();
+        }
+        noiseChanged();
+      } catch (RuntimeException invalid) {
+        input.buffer.set(
+            Objects.requireNonNullElse(state.seedInputs.text(key), Long.toString(value)));
+        input.invalid = state.seedInputs.text(key) != null;
+        state.status = invalid.getMessage();
+      }
+    }
+    var a = ImGui.getItemRectMin();
+    var b = ImGui.getItemRectMax();
+    seedCenters.put(key, new float[] {a.x + Math.min(80, (b.x - a.x) * .25f), (a.y + b.y) / 2});
   }
 }

@@ -23,6 +23,7 @@ public final class SearchNavigation {
   private EditorEvents.Target pending;
   private UUID source;
   private JsonNode draftBase, activeBase;
+  private long seedVersion;
 
   public SearchNavigation(EditorState state) {
     this.state = state;
@@ -44,12 +45,14 @@ public final class SearchNavigation {
       source = state.selected;
       draftBase = ProjectIO.JSON.valueToTree(state.draft);
       activeBase = active();
+      seedVersion = state.seedInputs.version(state);
       return Result.NEEDS_DECISION;
     }
     return state.navigate(target) ? Result.NAVIGATED : Result.UNAVAILABLE;
   }
 
   private boolean modified() {
+    if (state.seedInputs.pending(state)) return true;
     if (state.draft == null) return false;
     var active = ResourceGraph.find(state.project(), state.selected);
     return active == null
@@ -71,6 +74,7 @@ public final class SearchNavigation {
     }
     var target = pending;
     if (!Objects.equals(state.selected, source)
+        || seedVersion != state.seedInputs.version(state)
         || !draftBase.equals(ProjectIO.JSON.valueToTree(state.draft))
         || !activeBase.equals(active())
         || !state.canNavigate(target)) {
