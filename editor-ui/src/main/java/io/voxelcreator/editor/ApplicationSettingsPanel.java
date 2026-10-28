@@ -13,7 +13,16 @@ public final class ApplicationSettingsPanel {
   private final UiFields fields = new UiFields();
   private final ImString filter = new ImString(256);
   private final Map<String, ImString> values = new HashMap<>();
-  private final Map<String, String> errors = new LinkedHashMap<>();
+  private final Map<String, List<ImString>> creationBuffers = new LinkedHashMap<>();
+  private final Map<String, float[]> controls = new HashMap<>();
+  private List<Map.Entry<String, AppMetadata.Control>> ordered = List.of(), rows = List.of();
+  private AppMetadata rowOwner;
+  private String rowPage = "", rowQuery = "";
+  private boolean rowsChanged = true;
+  private long rowBuilds;
+  private int submitted;
+  private boolean applyEnabled;
+  private boolean detailReset;
   private MetadataEditSession session;
   private String page = "Presentation",
       selected = "noise2D.algorithm.CONSTANT.value",
@@ -32,6 +41,7 @@ public final class ApplicationSettingsPanel {
   private void changed() {
     invalidated = true;
     draftChanged = true;
+    rowsChanged = true;
   }
 
   private void select(String id) {
@@ -39,11 +49,14 @@ public final class ApplicationSettingsPanel {
       selected = id;
       fields.clear();
       values.clear();
+      detailReset = true;
     }
   }
 
   public void draw() {
     ensure();
+    controls.clear();
+    submitted = 0;
     drawn = true;
     ImGui.textWrapped(
         "Private application profile. Apply saves labels/help and validated defaults for future"
@@ -56,23 +69,36 @@ public final class ApplicationSettingsPanel {
           page = value;
           fields.clear();
           values.clear();
+          detailReset = true;
         });
     ImGui.inputTextWithHint(
         "##metadata-filter", "Filter labels, groups or stable control IDs...", filter);
+    control("filter");
     String query = filter.get().strip().toLowerCase(Locale.ROOT);
     var draft = session.draft();
-    var rows =
-        draft.orderedControls().stream()
-            .filter(
-                e ->
-                    page.equals("Presentation")
-                        || CreationRegistry.CONTROLS.containsKey(e.getKey()))
-            .filter(
-                e ->
-                    (e.getKey() + " " + e.getValue().label + " " + e.getValue().group)
-                        .toLowerCase(Locale.ROOT)
-                        .contains(query))
-            .toList();
+    boolean rebuild = rowsChanged || rowOwner != draft;
+    if (rebuild) {
+      ordered = draft.orderedControls();
+      rowOwner = draft;
+      rowsChanged = false;
+    }
+    if (rebuild || !rowPage.equals(page) || !rowQuery.equals(query)) {
+      rows =
+          ordered.stream()
+              .filter(
+                  e ->
+                      page.equals("Presentation")
+                          || CreationRegistry.CONTROLS.containsKey(e.getKey()))
+              .filter(
+                  e ->
+                      (e.getKey() + " " + e.getValue().label + " " + e.getValue().group)
+                          .toLowerCase(Locale.ROOT)
+                          .contains(query))
+              .toList();
+      rowPage = page;
+      rowQuery = query;
+      rowBuilds++;
+    }
     ImGui.beginChild("metadata-results", 0, 150, true);
     var clipper = new ImGuiListClipper();
     try {
@@ -80,6 +106,7 @@ public final class ApplicationSettingsPanel {
       while (clipper.step())
         for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
           var row = rows.get(i);
+          submitted++;
           if (ImGui.selectable(
               AppMetadata.uiText(row.getValue().group)
                   + " / "
@@ -94,7 +121,11 @@ public final class ApplicationSettingsPanel {
     }
     ImGui.endChild();
     ImGui.beginChild(
-        "metadata-detail", 0, Math.max(150, ImGui.getContentRegionAvailY() - 110), true);
+        "metadata-detail", 0, Math.max(150, ImGui.getContentRegionAvailY() - 170), true);
+    if (detailReset) {
+      ImGui.setScrollY(0);
+      detailReset = false;
+    }
     var control = draft.controls.get(selected);
     if (control == null) ImGui.textDisabled("Select a control.");
     else {
@@ -114,15 +145,40 @@ public final class ApplicationSettingsPanel {
       }
       invalidated = false;
     }
-    String issue = !errors.isEmpty() ? errors.values().iterator().next() : problem;
+    var errors = session.inputs().errors();
+    String issue = problem;
+    if (!errors.isEmpty()) {
+      var first = errors.entrySet().iterator().next();
+      issue =
+          errors.size()
+              + " creation input(s) need correction: "
+              + first.getKey()
+              + ": "
+              + first.getValue();
+    } else
+      try {
+        session.inputs().requireDisplayed(displayed());
+      } catch (RuntimeException invalid) {
+        issue = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+      }
     ImGui.text(
         draftChanged
             ? "Unsaved application profile draft"
             : "Application profile matches active metadata");
-    if (!issue.isEmpty()) ImGui.textWrapped("! " + issue);
-    ImGui.beginDisabled(!issue.isEmpty());
+    if (!issue.isEmpty()) ImGui.textWrapped("! " + bounded(issue));
+    if (!errors.isEmpty()) {
+      if (ImGui.smallButton("Show Invalid Value")) {
+        select(errors.keySet().iterator().next());
+        page = "Creation Defaults";
+        detailReset = true;
+      }
+      control("invalid-value");
+    }
+    applyEnabled = issue.isEmpty();
+    ImGui.beginDisabled(!applyEnabled);
     if (ImGui.button("Apply Application Profile"))
       apply(UserConfig.directory().resolve("app-config.json"));
+    control("apply");
     ImGui.endDisabled();
     ImGui.sameLine();
     if (ImGui.button("Revert Profile")) {
@@ -130,21 +186,24 @@ public final class ApplicationSettingsPanel {
       resetEditors();
       message = "Draft reverted";
     }
+    control("revert");
     ImGui.sameLine();
     if (ImGui.button("Stage Built-In Profile")) {
-      session.draft().controls = AppMetadata.defaults().controls;
-      session.draft().creationDefaults.clear();
+      session.stageBuiltIns();
       resetEditors();
       message = "Built-in profile staged; Apply publishes it";
     }
-    ImGui.textWrapped(message);
+    control("builtins");
+    ImGui.textWrapped(bounded(message));
   }
 
   private void resetEditors() {
     fields.clear();
     values.clear();
-    errors.clear();
+    creationBuffers.clear();
     invalidated = true;
+    rowsChanged = true;
+    detailReset = true;
     draftChanged = session.changed();
   }
 
@@ -213,14 +272,11 @@ public final class ApplicationSettingsPanel {
         "Override future-item default",
         overridden,
         value -> {
-          if (value) draft.creationDefaults.put(spec.id(), spec.builtIn());
-          else {
-            draft.creationDefaults.remove(spec.id());
-            errors.remove(spec.id());
-            values.clear();
-          }
+          session.inputs().override(spec.id(), value);
+          creationBuffers.remove(spec.id());
           changed();
         });
+    control("override");
     ImGui.beginDisabled(!draft.creationDefaults.containsKey(spec.id()));
     JsonNode value = CreationRegistry.value(draft, spec.id());
     switch (spec.kind()) {
@@ -234,27 +290,7 @@ public final class ApplicationSettingsPanel {
           ImGui.endCombo();
         }
       }
-      case LONG, TEXT -> {
-        var text =
-            values.computeIfAbsent(
-                spec.id(),
-                key ->
-                    new ImString(
-                        spec.kind() == CreationRegistry.Kind.TEXT ? value.asText() : value.asText(),
-                        16384));
-        if (ImGui.inputText("Value", text)) {
-          try {
-            JsonNode parsed =
-                spec.kind() == CreationRegistry.Kind.LONG
-                    ? ProjectIO.JSON.valueToTree(Long.parseLong(text.get()))
-                    : ProjectIO.JSON.valueToTree(text.get());
-            put(spec, parsed);
-            errors.remove(spec.id());
-          } catch (RuntimeException e) {
-            errors.put(spec.id(), "Exact signed 64-bit integer required");
-          }
-        }
-      }
+      case LONG, TEXT -> rawValue(spec, value);
       case NUMBER, INTEGER -> {
         if (spec.kind() == CreationRegistry.Kind.INTEGER && !spec.options().isEmpty()) {
           int current = value.intValue();
@@ -270,62 +306,165 @@ public final class ApplicationSettingsPanel {
             ImGui.endCombo();
           }
         } else {
-          double edited = number("Value", value.asDouble(), spec.minimum(), spec.maximum());
-          if (Double.doubleToLongBits(edited) != Double.doubleToLongBits(value.asDouble()))
-            put(spec, ProjectIO.JSON.valueToTree(edited));
+          rawValue(spec, value);
         }
       }
-      case VECTOR2, VECTOR3 -> {
-        var array = value.deepCopy();
-        boolean changed = false;
-        for (int i = 0; i < value.size(); i++) {
-          double before = value.get(i).asDouble(),
-              next = number("Component " + i, before, spec.minimum(), spec.maximum());
-          if (Double.doubleToLongBits(next) != Double.doubleToLongBits(before)) {
-            ((com.fasterxml.jackson.databind.node.ArrayNode) array)
-                .set(i, ProjectIO.JSON.valueToTree(next));
-            changed = true;
-          }
-        }
-        if (changed) put(spec, array);
-      }
+      case VECTOR2, VECTOR3 -> rawValue(spec, value);
     }
     ImGui.endDisabled();
     if (ImGui.button("Use Built-In Value")) {
-      draft.creationDefaults.remove(spec.id());
-      errors.remove(spec.id());
-      values.clear();
+      session.inputs().override(spec.id(), false);
+      creationBuffers.remove(spec.id());
       changed();
     }
+    control("builtin-value");
+    ImGui.sameLine();
+    if (ImGui.button("Reload Value")) {
+      session.inputs().reload(spec.id());
+      creationBuffers.remove(spec.id());
+      changed();
+    }
+    control("reload-value");
     ImGui.textWrapped(
         "New items store concrete values; changing this profile never updates existing resources or"
             + " resets a loaded definition.");
   }
 
-  private double number(String label, double current, double minimum, double maximum) {
-    double[] slider = {current};
-    if (Double.isFinite(current)
-        && ImGui.sliderScalar(
-            "##slider" + label, slider, Math.max(-1e6, minimum), Math.min(1e6, maximum), "%.5f"))
-      current = slider[0];
-    var input = new ImDouble(current);
-    if (ImGui.inputDouble(label, input, 0, 0, "%.5f")) current = input.get();
-    return current;
+  private void rawValue(CreationRegistry.Spec spec, JsonNode value) {
+    var input = session.inputs();
+    var raw = input.text(spec.id());
+    var buffers =
+        creationBuffers.computeIfAbsent(
+            spec.id(),
+            key ->
+                raw.stream()
+                    .map(text -> new ImString(text, 4 * CreationValueInputs.limit(spec) + 1))
+                    .toList());
+    for (int i = 0; i < buffers.size(); i++) {
+      ImGui.pushID(spec.id() + ":" + i);
+      var buffer = buffers.get(i);
+      String label = buffers.size() == 1 ? "Value" : "Component " + i;
+      boolean numeric =
+          spec.kind() != CreationRegistry.Kind.LONG && spec.kind() != CreationRegistry.Kind.TEXT;
+      if (numeric) {
+        ImGui.text(label);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * .52f);
+        double[] slider = {value.isArray() ? value.get(i).asDouble() : value.asDouble()};
+        ImGui.beginDisabled(
+            !input.error(spec.id()).isEmpty()
+                || !input.text(spec.id()).equals(buffers.stream().map(ImString::get).toList())
+                || !Double.isFinite(slider[0]));
+        if (ImGui.sliderScalar(
+            "##slider",
+            slider,
+            Math.max(-1e6, spec.minimum()),
+            Math.min(1e6, spec.maximum()),
+            "%.5g")) {
+          String text =
+              spec.kind() == CreationRegistry.Kind.INTEGER
+                  ? Long.toString(Math.round(slider[0]))
+                  : Double.toString(slider[0]);
+          input.edit(spec.id(), i, text);
+          buffer.set(text);
+          changed();
+        }
+        control("slider-" + i);
+        ImGui.endDisabled();
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(-1);
+      }
+      boolean edited =
+          spec.kind() == CreationRegistry.Kind.TEXT
+              ? ImGui.inputTextMultiline(label, buffer, ImGui.getContentRegionAvailX(), 90)
+              : ImGui.inputText(numeric ? "##number" : label, buffer);
+      control("value-" + i);
+      if (edited) {
+        message = "";
+        try {
+          input.editAll(spec.id(), buffers.stream().map(ImString::get).toList());
+        } catch (RuntimeException invalid) {
+          message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+        }
+        changed();
+      }
+      ImGui.popID();
+    }
+    var error = input.error(spec.id());
+    if (!error.isEmpty()) ImGui.textWrapped("! " + bounded(error));
   }
 
   private void put(CreationRegistry.Spec spec, JsonNode value) {
-    session.draft().creationDefaults.put(spec.id(), value);
+    session.inputs().replace(spec.id(), value);
+    creationBuffers.remove(spec.id());
     changed();
   }
 
   private void apply(Path path) {
     try {
+      session.inputs().requireDisplayed(displayed());
       state.metadata = session.apply(state.metadata, path);
       resetEditors();
       message = "Application profile saved and activated";
     } catch (Exception e) {
-      message = "! " + e.getMessage();
+      message = "! " + Objects.requireNonNullElse(e.getMessage(), e.toString());
     }
+  }
+
+  private Map<String, List<String>> displayed() {
+    var displayed = new LinkedHashMap<String, List<String>>();
+    creationBuffers.forEach(
+        (id, buffers) -> displayed.put(id, buffers.stream().map(ImString::get).toList()));
+    return displayed;
+  }
+
+  private static String bounded(String message) {
+    return message.length() > 1024 ? message.substring(0, 1023) + "…" : message;
+  }
+
+  private void control(String name) {
+    controls.put(
+        name,
+        new float[] {
+          (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
+          (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
+        });
+  }
+
+  float[] controlAt(String name) {
+    return controls.get(name);
+  }
+
+  void showControl(String id, String section) {
+    ensure();
+    if (!session.draft().controls.containsKey(id)
+        || !List.of("Presentation", "Creation Defaults").contains(section))
+      throw new IllegalArgumentException("Unknown application control or section");
+    select(id);
+    if (!page.equals(section)) detailReset = true;
+    page = section;
+  }
+
+  List<String> rawText(String id) {
+    var buffers = creationBuffers.get(id);
+    return buffers == null
+        ? session.inputs().text(id)
+        : buffers.stream().map(ImString::get).toList();
+  }
+
+  JsonNode defaultValue(String id) {
+    return CreationRegistry.value(session.draft(), id);
+  }
+
+  boolean applyEnabled() {
+    return applyEnabled;
+  }
+
+  long rowBuilds() {
+    return rowBuilds;
+  }
+
+  int submittedRows() {
+    return submitted;
   }
 
   public void smokeDraft() {

@@ -7,6 +7,7 @@ import java.nio.file.Path;
 public final class MetadataEditSession {
   private AppMetadata draft;
   private com.fasterxml.jackson.databind.JsonNode base;
+  private CreationValueInputs inputs;
 
   public MetadataEditSession(AppMetadata metadata) {
     revert(metadata);
@@ -17,17 +18,28 @@ public final class MetadataEditSession {
   }
 
   public boolean changed() {
-    return !base.equals(fingerprint(draft));
+    return inputs.changed() || !base.equals(fingerprint(draft));
   }
 
   public void revert(AppMetadata metadata) {
     base = fingerprint(metadata);
     draft = AppMetadata.copy(metadata);
+    inputs = new CreationValueInputs(draft);
+  }
+
+  CreationValueInputs inputs() {
+    return inputs;
+  }
+
+  public void stageBuiltIns() {
+    draft = AppMetadata.defaults();
+    inputs = new CreationValueInputs(draft);
   }
 
   public AppMetadata apply(AppMetadata current, Path path) {
     if (!base.equals(fingerprint(current)))
       throw new IllegalStateException("Metadata changed elsewhere; Revert before applying");
+    inputs.requireValid();
     draft.validate();
     var candidate = AppMetadata.copy(draft);
     candidate.save(path);

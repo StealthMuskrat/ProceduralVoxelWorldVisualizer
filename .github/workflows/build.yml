@@ -71,6 +71,8 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CreationProfileProbe build/creation-profile
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CreationDefaultsConsumer build/creation-profile/created-project.pvproj.json
           python scripts/verify_app_metadata.py build/creation-profile/app-config.json
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ApplicationProfileInputsProbe build/creation-profile/raw-inputs
+          python scripts/verify_creation_inputs.py build/creation-profile/raw-inputs
       - name: Theme preview and contrast reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeReferenceProbe build/theme-probe
@@ -276,6 +278,7 @@ jobs:
             **/build/test-results/
             **/build/reports/tests/
             build/smoke/
+            build/creation-profile/
             build/theme-probe/
             build/browser-probe/
             build/workflow-probe/
@@ -422,6 +425,10 @@ jobs:
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CreationDefaultsConsumer build/creation-profile/created-project.pvproj.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_app_metadata.py build/creation-profile/app-config.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ApplicationProfileInputsProbe build/creation-profile/raw-inputs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_creation_inputs.py build/creation-profile/raw-inputs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows theme preview and contrast reference
         shell: pwsh
@@ -793,6 +800,7 @@ jobs:
             build/packages/*.sha256
             build/windows-smoke.log
             build/smoke/
+            build/creation-profile/
             build/theme-probe/
             build/browser-probe/
             build/workflow-probe/
