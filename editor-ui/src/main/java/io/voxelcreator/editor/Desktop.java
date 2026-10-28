@@ -536,6 +536,7 @@ public final class Desktop extends Application {
         if (smokeFrames > 0) smokeExportDrawn = true;
         ImGui.endChild();
       }
+      ImGui.beginDisabled(fileAction.equals("Export") && !resources.canExport());
       if (ImGui.button(fileAction)) {
         try {
           Path path = ResourcePackageFiles.location(pathInput.get());
@@ -543,7 +544,8 @@ public final class Desktop extends Application {
             case "Export" -> {
               if (resources.exportSelection.isEmpty())
                 throw new IOException("Select resources to export");
-              packageFiles.write(path, resources.exportSelection(), state.document.path());
+              resources.writeExport(path, packageFiles);
+              resources.cancelExport();
               state.notify("Information", "Resource package exported");
             }
             case "Import" -> {
@@ -565,16 +567,20 @@ public final class Desktop extends Application {
               packageFileError);
         }
       }
+      ImGui.endDisabled();
       ImGui.sameLine();
       if (ImGui.button("Cancel")) {
+        if (fileAction.equals("Export")) resources.cancelExport();
         packageFileOpen = false;
         ImGui.closeCurrentPopup();
       }
       if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+        if (fileAction.equals("Export")) resources.cancelExport();
         packageFileOpen = false;
         ImGui.closeCurrentPopup();
       }
       if (smokeFrames > 0 && 480 - smokeFrames == 236 && fileAction.equals("Export")) {
+        resources.cancelExport();
         packageFileOpen = false;
         ImGui.closeCurrentPopup();
       }

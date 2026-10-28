@@ -10,6 +10,8 @@ args = parser.parse_args()
 report = json.loads(args.report.read_text(encoding='utf-8'))
 assert report['formatVersion'] == 1 and report['catalogTypes'] == 2000
 assert all(report[key] is True for key in ['activeProjectProtected', 'packageRoundTrip', 'packageDefaultDistinct'])
+assert all(report[key] is True for key in ['exportStaleRejected', 'exportReloadReviewed', 'exportConsumed', 'exportPrivateDraftPreserved'])
+assert report['preparationsAfterReload'] == 2
 project = json.loads((args.package.parent / 'active-project.pvproj.json').read_text(encoding='utf-8'))
 assert project['formatVersion'] == 2 and 'packageVersion' not in project
 assert report['pickerRows'] == report['pickerCallbacks'] == report['membershipRows'] == 1

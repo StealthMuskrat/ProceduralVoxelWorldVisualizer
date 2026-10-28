@@ -799,6 +799,19 @@ public final class ResourcePanel {
     return exportPanel.prepare().resources();
   }
 
+  boolean canExport() {
+    return exportPanel.canExport();
+  }
+
+  void writeExport(java.nio.file.Path path, ResourcePackageFiles files) throws java.io.IOException {
+    exportPanel.write(path, files);
+  }
+
+  void cancelExport() {
+    exportPanel.reset();
+    exportSelection.clear();
+  }
+
   public void beginExport() {
     exportSelection.clear();
     exportPanel.reset();
@@ -807,6 +820,7 @@ public final class ResourcePanel {
     var live = new HashSet<UUID>();
     ResourceGraph.entries(state.project()).forEach(e -> live.add(e.uuid()));
     exportSelection.retainAll(live);
+    exportPanel.open();
   }
 
   public void drawExportSelection() {

@@ -37,3 +37,6 @@ Six deferred `MembershipOwnershipTest` definitions cover equal-value draft repla
 
 
 [Portable resource file safety](RESOURCE_PACKAGE_FILES.md) subsequently separates package defaults from the active project path, rejects active-project aliases, stages complete atomic exports and strictly reads version-1 envelopes. This development extension and its deferred file/native/report definitions remain uncompiled/untested under the owner testing pause.
+
+
+[Owned export workspace](EXPORT_WORKSPACE.md) subsequently freezes the committed source, requires explicit stale reload and exact displayed-preview publication, and preserves retry/Cancel lifetimes. The lower-level cache API remains available; this editor extension and its deferred definitions remain uncompiled/untested under the owner testing pause.

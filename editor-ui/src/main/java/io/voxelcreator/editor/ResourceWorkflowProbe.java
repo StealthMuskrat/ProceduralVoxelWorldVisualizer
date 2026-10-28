@@ -139,6 +139,38 @@ public final class ResourceWorkflowProbe {
             || !payload.noise3D.isEmpty())
           throw new AssertionError("Wrong export dependency closure");
         var packageFiles = new ResourcePackageFiles();
+        Object exportDraft = state.draft;
+        if (!export.canExport())
+          throw new AssertionError("Displayed export preview was not acknowledged");
+        if (!state.change(p -> p.project.seed++))
+          throw new AssertionError("Export stale-source fixture");
+        var sourceAfterEdit = ProjectIO.JSON.valueToTree(state.project());
+        long exportRevision = state.revision, exportHistory = state.document.historyBytes();
+        frame(export::draw);
+        if (export.canExport() || export.preparations() != prepared)
+          throw new AssertionError("Stale export silently rebuilt or remained exportable");
+        var staleTarget = output.resolve("unreviewed.pvresources.json");
+        boolean staleRejected = false;
+        try {
+          export.write(staleTarget, packageFiles);
+        } catch (IllegalStateException expected) {
+          staleRejected = true;
+        }
+        if (!staleRejected || Files.exists(staleTarget))
+          throw new AssertionError("Stale export touched a target");
+        click(export::draw, export.probeControl("reload"));
+        if (export.canExport())
+          throw new AssertionError("Reload exported without displaying its new preview");
+        for (int i = 0; i < 3; i++) frame(export::draw);
+        if (!export.canExport() || export.preparations() != prepared + 1)
+          throw new AssertionError("Reload did not preserve/review the export selection");
+        payload = export.prepare().resources();
+        if (state.draft != exportDraft
+            || !((Membership) exportDraft).id.equals("pending-id")
+            || !sourceAfterEdit.equals(ProjectIO.JSON.valueToTree(state.project()))
+            || exportRevision != state.revision
+            || exportHistory != state.document.historyBytes())
+          throw new AssertionError("Export preview/reload changed the project or private draft");
         var projectFile = output.resolve("active-project.pvproj.json");
         new ProjectIO().save(projectFile, state.project());
         byte[] projectBytes = Files.readAllBytes(projectFile);
@@ -151,7 +183,9 @@ public final class ResourceWorkflowProbe {
         if (!protectedProject || !Arrays.equals(projectBytes, Files.readAllBytes(projectFile)))
           throw new AssertionError("Export replaced the active project file");
         var packageFile = output.resolve("selection.pvresources.json");
-        packageFiles.write(packageFile, payload, projectFile);
+        export.write(packageFile, packageFiles);
+        if (export.canExport())
+          throw new AssertionError("Successful export did not consume the workspace");
         if (!ProjectIO.JSON
             .valueToTree(payload)
             .equals(ProjectIO.JSON.valueToTree(packageFiles.read(packageFile))))
@@ -163,6 +197,11 @@ public final class ResourceWorkflowProbe {
         report.put("activeProjectProtected", true);
         report.put("packageRoundTrip", true);
         report.put("packageDefaultDistinct", true);
+        report.put("exportStaleRejected", true);
+        report.put("exportReloadReviewed", true);
+        report.put("exportConsumed", true);
+        report.put("exportPrivateDraftPreserved", true);
+        report.put("preparationsAfterReload", export.preparations());
         report.put("catalogTypes", 2000);
         report.put("pickerRows", pickerRows);
         report.put("unfilteredPickerRows", unfilteredPickerRows);
@@ -186,6 +225,17 @@ public final class ResourceWorkflowProbe {
     } finally {
       ImGui.destroyContext();
     }
+  }
+
+  private static void click(Runnable draw, float[] point) {
+    if (point == null) throw new AssertionError("Missing export control");
+    var io = ImGui.getIO();
+    io.addMousePosEvent(point[0], point[1]);
+    frame(draw);
+    io.addMouseButtonEvent(0, true);
+    frame(draw);
+    io.addMouseButtonEvent(0, false);
+    frame(draw);
   }
 
   private static void frame(Runnable draw) {
