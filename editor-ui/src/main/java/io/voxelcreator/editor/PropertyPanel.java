@@ -427,18 +427,13 @@ public final class PropertyPanel {
       state.status = "Finish or cancel the open property editor before following another control.";
       return;
     }
-    propertyFocus.cancel();
-    expressionSelection.cancel();
-    worldRoute = null;
-    searchScroll = false;
-    Object object = EditorState.find(state.project(), resource);
-    if (object instanceof Noise n) {
-      if (!Objects.equals(state.selected, resource) || state.draft == null)
-        state.select("noise" + n.dimension + "D", resource);
-      state.multiSelection.clear();
-      state.multiSelection.add(resource);
-      focusedControl = control;
-    }
+    if (!(EditorState.find(state.project(), resource) instanceof Noise)) return;
+    var target =
+        new EditorEvents.Target(state.project().project.uuid, resource, control, null, "", false);
+    var result = referenceNavigation.request(target);
+    if (result == SearchNavigation.Result.NEEDS_DECISION) referencePrompt = true;
+    else if (result == SearchNavigation.Result.NAVIGATED) goToProblem(target);
+    else authoringMessage = "The requested control is no longer available.";
   }
 
   private void focusRow(UUID uuid) {
@@ -1703,7 +1698,9 @@ public final class PropertyPanel {
       var b = ImGui.getItemRectMax();
       referenceButtons.put(decision.name(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
       if (clicked) {
+        var target = referenceNavigation.target();
         var result = referenceNavigation.decide(decision);
+        if (result == SearchNavigation.Result.NAVIGATED && target != null) goToProblem(target);
         if (result != SearchNavigation.Result.NEEDS_DECISION) ImGui.closeCurrentPopup();
         else ImGui.textWrapped("Apply failed. Correct the draft or choose Discard/Cancel.");
       }
