@@ -884,6 +884,9 @@
         "shadows" : {
           "type" : "boolean"
         },
+        "volumeShadows" : {
+          "type" : "boolean"
+        },
         "indirectDrawing" : {
           "type" : "boolean"
         },
@@ -901,6 +904,10 @@
         "shadowResolution" : {
           "type" : "integer",
           "enum" : [ 512, 1024, 2048 ]
+        },
+        "volumeShadowSteps" : {
+          "type" : "integer",
+          "enum" : [ 8, 16, 32 ]
         }
       },
       "required" : [ "grid", "unlit", "streaming", "ambientOcclusion", "fog", "indirectDrawing", "noise2DMode", "threshold", "previewSize" ]

@@ -419,6 +419,14 @@ public final class Viewports implements AutoCloseable {
     mark(views[1]);
   }
 
+  void probeVolumeRaySteps(int steps) {
+    views[1].volumeSteps = steps;
+  }
+
+  VolumeLight.Settings probeVolumeLight() {
+    return views[1].gl.volumeLighting();
+  }
+
   void probeVolume(UUID noise, int side, double center) {
     var v = views[1];
     smokeTab = 1;
@@ -1384,6 +1392,13 @@ public final class Viewports implements AutoCloseable {
               "Ray steps", v.volumeSteps, x -> v.volumeSteps = Math.max(16, Math.min(512, x)));
           ImGui.textDisabled(
               "Ray-marched scalar texture; display controls do not alter generation.");
+          if (state.user.visualization.volumeShadows)
+            ImGui.textDisabled(
+                state.user.visualization.unlit
+                    ? "Volume light attenuation bypassed by Unlit"
+                    : "Volume self-shadowing: "
+                        + state.user.visualization.volumeShadowSteps
+                        + " samples per light ray");
           if (wantsStreaming(v))
             ImGui.textDisabled(
                 "Camera-relative window in whole 32-cell chunks; Fixed bounds keeps the exact"
@@ -1662,8 +1677,11 @@ public final class Viewports implements AutoCloseable {
           100);
       h = Math.max(16, h - 110);
     }
-    if (v.kind == 1 && v.mode.equals("Volume"))
+    if (v.kind == 1 && v.mode.equals("Volume")) {
       v.gl.volumeAppearance(v.volumeMin, v.volumeMax, v.volumeOpacity, v.threshold, v.volumeSteps);
+      v.gl.volumeLighting(
+          state.user.visualization.volumeShadows, state.user.visualization.volumeShadowSteps);
+    }
     if (!v.image)
       v.gl.render(
           (int) w,

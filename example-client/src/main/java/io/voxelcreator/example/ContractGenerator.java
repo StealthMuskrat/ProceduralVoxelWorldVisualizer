@@ -310,12 +310,16 @@ public final class ContractGenerator {
           var visualization = (ObjectNode) ed.path("Visualization");
           var visualRequired = (ArrayNode) visualization.path("required");
           for (int i = visualRequired.size() - 1; i >= 0; i--)
-            if (List.of("shadows", "shadowResolution").contains(visualRequired.get(i).asText()))
-              visualRequired.remove(i);
+            if (List.of("shadows", "shadowResolution", "volumeShadows", "volumeShadowSteps")
+                .contains(visualRequired.get(i).asText())) visualRequired.remove(i);
           ((ObjectNode) visualization.path("properties").path("shadowResolution"))
               .remove(List.of("minimum", "maximum"));
           ((ObjectNode) visualization.path("properties").path("shadowResolution"))
               .set("enum", JSON.valueToTree(List.of(512, 1024, 2048)));
+          ((ObjectNode) visualization.path("properties").path("volumeShadowSteps"))
+              .remove(List.of("minimum", "maximum"));
+          ((ObjectNode) visualization.path("properties").path("volumeShadowSteps"))
+              .set("enum", JSON.valueToTree(List.of(8, 16, 32)));
           Class<?> shortcuts = Class.forName("io.voxelcreator.editor.Shortcuts");
           @SuppressWarnings("unchecked")
           Map<String, String> bindings =

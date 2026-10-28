@@ -204,6 +204,7 @@ jobs:
           python scripts/verify_surface_lod.py build/world-picking/surface-lod-gl30
           python scripts/verify_gpu_timing.py build/world-picking/gpu-timing-gl30
           python scripts/verify_shadows.py build/world-picking/shadows-gl30
+          python scripts/verify_volume_light.py build/world-picking/volume-light-gl30
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -577,6 +578,8 @@ jobs:
             python scripts/verify_gpu_timing.py build/world-picking/gpu-timing-gl30
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
             python scripts/verify_shadows.py build/world-picking/shadows-gl30
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            python scripts/verify_volume_light.py build/world-picking/volume-light-gl30
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           } finally {
             Remove-Item Env:MESA_GL_VERSION_OVERRIDE -ErrorAction SilentlyContinue

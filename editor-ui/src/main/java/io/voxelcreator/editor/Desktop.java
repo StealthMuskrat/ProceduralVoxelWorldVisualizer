@@ -838,6 +838,20 @@ public final class Desktop extends Application {
             }
           }
           fields.bool(
+              "Volume self-shadowing",
+              state.user.visualization.volumeShadows,
+              v -> state.user.visualization.volumeShadows = v);
+          if (state.user.visualization.volumeShadows) {
+            fields.integer(
+                "Volume light ray samples",
+                state.user.visualization.volumeShadowSteps,
+                v -> state.user.visualization.volumeShadowSteps = v <= 8 ? 8 : v <= 16 ? 16 : 32);
+            ImGui.textWrapped(
+                "Directional attenuation through the accepted volume only. Adds up to 32 texture"
+                    + " samples per view-ray step. Unlit bypasses it; no volume regeneration is"
+                    + " required.");
+          }
+          fields.bool(
               "Indirect drawing when supported",
               state.user.visualization.indirectDrawing,
               v -> state.user.visualization.indirectDrawing = v);

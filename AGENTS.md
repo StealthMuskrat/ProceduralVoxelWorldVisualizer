@@ -3,8 +3,9 @@
 The authoritative assignment is `docs/SPECIFICATION.md`. This repository is currently a development implementation. Read `docs/DECISIONS.md` and `docs/REQUIREMENTS_AND_TESTS.md` before changing scope or claiming conformance.
 
 - Java 25; pinned CI toolchain Temurin 25.0.4+7; Gradle wrapper 9.2.1.
-- Implement substantial, coherent batches; defer automated and native testing until the batch is implemented, then fix failures and finish validation before delivery.
-- Run `./gradlew clean test build dependencyNotices releaseJars` (Windows: `gradlew.bat`).
+- Implement substantial, coherent batches. The owner development-phase override below defers GitHub execution; preserve explicit validation status.
+- Owner development-phase instruction (2026-10-28): stop all GitHub testing until the program is fully developed. Keep implementation on a development branch; do not open PRs or update main while those events trigger CI. Maintain test definitions for later validation, and label new work unvalidated.
+- When validation resumes, run `./gradlew clean test build dependencyNotices releaseJars` (Windows: `gradlew.bat`).
 - Keep engine/model/storage independent of editor, native, ImGui and OpenGL dependencies.
 - Preserve deterministic results across chunks, contexts, worker order and visual settings.
 - Resource references are UUIDs. Visible IDs are case-sensitive NFC strings. Placements inherit missing settings live; never replace absent overrides with resolved copies.

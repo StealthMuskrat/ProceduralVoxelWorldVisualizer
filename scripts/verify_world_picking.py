@@ -546,3 +546,6 @@ verify_gpu_timing(Path(sys.argv[1]) / 'gpu-timing')
 
 from verify_shadows import verify as verify_shadows
 verify_shadows(Path(sys.argv[1]) / "shadows")
+
+from verify_volume_light import verify as verify_volume_light
+verify_volume_light(Path(sys.argv[1]) / "volume-light")

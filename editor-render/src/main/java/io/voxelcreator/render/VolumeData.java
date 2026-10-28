@@ -180,6 +180,11 @@ public final class VolumeData {
 
   /** Matches encoded GL_LINEAR / CLAMP_TO_EDGE, decoded at a local location in [0,size]^3. */
   public double interpolate(double x, double y, double z) {
+    return encoding.decode(interpolateEncoded(x, y, z));
+  }
+
+  /** Encoded GL_LINEAR/CLAMP_TO_EDGE reconstruction for display-only CPU references. */
+  double interpolateEncoded(double x, double y, double z) {
     if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z))
       throw new IllegalArgumentException("Finite location required");
     x = Math.max(0, Math.min(size - 1, x - .5));
@@ -202,7 +207,7 @@ public final class VolumeData {
             lerp(encoded(ix, iy, jz), encoded(jx, iy, jz), tx),
             lerp(encoded(ix, jy, jz), encoded(jx, jy, jz), tx),
             ty);
-    return encoding.decode(lerp(lo, hi, tz));
+    return lerp(lo, hi, tz);
   }
 
   private static double lerp(double a, double b, double t) {

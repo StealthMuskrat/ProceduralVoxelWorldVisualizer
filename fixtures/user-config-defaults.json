@@ -52,11 +52,13 @@
     "ambientOcclusion" : true,
     "fog" : false,
     "shadows" : false,
+    "volumeShadows" : false,
     "indirectDrawing" : true,
     "noise2DMode" : "Grayscale",
     "threshold" : 0.0,
     "previewSize" : 32,
-    "shadowResolution" : 1024
+    "shadowResolution" : 1024,
+    "volumeShadowSteps" : 16
   },
   "performance" : {
     "workers" : 4,

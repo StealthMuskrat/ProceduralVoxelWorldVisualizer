@@ -47,11 +47,13 @@ public final class UserConfig {
         ambientOcclusion = true,
         fog = false,
         shadows = false,
+        volumeShadows = false,
         indirectDrawing = true;
     public String noise2DMode = "Grayscale";
     public double threshold = 0;
     public int previewSize = 32;
     public int shadowResolution = 1024;
+    public int volumeShadowSteps = 16;
   }
 
   public static final class Performance {
@@ -136,6 +138,12 @@ public final class UserConfig {
         && (!visualization.path("shadowResolution").isIntegralNumber()
             || !visualization.path("shadowResolution").canConvertToInt()))
       throw new IllegalArgumentException("Invalid shadow resolution");
+    if (visualization.has("volumeShadows") && !visualization.path("volumeShadows").isBoolean())
+      throw new IllegalArgumentException("Invalid volume shadow preference");
+    if (visualization.has("volumeShadowSteps")
+        && (!visualization.path("volumeShadowSteps").isIntegralNumber()
+            || !visualization.path("volumeShadowSteps").canConvertToInt()))
+      throw new IllegalArgumentException("Invalid volume shadow steps");
     var user = ProjectIO.JSON.treeToValue(tree, UserConfig.class);
     if (user.input == null) throw new IllegalArgumentException("Missing input preferences");
     user.input.shortcuts = Shortcuts.upgrade(user.input.shortcuts);
@@ -161,6 +169,7 @@ public final class UserConfig {
         || performance.workers < 1
         || performance.workers > 64
         || !io.voxelcreator.render.DirectionalShadow.validResolution(visualization.shadowResolution)
+        || !io.voxelcreator.render.VolumeLight.validSteps(visualization.volumeShadowSteps)
         || visualization.previewSize < 2
         || visualization.previewSize > performance.maxPreviewDimension)
       throw new IllegalArgumentException("Invalid user preferences");

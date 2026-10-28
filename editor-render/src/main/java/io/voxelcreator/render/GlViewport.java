@@ -13,6 +13,16 @@ public final class GlViewport implements AutoCloseable {
   private Mesh mesh = new Mesh(new float[0], false);
   private boolean image = false, volume = false, retainFrame;
   private int volumeProgram, volumeCopyRead, volumeCopyDraw;
+  private VolumeLight.Settings volumeLight = new VolumeLight.Settings(false, 16);
+
+  public void volumeLighting(boolean enabled, int steps) {
+    volumeLight = new VolumeLight.Settings(enabled, steps);
+  }
+
+  public VolumeLight.Settings volumeLighting() {
+    return volumeLight;
+  }
+
   private final VolumeTextureUpload volumeUpload;
   private SceneGpuRenderer sceneRenderer;
   private GpuTimerQueries gpuTimer;
@@ -571,6 +581,10 @@ public final class GlViewport implements AutoCloseable {
       glUniform2f(
           glGetUniformLocation(volumeProgram, "displayTransfer"), transfer.gain(), transfer.bias());
       glUniform1i(glGetUniformLocation(volumeProgram, "steps"), transfer.steps());
+      glUniform1i(
+          glGetUniformLocation(volumeProgram, "volumeLightEnabled"),
+          volumeLight.enabled() && !unlit ? 1 : 0);
+      glUniform1i(glGetUniformLocation(volumeProgram, "volumeLightSteps"), volumeLight.steps());
       glActiveTexture(GL_TEXTURE1);
       glBindTexture(GL_TEXTURE_3D, volumeUpload.resident().texture());
       glUniform1i(glGetUniformLocation(volumeProgram, "density"), 1);
@@ -653,6 +667,7 @@ public final class GlViewport implements AutoCloseable {
         in vec2 screen;out vec4 color;
         uniform mat4 inverseMatrix;uniform sampler3D density;uniform sampler2D palette;
         uniform float extent,opacity,threshold;uniform vec2 displayTransfer;uniform int steps;
+        """ + VolumeLight.fragment() + """
         void main(){
           vec3 background=vec3(.055,.075,.1);vec4 na=inverseMatrix*vec4(screen,-1,1),fa=inverseMatrix*vec4(screen,1,1);
           vec3 origin=na.xyz/na.w,direction=normalize(fa.xyz/fa.w-origin);
@@ -674,7 +689,7 @@ public final class GlViewport implements AutoCloseable {
             if(i>=steps||transmittance<.005)break;
             vec3 p=origin+direction*(enter+(float(i)+.5)*stepLength);float raw=texture(density,p/extent).r;
             if(raw>=threshold){float t=clamp(raw*displayTransfer.x+displayTransfer.y,0.0,1.0),a=1.0-exp(-t*opacity*stepLength);
-              vec3 base=texture(palette,vec2((t*255.0+.5)/256.0,.5)).rgb;accumulated+=transmittance*a*base;transmittance*=1.0-a;}
+              vec3 base=texture(palette,vec2((t*255.0+.5)/256.0,.5)).rgb;accumulated+=transmittance*a*base*(a>0.0?volumeIllumination(p):1.0);transmittance*=1.0-a;}
           }
           color=vec4(accumulated+transmittance*background,1);
         }
