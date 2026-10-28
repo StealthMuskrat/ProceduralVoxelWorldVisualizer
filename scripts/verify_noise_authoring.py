@@ -14,6 +14,7 @@ jsonschema.Draft202012Validator(json.loads((root/'schema/project.schema.json').r
 assert r['formatVersion']==1 and r['items']==2002 and r['parametersBefore']==2000 and r['parametersAfter']==1999
 assert 0<r['itemRows']<=30 and 0<=r['propertyRows']<=30 and 0<r['parameterRows']<=30
 assert r['filteredRows']==1 and r['callbacks']==1 and r['metadataBuilds']>0 and r['sample']==12
+assert r['focusFailureConsumed'] is True and r['focusFailureCallbacks']==1
 n=project['noise2D'][0]
 assert n['id']=='authoring' and n['algorithm']['key']=='CONSTANT' and n['algorithm']['parameters']['value']==1
 assert len(n['processing'])==2002 and len(n['sharedParameters'])==1999

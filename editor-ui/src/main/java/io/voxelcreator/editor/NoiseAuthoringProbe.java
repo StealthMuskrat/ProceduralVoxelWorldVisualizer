@@ -137,6 +137,41 @@ public final class NoiseAuthoringProbe {
         state.refreshDraft();
         require(sample(state.project(), resource) == 12, "Redo arithmetic");
 
+        var stagedOwner = (Noise) state.draft;
+        var stagedBase = ProjectIO.JSON.valueToTree(state.project());
+        long stagedHistory = state.document.historyBytes(), stagedRevision = state.revision;
+        var focusAttempts = new AtomicInteger();
+        var focusDialogClosed = new AtomicBoolean();
+        var failedFocus =
+            new NoiseEditDialog(
+                state,
+                stagedOwner,
+                Request.simple(
+                    Action.DELETE_PARAMETER, stagedOwner.sharedParameters.getLast().uuid),
+                ignored -> {
+                  focusAttempts.incrementAndGet();
+                  throw new IllegalStateException();
+                });
+        draw =
+            () -> {
+              if (failedFocus.draw()) focusDialogClosed.set(true);
+            };
+        frames(4);
+        click(failedFocus.applyCenter());
+        frames(3);
+        require(
+            focusDialogClosed.get() && focusAttempts.get() == 1,
+            "Failed focus reopened or repeated accepted private staging");
+        require(
+            stagedOwner.sharedParameters.size() == 1998
+                && state.draft == stagedOwner
+                && stagedBase.equals(ProjectIO.JSON.valueToTree(state.project()))
+                && stagedHistory == state.document.historyBytes()
+                && stagedRevision == state.revision,
+            "Failed focus lost staging or committed the private edit");
+        draw = () -> {};
+        state.refreshDraft();
+
         var properties = new PropertyPanel(state);
         properties.goToControl(resource, multiply);
         draw = properties::draw;
@@ -182,6 +217,8 @@ public final class NoiseAuthoringProbe {
         report.put("parameterRows", parameterRows);
         report.put("filteredRows", 1);
         report.put("callbacks", callbacks.get());
+        report.put("focusFailureConsumed", true);
+        report.put("focusFailureCallbacks", focusAttempts.get());
         report.put("metadataBuilds", builds);
         report.put("sample", 12);
         Files.writeString(

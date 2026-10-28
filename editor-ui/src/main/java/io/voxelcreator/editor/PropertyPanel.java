@@ -1190,6 +1190,10 @@ public final class PropertyPanel {
   }
 
   private void requestNoiseEdit(Noise noise, NoiseAuthoring.Request request) {
+    if (noiseEdit != null) {
+      authoringMessage = "Finish or cancel the pending noise edit first.";
+      return;
+    }
     var plan = NoiseAuthoring.plan(state.project(), noise, request);
     if (!plan.valid()) {
       if (Set.of(
