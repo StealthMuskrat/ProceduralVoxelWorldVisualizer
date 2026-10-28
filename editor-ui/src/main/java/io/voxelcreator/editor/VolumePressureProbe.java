@@ -5,6 +5,7 @@ import static org.lwjgl.opengl.GL33.*;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
+import io.voxelcreator.core.ProcessingRegistry;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
 import io.voxelcreator.render.*;
