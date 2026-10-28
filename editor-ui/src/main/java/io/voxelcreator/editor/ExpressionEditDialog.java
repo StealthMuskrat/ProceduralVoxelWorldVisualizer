@@ -13,6 +13,17 @@ public final class ExpressionEditDialog {
   private final ImString text;
   private boolean pending = true;
   private String error = "";
+  private final ExpressionSelectionCallback selection = new ExpressionSelectionCallback();
+  private boolean selectionFocus;
+
+  String bufferText() {
+    return session.text();
+  }
+
+  ExpressionSelection.Range selectedRange() {
+    return selection.applied();
+  }
+
   private final Map<String, float[]> controls = new HashMap<>();
 
   public ExpressionEditDialog(EditorState state, ExpressionEditSession session, Runnable staged) {
@@ -46,20 +57,37 @@ public final class ExpressionEditDialog {
     ImGui.textWrapped(
         "Use in Properties stages only this text. Apply in Properties validates and commits the"
             + " complete resource. Cancel discards this buffer.");
-    if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
+    selection.context(state.project(), state.draft, session, session.text());
+    ExpressionFeedback.Result feedback = null;
+    try {
+      feedback = session.feedback(state);
+    } catch (RuntimeException invalid) {
+      error = invalid.getMessage();
+      selection.cancel();
+      selectionFocus = false;
+    }
+    if (ImGui.isWindowAppearing() || selectionFocus) ImGui.setKeyboardFocusHere();
+    selectionFocus = false;
     if (ImGui.inputTextMultiline(
         "##expression-expanded",
         text,
         ImGui.getContentRegionAvailX(),
-        Math.max(140, ImGui.getContentRegionAvailY() - 145))) {
+        Math.max(140, ImGui.getContentRegionAvailY() - 175),
+        ImGuiInputTextFlags.CallbackAlways,
+        selection)) {
       session.edit(text.get());
       error = "";
+      try {
+        feedback = session.feedback(state);
+      } catch (RuntimeException invalid) {
+        error = invalid.getMessage();
+        feedback = null;
+      }
     }
     controlRect("text");
     ImGui.text(
         text.get().length() + " / " + ExpressionEditSession.MAX_CHARACTERS + " UTF-16 characters");
-    try {
-      var feedback = session.feedback(state);
+    if (feedback != null) {
       if (feedback.valid()) ImGui.text("Valid " + feedback.type() + " expression");
       else if (feedback.input() != null)
         ImGui.textWrapped("! Input " + feedback.input() + ": " + feedback.error());
@@ -72,8 +100,13 @@ public final class ExpressionEditDialog {
                 + ".."
                 + feedback.end()
                 + ", zero-based UTF-16, end exclusive]");
-    } catch (RuntimeException invalid) {
-      error = invalid.getMessage();
+      if (!feedback.valid() && feedback.input() == null) {
+        if (ImGui.smallButton("Select Expression Error")) {
+          selection.request(text.get(), feedback);
+          selectionFocus = true;
+        }
+        controlRect("selectError");
+      }
     }
     if (!error.isEmpty()) ImGui.textWrapped("! " + error);
     boolean done = false;
@@ -93,7 +126,10 @@ public final class ExpressionEditDialog {
       done = true;
     }
     controlRect("cancel");
-    if (done) ImGui.closeCurrentPopup();
+    if (done) {
+      selection.cancel();
+      ImGui.closeCurrentPopup();
+    }
     ImGui.endPopup();
     return done;
   }

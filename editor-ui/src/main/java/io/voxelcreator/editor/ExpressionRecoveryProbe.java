@@ -33,6 +33,7 @@ public final class ExpressionRecoveryProbe {
                   var item = ProcessingRegistry.create("EXPRESSION", "formula");
                   item.parameters.put("expression", ProjectIO.JSON.valueToTree("x+bias"));
                   item.inputs.put("bias", Binding.constant(2));
+                  item.inputs.put("é", Binding.constant(2));
                   n.processing.add(item);
                   n.outputBinding = Binding.earlier(item.uuid);
                   p.noise2D.add(n);
@@ -58,6 +59,7 @@ public final class ExpressionRecoveryProbe {
         require(state.draft == draft, "Rejected draft replaced");
         require(
             committed.equals(ProjectIO.JSON.valueToTree(state.project())), "Premature publication");
+        replace("x+é+unknown");
         frames(3);
         click(panel.probeExpressionControl("focus"));
         require(
@@ -67,9 +69,18 @@ public final class ExpressionRecoveryProbe {
         require(panel.probeExpressionActive(), "Focus request was not acknowledged");
         frames(3);
         // No mouse click on the text: the production focus action must accept keyboard repair.
-        replace("x+bias*2");
         require(
-            "x+bias*2".equals(item.parameters.get("expression").asText()),
+            new ExpressionSelection.Range(5, 12).equals(panel.probeExpressionSelection()),
+            "Unicode parser span was not selected in UTF-8 bytes");
+        io.addInputCharactersUTF8("bias");
+        frames(3);
+        require(
+            "x+é+bias".equals(item.parameters.get("expression").asText()),
+            "Selected-token replacement");
+        io.addInputCharactersUTF8("+0");
+        frames(3);
+        require(
+            "x+é+bias+0".equals(item.parameters.get("expression").asText()),
             "Keyboard focus repair failed: " + item.parameters.get("expression"));
         require(state.applyDraft(), "Repair rejected");
         require(sample(state.project(), n.uuid) == 4, "Repaired arithmetic");
@@ -97,6 +108,10 @@ public final class ExpressionRecoveryProbe {
                     "rejectedDraftPreserved",
                     true,
                     "oneUndoRedo",
+                    true,
+                    "unicodeTokenSelection",
+                    true,
+                    "oneShotSelection",
                     true)));
         System.out.println(
             "EXPRESSION_RECOVERY_NATIVE_PASS input action / keyboard focus / rejected draft / Apply"

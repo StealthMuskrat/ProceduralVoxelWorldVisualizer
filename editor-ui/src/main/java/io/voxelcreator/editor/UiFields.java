@@ -1,6 +1,8 @@
 package io.voxelcreator.editor;
 
 import imgui.*;
+import imgui.callback.ImGuiInputTextCallback;
+import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.*;
 import java.util.*;
 import java.util.function.*;
@@ -23,10 +25,22 @@ public final class UiFields {
   }
 
   public void text(String label, String value, Consumer<String> set) {
+    text(label, value, set, null);
+  }
+
+  void text(String label, String value, Consumer<String> set, ImGuiInputTextCallback callback) {
     ImString b =
         texts.computeIfAbsent(
-            ImGui.getID(label) + label, k -> new ImString(value == null ? "" : value, 16384));
-    if (ImGui.inputText(label, b)) {
+            ImGui.getID(label) + label,
+            k ->
+                new ImString(
+                    value == null ? "" : value,
+                    callback == null ? 16384 : 4 * ExpressionEditSession.MAX_CHARACTERS + 1));
+    boolean edited =
+        callback == null
+            ? ImGui.inputText(label, b)
+            : ImGui.inputText(label, b, ImGuiInputTextFlags.CallbackAlways, callback);
+    if (edited) {
       set.accept(b.get());
       changed.run();
     }

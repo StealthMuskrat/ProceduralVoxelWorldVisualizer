@@ -33,6 +33,7 @@ public final class ExpandedExpressionProbe {
                   var item = ProcessingRegistry.create("EXPRESSION", "formula");
                   item.parameters.put("expression", ProjectIO.JSON.valueToTree("x+bias"));
                   item.inputs.put("bias", Binding.constant(2));
+                  item.inputs.put("é", Binding.constant(0));
                   n.processing.add(item);
                   n.outputBinding = Binding.earlier(item.uuid);
                   p.noise2D.add(n);
@@ -53,6 +54,24 @@ public final class ExpandedExpressionProbe {
         replace("x+9");
         require(
             "x+bias".equals(item.parameters.get("expression").asText()), "Buffer leaked to draft");
+        replace("é+\nunknown");
+        click(panel.probeExpandedExpressionControl("selectError"));
+        frames(4);
+        require(
+            new ExpressionSelection.Range(4, 11).equals(panel.probeExpandedExpressionSelection()),
+            "Expanded multiline UTF-8 span");
+        io.addInputCharactersUTF8("bias");
+        frames(3);
+        require(
+            "é+\nbias".equals(panel.probeExpandedExpressionText()), "Expanded token replacement");
+        io.addInputCharactersUTF8("+0");
+        frames(3);
+        require(
+            "é+\nbias+0".equals(panel.probeExpandedExpressionText()),
+            "Expanded selection repeated");
+        require(
+            "x+bias".equals(item.parameters.get("expression").asText()),
+            "Selection leaked to draft");
         click(panel.probeExpandedExpressionControl("cancel"));
         frames(2);
         require(!panel.probeExpandedExpressionOpen(), "Cancel did not close");
@@ -111,7 +130,9 @@ public final class ExpandedExpressionProbe {
                     "oneUndoRedo",
                     true,
                     "lineCount",
-                    2)));
+                    2,
+                    "tokenSelection",
+                    Map.of("unicode", true, "oneShot", true))));
         System.out.println(
             "EXPANDED_EXPRESSION_NATIVE_PASS multiline / Cancel / Escape / private stage / Apply /"
                 + " Undo-Redo");

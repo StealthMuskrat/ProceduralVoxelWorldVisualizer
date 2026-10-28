@@ -11,6 +11,31 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ExpressionFeedbackTest {
   @Test
+  void parserSpansSelectCurrentUnicodeTokenAndEndOfInputWithoutBindingRoutes() {
+    var project = new ProjectData();
+    var noise = new Noise();
+    var item = ProcessingRegistry.create("EXPRESSION", "formula");
+    item.inputs.put("é", Binding.constant(2));
+    item.parameters.put("expression", ProjectIO.JSON.valueToTree("é+\nunknown"));
+    var feedback = new ExpressionFeedback();
+    var error = feedback.inspect(project, noise, item);
+    assertFalse(error.valid());
+    assertNull(error.input());
+    assertEquals(3, error.start());
+    assertEquals(10, error.end());
+    assertEquals(
+        new ExpressionSelection.Range(4, 11),
+        ExpressionSelection.utf8Range("é+\nunknown", error.start(), error.end()));
+    item.parameters.put("expression", ProjectIO.JSON.valueToTree("sin("));
+    error = feedback.inspect(project, noise, item);
+    assertFalse(error.valid());
+    assertEquals(4, error.start());
+    assertEquals(4, error.end());
+    item.parameters.put("expression", ProjectIO.JSON.valueToTree("é+2"));
+    assertTrue(feedback.inspect(project, noise, item).valid());
+  }
+
+  @Test
   void invalidNamedBindingsAreDistinguishedFromParserSpansAndNeverCached() {
     var p = new ProjectData();
     var n = new Noise();

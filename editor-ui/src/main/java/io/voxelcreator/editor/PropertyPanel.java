@@ -154,6 +154,7 @@ public final class PropertyPanel {
     focusedControl = target.control();
     navigationTarget = target;
     navigationDraft = state.draft;
+    expressionSelection.cancel();
     propertyFocus.request(target, state.draft);
     bindingFocusSubmitted = false;
     focusedBinding = null;
@@ -283,6 +284,7 @@ public final class PropertyPanel {
 
   public void goToControl(UUID resource, UUID control) {
     propertyFocus.cancel();
+    expressionSelection.cancel();
     searchScroll = false;
     Object object = EditorState.find(state.project(), resource);
     if (object instanceof Noise n) {
@@ -356,6 +358,7 @@ public final class PropertyPanel {
                 + navigationTarget.pointer());
         if (ImGui.smallButton("Clear Location")) {
           navigationTarget = null;
+          expressionSelection.cancel();
           searchScroll = false;
           propertyFocus.cancel();
         }
@@ -517,8 +520,11 @@ public final class PropertyPanel {
           f.clear();
           inputNames.clear();
         }
-        if (noiseBrowser.consumeUserSelectionChanged())
+        if (noiseBrowser.consumeUserSelectionChanged()) {
+          expressionSelection.cancel();
+          searchScroll = false;
           propertyFocus.chooseControl(n.coordinateTransforms.get(i).uuid);
+        }
         var item = n.coordinateTransforms.get(i);
         ImGui.pushID(item.uuid.toString());
         focusRow(item.uuid);
@@ -652,8 +658,11 @@ public final class PropertyPanel {
           f.clear();
           inputNames.clear();
         }
-        if (noiseBrowser.consumeUserSelectionChanged())
+        if (noiseBrowser.consumeUserSelectionChanged()) {
+          expressionSelection.cancel();
+          searchScroll = false;
           propertyFocus.chooseControl(n.processing.get(i).uuid);
+        }
         var item = n.processing.get(i);
         ImGui.pushID(item.uuid.toString());
         if (focusedControl != null && curveContains(item, focusedControl))
@@ -890,8 +899,11 @@ public final class PropertyPanel {
           f.clear();
           inputNames.clear();
         }
-        if (noiseBrowser.consumeUserSelectionChanged())
+        if (noiseBrowser.consumeUserSelectionChanged()) {
+          expressionSelection.cancel();
+          searchScroll = false;
           propertyFocus.chooseControl(n.sharedParameters.get(parameterIndex).uuid);
+        }
         var p = n.sharedParameters.get(parameterIndex);
         ImGui.pushID(p.uuid.toString());
         revealRow(p.uuid);
@@ -1185,6 +1197,11 @@ public final class PropertyPanel {
   private final Map<String, float[]> expressionRects = new HashMap<>();
   private boolean expressionActive;
   private boolean expressionFocusSubmitted;
+  private final ExpressionSelectionCallback expressionSelection = new ExpressionSelectionCallback();
+
+  ExpressionSelection.Range probeExpressionSelection() {
+    return expressionSelection.applied();
+  }
 
   boolean probeExpressionActive() {
     return expressionActive;
@@ -1221,6 +1238,14 @@ public final class PropertyPanel {
     return expressionDialog == null ? null : expressionDialog.control(key);
   }
 
+  String probeExpandedExpressionText() {
+    return expressionDialog == null ? null : expressionDialog.bufferText();
+  }
+
+  ExpressionSelection.Range probeExpandedExpressionSelection() {
+    return expressionDialog == null ? null : expressionDialog.selectedRange();
+  }
+
   boolean probeExpandedExpressionOpen() {
     return expressionDialog != null;
   }
@@ -1236,12 +1261,17 @@ public final class PropertyPanel {
             && item.uuid.equals(navigationTarget.control())
             && Set.of("expression", "parameters/expression")
                 .contains(Objects.requireNonNullElse(navigationTarget.parameter(), ""));
+    expressionSelection.context(state.project(), state.draft, item, expr);
     if (expressionTarget && !expressionFocusSubmitted) {
+      expressionSelection.request(expr, expressionFeedback.inspect(state.project(), n, item));
       ImGui.setKeyboardFocusHere();
       expressionFocusSubmitted = true;
     }
     f.text(
-        "Expression", expr, v -> item.parameters.put("expression", ProjectIO.JSON.valueToTree(v)));
+        "Expression",
+        expr,
+        v -> item.parameters.put("expression", ProjectIO.JSON.valueToTree(v)),
+        expressionSelection);
     expressionRect("text");
     expressionActive = ImGui.isItemActive();
     if (expressionTarget) {
@@ -1254,6 +1284,7 @@ public final class PropertyPanel {
       }
     }
     if (ImGui.smallButton("Expand Expression")) {
+      expressionSelection.cancel();
       try {
         expressionDialog =
             new ExpressionEditDialog(
@@ -1295,6 +1326,9 @@ public final class PropertyPanel {
                   state.project().project.uuid, n.uuid, item.uuid, "expression", "", false));
         }
         expressionRect("focus");
+        if (ImGui.isItemHovered())
+          ImGui.setTooltip(
+              "Select the current parser error, or place the caret at an empty error span.");
       }
     } else {
       ImGui.textWrapped(
@@ -1350,6 +1384,7 @@ public final class PropertyPanel {
         value -> {
           inputSelection.select(noise, item, value);
           propertyFocus.cancel();
+          expressionSelection.cancel();
           searchScroll = false;
           bindingFocusSubmitted = false;
           f.clear();
