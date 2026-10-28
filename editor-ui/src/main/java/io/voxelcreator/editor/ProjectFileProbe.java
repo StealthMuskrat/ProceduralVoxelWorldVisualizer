@@ -35,7 +35,7 @@ final class ProjectFileProbe {
           init(editor);
           var before = snapshot();
           var draft = state.draft;
-          dialog.workflow.request(intent);
+          request(intent);
           frames(3);
           require(dialog.workflow.phase() == Phase.GUARD, "Missing dirty guard");
           click(
@@ -89,7 +89,7 @@ final class ProjectFileProbe {
         init(editor);
         var before = snapshot();
         var draft = state.draft;
-        dialog.workflow.request(intent);
+        request(intent);
         frames(3);
         click("Save");
         click("Cancel");
@@ -101,9 +101,9 @@ final class ProjectFileProbe {
       init(editor);
       var before = snapshot();
       var draft = state.draft;
-      dialog.workflow.request(Intent.EXIT);
+      request(Intent.EXIT);
       frames(3);
-      dialog.workflow.request(Intent.NEW);
+      request(Intent.NEW);
       dialog.workflow.save(true);
       require(dialog.workflow.phase() == Phase.GUARD, "Second command replaced guard");
       key(ImGuiKey.Escape);
@@ -124,7 +124,7 @@ final class ProjectFileProbe {
         Path blocked = out.resolve(intent + "-blocked").toAbsolutePath();
         Files.createDirectories(blocked);
         Files.writeString(blocked.resolve("sentinel"), "retained");
-        dialog.workflow.request(intent);
+        request(intent);
         frames(3);
         click("Save");
         text(blocked.toString());
@@ -154,7 +154,7 @@ final class ProjectFileProbe {
       init(editor);
       var before = snapshot();
       var draft = state.draft;
-      dialog.workflow.request(Intent.OPEN);
+      request(Intent.OPEN);
       frames(3);
       click("Don't Save");
       Path bad = out.resolve("malformed.json").toAbsolutePath();
@@ -185,7 +185,7 @@ final class ProjectFileProbe {
       Files.writeString(named.resolve("sentinel"), "retained");
       var before = snapshot();
       var draft = state.draft;
-      dialog.workflow.request(Intent.EXIT);
+      request(Intent.EXIT);
       frames(3);
       click("Save");
       unchanged(before, draft);
@@ -208,7 +208,7 @@ final class ProjectFileProbe {
       require(
           path.equals(state.document.path()) && !state.document.dirty(),
           "Save As Cancel changed saved path");
-      dialog.workflow.request(Intent.EXIT);
+      request(Intent.EXIT);
       frames(2);
       require(exits == 1 && dialog.workflow.phase() == Phase.IDLE, "Clean exit prompted");
       record("CLEAN_EXIT");
@@ -220,6 +220,12 @@ final class ProjectFileProbe {
     System.out.println(
         "PROJECT_FILES_NATIVE_PASS production Save-Discard-Cancel / New-Open-Exit / path Escape /"
             + " failed save abort / failed open retention / actual retry files");
+  }
+
+  // Preserve this fixture's original committed-document scenarios after explicit draft discard.
+  private static void request(Intent intent) {
+    dialog.workflow.request(intent);
+    if (dialog.workflow.phase() == Phase.DRAFT) dialog.workflow.decideDraft(DraftDecision.DISCARD);
   }
 
   private static EditorState fixture() {

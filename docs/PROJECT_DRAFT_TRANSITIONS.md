@@ -1,0 +1,35 @@
+# Properties drafts and project transitions
+
+Status: **implemented, awaiting validation** on `codex/development-phase`. No compilation, regression/native execution or independent replay was performed in this batch. The owner has paused GitHub testing until development is complete. Earlier passing counts and acceptance statuses are unchanged.
+
+New, Open Project, Exit and the desktop window-close callback now protect modified Properties input even when the committed document is clean. Canonical draft differences and retained invalid seed text both open **Unapplied Properties** before the existing committed-document Save / Don't Save / Cancel decision. The prompt names the requested transition and offers **Apply Draft**, **Discard Draft** and **Cancel**. Escape cancels.
+
+Apply Draft uses the ordinary Properties validation/transaction. Invalid text, overflow or invalid model values keep the exact private draft, document, history and transition decision. Successful Apply is one ordinary undoable document edit; the subsequent save decision is separate. Canceling that later decision leaves the explicit Apply in the document, where it can be undone. A successful New/Open eventually replaces the session and its old history under the existing file contract.
+
+Discard Draft authorizes the requested transition; it does not immediately refresh or erase the draft. Canceled path entry, a failed Open, a failed save or a canceled committed-document decision retain the original private input. If a required save succeeds and Open is later canceled, the committed document is saved while the original unapplied draft remains available. Successful New/Open releases old selection, private seed ownership and project history only after publication. Exit invokes the same terminal callback once; it does not create a hidden project save.
+
+## Save and failure ownership
+
+Standalone Save/Save As continues to persist committed project data only. It does not apply Properties or require closing a separate private editor simply to save the committed document. No new autosave, backup, recent-project, automatic reopen or recovery-file workflow is introduced.
+
+A failed required save aborts its queued transition. Save As keeps the path dialog available for correction, but a successful retry saves only. The user must explicitly request New/Open/Exit again. A failed named save returns to the editor with its existing error notification. Discarded private input is not disposed of by either failure path. If Apply Draft already succeeded, that explicit edit remains committed and undoable when a subsequent save fails.
+
+Each draft decision, committed-document guard and file path is bound to an exact project object/revision, selected UUID, ordered selection, exact Properties draft object, serialized draft value, raw-seed revision, saved path and dirty baseline. Changed ownership aborts the old action before saving/opening or running a transition callback. This includes equal-value same-UUID draft replacement, a different Save As path and an external save that changes a dirty baseline. Cancel is always available. A required save captures the new saved ownership before continuing into Open; a failed save converts only its retry into a standalone save. Error reporting does not rearm a destructive action.
+
+The production modal closes obsolete presentation after an externally canceled/stale action as well as after its own buttons. Successive draft/save/path stages use distinct titles where needed, and immediate reopening still initializes the requested path.
+
+## Other private project interactions
+
+Desktop transition entry also checks open private curve/expression/typed-item/membership editors, pending source/Find navigation decisions, resource browser decisions/forms/inline rename/drag ownership, edited Project Settings, and import/export dialogs. Those interactions must be finished or canceled before requesting the transition again. The native close callback first keeps the window open, then uses this same controller; no competing direct exit path is introduced.
+
+Resource creation, placement and Delete forms now clear their ownership on Cancel/Escape and accepted submission. Import/export file entry clears its ownership on successful submission and Cancel/Escape. Project Settings detects pending raw text against its original canonical values, including incomplete or differently formatted text. Successful project replacement cancels its old unmodified session. User/application preference editors retain their separate persistence policies; this change does not certify all unsaved preference-window closure behavior.
+
+## Deferred verification definitions
+
+`ProjectDraftTransitionTest` defines twelve contracts. These include all three intents with canonical/raw input on a clean document, rejected Apply, one ordinary Apply/Undo, deferred discard through failed/canceled Open, committed-only Save, private-editor blocking, successful replacement cleanup, failed required-save retry and exact browser/Project Settings blocker flags. A twenty-four-case matrix covers six ownership changes in each of the draft, committed guard, Open and Save As phases; a separate case checks a changed dirty baseline at the same saved path.
+
+`ProjectDraftTransitionProbe` defines thirteen production-modal scenarios with actual ImGui mouse, path text and Escape events plus real filesystem I/O. Property values/raw signs are staged as fixtures. It checks all-intent draft Cancel and invalid Apply, a successful Apply/Undo/Redo/save, deferred discard after a failed Open, failed save replacement with a retained sentinel, retry-without-Exit, stale draft/path rejection, standalone Save and an injected private-editor blocker. Exit is a counted callback; the probe does not synthesize a physical OS window close or certify every private editor's native interaction.
+
+The probe saves three documents: an explicitly applied Long.MIN_VALUE offset, an applied offset 17 saved after a failed required save, and a standalone save retaining offset zero despite invalid private text. `ProjectDraftConsumer` defines engine-JAR-only replay of 243 exact constant samples and 432 EMPTY cells across roots 2/4 and signed chunks. `verify_project_drafts.py` defines independent exact seed/structure/schema/report and failed-save sentinel checks. Linux/Windows workflow steps and artifact retention are prepared without changing development-branch exclusions. None has run during this batch.
+
+The earlier file workflow regression/native definitions now explicitly arrange Discard Draft before isolating their original committed-document scenarios. Historical passing evidence belongs to its recorded source, not these changed definitions. Full physical window-manager close, DPI/focus, all private-dialog combinations, arbitrary I/O faults, concurrent external mutations, packaged-platform interaction and Windows 11 acceptance remain pending. Direct project Undo/Redo and other navigation paths retain their separately scoped policies.

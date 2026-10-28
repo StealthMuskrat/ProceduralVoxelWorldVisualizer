@@ -33,3 +33,5 @@ Physical keyboard/IME/DPI behavior, all nested gate edits and override reset ges
 The subsequent [resource selection guard](RESOURCE_SELECTION_GUARDS.md) extends raw-text protection to browser/manager row clicks, Ctrl/Shift selection and context-menu Properties. It is also unvalidated; structural browser mutations and file transitions retain their separately documented policies.
 
 The subsequent [resource browser transactions](RESOURCE_BROWSER_TRANSACTIONS.md) also prevent structural actions from silently refreshing invalid seed text. Explicit Discard disposes of it only after the requested action succeeds; explicit Apply remains blocked by it. This source is unvalidated.
+
+[Project draft transitions](PROJECT_DRAFT_TRANSITIONS.md) subsequently extend raw-seed protection to New/Open/Exit and shared native-close routing, including clean committed documents. Discard is deferred through failed/canceled paths, and standalone Save remains committed-only. This implementation is also unvalidated.

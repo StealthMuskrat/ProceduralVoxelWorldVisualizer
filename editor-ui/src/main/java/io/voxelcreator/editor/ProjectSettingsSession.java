@@ -55,6 +55,13 @@ final class ProjectSettingsSession {
     return closed;
   }
 
+  boolean modified() {
+    return !closed
+        && (!text.get("seed").equals(Long.toString(baseSeed))
+            || !text.get("minY").equals(Integer.toString(baseMinY))
+            || !text.get("maxY").equals(Integer.toString(baseMaxY)));
+  }
+
   private static Diagnostic problem(String field, String message) {
     return new Diagnostic(
         "INVALID_PROJECT_SETTING",

@@ -57,6 +57,10 @@ public final class ProjectSettingsPanel {
     focusWindow = false;
   }
 
+  boolean pendingChanges() {
+    return session != null && session.modified();
+  }
+
   /** Called inside the shared Settings window; true closes that window after Apply/Cancel. */
   public boolean draw() {
     if (session == null || session.closed()) reload();

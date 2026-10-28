@@ -4,6 +4,7 @@ import imgui.*;
 import imgui.flag.*;
 import imgui.type.ImString;
 import java.util.*;
+import java.util.function.BooleanSupplier;
 
 /** Shared production presentation for project paths and the unsaved-project decision. */
 final class ProjectFileDialog {
@@ -14,15 +15,25 @@ final class ProjectFileDialog {
   private final Map<String, float[]> controls = new HashMap<>();
 
   ProjectFileDialog(EditorState state, Runnable replaced, Runnable exit) {
+    this(state, replaced, exit, () -> false);
+  }
+
+  ProjectFileDialog(EditorState state, Runnable replaced, Runnable exit, BooleanSupplier blocked) {
     this.state = state;
-    workflow = new ProjectFileWorkflow(state, replaced, exit);
+    workflow = new ProjectFileWorkflow(state, replaced, exit, blocked);
   }
 
   void draw() {
     controls.clear();
     var phase = workflow.phase();
+    if (shown != phase
+        && shown != ProjectFileWorkflow.Phase.IDLE
+        && ImGui.beginPopupModal(title(shown), ImGuiWindowFlags.AlwaysAutoResize)) {
+      ImGui.closeCurrentPopup();
+      ImGui.endPopup();
+    }
     if (phase != shown && phase != ProjectFileWorkflow.Phase.IDLE) {
-      if (phase != ProjectFileWorkflow.Phase.GUARD)
+      if (phase == ProjectFileWorkflow.Phase.OPEN || phase == ProjectFileWorkflow.Phase.SAVE)
         path.set(
             state.document.path() == null
                 ? "project.pvproj.json"
@@ -32,7 +43,22 @@ final class ProjectFileDialog {
     shown = phase;
     if (phase == ProjectFileWorkflow.Phase.IDLE) return;
     if (!ImGui.beginPopupModal(title(phase), ImGuiWindowFlags.AlwaysAutoResize)) return;
-    if (phase == ProjectFileWorkflow.Phase.GUARD) {
+    if (!workflow.error().isEmpty()) ImGui.textWrapped(workflow.error());
+    if (phase == ProjectFileWorkflow.Phase.DRAFT) {
+      ImGui.text("Continue with: " + workflow.action());
+      ImGui.textWrapped(
+          "Properties has unapplied input. Apply it before continuing, discard it only if the"
+              + " transition succeeds, or cancel.");
+      ImGui.textWrapped(
+          "Save writes the committed project. Applying here creates one ordinary undoable edit"
+              + " before any save decision.");
+      if (button("Apply Draft")) workflow.decideDraft(ProjectFileWorkflow.DraftDecision.APPLY);
+      ImGui.sameLine();
+      if (button("Discard Draft")) workflow.decideDraft(ProjectFileWorkflow.DraftDecision.DISCARD);
+      ImGui.sameLine();
+      if (button("Cancel")) workflow.cancel();
+    } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
+      ImGui.text("Continue with: " + workflow.action());
       ImGui.text("Save changes before continuing?");
       if (button("Save")) workflow.decide(ProjectFileWorkflow.Decision.SAVE);
       ImGui.sameLine();
@@ -45,7 +71,6 @@ final class ProjectFileDialog {
       ImGui.setNextItemWidth(600);
       ImGui.inputText("Path", path);
       control("Path");
-      if (!workflow.error().isEmpty()) ImGui.textWrapped(workflow.error());
       if (button(action)) workflow.submit(path.get());
       ImGui.sameLine();
       if (button("Cancel")) workflow.cancel();
@@ -59,7 +84,11 @@ final class ProjectFileDialog {
   }
 
   private static String title(ProjectFileWorkflow.Phase phase) {
-    return phase == ProjectFileWorkflow.Phase.GUARD ? "Unsaved Project" : "Project File Location";
+    return switch (phase) {
+      case DRAFT -> "Unapplied Properties";
+      case GUARD -> "Unsaved Project";
+      default -> "Project File Location";
+    };
   }
 
   private boolean button(String label) {

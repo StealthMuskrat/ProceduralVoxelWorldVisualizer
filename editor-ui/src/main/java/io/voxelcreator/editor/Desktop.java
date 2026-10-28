@@ -49,6 +49,7 @@ public final class Desktop extends Application {
       origins = new ImString(2048);
   private String settingsPage = "User Settings", settingsCategory = "Appearance", fileAction = "";
   private boolean filePending = false;
+  private boolean packageFileOpen;
   private ProjectFileDialog projectFiles;
   private ProjectSettingsPanel projectSettings;
   private ProjectData importCandidate;
@@ -124,7 +125,21 @@ public final class Desktop extends Application {
             });
     projectFiles =
         new ProjectFileDialog(
-            state, resources::reset, () -> glfwSetWindowShouldClose(handle, true));
+            state,
+            () -> {
+              resources.reset();
+              projectSettings.cancel();
+            },
+            () -> glfwSetWindowShouldClose(handle, true),
+            () ->
+                properties.searchBlocked()
+                    || resources.blocksProjectTransition()
+                    || sourceNavigation.pending()
+                    || findPanel.navigationPending()
+                    || projectSettings.pendingChanges()
+                    || filePending
+                    || packageFileOpen
+                    || importCandidate != null);
     views = new Viewports(state, properties, handle);
     views.tracePanel(new TracePanel(state, sourceNavigation));
     diagnostics.tracePanel(new TracePanel(state, sourceNavigation));
@@ -491,6 +506,7 @@ public final class Desktop extends Application {
     fileAction = action;
     if (action.equals("Export")) resources.beginExport();
     filePending = true;
+    packageFileOpen = true;
     pathInput.set(
         state.document.path() != null ? state.document.path().toString() : "project.pvproj.json");
   }
@@ -536,6 +552,7 @@ public final class Desktop extends Application {
               importRevision = -1;
             }
           }
+          packageFileOpen = false;
           ImGui.closeCurrentPopup();
         } catch (Exception e) {
           state.error(
@@ -548,10 +565,17 @@ public final class Desktop extends Application {
       }
       ImGui.sameLine();
       if (ImGui.button("Cancel")) {
+        packageFileOpen = false;
         ImGui.closeCurrentPopup();
       }
-      if (smokeFrames > 0 && 480 - smokeFrames == 236 && fileAction.equals("Export"))
+      if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+        packageFileOpen = false;
         ImGui.closeCurrentPopup();
+      }
+      if (smokeFrames > 0 && 480 - smokeFrames == 236 && fileAction.equals("Export")) {
+        packageFileOpen = false;
+        ImGui.closeCurrentPopup();
+      }
       ImGui.endPopup();
     }
     if (importCandidate != null && !ImGui.isPopupOpen("Import Resources"))

@@ -157,6 +157,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpandedExpressionProbe build/expanded-expression
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExpressionRecoveryConsumer build/expanded-expression/expanded-expression-project.json 6
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
+      - name: Project transitions and unapplied Properties workflow
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectDraftTransitionProbe build/project-drafts
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectDraftConsumer build/project-drafts
+          python scripts/verify_project_drafts.py build/project-drafts
       - name: Guarded browser mutations and atomic Properties workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceEditProbe build/browser-edits
@@ -274,6 +279,7 @@ jobs:
             build/seed-text/
             build/browser-selection/
             build/browser-edits/
+            build/project-drafts/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/
@@ -544,6 +550,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows project transitions and unapplied Properties workflow
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectDraftTransitionProbe build/project-drafts
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ProjectDraftConsumer build/project-drafts
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_project_drafts.py build/project-drafts
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows guarded browser mutations and atomic Properties workflow
         shell: pwsh
         run: |
@@ -751,6 +766,7 @@ jobs:
             build/seed-text/
             build/browser-selection/
             build/browser-edits/
+            build/project-drafts/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/

@@ -29,3 +29,5 @@ Unsupported project metadata, including file format version and root-order inter
 `ProjectSettingsConsumer` defines 141 exact engine-JAR observations: 81 signed X/Z samples against `x+17-2+3+6`, plus 60 voxel observations over roots 2/4 checking occupied cells exactly inside inclusive Y=-2..3. `verify_project_settings.py` defines schema, saved metadata, private-buffer report, ambient arithmetic and unchanged placement checks. Future Linux/Windows workflow entries and retained artifacts reference these definitions; development-branch trigger exclusions remain unchanged and none has been executed during this batch.
 
 Full Desktop menu/page-switch/window-X gestures, physical keyboard/IME/DPI cases, arbitrary focus/scroll layouts and complete project-lifecycle/GUI/hardware acceptance remain pending. Earlier evidence remains scoped to its recorded source.
+
+The subsequent [project transition guard](PROJECT_DRAFT_TRANSITIONS.md) blocks New/Open/Exit while Project Settings contains pending raw input. Unmodified sessions are canceled after successful project replacement. These changes remain unvalidated.

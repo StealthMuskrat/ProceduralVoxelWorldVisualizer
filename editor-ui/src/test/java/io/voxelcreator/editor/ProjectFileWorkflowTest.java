@@ -28,6 +28,12 @@ class ProjectFileWorkflowTest {
     return state;
   }
 
+  // These legacy cases isolate the committed-document phase after an explicit draft decision.
+  private void request(ProjectFileWorkflow workflow, Intent intent) {
+    workflow.request(intent);
+    if (workflow.phase() == Phase.DRAFT) workflow.decideDraft(DraftDecision.DISCARD);
+  }
+
   @Test
   void cancelPreservesDirtyProjectPathDraftSelectionAndUndoForEveryIntent() {
     for (var intent : Intent.values())
@@ -37,7 +43,7 @@ class ProjectFileWorkflowTest {
         var selected = s.selected;
         long revision = s.revision, history = s.document.historyBytes();
         var f = new ProjectFileWorkflow(s, () -> fail("replacement"), () -> fail("exit"));
-        f.request(intent);
+        request(f, intent);
         assertEquals(Phase.GUARD, f.phase());
         f.decide(Decision.CANCEL);
         assertEquals(Phase.IDLE, f.phase());
@@ -58,7 +64,7 @@ class ProjectFileWorkflowTest {
         int[] calls = new int[2];
         var f = new ProjectFileWorkflow(s, () -> calls[0]++, () -> calls[1]++);
         long revision = s.revision, history = s.document.historyBytes();
-        f.request(intent);
+        request(f, intent);
         f.decide(Decision.SAVE);
         f.submit("\u0000");
         assertEquals(Phase.SAVE, f.phase());
@@ -84,7 +90,7 @@ class ProjectFileWorkflowTest {
     for (var intent : Intent.values())
       try (var s = state()) {
         var f = new ProjectFileWorkflow(s, () -> fail("replacement"), () -> fail("exit"));
-        f.request(intent);
+        request(f, intent);
         f.decide(Decision.SAVE);
         f.cancel();
         f.submit(dir.resolve("should-not-exist").toString());
@@ -105,7 +111,7 @@ class ProjectFileWorkflowTest {
       Files.writeString(target.resolve("retained"), "sentinel");
       long history = s.document.historyBytes(), revision = s.revision;
       var f = new ProjectFileWorkflow(s, () -> fail("replacement"), () -> fail("exit"));
-      f.request(Intent.EXIT);
+      request(f, Intent.EXIT);
       f.decide(Decision.SAVE);
       assertEquals(Phase.IDLE, f.phase());
       assertTrue(s.document.dirty());
@@ -126,7 +132,7 @@ class ProjectFileWorkflowTest {
       try (var s = state()) {
         int[] calls = new int[2];
         var f = new ProjectFileWorkflow(s, () -> calls[0]++, () -> calls[1]++);
-        f.request(intent);
+        request(f, intent);
         f.decide(Decision.SAVE);
         Path target = dir.resolve(intent + ".json");
         f.submit(target.toString());
@@ -151,7 +157,7 @@ class ProjectFileWorkflowTest {
       var before = ProjectIO.JSON.valueToTree(s.project());
       var draft = s.draft;
       var f = new ProjectFileWorkflow(s, () -> fail("replacement"), () -> fail("exit"));
-      f.request(Intent.OPEN);
+      request(f, Intent.OPEN);
       f.decide(Decision.DISCARD);
       f.cancel();
       assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
@@ -169,7 +175,7 @@ class ProjectFileWorkflowTest {
       long history = s.document.historyBytes(), revision = s.revision;
       int[] replaced = {0};
       var f = new ProjectFileWorkflow(s, () -> replaced[0]++, () -> fail("exit"));
-      f.request(Intent.OPEN);
+      request(f, Intent.OPEN);
       f.decide(Decision.DISCARD);
       Path malformed = dir.resolve("bad.json");
       Files.writeString(malformed, "{broken");
@@ -209,8 +215,8 @@ class ProjectFileWorkflowTest {
     try (var s = state()) {
       int[] exits = {0};
       var f = new ProjectFileWorkflow(s, () -> fail("replacement"), () -> exits[0]++);
-      f.request(Intent.EXIT);
-      f.request(Intent.NEW);
+      request(f, Intent.EXIT);
+      request(f, Intent.NEW);
       f.save(true);
       assertEquals(Phase.GUARD, f.phase());
       f.decide(Decision.DISCARD);
@@ -225,7 +231,7 @@ class ProjectFileWorkflowTest {
       s.document.save(path);
       int[] exits = {0};
       var f = new ProjectFileWorkflow(s, () -> fail("replacement"), () -> exits[0]++);
-      f.request(Intent.EXIT);
+      request(f, Intent.EXIT);
       assertEquals(1, exits[0]);
       assertEquals(Phase.IDLE, f.phase());
       f.save(true);
@@ -233,7 +239,7 @@ class ProjectFileWorkflowTest {
       f.cancel();
       assertEquals(path, s.document.path());
       assertFalse(s.document.dirty());
-      f.request(Intent.OPEN);
+      request(f, Intent.OPEN);
       assertEquals(Phase.OPEN, f.phase());
     }
   }

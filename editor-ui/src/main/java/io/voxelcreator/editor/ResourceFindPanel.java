@@ -44,6 +44,10 @@ public final class ResourceFindPanel {
     reference = null;
   }
 
+  boolean navigationPending() {
+    return navigation.pending();
+  }
+
   public void draw(ImBoolean open) {
     directories.synchronize();
     if (!open.get()) {

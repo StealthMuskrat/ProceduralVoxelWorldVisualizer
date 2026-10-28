@@ -35,6 +35,7 @@ public final class ResourcePanel {
   private String managerKey, placementKey;
   private List<ResourceTreeIndex.Node> managerRows = List.of(), placementRows = List.of();
   private boolean placementPending;
+  private boolean createOpen, placementOpen;
   private UUID placementNoise;
   private int submittedRows;
   private boolean smokeBrowserDrawn;
@@ -96,6 +97,7 @@ public final class ResourcePanel {
     managerRows = placementRows = List.of();
     selectionRows = managerSelectionRows = List.of();
     placementPending = false;
+    createOpen = placementOpen = false;
     placementLayer = placementNoise = null;
 
     filter.set("");
@@ -282,6 +284,7 @@ public final class ResourcePanel {
     placementFilter.set("");
     placementKey = null;
     placementPending = true;
+    placementOpen = true;
   }
 
   private void placementDialog() {
@@ -325,11 +328,17 @@ public final class ResourcePanel {
       UUID layerId = placementLayer, noiseId = placementNoise;
       var result =
           requestEdit("Add Placement", ResourceBrowserEdits.placement(layerId, noiseId), () -> {});
-      if (acceptedOrPending(result)) ImGui.closeCurrentPopup();
+      if (acceptedOrPending(result)) {
+        placementOpen = false;
+        ImGui.closeCurrentPopup();
+      }
     }
     ImGui.endDisabled();
     ImGui.sameLine();
-    if (ImGui.button("Cancel")) ImGui.closeCurrentPopup();
+    if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      placementOpen = false;
+      ImGui.closeCurrentPopup();
+    }
     ImGui.endPopup();
   }
 
@@ -701,6 +710,7 @@ public final class ResourcePanel {
     createParent = parent;
     name.set("");
     createPending = true;
+    createOpen = true;
   }
 
   private boolean actionAvailable() {
@@ -715,6 +725,16 @@ public final class ResourcePanel {
     replacement = null;
   }
 
+  boolean blocksProjectTransition() {
+    return renameId != null
+        || deleteId != null
+        || createOpen
+        || placementOpen
+        || edits.pending()
+        || selection.pending()
+        || dragActive;
+  }
+
   private void createDialog() {
     if (createPending) {
       ImGui.openPopup("Create Resource");
@@ -725,10 +745,16 @@ public final class ResourcePanel {
       ImGui.inputText("ID", name);
       if (ImGui.button("Create")) {
         var result = createResource(createKind, createRoot, createParent, name.get());
-        if (acceptedOrPending(result)) ImGui.closeCurrentPopup();
+        if (acceptedOrPending(result)) {
+          createOpen = false;
+          ImGui.closeCurrentPopup();
+        }
       }
       ImGui.sameLine();
-      if (ImGui.button("Cancel")) ImGui.closeCurrentPopup();
+      if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+        createOpen = false;
+        ImGui.closeCurrentPopup();
+      }
       ImGui.endPopup();
     }
   }
@@ -864,7 +890,7 @@ public final class ResourcePanel {
         }
       }
       ImGui.sameLine();
-      if (ImGui.button("Cancel")) {
+      if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
         deleteId = null;
         ImGui.closeCurrentPopup();
       }
