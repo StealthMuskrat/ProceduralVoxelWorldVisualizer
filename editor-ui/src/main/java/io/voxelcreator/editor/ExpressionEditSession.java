@@ -8,6 +8,7 @@ import java.util.*;
 /** Expanded text is private even from Properties until explicitly staged. */
 public final class ExpressionEditSession {
   public static final int MAX_CHARACTERS = 16384;
+  public static final int MAX_BUFFER_CHARACTERS = 4 * MAX_CHARACTERS;
   private final ProjectData project;
   private final long revision;
   private final Noise owner;
@@ -43,7 +44,11 @@ public final class ExpressionEditSession {
 
   public void edit(String value) {
     if (closed) throw new IllegalStateException("Expression editor is closed");
-    text = Objects.requireNonNull(value);
+    Objects.requireNonNull(value);
+    if (value.length() > MAX_BUFFER_CHARACTERS)
+      throw new IllegalArgumentException(
+          "Expanded expression buffer limit " + MAX_BUFFER_CHARACTERS);
+    text = value;
   }
 
   public void cancel() {
@@ -65,6 +70,8 @@ public final class ExpressionEditSession {
 
   public ExpressionFeedback.Result feedback(EditorState state) {
     current(state);
+    if (text.length() > MAX_CHARACTERS)
+      throw new IllegalArgumentException("Expression length limit " + MAX_CHARACTERS);
     var candidate = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(item), Item.class);
     candidate.parameters.put("expression", ProjectIO.JSON.valueToTree(text));
     return feedback.inspect(project, owner, candidate);
@@ -79,5 +86,13 @@ public final class ExpressionEditSession {
       throw new IllegalArgumentException("Expression length limit " + MAX_CHARACTERS);
     item.parameters.put("expression", ProjectIO.JSON.valueToTree(text));
     closed = true;
+  }
+
+  /** Reject stale displayed input instead of staging a previous accepted buffer. */
+  void stage(EditorState state, String displayed) {
+    if (!Objects.equals(text, displayed))
+      throw new IllegalStateException(
+          "Displayed expression differs from the staged buffer; correct it before using it");
+    stage(state);
   }
 }

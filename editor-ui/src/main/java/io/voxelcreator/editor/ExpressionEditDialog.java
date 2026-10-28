@@ -75,9 +75,9 @@ public final class ExpressionEditDialog {
         Math.max(140, ImGui.getContentRegionAvailY() - 175),
         ImGuiInputTextFlags.CallbackAlways,
         selection)) {
-      session.edit(text.get());
       error = "";
       try {
+        session.edit(text.get());
         feedback = session.feedback(state);
       } catch (RuntimeException invalid) {
         error = invalid.getMessage();
@@ -112,7 +112,7 @@ public final class ExpressionEditDialog {
     boolean done = false;
     if (ImGui.button("Use in Properties")) {
       try {
-        session.stage(state);
+        session.stage(state, text.get());
         staged.run();
         done = true;
       } catch (RuntimeException invalid) {
