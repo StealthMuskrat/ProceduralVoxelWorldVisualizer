@@ -660,7 +660,7 @@ public final class ContractGenerator {
 
   public static Map<String, Object> processingRegistry() {
     var result = new LinkedHashMap<String, Object>();
-    result.put("registryVersion", 5);
+    result.put("registryVersion", 6);
     result.put("operations", ProcessingRegistry.ITEMS);
     result.put("sampledFieldOperations", new TreeSet<>(ProcessingRegistry.SAMPLED));
     result.put(
@@ -669,6 +669,27 @@ public final class ContractGenerator {
     result.put("extendedOperations", ProcessingExtensions.DETAILS);
     result.put("sampleWorkLimit", NoiseCompiler.MAX_SAMPLE_WORK);
     result.put("warpRegistry", "warp-registry.json");
+    result.put(
+        "compilerSharing",
+        Map.of(
+            "scope",
+            "one resource plan and one executable Context sample epoch",
+            "requiresCompleteFiniteSuccess",
+            true,
+            "inputIdentities",
+            List.of(
+                "typed raw literal bits",
+                "raw source evaluator",
+                "ambient name",
+                "resource UUID with dimension/projection/raw slice bits",
+                "canonical successful result slot"),
+            "exclusions",
+            List.of(
+                "sampled-field operations",
+                "expression programs",
+                "implicit coordinate/hash/shape operations"),
+            "reassociatesArithmetic",
+            false));
     return Collections.unmodifiableMap(result);
   }
 

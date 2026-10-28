@@ -59,7 +59,7 @@ GenerationTrace.Details adds `sampleCoordinates()`, `matchedInterval()` (nullabl
 
 ## Compiled expressions and bulk scalar sampling
 
-Expression.Program now exposes immutable `inputs()` order, `statistics()`, `constantValue()`, lazy `scalarIndexed`/`boolIndexed`, and primitive `scalars`/`booleans` batches. Providers must return stable values during one evaluation; each successful input can be read once and reused. Full typed parsing precedes branch removal. No floating-point reassociation or invalid-boundary suppression occurs. NoiseCompiler.statistics(UUID) reports compilation counts and conservative work. See [compiler contracts](COMPILED_EXPRESSIONS.md).
+Expression.Program now exposes immutable `inputs()` order, `statistics()`, `constantValue()`, lazy `scalarIndexed`/`boolIndexed`, and primitive `scalars`/`booleans` batches. Providers must return stable values during one evaluation; each successful input can be read once and reused. Full typed parsing precedes branch removal. No floating-point reassociation or invalid-boundary suppression occurs. NoiseCompiler.statistics(UUID) reports compilation counts and conservative work. The development-branch [semantic input-sharing extension](SEMANTIC_INPUT_SHARING.md) can increase shared-item counts while preserving this record shape; it is unvalidated. See [compiler contracts](COMPILED_EXPRESSIONS.md).
 
 NoiseSampler2D/3D retain their functional `sample` and existing uniform-step grid methods. New grid overloads accept per-axis steps, destination offset, long row/plane strides and CancellationToken. New `samplePoints` overloads accept coordinate arrays, source offset/count and destination offset/token. 3D retains X-fast Z rows in Y planes. For example:
 

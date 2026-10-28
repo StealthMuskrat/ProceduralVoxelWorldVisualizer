@@ -41,6 +41,8 @@ jobs:
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WorldWorkConsumer fixtures/work-profile-project.json build/independent/output
           python scripts/verify_world_work.py build/independent/output
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.SemanticSharingConsumer fixtures/semantic-sharing.json build/independent/output
+          python scripts/verify_semantic_sharing.py build/independent/output
           java -cp build/independent:build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.example.Example --contracts build/field-operations/contracts
           python scripts/sync_field_contracts.py build/field-operations/contracts
       - name: Independent import transaction reference
@@ -300,6 +302,10 @@ jobs:
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.WorldWorkConsumer fixtures/work-profile-project.json build/independent/output
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_world_work.py build/independent/output
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.SemanticSharingConsumer fixtures/semantic-sharing.json build/independent/output
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_semantic_sharing.py build/independent/output
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/ProceduralVoxelCreator.jar' io.voxelcreator.example.Example --contracts build/field-operations/contracts
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

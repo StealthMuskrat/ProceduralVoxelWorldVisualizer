@@ -1,5 +1,5 @@
 {
-  "registryVersion" : 5,
+  "registryVersion" : 6,
   "operations" : {
     "ADD" : {
       "category" : "Math",
@@ -1132,5 +1132,22 @@
     }
   },
   "sampleWorkLimit" : 1000000,
-  "warpRegistry" : "warp-registry.json"
+  "warpRegistry" : "warp-registry.json",
+  "compilerSharing" : {
+    "scope": "one resource plan and one executable Context sample epoch",
+    "requiresCompleteFiniteSuccess": true,
+    "inputIdentities": [
+      "typed raw literal bits",
+      "raw source evaluator",
+      "ambient name",
+      "resource UUID with dimension/projection/raw slice bits",
+      "canonical successful result slot"
+    ],
+    "exclusions": [
+      "sampled-field operations",
+      "expression programs",
+      "implicit coordinate/hash/shape operations"
+    ],
+    "reassociatesArithmetic": false
+  }
 }

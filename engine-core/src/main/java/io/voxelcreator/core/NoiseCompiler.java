@@ -39,7 +39,15 @@ public final class NoiseCompiler {
     return statistics.get(resource);
   }
 
-  private record InputKey(String type, List<Long> literal, Number evaluator) {}
+  private record AmbientKey(String name) {}
+
+  private record ReferenceKey(UUID resource, int dimension, String projection, long slice) {}
+
+  // These identities are compared only inside one resource's common-operation map.
+  // Runtime success stamps remain owned by one executable Context and sample epoch.
+  private record ResultKey(int slot) {}
+
+  private record InputKey(String type, List<Long> literal, Object identity) {}
 
   private record OperationKey(
       String kind,
@@ -62,7 +70,7 @@ public final class NoiseCompiler {
                       .mapToObj(Double::doubleToRawLongBits)
                       .toList();
           inputs.put(
-              name, new InputKey(input.type, bits, input.literal == null ? input.number : null));
+              name, new InputKey(input.type, bits, input.literal == null ? input.identity : null));
         });
     return new OperationKey(
         item.kind,
@@ -177,7 +185,12 @@ public final class NoiseCompiler {
 
   private static final Number SOURCE_VALUE = (c, k) -> c.sourceValue();
 
-  private record Input(String type, Number number, int depth, long work, double[] literal) {
+  private record Input(
+      String type, Number number, int depth, long work, double[] literal, Object identity) {
+    Input(String type, Number number, int depth, long work, double[] literal) {
+      this(type, number, depth, work, literal, number);
+    }
+
     Input(String type, Number number) {
       this(type, number, 0, 0, null);
     }
@@ -825,8 +838,9 @@ public final class NoiseCompiler {
                   return c.values[sharedIndex + k];
                 },
                 depth,
-                Math.addExact(
-                    1 + sampleWork, bound.values().stream().mapToLong(Input::work).sum())));
+                Math.addExact(1 + sampleWork, bound.values().stream().mapToLong(Input::work).sum()),
+                null,
+                new ResultKey(sharedIndex)));
       } catch (CompilationFailure failure) {
         throw failure;
       } catch (RuntimeException failure) {
@@ -1272,7 +1286,13 @@ public final class NoiseCompiler {
           case "Ambient Value" -> {
             if (!AMBIENT.contains(b.ambientKey))
               throw new IllegalArgumentException("Unknown ambient " + b.ambientKey);
-            yield new Input("Scalar", (c, k) -> ambient(b.ambientKey, c, seed));
+            yield new Input(
+                "Scalar",
+                (c, k) -> ambient(b.ambientKey, c, seed),
+                0,
+                0,
+                null,
+                new AmbientKey(b.ambientKey));
           }
           case "Noise Generator Reference" -> {
             Field field = projectedReference(b, n.dimension);
@@ -1280,7 +1300,13 @@ public final class NoiseCompiler {
                 "Scalar",
                 (c, k) -> field.sample(c.x, c.y, c.z),
                 resourceDepth.get(b.noiseGeneratorUuid),
-                resourceWork.get(b.noiseGeneratorUuid));
+                resourceWork.get(b.noiseGeneratorUuid),
+                null,
+                new ReferenceKey(
+                    b.noiseGeneratorUuid,
+                    n.dimension,
+                    b.projection,
+                    Double.doubleToRawLongBits(b.slice)));
           }
           default -> throw new IllegalArgumentException("Unknown binding " + b.sourceKind);
         };
