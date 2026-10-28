@@ -9,3 +9,6 @@ Flight intent and cursor capture have separate states: Orbit, Captured, Inspecto
 Changing tabs, hiding/collapsing the viewport, switching to a nonflight image, losing application/window focus or opening a popup pauses capture. A different viewport can capture flight only after pausing the previous owner. Viewports closure returns every camera to orbit and releases the native cursor. Application shortcuts use captured flight as their exclusion scope; a paused Inspector can use ordinary text and application commands.
 
 Navigation state stays outside project JSON and Undo history. This batch changes no engine API, generation, project schema or archive semantics. Automated and native checks provide scoped input/cursor evidence; complete physical-input, DPI, hardware and GUI acceptance remain separate.
+
+
+[Native viewport input ownership](NATIVE_VIEWPORT_INPUT.md) subsequently routes focus and cursor capture through the window hosting Visualizers, with prior-mode restoration and safe lease cleanup. This development extension and its deferred definitions remain uncompiled/untested under the owner testing pause; actual detached-layout acceptance remains pending.

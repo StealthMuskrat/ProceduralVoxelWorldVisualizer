@@ -31,7 +31,10 @@ public final class Viewports implements AutoCloseable {
     tracePanel = panel;
   }
 
-  private final long handle;
+  private final ViewportPlatformInput platform;
+  private final FlightCursor flightCursor;
+  private FlightCursor.Window surfaceWindow;
+  private boolean closed;
   private final View[] views = {new View(0), new View(1), new View(2)};
   private final UiFields fields = new UiFields();
   private int active = 0;
@@ -1083,7 +1086,8 @@ public final class Viewports implements AutoCloseable {
     this.state = state;
     generatorPicker = new ResourcePicker(state);
     this.properties = properties;
-    this.handle = handle;
+    platform = new ViewportPlatformInput(handle);
+    flightCursor = new FlightCursor(platform, GLFW_CURSOR_DISABLED);
     bookmarkPanel =
         new BookmarkPanel(
             state,
@@ -1112,6 +1116,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   public void draw() {
+    if (closed) return;
     shadowPreferences();
     for (var view : views) view.gl.advanceVolume(0);
     drawnView = -1;
@@ -1132,6 +1137,18 @@ public final class Viewports implements AutoCloseable {
             (long) state.user.performance.cacheMiB << 20,
             Math.max(0, ((long) state.user.performance.sceneCpuMiB << 20) - 64L * 256 * 256)));
     boolean visible = ImGui.begin("Visualizers");
+    var nextWindow = platform.current();
+    if (!Objects.equals(surfaceWindow, nextWindow)) {
+      for (var view : views) {
+        view.flight.pause();
+        view.orbit.reset();
+        view.sliceInput.reset();
+        view.imageInput.reset();
+        view.imageContext.reset();
+      }
+      flightCursor.sync(null);
+      surfaceWindow = nextWindow;
+    }
     viewportFocused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
     ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Visualizers", 1f));
     if (visible && ImGui.beginTabBar("view-tabs")) {
@@ -1772,9 +1789,7 @@ public final class Viewports implements AutoCloseable {
         (flightImageVisible || sliceImageVisible || noiseImageVisible)
             && hovered
             && (ImGui.isMouseClicked(0) || ImGui.isMouseClicked(1) || ImGui.isMouseClicked(2));
-    if (surfacePressed
-        && glfwGetWindowAttribBoolean(handle, GLFW_FOCUSED)
-        && !ShortcutKeys.popup()) {
+    if (surfacePressed && surfaceNativeFocused() && !ShortcutKeys.popup()) {
       // A surface press explicitly transfers focus; ImGui otherwise does this at frame end.
       ImGui.setWindowFocus("Visualizers");
       viewportFocused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
@@ -1787,7 +1802,7 @@ public final class Viewports implements AutoCloseable {
               + " focused="
               + viewportFocused
               + " native="
-              + glfwGetWindowAttribBoolean(handle, GLFW_FOCUSED)
+              + surfaceNativeFocused()
               + " hovered="
               + hovered
               + " text="
@@ -2509,8 +2524,8 @@ public final class Viewports implements AutoCloseable {
     return true;
   }
 
-  private static boolean glfwGetWindowAttribBoolean(long h, int key) {
-    return glfwGetWindowAttrib(h, key) != 0;
+  private boolean surfaceNativeFocused() {
+    return !ImGui.getIO().getAppFocusLost() && platform.focused(surfaceWindow);
   }
 
   private void release(View v) {
@@ -2567,7 +2582,7 @@ public final class Viewports implements AutoCloseable {
     return drawnView == v.kind
         && (flightImageVisible || sliceImageVisible || noiseImageVisible)
         && viewportFocused
-        && glfwGetWindowAttribBoolean(handle, GLFW_FOCUSED)
+        && surfaceNativeFocused()
         && (!ImGui.getIO().getWantTextInput() || surfacePressed)
         && !ShortcutKeys.popup();
   }
@@ -2602,8 +2617,8 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void syncFlightCursor() {
-    int mode = flying() ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL;
-    if (glfwGetInputMode(handle, GLFW_CURSOR) != mode) glfwSetInputMode(handle, GLFW_CURSOR, mode);
+    if (!flightCursor.sync(flying() ? surfaceWindow : null) && flying())
+      for (var view : views) view.flight.pause();
   }
 
   private boolean imageContextInput(View v, boolean hovered) {
@@ -3398,21 +3413,27 @@ public final class Viewports implements AutoCloseable {
 
   @Override
   public void close() {
-    traceRequests.close();
-    inspectorTask.close();
-    inspectorTaskValid = null;
-    for (var v : views) {
-      release(v);
-      v.ready.close();
-      v.setup.close();
-      if (v.job != null) v.job.cancel(true);
-      state.background.purge();
-      stopStream(v);
-      v.imageRows.close();
-      v.volumeWindows.close();
-      v.volumeSnapshot = null;
-      v.pendingVolume = null;
-      v.gl.close();
+    if (closed) return;
+    closed = true;
+    try {
+      traceRequests.close();
+      inspectorTask.close();
+      inspectorTaskValid = null;
+      for (var v : views) {
+        release(v);
+        v.ready.close();
+        v.setup.close();
+        if (v.job != null) v.job.cancel(true);
+        state.background.purge();
+        stopStream(v);
+        v.imageRows.close();
+        v.volumeWindows.close();
+        v.volumeSnapshot = null;
+        v.pendingVolume = null;
+        v.gl.close();
+      }
+    } finally {
+      flightCursor.close();
     }
   }
 }

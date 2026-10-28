@@ -581,3 +581,7 @@ for layer in work_project['worldGenerator']['layers']:
     assert work_totals[layer['uuid']] == sum(work_totals[op['uuid']] for op in layer['operations'])
 assert work_project['worldGenerator']['layers'][0]['id'] == 'base'
 print('WORLD_WORK_UI_PASS independent layer sums / real capture controls / unchanged private draft and project / bounded exports')
+
+# Deferred native-window cursor ownership extension.
+from verify_cursor_lease import verify as verify_cursor_lease
+verify_cursor_lease(Path(sys.argv[1]) / 'cursor-lease')

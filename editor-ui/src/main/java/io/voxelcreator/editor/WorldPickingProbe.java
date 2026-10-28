@@ -312,6 +312,7 @@ public final class WorldPickingProbe {
         WorldLodPickingProbe.run(out.resolve("lod-proxy"), window);
         InspectorFreshnessProbe.run(out.resolve("inspector-freshness"), window);
         FreeFlyInspectorProbe.run(out.resolve("free-fly"), window);
+        CursorLeaseProbe.run(out.resolve("cursor-lease"), window);
         OrbitInputProbe.run(out.resolve("orbit-input"), window);
         SliceInputProbe.run(out.resolve("slice-input"), window);
         ImageGestureProbe.run(out.resolve("image-gestures"), window);

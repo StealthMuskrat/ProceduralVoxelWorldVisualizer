@@ -9,3 +9,6 @@ Only an owned short left release inside the image can replace the picked bookmar
 All image surfaces own ImGui items so navigation cannot move their containing window. A fresh image press explicitly transfers Visualizers focus. Production 2D navigation uses the same application/window/popup/text eligibility guard as other viewport input. Hover and bookmark pointers normalize in double precision against the accepted 2D snapshot; requested navigation and manual preview retention cannot relabel the displayed field. Hover remains a continuous procedural evaluation, not GPU pixel readback.
 
 These changes do not alter project data, Undo history, field generation, engine API, schemas or archives. The existing 2D row-cache and shared-handler probes remain in place. Production native GL/ImGui fixtures add controlled resizing/collapse, final-release movement, bookmark retention and shared image-menu checks, with independent affine geometry. Physical input, OS focus/DPI, full GUI and Windows 11 hardware acceptance remain separate.
+
+
+[Native viewport input ownership](NATIVE_VIEWPORT_INPUT.md) subsequently uses the hosting ImGui viewport's native window for eligibility and drops gesture ownership when that host changes. This development extension remains uncompiled/untested under the owner testing pause.
