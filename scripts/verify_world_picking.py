@@ -62,6 +62,14 @@ assert all(draft[key] is True for key in ['lateWorldPickRejected', 'restoreWitho
     'restoreCanceledPending', 'closedWorldPickRejected', 'logsUnchanged'])
 print('INSPECTOR_COORDINATE_DRAFT_PASS typed XYZ survives late World hit / restore without work / queued cancellation / native window closure')
 
+# Deferred raw-coordinate extension: actions must not use a prior parsed cell.
+raw = draft['rawInputs']
+assert raw['invalidTexts'] == ['-', '2147483648']
+assert raw['signedBounds'] == [-2147483648, 2147483647, -17]
+assert all(raw[key] is True for key in ['coordinateCanceled', 'worldPickCanceled',
+    'invalidTraceRejected', 'invalidBookmarkRejected', 'lateResultsRejected', 'explicitRestore', 'viewOnly'])
+print('INSPECTOR_RAW_COORDINATE_PASS raw sign/overflow / exact signed bounds / no fallback trace or bookmark / cancellation / explicit restore')
+
 world_work = draft['worldWork']
 assert world_work['retryHit'] == [3, 0, 0] and world_work['retryFinalType'] == 1
 assert all(world_work[key] is True for key in ['replacementBounded', 'cancelReleasedQueue',

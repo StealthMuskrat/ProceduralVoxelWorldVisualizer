@@ -266,6 +266,7 @@ final class WorldLodPickingProbe {
   }
 
   private static Map<String, Object> draftWorkflow() throws Exception {
+    var rawInputs = rawCoordinateWorkflow();
     var retained = views.probeInspectorTrace();
     require(
         retained.trace().position().equals(new BlockPos(29, 2, 2)),
@@ -357,7 +358,102 @@ final class WorldLodPickingProbe {
         "closedWorldPickRejected",
         true,
         "logsUnchanged",
-        true);
+        true,
+        "rawInputs",
+        rawInputs);
+  }
+
+  private static Map<String, Object> rawCoordinateWorkflow() throws Exception {
+    var retained = views.probeInspectorTrace();
+    var authored = ProjectIO.JSON.valueToTree(state.project());
+    long revision = state.revision, history = state.document.historyBytes();
+    int count = state.traces.size();
+    long bytes = state.traces.bytes();
+    for (var raw : List.of("-", "2147483648")) {
+      try (var hold = holdWorkers()) {
+        control("trace-coordinate");
+        require(views.probeCoordinateTracePending(), "Raw-input case lacked queued trace");
+        editRaw("X", raw);
+        require(
+            !views.probeInspectorCoordinateValid()
+                && raw.equals(views.probeInspectorCoordinateText("X")),
+            "Invalid native text was not retained");
+        require(
+            !views.probeCoordinateTracePending() && state.background.getQueue().isEmpty(),
+            "Invalid raw input did not cancel pending trace");
+        control("trace-coordinate");
+        require(
+            !views.probeCoordinateTracePending() && state.background.getQueue().isEmpty(),
+            "Invalid Trace used an earlier parsed coordinate");
+        control("trace-bookmark");
+        require(!views.bookmarkInteractionPending(), "Invalid Bookmark opened an older coordinate");
+      }
+      until(WorldLodPickingProbe::idle);
+      frames(3);
+      require(
+          views.probeInspectorTrace() == retained
+              && raw.equals(views.probeInspectorCoordinateText("X")),
+          "Late trace replaced invalid input");
+      control("trace-restore");
+      require(
+          views.probeInspectorCoordinate().equals(retained.trace().position()),
+          "Explicit raw restore");
+    }
+    views.probeWorld(state.project().worldGenerator.layers.get(1).uuid, "After", 8, .25);
+    until(views::probeWorldReady);
+    try (var hold = holdWorkers()) {
+      clickImage(0);
+      require(views.probeWorldPickPending(), "Raw-input case lacked queued World pick");
+      control("inspect-coordinate");
+      editRaw("X", "+");
+      require(
+          !views.probeWorldPickPending() && state.background.getQueue().isEmpty(),
+          "Invalid raw input did not cancel World pick");
+    }
+    until(WorldLodPickingProbe::idle);
+    frames(3);
+    require(
+        "+".equals(views.probeInspectorCoordinateText("X"))
+            && views.probeInspectorTrace() == retained,
+        "Late World hit replaced raw input");
+    control("trace-restore");
+    editRaw("X", "-2147483648");
+    editRaw("Y", "+2147483647");
+    editRaw("Z", "-17");
+    require(
+        views
+            .probeInspectorCoordinate()
+            .equals(new BlockPos(Integer.MIN_VALUE, Integer.MAX_VALUE, -17)),
+        "Native signed Inspector bounds lost precision");
+    control("trace-restore");
+    require(
+        views.probeInspectorCoordinate().equals(retained.trace().position())
+            && views.probeInspectorTrace() == retained
+            && state.traces.size() == count
+            && state.traces.bytes() == bytes
+            && authored.equals(ProjectIO.JSON.valueToTree(state.project()))
+            && revision == state.revision
+            && history == state.document.historyBytes(),
+        "Raw input/restore changed accepted trace, Logs or project/history");
+    return Map.of(
+        "invalidTexts",
+        List.of("-", "2147483648"),
+        "coordinateCanceled",
+        true,
+        "worldPickCanceled",
+        true,
+        "invalidTraceRejected",
+        true,
+        "invalidBookmarkRejected",
+        true,
+        "lateResultsRejected",
+        true,
+        "explicitRestore",
+        true,
+        "viewOnly",
+        true,
+        "signedBounds",
+        List.of(Integer.MIN_VALUE, Integer.MAX_VALUE, -17));
   }
 
   private static Map<String, Object> worldPickWorkflow() throws Exception {
@@ -498,7 +594,12 @@ final class WorldLodPickingProbe {
   }
 
   private static void editX(int value) {
-    control("trace-x");
+    editRaw("X", Integer.toString(value));
+    require(views.probeInspectorCoordinate().x() == value, "Native XYZ edit failed");
+  }
+
+  private static void editRaw(String axis, String text) {
+    control("trace-" + axis.toLowerCase(Locale.ROOT));
     var io = ImGui.getIO();
     io.addKeyEvent(ImGuiKey.ModCtrl, true);
     io.addKeyEvent(ImGuiKey.A, true);
@@ -506,13 +607,14 @@ final class WorldLodPickingProbe {
     io.addKeyEvent(ImGuiKey.A, false);
     io.addKeyEvent(ImGuiKey.ModCtrl, false);
     frame();
-    io.addInputCharactersUTF8(Integer.toString(value));
+    io.addInputCharactersUTF8(text);
     frame();
     io.addKeyEvent(ImGuiKey.Enter, true);
     frame();
     io.addKeyEvent(ImGuiKey.Enter, false);
     frames(2);
-    require(views.probeInspectorCoordinate().x() == value, "Native XYZ edit failed");
+    require(
+        text.equals(views.probeInspectorCoordinateText(axis)), "Native raw coordinate edit failed");
   }
 
   private static Map<String, Object> observe(String mode, int x, boolean proxy, int finalType) {

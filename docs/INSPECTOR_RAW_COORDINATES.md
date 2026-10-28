@@ -1,0 +1,21 @@
+# Raw Inspector coordinates
+
+Status: implemented on `codex/development-phase`, uncompiled and untested. GitHub testing remains paused by owner instruction. Earlier coordinate-task and Inspector draft evidence does not validate this follow-up.
+
+Inspector XYZ now uses three bounded raw text fields rather than numeric widgets that can retain an older parsed value. Each axis retains at most 128 UTF-16 characters. All three must contain signed 32-bit decimal integers before Trace Coordinate or Add Bookmark at Coordinate can proceed. Empty text, an isolated sign, overflow, whitespace, fractional/exponent notation and non-ASCII digits stay editable and cannot produce a fallback cell. Signed minimum/maximum integers remain exact.
+
+`InspectorCoordinates` reuses the existing `CoordinateText` parser and caches its complete parse/error until input changes. It retains raw spelling, including an explicit plus sign, after a successful coordinate trace. An action also compares all displayed widget strings with the owned model text before parsing; a rejected oversized edit or display mismatch cannot silently use an earlier accepted value. Invalid actions retain the current trace and input, show repair guidance and cancel pending Inspector work without opening a Bookmark dialog or enqueuing another trace.
+
+Every raw field edit cancels/reclaims both coordinate and World-pick work immediately. Both asynchronous publication predicates additionally retain the raw-input revision. A change of spelling that preserves the integer value still invalidates an older request. A late result cannot overwrite invalid or corrected XYZ. A later explicit World click creates a fresh intent; its accepted current hit replaces all three coordinate strings together.
+
+Use Traced Coordinate explicitly replaces every field with the immutable displayed trace's coordinate, cancels pending work and starts no trace or generation. Invalid text counts as a mismatch, so this restoration remains available while fields are incomplete. Refresh Displayed Trace intentionally targets the displayed trace's named coordinate and retains separately entered XYZ, including invalid text. Its result still expires after any subsequent input edit. Inspector closure cancels work while retaining the entered text for reopening. A collapsed Inspector does not submit its controls; its pending work may complete normally.
+
+The old trace stays available while a new target is invalid, pending or rejected, with its own coordinate and freshness notices. Nothing in the raw-input workflow modifies camera navigation, authored project data, Undo history, engine semantics, API, schemas or persisted preferences. A successful bookmark still uses the existing explicit owned Bookmark dialog and its normal project transaction.
+
+## Deferred verification
+
+Six `InspectorCoordinatesTest` definitions cover invalid input with no prior-cell fallback, inclusive signed bounds and all-axis validation, rejected-buffer/display mismatch, raw revision ownership for both request kinds, explicit all-axis restoration and malformed/missing fields. Existing coordinate-task/publication definitions remain in place.
+
+The existing future `WorldLodPickingProbe` now also enters isolated signs and overflow through the production Inspector fields, cancels held-worker coordinate work, rejects invalid Trace and Bookmark actions, rejects a delayed World hit after an invalid raw edit, enters signed bounds on all three axes, and explicitly restores the original `(29,2,2)` trace coordinate. It checks retained raw text, exact trace identity, Logs counts/bytes, project/revision/history invariance and queue release. The independent world-picking checker requires the new raw-input observations and exact signed bounds. No definitions, build, probe or checker have run during this batch.
+
+Native IME/paste limits, all-axis action focus and layout behavior, raw edits during displayed-trace refresh, real worker races, arbitrary closure timing, physical OS input/DPI and complete A29/Windows 11 hardware acceptance remain pending. The raw editor is transient view state and is not a project-save or recovery format.

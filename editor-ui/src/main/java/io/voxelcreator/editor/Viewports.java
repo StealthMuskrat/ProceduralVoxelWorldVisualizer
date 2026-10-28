@@ -55,7 +55,9 @@ public final class Viewports implements AutoCloseable {
   private String inspectorTaskFeedback = "";
   private PickView observedPickView;
   private final ImBoolean inspector = new ImBoolean(false);
-  private final int[] inspect = {0, 0, 0};
+  private final InspectorCoordinates inspectorCoordinates = new InspectorCoordinates();
+  private final Map<String, ImString> inspectorInputs = new LinkedHashMap<>();
+  private String inspectorInputError = "";
   private final BookmarkPanel bookmarkPanel;
 
   boolean bookmarkInteractionPending() {
@@ -229,7 +231,52 @@ public final class Viewports implements AutoCloseable {
   }
 
   private BlockPos inspectorCoordinate() {
-    return new BlockPos(inspect[0], inspect[1], inspect[2]);
+    return inspectorCoordinates.coordinate();
+  }
+
+  String probeInspectorCoordinateText(String axis) {
+    return inspectorCoordinates.text(axis);
+  }
+
+  boolean probeInspectorCoordinateValid() {
+    return inspectorCoordinates.problem().isEmpty();
+  }
+
+  private ImString inspectorInput(String axis) {
+    return inspectorInputs.computeIfAbsent(
+        axis,
+        key -> new ImString(inspectorCoordinates.text(key), CoordinateText.MAX_CHARACTERS + 1));
+  }
+
+  private void setInspectorCoordinate(BlockPos point) {
+    inspectorCoordinates.set(point);
+    for (var axis : inspectorCoordinates.axes())
+      inspectorInput(axis).set(inspectorCoordinates.text(axis));
+    inspectorInputError = "";
+  }
+
+  private BlockPos readInspectorCoordinate() {
+    var displayed = new LinkedHashMap<String, String>();
+    for (var axis : inspectorCoordinates.axes()) displayed.put(axis, inspectorInput(axis).get());
+    return inspectorCoordinates.coordinate(displayed);
+  }
+
+  private void addInspectorBookmark() {
+    BlockPos point;
+    try {
+      point = readInspectorCoordinate();
+    } catch (RuntimeException invalid) {
+      inspectorInputError = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+      cancelInspectorTask("Invalid Inspector coordinates; correct XYZ before bookmarking.", true);
+      return;
+    }
+    inspectorInputError = "";
+    try {
+      bookmarkPanel.openAdd(Tab.WORLD, new Coordinates(point.x(), point.y(), point.z()));
+    } catch (RuntimeException failure) {
+      inspectorInputError = Objects.requireNonNullElse(failure.getMessage(), failure.toString());
+      state.status = inspectorInputError;
+    }
   }
 
   boolean probeInspectorDraftNoticeVisible() {
@@ -3098,9 +3145,11 @@ public final class Viewports implements AutoCloseable {
       showPickMiss(v, "No occupied voxel in displayed chunks; enter a coordinate to inspect EMPTY");
       return;
     }
+    long coordinateVersion = inspectorCoordinates.version();
     java.util.function.BooleanSupplier current =
         () ->
             traceRequests.current(request, state.revision)
+                && coordinateVersion == inspectorCoordinates.version()
                 && (!streamingPick
                     || v.scene == sourceScene
                         && v.gl.sceneRenderer() == sourceGpu
@@ -3164,9 +3213,7 @@ public final class Viewports implements AutoCloseable {
                                     cell.z());
                             state.status = inspectorPickHint;
                           }
-                          inspect[0] = cell.x();
-                          inspect[1] = cell.y();
-                          inspect[2] = cell.z();
+                          setInspectorCoordinate(cell);
                           v.pickedBookmark = new Coordinates(cell.x(), cell.y(), cell.z());
                           inspector.set(true);
                         });
@@ -3257,15 +3304,27 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void startCoordinateTrace() {
-    startCoordinateTrace(inspectorCoordinate());
+    BlockPos point;
+    try {
+      point = readInspectorCoordinate();
+    } catch (RuntimeException invalid) {
+      inspectorInputError = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+      cancelInspectorTask("Invalid Inspector coordinates; correct XYZ before tracing.", true);
+      return;
+    }
+    inspectorInputError = "";
+    startCoordinateTrace(point);
   }
 
   private void startCoordinateTrace(BlockPos pos) {
     var p = ProjectIO.copy(state.project());
     long revision = state.revision;
     var request = traceRequests.begin(revision, false);
+    long coordinateVersion = inspectorCoordinates.version();
     java.util.function.BooleanSupplier current =
-        () -> traceRequests.current(request, state.revision);
+        () ->
+            traceRequests.current(request, state.revision)
+                && coordinateVersion == inspectorCoordinates.version();
     beginInspectorTask(
         request,
         pos,
@@ -3308,15 +3367,17 @@ public final class Viewports implements AutoCloseable {
   }
 
   private boolean inspectorCoordinatesDiffer() {
-    return traceSnapshot != null && !traceSnapshot.trace().position().equals(inspectorCoordinate());
+    if (traceSnapshot == null) return false;
+    if (inspectorCoordinates.differs(traceSnapshot.trace().position())) return true;
+    for (var axis : inspectorCoordinates.axes())
+      if (!inspectorCoordinates.text(axis).equals(inspectorInput(axis).get())) return true;
+    return false;
   }
 
   private void restoreTracedCoordinate() {
     var point = traceSnapshot.trace().position();
     cancelInspectorTask("", true);
-    inspect[0] = point.x();
-    inspect[1] = point.y();
-    inspect[2] = point.z();
+    setInspectorCoordinate(point);
     state.status =
         String.format(
             Locale.ROOT,
@@ -3329,7 +3390,7 @@ public final class Viewports implements AutoCloseable {
   private void drawInspector() {
     if (!inspector.get()) return;
     ImGui.setNextWindowSize(600, 600, ImGuiCond.FirstUseEver);
-    ImGui.begin("Voxel Inspector", inspector);
+    boolean visible = ImGui.begin("Voxel Inspector", inspector);
     if (admissionProbe) {
       var position = ImGui.getWindowPos();
       var size = ImGui.getWindowSize();
@@ -3340,6 +3401,12 @@ public final class Viewports implements AutoCloseable {
     if (!inspector.get()) {
       cancelInspectorTask("", true);
       state.status = "Inspector closed.";
+      ImGui.end();
+      return;
+    }
+    if (!visible) {
+      ImGui.end();
+      return;
     }
     if (traceSnapshot != null) {
       var freshness = traceSnapshot.freshness(state.project().project.uuid, state.revision);
@@ -3365,18 +3432,30 @@ public final class Viewports implements AutoCloseable {
       ImGui.textWrapped(inspectorPickHint);
       inspectorHintVisible = true;
     }
-    if (ImGui.inputInt3("XYZ", inspect)) {
-      boolean wasPending = inspectorTask.pending();
-      cancelInspectorTask(
-          wasPending ? "Coordinate changed; Trace Coordinate to continue." : "", true);
+    ImGui.text("XYZ");
+    float fieldWidth = Math.max(70, (ImGui.getContentRegionAvailX() - 80) / 3);
+    for (var axis : inspectorCoordinates.axes()) {
+      if (!axis.equals("X")) ImGui.sameLine();
+      ImGui.pushItemWidth(fieldWidth);
+      var input = inspectorInput(axis);
+      if (ImGui.inputText(axis + "##inspector-coordinate", input)) {
+        boolean wasPending = inspectorTask.pending();
+        try {
+          inspectorCoordinates.edit(axis, input.get());
+          inspectorInputError = "";
+        } catch (RuntimeException invalid) {
+          inspectorInputError =
+              Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+        }
+        cancelInspectorTask(
+            wasPending ? "Coordinate changed; Trace Coordinate to continue." : "", true);
+      }
+      ImGui.popItemWidth();
+      admissionControl("trace-" + axis.toLowerCase(Locale.ROOT));
     }
-    if (admissionProbe)
-      admissionControls.put(
-          "trace-x",
-          new float[] {
-            ImGui.getItemRectMinX() + (ImGui.getItemRectMaxX() - ImGui.getItemRectMinX()) / 6,
-            (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
-          });
+    String coordinateProblem = inspectorCoordinates.problem();
+    if (!coordinateProblem.isEmpty()) ImGui.textWrapped("! " + coordinateProblem);
+    if (!inspectorInputError.isEmpty()) ImGui.textWrapped("! " + inspectorInputError);
     if (inspectorCoordinatesDiffer()) {
       var point = traceSnapshot.trace().position();
       ImGui.textWrapped(
@@ -3391,8 +3470,8 @@ public final class Viewports implements AutoCloseable {
       if (ImGui.smallButton("Use Traced Coordinate")) restoreTracedCoordinate();
       admissionControl("trace-restore");
     }
-    if (ImGui.smallButton("Add Bookmark at Coordinate"))
-      bookmarkPanel.openAdd(Tab.WORLD, new Coordinates(inspect[0], inspect[1], inspect[2]));
+    if (ImGui.smallButton("Add Bookmark at Coordinate")) addInspectorBookmark();
+    admissionControl("trace-bookmark");
     if (ImGui.button("Trace Coordinate")) startCoordinateTrace();
     admissionControl("trace-coordinate");
     if (inspectorTask.pending()) {

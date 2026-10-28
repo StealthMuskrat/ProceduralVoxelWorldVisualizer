@@ -12,3 +12,6 @@ Navigation state stays outside project JSON and Undo history. This batch changes
 
 
 [Native viewport input ownership](NATIVE_VIEWPORT_INPUT.md) subsequently routes focus and cursor capture through the window hosting Visualizers, with prior-mode restoration and safe lease cleanup. This development extension and its deferred definitions remain uncompiled/untested under the owner testing pause; actual detached-layout acceptance remains pending.
+
+
+[Raw Inspector coordinates](INSPECTOR_RAW_COORDINATES.md) subsequently retain incomplete XYZ text and require complete exact parsing before Trace or Bookmark actions. This development extension adds raw-input publication ownership and explicit traced-coordinate restoration; implementation and deferred definitions remain uncompiled/untested under the owner testing pause.
