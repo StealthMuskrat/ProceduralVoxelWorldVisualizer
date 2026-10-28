@@ -326,6 +326,18 @@ public final class ContractGenerator {
     sourceAlgorithmSchema(defs);
     warpSchema(defs);
     writeJSON(root.resolve("schema/project.schema.json"), schema);
+    var packageSchema =
+        obj()
+            .put("$schema", "https://json-schema.org/draft/2020-12/schema")
+            .put("$id", "urn:voxelcreator:resource-package:1")
+            .put("title", "Portable resource package version 1")
+            .put("type", "object")
+            .put("additionalProperties", false);
+    packageSchema.set("required", JSON.valueToTree(List.of("packageVersion", "resources")));
+    var packageProperties = packageSchema.putObject("properties");
+    packageProperties.putObject("packageVersion").put("type", "integer").put("const", 1);
+    packageProperties.putObject("resources").put("$ref", schema.path("$id").asText());
+    writeJSON(root.resolve("schema/resource-package.schema.json"), packageSchema);
     for (String[] editor :
         List.of(
             new String[] {"UserConfig", "user-config.schema.json"},

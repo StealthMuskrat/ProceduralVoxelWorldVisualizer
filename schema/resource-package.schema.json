@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:voxelcreator:resource-package:1",
+  "title": "Portable resource package version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["packageVersion", "resources"],
+  "properties": {
+    "packageVersion": {"type": "integer", "const": 1},
+    "resources": {"$ref": "urn:voxelcreator:project:2"}
+  }
+}

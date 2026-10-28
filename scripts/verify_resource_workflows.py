@@ -9,6 +9,9 @@ parser.add_argument('package', type=Path)
 args = parser.parse_args()
 report = json.loads(args.report.read_text(encoding='utf-8'))
 assert report['formatVersion'] == 1 and report['catalogTypes'] == 2000
+assert all(report[key] is True for key in ['activeProjectProtected', 'packageRoundTrip', 'packageDefaultDistinct'])
+project = json.loads((args.package.parent / 'active-project.pvproj.json').read_text(encoding='utf-8'))
+assert project['formatVersion'] == 2 and 'packageVersion' not in project
 assert report['pickerRows'] == report['pickerCallbacks'] == report['membershipRows'] == 1
 assert 0 < report['exportRows'] <= 30
 assert 0 < report['unfilteredPickerRows'] <= 30
@@ -25,3 +28,7 @@ assert resources['voxelSets'][0]['voxelTypeUuids'] == [t['uuid'] for t in types]
 assert resources['noise2D'][0]['algorithm']['parameters']['value'] == .625
 assert not resources['noise3D'] and not resources['worldGenerator']['layers']
 print('Resource workflow native counts, exact package membership, draft-ID separation and independent constant PASS')
+
+
+from verify_resource_package_schema import validator as package_validator
+package_validator(Path(__file__).resolve().parent.parent).validate(pack)

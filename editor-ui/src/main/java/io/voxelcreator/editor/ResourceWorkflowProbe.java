@@ -138,12 +138,31 @@ public final class ResourceWorkflowProbe {
             || payload.noise2D.size() != 1
             || !payload.noise3D.isEmpty())
           throw new AssertionError("Wrong export dependency closure");
-        var pack = new Desktop.PortablePackage();
-        pack.resources = payload;
-        Files.writeString(
-            output.resolve("selection.pvresources.json"), ProjectIO.JSON.writeValueAsString(pack));
+        var packageFiles = new ResourcePackageFiles();
+        var projectFile = output.resolve("active-project.pvproj.json");
+        new ProjectIO().save(projectFile, state.project());
+        byte[] projectBytes = Files.readAllBytes(projectFile);
+        boolean protectedProject = false;
+        try {
+          packageFiles.write(projectFile, payload, projectFile);
+        } catch (java.io.IOException expected) {
+          protectedProject = true;
+        }
+        if (!protectedProject || !Arrays.equals(projectBytes, Files.readAllBytes(projectFile)))
+          throw new AssertionError("Export replaced the active project file");
+        var packageFile = output.resolve("selection.pvresources.json");
+        packageFiles.write(packageFile, payload, projectFile);
+        if (!ProjectIO.JSON
+            .valueToTree(payload)
+            .equals(ProjectIO.JSON.valueToTree(packageFiles.read(packageFile))))
+          throw new AssertionError("Strict package file round trip changed resources");
+        if (ResourcePackageFiles.suggestedLocation(projectFile).equals(projectFile))
+          throw new AssertionError("Package default still targets the active project");
         var report = new LinkedHashMap<String, Object>();
         report.put("formatVersion", 1);
+        report.put("activeProjectProtected", true);
+        report.put("packageRoundTrip", true);
+        report.put("packageDefaultDistinct", true);
         report.put("catalogTypes", 2000);
         report.put("pickerRows", pickerRows);
         report.put("unfilteredPickerRows", unfilteredPickerRows);

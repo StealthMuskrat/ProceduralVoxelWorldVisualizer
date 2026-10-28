@@ -47,3 +47,8 @@ for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fie
   except jsonschema.ValidationError:pass
   else:raise AssertionError('Unknown creation signature control was accepted')
  print(name+' schema and fixtures PASS')
+
+
+# Deferred portable package envelope linked to the canonical project schema.
+from verify_resource_package_schema import verify as verify_resource_package_schema
+verify_resource_package_schema(root)

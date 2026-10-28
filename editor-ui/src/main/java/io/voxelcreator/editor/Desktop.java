@@ -50,6 +50,8 @@ public final class Desktop extends Application {
   private String settingsPage = "User Settings", settingsCategory = "Appearance", fileAction = "";
   private boolean filePending = false;
   private boolean packageFileOpen;
+  private final ResourcePackageFiles packageFiles = new ResourcePackageFiles();
+  private String packageFileError = "";
   private ProjectFileDialog projectFiles;
   private ProjectHistoryPanel projectHistory;
   private ProjectSettingsPanel projectSettings;
@@ -510,8 +512,8 @@ public final class Desktop extends Application {
     if (action.equals("Export")) resources.beginExport();
     filePending = true;
     packageFileOpen = true;
-    pathInput.set(
-        state.document.path() != null ? state.document.path().toString() : "project.pvproj.json");
+    packageFileError = "";
+    pathInput.set(ResourcePackageFiles.suggestedLocation(state.document.path()).toString());
   }
 
   private void fileDialogs() {
@@ -523,6 +525,11 @@ public final class Desktop extends Application {
       ImGui.text(fileAction + " file");
       ImGui.setNextItemWidth(600);
       ImGui.inputText("Path", pathInput);
+      if (!packageFileError.isEmpty()) {
+        ImGui.beginChild("package-file-error", 720, 95, true);
+        ImGui.textWrapped(packageFileError);
+        ImGui.endChild();
+      }
       if (fileAction.equals("Export")) {
         ImGui.beginChild("export-resources", 720, 360, true);
         resources.drawExportSelection();
@@ -531,34 +538,31 @@ public final class Desktop extends Application {
       }
       if (ImGui.button(fileAction)) {
         try {
-          Path path = Path.of(pathInput.get());
+          Path path = ResourcePackageFiles.location(pathInput.get());
           switch (fileAction) {
             case "Export" -> {
               if (resources.exportSelection.isEmpty())
                 throw new IOException("Select resources to export");
-              var pack = new PortablePackage();
-              pack.resources = resources.exportSelection();
-              var issues = NoiseCompiler.validate(pack.resources);
-              if (!issues.isEmpty()) throw new IOException(issues.toString());
-              Files.writeString(path, ProjectIO.JSON.writeValueAsString(pack));
+              packageFiles.write(path, resources.exportSelection(), state.document.path());
               state.notify("Information", "Resource package exported");
             }
             case "Import" -> {
-              var pack = ProjectIO.JSON.readValue(path.toFile(), PortablePackage.class);
-              if (pack.packageVersion != 1) throw new IOException("Unsupported package version");
-              if (!imports.open(pack.resources))
+              var candidate = packageFiles.read(path);
+              if (!imports.open(candidate))
                 throw new IOException("Import is blocked or the package was rejected");
             }
           }
           packageFileOpen = false;
           ImGui.closeCurrentPopup();
         } catch (Exception e) {
+          packageFileError =
+              fileAction + " failed: " + Objects.requireNonNullElse(e.getMessage(), e.toString());
           state.error(
               "FILE_" + fileAction.toUpperCase(Locale.ROOT) + "_FAILED",
               Set.of("Import", "Export").contains(fileAction)
                   ? EditorEvents.Subsystem.IMPORT_EXPORT
                   : EditorEvents.Subsystem.PROJECT,
-              fileAction + " failed: " + e.getMessage());
+              packageFileError);
         }
       }
       ImGui.sameLine();
