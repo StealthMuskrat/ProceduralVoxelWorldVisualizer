@@ -505,7 +505,8 @@ public final class GlViewport implements AutoCloseable {
     int binding = glGetInteger(GL_TEXTURE_BINDING_2D);
     glBindTexture(GL_TEXTURE_2D, shadow.texture());
     try {
-      glActiveTexture(active);
+      // Framebuffer resize binds a 2D color texture; keep that work off the shadow sampler.
+      glActiveTexture(GL_TEXTURE0);
       renderRaster(w, h, matrix, unlit, alpha, shadow);
     } finally {
       glActiveTexture(GL_TEXTURE3);

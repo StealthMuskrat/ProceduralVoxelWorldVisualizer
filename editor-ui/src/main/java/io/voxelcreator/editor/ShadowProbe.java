@@ -62,6 +62,8 @@ final class ShadowProbe {
       gl.render(SIZE, SIZE, CAMERA, false, 1);
       save(out, frames, "fixed-off", gl);
       require(gl.shadowStatistics().bytes() == 0, "Disabled map allocation");
+      // Force color framebuffer allocation while a caller's texture unit 3 remains active.
+      gl.render(33, 33, CAMERA, false, 1);
       gl.shadowAppearance(true, 512, 8 << 20);
       int foreignTexture = glGenTextures();
       glActiveTexture(GL_TEXTURE3);
