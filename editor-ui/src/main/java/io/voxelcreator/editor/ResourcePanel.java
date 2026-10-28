@@ -49,6 +49,14 @@ public final class ResourcePanel {
   public final Set<UUID> exportSelection = new LinkedHashSet<>();
   private final ResourceExportPanel exportPanel;
   private final ResourceSelectionSession selection;
+  private final ResourceEditSession edits;
+  private boolean editPrompt;
+  private String editMessage = "";
+  private Runnable editCommitted;
+  private final Map<String, float[]> editButtons = new HashMap<>();
+  private ProjectData dragProject;
+  private long dragRevision;
+  private boolean dragActive;
   private boolean selectionPrompt;
   private UUID pendingAnchor;
   private String selectionMessage = "";
@@ -60,9 +68,17 @@ public final class ResourcePanel {
     this.properties = properties;
     exportPanel = new ResourceExportPanel(s, exportSelection);
     selection = new ResourceSelectionSession(s);
+    edits = new ResourceEditSession(s);
   }
 
   public void reset() {
+    edits.clear();
+    editPrompt = false;
+    editMessage = "";
+    editCommitted = null;
+    editButtons.clear();
+    dragProject = null;
+    dragActive = false;
     selection.clear();
     selectionPrompt = false;
     pendingAnchor = null;
@@ -127,6 +143,12 @@ public final class ResourcePanel {
     placementDialog();
     manager();
     selectionDialog();
+    editDialog();
+    if (!ImGui.isMouseDown(0)) {
+      dragActive = false;
+      dragProject = null;
+      dragSelection = List.of();
+    }
   }
 
   public boolean focused() {
@@ -152,8 +174,7 @@ public final class ResourcePanel {
       case "Duplicate" ->
           duplicate(target.kind(), target.resource(), target.root(), target.parent());
       case "Delete" -> {
-        deleteId = target.uuid();
-        replacement = null;
+        beginDelete(target.uuid());
       }
       default -> {}
     }
@@ -255,6 +276,7 @@ public final class ResourcePanel {
   }
 
   private void beginPlacement(UUID layer) {
+    if (!actionAvailable()) return;
     placementLayer = layer;
     placementNoise = null;
     placementFilter.set("");
@@ -301,25 +323,9 @@ public final class ResourcePanel {
     ImGui.beginDisabled(placementNoise == null || browser.get(placementLayer) == null);
     if (ImGui.button("Add Placement")) {
       UUID layerId = placementLayer, noiseId = placementNoise;
-      if (state.change(
-          p -> {
-            var layer =
-                p.worldGenerator.layers.stream()
-                    .filter(l -> l.uuid.equals(layerId))
-                    .findFirst()
-                    .orElseThrow();
-            var noise = (Noise) EditorState.find(p, noiseId);
-            var op = new Operation();
-            op.id =
-                ResourceTransactions.unique(
-                    noise.id, layer.operations.stream().map(o -> o.id).toList());
-            op.noiseGeneratorUuid = noiseId;
-            op.interpretation = noise.dimension == 2 ? "HEIGHT_BELOW" : "DENSITY";
-            layer.operations.add(op);
-          })) {
-        state.refreshDraft();
-        ImGui.closeCurrentPopup();
-      }
+      var result =
+          requestEdit("Add Placement", ResourceBrowserEdits.placement(layerId, noiseId), () -> {});
+      if (acceptedOrPending(result)) ImGui.closeCurrentPopup();
     }
     ImGui.endDisabled();
     ImGui.sameLine();
@@ -354,7 +360,7 @@ public final class ResourcePanel {
         paste("operation", r.uuid);
       if (ImGui.menuItem("Rename", state.user.input.shortcuts.getOrDefault("Rename", "")))
         beginRename(r.uuid);
-      if (ImGui.menuItem("Properties", "", false, !properties.searchBlocked()))
+      if (ImGui.menuItem("Properties", "", false, !properties.searchBlocked() && !edits.pending()))
         acceptSelection(selection.click(r.uuid, false), r.uuid);
       if (ImGui.menuItem("Duplicate", state.user.input.shortcuts.getOrDefault("Duplicate", "")))
         duplicate(kind, r, root, parent);
@@ -363,9 +369,7 @@ public final class ResourcePanel {
       if (ImGui.menuItem("Cut", state.user.input.shortcuts.getOrDefault("Cut", "")))
         copy(r.uuid, root, true);
       if (ImGui.menuItem("Delete", state.user.input.shortcuts.getOrDefault("Delete", ""))) {
-        deleteId = r.uuid;
-        replacement = null;
-        ImGui.openPopup("Delete Resource");
+        beginDelete(r.uuid);
       }
       if (ImGui.menuItem(root.equals("operation") ? "Run Placement Earlier" : "Move Up in Tree"))
         reorder(r.uuid, -1);
@@ -384,24 +388,31 @@ public final class ResourcePanel {
                       return entry != null && entry.resource() instanceof Layer;
                     });
         if (ImGui.menuItem("Run Layer Earlier", "", false, layersOnly))
-          state.change(p -> ResourceGraph.shiftExecution(p, selected, -1));
+          requestEdit(
+              "Run Layer Earlier", ResourceBrowserEdits.shift(selected, -1, true), () -> {});
         if (ImGui.menuItem("Run Layer Later", "", false, layersOnly))
-          state.change(p -> ResourceGraph.shiftExecution(p, selected, 1));
+          requestEdit("Run Layer Later", ResourceBrowserEdits.shift(selected, 1, true), () -> {});
         ImGui.textDisabled("Tree organization does not change stage order");
       }
       if (parent != null
           && ResourceGraph.ORGANIZATIONAL_ROOTS.contains(root)
           && ImGui.menuItem("Move to Root"))
-        state.change(p -> ResourceGraph.move(p, List.of(r.uuid), root, null));
+        requestEdit(
+            "Move to Root", ResourceBrowserEdits.move(List.of(r.uuid), root, null), () -> {});
       ImGui.endPopup();
     }
   }
 
   private void drag(UUID id, String root) {
     if (ImGui.beginDragDropSource()) {
-      dragRoot = root;
-      dragSelection =
-          state.multiSelection.contains(id) ? List.copyOf(state.multiSelection) : List.of(id);
+      if (!dragActive) {
+        dragActive = true;
+        dragProject = state.project();
+        dragRevision = state.revision;
+        dragRoot = root;
+        dragSelection =
+            state.multiSelection.contains(id) ? List.copyOf(state.multiSelection) : List.of(id);
+      }
       ImGui.setDragDropPayload("resource", id.toString());
       ImGui.text("Move " + dragSelection.size() + " selected resource(s)");
       if (ResourceGraph.ORGANIZATIONAL_ROOTS.contains(root))
@@ -416,14 +427,15 @@ public final class ResourcePanel {
       String value = ImGui.acceptDragDropPayload("resource", String.class);
       if (value != null && !dragSelection.isEmpty()) {
         var ids = List.copyOf(dragSelection);
-        state.change(p -> ResourceGraph.move(p, ids, root, parent));
-        state.refreshDraft();
+        if (currentDrag())
+          requestEdit("Move Resources", ResourceBrowserEdits.move(ids, root, parent), () -> {});
       }
       ImGui.endDragDropTarget();
     }
   }
 
   private void beginRename(UUID id) {
+    if (!actionAvailable()) return;
     var e = ResourceGraph.find(state.project(), id);
     if (e == null) return;
     renameId = id;
@@ -443,18 +455,24 @@ public final class ResourcePanel {
     if (entered) {
       UUID id = resource.uuid;
       String name = renameText.get();
-      if (state.change(p -> ResourceGraph.rename(p, id, name))) {
-        renameId = null;
-        renameError = "";
-        state.refreshDraft();
-      } else renameError = "ID rejected; correct it or press Escape";
+      var result =
+          requestEdit(
+              "Rename " + resource.id + " to " + name,
+              ResourceBrowserEdits.rename(id, name),
+              () -> {
+                renameId = null;
+                renameError = "";
+              });
+      if (result == ResourceEditSession.Result.REJECTED)
+        renameError = "ID rejected; correct it or press Escape";
     }
     ImGui.popID();
   }
 
   private void select(UUID id) {
-    if (properties.searchBlocked()) {
-      state.status = "Finish the private Properties editor before changing resource selection";
+    if (properties.searchBlocked() || edits.pending()) {
+      state.status =
+          "Finish the private Properties editor or resource action before changing selection";
       return;
     }
     if (ImGui.getIO().getKeyShift() && rangeAnchor != null) {
@@ -556,12 +574,145 @@ public final class ResourcePanel {
     return selection.pending();
   }
 
+  private boolean currentDrag() {
+    boolean current = dragProject == state.project() && dragRevision == state.revision;
+    if (!current) state.status = "Project changed during the drag; start the move again";
+    return current;
+  }
+
+  private static boolean acceptedOrPending(ResourceEditSession.Result result) {
+    return result == ResourceEditSession.Result.APPLIED
+        || result == ResourceEditSession.Result.NEEDS_DECISION;
+  }
+
+  private ResourceEditSession.Result requestEdit(
+      String label, ResourceBrowserEdits.Edit edit, Runnable committed) {
+    if (!actionAvailable()) return ResourceEditSession.Result.UNAVAILABLE;
+    var result = edits.request(label, edit);
+    if (result == ResourceEditSession.Result.APPLIED) committed.run();
+    else if (result == ResourceEditSession.Result.NEEDS_DECISION) {
+      editCommitted = committed;
+      editMessage = "";
+      editPrompt = true;
+    }
+    return result;
+  }
+
+  private void editDialog() {
+    if (editPrompt) {
+      ImGui.openPopup("Properties Draft and Resource Action");
+      editPrompt = false;
+    }
+    if (!ImGui.beginPopupModal(
+        "Properties Draft and Resource Action", ImGuiWindowFlags.AlwaysAutoResize)) return;
+    if (!edits.pending()) {
+      ImGui.closeCurrentPopup();
+      ImGui.endPopup();
+      return;
+    }
+    ImGui.textWrapped(AppMetadata.uiText("Requested action: " + edits.label()));
+    ImGui.textWrapped(
+        "Apply the Properties draft and this action together as one undoable edit, discard the"
+            + " draft only if the action succeeds, or cancel.");
+    if (!editMessage.isEmpty()) ImGui.textWrapped(editMessage);
+    for (var decision : SearchNavigation.Decision.values()) {
+      if (decision != SearchNavigation.Decision.APPLY) ImGui.sameLine();
+      boolean clicked = ImGui.button(decision.name());
+      var a = ImGui.getItemRectMin();
+      var b = ImGui.getItemRectMax();
+      editButtons.put(decision.name(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
+      if (clicked) {
+        var result =
+            properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
+                ? ResourceEditSession.Result.UNAVAILABLE
+                : edits.decide(decision);
+        if (result == ResourceEditSession.Result.REJECTED)
+          editMessage =
+              "The draft or action was rejected. Cancel to correct it; no changes were published.";
+        else {
+          if (result == ResourceEditSession.Result.APPLIED && editCommitted != null)
+            editCommitted.run();
+          if (result == ResourceEditSession.Result.UNAVAILABLE)
+            state.status = "Project, selection or draft changed; request the resource action again";
+          edits.clear();
+          editCommitted = null;
+          ImGui.closeCurrentPopup();
+        }
+      }
+    }
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      edits.decide(SearchNavigation.Decision.CANCEL);
+      editCommitted = null;
+      ImGui.closeCurrentPopup();
+    }
+    ImGui.endPopup();
+  }
+
+  private ResourceEditSession.Result createResource(
+      String kind, String root, UUID parent, String id) {
+    Identity resource;
+    switch (kind) {
+      case "noise2D", "noise3D" ->
+          resource =
+              EditorCreations.noise(state.metadata, kind.equals("noise2D") ? 2 : 3, id, parent);
+      case "layer" -> {
+        var layer = new Layer();
+        layer.id = id;
+        layer.parentFolderUuid = parent;
+        resource = layer;
+      }
+      case "folder" -> {
+        var folder = new Folder();
+        folder.id = id;
+        folder.rootKind = root;
+        folder.parentFolderUuid = parent;
+        resource = folder;
+      }
+      case "voxel" -> resource = EditorCreations.voxel(state.metadata, id);
+      case "set", "group" -> {
+        var membership = new Membership();
+        membership.id = id;
+        resource = membership;
+      }
+      default -> throw new IllegalArgumentException("Unsupported resource kind " + kind);
+    }
+    return requestEdit(
+        "Create " + kind + " " + id, ResourceBrowserEdits.insert(kind, resource), () -> {});
+  }
+
+  float[] probeEditButton(String decision) {
+    return editButtons.get(decision);
+  }
+
+  boolean probeEditPending() {
+    return edits.pending();
+  }
+
+  private void rememberEditButton(String key) {
+    var a = ImGui.getItemRectMin();
+    var b = ImGui.getItemRectMax();
+    editButtons.put(key, new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
+  }
+
   private void create(String kind, String root, UUID parent) {
+    if (!actionAvailable()) return;
     createKind = kind;
     createRoot = root;
     createParent = parent;
     name.set("");
     createPending = true;
+  }
+
+  private boolean actionAvailable() {
+    boolean available = !properties.searchBlocked() && !selection.pending() && !edits.pending();
+    if (!available) state.status = "Finish the private editor or pending resource action first";
+    return available;
+  }
+
+  private void beginDelete(UUID id) {
+    if (!actionAvailable()) return;
+    deleteId = id;
+    replacement = null;
   }
 
   private void createDialog() {
@@ -573,55 +724,8 @@ public final class ResourcePanel {
       ImGui.text("New " + createKind);
       ImGui.inputText("ID", name);
       if (ImGui.button("Create")) {
-        UUID[] made = {null};
-        boolean ok =
-            state.change(
-                p -> {
-                  String id = name.get();
-                  switch (createKind) {
-                    case "noise2D", "noise3D" -> {
-                      var n =
-                          EditorCreations.noise(
-                              state.metadata,
-                              createKind.equals("noise2D") ? 2 : 3,
-                              id,
-                              createParent);
-                      (n.dimension == 2 ? p.noise2D : p.noise3D).add(n);
-                      made[0] = n.uuid;
-                    }
-                    case "layer" -> {
-                      var l = new Layer();
-                      l.id = id;
-                      l.parentFolderUuid = createParent;
-                      p.worldGenerator.layers.add(l);
-                      made[0] = l.uuid;
-                    }
-                    case "folder" -> {
-                      var folder = new Folder();
-                      folder.id = id;
-                      folder.rootKind = createRoot;
-                      folder.parentFolderUuid = createParent;
-                      p.folders.add(folder);
-                      made[0] = folder.uuid;
-                    }
-                    case "voxel" -> {
-                      var t = EditorCreations.voxel(state.metadata, id);
-                      p.voxelTypes.add(t);
-                      made[0] = t.uuid;
-                    }
-                    case "set", "group" -> {
-                      var m = new Membership();
-                      m.id = id;
-                      (createKind.equals("set") ? p.voxelSets : p.voxelGroups).add(m);
-                      made[0] = m.uuid;
-                    }
-                    default -> throw new IllegalArgumentException();
-                  }
-                });
-        if (ok) {
-          state.select(createKind, made[0]);
-          ImGui.closeCurrentPopup();
-        }
+        var result = createResource(createKind, createRoot, createParent, name.get());
+        if (acceptedOrPending(result)) ImGui.closeCurrentPopup();
       }
       ImGui.sameLine();
       if (ImGui.button("Cancel")) ImGui.closeCurrentPopup();
@@ -632,7 +736,8 @@ public final class ResourcePanel {
   private void reorder(UUID uuid, int direction) {
     Set<UUID> selection =
         state.multiSelection.contains(uuid) ? Set.copyOf(state.multiSelection) : Set.of(uuid);
-    state.change(p -> ResourceGraph.shift(p, selection, direction));
+    requestEdit(
+        "Reorder Resources", ResourceBrowserEdits.shift(selection, direction, false), () -> {});
   }
 
   private void dropBefore(UUID target) {
@@ -640,39 +745,20 @@ public final class ResourcePanel {
       String value = ImGui.acceptDragDropPayload("resource", String.class);
       if (value != null && !dragSelection.isEmpty()) {
         var ids = List.copyOf(dragSelection);
-        state.change(p -> ResourceGraph.reorderBefore(p, ids, target));
+        if (currentDrag())
+          requestEdit("Reorder Resources", ResourceBrowserEdits.before(ids, target), () -> {});
       }
       ImGui.endDragDropTarget();
     }
   }
 
   private void duplicate(String kind, Identity r, String root, UUID parent) {
-    if (r instanceof Folder || state.multiSelection.size() > 1) {
-      copy(r.uuid, root, false);
-      paste(root, parent);
-      return;
-    }
-    UUID[] made = {null};
-    state.change(
-        p -> {
-          for (var list : EditorState.lists(p))
-            if (list.stream().anyMatch(o -> o instanceof Identity i && i.uuid.equals(r.uuid))) {
-              Identity copy = ResourceTransactions.duplicate(r, r.getClass());
-              copy.id =
-                  ResourceTransactions.unique(
-                      copy.id,
-                      list.stream()
-                          .filter(o -> o instanceof Identity)
-                          .map(o -> ((Identity) o).id)
-                          .toList());
-              @SuppressWarnings("unchecked")
-              List<Object> target = (List<Object>) (List<?>) list;
-              target.add(copy);
-              made[0] = copy.uuid;
-              return;
-            }
-        });
-    if (made[0] != null) state.select(kind, made[0]);
+    var ids =
+        state.multiSelection.contains(r.uuid) ? List.copyOf(state.multiSelection) : List.of(r.uuid);
+    requestEdit(
+        "Duplicate " + ids.size() + " resource(s), including " + r.id,
+        ResourceBrowserEdits.duplicate(ids),
+        () -> {});
   }
 
   public ProjectData selection(boolean dependencies) {
@@ -714,10 +800,12 @@ public final class ResourcePanel {
   private void paste(String root, UUID parent) {
     if (clipboard == null) return;
     ResourceClipboard content = clipboard;
-    if (state.change(p -> content.paste(p, root, parent))) {
-      if (content.cut()) clipboard = null;
-      state.refreshDraft();
-    }
+    requestEdit(
+        "Paste Resources",
+        ResourceBrowserEdits.paste(content, root, parent),
+        () -> {
+          if (content.cut() && clipboard == content) clipboard = null;
+        });
   }
 
   public List<Identity> dependents(UUID id) {
@@ -762,12 +850,15 @@ public final class ResourcePanel {
         } else
           ImGui.textWrapped("Edit the external references before deleting this folder subtree.");
       }
-      if ((deps.isEmpty() || replacement != null) && ImGui.button("Delete")) {
+      boolean canDelete = deps.isEmpty() || replacement != null;
+      boolean deleteClicked = canDelete && ImGui.button("Delete");
+      if (canDelete) rememberEditButton("confirmDelete");
+      if (deleteClicked) {
         UUID id = deleteId, target = replacement;
-        if (state.change(p -> ResourceGraph.delete(p, id, target))) {
-          state.selected = null;
-          state.draft = null;
-          state.multiSelection.clear();
+        var result =
+            requestEdit(
+                "Delete Resource", ResourceBrowserEdits.delete(id, target), () -> deleteId = null);
+        if (acceptedOrPending(result)) {
           deleteId = null;
           ImGui.closeCurrentPopup();
         }

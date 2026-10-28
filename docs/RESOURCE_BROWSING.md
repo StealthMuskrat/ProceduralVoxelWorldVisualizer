@@ -25,3 +25,5 @@ The follow-up property selector, membership and export/import work is documented
 ## Development-phase selection guard
 
 Row clicks and context-menu Properties in Resources and Voxel Manager now protect unapplied Properties drafts, including raw seed text and selection changes that would hide an editor in the sibling summary. Copy/Cut and drag-start no longer select an unselected context row. The source is uncompiled/untested; see [ownership, deferred definitions and remaining scope](RESOURCE_SELECTION_GUARDS.md).
+
+Structural browser actions now share [guarded candidate transactions](RESOURCE_BROWSER_TRANSACTIONS.md), including combined Properties Apply/one Undo, rejection retention, candidate-scoped UUID commands, cut consumption and post-commit sibling reconciliation. Implementation and deferred definitions remain unvalidated.

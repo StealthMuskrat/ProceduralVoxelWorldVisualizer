@@ -143,13 +143,7 @@ public final class EditorState implements AutoCloseable {
   }
 
   public boolean applyDraft() {
-    var provisional = seedInputs.diagnostics(this);
-    if (!provisional.isEmpty()) {
-      issues = provisional;
-      validationScope = "Rejected Properties seed input";
-      for (var issue : issues) reportDiagnostic(issue, EditorEvents.Subsystem.PROJECT, true);
-      return false;
-    }
+    if (!validSeedInputs()) return false;
     Object copy = draft;
     if (copy instanceof Identity identity) {
       boolean ok = change(p -> replace(p, identity.uuid, copy));
@@ -157,6 +151,44 @@ public final class EditorState implements AutoCloseable {
       return ok;
     }
     return false;
+  }
+
+  private boolean validSeedInputs() {
+    var provisional = seedInputs.diagnostics(this);
+    if (!provisional.isEmpty()) {
+      issues = provisional;
+      validationScope = "Rejected Properties seed input";
+      for (var issue : issues) reportDiagnostic(issue, EditorEvents.Subsystem.PROJECT, true);
+      return false;
+    }
+    return true;
+  }
+
+  /** Validate Properties independently, then publish it with a browser edit in one transaction. */
+  boolean changeWithDraft(Consumer<ProjectData> edit) {
+    if (!validSeedInputs() || !(draft instanceof Identity identity)) return false;
+    if (!Objects.equals(selected, identity.uuid) || find(project(), selected) == null) {
+      error(
+          "DRAFT_RESOURCE_MISSING",
+          EditorEvents.Subsystem.PROJECT,
+          "The Properties source changed; select the resource again.");
+      return false;
+    }
+    var candidate = ProjectIO.copy(project());
+    replace(candidate, identity.uuid, draft);
+    var validation = NoiseCompiler.validate(candidate);
+    if (!validation.isEmpty()) {
+      issues = validation;
+      validationScope = "Rejected edit";
+      for (var issue : issues) reportDiagnostic(issue, EditorEvents.Subsystem.PROJECT, true);
+      return false;
+    }
+    Object copy = draft;
+    return change(
+        p -> {
+          replace(p, identity.uuid, copy);
+          edit.accept(p);
+        });
   }
 
   private static void replace(ProjectData p, UUID id, Object copy) {
