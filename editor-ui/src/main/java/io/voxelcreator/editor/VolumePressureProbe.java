@@ -317,13 +317,22 @@ final class VolumePressureProbe {
   private static Map<String, Object> stage(String name, int value, Path out) throws Exception {
     int n = views.probeVolumeResidentSize();
     var origin = views.probeVolumeOrigin();
+    var encoding = views.probeVolumeEncoding();
+    require(
+        encoding.offset() == value
+            && encoding.scale() == 1
+            && encoding.min() == value
+            && encoding.max() == value,
+        "Uniform pressure encoding " + name);
     glBindTexture(GL_TEXTURE_3D, views.probeVolumeResidentTexture());
     var texels = BufferUtils.createFloatBuffer(n * n * n);
     glGetTexImage(GL_TEXTURE_3D, 0, GL_RED, GL_FLOAT, texels);
     var bytes = ByteBuffer.allocate(n * n * n * 4).order(ByteOrder.LITTLE_ENDIAN);
     for (int i = 0; i < texels.capacity(); i++) {
       float actual = texels.get(i);
-      require(actual == value, "Pressure texel changed at " + name + ": " + i);
+      require(
+          Float.floatToRawIntBits(actual) == 0,
+          "Pressure encoded texel changed at " + name + ": " + i);
       bytes.putFloat(actual);
     }
     Files.write(out.resolve(name + ".bin"), bytes.array());
@@ -331,6 +340,7 @@ final class VolumePressureProbe {
     var row = new LinkedHashMap<String, Object>();
     row.put("name", name);
     row.put("value", value);
+    row.put("encoding", encoding);
     row.put("side", n);
     row.put("configured", views.probeVolumeConfiguredSize());
     row.put("level", views.probeVolumePressureLevel());

@@ -520,7 +520,8 @@ for i, s in enumerate(pressure_stages):
     assert s['value'] == value
     raw = (vp_root / (s['name'] + '.bin')).read_bytes()
     assert len(raw) == 4*n**3
-    assert all(v == value for (v,) in struct.iter_unpack('<f', raw))
+    assert s['encoding'] == {'offset': value, 'scale': 1, 'min': value, 'max': value}
+    assert raw == b'\0' * len(raw)  # Uniform canonical values encode as positive float zero.
     optical_density = 0 if s['name'] in ('deferred', 'paused-upload') else value
     t = math.exp(-optical_density*.01*n)
     expected = [127*(1-t)+255*t*.055, 255*t*.075, 255*t*.1, 255]

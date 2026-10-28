@@ -510,6 +510,11 @@ public final class Viewports implements AutoCloseable {
     return views[1].volumeWorkingBytes;
   }
 
+  VolumeData.Encoding probeVolumeEncoding() {
+    var resident = views[1].gl.volumeResident();
+    return resident == null ? null : resident.encoding();
+  }
+
   int probeVolumeResidentTexture() {
     var resident = views[1].gl.volumeResident();
     return resident == null ? 0 : resident.texture();
