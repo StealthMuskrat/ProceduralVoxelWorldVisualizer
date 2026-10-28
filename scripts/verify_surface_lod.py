@@ -13,14 +13,18 @@ def records(path):
 
 
 def face_segments(vertices, x):
-    segments = set()
+    incidence = {}
     for i in range(0, len(vertices), 3):
         triangle = vertices[i:i+3]
         for a in range(3):
             p, q = triangle[a], triangle[(a+1) % 3]
             if p[0] == x and q[0] == x and p[1:3] != q[1:3]:
-                segments.add(tuple(sorted((p[1:3], q[1:3]))))
-    return segments
+                edge = tuple(sorted((p[1:3], q[1:3])))
+                incidence[edge] = incidence.get(edge, 0) + 1
+    # Internal edges of a face-flattened rounded triangle have two incidents; the canonical
+    # open contour has one. Check incidence as well as its exact quantized coordinates.
+    assert all(count <= 2 for count in incidence.values())
+    return {edge for edge,count in incidence.items() if count == 1}
 
 
 def f32(value):

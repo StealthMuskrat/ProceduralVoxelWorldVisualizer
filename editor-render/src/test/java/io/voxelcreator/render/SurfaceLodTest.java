@@ -257,7 +257,7 @@ class SurfaceLodTest {
   }
 
   private static Set<String> packedFace(PackedMesh mesh, int axis, int coordinate) {
-    Set<String> result = new TreeSet<>();
+    Map<String, Integer> incidence = new TreeMap<>();
     ByteBuffer b = mesh.readOnly();
     for (int at = 0; at < mesh.byteSize(); at += 48)
       for (int a = 0; a < 3; a++) {
@@ -273,8 +273,17 @@ class SurfaceLodTest {
             Short.toUnsignedInt(b.getShort(q + u * 2))
                 + ","
                 + Short.toUnsignedInt(b.getShort(q + w * 2));
-        if (!l.equals(r)) result.add(l.compareTo(r) < 0 ? l + "/" + r : r + "/" + l);
+        if (!l.equals(r))
+          incidence.merge(l.compareTo(r) < 0 ? l + "/" + r : r + "/" + l, 1, Integer::sum);
       }
+    // Rounding may flatten an interior triangle onto this face. Its shared edges are internal,
+    // not part of the open boundary contour; compare the one-incident-triangle edges only.
+    assertTrue(incidence.values().stream().allMatch(count -> count <= 2));
+    Set<String> result = new TreeSet<>();
+    incidence.forEach(
+        (edge, count) -> {
+          if (count == 1) result.add(edge);
+        });
     return result;
   }
 }
