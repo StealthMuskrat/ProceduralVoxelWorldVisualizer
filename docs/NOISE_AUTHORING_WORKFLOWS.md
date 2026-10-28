@@ -41,3 +41,7 @@ Core regressions cover independently known arithmetic, reorder/disable/delete sa
 The explicit native reference contains 2,002 processing items and 2,000 shared parameters. It exercises bounded production summaries and selectors, actual mouse/text UUID selection, private dependency Apply/Escape Cancel, one parent Undo/Redo, exact (1+2)*4 = 12 arithmetic and guarded invalid reference navigation. The engine-only consumer checks that an explicit Raw Source replacement produces 4 while an earlier compiled snapshot remains 12. Python validates the saved authored shape and the same independent arithmetic.
 
 Testing runs after implementation, then any observed failures are repaired and dependent checks rerun. The complete Linux/Windows clean build, schema family, native desktop/render/input references, packaged Windows launcher, exact voxel regressions and binary reproducibility remain required. This scope does not certify every Tree 6 gesture, performance on representative hardware, all A01-A36 requirements or Windows 11 hardware acceptance.
+
+## Development-branch pin browsing
+
+[Exact pin selection, group filtering and source focus](PINNED_CONTROL_BROWSING.md) extend this UI on the development branch. They preserve the existing canonical Pin shape and are uncompiled/untested under the owner GitHub testing pause. The earlier authoring evidence does not validate this extension.

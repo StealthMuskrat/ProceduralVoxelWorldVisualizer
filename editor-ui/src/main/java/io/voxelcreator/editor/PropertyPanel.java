@@ -147,6 +147,50 @@ public final class PropertyPanel {
   private boolean bindingFocusSubmitted;
   private final PropertyFocus propertyFocus = new PropertyFocus();
   private final NoiseInputSelection inputSelection = new NoiseInputSelection();
+  private final PinBrowser pinBrowser = new PinBrowser();
+  private final UiFields pinFields = new UiFields(this::noiseChanged);
+  private UUID pinFocusControl;
+  private Pin pinFocusPin;
+  private String pinFocusKey, pinMessage = "";
+  private final Map<String, float[]> pinCenters = new HashMap<>();
+
+  float[] probePinControl(String key) {
+    return pinCenters.get(key);
+  }
+
+  Pin probeSelectedPin() {
+    return pinBrowser.selected();
+  }
+
+  List<DraftChoicePicker.Choice> probePinRows() {
+    return pinBrowser.rows();
+  }
+
+  void probePinGroup(String key) {
+    pinBrowser.showGroup(key);
+  }
+
+  void probePinPanel() {
+    pinnedControls((Noise) state.draft);
+  }
+
+  float[] probePinOption(String key) {
+    return draftChoices.option(key);
+  }
+
+  private void pinRect(String key) {
+    var a = ImGui.getItemRectMin();
+    var b = ImGui.getItemRectMax();
+    pinCenters.put(key, new float[] {a.x + Math.min(80, (b.x - a.x) * .25f), (a.y + b.y) / 2});
+  }
+
+  private void cancelPinFocus() {
+    propertyFocus.cancel();
+    pinFocusPin = null;
+    pinFocusKey = null;
+    pinMessage = "";
+  }
+
   private boolean searchScroll;
   private WorldSettingNavigation.Route worldRoute;
   private String worldSettingPath;
@@ -230,6 +274,29 @@ public final class PropertyPanel {
                 worldRoute.control(),
                 target.pointer(),
                 target.settings());
+    pinFocusKey = null;
+    pinFocusPin = null;
+    pinMessage = "";
+    if (state.draft instanceof Noise noise) {
+      String pinKey = PinBrowser.navigation(target);
+      if (pinKey != null) {
+        var previousPin = pinBrowser.selected();
+        if (pinBrowser.synchronize(noise, noiseVersion)) pinFields.clear();
+        boolean precise = target.control() != null && pinBrowser.selectTarget(target.control());
+        if (pinBrowser.selected() != previousPin) pinFields.clear();
+        pinFocusControl = precise ? target.control() : null;
+        pinFocusPin = precise ? pinBrowser.selected() : null;
+        pinFocusKey = precise ? pinKey : "pins";
+        if (!precise)
+          pinMessage =
+              "Choose the current pin. Historical pin positions and duplicate target references do"
+                  + " not select one automatically.";
+        focusTarget =
+            new EditorEvents.Target(
+                target.project(), target.resource(), pinFocusControl, pinFocusKey, "", false);
+        focusedControl = null;
+      }
+    }
     propertyFocus.request(focusTarget, state.draft);
     bindingFocusSubmitted = false;
     focusedBinding = null;
@@ -1199,81 +1266,144 @@ public final class PropertyPanel {
     ImGui.treePop();
   }
 
-  private int selectedPin;
-  private Noise pinOwner;
-  private long pinVersion = -1;
-  private List<DraftChoicePicker.Choice> pinChoices = List.of();
-
   private void pinnedControls(Noise noise) {
-    if (noise.pinnedControls.isEmpty() || !ImGui.collapsingHeader("Pinned Controls")) return;
-    if (pinOwner != noise || pinVersion != noiseVersion) {
-      pinOwner = noise;
-      pinVersion = noiseVersion;
-      var choices = new ArrayList<DraftChoicePicker.Choice>();
-      for (int i = 0; i < noise.pinnedControls.size(); i++) {
-        var pin = noise.pinnedControls.get(i);
-        var row = index(noise).get(pin.targetUuid);
-        choices.add(
-            new DraftChoicePicker.Choice(
-                Integer.toString(i),
-                pin.label,
-                (Objects.requireNonNullElse(pin.group, "").isBlank() ? "Ungrouped" : pin.group)
-                    + " / "
-                    + (row == null ? "Missing control" : row.type())));
-      }
-      pinChoices = List.copyOf(choices);
+    pinCenters.clear();
+    if (pinBrowser.synchronize(noise, noiseVersion)) pinFields.clear();
+    if (pinFocusPin != null
+        && (pinBrowser.selected() != pinFocusPin
+            || !Objects.equals(pinFocusControl, pinFocusPin.targetUuid))) {
+      propertyFocus.cancel();
+      pinFocusPin = null;
+      pinFocusKey = null;
+      pinMessage = "The pin changed. Follow its current link again.";
     }
-    selectedPin = Math.max(0, Math.min(selectedPin, noise.pinnedControls.size() - 1));
+    boolean targeted =
+        navigationDraft == state.draft && propertyFocus.matches(pinFocusControl, pinFocusKey);
+    if (targeted) ImGui.setNextItemOpen(true, ImGuiCond.Always);
+    if (noise.pinnedControls.isEmpty()) {
+      if (targeted) {
+        ImGui.textWrapped("No pinned controls remain in this draft.");
+        propertyFocus.cancel();
+        pinFocusKey = null;
+      }
+      return;
+    }
+    if (!ImGui.collapsingHeader("Pinned Controls")) return;
     draftChoices.draw(
-        "Pinned control",
-        Integer.toString(selectedPin),
-        pinChoices,
+        "Show group",
+        pinBrowser.group(),
+        pinBrowser.groups(),
         null,
-        value -> {
-          selectedPin = Integer.parseInt(value);
-          f.clear();
+        key -> {
+          pinBrowser.showGroup(key);
+          cancelPinFocus();
         });
-    var pin = noise.pinnedControls.get(selectedPin);
-    ImGui.pushID("pin" + selectedPin);
-    f.text("Label", pin.label, value -> pin.label = value);
-    f.text("Group", pin.group, value -> pin.group = value);
-    var row = index(noise).get(pin.targetUuid);
+    pinCenters.put("groups", draftChoices.buttonCenter());
+    ImGui.text(pinBrowser.rows().size() + " visible / " + noise.pinnedControls.size() + " pins");
+    propertyControl(
+        null,
+        "pins",
+        () ->
+            draftChoices.draw(
+                "Pinned control",
+                pinBrowser.visibleToken(),
+                pinBrowser.rows(),
+                null,
+                key -> {
+                  if (pinBrowser.choose(key)) pinFields.clear();
+                  cancelPinFocus();
+                }),
+        draftChoices::focused);
+    pinCenters.put("picker", draftChoices.buttonCenter());
+    var pin = pinBrowser.selected();
+    if (pin == null) return;
+    if (pinBrowser.visibleToken() == null)
+      ImGui.textWrapped(
+          "The selected pin is outside this group filter. Its private edits are preserved.");
+    if (!pinMessage.isEmpty() && navigationDraft == state.draft) ImGui.textWrapped(pinMessage);
+    ImGui.pushID(pinBrowser.token());
+    propertyControl(
+        pin.targetUuid,
+        "pin/label",
+        () -> pinFields.text("Label", pin.label, value -> pin.label = value));
+    pinRect("label");
+    propertyControl(
+        pin.targetUuid,
+        "pin/group",
+        () -> pinFields.text("Group", pin.group, value -> pin.group = value));
+    pinRect("group");
+    var row = pin.targetUuid == null ? null : index(noise).get(pin.targetUuid);
+    Item item = null;
+    if (row != null && row.section() != NoiseDraftIndex.Section.PARAMETERS) {
+      var items =
+          row.section() == NoiseDraftIndex.Section.TRANSFORMS
+              ? noise.coordinateTransforms
+              : noise.processing;
+      item =
+          items.stream()
+              .filter(value -> Objects.equals(value.uuid, pin.targetUuid))
+              .findFirst()
+              .orElse(null);
+    }
     if (row != null) {
-      ImGui.text("Source: " + row.id() + " / " + row.type());
+      ImGui.textWrapped("Source: " + row.id() + " / " + row.type());
       if (row.section() == NoiseDraftIndex.Section.PARAMETERS) {
-        var parameter = noise.sharedParameters.get(row.position());
+        var parameter =
+            noise.sharedParameters.stream()
+                .filter(value -> Objects.equals(value.uuid, pin.targetUuid))
+                .findFirst()
+                .orElseThrow();
         constantEditor(
+            pinFields,
             parameter.type,
             parameter.value,
-            value -> {
-              parameter.value = value;
-              noiseChanged();
+            value -> parameter.value = value,
+            (key, draw) -> {
+              draw.run();
+              pinRect(key);
             });
-      } else
+      } else {
         ImGui.textWrapped(
-            "This pin references an item. Edit its original inputs and settings with Go To"
-                + " Control.");
-      localLink(noise, pin.targetUuid);
-    }
-    if (ImGui.smallButton("Move Pin Up") && selectedPin > 0) {
-      Collections.swap(noise.pinnedControls, selectedPin, selectedPin - 1);
-      selectedPin--;
+            "This pin references the original item. Its input sources are shown below.");
+        if (item != null) {
+          int shown = 0;
+          for (var input : item.inputs.entrySet()) {
+            if (shown++ >= 8) break;
+            ImGui.pushID(input.getKey());
+            ImGui.textWrapped(
+                input.getKey() + ": " + PinSources.input(noise, state.project(), input.getValue()));
+            if (ImGui.smallButton("Go To Input"))
+              focusLocal(noise, item.uuid, "inputs/" + input.getKey());
+            pinRect("input/" + input.getKey());
+            ImGui.popID();
+          }
+          if (item.inputs.size() > 8)
+            ImGui.textWrapped("More inputs are available in the original control.");
+        }
+      }
+      if (ImGui.smallButton("Go To Control"))
+        focusLocal(noise, pin.targetUuid, PinSources.control(row, item));
+      pinRect("source");
+    } else
+      ImGui.textWrapped(
+          "The source control is missing. Unpin this reference or repair the original draft.");
+    if (ImGui.smallButton("Move Pin Up") && pinBrowser.move(-1)) {
       noiseChanged();
-      f.clear();
+      pinFields.clear();
     }
+    pinRect("up");
     ImGui.sameLine();
-    if (ImGui.smallButton("Move Pin Down") && selectedPin < noise.pinnedControls.size() - 1) {
-      Collections.swap(noise.pinnedControls, selectedPin, selectedPin + 1);
-      selectedPin++;
+    if (ImGui.smallButton("Move Pin Down") && pinBrowser.move(1)) {
       noiseChanged();
-      f.clear();
+      pinFields.clear();
     }
+    pinRect("down");
     ImGui.sameLine();
-    if (ImGui.smallButton("Unpin")) {
-      noise.pinnedControls.remove(selectedPin);
+    if (ImGui.smallButton("Unpin") && pinBrowser.remove()) {
       noiseChanged();
-      f.clear();
+      pinFields.clear();
     }
+    pinRect("remove");
     ImGui.popID();
   }
 
@@ -2312,11 +2442,20 @@ public final class PropertyPanel {
 
   private void constantEditor(
       String type, JsonNode value, Consumer<JsonNode> set, BiConsumer<String, Runnable> field) {
+    constantEditor(f, type, value, set, field);
+  }
+
+  private void constantEditor(
+      UiFields widgets,
+      String type,
+      JsonNode value,
+      Consumer<JsonNode> set,
+      BiConsumer<String, Runnable> field) {
     if (type.equals("Boolean"))
       field.accept(
           "value",
           () ->
-              f.bool(
+              widgets.bool(
                   "Value",
                   value != null && value.asBoolean(),
                   v -> set.accept(ProjectIO.JSON.valueToTree(v))));
@@ -2324,7 +2463,7 @@ public final class PropertyPanel {
       field.accept(
           "value",
           () ->
-              f.number(
+              widgets.number(
                   "Value",
                   value == null ? 0 : value.asDouble(),
                   v -> set.accept(ProjectIO.JSON.valueToTree(v))));
@@ -2338,7 +2477,7 @@ public final class PropertyPanel {
         field.accept(
             "value/" + i,
             () ->
-                f.number(
+                widgets.number(
                     count == 2 ? (k == 0 ? "X" : "Z") : List.of("X", "Y", "Z").get(k),
                     vec[k],
                     v -> {
