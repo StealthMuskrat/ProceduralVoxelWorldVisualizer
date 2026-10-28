@@ -131,7 +131,13 @@ class NumericDriverSettingsTest {
             "scaleZ",
             "offsetX",
             "offsetY",
-            "offsetZ"),
+            "offsetZ",
+            "transformX",
+            "transformY",
+            "transformZ",
+            "transformPivotX",
+            "transformPivotY",
+            "transformPivotZ"),
         WorldSemantics.PARAMETER_TARGETS);
     assertFalse(WorldSemantics.parameterUsed("ALL", "threshold"));
     assertTrue(WorldSemantics.parameterUsed("HEIGHT_BOUNDARY", "heightScale"));

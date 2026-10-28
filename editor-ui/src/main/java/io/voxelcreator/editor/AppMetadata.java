@@ -411,6 +411,12 @@ public final class AppMetadata {
       case "offsetX" -> "Offset X";
       case "offsetY" -> "Offset Y";
       case "offsetZ" -> "Offset Z";
+      case "transformX" -> "Transform X";
+      case "transformY" -> "Transform Y";
+      case "transformZ" -> "Transform Z";
+      case "transformPivotX" -> "Transform Pivot X";
+      case "transformPivotY" -> "Transform Pivot Y";
+      case "transformPivotZ" -> "Transform Pivot Z";
       default -> Character.toUpperCase(key.charAt(0)) + key.substring(1);
     };
   }

@@ -2818,11 +2818,16 @@
       "properties" : {
         "destination" : {
           "type" : "string",
-          "enum" : [ "threshold", "baseHeight", "heightScale", "strength", "probability", "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ" ]
+          "enum" : [ "threshold", "baseHeight", "heightScale", "strength", "probability", "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ", "transformX", "transformY", "transformZ", "transformPivotX", "transformPivotY", "transformPivotZ" ]
         },
         "combination" : {
           "type" : "string",
           "enum" : [ "REPLACE", "ADD", "MULTIPLY" ]
+        },
+        "transformIndex" : {
+          "type" : "integer",
+          "minimum" : -1,
+          "maximum" : 63
         },
         "enabled" : {
           "type" : "boolean"
@@ -2853,7 +2858,7 @@
         "if" : {
           "properties" : {
             "destination" : {
-              "enum" : [ "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ" ]
+              "enum" : [ "scaleX", "scaleY", "scaleZ", "offsetX", "offsetY", "offsetZ", "transformX", "transformY", "transformZ", "transformPivotX", "transformPivotY", "transformPivotZ" ]
             }
           },
           "required" : [ "destination" ]
@@ -2866,6 +2871,32 @@
             }
           },
           "required" : [ "noiseGeneratorUuid" ]
+        }
+      }, {
+        "if" : {
+          "properties" : {
+            "destination" : {
+              "enum" : [ "transformX", "transformY", "transformZ", "transformPivotX", "transformPivotY", "transformPivotZ" ]
+            }
+          },
+          "required" : [ "destination" ]
+        },
+        "then" : {
+          "properties" : {
+            "transformIndex" : {
+              "type" : "integer",
+              "minimum" : 0,
+              "maximum" : 63
+            }
+          },
+          "required" : [ "transformIndex" ]
+        },
+        "else" : {
+          "properties" : {
+            "transformIndex" : {
+              "const" : -1
+            }
+          }
         }
       } ]
     },

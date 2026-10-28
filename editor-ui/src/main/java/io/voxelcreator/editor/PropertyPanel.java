@@ -109,7 +109,7 @@ public final class PropertyPanel {
       switch (smokeWorldSection) {
         case "Transforms" -> samplingTransforms(smokeWorldSettings.samplingTransforms);
         case "Types" -> typeIntervals(smokeWorldSettings.typeIntervals);
-        case "Numeric parameters" -> parameterDrivers(smokeWorldSettings.parameterDrivers);
+        case "Numeric parameters" -> parameterDrivers(smokeWorldSettings);
         default -> {
           ImGui.pushID("probability");
           fieldDriver(smokeWorldSettings.probabilityDriver);
@@ -2307,7 +2307,7 @@ public final class PropertyPanel {
         }
       } else if (key.equals("parameterDrivers")) {
         if (ImGui.treeNode("Numeric Parameter Drivers")) {
-          parameterDrivers(s.parameterDrivers);
+          parameterDrivers(s);
           ImGui.treePop();
         }
       } else if (key.equals("typeIntervals")) {
@@ -2441,7 +2441,7 @@ public final class PropertyPanel {
   void probeParameterDriverPanel() {
     probingParameterDrivers = true;
     try {
-      parameterDrivers(((Layer) state.draft).defaults.parameterDrivers);
+      parameterDrivers(((Layer) state.draft).defaults);
     } finally {
       probingParameterDrivers = false;
     }
@@ -2481,16 +2481,17 @@ public final class PropertyPanel {
               + " parameter-only input.");
   }
 
-  private void parameterDrivers(List<NumericDriver> drivers) {
+  private void parameterDrivers(Settings settings) {
+    var drivers = settings.parameterDrivers;
     ImGui.textWrapped(
         "Entries run in stored order before interpretation. Replace, add to, or multiply the"
             + " current numeric value. Input clamps to its range; finite signed output endpoints"
             + " are allowed.");
     ImGui.textWrapped(
-        "Sampling scale/offset rows run first and require an explicit field, sampled at baseline"
-            + " placement coordinates. Interpretation rows run next; strength/probability rows run"
-            + " only after interpretation and type selection pass. Each phase preserves authored"
-            + " row order.");
+        "Sampling scale/offset and transform-component rows run first and require an explicit"
+            + " field, sampled at baseline placement coordinates. Interpretation rows run next;"
+            + " strength/probability rows run only after interpretation and type selection pass."
+            + " Each phase preserves authored row order.");
     int remove = -1, up = -1, down = -1;
     for (int i = 0; i < drivers.size(); i++) {
       ImGui.pushID(i);
@@ -2501,13 +2502,33 @@ public final class PropertyPanel {
         if (ImGui.beginCombo("Destination", AppMetadata.settingLabel(d.destination))) {
           for (String destination : WorldSemantics.PARAMETER_TARGETS)
             if (ImGui.selectable(
-                AppMetadata.settingLabel(destination), d.destination.equals(destination)))
+                AppMetadata.settingLabel(destination), d.destination.equals(destination))) {
               d.destination = destination;
+              d.transformIndex =
+                  WorldSemantics.parameter(destination).transform()
+                      ? Math.max(0, d.transformIndex)
+                      : -1;
+            }
           ImGui.endCombo();
         }
         f.choice("Combination", d.combination, WorldSemantics.COMBINATIONS, v -> d.combination = v);
         if (WorldSemantics.PARAMETER_TARGETS.contains(d.destination)) {
           var target = WorldSemantics.parameter(d.destination);
+          if (target.transform()) {
+            f.integer(
+                "Transform row (1-based)",
+                d.transformIndex + 1,
+                v -> d.transformIndex = v <= 0 ? -1 : v - 1);
+            if (d.transformIndex >= 0 && d.transformIndex < settings.samplingTransforms.size()) {
+              var transform = settings.samplingTransforms.get(d.transformIndex);
+              ImGui.textWrapped(
+                  transform.kind + (transform.enabled ? "" : " (disabled; driver is skipped)"));
+            }
+            ImGui.textWrapped(
+                "Row numbers follow the ordered transform list. Reordering transforms changes the"
+                    + " target. Rotation components use degrees; pivots apply to Scale and"
+                    + " Rotate.");
+          }
           ImGui.textWrapped(
               "Phase: "
                   + target.phase

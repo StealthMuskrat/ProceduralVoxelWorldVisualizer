@@ -13,6 +13,6 @@ assert rows[0]['effective']==2+(4-2)*.5==3 and s['field']==3
 assert d['sampleCoordinates']==dict(x=3.,y=0.,z=0.) and d['probability']==1
 row=p['worldGenerator']['layers'][0]['defaults']['parameterDrivers'][0];row['noiseGeneratorUuid']=None
 assert list(validator.iter_errors(p)),'Coordinate driver without field accepted by schema'
-registry=json.loads((repo/'registries/world-operation-registry.json').read_text());assert registry['registryVersion']==4 and len(registry['parameterTargets'])==11
+registry=json.loads((repo/'registries/world-operation-registry.json').read_text());assert registry['registryVersion']==5 and len(registry['parameterTargets'])==17
 assert registry['parameterDefinitions']['offsetX']==dict(phase='SAMPLING',explicitField=True,unitRange=False)
 print('PLACEMENT_DRIVER_INDEPENDENT_PASS exact baseline/final coordinates / stable phase indices / native private editing / 147 cells and required source schema')

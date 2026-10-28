@@ -142,6 +142,8 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PlacementDriverConsumer build/placement-drivers/placement-driver-project.json 4 build/placement-drivers
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PlacementDriverConsumer fixtures/placement-driver-phases.json 2
           python scripts/verify_placement_driver_phases.py build/placement-drivers
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.TransformDriverConsumer fixtures/transform-drivers.json build/placement-drivers
+          python scripts/verify_transform_drivers.py build/placement-drivers
       - name: Expression diagnostic recovery workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpressionRecoveryProbe build/expression-recovery
@@ -465,6 +467,10 @@ jobs:
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.PlacementDriverConsumer fixtures/placement-driver-phases.json 2
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_placement_driver_phases.py build/placement-drivers
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.TransformDriverConsumer fixtures/transform-drivers.json build/placement-drivers
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_transform_drivers.py build/placement-drivers
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows expression diagnostic recovery workflow
         shell: pwsh

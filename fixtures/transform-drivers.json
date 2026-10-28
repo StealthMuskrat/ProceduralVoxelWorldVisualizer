@@ -1,0 +1,253 @@
+{
+  "formatVersion": 2,
+  "project": {
+    "uuid": "00000000-0000-4000-8000-000000000001",
+    "seed": 0,
+    "minY": -8,
+    "maxY": 8
+  },
+  "voxelTypes": [
+    {
+      "uuid": "00000000-0000-4000-8000-000000000003",
+      "id": "stone",
+      "color": {
+        "r": 200,
+        "g": 200,
+        "b": 200
+      }
+    }
+  ],
+  "voxelGroups": [],
+  "voxelSets": [],
+  "noise2D": [
+    {
+      "uuid": "f4b3e3f9-f464-5fd3-a634-2e44909b8fd1",
+      "id": "primary",
+      "dimension": 2,
+      "parentFolderUuid": null,
+      "algorithm": {
+        "key": "CONSTANT",
+        "parameters": {
+          "value": 0
+        }
+      },
+      "seedOffset": 0,
+      "coordinateTransforms": [],
+      "processing": [
+        {
+          "uuid": "92fd5a5e-121b-57a9-8054-9d4f9d5fae9d",
+          "id": "primary-expr",
+          "kind": "EXPRESSION",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {
+            "expression": "x"
+          },
+          "inputs": {}
+        }
+      ],
+      "sharedParameters": [],
+      "pinnedControls": [],
+      "outputBinding": {
+        "sourceKind": "Earlier Result",
+        "type": "Scalar",
+        "ambientKey": null,
+        "value": null,
+        "parameterUuid": null,
+        "itemUuid": "92fd5a5e-121b-57a9-8054-9d4f9d5fae9d",
+        "noiseGeneratorUuid": null,
+        "projection": "XZ",
+        "slice": 0.0
+      }
+    }
+  ],
+  "noise3D": [
+    {
+      "uuid": "5e611ff0-ebfb-559e-b6e4-1df7456cd8ff",
+      "id": "baseline-y",
+      "dimension": 3,
+      "parentFolderUuid": null,
+      "algorithm": {
+        "key": "CONSTANT",
+        "parameters": {
+          "value": 0
+        }
+      },
+      "seedOffset": 0,
+      "coordinateTransforms": [],
+      "processing": [
+        {
+          "uuid": "900116b4-f9fc-50f6-8c59-292aa929b536",
+          "id": "baseline-y-expr",
+          "kind": "EXPRESSION",
+          "resultType": "Scalar",
+          "enabled": true,
+          "parameters": {
+            "expression": "y"
+          },
+          "inputs": {}
+        }
+      ],
+      "sharedParameters": [],
+      "pinnedControls": [],
+      "outputBinding": {
+        "sourceKind": "Earlier Result",
+        "type": "Scalar",
+        "ambientKey": null,
+        "value": null,
+        "parameterUuid": null,
+        "itemUuid": "900116b4-f9fc-50f6-8c59-292aa929b536",
+        "noiseGeneratorUuid": null,
+        "projection": "XZ",
+        "slice": 0.0
+      }
+    }
+  ],
+  "worldGenerator": {
+    "uuid": "00000000-0000-4000-8000-000000000002",
+    "layers": [
+      {
+        "uuid": "00000000-0000-4000-8000-000000000006",
+        "id": "terrain",
+        "enabled": true,
+        "defaults": {
+          "baseHeight": 0,
+          "heightScale": 1,
+          "threshold": 2.5,
+          "strength": 1,
+          "probability": 1,
+          "minY": -2147483648,
+          "maxY": 2147483647,
+          "scaleX": 1,
+          "scaleY": 1,
+          "scaleZ": 1,
+          "offsetX": 1,
+          "offsetY": 0,
+          "offsetZ": 0,
+          "axisX": "X",
+          "axisY": "Y",
+          "axisZ": "Z",
+          "samplingTransforms": [
+            {
+              "enabled": true,
+              "kind": "TRANSLATE",
+              "rotationOrder": "XYZ",
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "pivotX": 0,
+              "pivotY": 0,
+              "pivotZ": 0
+            },
+            {
+              "enabled": true,
+              "kind": "SCALE",
+              "rotationOrder": "XYZ",
+              "x": 1,
+              "y": 1,
+              "z": 1,
+              "pivotX": 0,
+              "pivotY": 0,
+              "pivotZ": 0
+            }
+          ],
+          "seedOffset": 0,
+          "action": "SET",
+          "rounding": "FLOOR",
+          "voxelTypeUuid": "00000000-0000-4000-8000-000000000003",
+          "typeSource": "FIXED",
+          "typeIntervals": [],
+          "probabilityDriver": {
+            "enabled": false,
+            "noiseGeneratorUuid": null,
+            "inputMin": 0.0,
+            "inputMax": 1.0,
+            "outputMin": 0.0,
+            "outputMax": 1.0,
+            "mapping": "LINEAR"
+          },
+          "strengthDriver": {
+            "enabled": false,
+            "noiseGeneratorUuid": null,
+            "inputMin": 0.0,
+            "inputMax": 1.0,
+            "outputMin": 0.0,
+            "outputMax": 1.0,
+            "mapping": "LINEAR"
+          },
+          "parameterDrivers": [
+            {
+              "enabled": true,
+              "noiseGeneratorUuid": "5e611ff0-ebfb-559e-b6e4-1df7456cd8ff",
+              "inputMin": -8,
+              "inputMax": 8,
+              "outputMin": -8,
+              "outputMax": 8,
+              "mapping": "LINEAR",
+              "combination": "REPLACE",
+              "destination": "transformX",
+              "transformIndex": 0
+            },
+            {
+              "enabled": true,
+              "noiseGeneratorUuid": "5e611ff0-ebfb-559e-b6e4-1df7456cd8ff",
+              "inputMin": -8,
+              "inputMax": 8,
+              "outputMin": 2,
+              "outputMax": 2,
+              "mapping": "LINEAR",
+              "combination": "REPLACE",
+              "destination": "transformX",
+              "transformIndex": 1
+            },
+            {
+              "enabled": true,
+              "noiseGeneratorUuid": "5e611ff0-ebfb-559e-b6e4-1df7456cd8ff",
+              "inputMin": -8,
+              "inputMax": 8,
+              "outputMin": 1,
+              "outputMax": 1,
+              "mapping": "LINEAR",
+              "combination": "REPLACE",
+              "destination": "transformPivotX",
+              "transformIndex": 1
+            }
+          ],
+          "voxelStatePredicate": {
+            "kind": "ANY",
+            "reference": null,
+            "children": []
+          },
+          "fieldGates": {
+            "kind": "ALWAYS",
+            "comparison": "GE",
+            "threshold": 0.0,
+            "max": 1.0,
+            "includeMin": true,
+            "includeMax": true,
+            "probability": 1.0,
+            "seedOffset": 0,
+            "noiseGeneratorUuid": null,
+            "children": []
+          }
+        },
+        "operations": [
+          {
+            "uuid": "00000000-0000-4000-8000-000000000007",
+            "id": "surface",
+            "enabled": true,
+            "noiseGeneratorUuid": "f4b3e3f9-f464-5fd3-a634-2e44909b8fd1",
+            "interpretation": "DENSITY",
+            "overrides": {}
+          }
+        ]
+      }
+    ]
+  },
+  "folders": [],
+  "bookmarks": {
+    "noise2D": [],
+    "noise3D": [],
+    "world": []
+  }
+}

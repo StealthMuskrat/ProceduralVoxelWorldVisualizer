@@ -190,6 +190,9 @@ public final class ProjectData {
 
   public static final class NumericDriver extends FieldDriver {
     public String destination = "threshold", combination = "REPLACE";
+
+    /** Authored zero-based sampling-transform row; -1 for placement-wide destinations. */
+    public int transformIndex = -1;
   }
 
   public static final class Predicate {

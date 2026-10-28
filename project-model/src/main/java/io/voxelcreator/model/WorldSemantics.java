@@ -40,7 +40,13 @@ public final class WorldSemantics {
     SCALE_Z("scaleZ", Phase.SAMPLING, false, true),
     OFFSET_X("offsetX", Phase.SAMPLING, false, true),
     OFFSET_Y("offsetY", Phase.SAMPLING, false, true),
-    OFFSET_Z("offsetZ", Phase.SAMPLING, false, true);
+    OFFSET_Z("offsetZ", Phase.SAMPLING, false, true),
+    TRANSFORM_X("transformX", Phase.SAMPLING, false, true),
+    TRANSFORM_Y("transformY", Phase.SAMPLING, false, true),
+    TRANSFORM_Z("transformZ", Phase.SAMPLING, false, true),
+    TRANSFORM_PIVOT_X("transformPivotX", Phase.SAMPLING, false, true),
+    TRANSFORM_PIVOT_Y("transformPivotY", Phase.SAMPLING, false, true),
+    TRANSFORM_PIVOT_Z("transformPivotZ", Phase.SAMPLING, false, true);
     public final String key;
     public final Phase phase;
     public final boolean unitRange, explicitField;
@@ -52,7 +58,35 @@ public final class WorldSemantics {
       this.explicitField = explicitField;
     }
 
+    public boolean transform() {
+      return ordinal() >= TRANSFORM_X.ordinal();
+    }
+
+    public int slot(int transformIndex) {
+      if (transform() && (transformIndex < 0 || transformIndex >= 64))
+        throw new IllegalArgumentException("Transform row must be 0..63");
+      return transform()
+          ? TRANSFORM_X.ordinal() + transformIndex * 6 + ordinal() - TRANSFORM_X.ordinal()
+          : ordinal();
+    }
+
     public double value(Settings s) {
+      return value(s, -1);
+    }
+
+    public double value(Settings s, int transformIndex) {
+      if (transform()) {
+        var t = s.samplingTransforms.get(transformIndex);
+        return switch (this) {
+          case TRANSFORM_X -> t.x;
+          case TRANSFORM_Y -> t.y;
+          case TRANSFORM_Z -> t.z;
+          case TRANSFORM_PIVOT_X -> t.pivotX;
+          case TRANSFORM_PIVOT_Y -> t.pivotY;
+          case TRANSFORM_PIVOT_Z -> t.pivotZ;
+          default -> throw new AssertionError();
+        };
+      }
       return switch (this) {
         case THRESHOLD -> s.threshold;
         case BASE_HEIGHT -> s.baseHeight;
@@ -65,6 +99,7 @@ public final class WorldSemantics {
         case OFFSET_X -> s.offsetX;
         case OFFSET_Y -> s.offsetY;
         case OFFSET_Z -> s.offsetZ;
+        default -> throw new AssertionError();
       };
     }
   }
@@ -80,11 +115,20 @@ public final class WorldSemantics {
 
   public static Map<String, Object> parameterRegistry() {
     var result = new LinkedHashMap<String, Object>();
-    for (var p : PARAMETERS)
-      result.put(
-          p.key,
-          Map.of(
-              "phase", p.phase.name(), "unitRange", p.unitRange, "explicitField", p.explicitField));
+    for (var p : PARAMETERS) {
+      var definition = new LinkedHashMap<String, Object>();
+      definition.put("phase", p.phase.name());
+      definition.put("explicitField", p.explicitField);
+      definition.put("unitRange", p.unitRange);
+      if (p.transform()) {
+        definition.put("transformIndexRequired", true);
+        definition.put(
+            "component",
+            List.of("x", "y", "z", "pivotX", "pivotY", "pivotZ")
+                .get(p.ordinal() - Parameter.TRANSFORM_X.ordinal()));
+      }
+      result.put(p.key, Collections.unmodifiableMap(definition));
+    }
     return Collections.unmodifiableMap(result);
   }
 

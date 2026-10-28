@@ -242,6 +242,34 @@ public final class ContractGenerator {
         .set("enum", JSON.valueToTree(WorldSemantics.MAPPINGS));
     ((ObjectNode) defs.path("NumericDriver").path("properties").path("destination"))
         .set("enum", JSON.valueToTree(WorldSemantics.PARAMETER_TARGETS));
+    var numericRequired = (ArrayNode) defs.path("NumericDriver").path("required");
+    for (int i = numericRequired.size() - 1; i >= 0; i--)
+      if (numericRequired.get(i).asText().equals("transformIndex")) numericRequired.remove(i);
+    ((ObjectNode) defs.path("NumericDriver").path("properties").path("transformIndex"))
+        .put("minimum", -1)
+        .put("maximum", 63);
+    var transformDriverCondition =
+        fields(
+            "properties",
+                fields(
+                    "destination",
+                    fields(
+                        "enum",
+                        JSON.valueToTree(
+                            WorldSemantics.PARAMETERS.stream()
+                                .filter(p -> p.transform())
+                                .map(p -> p.key)
+                                .toList()))),
+            "required", JSON.valueToTree(List.of("destination")));
+    var transformDriverIndex =
+        fields(
+            "properties",
+                fields(
+                    "transformIndex",
+                    obj().put("type", "integer").put("minimum", 0).put("maximum", 63)),
+            "required", JSON.valueToTree(List.of("transformIndex")));
+    var placementDriverIndex =
+        fields("properties", fields("transformIndex", obj().put("const", -1)));
     var samplingDriverCondition =
         fields(
             "properties",
@@ -266,7 +294,15 @@ public final class ContractGenerator {
         .set(
             "allOf",
             JSON.createArrayNode()
-                .add(fields("if", samplingDriverCondition, "then", explicitDriverField)));
+                .add(fields("if", samplingDriverCondition, "then", explicitDriverField))
+                .add(
+                    fields(
+                        "if",
+                        transformDriverCondition,
+                        "then",
+                        transformDriverIndex,
+                        "else",
+                        placementDriverIndex)));
     ((ObjectNode) defs.path("NumericDriver").path("properties").path("combination"))
         .set("enum", JSON.valueToTree(WorldSemantics.COMBINATIONS));
     ((ObjectNode) defs.path("SamplingTransform").path("properties").path("kind"))
@@ -506,7 +542,7 @@ public final class ContractGenerator {
             "no reassociation or unsafe algebraic identities; invalid constants remain at executed"
                 + " source spans"));
     var worldRegistry = new LinkedHashMap<String, Object>();
-    worldRegistry.put("registryVersion", 4);
+    worldRegistry.put("registryVersion", 5);
     worldRegistry.put("actions", List.of("SET", "CLEAR", "NO_CHANGE"));
     worldRegistry.put("interpretations", WorldSemantics.INTERPRETATIONS);
     worldRegistry.put("inheritableProperties", SettingsResolver.PROPERTIES);
@@ -521,7 +557,9 @@ public final class ContractGenerator {
     worldRegistry.put("parameterCombinations", WorldSemantics.COMBINATIONS);
     worldRegistry.put(
         "parameterPolicy",
-        "at most 32 rows; SAMPLING rows require explicit fields sampled at fixed baseline placement"
+        "at most 32 rows; transform components require a resolved authored transformIndex 0..63;"
+            + " disabled transform targets skip evaluation; translation pivots are invalid;"
+            + " SAMPLING rows require explicit fields sampled at fixed baseline placement"
             + " coordinates; INTERPRETATION rows run after primary sampling; ACCEPTANCE rows run"
             + " after interpretation/type selection; each phase preserves authored order; finite"
             + " signed mapping endpoints; every strength/probability intermediate must remain in"

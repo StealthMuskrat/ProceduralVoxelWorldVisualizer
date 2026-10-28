@@ -17,8 +17,16 @@ final class WorldSampling {
       double pz,
       String order,
       double[] sin,
-      double[] cos) {
-    void apply(double[] p) {
+      double[] cos,
+      int index,
+      boolean[] driven) {
+    void apply(double[] p, double[] values) {
+      double x = component(values, 0, this.x),
+          y = component(values, 1, this.y),
+          z = component(values, 2, this.z);
+      double px = component(values, 3, this.px),
+          py = component(values, 4, this.py),
+          pz = component(values, 5, this.pz);
       if (kind.equals("TRANSLATE")) {
         p[0] += x;
         p[1] += y;
@@ -37,12 +45,25 @@ final class WorldSampling {
           int axis = order.charAt(i) - 'X';
           int a = (axis + 1) % 3, b = (axis + 2) % 3;
           double va = p[a], vb = p[b];
-          p[a] = va * cos[axis] - vb * sin[axis];
-          p[b] = va * sin[axis] + vb * cos[axis];
+          double c = cos[axis], s = sin[axis];
+          if (values != null && driven[axis]) {
+            double angle = axis == 0 ? x : axis == 1 ? y : z;
+            double radians = StrictMath.toRadians(angle % 360);
+            s = StrictMath.sin(radians);
+            c = StrictMath.cos(radians);
+          }
+          p[a] = va * c - vb * s;
+          p[b] = va * s + vb * c;
         }
       p[0] += px;
       p[1] += py;
       p[2] += pz;
+    }
+
+    private double component(double[] values, int component, double constant) {
+      return values != null && driven[component]
+          ? values[Parameter.TRANSFORM_X.ordinal() + index * 6 + component]
+          : constant;
     }
   }
 
@@ -63,8 +84,15 @@ final class WorldSampling {
     oy = s.offsetY;
     oz = s.offsetZ;
     var program = new ArrayList<Step>();
-    for (var t : s.samplingTransforms)
+    for (int index = 0; index < s.samplingTransforms.size(); index++) {
+      var t = s.samplingTransforms.get(index);
       if (t.enabled) {
+        boolean[] driven = new boolean[6];
+        for (var d : s.parameterDrivers) {
+          var target = io.voxelcreator.model.WorldSemantics.parameter(d.destination);
+          if (d.enabled && target.transform() && d.transformIndex == index)
+            driven[target.ordinal() - Parameter.TRANSFORM_X.ordinal()] = true;
+        }
         double[] sin = new double[3], cos = new double[3], angles = {t.x, t.y, t.z};
         for (int i = 0; i < 3; i++) {
           double radians = StrictMath.toRadians(angles[i] % 360);
@@ -73,8 +101,20 @@ final class WorldSampling {
         }
         program.add(
             new Step(
-                t.kind, t.x, t.y, t.z, t.pivotX, t.pivotY, t.pivotZ, t.rotationOrder, sin, cos));
+                t.kind,
+                t.x,
+                t.y,
+                t.z,
+                t.pivotX,
+                t.pivotY,
+                t.pivotZ,
+                t.rotationOrder,
+                sin,
+                cos,
+                index,
+                driven));
       }
+    }
     steps = List.copyOf(program);
     // Ordered floating-point programs can retain Y rounding effects even when their real-valued
     // matrices cancel. Keep the existing column fast path only for the provably independent form.
@@ -111,7 +151,7 @@ final class WorldSampling {
     p[0] = axis(ax, x, y, z) * scaleX + offsetX;
     p[1] = axis(ay, x, y, z) * scaleY + offsetY;
     p[2] = axis(az, x, y, z) * scaleZ + offsetZ;
-    for (var step : steps) step.apply(p);
+    for (var step : steps) step.apply(p, values);
     return p;
   }
 

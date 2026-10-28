@@ -474,6 +474,26 @@ public final class Validator {
             "MISSING_DRIVER_FIELD",
             q + "/noiseGeneratorUuid",
             "Sampling parameter drivers require an explicit field");
+      if (WorldSemantics.PARAMETER_TARGETS.contains(d.destination)) {
+        var target = WorldSemantics.parameter(d.destination);
+        if (target.transform()) {
+          if (d.transformIndex < 0 || d.transformIndex >= s.samplingTransforms.size())
+            error(
+                "INVALID_DRIVER_TRANSFORM",
+                q + "/transformIndex",
+                "Choose an existing sampling transform row");
+          else if (target.ordinal() >= WorldSemantics.Parameter.TRANSFORM_PIVOT_X.ordinal()
+              && s.samplingTransforms.get(d.transformIndex).kind.equals("TRANSLATE"))
+            error(
+                "INVALID_DRIVER_TRANSFORM",
+                q + "/destination",
+                "Translation has no pivot component");
+        } else if (d.transformIndex != -1)
+          error(
+              "INVALID_DRIVER_TRANSFORM",
+              q + "/transformIndex",
+              "Placement-wide destinations require transformIndex -1");
+      }
       if (!WorldSemantics.COMBINATIONS.contains(d.combination))
         error("INVALID_COMBINATION", q + "/combination", "Unknown combination");
     }

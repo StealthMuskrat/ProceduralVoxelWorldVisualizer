@@ -17,7 +17,7 @@ final class WorldPlan {
       int dimension) {}
 
   private final ThreadLocal<double[]> numericScratch =
-      ThreadLocal.withInitial(() -> new double[Parameter.values().length]);
+      ThreadLocal.withInitial(() -> new double[Parameter.TRANSFORM_X.ordinal() + 64 * 6]);
 
   private record Op(
       UUID layerUuid,
@@ -175,6 +175,8 @@ final class WorldPlan {
     for (int row = 0; row < settings.parameterDrivers.size(); row++) {
       var d = settings.parameterDrivers.get(row);
       if (!d.enabled || !WorldSemantics.parameterUsed(interpretation, d.destination)) continue;
+      if (WorldSemantics.parameter(d.destination).transform()
+          && !settings.samplingTransforms.get(d.transformIndex).enabled) continue;
       uses.add(
           new NumericUse(
               row,
@@ -188,8 +190,12 @@ final class WorldPlan {
 
   private double[] initialValues(Op op) {
     var values = numericScratch.get();
-    for (int slot = 0; slot < (op.drivenSampling ? WorldSemantics.PARAMETERS.size() : 5); slot++)
+    for (int slot = 0; slot < (op.drivenSampling ? Parameter.TRANSFORM_X.ordinal() : 5); slot++)
       values[slot] = WorldSemantics.PARAMETERS.get(slot).value(op.settings);
+    for (var use : op.numeric)
+      if (use.target.transform())
+        values[use.target.slot(use.mapping.transformIndex)] =
+            use.target.value(op.settings, use.mapping.transformIndex);
     return values;
   }
 
@@ -211,7 +217,8 @@ final class WorldPlan {
           use.field == null
               ? primary
               : sampleField(op, use.field, use.dimension, x, y, z, baseline ? null : values);
-      double mapped = WorldSemantics.mapNumeric(d, sample), previous = values[use.target.ordinal()];
+      int slot = target.slot(d.transformIndex);
+      double mapped = WorldSemantics.mapNumeric(d, sample), previous = values[slot];
       double next = WorldSemantics.combine(d.combination, previous, mapped);
       if (!Double.isFinite(next) || target.unitRange && (next < 0 || next > 1))
         throw new EvaluationFailure(
@@ -228,7 +235,7 @@ final class WorldPlan {
                 + d.combination
                 + " produced "
                 + (Double.isFinite(next) ? "a value outside [0,1]" : "a nonfinite value"));
-      values[use.target.ordinal()] = next;
+      values[slot] = next;
       if (trace != null) {
         var location =
             op.sampling.coordinates(
@@ -248,7 +255,8 @@ final class WorldPlan {
                 previous,
                 next,
                 phase.name(),
-                location));
+                location,
+                target.transform() ? d.transformIndex : null));
       }
     }
   }

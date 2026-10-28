@@ -251,6 +251,9 @@ public final class TraceSnapshot {
               parameter.phase()
                   + " | "
                   + parameter.destination()
+                  + (parameter.transformIndex() == null
+                      ? ""
+                      : " [transform row " + (parameter.transformIndex() + 1) + "]")
                   + " "
                   + parameter.combination()
                   + " | sample="

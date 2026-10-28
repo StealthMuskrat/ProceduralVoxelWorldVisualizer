@@ -45,7 +45,33 @@ public record GenerationTrace(BlockPos position, int finalType, List<Step> steps
       double previous,
       double effective,
       String phase,
-      SampleCoordinates sampleCoordinates) {
+      SampleCoordinates sampleCoordinates,
+      Integer transformIndex) {
+    public ParameterEvaluation(
+        int row,
+        String destination,
+        String combination,
+        UUID noiseUuid,
+        double sample,
+        double mapped,
+        double previous,
+        double effective,
+        String phase,
+        SampleCoordinates sampleCoordinates) {
+      this(
+          row,
+          destination,
+          combination,
+          noiseUuid,
+          sample,
+          mapped,
+          previous,
+          effective,
+          phase,
+          sampleCoordinates,
+          null);
+    }
+
     public ParameterEvaluation(
         int row,
         String destination,
