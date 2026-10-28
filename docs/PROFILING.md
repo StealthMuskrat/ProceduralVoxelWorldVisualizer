@@ -16,9 +16,9 @@ A sample retains monotonic start offset, nonnegative value, explicit unit/outcom
 | REGION_DELIVERY | Consumer invocation through acknowledgement, failure or cancellation. Does not include generation wait. |
 | PREVIEW / MESH_CPU | Fixed-preview worker execution and streamed LOD/mesh worker execution; exclude background queue wait. |
 | UPLOAD_CPU / UPLOAD_BYTES | Streaming CPU upload staging/submission interval and actual uploaded bytes per frame, including zero-byte frames. The CPU interval also includes bounded arena maintenance; a separate byte gauge reports relocation destination writes. |
-| GPU_DRAW | Optional asynchronous timestamp interval for offscreen 3D viewport commands, including clear/resize and draw submission. See [GPU draw timing](GPU_DRAW_TIMING.md) for scope, capability and bounded query ownership. |
+| GPU_DRAW | Optional asynchronous timestamp interval for offscreen 3D viewport commands, including clear/resize, optional shadow depth passes and draw submission. See [GPU draw timing](GPU_DRAW_TIMING.md) for scope, capability and bounded query ownership. |
 | FRAME | ImGui frame interval. |
-| Memory / queue / GC | Editor gauges at most every 250 ms: JVM used heap and cumulative GC time/count; engine active workers, queues, cache/staging/collection admission; scene CPU resident+reserved and allocated GPU vertex arena capacity. |
+| Memory / queue / GC | Editor gauges at most every 250 ms: JVM used heap and cumulative GC time/count; engine active workers, queues, cache/staging/collection admission; scene CPU resident+reserved and allocated GPU vertex arena capacity plus a separate Shadow depth-map allocation series. |
 
 Except GPU_DRAW, durations are monotonic **CPU-side wall elapsed time**, including preemption and waits, not thread CPU consumption. Nested chunk/prefetch/operation/stage/preview timings overlap; adding them double-counts work. Layer labels allow filtering related operations but do not provide an exclusive layer total. GPU arena size is allocation accounting, not physical GPU residency. GPU_DRAW reports a separate timestamp interval; it is not total GPU frame time or exclusive shader time. Exhaustive thread traces remain outside this implementation.
 
