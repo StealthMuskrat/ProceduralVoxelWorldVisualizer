@@ -38,6 +38,7 @@ final class WorldPlan {
       List<NumericUse> numeric,
       long fieldSeed,
       Map<String, GenerationTrace.SettingSource> settingTargets,
+      Profiler.WorkSource workSource,
       boolean drivenSampling) {
     boolean columnCached() {
       return !drivenSampling && dimension == 2 && sampling.columnInvariant();
@@ -73,6 +74,7 @@ final class WorldPlan {
     }
     sets = Map.copyOf(memberships);
     for (var layer : p.worldGenerator.layers) {
+      var layerWork = new Profiler.WorkSource(layer.uuid, "Layer " + layer.id, null);
       int layerStart = compiled.size();
       for (var op : layer.operations) {
         int opStart = compiled.size();
@@ -132,6 +134,7 @@ final class WorldPlan {
                 numericUses(s, op.interpretation, compiler),
                 opSeed,
                 Map.copyOf(targets),
+                new Profiler.WorkSource(op.uuid, layer.id + " / " + op.id, layerWork),
                 s.parameterDrivers.stream()
                     .anyMatch(
                         d ->
@@ -282,16 +285,16 @@ final class WorldPlan {
   }
 
   int sample(int x, int y, int z) {
-    return sample(x, y, z, null, Integer.MAX_VALUE, null, 0, null);
+    return sample(x, y, z, null, Integer.MAX_VALUE, null, 0, null, null);
   }
 
   int stageSample(int x, int y, int z, int stage) {
-    return sample(x, y, z, null, stage, null, 0, null);
+    return sample(x, y, z, null, stage, null, 0, null, null);
   }
 
   GenerationTrace trace(BlockPos p) {
     var trace = new ArrayList<GenerationTrace.Step>();
-    int result = sample(p.x(), p.y(), p.z(), trace, Integer.MAX_VALUE, null, 0, null);
+    int result = sample(p.x(), p.y(), p.z(), trace, Integer.MAX_VALUE, null, 0, null, null);
     return new GenerationTrace(p, result, List.copyOf(trace));
   }
 
@@ -300,7 +303,18 @@ final class WorldPlan {
   }
 
   VoxelChunk generate(ChunkPos pos, int size, CancellationToken token, Profiler.Scope profile) {
-    return generate(pos, size, token, Integer.MAX_VALUE, null, profile);
+    var work = profile == null ? null : profile.work();
+    var outcome = Profiler.Outcome.FAILED;
+    try {
+      var result = generate(pos, size, token, Integer.MAX_VALUE, null, profile, work);
+      outcome = Profiler.Outcome.SUCCESS;
+      return result;
+    } catch (java.util.concurrent.CancellationException cancelled) {
+      outcome = Profiler.Outcome.CANCELLED;
+      throw cancelled;
+    } finally {
+      if (work != null) work.flush(outcome);
+    }
   }
 
   StageChunk generateStage(ChunkPos pos, int size, CancellationToken token, UUID id) {
@@ -316,24 +330,40 @@ final class WorldPlan {
       var empty = VoxelChunk.uniform(pos, size, 0);
       return new StageChunk(stage, empty, empty);
     }
-    double[][] fields = fields(pos, size, token, stage.after(), profile);
-    VoxelChunk before = generate(pos, size, token, stage.before(), fields, profile),
-        after =
-            stage.before() == stage.after()
-                ? before
-                : generate(pos, size, token, stage.after(), fields, profile);
-    token.throwIfCancelled();
-    return new StageChunk(stage, before, after);
+    var work = profile == null ? null : profile.work();
+    var outcome = Profiler.Outcome.FAILED;
+    try {
+      double[][] fields = fields(pos, size, token, stage.after(), profile, work);
+      VoxelChunk before = generate(pos, size, token, stage.before(), fields, profile, work),
+          after =
+              stage.before() == stage.after()
+                  ? before
+                  : generate(pos, size, token, stage.after(), fields, profile, work);
+      token.throwIfCancelled();
+      outcome = Profiler.Outcome.SUCCESS;
+      return new StageChunk(stage, before, after);
+    } catch (java.util.concurrent.CancellationException cancelled) {
+      outcome = Profiler.Outcome.CANCELLED;
+      throw cancelled;
+    } finally {
+      if (work != null) work.flush(outcome);
+    }
   }
 
   private double[][] fields(
-      ChunkPos pos, int size, CancellationToken token, int limit, Profiler.Scope profile) {
+      ChunkPos pos,
+      int size,
+      CancellationToken token,
+      int limit,
+      Profiler.Scope profile,
+      Profiler.WorkBatch work) {
     int ox = pos.x() * size, oz = pos.z() * size;
     double[][] fields = new double[Math.min(limit, operations.size())][];
     for (int i = 0; i < fields.length; i++) {
       Op op = operations.get(i);
       if (op.columnCached()) {
         long stamp = profile == null ? 0 : profile.begin();
+        long workStamp = work == null ? 0 : work.begin();
         var outcome = Profiler.Outcome.FAILED;
         try {
           fields[i] = new double[size * size];
@@ -346,6 +376,7 @@ final class WorldPlan {
           outcome = Profiler.Outcome.CANCELLED;
           throw cancelled;
         } finally {
+          if (workStamp != 0) work.finish(workStamp, op.workSource);
           if (stamp != 0)
             profile.finish(
                 stamp, Profiler.Kind.FIELD_PREFETCH, op.uuid, op.layerId + " / " + op.id, outcome);
@@ -361,19 +392,20 @@ final class WorldPlan {
       CancellationToken token,
       int limit,
       double[][] values,
-      Profiler.Scope profile) {
+      Profiler.Scope profile,
+      Profiler.WorkBatch work) {
     if (empty()
         || limit == 0
         || (long) pos.y() * size > maxY
         || (long) pos.y() * size + size - 1 < minY) return VoxelChunk.uniform(pos, size, 0);
     int ox = pos.x() * size, oy = pos.y() * size, oz = pos.z() * size;
-    double[][] fields = values == null ? fields(pos, size, token, limit, profile) : values;
+    double[][] fields = values == null ? fields(pos, size, token, limit, profile, work) : values;
     return VoxelChunk.generate(
         pos,
         size,
         (x, y, z) -> {
           token.throwIfCancelled();
-          return sample(ox + x, oy + y, oz + z, null, limit, fields, z * size + x, profile);
+          return sample(ox + x, oy + y, oz + z, null, limit, fields, z * size + x, profile, work);
         });
   }
 
@@ -440,7 +472,8 @@ final class WorldPlan {
       int limit,
       double[][] cached,
       int at,
-      Profiler.Scope profile) {
+      Profiler.Scope profile,
+      Profiler.WorkBatch work) {
     if (y < minY || y > maxY) return 0;
     int state = 0;
     int index = 0;
@@ -448,6 +481,7 @@ final class WorldPlan {
     for (Op op : operations) {
       if (index >= limit) break;
       long profileStamp = profile == null ? 0 : profile.beginOperation();
+      long workStamp = work == null ? 0 : work.begin();
       var profileOutcome = Profiler.Outcome.FAILED;
       try {
         var s = op.settings;
@@ -637,6 +671,7 @@ final class WorldPlan {
         index++;
         profileOutcome = Profiler.Outcome.SUCCESS;
       } finally {
+        if (workStamp != 0) work.finish(workStamp, op.workSource);
         if (profileStamp != 0)
           profile.finish(
               profileStamp,

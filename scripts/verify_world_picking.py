@@ -564,3 +564,20 @@ subprocess.run([sys.executable, str(Path(__file__).with_name("verify_property_fo
 
 from verify_volume_coarse import verify as verify_volume_coarse
 verify_volume_coarse(Path(sys.argv[1]) / "volume-coarse")
+
+# Deferred work-contribution UI/export definition.
+work_root = Path(sys.argv[1]) / 'world-work'
+subprocess.run([sys.executable, str(Path(__file__).with_name('verify_profile_capture.py')),
+                str(work_root/'world-work-capture.json'), str(work_root/'world-work-capture.csv')], check=True)
+work_ui = json.loads((work_root/'world-work-native.json').read_text())
+work_capture = json.loads((work_root/'world-work-capture.json').read_text())
+work_project = json.loads((work_root/'world-work-project.json').read_text())
+assert work_ui == dict(formatVersion=1, actualCaptureControls=True, privateDraftPreserved=True, viewOnly=True, stagingReleased=True)
+assert work_capture['state'] == 'STOPPED' and work_capture['options']['worldContributions'] is True
+work_samples = [s for s in work_capture['samples'] if s['kind'] in ('LAYER_WORK', 'OPERATION_WORK')]
+assert len(work_samples) == 5 and all(s['projectUuid'] == work_project['project']['uuid'] and s['outcome'] == 'SUCCESS' for s in work_samples)
+work_totals = {s['sourceUuid']: s['value'] for s in work_samples}
+for layer in work_project['worldGenerator']['layers']:
+    assert work_totals[layer['uuid']] == sum(work_totals[op['uuid']] for op in layer['operations'])
+assert work_project['worldGenerator']['layers'][0]['id'] == 'base'
+print('WORLD_WORK_UI_PASS independent layer sums / real capture controls / unchanged private draft and project / bounded exports')

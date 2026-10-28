@@ -13,6 +13,8 @@ public final class Profiler implements AutoCloseable {
     CHUNK_GENERATION,
     FIELD_PREFETCH,
     OPERATION,
+    OPERATION_WORK,
+    LAYER_WORK,
     STAGE,
     REGION_DELIVERY,
     PREVIEW,
@@ -56,7 +58,16 @@ public final class Profiler implements AutoCloseable {
     CLOSED
   }
 
-  public record Options(int durationMillis, int maxSamples, int maxSeries, int operationStride) {
+  public record Options(
+      int durationMillis,
+      int maxSamples,
+      int maxSeries,
+      int operationStride,
+      boolean worldContributions) {
+    public Options(int durationMillis, int maxSamples, int maxSeries, int operationStride) {
+      this(durationMillis, maxSamples, maxSeries, operationStride, false);
+    }
+
     public Options {
       if (durationMillis < 100
           || durationMillis > 60000
@@ -263,6 +274,95 @@ public final class Profiler implements AutoCloseable {
     }
   }
 
+  /**
+   * Immutable compiled attribution; layer and operation identities never depend on live editor
+   * rows.
+   */
+  static final class WorkSource {
+    final UUID id;
+    final String label;
+    final WorkSource parent;
+
+    WorkSource(UUID id, String label, WorkSource parent) {
+      this.id = Objects.requireNonNull(id);
+      this.label = Scope.label(label);
+      this.parent = parent;
+    }
+
+    Kind kind() {
+      return parent == null ? Kind.LAYER_WORK : Kind.OPERATION_WORK;
+    }
+  }
+
+  /** One thread-owned chunk/stage ledger; no allocation per visited cell after source discovery. */
+  static final class WorkBatch {
+    static final long ENTRY_BYTES = 256, BASE_BYTES = 256;
+
+    private static final class Total {
+      final long first;
+      long nanos;
+
+      Total(long first) {
+        this.first = first;
+      }
+    }
+
+    private final Scope scope;
+    private final LinkedHashMap<WorkSource, Total> totals = new LinkedHashMap<>();
+    private boolean flushed;
+
+    WorkBatch(Scope scope) {
+      this.scope = scope;
+    }
+
+    long begin() {
+      return flushed ? 0 : scope.begin();
+    }
+
+    void finish(long stamp, WorkSource source) {
+      var capture = scope.capture;
+      if (flushed || stamp == 0 || capture.state != State.RECORDING) return;
+      long end = capture.offset();
+      if (end >= (long) capture.options.durationMillis * 1_000_000) {
+        capture.stop(State.TIME_LIMIT);
+        return;
+      }
+      long elapsed = Math.max(0, end - (stamp - 1));
+      if (add(source, stamp, elapsed) && source.parent != null) add(source.parent, stamp, elapsed);
+    }
+
+    private boolean add(WorkSource source, long stamp, long elapsed) {
+      var total = totals.get(source);
+      if (total == null) {
+        if (totals.size() >= scope.capture.options.maxSeries) {
+          scope.capture.stop(State.SERIES_LIMIT);
+          return false;
+        }
+        total = new Total(stamp);
+        totals.put(source, total);
+      }
+      total.nanos = elapsed > Long.MAX_VALUE - total.nanos ? Long.MAX_VALUE : total.nanos + elapsed;
+      return true;
+    }
+
+    int retained() {
+      return totals.size();
+    }
+
+    void flush(Outcome outcome) {
+      if (flushed) return;
+      flushed = true;
+      if (scope.recording())
+        for (var entry : totals.entrySet()) {
+          var source = entry.getKey();
+          var value = entry.getValue();
+          if (!scope.recordDuration(
+              value.first, source.kind(), source.id, source.label, value.nanos, outcome)) break;
+        }
+      totals.clear();
+    }
+  }
+
   public static final class Scope {
     private final Capture capture;
     private final long contextId;
@@ -315,6 +415,16 @@ public final class Profiler implements AutoCloseable {
 
     public long beginOperation() {
       return capture.beginOperation();
+    }
+
+    long contributionBytes() {
+      return capture.options.worldContributions && capture.recording()
+          ? WorkBatch.BASE_BYTES + WorkBatch.ENTRY_BYTES * capture.options.maxSeries
+          : 0;
+    }
+
+    WorkBatch work() {
+      return capture.options.worldContributions && capture.recording() ? new WorkBatch(this) : null;
     }
 
     public void finish(long stamp, Kind kind, UUID source, String label, Outcome outcome) {

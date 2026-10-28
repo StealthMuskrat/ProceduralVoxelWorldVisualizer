@@ -1,0 +1,123 @@
+{
+  "formatVersion": 1,
+  "captureId": "00000000-0000-4000-8000-000000000080",
+  "startedAt": "2026-10-24T00:00:00Z",
+  "options": {
+    "durationMillis": 10000,
+    "maxSamples": 8192,
+    "maxSeries": 128,
+    "operationStride": 256,
+    "worldContributions": true
+  },
+  "state": "STOPPED",
+  "elapsedNanos": 1000000,
+  "samples": [
+    {
+      "kind": "OPERATION_WORK",
+      "unit": "NANOSECONDS",
+      "contextId": 1,
+      "projectUuid": "00000000-0000-4000-8000-000000000001",
+      "sourceUuid": "00000000-0000-4000-8000-000000000011",
+      "label": "Layer / first",
+      "offsetNanos": 100,
+      "value": 40,
+      "chunk": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      },
+      "outcome": "SUCCESS",
+      "threadId": 1,
+      "threadName": "example"
+    },
+    {
+      "kind": "OPERATION_WORK",
+      "unit": "NANOSECONDS",
+      "contextId": 1,
+      "projectUuid": "00000000-0000-4000-8000-000000000001",
+      "sourceUuid": "00000000-0000-4000-8000-000000000012",
+      "label": "Layer / second",
+      "offsetNanos": 100,
+      "value": 60,
+      "chunk": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      },
+      "outcome": "SUCCESS",
+      "threadId": 1,
+      "threadName": "example"
+    },
+    {
+      "kind": "LAYER_WORK",
+      "unit": "NANOSECONDS",
+      "contextId": 1,
+      "projectUuid": "00000000-0000-4000-8000-000000000001",
+      "sourceUuid": "00000000-0000-4000-8000-000000000010",
+      "label": "Layer Layer",
+      "offsetNanos": 100,
+      "value": 100,
+      "chunk": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      },
+      "outcome": "SUCCESS",
+      "threadId": 1,
+      "threadName": "example"
+    }
+  ],
+  "series": [
+    {
+      "kind": "OPERATION_WORK",
+      "unit": "NANOSECONDS",
+      "contextId": 1,
+      "projectUuid": "00000000-0000-4000-8000-000000000001",
+      "sourceUuid": "00000000-0000-4000-8000-000000000011",
+      "label": "Layer / first",
+      "count": 1,
+      "minimum": 40,
+      "maximum": 40,
+      "mean": 40,
+      "p50": 40,
+      "p95": 40,
+      "p99": 40,
+      "failed": 0,
+      "cancelled": 0
+    },
+    {
+      "kind": "OPERATION_WORK",
+      "unit": "NANOSECONDS",
+      "contextId": 1,
+      "projectUuid": "00000000-0000-4000-8000-000000000001",
+      "sourceUuid": "00000000-0000-4000-8000-000000000012",
+      "label": "Layer / second",
+      "count": 1,
+      "minimum": 60,
+      "maximum": 60,
+      "mean": 60,
+      "p50": 60,
+      "p95": 60,
+      "p99": 60,
+      "failed": 0,
+      "cancelled": 0
+    },
+    {
+      "kind": "LAYER_WORK",
+      "unit": "NANOSECONDS",
+      "contextId": 1,
+      "projectUuid": "00000000-0000-4000-8000-000000000001",
+      "sourceUuid": "00000000-0000-4000-8000-000000000010",
+      "label": "Layer Layer",
+      "count": 1,
+      "minimum": 100,
+      "maximum": 100,
+      "mean": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "failed": 0,
+      "cancelled": 0
+    }
+  ]
+}

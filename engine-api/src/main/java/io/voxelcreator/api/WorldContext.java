@@ -83,7 +83,9 @@ public final class WorldContext implements AutoCloseable {
       }
       misses++;
     }
-    long reserve = plan.stagingEstimate(chunkSize());
+    long reserve =
+        Math.addExact(
+            plan.stagingEstimate(chunkSize()), profile == null ? 0 : profile.contributionBytes());
     if (!engine.reserveStaging(reserve))
       throw new RejectedExecutionException("Generation memory budget reached");
     long started = System.nanoTime();
@@ -446,10 +448,13 @@ public final class WorldContext implements AutoCloseable {
     plan.stage(stage);
     position(position);
     token.throwIfCancelled();
-    long reserved = Math.multiplyExact(2, plan.stagingEstimate(chunkSize()));
+    var profile = engine.profiler().scope(contextId, compiled.projectUuid(), position);
+    long reserved =
+        Math.addExact(
+            Math.multiplyExact(2, plan.stagingEstimate(chunkSize())),
+            profile == null ? 0 : profile.contributionBytes());
     if (!engine.reserveStaging(reserved))
       throw new RejectedExecutionException("Stage preview memory budget reached");
-    var profile = engine.profiler().scope(contextId, compiled.projectUuid(), position);
     long stamp = profile == null ? 0 : profile.begin();
     var outcome = Profiler.Outcome.FAILED;
     try {

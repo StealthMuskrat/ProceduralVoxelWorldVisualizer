@@ -43,7 +43,7 @@ Bounded opt-in timing/metric captures, percentile inspection and explicit JSON/C
 
 Optional bounded directional mesh shadows are documented in [DIRECTIONAL_SHADOWS.md](docs/DIRECTIONAL_SHADOWS.md).
 
-Development implementations of [volume self-shadowing](docs/VOLUME_SELF_SHADOWING.md), [field-driven transform components](docs/TRANSFORM_PARAMETER_DRIVERS.md), [property control focus](docs/PROPERTY_CONTROL_FOCUS.md) and [coarse volume display detail](docs/VOLUME_DISPLAY_DETAIL.md) are awaiting validation. GitHub testing is deferred until the program is fully developed; ongoing work is saved on the development branch.
+Development implementations of [volume self-shadowing](docs/VOLUME_SELF_SHADOWING.md), [field-driven transform components](docs/TRANSFORM_PARAMETER_DRIVERS.md), [property control focus](docs/PROPERTY_CONTROL_FOCUS.md), [coarse volume display detail](docs/VOLUME_DISPLAY_DETAIL.md) and [attributed work captures](docs/WORLD_WORK_CONTRIBUTIONS.md) are awaiting validation. GitHub testing is deferred until the program is fully developed; ongoing work is saved on the development branch.
 
 Fragmentation recovery and explicit GPU maintenance are documented in [GPU_ARENA_COMPACTION.md](docs/GPU_ARENA_COMPACTION.md).
 

@@ -318,6 +318,7 @@ public final class WorldPickingProbe {
         ProjectFileProbe.run(out.resolve("project-files"), window);
         InputBindingProbe.run(out.resolve("input-bindings"), window);
         PropertyFocusProbe.run(out.resolve("property-focus"), window);
+        WorldWorkProbe.run(out.resolve("world-work"), window);
         IsosurfaceProbe.run(out.resolve("isosurface"));
         VolumeEncodingProbe.run(out.resolve("volume-encoding"));
         SurfaceStreamingProbe.run(out.resolve("surface-streaming"), window);

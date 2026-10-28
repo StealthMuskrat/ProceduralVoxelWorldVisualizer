@@ -52,6 +52,9 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 65536
+        },
+        "worldContributions": {
+          "type": "boolean"
         }
       }
     },
@@ -99,6 +102,8 @@
               "CHUNK_GENERATION",
               "FIELD_PREFETCH",
               "OPERATION",
+              "OPERATION_WORK",
+              "LAYER_WORK",
               "STAGE",
               "REGION_DELIVERY",
               "PREVIEW",
@@ -251,6 +256,8 @@
               "CHUNK_GENERATION",
               "FIELD_PREFETCH",
               "OPERATION",
+              "OPERATION_WORK",
+              "LAYER_WORK",
               "STAGE",
               "REGION_DELIVERY",
               "PREVIEW",

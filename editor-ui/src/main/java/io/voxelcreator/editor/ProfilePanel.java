@@ -22,9 +22,13 @@ public final class ProfilePanel {
   private String kind = "All", message = "";
   private Profiler.Capture displayed;
   private Profiler.Snapshot snapshot;
-  private Profiler.Series selected;
+  private Profiler.Series selected, totalSeries;
+  private Profiler.Snapshot totalSnapshot;
+  private long selectedTotal;
   private long refreshed, gaugesAt;
-  private boolean drawn;
+  private boolean drawn, worldContributions;
+  private boolean workProbe;
+  private final Map<String, float[]> workControls = new HashMap<>();
 
   public ProfilePanel(EditorState state, Consumer<EditorEvents.Target> navigate) {
     this.state = state;
@@ -32,11 +36,33 @@ public final class ProfilePanel {
   }
 
   public void start() {
-    state.engine.profiler().start(new Profiler.Options(duration, samples, series, stride));
+    state
+        .engine
+        .profiler()
+        .start(new Profiler.Options(duration, samples, series, stride, worldContributions));
     snapshot = null;
     selected = null;
+    clearWorkTotal();
     gaugesAt = 0;
     message = "";
+  }
+
+  void probeWorkControls() {
+    workProbe = true;
+  }
+
+  float[] probeWorkControl(String key) {
+    return workControls.get(key);
+  }
+
+  private void workControl(String key) {
+    if (workProbe)
+      workControls.put(
+          key,
+          new float[] {
+            (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
+            (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
+          });
   }
 
   /** Called once per editor frame, including while the Profiler window is closed. */
@@ -202,11 +228,22 @@ public final class ProfilePanel {
     ImGui.textDisabled(
         "Results expire after at most 2 s; stopping a capture discards unfinished GPU"
             + " measurements.");
+    if (workProbe) ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (ImGui.collapsingHeader("Capture limits")) {
       fields.integer("Duration (ms)", duration, v -> duration = Math.clamp(v, 100, 60000));
       fields.integer("Maximum samples", samples, v -> samples = Math.clamp(v, 64, 65536));
       fields.integer("Maximum series", series, v -> series = Math.clamp(v, 1, 1024));
       fields.integer("Operation sampling stride", stride, v -> stride = Math.clamp(v, 1, 65536));
+      fields.bool("Layer/operation work totals", worldContributions, v -> worldContributions = v);
+      workControl("enabled");
+      ImGui.textWrapped(
+          "Work totals time every visited placement and include column prefetch. They add capture"
+              + " overhead; operation stride still applies only to individual OPERATION samples.");
+      if (worldContributions)
+        ImGui.textDisabled(
+            "Additional admitted scratch: up to "
+                + (256 + 256L * series)
+                + " bytes per generation task.");
     }
     ImGui.text(
         "Next capture: "
@@ -216,18 +253,23 @@ public final class ProfilePanel {
             + " samples / "
             + series
             + " series / operation stride "
-            + stride);
+            + stride
+            + (worldContributions ? " / work totals enabled" : ""));
     if (ImGui.button("Start Capture")) start();
+    workControl("start");
     ImGui.sameLine();
     if (ImGui.button("Stop")) {
       state.engine.profiler().stop();
       refreshed = 0;
     }
+    workControl("stop");
     ImGui.sameLine();
     if (ImGui.button("Clear")) {
       state.engine.profiler().clear();
       snapshot = null;
       selected = null;
+      displayed = null;
+      clearWorkTotal();
     }
     var capture = state.engine.profiler().current().orElse(null);
     long now = System.nanoTime();
@@ -244,7 +286,12 @@ public final class ProfilePanel {
                 .findFirst()
                 .orElse(null);
     }
-    if (capture == null) snapshot = null;
+    if (capture == null) {
+      snapshot = null;
+      selected = null;
+      displayed = null;
+      clearWorkTotal();
+    }
     if (snapshot == null) {
       ImGui.textWrapped(
           "Capture is disabled. Start to collect bounded timings and metrics. CPU-side elapsed"
@@ -293,6 +340,21 @@ public final class ProfilePanel {
     ImGui.endChild();
     if (selected != null) {
       ImGui.textWrapped(selected.kind() + " / " + selected.label());
+      if (selected.kind() == Profiler.Kind.OPERATION_WORK
+          || selected.kind() == Profiler.Kind.LAYER_WORK) {
+        if (totalSnapshot != snapshot || !sameSeries(totalSeries, selected)) {
+          selectedTotal = workTotal(snapshot, selected);
+          totalSnapshot = snapshot;
+          totalSeries = selected;
+        }
+        ImGui.text(
+            "Attributed total in retained capture: " + value(selectedTotal, selected.unit()));
+        ImGui.textWrapped(
+            "Each value sums attributed elapsed work in one chunk/stage computation. Layer totals"
+                + " sum their placements; do not add both kinds. Storage, scheduling and collection"
+                + " overhead are outside these totals. Failed/cancelled computations describe an"
+                + " executed prefix.");
+      }
       ImGui.text(
           "Count "
               + selected.count()
@@ -372,6 +434,25 @@ public final class ProfilePanel {
   static EditorEvents.Target target(Profiler.Series series) {
     return new EditorEvents.Target(
         series.projectUuid(), series.sourceUuid(), null, null, "", false);
+  }
+
+  private void clearWorkTotal() {
+    totalSeries = null;
+    totalSnapshot = null;
+    selectedTotal = 0;
+  }
+
+  static long workTotal(Profiler.Snapshot snapshot, Profiler.Series series) {
+    long total = 0;
+    for (var sample : snapshot.samples())
+      if (sample.kind() == series.kind()
+          && sample.unit() == series.unit()
+          && sample.contextId() == series.contextId()
+          && Objects.equals(sample.projectUuid(), series.projectUuid())
+          && Objects.equals(sample.sourceUuid(), series.sourceUuid())
+          && sample.label().equals(series.label()))
+        total = sample.value() > Long.MAX_VALUE - total ? Long.MAX_VALUE : total + sample.value();
+    return total;
   }
 
   private static boolean sameSeries(Profiler.Series a, Profiler.Series b) {

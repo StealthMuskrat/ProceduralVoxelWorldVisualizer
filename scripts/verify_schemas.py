@@ -2,7 +2,7 @@
 from pathlib import Path
 import json,jsonschema
 root=Path(__file__).resolve().parent.parent
-for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json','creation-defaults-project.json','hierarchy.json','bookmarks.json','noise-authoring.json','field-operations.json','trace-workflow.json','scalar-remapping.json','warp-fields.json','placement-driver-phases.json','transform-drivers.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json','user-theme-custom.json','user-shadow-settings.json','user-volume-light.json']),('app-config',['app-config-defaults.json','app-config-legacy.json','app-config-creation.json']),('profile-capture',['profile-capture.json','profile-capture-gpu.json'])]:
+for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json','creation-defaults-project.json','hierarchy.json','bookmarks.json','noise-authoring.json','field-operations.json','trace-workflow.json','scalar-remapping.json','warp-fields.json','placement-driver-phases.json','transform-drivers.json','work-profile-project.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json','user-theme-custom.json','user-shadow-settings.json','user-volume-light.json']),('app-config',['app-config-defaults.json','app-config-legacy.json','app-config-creation.json']),('profile-capture',['profile-capture.json','profile-capture-gpu.json','profile-capture-work.json'])]:
  schema=json.loads((root/'schema'/f'{name}.schema.json').read_text())
  jsonschema.Draft202012Validator.check_schema(schema)
  validator=jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker())
@@ -38,6 +38,10 @@ for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fie
   try:validator.validate(json.loads((root/'fixtures/invalid-volume-light.json').read_text()))
   except jsonschema.ValidationError:pass
   else:raise AssertionError('Invalid volume light steps were accepted')
+ if name=='profile-capture':
+  try:validator.validate(json.loads((root/'fixtures/invalid-profile-work.json').read_text()))
+  except jsonschema.ValidationError:pass
+  else:raise AssertionError('Coerced work-total capture option was accepted')
  if name=='app-config':
   try:validator.validate(json.loads((root/'fixtures/invalid-app-creation.json').read_text()))
   except jsonschema.ValidationError:pass
