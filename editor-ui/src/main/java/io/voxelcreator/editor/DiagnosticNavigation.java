@@ -119,7 +119,7 @@ public final class DiagnosticNavigation {
   public static boolean available(
       ProjectData project, UUID selected, Object draft, EditorEvents.Target target) {
     if (target == null || !Objects.equals(project.project.uuid, target.project())) return false;
-    if (target.settings()) return true;
+    if (target.settings()) return ProjectSettingsSession.field(target) != null;
     if (target.resource() == null) return false;
     var entry = ResourceGraph.find(project, target.resource());
     if (entry == null) return false;

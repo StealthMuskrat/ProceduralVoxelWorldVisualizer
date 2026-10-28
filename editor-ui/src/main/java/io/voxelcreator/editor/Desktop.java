@@ -50,7 +50,7 @@ public final class Desktop extends Application {
   private String settingsPage = "User Settings", settingsCategory = "Appearance", fileAction = "";
   private boolean filePending = false;
   private ProjectFileDialog projectFiles;
-  private ProjectData projectDraft;
+  private ProjectSettingsPanel projectSettings;
   private ProjectData importCandidate;
   private ResourceImport.Plan importPlan;
   private ResourceImport.Session importSession;
@@ -92,6 +92,7 @@ public final class Desktop extends Application {
   protected void preRun() {
     inputSettings = new InputSettingsPanel(state.user);
     applicationSettings = new ApplicationSettingsPanel(state);
+    projectSettings = new ProjectSettingsPanel(state);
     themePanel = new ThemePanel(state.user);
     properties = new PropertyPanel(state);
     resources = new ResourcePanel(state, properties);
@@ -108,8 +109,12 @@ public final class Desktop extends Application {
             state,
             target -> {
               if (!state.canNavigate(target)) return;
-              if (target.settings()) openSettings("Project Settings");
-              else sourceNavigation.request(target);
+              if (target.settings()) {
+                if (projectSettings.open(target)) {
+                  settingsPage = "Project Settings";
+                  settings.set(true);
+                }
+              } else sourceNavigation.request(target);
             });
     captures =
         new ProfilePanel(
@@ -652,7 +657,7 @@ public final class Desktop extends Application {
   private void openSettings(String page) {
     settingsPage = page;
     settings.set(true);
-    projectDraft = ProjectIO.copy(state.project());
+    if (page.equals("Project Settings")) projectSettings.open(null);
     fields.clear();
     endpoint.set(state.user.performance.updateEndpoint);
     origins.set(String.join("\n", state.user.performance.trustedOrigins));
@@ -687,6 +692,7 @@ public final class Desktop extends Application {
 
   private void drawSettings() {
     if (!settings.get()) {
+      projectSettings.cancel();
       inputSettings.cancelCapture();
       return;
     }
@@ -695,31 +701,7 @@ public final class Desktop extends Application {
     ImGui.setNextWindowSize(750, 650, ImGuiCond.FirstUseEver);
     ImGui.begin(settingsPage, settings);
     if (settingsPage.equals("Project Settings")) {
-      if (projectDraft == null) projectDraft = ProjectIO.copy(state.project());
-      fields.text(
-          "Project seed",
-          Long.toString(projectDraft.project.seed),
-          v -> {
-            try {
-              projectDraft.project.seed = Long.parseLong(v);
-            } catch (NumberFormatException ignored) {
-            }
-          });
-      fields.integer(
-          "Minimum Y (inclusive)", projectDraft.project.minY, v -> projectDraft.project.minY = v);
-      fields.integer(
-          "Maximum Y (inclusive)", projectDraft.project.maxY, v -> projectDraft.project.maxY = v);
-      if (ImGui.button("Apply")) {
-        var edited = ProjectIO.copy(projectDraft);
-        if (state.change(
-            p -> {
-              p.project.seed = edited.project.seed;
-              p.project.minY = edited.project.minY;
-              p.project.maxY = edited.project.maxY;
-            })) settings.set(false);
-      }
-      ImGui.sameLine();
-      if (ImGui.button("Cancel")) settings.set(false);
+      if (projectSettings.draw()) settings.set(false);
     } else if (settingsPage.equals("Application Settings")) {
       applicationSettings.draw();
     } else if (settingsPage.equals("Debug & Profiling")) {
@@ -939,6 +921,7 @@ public final class Desktop extends Application {
         }
       }
     }
+    if (!settings.get()) projectSettings.cancel();
     ImGui.end();
   }
 

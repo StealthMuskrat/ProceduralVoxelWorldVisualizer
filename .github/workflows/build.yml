@@ -155,6 +155,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpandedExpressionProbe build/expanded-expression
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExpressionRecoveryConsumer build/expanded-expression/expanded-expression-project.json 6
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
+      - name: Project Settings transaction and diagnostic focus workflow
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectSettingsProbe build/project-settings
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectSettingsConsumer build/project-settings/project-settings-project.json
+          python scripts/verify_project_settings.py build/project-settings
       - name: World setting diagnostic control focus workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldSettingFocusProbe build/world-setting-focus
@@ -244,6 +249,7 @@ jobs:
             build/placement-drivers/
             build/expression-recovery/
             build/expanded-expression/
+            build/project-settings/
             build/world-setting-focus/
             build/curve-focus/
             build/curve-gesture/
@@ -508,6 +514,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows Project Settings transaction and diagnostic focus workflow
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectSettingsProbe build/project-settings
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ProjectSettingsConsumer build/project-settings/project-settings-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_project_settings.py build/project-settings
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows world setting diagnostic control focus workflow
         shell: pwsh
         run: |
@@ -667,6 +682,7 @@ jobs:
             build/placement-drivers/
             build/expression-recovery/
             build/expanded-expression/
+            build/project-settings/
             build/world-setting-focus/
             build/curve-focus/
             build/curve-gesture/
