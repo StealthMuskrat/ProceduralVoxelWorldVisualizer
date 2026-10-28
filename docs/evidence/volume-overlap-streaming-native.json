@@ -1,0 +1,140 @@
+{
+  "formatVersion" : 1,
+  "affine" : {
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : 0.0693359375,
+      "max" : 0.9306640625
+    },
+    "pixel" : [ 80, 14, 19, 255 ],
+    "bounds" : {
+      "side" : 64,
+      "x" : -32,
+      "y" : -32,
+      "z" : -32
+    },
+    "sampledChunks" : 8,
+    "maximumUploadBytes" : 16384,
+    "uploadBytes" : 1048576
+  },
+  "navigationViewOnly" : true,
+  "canceledUpload" : true,
+  "gpuRejected" : true,
+  "queueRetry" : true,
+  "postEditViewOnly" : true,
+  "fixedReturn" : true,
+  "transferReused" : true,
+  "stages" : [ {
+    "generation" : 1,
+    "sampledChunks" : 8,
+    "copiedBytes" : 0,
+    "compilations" : 1,
+    "name" : "origin",
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 2098176,
+    "reusedChunks" : 0,
+    "origin" : [ -32.0, -32.0, -32.0 ],
+    "value" : 1
+  }, {
+    "generation" : 1,
+    "sampledChunks" : 4,
+    "copiedBytes" : 524288,
+    "compilations" : 1,
+    "name" : "positive-x",
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 3147264,
+    "reusedChunks" : 4,
+    "origin" : [ 0.0, -32.0, -32.0 ],
+    "value" : 1
+  }, {
+    "generation" : 1,
+    "sampledChunks" : 4,
+    "copiedBytes" : 524288,
+    "compilations" : 1,
+    "name" : "negative-x",
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 4196352,
+    "reusedChunks" : 4,
+    "origin" : [ -64.0, -32.0, -32.0 ],
+    "value" : 1
+  }, {
+    "generation" : 1,
+    "sampledChunks" : 0,
+    "copiedBytes" : 1048576,
+    "compilations" : 1,
+    "name" : "return",
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 4196352,
+    "reusedChunks" : 8,
+    "origin" : [ -32.0, -32.0, -32.0 ],
+    "value" : 1
+  }, {
+    "generation" : 1,
+    "sampledChunks" : 4,
+    "copiedBytes" : 1572864,
+    "compilations" : 1,
+    "name" : "positive-y",
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 5245440,
+    "reusedChunks" : 4,
+    "origin" : [ -32.0, 0.0, -32.0 ],
+    "value" : 1
+  }, {
+    "generation" : 1,
+    "sampledChunks" : 4,
+    "copiedBytes" : 2097152,
+    "compilations" : 1,
+    "name" : "positive-z",
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 6294528,
+    "reusedChunks" : 4,
+    "origin" : [ -32.0, 0.0, 0.0 ],
+    "value" : 1
+  }, {
+    "generation" : 1,
+    "sampledChunks" : 7,
+    "copiedBytes" : 3145728,
+    "compilations" : 1,
+    "name" : "manual-retained",
+    "pixel" : [ 67, 10, 13, 255 ],
+    "cacheBytes" : 8130432,
+    "reusedChunks" : 1,
+    "origin" : [ 32.0, 0.0, 0.0 ],
+    "value" : 1
+  }, {
+    "generation" : 2,
+    "sampledChunks" : 8,
+    "copiedBytes" : 3145728,
+    "compilations" : 2,
+    "name" : "regenerated",
+    "pixel" : [ 14, 19, 26, 255 ],
+    "cacheBytes" : 2098176,
+    "reusedChunks" : 0,
+    "origin" : [ 32.0, 0.0, 0.0 ],
+    "value" : 0
+  }, {
+    "generation" : 2,
+    "sampledChunks" : 8,
+    "copiedBytes" : 3162112,
+    "compilations" : 2,
+    "name" : "cancel-successor",
+    "pixel" : [ 14, 19, 26, 255 ],
+    "cacheBytes" : 5245440,
+    "reusedChunks" : 0,
+    "origin" : [ -128.0, 0.0, 0.0 ],
+    "value" : 0
+  }, {
+    "generation" : 6,
+    "sampledChunks" : 8,
+    "copiedBytes" : 4210688,
+    "compilations" : 4,
+    "name" : "stream-return",
+    "pixel" : [ 14, 19, 26, 255 ],
+    "cacheBytes" : 2098176,
+    "reusedChunks" : 0,
+    "origin" : [ -32.0, -32.0, -32.0 ],
+    "value" : 0
+  } ],
+  "maximumUiBytes" : 16384
+}

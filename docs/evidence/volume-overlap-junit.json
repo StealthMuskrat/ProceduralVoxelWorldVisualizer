@@ -1,0 +1,10 @@
+{
+  "implementation": "7c6f9c2b7fc2fe6b298394239c8599094ac1d081",
+  "run": 40602416230,
+  "platform": "Linux GitHub Actions / Temurin 25.0.4+7 / Gradle 9.2.1",
+  "suites": 114,
+  "tests": 878,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0
+}

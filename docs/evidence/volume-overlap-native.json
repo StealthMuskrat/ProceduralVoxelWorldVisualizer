@@ -1,0 +1,246 @@
+{
+  "glVersion" : "4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.4",
+  "cases" : [ {
+    "id" : "initial",
+    "side" : 64,
+    "origin" : [ 0, 0, 0 ],
+    "source" : "affine",
+    "field" : "affine",
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : -944.5,
+      "max" : 6048.5
+    },
+    "copiedBytes" : 0,
+    "hostBytes" : 1048576,
+    "destinationBytes" : 1048576,
+    "maximumBytes" : 16384,
+    "advances" : 64,
+    "copiedHash" : "818516ed163989c8a54e411e383466cde88b2c4f71801f9fde0c2ed440f56e9c",
+    "fullHash" : "818516ed163989c8a54e411e383466cde88b2c4f71801f9fde0c2ed440f56e9c",
+    "stateRestored" : true
+  }, {
+    "id" : "positive-x",
+    "side" : 64,
+    "origin" : [ 32, 0, 0 ],
+    "source" : "affine",
+    "field" : "affine",
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : -912.5,
+      "max" : 6080.5
+    },
+    "copiedBytes" : 524288,
+    "hostBytes" : 524288,
+    "destinationBytes" : 1048576,
+    "maximumBytes" : 16384,
+    "advances" : 64,
+    "copiedHash" : "8a7510694980600f5b5e6cee6b71db5c0588b3f95b6ba020af8f8ccff98f1a66",
+    "fullHash" : "8a7510694980600f5b5e6cee6b71db5c0588b3f95b6ba020af8f8ccff98f1a66",
+    "stateRestored" : true
+  }, {
+    "id" : "negative-y",
+    "side" : 64,
+    "origin" : [ 32, -32, 0 ],
+    "source" : "affine",
+    "field" : "affine",
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : -1232.5,
+      "max" : 5760.5
+    },
+    "copiedBytes" : 524288,
+    "hostBytes" : 524288,
+    "destinationBytes" : 1048576,
+    "maximumBytes" : 16384,
+    "advances" : 64,
+    "copiedHash" : "2bd338850fca8aabd9ef83baf6ff78cc23db8e216576666e0fbb87a176c82984",
+    "fullHash" : "2bd338850fca8aabd9ef83baf6ff78cc23db8e216576666e0fbb87a176c82984",
+    "stateRestored" : true
+  }, {
+    "id" : "positive-z",
+    "side" : 64,
+    "origin" : [ 32, -32, 32 ],
+    "source" : "affine",
+    "field" : "affine",
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : 1967.5,
+      "max" : 8960.5
+    },
+    "copiedBytes" : 524288,
+    "hostBytes" : 524288,
+    "destinationBytes" : 1048576,
+    "maximumBytes" : 16384,
+    "advances" : 64,
+    "copiedHash" : "42fe2068878e19ccd4de5f56a0aa80672f07b88c87f0912f160166d8d69c5a3c",
+    "fullHash" : "42fe2068878e19ccd4de5f56a0aa80672f07b88c87f0912f160166d8d69c5a3c",
+    "stateRestored" : true
+  }, {
+    "id" : "diagonal",
+    "side" : 64,
+    "origin" : [ 48, -16, 48 ],
+    "source" : "affine",
+    "field" : "affine",
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : 3743.5,
+      "max" : 10736.5
+    },
+    "copiedBytes" : 442368,
+    "hostBytes" : 606208,
+    "destinationBytes" : 1048576,
+    "maximumBytes" : 16384,
+    "advances" : 64,
+    "copiedHash" : "37a9f3b92951a4ac86eb287694180b5b8f0e867565657378380886a02cb5b540",
+    "fullHash" : "37a9f3b92951a4ac86eb287694180b5b8f0e867565657378380886a02cb5b540",
+    "stateRestored" : true
+  }, {
+    "id" : "same-window",
+    "side" : 64,
+    "origin" : [ 48, -16, 48 ],
+    "source" : "affine",
+    "field" : "affine",
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : 3743.5,
+      "max" : 10736.5
+    },
+    "copiedBytes" : 1048576,
+    "hostBytes" : 0,
+    "destinationBytes" : 1048576,
+    "maximumBytes" : 16384,
+    "advances" : 64,
+    "copiedHash" : "37a9f3b92951a4ac86eb287694180b5b8f0e867565657378380886a02cb5b540",
+    "fullHash" : "37a9f3b92951a4ac86eb287694180b5b8f0e867565657378380886a02cb5b540",
+    "stateRestored" : true
+  }, {
+    "id" : "shrink",
+    "side" : 32,
+    "origin" : [ 64, 0, 64 ],
+    "source" : "affine",
+    "field" : "affine",
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : 5519.5,
+      "max" : 8960.5
+    },
+    "copiedBytes" : 131072,
+    "hostBytes" : 0,
+    "destinationBytes" : 131072,
+    "maximumBytes" : 16384,
+    "advances" : 8,
+    "copiedHash" : "1a9b2506e870650f35a3e40d15dd11c49761e319606578832221fa645895e856",
+    "fullHash" : "1a9b2506e870650f35a3e40d15dd11c49761e319606578832221fa645895e856",
+    "stateRestored" : true
+  }, {
+    "id" : "expand",
+    "side" : 64,
+    "origin" : [ 48, -16, 48 ],
+    "source" : "affine",
+    "field" : "affine",
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : 3743.5,
+      "max" : 10736.5
+    },
+    "copiedBytes" : 131072,
+    "hostBytes" : 917504,
+    "destinationBytes" : 1048576,
+    "maximumBytes" : 16384,
+    "advances" : 64,
+    "copiedHash" : "37a9f3b92951a4ac86eb287694180b5b8f0e867565657378380886a02cb5b540",
+    "fullHash" : "37a9f3b92951a4ac86eb287694180b5b8f0e867565657378380886a02cb5b540",
+    "stateRestored" : true
+  }, {
+    "id" : "disjoint",
+    "side" : 64,
+    "origin" : [ 256, 256, 256 ],
+    "source" : "affine",
+    "field" : "affine",
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : 27471.5,
+      "max" : 34464.5
+    },
+    "copiedBytes" : 0,
+    "hostBytes" : 1048576,
+    "destinationBytes" : 1048576,
+    "maximumBytes" : 16384,
+    "advances" : 64,
+    "copiedHash" : "3b367e5128a81ccd32e9a2fdac1a50ffee23f7018728de9514c47952df9db9d3",
+    "fullHash" : "3b367e5128a81ccd32e9a2fdac1a50ffee23f7018728de9514c47952df9db9d3",
+    "stateRestored" : true
+  }, {
+    "id" : "different-source",
+    "side" : 64,
+    "origin" : [ 256, 256, 256 ],
+    "source" : "negative",
+    "field" : "negative",
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : -34464.5,
+      "max" : -27471.5
+    },
+    "copiedBytes" : 0,
+    "hostBytes" : 1048576,
+    "destinationBytes" : 1048576,
+    "maximumBytes" : 16384,
+    "advances" : 64,
+    "copiedHash" : "9dcaa1b8b98629692536d37ef63952e0834b1ca109f1f42f629a3156c1730304",
+    "fullHash" : "9dcaa1b8b98629692536d37ef63952e0834b1ca109f1f42f629a3156c1730304",
+    "stateRestored" : true
+  }, {
+    "id" : "piecewise-initial",
+    "side" : 64,
+    "origin" : [ 0, 0, 0 ],
+    "source" : "piecewise",
+    "field" : "piecewise",
+    "encoding" : {
+      "offset" : 0.0,
+      "scale" : 1.0,
+      "min" : -944.5,
+      "max" : 6048.5
+    },
+    "copiedBytes" : 0,
+    "hostBytes" : 1048576,
+    "destinationBytes" : 1048576,
+    "maximumBytes" : 16384,
+    "advances" : 64,
+    "copiedHash" : "818516ed163989c8a54e411e383466cde88b2c4f71801f9fde0c2ed440f56e9c",
+    "fullHash" : "818516ed163989c8a54e411e383466cde88b2c4f71801f9fde0c2ed440f56e9c",
+    "stateRestored" : true
+  }, {
+    "id" : "different-encoding",
+    "side" : 64,
+    "origin" : [ 32, 0, 0 ],
+    "source" : "piecewise",
+    "field" : "piecewise",
+    "encoding" : {
+      "offset" : -912.5,
+      "scale" : 1.3150000000000001E300,
+      "min" : -912.5,
+      "max" : 1.3150000000000001E300
+    },
+    "copiedBytes" : 0,
+    "hostBytes" : 1048576,
+    "destinationBytes" : 1048576,
+    "maximumBytes" : 16384,
+    "advances" : 64,
+    "copiedHash" : "f8ee848d4f013a1b3be08e9358634298006a1fc0394e66b8424486b6a82857cd",
+    "fullHash" : "f8ee848d4f013a1b3be08e9358634298006a1fc0394e66b8424486b6a82857cd",
+    "stateRestored" : true
+  } ],
+  "formatVersion" : 1,
+  "openGL31" : true
+}
