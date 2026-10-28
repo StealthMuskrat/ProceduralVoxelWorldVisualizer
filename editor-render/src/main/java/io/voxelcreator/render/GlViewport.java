@@ -242,6 +242,7 @@ public final class GlViewport implements AutoCloseable {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
+    releaseScene();
   }
 
   public void setMesh(Mesh next) {
@@ -260,6 +261,7 @@ public final class GlViewport implements AutoCloseable {
     }
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+    releaseScene();
   }
 
   /** Synchronous compatibility entry point; editor previews use stage/advanceVolume. */

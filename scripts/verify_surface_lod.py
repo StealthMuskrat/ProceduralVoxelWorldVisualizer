@@ -93,7 +93,7 @@ def verify(root):
             assert actual == expected, (side,level,len(actual),len(expected),actual-expected,expected-actual)
     assert data['levels'] == [0,2,5] and data['pixel'] == [255,0,0,255]
     assert 0 < data['maximumUploadBytes'] <= 4096 and data['relocatedBytes'] > 0
-    assert all(data[k] for k in ['partialLevelsRetained','framebufferParity','compactionParity','indirectParity'])
+    assert all(data[k] for k in ['partialLevelsRetained','framebufferParity','compactionParity','indirectParity','fixedImageReleasedArena'])
     assert len(data['framebufferHash']) == 64
     if not root.name.endswith('gl30'):
         stages = data['production']
@@ -106,7 +106,7 @@ def verify(root):
             assert s['cpuBytes'] + s['reserved'] <= 256*1024**2
             assert all(abs(s['pixel'][i] - [129,255,125][i]*.35) <= 2 for i in range(3))
             assert s['pixel'][3] == 255
-        assert data['viewOnly'] and data['fixedReturn']
+        assert data['viewOnly'] and data['fixedReturn'] and data['fixedMeshReleasedArena']
         project = json.loads((root / 'surface-lod-project.json').read_text())
         assert project['noise3D'][0]['processing'][0]['parameters']['expression'] == 'z-16.25'
     print('SURFACE_LOD_PASS independent packed plane area/counts/normals / canonical quadratic mixed face segments'

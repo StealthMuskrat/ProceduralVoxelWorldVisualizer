@@ -153,6 +153,11 @@ final class SurfaceLodProbe {
       report.put("indirectParity", true);
       gpu.remove(RIGHT);
       require(!gpu.drawnDetailLevels().containsKey(RIGHT), "Retired LOD metadata retained");
+      gl.setImage(2, 2, new int[] {0xff000000, 0xff000000, 0xff000000, 0xff000000});
+      require(
+          gl.sceneRenderer() == null && gpu.drawnDetailLevels().isEmpty(),
+          "Fixed image retained hidden arena");
+      report.put("fixedImageReleasedArena", true);
     }
     report.put("planes", cases);
     if (window != 0) production(out, window, report);
@@ -234,7 +239,10 @@ final class SurfaceLodProbe {
         views.probeSurface(id, true, -16, 16, 16);
         until(() -> views.probeNoiseReady(1) && views.probeSurfaceEpoch() == 0);
         require(
-            views.probeSurfaceLevels().isEmpty(), "Fixed analysis retained streamed LOD metadata");
+            views.probeSurfaceLevels().isEmpty()
+                && views.streamingStatistics().gpuCapacityBytes() == 0,
+            "Fixed analysis retained streamed LOD metadata");
+        report.put("fixedMeshReleasedArena", true);
         views.probeSurface(id, false, -16, 16, 16);
         views.probeSurfaceDistance(35);
         until(() -> level(LEFT, 0));
