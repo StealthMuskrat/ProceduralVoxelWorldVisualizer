@@ -17,7 +17,7 @@ public final class ExpressionEditDialog {
   private boolean selectionFocus;
 
   String bufferText() {
-    return session.text();
+    return text.get();
   }
 
   ExpressionSelection.Range selectedRange() {
@@ -27,11 +27,11 @@ public final class ExpressionEditDialog {
   private final Map<String, float[]> controls = new HashMap<>();
 
   public ExpressionEditDialog(EditorState state, ExpressionEditSession session, Runnable staged) {
-    this.state = state;
-    this.session = session;
-    this.staged = staged;
+    this.state = Objects.requireNonNull(state);
+    this.session = Objects.requireNonNull(session);
+    this.staged = Objects.requireNonNull(staged);
     // ImString capacity is in UTF-8 bytes; the language limit is in UTF-16 characters.
-    text = new ImString(session.text(), 4 * ExpressionEditSession.MAX_CHARACTERS + 1);
+    text = new ImString(session.text(), 4 * ExpressionEditSession.MAX_BUFFER_CHARACTERS + 1);
   }
 
   float[] control(String name) {
@@ -48,6 +48,12 @@ public final class ExpressionEditDialog {
   }
 
   public boolean draw() {
+    controls.clear();
+    if (session.closed()) {
+      selection.cancel();
+      selectionFocus = false;
+      return true;
+    }
     if (pending) {
       ImGui.openPopup("Expanded Expression");
       pending = false;
@@ -58,11 +64,12 @@ public final class ExpressionEditDialog {
         "Use in Properties stages only this text. Apply in Properties validates and commits the"
             + " complete resource. Cancel discards this buffer.");
     selection.context(state.project(), state.draft, session, session.text());
+    boolean current = session.current(state);
     ExpressionFeedback.Result feedback = null;
     try {
       feedback = session.feedback(state);
     } catch (RuntimeException invalid) {
-      error = invalid.getMessage();
+      error = message(invalid);
       selection.cancel();
       selectionFocus = false;
     }
@@ -80,7 +87,7 @@ public final class ExpressionEditDialog {
         session.edit(text.get());
         feedback = session.feedback(state);
       } catch (RuntimeException invalid) {
-        error = invalid.getMessage();
+        error = message(invalid);
         feedback = null;
       }
     }
@@ -90,11 +97,11 @@ public final class ExpressionEditDialog {
     if (feedback != null) {
       if (feedback.valid()) ImGui.text("Valid " + feedback.type() + " expression");
       else if (feedback.input() != null)
-        ImGui.textWrapped("! Input " + feedback.input() + ": " + feedback.error());
+        ImGui.textWrapped("! " + bounded("Input " + feedback.input() + ": " + feedback.error()));
       else
         ImGui.textWrapped(
             "! "
-                + feedback.error()
+                + bounded(feedback.error())
                 + " ["
                 + feedback.start()
                 + ".."
@@ -108,18 +115,32 @@ public final class ExpressionEditDialog {
         controlRect("selectError");
       }
     }
-    if (!error.isEmpty()) ImGui.textWrapped("! " + error);
+    if (!current)
+      ImGui.textWrapped(
+          "The source or selection changed. This buffer is preserved; Cancel and reopen the"
+              + " expression.");
+    if (!error.isEmpty()) ImGui.textWrapped("! " + bounded(error));
     boolean done = false;
+    ImGui.beginDisabled(!current);
     if (ImGui.button("Use in Properties")) {
       try {
         session.stage(state, text.get());
-        staged.run();
         done = true;
+        // Refresh follows accepted, consumed staging; failure cannot turn it into a retry.
+        try {
+          staged.run();
+        } catch (RuntimeException failure) {
+          state.error(
+              "EXPRESSION_EDIT_REFRESH_FAILED",
+              EditorEvents.Subsystem.APPLICATION,
+              "Expression staged in Properties; UI refresh failed: " + message(failure));
+        }
       } catch (RuntimeException invalid) {
-        error = invalid.getMessage();
+        error = message(invalid);
       }
     }
     controlRect("stage");
+    ImGui.endDisabled();
     ImGui.sameLine();
     if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       session.cancel();
@@ -132,5 +153,15 @@ public final class ExpressionEditDialog {
     }
     ImGui.endPopup();
     return done;
+  }
+
+  private static String message(RuntimeException failure) {
+    var value = failure.getMessage();
+    return value == null || value.isBlank() ? failure.toString() : value;
+  }
+
+  private static String bounded(String value) {
+    value = Objects.requireNonNullElse(value, "");
+    return value.length() > 1024 ? value.substring(0, 1023) + "…" : value;
   }
 }

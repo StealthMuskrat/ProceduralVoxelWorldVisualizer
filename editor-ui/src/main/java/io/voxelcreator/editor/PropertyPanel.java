@@ -1501,6 +1501,35 @@ public final class PropertyPanel {
     return expressionDialog != null;
   }
 
+  void probeOpenExpandedExpression() {
+    var noise = (Noise) state.draft;
+    openExpandedExpression(noise, noise.processing.getFirst());
+  }
+
+  private void openExpandedExpression(Noise noise, Item item) {
+    if (expressionDialog != null) {
+      state.status = "Finish or cancel the expanded expression before opening another.";
+      return;
+    }
+    expressionSelection.cancel();
+    try {
+      expressionDialog =
+          new ExpressionEditDialog(
+              state,
+              new ExpressionEditSession(state, noise, item),
+              () -> {
+                try {
+                  f.clear();
+                } finally {
+                  noiseChanged();
+                }
+              });
+    } catch (RuntimeException invalid) {
+      authoringMessage =
+          "! " + Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+    }
+  }
+
   private void expressionControls(Noise n, Item item) {
     resultType(item, List.of("Scalar", "Boolean"), v -> item.resultType = v);
     String expr =
@@ -1535,19 +1564,7 @@ public final class PropertyPanel {
       }
     }
     if (ImGui.smallButton("Expand Expression")) {
-      expressionSelection.cancel();
-      try {
-        expressionDialog =
-            new ExpressionEditDialog(
-                state,
-                new ExpressionEditSession(state, n, item),
-                () -> {
-                  f.clear();
-                  noiseChanged();
-                });
-      } catch (RuntimeException invalid) {
-        authoringMessage = "! " + invalid.getMessage();
-      }
+      openExpandedExpression(n, item);
     }
     expressionRect("expand");
     var feedback = expressionFeedback.inspect(state.project(), n, item);

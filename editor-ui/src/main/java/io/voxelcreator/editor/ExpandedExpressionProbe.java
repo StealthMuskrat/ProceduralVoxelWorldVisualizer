@@ -52,6 +52,11 @@ public final class ExpandedExpressionProbe {
         require(panel.searchBlocked(), "Modal did not guard navigation");
         click(panel.probeExpandedExpressionControl("text"));
         replace("x+9");
+        panel.probeOpenExpandedExpression();
+        frames(2);
+        require(
+            "x+9".equals(panel.probeExpandedExpressionText()),
+            "A second expanded-editor request replaced the private buffer");
         require(
             "x+bias".equals(item.parameters.get("expression").asText()), "Buffer leaked to draft");
         replace("é+\nunknown");
@@ -109,36 +114,158 @@ public final class ExpandedExpressionProbe {
         state.revision++;
         require(sample(state.project(), n.uuid) == 6, "One Redo");
         state.document.save(out.resolve("expanded-expression-project.json"));
+        publicationOwnership(state.project());
         Files.writeString(
             out.resolve("expanded-expression-native.json"),
             ProjectIO.JSON.writeValueAsString(
-                Map.of(
-                    "formatVersion",
-                    1,
-                    "before",
-                    2,
-                    "after",
-                    6,
-                    "privateBuffer",
-                    true,
-                    "privateStage",
-                    true,
-                    "cancel",
-                    true,
-                    "escape",
-                    true,
-                    "oneUndoRedo",
-                    true,
-                    "lineCount",
-                    2,
-                    "tokenSelection",
-                    Map.of("unicode", true, "oneShot", true))));
+                Map.ofEntries(
+                    Map.entry("formatVersion", 1),
+                    Map.entry("before", 2),
+                    Map.entry("after", 6),
+                    Map.entry("privateBuffer", true),
+                    Map.entry("privateStage", true),
+                    Map.entry("cancel", true),
+                    Map.entry("escape", true),
+                    Map.entry("oneUndoRedo", true),
+                    Map.entry("lineCount", 2),
+                    Map.entry("tokenSelection", Map.of("unicode", true, "oneShot", true)),
+                    Map.entry("duplicateOpenPreserved", true),
+                    Map.entry("refreshFailureConsumed", true),
+                    Map.entry("closedDrawConsumed", true),
+                    Map.entry("staleSourcePreserved", true),
+                    Map.entry("oversizedRetry", true),
+                    Map.entry("rawSeedPreserved", true))));
         System.out.println(
             "EXPANDED_EXPRESSION_NATIVE_PASS multiline / Cancel / Escape / private stage / Apply /"
                 + " Undo-Redo");
       }
     } finally {
       ImGui.destroyContext();
+    }
+  }
+
+  private static ExpressionEditDialog standalone;
+  private static boolean standaloneDone;
+
+  /** Separate fixtures retain the original saved arithmetic project and parent Undo/Redo flow. */
+  private static void publicationOwnership(ProjectData project) {
+    try (var state = new EditorState(new UserConfig(), false)) {
+      require(
+          state.change(p -> p.noise2D.add(NoiseAuthoring.copy(project.noise2D.getFirst()))),
+          "Publication fixture rejected");
+      state.select("noise2D", state.project().noise2D.getFirst().uuid);
+      var owner = (Noise) state.draft;
+      var item = owner.processing.getFirst();
+      var session = new ExpressionEditSession(state, owner, item);
+      session.edit("x+bias*3+0");
+      int[] refreshes = {0};
+      standalone =
+          new ExpressionEditDialog(
+              state,
+              session,
+              () -> {
+                refreshes[0]++;
+                throw new IllegalStateException();
+              });
+      standaloneDone = false;
+      frames(4);
+      owner.id = "pending-id";
+      require(
+          state.seedInputs.edit(state, "seedOffset", "Seed", "+").isEmpty(),
+          "Raw seed fixture rejected");
+      var committed = ProjectIO.JSON.valueToTree(state.project());
+      long revision = state.revision, history = state.document.historyBytes();
+      click(standalone.control("stage"));
+      frames(4);
+      require(
+          standaloneDone && session.closed() && refreshes[0] == 1,
+          "Refresh failure reopened or repeated accepted staging");
+      require(
+          "x+bias*3+0".equals(item.parameters.get("expression").asText()),
+          "Refresh failure lost accepted private text");
+      require(
+          state.events.snapshot().stream()
+                  .filter(e -> e.code().equals("EXPRESSION_EDIT_REFRESH_FAILED"))
+                  .filter(e -> e.message().contains("IllegalStateException") && e.actionRequired())
+                  .count()
+              == 1,
+          "Refresh failure was not reported separately");
+      require(
+          owner.id.equals("pending-id") && state.seedInputs.text("seedOffset").equals("+"),
+          "Publication replaced unrelated private input");
+      require(!state.applyDraft(), "Publication bypassed invalid raw seed");
+      try {
+        session.stage(state);
+        throw new AssertionError("Consumed expression staged again");
+      } catch (IllegalStateException expected) {
+        // Later explicit publication cannot replay the accepted callback.
+      }
+
+      var stale = new ExpressionEditSession(state, owner, item);
+      stale.edit("x+9");
+      standalone =
+          new ExpressionEditDialog(
+              state,
+              stale,
+              () -> {
+                throw new AssertionError("Stale source staged");
+              });
+      standaloneDone = false;
+      frames(4);
+      var original = item.parameters.get("expression");
+      var replacement = ProjectIO.JSON.valueToTree(original.asText());
+      require(original != replacement, "Same-value replacement fixture did not replace identity");
+      item.parameters.put("expression", replacement);
+      frames(2);
+      click(standalone.control("stage"));
+      frames(2);
+      require(
+          !standaloneDone
+              && !stale.closed()
+              && standalone.bufferText().equals("x+9")
+              && item.parameters.get("expression") == replacement,
+          "Stale source retargeted or lost private input");
+      click(standalone.control("cancel"));
+      frames(2);
+      require(standaloneDone && stale.closed(), "Stale Cancel retained the session");
+
+      var retry = new ExpressionEditSession(state, owner, item);
+      var tooLong = "x".repeat(ExpressionEditSession.MAX_CHARACTERS + 1);
+      retry.edit(tooLong);
+      int[] accepted = {0};
+      standalone = new ExpressionEditDialog(state, retry, () -> accepted[0]++);
+      standaloneDone = false;
+      frames(4);
+      click(standalone.control("stage"));
+      frames(2);
+      require(
+          !standaloneDone
+              && !retry.closed()
+              && accepted[0] == 0
+              && standalone.bufferText().equals(tooLong),
+          "Oversized text used an earlier buffer");
+      click(standalone.control("text"));
+      replace("x+bias*3");
+      click(standalone.control("stage"));
+      frames(3);
+      require(
+          standaloneDone
+              && retry.closed()
+              && accepted[0] == 1
+              && item.parameters.get("expression").asText().equals("x+bias*3"),
+          "Corrected text did not stage exactly once");
+      require(
+          committed.equals(ProjectIO.JSON.valueToTree(state.project()))
+              && revision == state.revision
+              && history == state.document.historyBytes(),
+          "Publication fixtures changed the project/history");
+      require(
+          state.draft == owner
+              && owner.id.equals("pending-id")
+              && state.seedInputs.text("seedOffset").equals("+"),
+          "Retry replaced unrelated private input");
+    } finally {
+      standalone = null;
     }
   }
 
@@ -188,7 +315,8 @@ public final class ExpandedExpressionProbe {
     ImGui.setNextWindowPos(0, 0, ImGuiCond.Always);
     ImGui.setNextWindowSize(1100, 800, ImGuiCond.Always);
     ImGui.begin("Expanded expression workflow");
-    panel.probeExpressionPanel();
+    if (standalone == null) panel.probeExpressionPanel();
+    else standaloneDone = standalone.draw();
     ImGui.end();
     ImGui.render();
   }

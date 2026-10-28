@@ -15,6 +15,9 @@ assert b['tokenSelection'] == {'unicode': True, 'oneShot': True}
 assert a['before'] == b['before'] == 2 and a['after'] == 4 and b['after'] == 6
 assert all(a[k] is True for k in ['keyboardFocusRepair', 'rejectedDraftPreserved', 'oneUndoRedo'])
 assert all(b[k] is True for k in ['privateBuffer', 'privateStage', 'cancel', 'escape', 'oneUndoRedo'])
+assert all(b[k] is True for k in [
+    'duplicateOpenPreserved', 'refreshFailureConsumed', 'closedDrawConsumed',
+    'staleSourcePreserved', 'oversizedRetry', 'rawSeedPreserved'])
 for directory, filename, expression, accent in [
         (inline, 'expression-recovery-project.json', 'x+é+bias+0', 2),
         (expanded, 'expanded-expression-project.json', 'x+\nbias*3', 0)]:
