@@ -252,6 +252,14 @@ public final class PropertyPanel {
       state.status = "Finish or cancel the open property editor before following another control.";
       return false;
     }
+    if (!Objects.equals(state.selected, target.resource())) {
+      var result = referenceNavigation.request(target);
+      if (result == SearchNavigation.Result.NEEDS_DECISION) {
+        referencePrompt = true;
+        return true;
+      }
+      if (result != SearchNavigation.Result.NAVIGATED) return false;
+    }
     if (!state.navigate(target)) return false;
     focusedControl = target.control();
     navigationTarget = target;

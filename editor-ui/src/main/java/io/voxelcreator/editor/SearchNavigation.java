@@ -24,6 +24,9 @@ public final class SearchNavigation {
   private UUID source;
   private JsonNode draftBase, activeBase;
   private long seedVersion;
+  private ProjectData project;
+  private Object draftOwner;
+  private List<UUID> selection;
 
   public SearchNavigation(EditorState state) {
     this.state = state;
@@ -38,11 +41,14 @@ public final class SearchNavigation {
   }
 
   public Result request(EditorEvents.Target target) {
-    clear();
+    if (pending != null) return Result.UNAVAILABLE;
     if (!state.canNavigate(target)) return Result.UNAVAILABLE;
     if (!Objects.equals(state.selected, target.resource()) && modified()) {
       pending = target;
       source = state.selected;
+      project = state.project();
+      draftOwner = state.draft;
+      selection = List.copyOf(state.multiSelection);
       draftBase = ProjectIO.JSON.valueToTree(state.draft);
       activeBase = active();
       seedVersion = state.seedInputs.version(state);
@@ -73,7 +79,10 @@ public final class SearchNavigation {
       return Result.CANCELLED;
     }
     var target = pending;
-    if (!Objects.equals(state.selected, source)
+    if (state.project() != project
+        || state.draft != draftOwner
+        || !selection.equals(List.copyOf(state.multiSelection))
+        || !Objects.equals(state.selected, source)
         || seedVersion != state.seedInputs.version(state)
         || !draftBase.equals(ProjectIO.JSON.valueToTree(state.draft))
         || !activeBase.equals(active())
@@ -91,5 +100,8 @@ public final class SearchNavigation {
     source = null;
     draftBase = null;
     activeBase = null;
+    project = null;
+    draftOwner = null;
+    selection = null;
   }
 }
