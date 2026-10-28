@@ -1499,15 +1499,17 @@ public final class Viewports implements AutoCloseable {
       try {
         var stats = v.gl.volumeStatistics();
         if (stats.activeBytes() + stats.pendingBytes()
-            > (long) state.user.performance.sceneGpuMiB << 20)
+            > (long) state.user.performance.sceneGpuMiB << 20) {
+          if (volumeStreaming) v.volumeRejected = true;
           volumeUploadFailed(
               v,
               "Volume replacement exceeds GPU MiB; previous display retained; raise GPU MiB and"
                   + " Regenerate");
-        else if (stats.cpuBytes() + v.volumeWindows.memory().bytes()
-            > (long) state.user.performance.sceneCpuMiB << 20)
+        } else if (stats.cpuBytes() + v.volumeWindows.memory().bytes()
+            > (long) state.user.performance.sceneCpuMiB << 20) {
+          if (volumeStreaming) v.volumeRejected = true;
           volumeUploadFailed(v, "Volume upload exceeds CPU MiB; raise CPU MiB and Regenerate");
-        else {
+        } else {
           var profile = state.engine.profiler().scope(0, state.project().project.uuid, null);
           long stamp = profile == null ? 0 : profile.begin();
           var outcome = Profiler.Outcome.FAILED;

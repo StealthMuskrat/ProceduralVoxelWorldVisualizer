@@ -192,6 +192,8 @@ final class VolumePressureProbe {
         views.probeVolumeTravel(48, 16, 16);
         until(() -> views.probeVolumeStatistics().pending());
         version = views.probeVolumeStatistics().version();
+        for (int level = 1; level <= 4; level++) bad(level);
+        until(() -> views.probeVolumeStatistics().pending());
         p.sceneGpuMiB = 1;
         until(() -> views.probeVolumeMessage().contains("GPU MiB"));
         require(
@@ -199,9 +201,19 @@ final class VolumePressureProbe {
                 && views.probeVolumeStatistics().version() == version
                 && views.probeVolumeResidentSize() == 64,
             "Mid-upload GPU limit failed to cancel candidate");
+        clock += 1_000_000_000L;
+        frame();
+        require(
+            views.probeVolumePressureLevel() == 5, "Deferred budget rejection did not escalate");
         p.sceneGpuMiB = 16;
+        clickResume();
+        ready(32, 32, 0, 0);
+        good(2);
+        good(1);
         ready(64, 0, -32, -32);
+        good(0);
         stages.add(stage("budget-retry", 0, out));
+        report.put("deferredBudgetEscalated", true);
 
         // A queued window reserves its whole peak before its worker starts. Critical pressure
         // reclaims that queue slot and reservation while preserving accepted GPU data.

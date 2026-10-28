@@ -505,7 +505,7 @@ assert [s['side'] for s in pressure_stages] == [64,64,32,32,32,32,32,64,32,64,64
 assert [s['origin'] for s in pressure_stages] == [
     [-32,-32,-32], [-32,-32,-32], [0,0,0], [0,0,0], [0,0,0], [0,0,0],
     [-32,0,0], [-64,-32,-32], [0,0,0], [0,-32,-32], [0,-32,-32], [64,0,0]]
-assert [s['version'] for s in pressure_stages] == [1,1,2,2,2,2,3,4,5,7,7,8]
+assert [s['version'] for s in pressure_stages] == [1,1,2,2,2,2,3,4,5,8,8,9]
 assert len({s['generation'] for s in pressure_stages[:6]}) == 1
 assert pressure_stages[6]['generation'] > pressure_stages[5]['generation']
 assert len({s['generation'] for s in pressure_stages[6:]}) == 1
@@ -530,7 +530,7 @@ assert 'deferred' in pressure_stages[4]['message']
 assert all('Resume' in pressure_stages[i]['message'] for i in (5,10))
 assert 0 < vp['maximumUploadBytes'] <= 16384
 assert all(vp[k] for k in ['initialViewOnly', 'postEditViewOnly', 'configuredPreserved',
-                         'midUploadCanceled', 'queuedReservationReclaimed', 'explicitResume'])
+                         'midUploadCanceled', 'queuedReservationReclaimed', 'explicitResume', 'deferredBudgetEscalated'])
 queued = vp['queuedMemory']
 assert queued['peak'] == 12*64**3 + 8*32**3 + 128 + 65536
 assert queued['cpuBytes'] + queued['reserved'] >= queued['peak'] and queued['queueSize'] == 1
