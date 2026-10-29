@@ -8,6 +8,7 @@ import io.voxelcreator.model.CurveModes;
 import io.voxelcreator.model.ProjectData.*;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
 
 /**
  * Private edit session. Apply validates once into the parent draft; Cancel discards local history.
@@ -18,6 +19,18 @@ public final class CurveDialog {
   private final EditorState ownerState;
   private final CurveDraftEdit owner;
   private final UiFields fields = new UiFields();
+  final FloatingWindowLayout layout = new FloatingWindowLayout(840, 760);
+  private DialogBounds.Rect bodyBounds;
+  private float bodyScroll;
+
+  DialogBounds.Rect probeBodyBounds() {
+    return bodyBounds;
+  }
+
+  float probeBodyScroll() {
+    return bodyScroll;
+  }
+
   private final ImBoolean open = new ImBoolean(true);
   private final Set<UUID> selected = new LinkedHashSet<>();
   private boolean grid = true, snapX = false, snapY = false;
@@ -118,8 +131,31 @@ public final class CurveDialog {
     return session.error();
   }
 
+  private String fieldLabel(String label) {
+    float available = Math.max(1, ImGui.getContentRegionAvailX());
+    float text = ImGui.calcTextSize(label).x + 24;
+    if (available < text + 160) {
+      ImGui.textWrapped(label);
+      ImGui.setNextItemWidth(available);
+      return "###curve-" + label;
+    }
+    ImGui.setNextItemWidth(available - text);
+    return label + "###curve-" + label;
+  }
+
+  private void toggleSameLine(String label) {
+    ImGui.sameLine();
+    if (ImGui.getContentRegionAvailX() < ImGui.calcTextSize(label).x + ImGui.getFrameHeight() + 8)
+      ImGui.newLine();
+  }
+
+  private void number(String label, double value, DoubleConsumer set) {
+    fields.number(fieldLabel(label), value, set);
+  }
+
   private void modeChoice(String label, String value, List<String> options, Consumer<String> set) {
-    if (ImGui.beginCombo(label, value)) {
+    if (ImGui.beginCombo(fieldLabel(label), value)) {
+      UiScale.window(ownerState == null ? null : ownerState.user, "Curve Editor");
       for (String option : options) {
         if (ImGui.selectable(option, option.equals(value))) set.accept(option);
         controlRect(label + "/" + option);
@@ -211,10 +247,11 @@ public final class CurveDialog {
 
   public boolean draw() {
     if (!open.get() || publication.closed()) return true;
-    ImGui.setNextWindowSize(840, 760, ImGuiCond.FirstUseEver);
+    layout.prepare();
     if (controlFocus.windowRequest()) ImGui.setNextWindowFocus();
     boolean visible = ImGui.begin("Curve Editor", open);
     UiScale.window(ownerState == null ? null : ownerState.user, "Curve Editor");
+    layout.observe();
     if (!open.get()) {
       cancel();
       ImGui.end();
@@ -228,6 +265,16 @@ public final class CurveDialog {
     }
     focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
     if (!focused || ImGui.getIO().getAppFocusLost() || ShortcutKeys.popup()) pointer.cancel();
+    float bodyHeight =
+        CurveLayout.body(ImGui.getContentRegionAvailY(), ImGui.getFrameHeightWithSpacing());
+    ImGui.beginChild("curve-content", 0, bodyHeight, false, ImGuiWindowFlags.NoScrollWithMouse);
+    ImGui.setWindowFontScale(1); // Inherit the root multiplier exactly once.
+    bodyBounds =
+        new DialogBounds.Rect(
+            ImGui.getWindowPosX(),
+            ImGui.getWindowPosY(),
+            ImGui.getWindowSizeX(),
+            ImGui.getWindowSizeY());
     Curve curve = session.curve();
     final Curve initial = curve;
     focusDestination = controlFocus.destination(curve);
@@ -236,7 +283,7 @@ public final class CurveDialog {
     focusField(
         "min",
         () ->
-            fields.number(
+            number(
                 "Domain minimum",
                 initial.min,
                 v ->
@@ -249,7 +296,7 @@ public final class CurveDialog {
     focusField(
         "max",
         () ->
-            fields.number(
+            number(
                 "Domain maximum",
                 initial.max,
                 v ->
@@ -262,13 +309,13 @@ public final class CurveDialog {
     focusField(
         "displayMin",
         () ->
-            fields.number(
+            number(
                 "Display minimum", initial.displayMin, v -> session.edit(c -> c.displayMin = v)));
     controlRect("displayMin");
     focusField(
         "displayMax",
         () ->
-            fields.number(
+            number(
                 "Display maximum", initial.displayMax, v -> session.edit(c -> c.displayMax = v)));
     controlRect("displayMax");
     focusField(
@@ -280,38 +327,38 @@ public final class CurveDialog {
                 CurveModes.OUTSIDE,
                 v -> session.edit(c -> c.outsideDomain = v)));
     fields.bool("Grid", grid, v -> grid = v);
-    ImGui.sameLine();
+    toggleSameLine("Snap X");
     fields.bool("Snap X", snapX, v -> snapX = v);
-    ImGui.sameLine();
+    toggleSameLine("Snap Y");
     fields.bool("Snap Y", snapY, v -> snapY = v);
     controlRect("snapY");
-    fields.number(
+    number(
         "X increment",
         stepX,
         v -> {
           if (v > 0 && Double.isFinite(v)) stepX = v;
         });
-    fields.number(
+    number(
         "Y increment",
         stepY,
         v -> {
           if (v > 0 && Double.isFinite(v)) stepY = v;
         });
-    if (ImGui.button("Undo") && session.canUndo()) {
+    if (DialogLayout.button("Undo") && session.canUndo()) {
       controlFocus.cancel();
       stopDrag();
       session.undo();
     }
     controlRect("undo");
-    ImGui.sameLine();
-    if (ImGui.button("Redo") && session.canRedo()) {
+    DialogLayout.sameLine("Redo");
+    if (DialogLayout.button("Redo") && session.canRedo()) {
       controlFocus.cancel();
       stopDrag();
       session.redo();
     }
     controlRect("redo");
-    ImGui.sameLine();
-    if (ImGui.button("Fit")) {
+    DialogLayout.sameLine("Fit");
+    if (DialogLayout.button("Fit")) {
       stopDrag();
       session.endGesture();
       view.fit();
@@ -319,10 +366,13 @@ public final class CurveDialog {
     controlRect("fit");
     curve = session.curve();
     var compiled = new ScalarCurve(curve);
+    var plotSize =
+        CurveLayout.plot(
+            ImGui.getContentRegionAvailX(), ImGui.getContentRegionAvailY(), bodyBounds.height());
     float px = ImGui.getCursorScreenPosX(),
         py = ImGui.getCursorScreenPosY(),
-        w = Math.max(150, ImGui.getContentRegionAvailX()),
-        h = Math.max(170, ImGui.getContentRegionAvailY() - 240);
+        w = plotSize.width(),
+        h = plotSize.height();
     ImGui.invisibleButton(
         "curve-plot",
         w,
@@ -519,6 +569,7 @@ public final class CurveDialog {
       else pointer.cancel();
     }
     if (ImGui.beginPopupContextItem("curve-actions")) {
+      UiScale.window(ownerState == null ? null : ownerState.user, "Curve Editor");
       if (ImGui.menuItem("Select All")) selectAll();
       controlRect("menu/selectAll");
       if (ImGui.menuItem("Clear Selection")) selected.clear();
@@ -533,7 +584,7 @@ public final class CurveDialog {
       controlRect("menu/fit");
       ImGui.endPopup();
     }
-    ImGui.textDisabled(
+    ImGui.textWrapped(
         String.format(
             Locale.ROOT,
             "Input %.5f  Output %.5f  |  %d selected; Shift+click selects; Escape cancels drag",
@@ -559,15 +610,12 @@ public final class CurveDialog {
         focusField(
             "x",
             () ->
-                fields.number(
-                    "X", point.x, v -> session.edit(c -> CurveEditSession.point(c, id).x = v)));
+                number("X", point.x, v -> session.edit(c -> CurveEditSession.point(c, id).x = v)));
       else
-        ImGui.textDisabled(String.format(Locale.ROOT, "Endpoint X %.5f (domain locked)", point.x));
+        ImGui.textWrapped(String.format(Locale.ROOT, "Endpoint X %.5f (domain locked)", point.x));
       focusField(
           "y",
-          () ->
-              fields.number(
-                  "Y", point.y, v -> session.edit(c -> CurveEditSession.point(c, id).y = v)));
+          () -> number("Y", point.y, v -> session.edit(c -> CurveEditSession.point(c, id).y = v)));
       controlRect("pointY");
       focusField(
           "segmentInterpolation",
@@ -606,7 +654,7 @@ public final class CurveDialog {
           focusField(
               "inTangent",
               () ->
-                  fields.number(
+                  number(
                       "Incoming slope",
                       point.inTangent,
                       v ->
@@ -619,7 +667,7 @@ public final class CurveDialog {
           focusField(
               "outTangent",
               () ->
-                  fields.number(
+                  number(
                       "Outgoing slope",
                       point.outTangent,
                       v ->
@@ -630,13 +678,13 @@ public final class CurveDialog {
                                 if (p.handleMode.equals("ALIGNED")) p.inTangent = v;
                               })));
         } else
-          ImGui.textDisabled(
+          ImGui.textWrapped(
               "Auto slopes follow the monotone curve. Choose Aligned/Free to drag handles.");
       }
     } else if (selection.size() > 1)
       ImGui.textWrapped(
           "Drag any selected point to move the group. Endpoint X values stay locked.");
-    if (ImGui.button("Delete Selected Interior Points")) deleteSelected();
+    if (DialogLayout.button("Delete Selected Interior Points")) deleteSelected();
     controlRect("delete");
     if (!session.error().isEmpty()) ImGui.textWrapped("! " + session.error());
     boolean current = owner == null || owner.current(ownerState);
@@ -644,8 +692,22 @@ public final class CurveDialog {
       ImGui.textWrapped(
           "The source or selection changed. Private curve edits are preserved; Cancel and reopen"
               + " the source before applying.");
+    if (!publication.error().isEmpty()) ImGui.textWrapped("! " + publication.error());
+    // The plot owns wheel zoom. Other body space scrolls the inspector without also zooming it.
+    if (ImGui.isWindowHovered()
+        && !hovered
+        && !pointer.active()
+        && !ShortcutKeys.popup()
+        && !ImGui.isMouseDown(0)
+        && !ImGui.isMouseDown(1)
+        && !ImGui.isMouseDown(2)
+        && io.getMouseWheel() != 0)
+      ImGui.setScrollY(
+          ImGui.getScrollY() - io.getMouseWheel() * ImGui.getTextLineHeightWithSpacing() * 3);
+    bodyScroll = ImGui.getScrollY();
+    ImGui.endChild();
     ImGui.beginDisabled(!current);
-    if (ImGui.button("Apply")) {
+    if (DialogLayout.button("Apply")) {
       stopDrag();
       session.endGesture();
       if (publication.apply(session.curve())) {
@@ -662,10 +724,9 @@ public final class CurveDialog {
     }
     controlRect("apply");
     ImGui.endDisabled();
-    ImGui.sameLine();
-    if (ImGui.button("Cancel")) cancel();
+    DialogLayout.sameLine("Cancel");
+    if (DialogLayout.button("Cancel")) cancel();
     controlRect("cancel");
-    if (!publication.error().isEmpty()) ImGui.textWrapped("! " + publication.error());
     ImGui.end();
     return !open.get();
   }
