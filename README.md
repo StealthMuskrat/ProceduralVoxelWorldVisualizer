@@ -88,3 +88,5 @@ New/Open/Exit now protect unapplied Properties input before the committed-docume
 Project Undo/Redo now protects unapplied Properties input with an explicit discard-or-cancel decision. History candidates validate before either stack moves; successful steps reconcile selection and retain explicit-save dirty tracking. Implementation and deferred definitions are **uncompiled and untested**; see [history ownership](docs/PROJECT_HISTORY_OWNERSHIP.md).
 
 Import now uses an owned COPY/REUSE/SKIP workspace with explicit stale-preview reload, filtered/clipped rows, bounded diagnostics and displayed-plan Apply gating. It preserves separate Properties drafts. Implementation and deferred definitions are **uncompiled and untested**; see [import workspace](docs/IMPORT_WORKSPACE.md).
+
+The unvalidated development branch adds [manual update results and verified release links](docs/MANUAL_UPDATE_CHECKS.md), alongside [private update trust and safe configuration persistence](docs/UPDATE_TRUST_AND_PREFERENCE_FILES.md). Checks require an explicitly applied endpoint; normal startup performs no update request.

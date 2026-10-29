@@ -2,7 +2,7 @@
 from pathlib import Path
 import json,jsonschema
 root=Path(__file__).resolve().parent.parent
-for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json','creation-defaults-project.json','hierarchy.json','bookmarks.json','noise-authoring.json','field-operations.json','trace-workflow.json','scalar-remapping.json','warp-fields.json','placement-driver-phases.json','transform-drivers.json','work-profile-project.json','semantic-sharing.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json','user-theme-custom.json','user-shadow-settings.json','user-volume-light.json']),('app-config',['app-config-defaults.json','app-config-legacy.json','app-config-creation.json']),('profile-capture',['profile-capture.json','profile-capture-gpu.json','profile-capture-work.json'])]:
+for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json','creation-defaults-project.json','hierarchy.json','bookmarks.json','noise-authoring.json','field-operations.json','trace-workflow.json','scalar-remapping.json','warp-fields.json','placement-driver-phases.json','transform-drivers.json','work-profile-project.json','semantic-sharing.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json','user-theme-custom.json','user-shadow-settings.json','user-volume-light.json']),('app-config',['app-config-defaults.json','app-config-legacy.json','app-config-creation.json']),('profile-capture',['profile-capture.json','profile-capture-gpu.json','profile-capture-work.json']),('release-metadata',['release-metadata.json'])]:
  schema=json.loads((root/'schema'/f'{name}.schema.json').read_text())
  jsonschema.Draft202012Validator.check_schema(schema)
  validator=jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker())
@@ -52,3 +52,10 @@ for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fie
 # Deferred portable package envelope linked to the canonical project schema.
 from verify_resource_package_schema import verify as verify_resource_package_schema
 verify_resource_package_schema(root)
+
+# Deferred strict release metadata shape/semantic-version fixture.
+release_schema=json.loads((root/'schema/release-metadata.schema.json').read_text())
+release_validator=jsonschema.Draft202012Validator(release_schema,format_checker=jsonschema.FormatChecker())
+try:release_validator.validate(json.loads((root/'fixtures/invalid-release-version.json').read_text()))
+except jsonschema.ValidationError:pass
+else:raise AssertionError('Invalid release prerelease identifier was accepted')

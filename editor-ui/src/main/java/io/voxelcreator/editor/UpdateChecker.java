@@ -1,10 +1,14 @@
 package io.voxelcreator.editor;
 
 import io.voxelcreator.model.ProjectIO;
+import java.io.IOException;
 import java.net.*;
 import java.net.http.*;
+import java.nio.ByteBuffer;
+import java.nio.charset.*;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.*;
 
 /** Manual-only HTTPS metadata check. No redirects or executable downloads. */
 public final class UpdateChecker {
@@ -27,7 +31,7 @@ public final class UpdateChecker {
 
   public static Release parse(String content, Set<String> trusted) {
     try {
-      if (content.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 65536)
+      if (content.getBytes(StandardCharsets.UTF_8).length > UpdateBody.MAX_BYTES)
         throw new IllegalArgumentException("Metadata exceeds 64 KiB");
       var n =
           ProjectIO.JSON
@@ -45,15 +49,40 @@ public final class UpdateChecker {
         throw new IllegalArgumentException(
             "Expected metadata {formatVersion:1,version,releaseUrl}");
       String version = n.path("version").asText();
-      if (!version.matches("[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?"))
-        throw new IllegalArgumentException("Invalid version");
       String url = n.path("releaseUrl").asText();
-      if (!trusted.contains(origin(URI.create(url))))
-        throw new IllegalArgumentException("Release origin is not approved");
-      return new Release(version, url);
+      var release = new Release(version, url);
+      validateRelease(release, trusted);
+      return release;
     } catch (java.io.IOException e) {
       throw new IllegalArgumentException(e);
     }
+  }
+
+  static void validateRelease(Release release, Collection<String> trusted) {
+    Objects.requireNonNull(release, "Metadata request returned no release");
+    ReleaseVersion.parse(release.version());
+    if (release.releaseUrl() == null || release.releaseUrl().length() > 4096)
+      throw new IllegalArgumentException("Release information URL exceeds 4096 characters");
+    if (!trusted.contains(origin(URI.create(release.releaseUrl()))))
+      throw new IllegalArgumentException("Release origin is not approved");
+  }
+
+  static String decode(byte[] bytes) throws IOException {
+    if (bytes.length > UpdateBody.MAX_BYTES) throw new IOException("Metadata exceeds 64 KiB");
+    return StandardCharsets.UTF_8
+        .newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPORT)
+        .decode(ByteBuffer.wrap(bytes))
+        .toString();
+  }
+
+  static HttpResponse.BodyHandler<byte[]> handler(UpdateBody body) {
+    return info -> {
+      if (info.statusCode() != 200)
+        body.onError(new IOException("Metadata HTTP " + info.statusCode()));
+      return body;
+    };
   }
 
   public static Release check(String endpoint, List<String> approved) throws Exception {
@@ -67,16 +96,30 @@ public final class UpdateChecker {
             .connectTimeout(Duration.ofSeconds(8))
             .followRedirects(HttpClient.Redirect.NEVER)
             .build();
-    var response =
-        client.send(
-            HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(12)).GET().build(),
-            HttpResponse.BodyHandlers.ofInputStream());
-    try (var input = response.body()) {
+    var body = new UpdateBody();
+    CompletableFuture<HttpResponse<byte[]>> pending = null;
+    try {
+      pending =
+          client.sendAsync(
+              HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(12)).GET().build(),
+              handler(body));
+      // This deadline includes headers and complete response-body consumption.
+      var response = pending.get(12, TimeUnit.SECONDS);
       if (response.statusCode() != 200)
-        throw new IllegalStateException("Metadata HTTP " + response.statusCode());
-      byte[] bytes = input.readNBytes(65537);
-      if (bytes.length > 65536) throw new IllegalArgumentException("Metadata exceeds 64 KiB");
-      return parse(new String(bytes, java.nio.charset.StandardCharsets.UTF_8), trust);
+        throw new IOException("Metadata HTTP " + response.statusCode());
+      return parse(decode(response.body()), trust);
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw interrupted;
+    } catch (TimeoutException timeout) {
+      throw new IOException("Metadata response did not complete within 12 seconds", timeout);
+    } catch (ExecutionException rejected) {
+      if (rejected.getCause() instanceof Exception cause) throw cause;
+      throw rejected;
+    } finally {
+      if (pending != null) pending.cancel(true);
+      body.cancel();
+      client.shutdownNow();
     }
   }
 }

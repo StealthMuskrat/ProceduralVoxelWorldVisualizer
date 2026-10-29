@@ -19,6 +19,7 @@ import java.util.function.*;
 
 /** Native Java 25 desktop editor. UI/OpenGL are owned exclusively by this thread. */
 public final class Desktop extends Application {
+  static final String APPLICATION_VERSION = "0.1.0";
   private final EditorState state = new EditorState();
   private PropertyPanel properties;
   private ResourcePanel resources;
@@ -30,6 +31,8 @@ public final class Desktop extends Application {
   private ResourceFindPanel findPanel;
   private ThemePanel themePanel;
   private UpdateTrustPanel updateTrust;
+  private UpdateCheckPanel updateChecks;
+  private final ImBoolean updateWindow = new ImBoolean(false);
   private String smokeDiagnosticDocument;
   private long smokeDiagnosticEvent;
   private boolean smokeSchedulerDrawn;
@@ -92,6 +95,26 @@ public final class Desktop extends Application {
             message ->
                 state.error(
                     "UPDATE_TRUST_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
+    updateChecks =
+        new UpdateCheckPanel(
+            new UpdateCheckSession(
+                state.user,
+                APPLICATION_VERSION,
+                state.background,
+                state.uiQueue::offer,
+                UpdateChecker::check,
+                message ->
+                    state.error(
+                        "UPDATE_CHECK_FAILED", EditorEvents.Subsystem.APPLICATION, message)),
+            APPLICATION_VERSION,
+            () -> {
+              openSettings("User Settings");
+              settingsCategory = "Performance";
+            },
+            UpdateCheckPanel::browse,
+            ImGui::setClipboardText,
+            message ->
+                state.error("UPDATE_LINK_FAILED", EditorEvents.Subsystem.APPLICATION, message));
     applicationSettings = new ApplicationSettingsPanel(state);
     projectSettings = new ProjectSettingsPanel(state);
     themePanel =
@@ -355,6 +378,7 @@ public final class Desktop extends Application {
 
   @Override
   protected void dispose() {
+    if (updateChecks != null) updateChecks.close();
     imGuiGl3.shutdown();
     try {
       imGuiGlfw.shutdown();
@@ -619,10 +643,11 @@ public final class Desktop extends Application {
     drawHelp();
     drawProfiler();
     drawThemes();
+    updateChecks.draw(updateWindow);
     diagnostics.drawNotifications(notifications, () -> logs.set(true));
     if (about.get()) {
       ImGui.begin("About", about);
-      ImGui.text("Procedural Voxel Creator 0.1.0");
+      ImGui.text("Procedural Voxel Creator " + APPLICATION_VERSION);
       ImGui.text("Noise Generator Engine " + CompiledProject.ENGINE_VERSION);
       ImGui.text("Java " + System.getProperty("java.version"));
       ImGui.text("OpenGL " + glGetString(GL_VERSION));
@@ -1011,30 +1036,8 @@ public final class Desktop extends Application {
       state.status = "Configure a trusted HTTPS metadata endpoint for manual update checks";
       return;
     }
-    try {
-      String endpoint = state.user.performance.updateEndpoint;
-      List<String> trust = List.copyOf(state.user.performance.trustedOrigins);
-      state.background.execute(
-          () -> {
-            try {
-              var release = UpdateChecker.check(endpoint, trust);
-              state.uiQueue.offer(
-                  () ->
-                      state.notify(
-                          "Information",
-                          "Release " + release.version() + ": " + release.releaseUrl()));
-            } catch (Exception e) {
-              state.uiQueue.offer(
-                  () ->
-                      state.error(
-                          "UPDATE_CHECK_FAILED",
-                          EditorEvents.Subsystem.APPLICATION,
-                          "Update check failed: " + e.getMessage()));
-            }
-          });
-    } catch (Exception e) {
-      state.notify("Error", e.getMessage());
-    }
+    updateWindow.set(true);
+    updateChecks.start();
   }
 
   private void createSmokeProject() {
@@ -1134,6 +1137,7 @@ public final class Desktop extends Application {
 
   @Override
   protected void postRun() {
+    if (updateChecks != null) updateChecks.close();
     state.user.workspace.docking = ImGui.saveIniSettingsToMemory();
     views.close();
     state.close();
