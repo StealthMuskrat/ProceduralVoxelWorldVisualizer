@@ -1,7 +1,6 @@
 package io.voxelcreator.editor;
 
 import imgui.*;
-import imgui.flag.ImGuiCond;
 import imgui.type.ImBoolean;
 import java.net.URI;
 import java.util.*;
@@ -9,6 +8,7 @@ import java.util.function.Consumer;
 
 /** Manual results, cancellable request and explicit verified-link actions. */
 final class UpdateCheckPanel implements AutoCloseable {
+  final FloatingWindowLayout windowLayout = new FloatingWindowLayout(730, 350);
   private final UpdateCheckSession session;
   private final String installed;
   private final Runnable configure;
@@ -44,9 +44,10 @@ final class UpdateCheckPanel implements AutoCloseable {
       session.cancel();
       return;
     }
-    ImGui.setNextWindowSize(730, 350, ImGuiCond.FirstUseEver);
+    windowLayout.prepare();
     boolean visible = ImGui.begin("Check for Updates", open);
     UiScale.window(session.preferences(), "Check for Updates");
+    windowLayout.observe();
     try {
       if (!visible || !open.get()) return;
       var view = session.view();

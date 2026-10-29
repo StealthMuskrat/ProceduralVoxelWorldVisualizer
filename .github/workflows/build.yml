@@ -97,6 +97,8 @@ jobs:
           python scripts/verify_popup_layout.py build/popup-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveLayoutProbe build/curve-layout
           python scripts/verify_curve_layout.py build/curve-layout
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StatusBarProbe build/status-bar
+          python scripts/verify_status_bar.py build/status-bar
       - name: Large resource browser reference
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
@@ -320,6 +322,7 @@ jobs:
             build/dialog-layout/
             build/popup-layout/
             build/curve-layout/
+            build/status-bar/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/
@@ -516,6 +519,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveLayoutProbe build/curve-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_curve_layout.py build/curve-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StatusBarProbe build/status-bar
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_status_bar.py build/status-bar
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows large resource browser reference
         shell: pwsh
@@ -908,6 +915,7 @@ jobs:
             build/dialog-layout/
             build/popup-layout/
             build/curve-layout/
+            build/status-bar/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/

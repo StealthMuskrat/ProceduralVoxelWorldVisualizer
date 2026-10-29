@@ -9,6 +9,9 @@ import java.util.function.Consumer;
 
 /** Bounded, clipped result lists with real detail/action routing; owned by the native UI thread. */
 public final class DiagnosticsPanel {
+  final FloatingWindowLayout logsLayout = new FloatingWindowLayout(920, 640);
+  final FloatingWindowLayout noticesLayout = new FloatingWindowLayout(850, 580);
+  final FloatingWindowLayout validationLayout = new FloatingWindowLayout(900, 600);
   private final EditorState state;
   private final Consumer<EditorEvents.Target> navigate;
   private TracePanel tracePanel;
@@ -37,9 +40,10 @@ public final class DiagnosticsPanel {
 
   public void drawLogs(ImBoolean open) {
     if (!open.get()) return;
-    ImGui.setNextWindowSize(920, 640, ImGuiCond.FirstUseEver);
+    logsLayout.prepare();
     boolean visible = ImGui.begin("Logs & Error Center", open);
     UiScale.window(state.user, "Logs");
+    logsLayout.observe();
     if (!visible || !open.get()) {
       ImGui.end();
       return;
@@ -70,9 +74,10 @@ public final class DiagnosticsPanel {
 
   public void drawNotifications(ImBoolean open, Runnable openLogs) {
     if (!open.get()) return;
-    ImGui.setNextWindowSize(850, 580, ImGuiCond.FirstUseEver);
+    noticesLayout.prepare();
     boolean visible = ImGui.begin("Notifications", open);
     UiScale.window(state.user, "Notifications");
+    noticesLayout.observe();
     if (!visible || !open.get()) {
       ImGui.end();
       return;
@@ -185,9 +190,10 @@ public final class DiagnosticsPanel {
 
   public void drawValidation(ImBoolean open) {
     if (!open.get()) return;
-    ImGui.setNextWindowSize(900, 600, ImGuiCond.FirstUseEver);
+    validationLayout.prepare();
     boolean visible = ImGui.begin("Validation Results", open);
     UiScale.window(state.user, "Validation");
+    validationLayout.observe();
     if (!visible || !open.get()) {
       ImGui.end();
       return;

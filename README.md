@@ -104,3 +104,5 @@ The unvalidated [modal layout follow-up](docs/DIALOG_LAYOUT.md) fits sixteen mod
 The unvalidated [selector layout follow-up](docs/SELECTOR_LAYOUT.md) anchors resource/bookmark popups inside their hosting viewport, fits searchable lists to available space and wraps bookmark toolbar actions. Physical monitor/DPI acceptance remains pending.
 
 The unvalidated [Curve Editor layout follow-up](docs/CURVE_LAYOUT.md) keeps Apply/Cancel outside the scrolling inspector, fits floating bounds with docking/monitor-coordinate ownership, and separates plot zoom from body scrolling. Physical monitor/DPI acceptance remains pending.
+
+The unvalidated [status and utility layout batch](docs/STATUS_AND_UTILITY_LAYOUT.md) reserves a measured bottom status strip, keeps notifications reachable in narrow layouts, preserves dock identity and extends floating bounds to thirteen utility/settings windows. GitHub testing remains paused.

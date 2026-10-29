@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 
 /** UI-owned capture controls. Capture/export/navigation never change the project document. */
 public final class ProfilePanel {
+  final FloatingWindowLayout windowLayout = new FloatingWindowLayout(1050, 800);
   private final EditorState state;
   private final Consumer<EditorEvents.Target> navigate;
   private final UiFields fields = new UiFields();
@@ -171,9 +172,10 @@ public final class ProfilePanel {
       java.util.function.IntSupplier compact,
       List<io.voxelcreator.render.GpuTimerQueries.Statistics> gpuTimings) {
     if (!open.get()) return;
-    ImGui.setNextWindowSize(1050, 800, ImGuiCond.FirstUseEver);
+    windowLayout.prepare();
     boolean visible = ImGui.begin("Profiler", open);
     UiScale.window(state.user, "Profiler");
+    windowLayout.observe();
     if (!visible || !open.get()) {
       ImGui.end();
       return;

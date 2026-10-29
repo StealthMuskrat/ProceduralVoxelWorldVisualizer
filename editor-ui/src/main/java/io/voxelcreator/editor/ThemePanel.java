@@ -8,6 +8,7 @@ import java.util.function.Consumer;
 
 /** Live theme preview with an independently readable inspector and explicit persistence. */
 public final class ThemePanel {
+  final FloatingWindowLayout windowLayout = new FloatingWindowLayout(980, 710);
   private final UserConfig user;
   private final Consumer<String> errors;
   private ThemeEditSession session;
@@ -67,9 +68,10 @@ public final class ThemePanel {
     preview.refresh();
     // Push before Begin so even authored transparent/identical text remains recoverable.
     safe.forEach((key, c) -> ImGui.pushStyleColor(key, c.r(), c.g(), c.b(), c.a()));
-    ImGui.setNextWindowSize(980, 710, ImGuiCond.FirstUseEver);
+    windowLayout.prepare();
     boolean visible = ImGui.begin("Themes", open);
     UiScale.window(user, "Themes");
+    windowLayout.observe();
     try {
       if (visible && open.get()) {
         smokeDrawn = true;

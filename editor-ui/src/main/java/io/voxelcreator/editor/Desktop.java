@@ -26,6 +26,9 @@ public final class Desktop extends Application {
   private Viewports views;
   private DiagnosticsPanel diagnostics;
   private ProfilePanel captures;
+  private final Map<String, FloatingWindowLayout> settingsLayouts = new HashMap<>();
+  private final FloatingWindowLayout helpLayout = new FloatingWindowLayout(750, 550);
+  private final FloatingWindowLayout aboutLayout = new FloatingWindowLayout(680, 350);
   private InputSettingsPanel inputSettings;
   private ApplicationSettingsPanel applicationSettings;
   private ResourceFindPanel findPanel;
@@ -67,6 +70,9 @@ public final class Desktop extends Application {
           "Themes",
           themes);
   private final Map<String, Boolean> visibilityValues = new LinkedHashMap<>();
+  private final StatusBarPanel status =
+      new StatusBarPanel(
+          state, () -> openSettings("User Settings"), () -> this.notifications.set(true));
   private MainWindowPlacement mainWindow;
   private final EditorFrameGate frames = new EditorFrameGate();
   private final ImString search = new ImString(1024), pathInput = new ImString(4096);
@@ -276,10 +282,11 @@ public final class Desktop extends Application {
     captures.frame(ImGui.getIO().getDeltaTime(), views);
     frameCount++;
     menu();
-    int dock = ImGui.dockSpaceOverViewport();
+    var chrome = status.prepare();
+    int dock = DockWorkspace.draw(chrome.dock());
     workspaceLayout.build(
         () -> {
-          WorkspaceDocking.defaults(dock);
+          WorkspaceDocking.defaults(dock, chrome.dock().width(), chrome.dock().height());
           resources.docking.reset();
           properties.docking.reset();
         });
@@ -291,7 +298,7 @@ public final class Desktop extends Application {
     fileDialogs();
     projectFiles.draw();
     projectHistory.draw();
-    statusBar();
+    status.draw();
     shortcuts();
     captureVisibility();
     if (System.nanoTime() - preferenceSave > 5_000_000_000L) {
@@ -701,8 +708,10 @@ public final class Desktop extends Application {
     updateChecks.draw(updateWindow);
     diagnostics.drawNotifications(notifications, () -> logs.set(true));
     if (about.get()) {
+      aboutLayout.prepare();
       boolean visible = ImGui.begin("About", about);
       UiScale.window(state.user, "About");
+      aboutLayout.observe();
       if (visible && about.get()) {
         ImGui.text("Procedural Voxel Creator " + APPLICATION_VERSION);
         ImGui.text("Noise Generator Engine " + CompiledProject.ENGINE_VERSION);
@@ -729,9 +738,12 @@ public final class Desktop extends Application {
     }
     if (!settingsPage.equals("User Settings") || !settingsCategory.equals("Input"))
       inputSettings.cancelCapture();
-    ImGui.setNextWindowSize(750, 650, ImGuiCond.FirstUseEver);
+    var windowLayout =
+        settingsLayouts.computeIfAbsent(settingsPage, key -> new FloatingWindowLayout(750, 650));
+    windowLayout.prepare();
     boolean visible = ImGui.begin(settingsPage, settings);
     UiScale.window(state.user, settingsPage);
+    windowLayout.observe();
     if (!settings.get()) {
       projectSettings.cancel();
       inputSettings.cancelCapture();
@@ -888,9 +900,10 @@ public final class Desktop extends Application {
 
   private void drawHelp() {
     if (!help.get()) return;
-    ImGui.setNextWindowSize(750, 550, ImGuiCond.FirstUseEver);
+    helpLayout.prepare();
     boolean visible = ImGui.begin("Help", help);
     UiScale.window(state.user, "Help");
+    helpLayout.observe();
     if (visible && help.get()) {
       ImGui.inputText("Search features", search);
       for (var e : state.metadata.orderedControls()) {
@@ -951,36 +964,6 @@ public final class Desktop extends Application {
   private void captureWorkspace() {
     captureVisibility();
     workspaceLayout.capture(state.user.workspace, ImGui::saveIniSettingsToMemory);
-  }
-
-  private void statusBar() {
-    var vp = ImGui.getMainViewport();
-    ImGui.setNextWindowViewport(vp.getID());
-    ImGui.pushStyleVar(ImGuiStyleVar.WindowMinSize, 0, 0);
-    ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 8, 4);
-    ImGui.setNextWindowPos(vp.getPosX(), vp.getPosY() + vp.getSizeY() - 28);
-    ImGui.setNextWindowSize(vp.getSizeX(), 28);
-    ImGui.begin(
-        "Status",
-        ImGuiWindowFlags.NoTitleBar
-            | ImGuiWindowFlags.NoResize
-            | ImGuiWindowFlags.NoMove
-            | ImGuiWindowFlags.NoDocking
-            | ImGuiWindowFlags.NoSavedSettings);
-    String status =
-        state.status.length() > 120 ? state.status.substring(0, 120) + "..." : state.status;
-    ImGui.text(status);
-    ImGui.sameLine(Math.max(200, vp.getSizeX() - 260));
-    if (ImGui.smallButton("Settings")) openSettings("User Settings");
-    ImGui.sameLine();
-    var attention = state.events.counts();
-    if (ImGui.smallButton(
-        "Notifications "
-            + attention.unread()
-            + (attention.actionRequired() > 0 ? "  !" + attention.actionRequired() : "")))
-      notifications.set(true);
-    ImGui.end();
-    ImGui.popStyleVar(2);
   }
 
   private void shortcuts() {

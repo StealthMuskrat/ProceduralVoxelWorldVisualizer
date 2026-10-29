@@ -7,6 +7,7 @@ import java.util.*;
 
 /** Advanced Find keeps committed query state separate from simple selectors and property drafts. */
 public final class ResourceFindPanel {
+  final FloatingWindowLayout windowLayout = new FloatingWindowLayout(940, 680);
   private final EditorState state;
   final DialogLayout layout;
   private final PropertyPanel properties;
@@ -57,9 +58,10 @@ public final class ResourceFindPanel {
       guard();
       return;
     }
-    ImGui.setNextWindowSize(940, 680, ImGuiCond.FirstUseEver);
+    windowLayout.prepare();
     boolean visible = ImGui.begin("Find", open);
     UiScale.window(state.user, "Find");
+    windowLayout.observe();
     DialogLayout.observe(state, "Find");
     if (!visible || !open.get()) {
       if (!open.get()) session.clear();

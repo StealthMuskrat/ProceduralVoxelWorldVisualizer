@@ -10,10 +10,13 @@ final class WorkspaceDocking {
 
   static void defaults(int dock) {
     var viewport = ImGui.getMainViewport();
+    defaults(dock, viewport.getWorkSizeX(), viewport.getWorkSizeY());
+  }
+
+  static void defaults(int dock, float width, float height) {
     imgui.internal.ImGui.dockBuilderRemoveNode(dock);
     imgui.internal.ImGui.dockBuilderAddNode(dock);
-    imgui.internal.ImGui.dockBuilderSetNodeSize(
-        dock, viewport.getWorkSizeX(), Math.max(1, viewport.getWorkSizeY() - 26));
+    imgui.internal.ImGui.dockBuilderSetNodeSize(dock, Math.max(1, width), Math.max(1, height));
     ImInt left = new ImInt(), right = new ImInt(), center = new ImInt();
     imgui.internal.ImGui.dockBuilderSplitNode(dock, ImGuiDir.Left, .19f, left, center);
     imgui.internal.ImGui.dockBuilderSplitNode(center.get(), ImGuiDir.Right, .31f, right, center);

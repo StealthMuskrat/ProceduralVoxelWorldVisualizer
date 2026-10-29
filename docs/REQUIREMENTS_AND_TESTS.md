@@ -2,6 +2,8 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
+The [status/utility layout batch](STATUS_AND_UTILITY_LAYOUT.md), twelve analytical regression definitions and scaled status-action/Notifications/INI compatibility definitions are **uncompiled and untested** under the owner pause. Deferred replay/platform wiring is not pass evidence.
+
 The [Curve Editor layout batch](CURVE_LAYOUT.md), twenty-four analytical regression definitions and production scaled/narrow resize/pan/collapse/Cancel definitions are **uncompiled and untested** under the owner pause. Deferred replay/platform wiring is not pass evidence.
 
 The [selector layout batch](SELECTOR_LAYOUT.md), twelve `PopupBoundsTest` definitions and eight native production resource/bookmark layout/input case definitions are **uncompiled and untested** under the owner pause. Future workflow/replay wiring is present; it is not pass evidence. The last validated 922-test/120-suite baseline is unchanged.
