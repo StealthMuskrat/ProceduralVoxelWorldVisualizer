@@ -12,9 +12,15 @@ public final class ProfileIO {
   private ProfileIO() {}
 
   public static void writeJSON(Path path, Profiler.Snapshot snapshot) throws IOException {
+    writeJSON(path, snapshot, ATOMIC_REPLACE);
+  }
+
+  static void writeJSON(Path path, Profiler.Snapshot snapshot, Replacement replacement)
+      throws IOException {
     Objects.requireNonNull(snapshot);
     write(
         path,
+        replacement,
         writer -> {
           var data = ProjectIO.JSON.createObjectNode();
           data.put("formatVersion", snapshot.formatVersion());
@@ -30,9 +36,15 @@ public final class ProfileIO {
   }
 
   public static void writeCSV(Path path, Profiler.Snapshot snapshot) throws IOException {
+    writeCSV(path, snapshot, ATOMIC_REPLACE);
+  }
+
+  static void writeCSV(Path path, Profiler.Snapshot snapshot, Replacement replacement)
+      throws IOException {
     Objects.requireNonNull(snapshot);
     write(
         path,
+        replacement,
         writer -> {
           writer.write(
               "capture_id,state,started_at,context_id,project_uuid,kind,source_uuid,label,offset_ns,value,unit,outcome,chunk_x,chunk_y,chunk_z,thread_id,thread_name\r\n");
@@ -81,10 +93,34 @@ public final class ProfileIO {
     void write(Writer writer) throws IOException;
   }
 
-  private static void write(Path path, Output output) throws IOException {
-    Path destination = path.toAbsolutePath();
+  @FunctionalInterface
+  interface Replacement {
+    void move(Path temporary, Path destination) throws IOException;
+  }
+
+  private static final Replacement ATOMIC_REPLACE =
+      (temporary, destination) -> {
+        try {
+          Files.move(
+              temporary,
+              destination,
+              StandardCopyOption.REPLACE_EXISTING,
+              StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException unsupported) {
+          throw new IOException(
+              "This location does not support safe capture replacement; choose another location",
+              unsupported);
+        }
+      };
+
+  private static void write(Path path, Replacement replacement, Output output) throws IOException {
+    Path destination = Objects.requireNonNull(path).toAbsolutePath();
+    Objects.requireNonNull(replacement);
+    if (destination.getParent() == null || destination.getFileName() == null)
+      throw new IOException("Choose a capture file path");
     Files.createDirectories(destination.getParent());
     Path temp = Files.createTempFile(destination.getParent(), ".profile-", ".tmp");
+    Throwable failure = null;
     try {
       try (var writer = Files.newBufferedWriter(temp, StandardCharsets.UTF_8)) {
         output.write(writer);
@@ -92,14 +128,17 @@ public final class ProfileIO {
       try (var channel = FileChannel.open(temp, StandardOpenOption.WRITE)) {
         channel.force(true);
       }
-      try {
-        Files.move(
-            temp, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-      } catch (AtomicMoveNotSupportedException ignored) {
-        Files.move(temp, destination, StandardCopyOption.REPLACE_EXISTING);
-      }
+      replacement.move(temp, destination);
+    } catch (IOException | RuntimeException | Error rejected) {
+      failure = rejected;
+      throw rejected;
     } finally {
-      Files.deleteIfExists(temp);
+      try {
+        Files.deleteIfExists(temp);
+      } catch (IOException cleanup) {
+        if (failure != null) failure.addSuppressed(cleanup);
+        else throw cleanup;
+      }
     }
   }
 }

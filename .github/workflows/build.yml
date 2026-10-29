@@ -264,6 +264,10 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutRecordingProbe build/input-recording
           python scripts/verify_input_preferences.py build/input-recording/user-config.json
           python scripts/verify_shortcut_recording.py build/input-recording
+      - name: Profiler export review reference
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileExportProbe build/profile-export
+          python scripts/verify_profile_export.py build/profile-export
       - name: Strict OpenGL 3.0 arena reference
         run: |
           LIBGL_ALWAYS_SOFTWARE=1 MESA_GL_VERSION_OVERRIDE=3.0 MESA_GLSL_VERSION_OVERRIDE=130 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe --require-gl30
@@ -284,6 +288,7 @@ jobs:
             build/creation-profile/
             build/input-probe/
             build/input-recording/
+            build/profile-export/
             build/theme-probe/
             build/browser-probe/
             build/workflow-probe/
@@ -768,6 +773,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_shortcut_recording.py build/input-recording
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows profiler export review reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileExportProbe build/profile-export
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_profile_export.py build/profile-export
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows strict OpenGL 3.0 arena reference
         shell: pwsh
         run: |
@@ -814,6 +826,7 @@ jobs:
             build/creation-profile/
             build/input-probe/
             build/input-recording/
+            build/profile-export/
             build/theme-probe/
             build/browser-probe/
             build/workflow-probe/

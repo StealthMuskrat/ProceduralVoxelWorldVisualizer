@@ -72,4 +72,61 @@ class ProfileIOTest {
       assertEquals(List.of(destination), files.toList());
     }
   }
+
+  @Test
+  void unsupportedAtomicReplacementPreservesOldJsonAndCsvWithoutFallback() throws Exception {
+    for (boolean csv : new boolean[] {false, true}) {
+      Path target = directory.resolve(csv ? "capture.csv" : "capture.json");
+      Files.writeString(target, "prior complete file");
+      var calls = new java.util.concurrent.atomic.AtomicInteger();
+      ProfileIO.Replacement unsupported =
+          (temporary, destination) -> {
+            calls.incrementAndGet();
+            assertEquals(target, destination);
+            assertTrue(Files.size(temporary) > 0);
+            throw new AtomicMoveNotSupportedException(
+                temporary.toString(), destination.toString(), "fixture");
+          };
+      if (csv)
+        assertThrows(
+            java.io.IOException.class, () -> ProfileIO.writeCSV(target, capture(), unsupported));
+      else
+        assertThrows(
+            java.io.IOException.class, () -> ProfileIO.writeJSON(target, capture(), unsupported));
+      assertEquals(1, calls.get());
+      assertEquals("prior complete file", Files.readString(target));
+      try (var files = Files.list(directory)) {
+        assertTrue(files.noneMatch(p -> p.getFileName().toString().startsWith(".profile-")));
+      }
+    }
+  }
+
+  @Test
+  void runtimePublicationFailureCleansTemporaryContentAndRetainsDestination() throws Exception {
+    Path target = directory.resolve("capture.json");
+    Files.writeString(target, "prior complete file");
+    var failure = new IllegalStateException("publication rejected");
+    var caught =
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                ProfileIO.writeJSON(
+                    target,
+                    capture(),
+                    (temporary, destination) -> {
+                      throw failure;
+                    }));
+    assertSame(failure, caught);
+    assertEquals("prior complete file", Files.readString(target));
+    try (var files = Files.list(directory)) {
+      assertEquals(List.of(target), files.toList());
+    }
+  }
+
+  @Test
+  void rootDestinationRejectsBeforeCreatingTemporaryOutput() {
+    Path root = directory.toAbsolutePath().getRoot();
+    var error = assertThrows(java.io.IOException.class, () -> ProfileIO.writeJSON(root, capture()));
+    assertTrue(error.getMessage().contains("file path"));
+  }
 }

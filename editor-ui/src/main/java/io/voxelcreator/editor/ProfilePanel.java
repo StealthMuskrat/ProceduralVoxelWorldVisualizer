@@ -5,7 +5,6 @@ import imgui.flag.*;
 import imgui.type.*;
 import io.voxelcreator.api.*;
 import java.lang.management.*;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -22,6 +21,21 @@ public final class ProfilePanel {
   private String kind = "All", message = "";
   private Profiler.Capture displayed;
   private Profiler.Snapshot snapshot;
+  private ProfileExportSession exportReview;
+  private Profiler.Snapshot filteredSnapshot;
+  private String filteredKind, filteredQuery;
+  private List<Profiler.Series> filteredRows = List.of();
+  private long rowQueries;
+  private boolean scrollToExport;
+  private static final List<String> KINDS;
+
+  static {
+    var values = new ArrayList<String>();
+    values.add("All");
+    for (var value : Profiler.Kind.values()) values.add(value.name());
+    KINDS = List.copyOf(values);
+  }
+
   private Profiler.Series selected, totalSeries;
   private Profiler.Snapshot totalSnapshot;
   private long selectedTotal;
@@ -41,6 +55,8 @@ public final class ProfilePanel {
         .profiler()
         .start(new Profiler.Options(duration, samples, series, stride, worldContributions));
     snapshot = null;
+    filteredSnapshot = null;
+    filteredRows = List.of();
     selected = null;
     clearWorkTotal();
     gaugesAt = 0;
@@ -156,7 +172,11 @@ public final class ProfilePanel {
       List<io.voxelcreator.render.GpuTimerQueries.Statistics> gpuTimings) {
     if (!open.get()) return;
     ImGui.setNextWindowSize(1050, 800, ImGuiCond.FirstUseEver);
-    ImGui.begin("Profiler", open);
+    boolean visible = ImGui.begin("Profiler", open);
+    if (!visible || !open.get()) {
+      ImGui.end();
+      return;
+    }
     drawn = true;
     ImGui.textWrapped(state.engine.metrics().toString());
     ImGui.textWrapped(state.engine.schedulerStats().toString());
@@ -267,6 +287,8 @@ public final class ProfilePanel {
     if (ImGui.button("Clear")) {
       state.engine.profiler().clear();
       snapshot = null;
+      filteredSnapshot = null;
+      filteredRows = List.of();
       selected = null;
       displayed = null;
       clearWorkTotal();
@@ -274,7 +296,9 @@ public final class ProfilePanel {
     var capture = state.engine.profiler().current().orElse(null);
     long now = System.nanoTime();
     if (capture != null
-        && (capture != displayed || snapshot == null || now - refreshed >= 250_000_000L)) {
+        && (capture != displayed
+            || snapshot == null
+            || snapshot.state() == Profiler.State.RECORDING && now - refreshed >= 250_000_000L)) {
       snapshot = capture.snapshot();
       if (selected == null && !snapshot.series().isEmpty()) selected = snapshot.series().getFirst();
       displayed = capture;
@@ -288,6 +312,8 @@ public final class ProfilePanel {
     }
     if (capture == null) {
       snapshot = null;
+      filteredSnapshot = null;
+      filteredRows = List.of();
       selected = null;
       displayed = null;
       clearWorkTotal();
@@ -297,7 +323,7 @@ public final class ProfilePanel {
           "Capture is disabled. Start to collect bounded timings and metrics. CPU-side elapsed"
               + " timings include scheduling/preemption. GPU_DRAW uses optional asynchronous"
               + " GPU timestamps; unavailable contexts produce no GPU samples.");
-      ImGui.textWrapped(message);
+      drawExport();
       ImGui.end();
       return;
     }
@@ -312,12 +338,19 @@ public final class ProfilePanel {
             snapshot.series().size(),
             snapshot.options().maxSeries()));
     ImGui.inputText("Search label, UUID or context", filter);
-    var kinds = new ArrayList<String>();
-    kinds.add("All");
-    for (var k : Profiler.Kind.values()) kinds.add(k.name());
-    fields.choice("Measurement", kind, kinds, v -> kind = v);
-    var rows =
-        filter(snapshot, kind.equals("All") ? null : Profiler.Kind.valueOf(kind), filter.get());
+    fields.choice("Measurement", kind, KINDS, v -> kind = v);
+    String query = filter.get().strip().toLowerCase(Locale.ROOT);
+    if (filteredSnapshot != snapshot
+        || !kind.equals(filteredKind)
+        || !query.equals(filteredQuery)) {
+      filteredRows =
+          filter(snapshot, kind.equals("All") ? null : Profiler.Kind.valueOf(kind), query);
+      filteredSnapshot = snapshot;
+      filteredKind = kind;
+      filteredQuery = query;
+      rowQueries++;
+    }
+    var rows = filteredRows;
     ImGui.beginChild("profile-series", 0, 195, true);
     var clipper = new ImGuiListClipper();
     try {
@@ -385,28 +418,89 @@ public final class ProfilePanel {
       var target = target(selected);
       if (state.canNavigate(target) && ImGui.button("Go To Source")) navigate.accept(target);
     } else ImGui.textDisabled("Select a series for counts, P50/P95/P99 and source navigation.");
+    drawExport();
+    ImGui.end();
+  }
+
+  private void drawExport() {
+    ImGui.separator();
+    ImGui.beginDisabled(snapshot == null);
+    if (ImGui.button("Prepare Export")) {
+      if (exportReview != null) exportReview.cancel();
+      exportReview = new ProfileExportSession(snapshot);
+      message = "";
+    }
+    workControl("prepare-export");
+    ImGui.endDisabled();
+    if (exportReview != null) {
+      var reviewed = exportReview.snapshot();
+      ImGui.textWrapped(
+          "Export review: "
+              + reviewed.captureId()
+              + " / "
+              + reviewed.state()
+              + " / "
+              + reviewed.samples().size()
+              + " samples / "
+              + reviewed.series().size()
+              + " series");
+      ImGui.sameLine();
+      if (ImGui.button("Discard Export Review")) {
+        exportReview.cancel();
+        exportReview = null;
+        message = "";
+      }
+      workControl("discard-export");
+    } else ImGui.textDisabled("Prepare the displayed capture to review its export.");
     ImGui.inputText("Export path", exportPath);
+    workControl("export-path");
+    ImGui.beginDisabled(exportReview == null || !exportReview.available());
     if (ImGui.button("Export JSON")) export(false);
+    workControl("export-json");
     ImGui.sameLine();
     if (ImGui.button("Export CSV")) export(true);
+    workControl("export-csv");
+    ImGui.endDisabled();
     ImGui.textWrapped(message);
     ImGui.textDisabled(
-        "Exports include all retained samples and series; filters affect this view only.");
-    ImGui.end();
+        "Exports use the reviewed snapshot and include every retained sample and series.");
+    ImGui.textDisabled(
+        "A failed export keeps its review. Prepare again to use the displayed capture.");
+    if (scrollToExport) {
+      ImGui.setScrollHereY(1);
+      scrollToExport = false;
+    }
   }
 
   private void export(boolean csv) {
     try {
-      if (exportPath.get().isBlank()) throw new IllegalArgumentException("Choose an export path");
-      // Export an immutable snapshot taken at the explicit request, without stopping collection.
-      var current = state.engine.profiler().current().orElseThrow().snapshot();
-      Path path = Path.of(exportPath.get());
-      if (csv) ProfileIO.writeCSV(path, current);
-      else ProfileIO.writeJSON(path, current);
-      message = "Exported " + current.samples().size() + " samples to " + path.toAbsolutePath();
+      var reviewed = exportReview.snapshot();
+      var path = exportReview.write(exportPath.get(), csv, state.document.path());
+      message = "Exported " + reviewed.samples().size() + " samples to " + path;
     } catch (Exception error) {
-      message = "Export failed: " + error.getMessage();
+      String detail = error.getMessage();
+      if (detail == null || detail.isBlank()) detail = error.getClass().getSimpleName();
+      message =
+          "Export failed: " + (detail.length() > 1024 ? detail.substring(0, 1023) + "…" : detail);
+      state.error("PROFILE_EXPORT_FAILED", EditorEvents.Subsystem.IMPORT_EXPORT, message);
     }
+  }
+
+  ProfileExportSession exportReview() {
+    return exportReview;
+  }
+
+  Profiler.Snapshot displayedSnapshot() {
+    return snapshot;
+  }
+
+  long rowQueries() {
+    return rowQueries;
+  }
+
+  void probeExportPath(String path) {
+    exportPath.set(path);
+    scrollToExport = true;
   }
 
   static List<Profiler.Series> filter(

@@ -122,18 +122,18 @@ final class ResourcePackageFiles {
     pack.resources = snapshot;
     byte[] bytes = ProjectIO.JSON.writeValueAsString(pack).getBytes(StandardCharsets.UTF_8);
     Path target = Objects.requireNonNull(destination).toAbsolutePath();
-    rejectProjectTarget(target, activeProject);
+    ExportPaths.rejectProjectTarget(target, activeProject, "resource package");
     Path parent = target.getParent();
     if (parent == null || target.getFileName() == null)
       throw new IOException("Choose a package file path");
     Files.createDirectories(parent);
     // Resolve real parent paths as well, including aliases when the project file is absent.
-    rejectProjectTarget(target, activeProject);
+    ExportPaths.rejectProjectTarget(target, activeProject, "resource package");
     Path temporary = Files.createTempFile(parent, ".voxel-package-", ".tmp");
     Throwable failure = null;
     try {
       storage.write(temporary, bytes);
-      rejectProjectTarget(target, activeProject);
+      ExportPaths.rejectProjectTarget(target, activeProject, "resource package");
       storage.replace(temporary, target);
     } catch (IOException | RuntimeException | Error rejected) {
       failure = rejected;
@@ -146,38 +146,6 @@ final class ResourcePackageFiles {
         else throw cleanup;
       }
     }
-  }
-
-  private static void rejectProjectTarget(Path target, Path project) throws IOException {
-    if (project == null) return;
-    Path active = project.toAbsolutePath();
-    if (target.normalize().equals(active.normalize())
-        || Files.exists(target) && Files.exists(active) && Files.isSameFile(target, active)
-        || realLocation(target).equals(realLocation(active)))
-      throw new IOException(
-          "Export cannot replace the active project file; choose a resource package path");
-  }
-
-  private static Path realLocation(Path path) throws IOException {
-    return realLocation(path.toAbsolutePath(), 0);
-  }
-
-  private static Path realLocation(Path path, int links) throws IOException {
-    if (links > 40) throw new IOException("Too many symbolic links in package or project path");
-    var tail = new ArrayDeque<Path>();
-    Path ancestor = path;
-    while (ancestor != null && !Files.exists(ancestor, LinkOption.NOFOLLOW_LINKS)) {
-      if (ancestor.getFileName() != null) tail.addFirst(ancestor.getFileName());
-      ancestor = ancestor.getParent();
-    }
-    if (ancestor == null) return path.normalize();
-    Path real;
-    if (Files.isSymbolicLink(ancestor)) {
-      var link = Files.readSymbolicLink(ancestor);
-      real = realLocation(link.isAbsolute() ? link : ancestor.getParent().resolve(link), links + 1);
-    } else real = ancestor.toRealPath();
-    for (var part : tail) real = real.resolve(part);
-    return real.normalize();
   }
 
   private static String summary(List<Diagnostic> issues) {
