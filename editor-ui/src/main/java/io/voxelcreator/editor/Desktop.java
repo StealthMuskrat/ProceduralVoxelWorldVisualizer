@@ -66,7 +66,8 @@ public final class Desktop extends Application {
           "Themes",
           themes);
   private final Map<String, Boolean> visibilityValues = new LinkedHashMap<>();
-  private final int[] mainWidth = new int[1], mainHeight = new int[1];
+  private MainWindowPlacement mainWindow;
+  private final EditorFrameGate frames = new EditorFrameGate();
   private final ImString search = new ImString(1024), pathInput = new ImString(4096);
   private String settingsPage = "User Settings", settingsCategory = "Appearance", fileAction = "";
   private boolean filePending = false;
@@ -87,8 +88,8 @@ public final class Desktop extends Application {
   @Override
   protected void configure(Configuration config) {
     config.setTitle("Procedural Voxel Creator");
-    config.setWidth(state.user.workspace.width);
-    config.setHeight(state.user.workspace.height);
+    config.setWidth(Math.min(state.user.workspace.width, WindowPlacement.BOOTSTRAP_WIDTH));
+    config.setHeight(Math.min(state.user.workspace.height, WindowPlacement.BOOTSTRAP_HEIGHT));
   }
 
   @Override
@@ -107,7 +108,8 @@ public final class Desktop extends Application {
 
   @Override
   protected void preRun() {
-    glfwSetWindowSizeLimits(handle, 400, 300, GLFW_DONT_CARE, GLFW_DONT_CARE);
+    mainWindow = new MainWindowPlacement(state.user.workspace, new GlfwMainWindow(handle));
+    mainWindow.restore();
     inputSettings = new InputSettingsPanel(state.user);
     updateTrust =
         new UpdateTrustPanel(
@@ -155,7 +157,12 @@ public final class Desktop extends Application {
     resources.docking.defaults(this::resetDockLayout);
     properties.docking.defaults(this::resetDockLayout);
     workspaceSettings =
-        new WorkspacePanel(state.user, toolWindows, this::resetDockLayout, this::captureVisibility);
+        new WorkspacePanel(
+            state.user,
+            toolWindows,
+            this::resetDockLayout,
+            this::captureVisibility,
+            this::centerMainWindow);
     WorkspaceVisibility.restore(state.user.workspace)
         .forEach((name, visible) -> toolWindows.get(name).set(visible));
     findPanel = new ResourceFindPanel(state, properties);
@@ -238,13 +245,23 @@ public final class Desktop extends Application {
         state.notify("Error", e.getMessage());
       }
     }
+    frames.ready();
+  }
+
+  @Override
+  protected void runFrame() {
+    frames.draw(() -> super.runFrame());
   }
 
   @Override
   public void process() {
     inputSettings.beginFrame();
     state.drain();
-    captureWindowSize();
+    try {
+      mainWindow.frame();
+    } catch (RuntimeException failure) {
+      placementError(failure);
+    }
     ImGui.getIO().setFontGlobalScale(state.user.appearance.globalScale);
     captures.frame(ImGui.getIO().getDeltaTime(), views);
     frameCount++;
@@ -540,6 +557,7 @@ public final class Desktop extends Application {
         if (ImGui.menuItem("Profiler", binding("Profiler"))) command("Profiler");
         if (ImGui.menuItem("Logs", binding("Logs"))) command("Logs");
         if (ImGui.menuItem("Themes")) themes.set(true);
+        if (ImGui.menuItem("Center Main Window")) centerMainWindow();
         if (ImGui.menuItem("Reset Dock Layout")) {
           resetDockLayout();
         }
@@ -905,14 +923,19 @@ public final class Desktop extends Application {
     WorkspaceVisibility.capture(state.user.workspace, visibilityValues);
   }
 
-  private void captureWindowSize() {
-    glfwGetWindowSize(handle, mainWidth, mainHeight);
-    WorkspaceVisibility.captureSize(
-        state.user.workspace,
-        mainWidth[0],
-        mainHeight[0],
-        glfwGetWindowAttrib(handle, GLFW_ICONIFIED) != 0,
-        glfwGetWindowAttrib(handle, GLFW_MAXIMIZED) != 0);
+  private void centerMainWindow() {
+    try {
+      mainWindow.center();
+    } catch (RuntimeException failure) {
+      placementError(failure);
+    }
+  }
+
+  private void placementError(RuntimeException failure) {
+    String detail =
+        Objects.requireNonNullElse(failure.getMessage(), failure.getClass().getSimpleName());
+    if (detail.length() > 1024) detail = detail.substring(0, 1023) + "…";
+    state.error("WINDOW_PLACEMENT_FAILED", EditorEvents.Subsystem.APPLICATION, detail);
   }
 
   private void captureWorkspace() {
@@ -1131,7 +1154,7 @@ public final class Desktop extends Application {
   @Override
   protected void postRun() {
     if (updateChecks != null) updateChecks.close();
-    captureWindowSize();
+    mainWindow.capture();
     captureWorkspace();
     views.close();
     state.close();

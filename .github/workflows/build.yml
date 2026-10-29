@@ -87,6 +87,8 @@ jobs:
           python scripts/verify_workspace.py build/workspace
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PerformancePreferencesProbe build/performance-preferences
           python scripts/verify_performance_preferences.py build/performance-preferences
+          xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WindowPlacementProbe build/window-placement
+          python scripts/verify_window_placement.py build/window-placement
       - name: Large resource browser reference
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
@@ -305,6 +307,7 @@ jobs:
             build/update-check/
             build/workspace/
             build/performance-preferences/
+            build/window-placement/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/
@@ -481,6 +484,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PerformancePreferencesProbe build/performance-preferences
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/verify_performance_preferences.py build/performance-preferences
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WindowPlacementProbe build/window-placement
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_window_placement.py build/window-placement
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows large resource browser reference
         shell: pwsh
@@ -868,6 +875,7 @@ jobs:
             build/update-check/
             build/workspace/
             build/performance-preferences/
+            build/window-placement/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/

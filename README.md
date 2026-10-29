@@ -94,3 +94,5 @@ The unvalidated development branch adds [manual update results and verified rele
 The unvalidated [workspace lifecycle follow-up](docs/WORKSPACE_LIFECYCLE.md) adds durable docking resets, visible side-panel docking actions, saved tool visibility and normal main-window size capture. Physical monitor/DPI and full workspace acceptance remain pending.
 
 The unvalidated [performance preference editor](docs/PERFORMANCE_PREFERENCES.md) stages coupled preview limits and exact 64-bit cell budgets together, with explicit Apply/Revert, failed-save recovery and restart notices. GitHub validation remains paused.
+
+The unvalidated [main-window placement follow-up](docs/MAIN_WINDOW_PLACEMENT.md) saves normal position/maximized intent, fits startup bounds to current monitor work areas, adds Center Main Window and guards startup/recursive native resize frames. Physical monitor/DPI and window-manager acceptance remain pending.

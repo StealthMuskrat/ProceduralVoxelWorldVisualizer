@@ -86,6 +86,13 @@ public final class ContractGenerator {
     return obj().put("$ref", "#/$defs/" + name);
   }
 
+  private static ObjectNode positionProperties(String type) {
+    var properties = obj();
+    properties.set("x", obj().put("type", type));
+    properties.set("y", obj().put("type", type));
+    return properties;
+  }
+
   static void write(Path root) throws Exception {
     Files.createDirectories(root.resolve("schema"));
     Files.createDirectories(root.resolve("registries"));
@@ -368,8 +375,19 @@ public final class ContractGenerator {
           var workspace = (ObjectNode) ed.path("Workspace");
           var workspaceRequired = (ArrayNode) workspace.path("required");
           for (int i = workspaceRequired.size() - 1; i >= 0; i--)
-            if (workspaceRequired.get(i).asText().equals("visibleWindows"))
+            if (List.of("visibleWindows", "maximized").contains(workspaceRequired.get(i).asText()))
               workspaceRequired.remove(i);
+          var placement = Class.forName("io.voxelcreator.editor.WindowPlacement");
+          ((ObjectNode) workspace.path("properties").path("width"))
+              .put("minimum", placement.getField("MIN_WIDTH").getInt(null));
+          ((ObjectNode) workspace.path("properties").path("height"))
+              .put("minimum", placement.getField("MIN_HEIGHT").getInt(null));
+          var noPosition = obj();
+          noPosition.set("properties", positionProperties("null"));
+          var pairPosition = obj();
+          pairPosition.set("required", JSON.valueToTree(List.of("x", "y")));
+          pairPosition.set("properties", positionProperties("integer"));
+          workspace.set("anyOf", JSON.valueToTree(List.of(noPosition, pairPosition)));
           var visible = (ObjectNode) workspace.path("properties").path("visibleWindows");
           var toolNames =
               JSON.valueToTree(

@@ -921,13 +921,26 @@
         },
         "width" : {
           "type" : "integer",
-          "minimum" : -2147483648,
+          "minimum" : 400,
           "maximum" : 2147483647
         },
         "height" : {
           "type" : "integer",
+          "minimum" : 300,
+          "maximum" : 2147483647
+        },
+        "x" : {
+          "type" : [ "integer", "null" ],
           "minimum" : -2147483648,
           "maximum" : 2147483647
+        },
+        "y" : {
+          "type" : [ "integer", "null" ],
+          "minimum" : -2147483648,
+          "maximum" : 2147483647
+        },
+        "maximized" : {
+          "type" : "boolean"
         },
         "docking" : {
           "type" : "string"
@@ -942,7 +955,27 @@
           "maxItems" : 7
         }
       },
-      "required" : [ "multiViewport", "width", "height", "docking" ]
+      "required" : [ "multiViewport", "width", "height", "docking" ],
+      "anyOf" : [ {
+        "properties" : {
+          "x" : {
+            "type" : "null"
+          },
+          "y" : {
+            "type" : "null"
+          }
+        }
+      }, {
+        "required" : [ "x", "y" ],
+        "properties" : {
+          "x" : {
+            "type" : "integer"
+          },
+          "y" : {
+            "type" : "integer"
+          }
+        }
+      } ]
     }
   }
 }

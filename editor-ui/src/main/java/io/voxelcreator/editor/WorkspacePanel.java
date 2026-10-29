@@ -8,12 +8,21 @@ import java.util.*;
 final class WorkspacePanel {
   private final UserConfig user;
   private final Map<String, ImBoolean> tools;
-  private final Runnable defaults, changed;
+  private final Runnable defaults, changed, center;
   private boolean probing;
   private final Map<String, float[]> controls = new HashMap<>();
 
   WorkspacePanel(
       UserConfig user, Map<String, ImBoolean> tools, Runnable defaults, Runnable changed) {
+    this(user, tools, defaults, changed, null);
+  }
+
+  WorkspacePanel(
+      UserConfig user,
+      Map<String, ImBoolean> tools,
+      Runnable defaults,
+      Runnable changed,
+      Runnable center) {
     this.user = Objects.requireNonNull(user);
     if (!tools.keySet().equals(new HashSet<>(WorkspaceVisibility.WINDOWS))
         || tools.values().stream().anyMatch(Objects::isNull))
@@ -21,6 +30,7 @@ final class WorkspacePanel {
     this.tools = Map.copyOf(tools);
     this.defaults = Objects.requireNonNull(defaults);
     this.changed = Objects.requireNonNull(changed);
+    this.center = center;
   }
 
   void draw() {
@@ -36,6 +46,14 @@ final class WorkspacePanel {
     }
     if (ImGui.button("Restore Default Docking")) defaults.run();
     control("defaults");
+    if (center != null) {
+      if (ImGui.button("Center Main Window")) center.run();
+      control("center");
+      if (ImGui.isItemHovered())
+        ImGui.setTooltip(
+            "Restore the normal window and center it on the primary monitor. Docking and private"
+                + " editors are retained.");
+    }
   }
 
   void probeControls() {

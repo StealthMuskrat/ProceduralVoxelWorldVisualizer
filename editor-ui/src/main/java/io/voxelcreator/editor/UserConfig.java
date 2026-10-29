@@ -36,6 +36,8 @@ public final class UserConfig {
   public static final class Workspace {
     public boolean multiViewport = true;
     public int width = 1440, height = 900;
+    public Integer x, y;
+    public boolean maximized = false;
     public String docking = "";
     public List<String> visibleWindows = new ArrayList<>();
   }
@@ -149,6 +151,7 @@ public final class UserConfig {
             || !visualization.path("volumeShadowSteps").canConvertToInt()))
       throw new IllegalArgumentException("Invalid volume shadow steps");
     PerformancePreferences.validateStored(tree);
+    WindowPlacement.validateStored(tree);
     var user = ProjectIO.JSON.treeToValue(tree, UserConfig.class);
     if (user.input == null) throw new IllegalArgumentException("Missing input preferences");
     user.input.shortcuts = Shortcuts.upgrade(user.input.shortcuts);
@@ -169,6 +172,7 @@ public final class UserConfig {
     if (workspace.docking == null)
       throw new IllegalArgumentException("Missing docking preferences");
     WorkspaceVisibility.validate(workspace.visibleWindows);
+    WindowPlacement.validate(workspace);
     if (performance.updateEndpoint == null
         || performance.trustedOrigins == null
         || performance.trustedOrigins.stream().anyMatch(Objects::isNull))
