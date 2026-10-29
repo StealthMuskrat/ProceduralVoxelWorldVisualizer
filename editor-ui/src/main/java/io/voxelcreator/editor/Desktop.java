@@ -29,6 +29,7 @@ public final class Desktop extends Application {
   private ApplicationSettingsPanel applicationSettings;
   private ResourceFindPanel findPanel;
   private ThemePanel themePanel;
+  private UpdateTrustPanel updateTrust;
   private String smokeDiagnosticDocument;
   private long smokeDiagnosticEvent;
   private boolean smokeSchedulerDrawn;
@@ -43,10 +44,7 @@ public final class Desktop extends Application {
       notifications = new ImBoolean(false),
       settings = new ImBoolean(false),
       themes = new ImBoolean(false);
-  private final ImString search = new ImString(1024),
-      pathInput = new ImString(4096),
-      endpoint = new ImString(2048),
-      origins = new ImString(2048);
+  private final ImString search = new ImString(1024), pathInput = new ImString(4096);
   private String settingsPage = "User Settings", settingsCategory = "Appearance", fileAction = "";
   private boolean filePending = false;
   private boolean packageFileOpen;
@@ -87,6 +85,13 @@ public final class Desktop extends Application {
   @Override
   protected void preRun() {
     inputSettings = new InputSettingsPanel(state.user);
+    updateTrust =
+        new UpdateTrustPanel(
+            state.user,
+            UserConfig.directory().resolve("user-config.json"),
+            message ->
+                state.error(
+                    "UPDATE_TRUST_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
     applicationSettings = new ApplicationSettingsPanel(state);
     projectSettings = new ProjectSettingsPanel(state);
     themePanel =
@@ -604,8 +609,6 @@ public final class Desktop extends Application {
     settings.set(true);
     if (page.equals("Project Settings")) projectSettings.open(null);
     fields.clear();
-    endpoint.set(state.user.performance.updateEndpoint);
-    origins.set(String.join("\n", state.user.performance.trustedOrigins));
   }
 
   private void auxiliary() {
@@ -849,22 +852,7 @@ public final class Desktop extends Application {
               "Resident streaming chunk limit",
               state.user.performance.streamChunks,
               v -> state.user.performance.streamChunks = Math.max(27, Math.min(2048, v)));
-          ImGui.inputText("Manual update endpoint", endpoint);
-          ImGui.inputTextMultiline("Approved HTTPS origins (one per line)", origins, 500, 90);
-          if (ImGui.button("Apply Update Trust")) {
-            try {
-              for (String origin : origins.get().lines().filter(x -> !x.isBlank()).toList())
-                UpdateChecker.origin(java.net.URI.create(origin));
-              if (!endpoint.get().isBlank())
-                UpdateChecker.origin(java.net.URI.create(endpoint.get()));
-              state.user.performance.updateEndpoint = endpoint.get();
-              state.user.performance.trustedOrigins =
-                  origins.get().lines().filter(x -> !x.isBlank()).toList();
-              state.user.save();
-            } catch (Exception e) {
-              state.notify("Error", e.getMessage());
-            }
-          }
+          updateTrust.draw();
         }
         default -> {}
       }

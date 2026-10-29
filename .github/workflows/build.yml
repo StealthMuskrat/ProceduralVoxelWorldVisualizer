@@ -79,6 +79,8 @@ jobs:
           python scripts/verify_theme.py build/theme-probe/user-config.json build/theme-probe/theme-contrast.json
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeWorkspaceProbe build/theme-workspace
           python scripts/verify_theme_workspace.py build/theme-workspace
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UpdateTrustProbe build/update-trust
+          python scripts/verify_update_trust.py build/update-trust
       - name: Large resource browser reference
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
@@ -293,6 +295,7 @@ jobs:
             build/profile-export/
             build/theme-probe/
             build/theme-workspace/
+            build/update-trust/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/
@@ -453,6 +456,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeWorkspaceProbe build/theme-workspace
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_theme_workspace.py build/theme-workspace
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UpdateTrustProbe build/update-trust
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_update_trust.py build/update-trust
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows large resource browser reference
         shell: pwsh
@@ -836,6 +843,7 @@ jobs:
             build/profile-export/
             build/theme-probe/
             build/theme-workspace/
+            build/update-trust/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/

@@ -2,13 +2,21 @@ package io.voxelcreator.editor;
 
 import io.voxelcreator.model.ProjectIO;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 
 /** Independent preference document. Never included in ProjectData or project dirty tracking. */
 public final class UserConfig {
+  private final PreferenceFiles files;
+
+  public UserConfig() {
+    this(new PreferenceFiles());
+  }
+
+  UserConfig(PreferenceFiles files) {
+    this.files = Objects.requireNonNull(files);
+  }
+
   public int formatVersion = 1;
   public Appearance appearance = new Appearance();
   public Workspace workspace = new Workspace();
@@ -95,16 +103,11 @@ public final class UserConfig {
    * fallback.
    */
   public static UserConfig read(Path path) throws IOException {
-    if (Files.size(path) > 8L * 1024 * 1024)
-      throw new IllegalArgumentException("Preference file exceeds 8 MiB");
-    com.fasterxml.jackson.databind.JsonNode tree;
-    try (var input = Files.newInputStream(path)) {
-      tree =
-          ProjectIO.JSON
-              .reader()
-              .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
-              .readTree(input);
-    }
+    com.fasterxml.jackson.databind.JsonNode tree =
+        ProjectIO.JSON
+            .reader()
+            .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .readTree(PreferenceFiles.read(path));
     if (tree == null
         || !tree.isObject()
         || !tree.path("formatVersion").isIntegralNumber()
@@ -161,6 +164,10 @@ public final class UserConfig {
         || appearance.windowScales == null)
       throw new IllegalArgumentException("Missing preference section");
     ThemePalette.from(appearance);
+    if (performance.updateEndpoint == null
+        || performance.trustedOrigins == null
+        || performance.trustedOrigins.stream().anyMatch(Objects::isNull))
+      throw new IllegalArgumentException("Missing manual update preferences");
     if (formatVersion != 1
         || appearance.globalScale < .5
         || appearance.globalScale > 2.5
@@ -215,7 +222,7 @@ public final class UserConfig {
     validate();
     var snapshot = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(this), UserConfig.class);
     snapshot.input.shortcuts = Shortcuts.canonical(snapshot.input.shortcuts);
-    snapshot.writeSnapshot(path);
+    snapshot.writeSnapshot(path, files);
   }
 
   /** Publish new live bindings only after validation and the entire preference write succeed. */
@@ -224,7 +231,7 @@ public final class UserConfig {
     var snapshot = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(this), UserConfig.class);
     snapshot.input.shortcuts = canonical;
     snapshot.validate();
-    snapshot.writeSnapshot(path);
+    snapshot.writeSnapshot(path, files);
     input.shortcuts = new LinkedHashMap<>(canonical);
   }
 
@@ -233,33 +240,27 @@ public final class UserConfig {
     var snapshot = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(this), UserConfig.class);
     candidate.writeTo(snapshot.appearance);
     snapshot.validate();
-    snapshot.writeSnapshot(path);
+    snapshot.writeSnapshot(path, files);
     candidate.writeTo(appearance);
   }
 
-  private void writeSnapshot(Path path) {
-    Path destination = path.toAbsolutePath(), temp = null;
+  /** Publish manual-update configuration only after the complete preference file is written. */
+  public void applyUpdateTrust(String endpoint, List<String> origins, Path path) {
+    var candidate = UpdateTrust.parse(endpoint, String.join("\n", Objects.requireNonNull(origins)));
+    var snapshot = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(this), UserConfig.class);
+    snapshot.performance.updateEndpoint = candidate.endpoint();
+    snapshot.performance.trustedOrigins = new ArrayList<>(candidate.origins());
+    snapshot.validate();
+    snapshot.writeSnapshot(path, files);
+    performance.updateEndpoint = candidate.endpoint();
+    performance.trustedOrigins = new ArrayList<>(candidate.origins());
+  }
+
+  private void writeSnapshot(Path path, PreferenceFiles writer) {
     try {
-      Files.createDirectories(destination.getParent());
-      temp = Files.createTempFile(destination.getParent(), ".user-config-", ".tmp");
-      Files.writeString(temp, ProjectIO.JSON.writeValueAsString(this), StandardCharsets.UTF_8);
-      try (var channel = FileChannel.open(temp, StandardOpenOption.WRITE)) {
-        channel.force(true);
-      }
-      try {
-        Files.move(
-            temp, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-      } catch (AtomicMoveNotSupportedException e) {
-        Files.move(temp, destination, StandardCopyOption.REPLACE_EXISTING);
-      }
-    } catch (Exception e) {
-      throw new IllegalStateException("Could not save preferences", e);
-    } finally {
-      if (temp != null)
-        try {
-          Files.deleteIfExists(temp);
-        } catch (IOException ignored) {
-        }
+      writer.write(path, this, ".user-config-");
+    } catch (IOException | RuntimeException failure) {
+      throw new IllegalStateException("Could not save preferences", failure);
     }
   }
 }

@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.voxelcreator.core.*;
 import io.voxelcreator.model.ProjectIO;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 
@@ -280,18 +278,14 @@ public final class AppMetadata {
   }
 
   public static AppMetadata read(Path path) throws IOException {
-    if (Files.size(path) > 8L * 1024 * 1024)
-      throw new IllegalArgumentException("Application metadata exceeds 8 MiB");
-    JsonNode tree;
-    try (var input = Files.newInputStream(path)) {
-      tree =
-          ProjectIO.JSON
-              .reader()
-              .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
-              .readTree(input);
-    }
+    JsonNode tree =
+        ProjectIO.JSON
+            .reader()
+            .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .readTree(PreferenceFiles.read(path));
     if (tree == null) throw new IllegalArgumentException("Application metadata object required");
     if (!tree.path("formatVersion").isIntegralNumber()
+        || !tree.path("formatVersion").canConvertToInt()
         || tree.path("formatVersion").intValue() != 1)
       throw new IllegalArgumentException("Unsupported application metadata version");
     var parsed = ProjectIO.JSON.treeToValue(tree, AppMetadata.class);
@@ -359,30 +353,16 @@ public final class AppMetadata {
   }
 
   public void save(Path path) {
+    save(path, new PreferenceFiles());
+  }
+
+  void save(Path path, PreferenceFiles writer) {
     validate();
     var snapshot = copy(this);
-    Path destination = path.toAbsolutePath(), temp = null;
     try {
-      Files.createDirectories(destination.getParent());
-      temp = Files.createTempFile(destination.getParent(), ".app-config-", ".tmp");
-      Files.writeString(temp, ProjectIO.JSON.writeValueAsString(snapshot), StandardCharsets.UTF_8);
-      try (var channel = FileChannel.open(temp, StandardOpenOption.WRITE)) {
-        channel.force(true);
-      }
-      try {
-        Files.move(
-            temp, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-      } catch (AtomicMoveNotSupportedException e) {
-        Files.move(temp, destination, StandardCopyOption.REPLACE_EXISTING);
-      }
-    } catch (Exception e) {
-      throw new IllegalStateException("Could not save application metadata", e);
-    } finally {
-      if (temp != null)
-        try {
-          Files.deleteIfExists(temp);
-        } catch (IOException ignored) {
-        }
+      writer.write(path, snapshot, ".app-config-");
+    } catch (IOException | RuntimeException failure) {
+      throw new IllegalStateException("Could not save application metadata", failure);
     }
   }
 

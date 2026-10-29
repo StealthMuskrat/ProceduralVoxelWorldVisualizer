@@ -14,7 +14,10 @@ public final class UpdateChecker {
     if (!"https".equalsIgnoreCase(uri.getScheme())
         || uri.getHost() == null
         || uri.getRawUserInfo() != null
-        || uri.getFragment() != null)
+        || uri.getFragment() != null
+        || uri.getPort() == 0
+        || uri.getPort() > 65535
+        || uri.getRawAuthority().endsWith(":"))
       throw new IllegalArgumentException(
           "An HTTPS URL without credentials or fragment is required");
     return "https://"
@@ -24,13 +27,21 @@ public final class UpdateChecker {
 
   public static Release parse(String content, Set<String> trusted) {
     try {
-      var n = ProjectIO.JSON.readTree(content);
-      if (!n.isObject()
+      if (content.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 65536)
+        throw new IllegalArgumentException("Metadata exceeds 64 KiB");
+      var n =
+          ProjectIO.JSON
+              .reader()
+              .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+              .readTree(content);
+      if (n == null
+          || !n.isObject()
           || n.size() != 3
           || !n.path("formatVersion").isIntegralNumber()
-          || n.path("formatVersion").asInt() != 1
-          || !n.has("version")
-          || !n.has("releaseUrl"))
+          || !n.path("formatVersion").canConvertToInt()
+          || n.path("formatVersion").intValue() != 1
+          || !n.path("version").isTextual()
+          || !n.path("releaseUrl").isTextual())
         throw new IllegalArgumentException(
             "Expected metadata {formatVersion:1,version,releaseUrl}");
       String version = n.path("version").asText();
@@ -46,9 +57,9 @@ public final class UpdateChecker {
   }
 
   public static Release check(String endpoint, List<String> approved) throws Exception {
-    Set<String> trust = new HashSet<>();
-    for (String o : approved) trust.add(origin(URI.create(o)));
-    URI uri = URI.create(endpoint);
+    var configuration = UpdateTrust.parse(endpoint, String.join("\n", approved));
+    Set<String> trust = new HashSet<>(configuration.origins());
+    URI uri = URI.create(configuration.endpoint());
     if (!trust.contains(origin(uri)))
       throw new IllegalArgumentException("Metadata origin is not approved");
     var client =
