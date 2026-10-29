@@ -93,6 +93,8 @@ jobs:
           python scripts/verify_ui_scales.py build/ui-scales
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DialogLayoutProbe build/dialog-layout
           python scripts/verify_dialog_layout.py build/dialog-layout
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PopupLayoutProbe build/popup-layout
+          python scripts/verify_popup_layout.py build/popup-layout
       - name: Large resource browser reference
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
@@ -314,6 +316,7 @@ jobs:
             build/window-placement/
             build/ui-scales/
             build/dialog-layout/
+            build/popup-layout/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/
@@ -502,6 +505,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DialogLayoutProbe build/dialog-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_dialog_layout.py build/dialog-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PopupLayoutProbe build/popup-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_popup_layout.py build/popup-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows large resource browser reference
         shell: pwsh
@@ -892,6 +899,7 @@ jobs:
             build/window-placement/
             build/ui-scales/
             build/dialog-layout/
+            build/popup-layout/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/

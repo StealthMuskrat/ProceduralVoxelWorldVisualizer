@@ -21,6 +21,7 @@ public final class BookmarkPanel {
 
   private final EditorState state;
   final DialogLayout layout;
+  final PopupLayout choicesLayout = new PopupLayout();
   private final Navigation navigation;
   private final BookmarkIndex.Cache cache = new BookmarkIndex.Cache();
   private final Map<Tab, UUID> selected = new EnumMap<>(Tab.class);
@@ -57,11 +58,14 @@ public final class BookmarkPanel {
     String preview = current == null ? "Choose coordinates..." : current.label();
     if (ImGui.button(
         AppMetadata.uiText(preview) + "  v###bookmark-picker",
-        Math.max(100, Math.min(360, ImGui.getContentRegionAvailX())),
+        Math.max(1, Math.min(360, ImGui.getContentRegionAvailX())),
         0)) ImGui.openPopup("bookmark-choice");
+    var anchor = PopupLayout.itemBounds();
+    if (ImGui.isItemHovered()) ImGui.setTooltip(preview);
     record("picker");
-    if (ImGui.beginPopup("bookmark-choice")) {
-      drawChoices(tab, index);
+    if (choicesLayout.begin("bookmark-choice", anchor, 480, 340)) {
+      if (ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();
+      else drawChoices(tab, index);
       ImGui.endPopup();
     }
     if (button("Add Bookmark")) {
@@ -71,11 +75,11 @@ public final class BookmarkPanel {
         state.error("BOOKMARK_DIALOG_FAILED", EditorEvents.Subsystem.APPLICATION, message(failure));
       }
     }
-    ImGui.sameLine();
+    DialogLayout.sameLine("Teleport");
     if (button("Teleport")) openTeleport(tab);
     ImGui.beginDisabled(current == null || pending());
     if (button("Rename")) openRename(tab, current.uuid());
-    ImGui.sameLine();
+    DialogLayout.sameLine("Update Coordinates");
     if (button("Update Coordinates")) {
       try {
         Coordinates captured = navigation.current(tab);
@@ -84,7 +88,7 @@ public final class BookmarkPanel {
         state.error("BOOKMARK_UPDATE_FAILED", EditorEvents.Subsystem.APPLICATION, message(failure));
       }
     }
-    ImGui.sameLine();
+    DialogLayout.sameLine("Delete Bookmark");
     if (button("Delete Bookmark")) {
       if (state.change(p -> BookmarkTransactions.delete(p, tab, current.uuid())))
         selected.remove(tab);
@@ -95,11 +99,11 @@ public final class BookmarkPanel {
 
   private void drawChoices(Tab tab, BookmarkIndex index) {
     if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
-    ImGui.setNextItemWidth(350);
-    ImGui.inputTextWithHint("##bookmark-query", "Filter names or coordinates...", filters.get(tab));
+    choicesLayout.search("##bookmark-query", "Filter names or coordinates...", filters.get(tab));
     var rows = index.rows(filters.get(tab).get());
-    ImGui.text(rows.size() + " matching bookmarks");
-    ImGui.beginChild("bookmark-options", 440, 220, true);
+    ImGui.textWrapped(rows.size() + " found");
+    ImGui.beginChild("bookmark-options", 0, Math.max(1, ImGui.getContentRegionAvailY()), true);
+    choicesLayout.observeList();
     var clipper = new ImGuiListClipper();
     submitted = 0;
     options.clear();
@@ -123,6 +127,7 @@ public final class BookmarkPanel {
                   message(failure));
             }
           }
+          PopupLayout.clippedLabel(row.label() + " / " + row.uuid());
           options.put(row.uuid(), bounds());
         }
       clipper.end();
@@ -133,7 +138,7 @@ public final class BookmarkPanel {
   }
 
   private boolean button(String label) {
-    boolean clicked = ImGui.smallButton(label);
+    boolean clicked = DialogLayout.button(label);
     record(label);
     return clicked;
   }

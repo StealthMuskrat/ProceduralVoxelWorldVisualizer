@@ -19,6 +19,7 @@ public final class ResourcePicker {
   }
 
   private final Map<Integer, Widget> widgets = new LinkedHashMap<>(16, .75f, true);
+  final PopupLayout layout = new PopupLayout();
   private boolean probeOpen, focused;
   private final Map<UUID, float[]> optionBounds = new HashMap<>();
   private int submitted;
@@ -59,12 +60,13 @@ public final class ResourcePicker {
     ImGui.pushID(id);
     if (ImGui.button(
             AppMetadata.uiText(preview) + "  v###resource-button",
-            Math.max(100, Math.min(320, ImGui.getContentRegionAvailX() * .65f)),
+            Math.max(1, Math.min(320, ImGui.getContentRegionAvailX() * .65f)),
             0)
         || probeOpen) {
       ImGui.openPopup("resource-choice");
       probeOpen = false;
     }
+    var anchor = PopupLayout.itemBounds();
     focused = ImGui.isItemActive() || ImGui.isItemFocused();
     buttonBounds =
         new float[] {
@@ -72,11 +74,12 @@ public final class ResourcePicker {
           (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
         };
     if (ImGui.isItemHovered() && current != null) ImGui.setTooltip(preview + " / " + current);
-    ImGui.sameLine();
-    ImGui.text(label);
+    DialogLayout.sameLine(label);
+    ImGui.textWrapped(label);
     submitted = 0;
     optionBounds.clear();
-    if (ImGui.beginPopup("resource-choice")) {
+    noneBounds = null;
+    if (layout.begin("resource-choice", anchor, 420, 340)) {
       if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
         ImGui.closeCurrentPopup();
         ImGui.endPopup();
@@ -87,8 +90,7 @@ public final class ResourcePicker {
         widgets.remove(widgets.keySet().iterator().next());
       var widget = widgets.computeIfAbsent(id, key -> new Widget());
       if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
-      ImGui.setNextItemWidth(340);
-      ImGui.inputTextWithHint("##query", "Filter IDs...", widget.filter);
+      layout.search("##query", "Filter IDs...", widget.filter);
       if (noneLabel != null) {
         if (ImGui.selectable(noneLabel + "###none", current == null)) {
           change.accept(ResourceChoices.choose(index, kind, null, true));
@@ -101,8 +103,9 @@ public final class ResourcePicker {
             };
       }
       var rows = widget.choices.rows(index, kind, widget.filter.get());
-      ImGui.text(rows.size() + " matching resource(s)");
-      ImGui.beginChild("resource-options", 380, 220, true);
+      ImGui.textWrapped(rows.size() + " found");
+      ImGui.beginChild("resource-options", 0, Math.max(1, ImGui.getContentRegionAvailY()), true);
+      layout.observeList();
       var clipper = new ImGuiListClipper();
       try {
         clipper.begin(rows.size(), ImGui.getTextLineHeightWithSpacing());
@@ -116,6 +119,7 @@ public final class ResourcePicker {
               change.accept(ResourceChoices.choose(index, kind, option.uuid(), noneLabel != null));
               ImGui.closeCurrentPopup();
             }
+            PopupLayout.clippedLabel(ResourceChoices.label(option) + " / " + option.uuid());
             var min = ImGui.getItemRectMin();
             var max = ImGui.getItemRectMax();
             optionBounds.put(option.uuid(), new float[] {(min.x + max.x) / 2, (min.y + max.y) / 2});
