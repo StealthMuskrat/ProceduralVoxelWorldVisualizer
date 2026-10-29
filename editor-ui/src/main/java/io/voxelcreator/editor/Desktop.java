@@ -89,7 +89,11 @@ public final class Desktop extends Application {
     inputSettings = new InputSettingsPanel(state.user);
     applicationSettings = new ApplicationSettingsPanel(state);
     projectSettings = new ProjectSettingsPanel(state);
-    themePanel = new ThemePanel(state.user);
+    themePanel =
+        new ThemePanel(
+            state.user,
+            message ->
+                state.error("THEME_EDIT_FAILED", EditorEvents.Subsystem.APPLICATION, message));
     properties = new PropertyPanel(state);
     resources = new ResourcePanel(state, properties);
     findPanel = new ResourceFindPanel(state, properties);

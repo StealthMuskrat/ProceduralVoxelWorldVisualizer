@@ -8,8 +8,13 @@ import java.util.*;
 /** Native style operations stay on the editor thread, outside theme contrast/value services. */
 public final class ThemeStyle {
   private static ThemePalette active = ThemePalette.starting("Dark");
+  private static Object owner = new Object();
 
   private ThemeStyle() {}
+
+  static Object owner() {
+    return owner;
+  }
 
   static Map<Integer, Rgba> snapshot() {
     var colors = new TreeMap<Integer, Rgba>();
@@ -51,6 +56,7 @@ public final class ThemeStyle {
   public static void apply(ThemePalette palette) {
     install(resolve(palette));
     active = palette;
+    owner = new Object();
     var style = ImGui.getStyle();
     style.setWindowRounding(5);
     style.setFrameRounding(4);

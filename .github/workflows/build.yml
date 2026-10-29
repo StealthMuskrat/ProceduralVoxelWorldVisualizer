@@ -77,6 +77,8 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeReferenceProbe build/theme-probe
           python scripts/verify_theme.py build/theme-probe/user-config.json build/theme-probe/theme-contrast.json
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeWorkspaceProbe build/theme-workspace
+          python scripts/verify_theme_workspace.py build/theme-workspace
       - name: Large resource browser reference
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
@@ -290,6 +292,7 @@ jobs:
             build/input-recording/
             build/profile-export/
             build/theme-probe/
+            build/theme-workspace/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/
@@ -446,6 +449,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeReferenceProbe build/theme-probe
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_theme.py build/theme-probe/user-config.json build/theme-probe/theme-contrast.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeWorkspaceProbe build/theme-workspace
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_theme_workspace.py build/theme-workspace
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows large resource browser reference
         shell: pwsh
@@ -828,6 +835,7 @@ jobs:
             build/input-recording/
             build/profile-export/
             build/theme-probe/
+            build/theme-workspace/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/

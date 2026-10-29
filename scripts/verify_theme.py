@@ -8,6 +8,7 @@ import jsonschema
 parser = argparse.ArgumentParser()
 parser.add_argument('preferences', type=Path)
 parser.add_argument('report', type=Path)
+parser.add_argument('--profiles', nargs='+', default=['Dark', 'Light', 'Alpha composition'])
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 value = json.loads(args.preferences.read_text(encoding='utf-8'))
@@ -17,7 +18,7 @@ registry = json.loads((root / 'registries/theme-palette.json').read_text())
 keys = {c['name']: str(c['key']) for c in registry['colors']}
 report = json.loads(args.report.read_text(encoding='utf-8'))
 assert report['formatVersion'] == 1
-assert [p['name'] for p in report['profiles']] == ['Dark', 'Light', 'Alpha composition']
+assert [p['name'] for p in report['profiles']] == args.profiles
 
 
 def over(a, b):
@@ -67,4 +68,4 @@ for profile in report['profiles']:
         total += 1
 assert math.isclose(ratio([0, 0, 0, 1], [1, 1, 1, 1]), 21)
 assert math.isclose(ratio(over([0, 0, 0, .5], [1, 1, 1, 1]), [1, 1, 1, 1]), 3.976653024912438)
-print(f'Theme schema, raw native palettes, alpha composition and independent contrast PASS: {total} checks / 3 profiles')
+print(f'Theme schema, raw native palettes, alpha composition and independent contrast PASS: {total} checks / {len(args.profiles)} profiles')
