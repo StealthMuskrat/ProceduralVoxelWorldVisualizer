@@ -12,6 +12,7 @@ import java.util.function.Consumer;
  */
 public final class NoiseEditDialog {
   private final EditorState state;
+  final DialogLayout layout;
   private final NoiseEditSession session;
   private final UUID target;
   private final Action action;
@@ -26,6 +27,7 @@ public final class NoiseEditDialog {
 
   public NoiseEditDialog(EditorState state, Noise owner, Request request, Consumer<UUID> applied) {
     this.state = state;
+    layout = new DialogLayout(state, "Properties", 640, 510);
     this.applied = Objects.requireNonNull(applied);
     session = new NoiseEditSession(state, owner, request);
     target = request.target();
@@ -57,11 +59,10 @@ public final class NoiseEditDialog {
   public boolean draw() {
     if (session.closed()) return true;
     if (opening) {
-      ImGui.openPopup("Resolve Noise Item Edit");
+      layout.open("Resolve Noise Item Edit");
       opening = false;
     }
-    if (!ImGui.beginPopupModal("Resolve Noise Item Edit", ImGuiWindowFlags.AlwaysAutoResize))
-      return false;
+    if (!layout.begin("Resolve Noise Item Edit", ImGuiWindowFlags.AlwaysAutoResize)) return false;
     boolean current = session.current();
     ImGui.text(action + " / " + bounded(row == null ? target.toString() : row.id(), 1024));
     ImGui.textWrapped(
@@ -95,7 +96,7 @@ public final class NoiseEditDialog {
           value -> choose(Resolution.REPLACE, UUID.fromString(value)));
     ImGui.endDisabled();
     var plan = session.preview();
-    ImGui.beginChild("edit-diagnostics", 580, 150, true);
+    ImGui.beginChild("edit-diagnostics", 0, 150, true);
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(plan.diagnostics().size(), 2 * ImGui.getTextLineHeightWithSpacing());
@@ -115,7 +116,7 @@ public final class NoiseEditDialog {
     if (!message.isEmpty()) ImGui.textWrapped(bounded(message, 2048));
     boolean closed = false;
     ImGui.beginDisabled(!current || !plan.valid());
-    if (ImGui.button("Apply Resolved Edit")) {
+    if (DialogLayout.button("Apply Resolved Edit")) {
       try {
         UUID selected = session.stage();
         closed = true;
@@ -137,8 +138,8 @@ public final class NoiseEditDialog {
     var max = ImGui.getItemRectMax();
     applyCenter = new float[] {(min.x + max.x) / 2, (min.y + max.y) / 2};
     ImGui.endDisabled();
-    ImGui.sameLine();
-    if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+    DialogLayout.sameLine("Cancel");
+    if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       session.cancel();
       closed = true;
     }

@@ -12,6 +12,7 @@ import java.util.function.*;
 public final class EditorState implements AutoCloseable {
   public final DocumentSession document = new DocumentSession();
   public final UserConfig user;
+  final UiWindowHosts dialogHosts = new UiWindowHosts();
   private final boolean persistPreferences;
   public AppMetadata metadata = AppMetadata.load();
   public final NoiseGeneratorEngine engine;

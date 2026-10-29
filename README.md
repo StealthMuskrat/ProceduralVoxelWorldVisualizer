@@ -98,3 +98,5 @@ The unvalidated [performance preference editor](docs/PERFORMANCE_PREFERENCES.md)
 The unvalidated [main-window placement follow-up](docs/MAIN_WINDOW_PLACEMENT.md) saves normal position/maximized intent, fits startup bounds to current monitor work areas, adds Center Main Window and guards startup/recursive native resize frames. Physical monitor/DPI and window-manager acceptance remain pending.
 
 The unvalidated [UI scale follow-up](docs/UI_SCALING.md) extends per-window font multipliers to nineteen top-level targets and adds searchable private scale editing with explicit Apply/Revert and failed-save recovery. Full production-window, popup and physical DPI acceptance remain pending.
+
+The unvalidated [modal layout follow-up](docs/DIALOG_LAYOUT.md) fits sixteen modal presentations to their hosting viewport work areas, wraps action rows and replaces several fixed-width panels. Physical detached-host/monitor and DPI acceptance remain pending.

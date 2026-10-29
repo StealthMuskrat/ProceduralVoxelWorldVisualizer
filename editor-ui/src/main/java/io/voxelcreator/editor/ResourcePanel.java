@@ -119,6 +119,7 @@ public final class ResourcePanel {
     docking.prepare();
     boolean visible = ImGui.begin("Resources");
     UiScale.window(state.user, "Resources");
+    DialogLayout.observe(state, "Resources");
     if (visible) {
       docking.draw();
       ImGui.inputTextWithHint("##filter", "Filter resources...", filter);
@@ -300,11 +301,10 @@ public final class ResourcePanel {
 
   private void placementDialog() {
     if (placementPending) {
-      ImGui.openPopup("Add Noise Generator");
+      dialog("Add Noise Generator").open("Add Noise Generator");
       placementPending = false;
     }
-    ImGui.setNextWindowSize(560, 430, ImGuiCond.FirstUseEver);
-    if (!ImGui.beginPopupModal("Add Noise Generator")) return;
+    if (!dialog("Add Noise Generator").begin("Add Noise Generator")) return;
     ImGui.inputTextWithHint("##placement-filter", "Find noise by ID...", placementFilter);
     if (!Objects.equals(placementKey, placementFilter.get())) {
       placementKey = placementFilter.get();
@@ -335,7 +335,7 @@ public final class ResourcePanel {
     }
     ImGui.endChild();
     ImGui.beginDisabled(placementNoise == null || browser.get(placementLayer) == null);
-    if (ImGui.button("Add Placement")) {
+    if (DialogLayout.button("Add Placement")) {
       UUID layerId = placementLayer, noiseId = placementNoise;
       var result =
           requestEdit("Add Placement", ResourceBrowserEdits.placement(layerId, noiseId), () -> {});
@@ -345,8 +345,8 @@ public final class ResourcePanel {
       }
     }
     ImGui.endDisabled();
-    ImGui.sameLine();
-    if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+    DialogLayout.sameLine("Cancel");
+    if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       placementOpen = false;
       ImGui.closeCurrentPopup();
     }
@@ -520,11 +520,13 @@ public final class ResourcePanel {
 
   private void selectionDialog() {
     if (selectionPrompt) {
-      ImGui.openPopup("Leave Properties for Resource Selection");
+      dialog("Leave Properties for Resource Selection")
+          .open("Leave Properties for Resource Selection");
       selectionPrompt = false;
     }
-    if (!ImGui.beginPopupModal(
-        "Leave Properties for Resource Selection", ImGuiWindowFlags.AlwaysAutoResize)) return;
+    if (!dialog("Leave Properties for Resource Selection")
+        .begin("Leave Properties for Resource Selection", ImGuiWindowFlags.AlwaysAutoResize))
+      return;
     if (!selection.pending()) {
       ImGui.closeCurrentPopup();
       ImGui.endPopup();
@@ -546,8 +548,8 @@ public final class ResourcePanel {
     if (destinations.size() > 4) ImGui.textDisabled("… and " + (destinations.size() - 4) + " more");
     if (!selectionMessage.isEmpty()) ImGui.textWrapped(selectionMessage);
     for (var decision : SearchNavigation.Decision.values()) {
-      if (decision != SearchNavigation.Decision.APPLY) ImGui.sameLine();
-      boolean clicked = ImGui.button(decision.name());
+      if (decision != SearchNavigation.Decision.APPLY) DialogLayout.sameLine(decision.name());
+      boolean clicked = DialogLayout.button(decision.name());
       var a = ImGui.getItemRectMin();
       var b = ImGui.getItemRectMax();
       selectionButtons.put(decision.name(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
@@ -620,11 +622,11 @@ public final class ResourcePanel {
 
   private void editDialog() {
     if (editPrompt) {
-      ImGui.openPopup("Properties Draft and Resource Action");
+      dialog("Properties Draft and Resource Action").open("Properties Draft and Resource Action");
       editPrompt = false;
     }
-    if (!ImGui.beginPopupModal(
-        "Properties Draft and Resource Action", ImGuiWindowFlags.AlwaysAutoResize)) return;
+    if (!dialog("Properties Draft and Resource Action")
+        .begin("Properties Draft and Resource Action", ImGuiWindowFlags.AlwaysAutoResize)) return;
     if (!edits.pending()) {
       ImGui.closeCurrentPopup();
       ImGui.endPopup();
@@ -636,8 +638,8 @@ public final class ResourcePanel {
             + " draft only if the action succeeds, or cancel.");
     if (!editMessage.isEmpty()) ImGui.textWrapped(editMessage);
     for (var decision : SearchNavigation.Decision.values()) {
-      if (decision != SearchNavigation.Decision.APPLY) ImGui.sameLine();
-      boolean clicked = ImGui.button(decision.name());
+      if (decision != SearchNavigation.Decision.APPLY) DialogLayout.sameLine(decision.name());
+      boolean clicked = DialogLayout.button(decision.name());
       var a = ImGui.getItemRectMin();
       var b = ImGui.getItemRectMax();
       editButtons.put(decision.name(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
@@ -748,21 +750,21 @@ public final class ResourcePanel {
 
   private void createDialog() {
     if (createPending) {
-      ImGui.openPopup("Create Resource");
+      dialog("Create Resource").open("Create Resource");
       createPending = false;
     }
-    if (ImGui.beginPopupModal("Create Resource", ImGuiWindowFlags.AlwaysAutoResize)) {
+    if (dialog("Create Resource").begin("Create Resource", ImGuiWindowFlags.AlwaysAutoResize)) {
       ImGui.text("New " + createKind);
       ImGui.inputText("ID", name);
-      if (ImGui.button("Create")) {
+      if (DialogLayout.button("Create")) {
         var result = createResource(createKind, createRoot, createParent, name.get());
         if (acceptedOrPending(result)) {
           createOpen = false;
           ImGui.closeCurrentPopup();
         }
       }
-      ImGui.sameLine();
-      if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      DialogLayout.sameLine("Cancel");
+      if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
         createOpen = false;
         ImGui.closeCurrentPopup();
       }
@@ -869,8 +871,8 @@ public final class ResourcePanel {
 
   private void deleteDialog() {
     if (deleteId != null && !ImGui.isPopupOpen("Delete Resource"))
-      ImGui.openPopup("Delete Resource");
-    if (ImGui.beginPopupModal("Delete Resource", ImGuiWindowFlags.AlwaysAutoResize)) {
+      dialog("Delete Resource").open("Delete Resource");
+    if (dialog("Delete Resource").begin("Delete Resource", ImGuiWindowFlags.AlwaysAutoResize)) {
       var source = ResourceGraph.find(state.project(), deleteId);
       var deleted = ResourceGraph.subtree(state.project(), List.of(deleteId));
       var deps = ResourceGraph.dependents(state.project(), deleted);
@@ -902,7 +904,7 @@ public final class ResourcePanel {
           ImGui.textWrapped("Edit the external references before deleting this folder subtree.");
       }
       boolean canDelete = deps.isEmpty() || replacement != null;
-      boolean deleteClicked = canDelete && ImGui.button("Delete");
+      boolean deleteClicked = canDelete && DialogLayout.button("Delete");
       if (canDelete) rememberEditButton("confirmDelete");
       if (deleteClicked) {
         UUID id = deleteId, target = replacement;
@@ -914,13 +916,26 @@ public final class ResourcePanel {
           ImGui.closeCurrentPopup();
         }
       }
-      ImGui.sameLine();
-      if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      DialogLayout.sameLine("Cancel");
+      if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
         deleteId = null;
         ImGui.closeCurrentPopup();
       }
       ImGui.endPopup();
     }
+  }
+
+  private final Map<String, DialogLayout> dialogs = new HashMap<>();
+
+  private DialogLayout dialog(String title) {
+    return dialogs.computeIfAbsent(
+        title,
+        key ->
+            new DialogLayout(
+                state,
+                "Resources",
+                title.equals("Add Noise Generator") ? 560 : 620,
+                title.equals("Add Noise Generator") ? 430 : 300));
   }
 
   private final ImBoolean manager = new ImBoolean(false);

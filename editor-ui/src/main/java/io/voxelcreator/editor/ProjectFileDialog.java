@@ -9,6 +9,7 @@ import java.util.function.BooleanSupplier;
 /** Shared production presentation for project paths and the unsaved-project decision. */
 final class ProjectFileDialog {
   private final EditorState state;
+  final DialogLayout layout;
   final ProjectFileWorkflow workflow;
   private final ImString path = new ImString(4096);
   private ProjectFileWorkflow.Phase shown = ProjectFileWorkflow.Phase.IDLE;
@@ -20,6 +21,7 @@ final class ProjectFileDialog {
 
   ProjectFileDialog(EditorState state, Runnable replaced, Runnable exit, BooleanSupplier blocked) {
     this.state = state;
+    layout = new DialogLayout(state, null, 640, 300);
     workflow = new ProjectFileWorkflow(state, replaced, exit, blocked);
   }
 
@@ -28,7 +30,7 @@ final class ProjectFileDialog {
     var phase = workflow.phase();
     if (shown != phase
         && shown != ProjectFileWorkflow.Phase.IDLE
-        && ImGui.beginPopupModal(title(shown), ImGuiWindowFlags.AlwaysAutoResize)) {
+        && layout.begin(title(shown), ImGuiWindowFlags.AlwaysAutoResize)) {
       ImGui.closeCurrentPopup();
       ImGui.endPopup();
     }
@@ -38,14 +40,14 @@ final class ProjectFileDialog {
             state.document.path() == null
                 ? "project.pvproj.json"
                 : state.document.path().toString());
-      ImGui.openPopup(title(phase));
+      layout.open(title(phase));
     }
     shown = phase;
     if (phase == ProjectFileWorkflow.Phase.IDLE) return;
-    if (!ImGui.beginPopupModal(title(phase), ImGuiWindowFlags.AlwaysAutoResize)) return;
+    if (!layout.begin(title(phase), ImGuiWindowFlags.AlwaysAutoResize)) return;
     if (!workflow.error().isEmpty()) ImGui.textWrapped(workflow.error());
     if (phase == ProjectFileWorkflow.Phase.DRAFT) {
-      ImGui.text("Continue with: " + workflow.action());
+      ImGui.textWrapped("Continue with: " + workflow.action());
       ImGui.textWrapped(
           "Properties has unapplied input. Apply it before continuing, discard it only if the"
               + " transition succeeds, or cancel.");
@@ -53,26 +55,26 @@ final class ProjectFileDialog {
           "Save writes the committed project. Applying here creates one ordinary undoable edit"
               + " before any save decision.");
       if (button("Apply Draft")) workflow.decideDraft(ProjectFileWorkflow.DraftDecision.APPLY);
-      ImGui.sameLine();
+      DialogLayout.sameLine("Discard Draft");
       if (button("Discard Draft")) workflow.decideDraft(ProjectFileWorkflow.DraftDecision.DISCARD);
-      ImGui.sameLine();
+      DialogLayout.sameLine("Cancel");
       if (button("Cancel")) workflow.cancel();
     } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
-      ImGui.text("Continue with: " + workflow.action());
-      ImGui.text("Save changes before continuing?");
+      ImGui.textWrapped("Continue with: " + workflow.action());
+      ImGui.textWrapped("Save changes before continuing?");
       if (button("Save")) workflow.decide(ProjectFileWorkflow.Decision.SAVE);
-      ImGui.sameLine();
+      DialogLayout.sameLine("Don't Save");
       if (button("Don't Save")) workflow.decide(ProjectFileWorkflow.Decision.DISCARD);
-      ImGui.sameLine();
+      DialogLayout.sameLine("Cancel");
       if (button("Cancel")) workflow.cancel();
     } else {
       String action = phase == ProjectFileWorkflow.Phase.SAVE ? "Save" : "Open";
-      ImGui.text(action + " project file");
-      ImGui.setNextItemWidth(600);
+      ImGui.textWrapped(action + " project file");
+      DialogLayout.inputWidth("Path");
       ImGui.inputText("Path", path);
       control("Path");
       if (button(action)) workflow.submit(path.get());
-      ImGui.sameLine();
+      DialogLayout.sameLine("Cancel");
       if (button("Cancel")) workflow.cancel();
     }
     if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) workflow.cancel();
@@ -92,7 +94,7 @@ final class ProjectFileDialog {
   }
 
   private boolean button(String label) {
-    boolean clicked = ImGui.button(label);
+    boolean clicked = DialogLayout.button(label);
     control(label);
     return clicked;
   }
@@ -101,6 +103,10 @@ final class ProjectFileDialog {
     var a = ImGui.getItemRectMin();
     var b = ImGui.getItemRectMax();
     controls.put(label, new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
+  }
+
+  String probePath() {
+    return path.get();
   }
 
   float[] probeControl(String label) {

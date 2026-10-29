@@ -8,6 +8,7 @@ import java.util.*;
 /** A bounded multiline buffer, separate from both the document and the Properties draft. */
 public final class ExpressionEditDialog {
   private final EditorState state;
+  final DialogLayout layout;
   private final ExpressionEditSession session;
   private final Runnable staged;
   private final ImString text;
@@ -28,6 +29,7 @@ public final class ExpressionEditDialog {
 
   public ExpressionEditDialog(EditorState state, ExpressionEditSession session, Runnable staged) {
     this.state = Objects.requireNonNull(state);
+    layout = new DialogLayout(state, "Properties", 760, 520);
     this.session = Objects.requireNonNull(session);
     this.staged = Objects.requireNonNull(staged);
     // ImString capacity is in UTF-8 bytes; the language limit is in UTF-16 characters.
@@ -55,11 +57,10 @@ public final class ExpressionEditDialog {
       return true;
     }
     if (pending) {
-      ImGui.openPopup("Expanded Expression");
+      layout.open("Expanded Expression");
       pending = false;
     }
-    ImGui.setNextWindowSize(760, 520, ImGuiCond.FirstUseEver);
-    if (!ImGui.beginPopupModal("Expanded Expression")) return false;
+    if (!layout.begin("Expanded Expression")) return false;
     ImGui.textWrapped(
         "Use in Properties stages only this text. Apply in Properties validates and commits the"
             + " complete resource. Cancel discards this buffer.");
@@ -122,7 +123,7 @@ public final class ExpressionEditDialog {
     if (!error.isEmpty()) ImGui.textWrapped("! " + bounded(error));
     boolean done = false;
     ImGui.beginDisabled(!current);
-    if (ImGui.button("Use in Properties")) {
+    if (DialogLayout.button("Use in Properties")) {
       try {
         session.stage(state, text.get());
         done = true;
@@ -141,8 +142,8 @@ public final class ExpressionEditDialog {
     }
     controlRect("stage");
     ImGui.endDisabled();
-    ImGui.sameLine();
-    if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+    DialogLayout.sameLine("Cancel");
+    if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       session.cancel();
       done = true;
     }

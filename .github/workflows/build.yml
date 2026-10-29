@@ -91,6 +91,8 @@ jobs:
           python scripts/verify_window_placement.py build/window-placement
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UiScaleProbe build/ui-scales
           python scripts/verify_ui_scales.py build/ui-scales
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DialogLayoutProbe build/dialog-layout
+          python scripts/verify_dialog_layout.py build/dialog-layout
       - name: Large resource browser reference
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
@@ -311,6 +313,7 @@ jobs:
             build/performance-preferences/
             build/window-placement/
             build/ui-scales/
+            build/dialog-layout/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/
@@ -495,6 +498,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UiScaleProbe build/ui-scales
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_ui_scales.py build/ui-scales
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DialogLayoutProbe build/dialog-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_dialog_layout.py build/dialog-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows large resource browser reference
         shell: pwsh
@@ -884,6 +891,7 @@ jobs:
             build/performance-preferences/
             build/window-placement/
             build/ui-scales/
+            build/dialog-layout/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/

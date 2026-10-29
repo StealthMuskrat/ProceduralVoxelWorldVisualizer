@@ -76,6 +76,7 @@ public final class Desktop extends Application {
   private final ResourcePackageFiles packageFiles = new ResourcePackageFiles();
   private String packageFileError = "";
   private ProjectFileDialog projectFiles;
+  private DialogLayout packageLayout;
   private ProjectHistoryPanel projectHistory;
   private ProjectSettingsPanel projectSettings;
   private ResourceImportPanel imports;
@@ -96,6 +97,7 @@ public final class Desktop extends Application {
   @Override
   protected void initImGui(Configuration config) {
     super.initImGui(config);
+    state.dialogHosts.clear();
     var io = ImGui.getIO();
     io.addConfigFlags(ImGuiConfigFlags.DockingEnable);
     if (state.user.workspace.multiViewport) io.addConfigFlags(ImGuiConfigFlags.ViewportsEnable);
@@ -198,6 +200,7 @@ public final class Desktop extends Application {
             target -> {
               if (state.canNavigate(target)) sourceNavigation.request(target);
             });
+    packageLayout = new DialogLayout(state, "Resources", 780, 620);
     projectFiles =
         new ProjectFileDialog(
             state,
@@ -604,26 +607,26 @@ public final class Desktop extends Application {
 
   private void fileDialogs() {
     if (filePending) {
-      ImGui.openPopup("File Location");
+      packageLayout.open("File Location");
       filePending = false;
     }
-    if (ImGui.beginPopupModal("File Location", ImGuiWindowFlags.AlwaysAutoResize)) {
+    if (packageLayout.begin("File Location", ImGuiWindowFlags.AlwaysAutoResize)) {
       ImGui.text(fileAction + " file");
-      ImGui.setNextItemWidth(600);
+      DialogLayout.inputWidth("Path");
       ImGui.inputText("Path", pathInput);
       if (!packageFileError.isEmpty()) {
-        ImGui.beginChild("package-file-error", 720, 95, true);
+        ImGui.beginChild("package-file-error", 0, 95, true);
         ImGui.textWrapped(packageFileError);
         ImGui.endChild();
       }
       if (fileAction.equals("Export")) {
-        ImGui.beginChild("export-resources", 720, 360, true);
+        ImGui.beginChild("export-resources", 0, 360, true);
         resources.drawExportSelection();
         if (smokeFrames > 0) smokeExportDrawn = true;
         ImGui.endChild();
       }
       ImGui.beginDisabled(fileAction.equals("Export") && !resources.canExport());
-      if (ImGui.button(fileAction)) {
+      if (DialogLayout.button(fileAction)) {
         try {
           Path path = ResourcePackageFiles.location(pathInput.get());
           switch (fileAction) {
@@ -654,8 +657,8 @@ public final class Desktop extends Application {
         }
       }
       ImGui.endDisabled();
-      ImGui.sameLine();
-      if (ImGui.button("Cancel")) {
+      DialogLayout.sameLine("Cancel");
+      if (DialogLayout.button("Cancel")) {
         if (fileAction.equals("Export")) resources.cancelExport();
         packageFileOpen = false;
         ImGui.closeCurrentPopup();

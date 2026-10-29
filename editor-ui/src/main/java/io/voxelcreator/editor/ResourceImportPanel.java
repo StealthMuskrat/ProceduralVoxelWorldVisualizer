@@ -11,6 +11,7 @@ import java.util.function.BooleanSupplier;
 /** Production COPY/REUSE/SKIP workspace, with bounded rows and explicit stale-preview reload. */
 final class ResourceImportPanel {
   private final EditorState state;
+  final DialogLayout layout;
   private final BooleanSupplier blocked;
   private final Runnable validation;
   private ImportEditSession session;
@@ -29,6 +30,7 @@ final class ResourceImportPanel {
 
   ResourceImportPanel(EditorState state, BooleanSupplier blocked, Runnable validation) {
     this.state = state;
+    layout = new DialogLayout(state, "Resources", 820, 650);
     this.blocked = Objects.requireNonNull(blocked);
     this.validation = Objects.requireNonNull(validation);
   }
@@ -83,11 +85,10 @@ final class ResourceImportPanel {
     rowControls.clear();
     submitted = 0;
     if (prompt) {
-      ImGui.openPopup("Import Resources");
+      layout.open("Import Resources");
       prompt = false;
     }
-    ImGui.setNextWindowSize(820, 650, ImGuiCond.FirstUseEver);
-    if (!ImGui.beginPopupModal("Import Resources", ImGuiWindowFlags.NoSavedSettings)) return;
+    if (!layout.begin("Import Resources", ImGuiWindowFlags.NoSavedSettings)) return;
     if (!pending()) {
       ImGui.closeCurrentPopup();
       ImGui.endPopup();
@@ -262,7 +263,7 @@ final class ResourceImportPanel {
                 ? "The destination changed; reload and review the import."
                 : "The import was rejected. Review its choices and validation results, or cancel.";
     }
-    ImGui.sameLine();
+    DialogLayout.sameLine("Cancel");
     if (button("Cancel", "cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       cancel();
       ImGui.closeCurrentPopup();
@@ -271,7 +272,7 @@ final class ResourceImportPanel {
   }
 
   private boolean button(String label, String key) {
-    boolean clicked = ImGui.button(label);
+    boolean clicked = DialogLayout.button(label);
     remember(key);
     return clicked;
   }

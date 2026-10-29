@@ -8,6 +8,7 @@ import java.util.*;
 /** Advanced Find keeps committed query state separate from simple selectors and property drafts. */
 public final class ResourceFindPanel {
   private final EditorState state;
+  final DialogLayout layout;
   private final PropertyPanel properties;
   private final ResourceSearchSession session = new ResourceSearchSession();
   private final SearchNavigation navigation;
@@ -26,6 +27,7 @@ public final class ResourceFindPanel {
 
   public ResourceFindPanel(EditorState state, PropertyPanel properties) {
     this.state = state;
+    layout = new DialogLayout(state, "Find", 620, 280);
     this.properties = properties;
     navigation = new SearchNavigation(state);
     directories = new ResourcePicker(state);
@@ -58,6 +60,7 @@ public final class ResourceFindPanel {
     ImGui.setNextWindowSize(940, 680, ImGuiCond.FirstUseEver);
     boolean visible = ImGui.begin("Find", open);
     UiScale.window(state.user, "Find");
+    DialogLayout.observe(state, "Find");
     if (!visible || !open.get()) {
       if (!open.get()) session.clear();
       submitted = 0;
@@ -150,10 +153,10 @@ public final class ResourceFindPanel {
 
   private void guard() {
     if (prompt) {
-      ImGui.openPopup("Leave Property Draft");
+      layout.open("Leave Property Draft");
       prompt = false;
     }
-    if (!ImGui.beginPopupModal("Leave Property Draft", ImGuiWindowFlags.AlwaysAutoResize)) return;
+    if (!layout.begin("Leave Property Draft", ImGuiWindowFlags.AlwaysAutoResize)) return;
     guardDrawn = true;
     if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       navigation.decide(SearchNavigation.Decision.CANCEL);
@@ -164,8 +167,8 @@ public final class ResourceFindPanel {
             + " cancel.");
     if (message.startsWith("Apply failed")) ImGui.textWrapped(message);
     for (var decision : SearchNavigation.Decision.values()) {
-      if (decision != SearchNavigation.Decision.APPLY) ImGui.sameLine();
-      if (ImGui.button(decision.name())) {
+      if (decision != SearchNavigation.Decision.APPLY) DialogLayout.sameLine(decision.name());
+      if (DialogLayout.button(decision.name())) {
         var target = navigation.target();
         var result = navigation.decide(decision);
         if (result == SearchNavigation.Result.NEEDS_DECISION)

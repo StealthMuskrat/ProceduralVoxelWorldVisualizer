@@ -1185,6 +1185,7 @@ public final class Viewports implements AutoCloseable {
             Math.max(0, ((long) state.user.performance.sceneCpuMiB << 20) - 64L * 256 * 256)));
     boolean visible = ImGui.begin("Visualizers");
     UiScale.window(state.user, "Visualizers");
+    DialogLayout.observe(state, "Visualizers");
     var nextWindow = platform.current();
     if (!Objects.equals(surfaceWindow, nextWindow)) {
       for (var view : views) {

@@ -20,6 +20,7 @@ public final class BookmarkPanel {
   }
 
   private final EditorState state;
+  final DialogLayout layout;
   private final Navigation navigation;
   private final BookmarkIndex.Cache cache = new BookmarkIndex.Cache();
   private final Map<Tab, UUID> selected = new EnumMap<>(Tab.class);
@@ -38,6 +39,7 @@ public final class BookmarkPanel {
 
   public BookmarkPanel(EditorState state, Navigation navigation) {
     this.state = Objects.requireNonNull(state);
+    layout = new DialogLayout(state, "Visualizers", 700, 520);
     this.navigation = Objects.requireNonNull(navigation);
     observedDocument = state.document.sessionToken();
     for (Tab tab : Tab.values()) filters.put(tab, new ImString(256));
@@ -191,7 +193,7 @@ public final class BookmarkPanel {
   public void drawDialogs() {
     diagnosticRows = 0;
     if (session == null) {
-      if (closing && ImGui.beginPopupModal("Bookmark Coordinates")) {
+      if (closing && layout.begin("Bookmark Coordinates")) {
         ImGui.closeCurrentPopup();
         ImGui.endPopup();
       }
@@ -199,11 +201,10 @@ public final class BookmarkPanel {
       return;
     }
     if (pending) {
-      ImGui.openPopup("Bookmark Coordinates");
+      layout.open("Bookmark Coordinates");
       pending = false;
     }
-    ImGui.setNextWindowSize(700, 520, ImGuiCond.FirstUseEver);
-    if (ImGui.beginPopupModal("Bookmark Coordinates")) {
+    if (layout.begin("Bookmark Coordinates")) {
       ImGui.text(session.title() + " / " + session.tab().key());
       if (session.named()) {
         if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
@@ -248,7 +249,7 @@ public final class BookmarkPanel {
       }
       if (!error.isEmpty()) ImGui.textWrapped("! " + bounded(error));
       ImGui.beginDisabled(!current);
-      if (ImGui.button("Apply")) {
+      if (DialogLayout.button("Apply")) {
         try {
           var displayed = new LinkedHashMap<String, String>();
           coordinateBuffers.forEach((axis, buffer) -> displayed.put(axis, buffer.get()));
@@ -268,8 +269,8 @@ public final class BookmarkPanel {
       }
       record("Apply");
       ImGui.endDisabled();
-      ImGui.sameLine();
-      if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) close();
+      DialogLayout.sameLine("Cancel");
+      if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) close();
       record("Cancel");
       ImGui.endPopup();
     }

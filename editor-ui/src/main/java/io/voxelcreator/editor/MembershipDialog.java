@@ -11,6 +11,7 @@ import java.util.*;
  */
 public final class MembershipDialog {
   private final EditorState state;
+  final DialogLayout layout;
   private final MembershipEditSession session;
   private final ResourceTreeIndex.Cache cache = new ResourceTreeIndex.Cache();
   private final ResourceChoices choices = new ResourceChoices();
@@ -25,16 +26,16 @@ public final class MembershipDialog {
 
   public MembershipDialog(EditorState state, Membership draft) {
     this.state = state;
+    layout = new DialogLayout(state, "Properties", 620, 510);
     session = new MembershipEditSession(state, draft);
   }
 
   public boolean draw() {
     if (pending) {
-      ImGui.openPopup("Edit Voxel Membership");
+      layout.open("Edit Voxel Membership");
       pending = false;
     }
-    ImGui.setNextWindowSize(620, 510, ImGuiCond.FirstUseEver);
-    if (!ImGui.beginPopupModal("Edit Voxel Membership")) return false;
+    if (!layout.begin("Edit Voxel Membership")) return false;
     boolean done = false;
     ImGui.textWrapped(
         "Apply Members commits only membership in one undoable edit. Any drafted resource ID stays"
@@ -54,9 +55,9 @@ public final class MembershipDialog {
       previousSelectedOnly = selectedOnly;
     }
     ImGui.text(session.count() + " selected / " + displayed.size() + " matching");
-    if (ImGui.button("Select Matching")) session.setVisible(displayed, true);
-    ImGui.sameLine();
-    if (ImGui.button("Clear Matching")) session.setVisible(displayed, false);
+    if (DialogLayout.button("Select Matching")) session.setVisible(displayed, true);
+    DialogLayout.sameLine("Clear Matching");
+    if (DialogLayout.button("Clear Matching")) session.setVisible(displayed, false);
     boolean current = session.currentOwner(state);
     float footer =
         85
@@ -95,7 +96,7 @@ public final class MembershipDialog {
     if (session.issueCount() > 8)
       ImGui.textDisabled("Only the first eight candidate diagnostics are shown here.");
     ImGui.beginDisabled(!current);
-    if (ImGui.button("Apply Members")) {
+    if (DialogLayout.button("Apply Members")) {
       try {
         if (session.apply(state)) {
           done = true;
@@ -106,8 +107,8 @@ public final class MembershipDialog {
       }
     }
     ImGui.endDisabled();
-    ImGui.sameLine();
-    if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+    DialogLayout.sameLine("Cancel");
+    if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       session.cancel();
       done = true;
       ImGui.closeCurrentPopup();

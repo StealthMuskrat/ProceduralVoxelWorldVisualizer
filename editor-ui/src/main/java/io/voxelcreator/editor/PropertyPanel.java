@@ -516,6 +516,7 @@ public final class PropertyPanel {
     docking.prepare();
     boolean visible = ImGui.begin("Properties");
     UiScale.window(state.user, "Properties");
+    DialogLayout.observe(state, "Properties");
     if (visible) {
       if (probeSeedTop) {
         ImGui.setScrollY(0);
