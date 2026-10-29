@@ -31,13 +31,14 @@ public final class Desktop extends Application {
   private ResourceFindPanel findPanel;
   private ThemePanel themePanel;
   private UpdateTrustPanel updateTrust;
+  private WorkspacePanel workspaceSettings;
   private UpdateCheckPanel updateChecks;
   private final ImBoolean updateWindow = new ImBoolean(false);
   private String smokeDiagnosticDocument;
   private long smokeDiagnosticEvent;
   private boolean smokeSchedulerDrawn;
   private final UiFields fields = new UiFields();
-  private boolean layout = false;
+  private final WorkspaceLayout workspaceLayout = new WorkspaceLayout(state.user.workspace);
   private final ImBoolean find = new ImBoolean(false),
       logs = new ImBoolean(false),
       validation = new ImBoolean(false),
@@ -47,6 +48,24 @@ public final class Desktop extends Application {
       notifications = new ImBoolean(false),
       settings = new ImBoolean(false),
       themes = new ImBoolean(false);
+  private final Map<String, ImBoolean> toolWindows =
+      Map.of(
+          "Find",
+          find,
+          "Logs",
+          logs,
+          "Validation",
+          validation,
+          "Help",
+          help,
+          "Notifications",
+          notifications,
+          "Profiler",
+          profiler,
+          "Themes",
+          themes);
+  private final Map<String, Boolean> visibilityValues = new LinkedHashMap<>();
+  private final int[] mainWidth = new int[1], mainHeight = new int[1];
   private final ImString search = new ImString(1024), pathInput = new ImString(4096);
   private String settingsPage = "User Settings", settingsCategory = "Appearance", fileAction = "";
   private boolean filePending = false;
@@ -87,6 +106,7 @@ public final class Desktop extends Application {
 
   @Override
   protected void preRun() {
+    glfwSetWindowSizeLimits(handle, 400, 300, GLFW_DONT_CARE, GLFW_DONT_CARE);
     inputSettings = new InputSettingsPanel(state.user);
     updateTrust =
         new UpdateTrustPanel(
@@ -124,6 +144,12 @@ public final class Desktop extends Application {
                 state.error("THEME_EDIT_FAILED", EditorEvents.Subsystem.APPLICATION, message));
     properties = new PropertyPanel(state);
     resources = new ResourcePanel(state, properties);
+    resources.docking.defaults(this::resetDockLayout);
+    properties.docking.defaults(this::resetDockLayout);
+    workspaceSettings =
+        new WorkspacePanel(state.user, toolWindows, this::resetDockLayout, this::captureVisibility);
+    WorkspaceVisibility.restore(state.user.workspace)
+        .forEach((name, visible) -> toolWindows.get(name).set(visible));
     findPanel = new ResourceFindPanel(state, properties);
     resources.findReferences =
         id -> {
@@ -210,25 +236,18 @@ public final class Desktop extends Application {
   public void process() {
     inputSettings.beginFrame();
     state.drain();
+    captureWindowSize();
     ImGui.getIO().setFontGlobalScale(state.user.appearance.globalScale);
     captures.frame(ImGui.getIO().getDeltaTime(), views);
     frameCount++;
     menu();
     int dock = ImGui.dockSpaceOverViewport();
-    if (!layout && state.user.workspace.docking.isBlank()) {
-      layout = true;
-      var vp = ImGui.getMainViewport();
-      imgui.internal.ImGui.dockBuilderRemoveNode(dock);
-      imgui.internal.ImGui.dockBuilderAddNode(dock);
-      imgui.internal.ImGui.dockBuilderSetNodeSize(dock, vp.getWorkSizeX(), vp.getWorkSizeY() - 26);
-      ImInt left = new ImInt(), right = new ImInt(), center = new ImInt();
-      imgui.internal.ImGui.dockBuilderSplitNode(dock, ImGuiDir.Left, .19f, left, center);
-      imgui.internal.ImGui.dockBuilderSplitNode(center.get(), ImGuiDir.Right, .31f, right, center);
-      imgui.internal.ImGui.dockBuilderDockWindow("Resources", left.get());
-      imgui.internal.ImGui.dockBuilderDockWindow("Properties", right.get());
-      imgui.internal.ImGui.dockBuilderDockWindow("Visualizers", center.get());
-      imgui.internal.ImGui.dockBuilderFinish(dock);
-    }
+    workspaceLayout.build(
+        () -> {
+          WorkspaceDocking.defaults(dock);
+          resources.docking.reset();
+          properties.docking.reset();
+        });
     resources.draw();
     properties.draw();
     views.draw();
@@ -239,9 +258,10 @@ public final class Desktop extends Application {
     projectHistory.draw();
     statusBar();
     shortcuts();
+    captureVisibility();
     if (System.nanoTime() - preferenceSave > 5_000_000_000L) {
       preferenceSave = System.nanoTime();
-      state.user.workspace.docking = ImGui.saveIniSettingsToMemory();
+      captureWorkspace();
       try {
         state.user.save();
       } catch (Exception e) {
@@ -513,8 +533,7 @@ public final class Desktop extends Application {
         if (ImGui.menuItem("Logs", binding("Logs"))) command("Logs");
         if (ImGui.menuItem("Themes")) themes.set(true);
         if (ImGui.menuItem("Reset Dock Layout")) {
-          state.user.workspace.docking = "";
-          layout = false;
+          resetDockLayout();
         }
         ImGui.endMenu();
       }
@@ -740,16 +759,7 @@ public final class Desktop extends Application {
           }
           if (ImGui.button("Open Themes")) themes.set(true);
         }
-        case "Workspace" -> {
-          fields.bool(
-              "Multi-viewport windows (restart)",
-              state.user.workspace.multiViewport,
-              v -> state.user.workspace.multiViewport = v);
-          if (ImGui.button("Restore Default Docking")) {
-            state.user.workspace.docking = "";
-            layout = false;
-          }
-        }
+        case "Workspace" -> workspaceSettings.draw();
         case "Input" -> inputSettings.draw();
         case "Editor" -> {
           fields.bool(
@@ -925,6 +935,32 @@ public final class Desktop extends Application {
 
   private void applyTheme() {
     ThemeStyle.apply(ThemePalette.from(state.user.appearance));
+  }
+
+  private void resetDockLayout() {
+    workspaceLayout.reset(state.user.workspace);
+    resources.docking.reset();
+    properties.docking.reset();
+  }
+
+  private void captureVisibility() {
+    toolWindows.forEach((name, flag) -> visibilityValues.put(name, flag.get()));
+    WorkspaceVisibility.capture(state.user.workspace, visibilityValues);
+  }
+
+  private void captureWindowSize() {
+    glfwGetWindowSize(handle, mainWidth, mainHeight);
+    WorkspaceVisibility.captureSize(
+        state.user.workspace,
+        mainWidth[0],
+        mainHeight[0],
+        glfwGetWindowAttrib(handle, GLFW_ICONIFIED) != 0,
+        glfwGetWindowAttrib(handle, GLFW_MAXIMIZED) != 0);
+  }
+
+  private void captureWorkspace() {
+    captureVisibility();
+    workspaceLayout.capture(state.user.workspace, ImGui::saveIniSettingsToMemory);
   }
 
   private void statusBar() {
@@ -1138,7 +1174,8 @@ public final class Desktop extends Application {
   @Override
   protected void postRun() {
     if (updateChecks != null) updateChecks.close();
-    state.user.workspace.docking = ImGui.saveIniSettingsToMemory();
+    captureWindowSize();
+    captureWorkspace();
     views.close();
     state.close();
   }

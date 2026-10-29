@@ -83,6 +83,8 @@ jobs:
           python scripts/verify_update_trust.py build/update-trust
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UpdateCheckProbe build/update-check
           python scripts/verify_update_check.py build/update-check
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorkspaceProbe build/workspace
+          python scripts/verify_workspace.py build/workspace
       - name: Large resource browser reference
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
@@ -299,6 +301,7 @@ jobs:
             build/theme-workspace/
             build/update-trust/
             build/update-check/
+            build/workspace/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/
@@ -467,6 +470,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UpdateCheckProbe build/update-check
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_update_check.py build/update-check
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorkspaceProbe build/workspace
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_workspace.py build/workspace
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows large resource browser reference
         shell: pwsh
@@ -852,6 +859,7 @@ jobs:
             build/theme-workspace/
             build/update-trust/
             build/update-check/
+            build/workspace/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/

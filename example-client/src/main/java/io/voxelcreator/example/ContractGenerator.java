@@ -355,6 +355,19 @@ public final class ContractGenerator {
         ((ObjectNode) ed.path(editor[0]).path("properties"))
             .set("formatVersion", obj().put("const", 1));
         if (editor[0].equals("UserConfig")) {
+          var workspace = (ObjectNode) ed.path("Workspace");
+          var workspaceRequired = (ArrayNode) workspace.path("required");
+          for (int i = workspaceRequired.size() - 1; i >= 0; i--)
+            if (workspaceRequired.get(i).asText().equals("visibleWindows"))
+              workspaceRequired.remove(i);
+          var visible = (ObjectNode) workspace.path("properties").path("visibleWindows");
+          var toolNames =
+              JSON.valueToTree(
+                  Class.forName("io.voxelcreator.editor.WorkspaceVisibility")
+                      .getField("WINDOWS")
+                      .get(null));
+          visible.put("uniqueItems", true).put("maxItems", toolNames.size());
+          ((ObjectNode) visible.path("items")).set("enum", toolNames);
           var visualization = (ObjectNode) ed.path("Visualization");
           var visualRequired = (ArrayNode) visualization.path("required");
           for (int i = visualRequired.size() - 1; i >= 0; i--)

@@ -931,6 +931,15 @@
         },
         "docking" : {
           "type" : "string"
+        },
+        "visibleWindows" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "enum" : [ "Find", "Logs", "Validation", "Help", "Notifications", "Profiler", "Themes" ]
+          },
+          "uniqueItems" : true,
+          "maxItems" : 7
         }
       },
       "required" : [ "multiViewport", "width", "height", "docking" ]

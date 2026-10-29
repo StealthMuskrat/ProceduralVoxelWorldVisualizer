@@ -11,7 +11,8 @@
     "multiViewport" : true,
     "width" : 1440,
     "height" : 900,
-    "docking" : ""
+    "docking" : "",
+    "visibleWindows" : [ ]
   },
   "input" : {
     "shortcuts" : {

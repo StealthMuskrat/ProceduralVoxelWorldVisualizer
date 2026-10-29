@@ -37,6 +37,7 @@ public final class UserConfig {
     public boolean multiViewport = true;
     public int width = 1440, height = 900;
     public String docking = "";
+    public List<String> visibleWindows = new ArrayList<>();
   }
 
   public static final class Input {
@@ -164,6 +165,9 @@ public final class UserConfig {
         || appearance.windowScales == null)
       throw new IllegalArgumentException("Missing preference section");
     ThemePalette.from(appearance);
+    if (workspace.docking == null)
+      throw new IllegalArgumentException("Missing docking preferences");
+    WorkspaceVisibility.validate(workspace.visibleWindows);
     if (performance.updateEndpoint == null
         || performance.trustedOrigins == null
         || performance.trustedOrigins.stream().anyMatch(Objects::isNull))

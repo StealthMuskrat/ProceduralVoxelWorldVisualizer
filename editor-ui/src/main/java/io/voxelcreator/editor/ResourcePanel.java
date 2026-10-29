@@ -11,6 +11,7 @@ import java.util.*;
 import java.util.function.*;
 
 public final class ResourcePanel {
+  final PanelDockControls docking = new PanelDockControls("Resources");
   private final EditorState state;
   private final PropertyPanel properties;
   private final ImString filter = new ImString(256), name = new ImString(256);
@@ -112,32 +113,42 @@ public final class ResourcePanel {
 
   public void draw() {
     rowCenters.clear();
-    ImGui.begin("Resources");
-    ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Resources", 1f));
-    refreshBrowser();
     submittedRows = 0;
     submittedTreeIds.clear();
-    ImGui.inputTextWithHint("##filter", "Filter resources...", filter);
-    ImGui.beginChild("resource-tree", 0, Math.max(100, ImGui.getContentRegionAvailY() - 100), true);
-    root("2D Noise", "noise2D");
-    root("3D Noise", "noise3D");
-    root("World Generator", "world");
-    if (probeScroll != null) {
-      ImGui.setScrollY(probeScroll);
-      probeScroll = null;
-    }
-    ImGui.endChild();
-    ImGui.separator();
-    if (ImGui.button("Voxel Manager")) manager.set(true);
-    if (browser.get(state.selected) != null
-        && browser.get(state.selected).kind().equals("layer")
-        && ImGui.button("Add Noise Generator to Layer")) beginPlacement(state.selected);
-    ImGui.textDisabled("Right-click a root to create resources");
-    if (!renameError.isEmpty()) ImGui.textWrapped("! " + renameError);
-    focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
-    if (focused && ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      renameId = null;
-      renameError = "";
+    refreshBrowser();
+    docking.prepare();
+    boolean visible = ImGui.begin("Resources");
+    if (visible) {
+      ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Resources", 1f));
+      docking.draw();
+      ImGui.inputTextWithHint("##filter", "Filter resources...", filter);
+      ImGui.beginChild(
+          "resource-tree", 0, Math.max(100, ImGui.getContentRegionAvailY() - 100), true);
+      root("2D Noise", "noise2D");
+      root("3D Noise", "noise3D");
+      root("World Generator", "world");
+      if (probeScroll != null) {
+        ImGui.setScrollY(probeScroll);
+        probeScroll = null;
+      }
+      ImGui.endChild();
+      ImGui.separator();
+      if (ImGui.button("Voxel Manager")) manager.set(true);
+      if (browser.get(state.selected) != null
+          && browser.get(state.selected).kind().equals("layer")
+          && ImGui.button("Add Noise Generator to Layer")) beginPlacement(state.selected);
+      ImGui.textDisabled("Right-click a root to create resources");
+      if (!renameError.isEmpty()) ImGui.textWrapped("! " + renameError);
+      focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
+      if (focused && ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+        renameId = null;
+        renameError = "";
+      }
+    } else {
+      focused = false;
+      dragActive = false;
+      dragProject = null;
+      dragSelection = List.of();
     }
     ImGui.end();
     createDialog();

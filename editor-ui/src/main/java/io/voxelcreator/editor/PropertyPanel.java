@@ -12,6 +12,7 @@ import java.util.*;
 import java.util.function.*;
 
 public final class PropertyPanel {
+  final PanelDockControls docking = new PanelDockControls("Properties");
   private final EditorState state;
   private final UiFields f = new UiFields(this::noiseChanged);
   private long noiseVersion;
@@ -512,95 +513,100 @@ public final class PropertyPanel {
       }
     }
     resourcePicker.synchronize();
-    ImGui.begin("Properties");
-    if (probeSeedTop) {
-      ImGui.setScrollY(0);
-      probeSeedTop = false;
-    }
-    ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Properties", 1f));
-    if (!Objects.equals(last, state.selected) || lastDraft != state.draft) {
-      last = state.selected;
-      lastDraft = state.draft;
-      f.clear();
-    }
-    if (state.multiSelection.size() > 1) {
-      ImGui.text(state.multiSelection.size() + " sibling resources selected");
-      ImGui.textWrapped("Select one resource to edit its properties.");
-    } else if (state.draft == null) {
-      ImGui.textDisabled("No resource selected");
-      ImGui.textWrapped(
-          "Create a noise generator from Resources, or add a layer to the World Generator.");
-    } else {
-      ImGui.textDisabled(state.selectedKind.toUpperCase(Locale.ROOT));
-      if (navigationTarget != null && Objects.equals(navigationTarget.resource(), state.selected)) {
-        ThemeStyle.text("Information", "Problem location");
-        ImGui.textWrapped(
-            Objects.requireNonNullElse(navigationTarget.parameter(), "Resource")
-                + "  "
-                + navigationTarget.pointer());
-        if (ImGui.smallButton("Clear Location")) {
-          navigationTarget = null;
-          worldRoute = null;
-          expressionSelection.cancel();
-          searchScroll = false;
-          propertyFocus.cancel();
-        }
+    docking.prepare();
+    boolean visible = ImGui.begin("Properties");
+    if (visible) {
+      if (probeSeedTop) {
+        ImGui.setScrollY(0);
+        probeSeedTop = false;
       }
-      seedProblems();
-      if (ImGui.button("Apply")) state.applyDraft();
-      ImGui.sameLine();
-      if (ImGui.button("Revert")) {
-        state.refreshDraft();
+      ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Properties", 1f));
+      docking.draw();
+      if (!Objects.equals(last, state.selected) || lastDraft != state.draft) {
+        last = state.selected;
+        lastDraft = state.draft;
         f.clear();
       }
-      f.tooltip("Apply validates this edit and commits one undoable transaction.");
-      if (!state.issues.isEmpty()) {
-        ThemeStyle.text("Error", "! " + state.issues.size() + " validation issue(s)");
-        for (int i = 0; i < Math.min(8, state.issues.size()); i++) {
-          var d = state.issues.get(i);
-          ImGui.textWrapped(d.toString());
-          var target = EditorEvents.Target.diagnostic(state.project().project.uuid, d);
-          if (state.canNavigate(target)
-              && !target.settings()
-              && ImGui.smallButton("Go To Problem##inline" + i)) goToProblem(target);
+      if (state.multiSelection.size() > 1) {
+        ImGui.text(state.multiSelection.size() + " sibling resources selected");
+        ImGui.textWrapped("Select one resource to edit its properties.");
+      } else if (state.draft == null) {
+        ImGui.textDisabled("No resource selected");
+        ImGui.textWrapped(
+            "Create a noise generator from Resources, or add a layer to the World Generator.");
+      } else {
+        ImGui.textDisabled(state.selectedKind.toUpperCase(Locale.ROOT));
+        if (navigationTarget != null
+            && Objects.equals(navigationTarget.resource(), state.selected)) {
+          ThemeStyle.text("Information", "Problem location");
+          ImGui.textWrapped(
+              Objects.requireNonNullElse(navigationTarget.parameter(), "Resource")
+                  + "  "
+                  + navigationTarget.pointer());
+          if (ImGui.smallButton("Clear Location")) {
+            navigationTarget = null;
+            worldRoute = null;
+            expressionSelection.cancel();
+            searchScroll = false;
+            propertyFocus.cancel();
+          }
         }
-        if (state.issues.size() > 8)
-          ImGui.textDisabled("More results are available in View > Validate Project.");
-      }
-      ImGui.separator();
-      if (state.draft instanceof Identity r)
-        propertyControl(null, "id", () -> f.text("ID", r.id, v -> r.id = v));
-      if (state.draft instanceof Noise n) noise(n);
-      else if (state.draft instanceof Layer l) {
-        int stage = 0;
-        for (int i = 0; i < state.project().worldGenerator.layers.size(); i++)
-          if (state.project().worldGenerator.layers.get(i).uuid.equals(l.uuid)) stage = i + 1;
-        ImGui.text("Layer execution order: " + stage);
-        ImGui.textWrapped(
-            "Folder placement and tree order are organizational. Use Run Layer Earlier/Later in"
-                + " Resources to change execution.");
-        worldControl("enabled", () -> f.bool("Enabled", l.enabled, v -> l.enabled = v));
-        ImGui.textWrapped("Placements inherit every property below until explicitly overridden.");
-        settings(l.defaults);
-      } else if (state.draft instanceof Operation op) placement(op);
-      else if (state.draft instanceof VoxelType t) {
-        float[] rgb = {t.color.r / 255f, t.color.g / 255f, t.color.b / 255f};
-        if (ImGui.colorEdit3("Color", rgb)) {
-          t.color.r = Math.round(rgb[0] * 255);
-          t.color.g = Math.round(rgb[1] * 255);
-          t.color.b = Math.round(rgb[2] * 255);
+        seedProblems();
+        if (ImGui.button("Apply")) state.applyDraft();
+        ImGui.sameLine();
+        if (ImGui.button("Revert")) {
+          state.refreshDraft();
+          f.clear();
         }
-        ImGui.textWrapped(
-            "Palette edits affect appearance; semantic voxel identity remains the same.");
-      } else if (state.draft instanceof Membership m) {
-        ImGui.text(m.voxelTypeUuids.size() + " member reference(s)");
-        if (ImGui.button("Edit Members...")) membershipDialog = new MembershipDialog(state, m);
-        ImGui.textWrapped(
-            "Membership editing offers a temporary searchable selection with Apply/Cancel.");
-      } else if (state.draft instanceof Folder folder) {
-        ImGui.text("Organizational folder: " + folder.rootKind);
-        ImGui.textWrapped(
-            "Folder placement never changes generation or adds resource inheritance.");
+        f.tooltip("Apply validates this edit and commits one undoable transaction.");
+        if (!state.issues.isEmpty()) {
+          ThemeStyle.text("Error", "! " + state.issues.size() + " validation issue(s)");
+          for (int i = 0; i < Math.min(8, state.issues.size()); i++) {
+            var d = state.issues.get(i);
+            ImGui.textWrapped(d.toString());
+            var target = EditorEvents.Target.diagnostic(state.project().project.uuid, d);
+            if (state.canNavigate(target)
+                && !target.settings()
+                && ImGui.smallButton("Go To Problem##inline" + i)) goToProblem(target);
+          }
+          if (state.issues.size() > 8)
+            ImGui.textDisabled("More results are available in View > Validate Project.");
+        }
+        ImGui.separator();
+        if (state.draft instanceof Identity r)
+          propertyControl(null, "id", () -> f.text("ID", r.id, v -> r.id = v));
+        if (state.draft instanceof Noise n) noise(n);
+        else if (state.draft instanceof Layer l) {
+          int stage = 0;
+          for (int i = 0; i < state.project().worldGenerator.layers.size(); i++)
+            if (state.project().worldGenerator.layers.get(i).uuid.equals(l.uuid)) stage = i + 1;
+          ImGui.text("Layer execution order: " + stage);
+          ImGui.textWrapped(
+              "Folder placement and tree order are organizational. Use Run Layer Earlier/Later in"
+                  + " Resources to change execution.");
+          worldControl("enabled", () -> f.bool("Enabled", l.enabled, v -> l.enabled = v));
+          ImGui.textWrapped("Placements inherit every property below until explicitly overridden.");
+          settings(l.defaults);
+        } else if (state.draft instanceof Operation op) placement(op);
+        else if (state.draft instanceof VoxelType t) {
+          float[] rgb = {t.color.r / 255f, t.color.g / 255f, t.color.b / 255f};
+          if (ImGui.colorEdit3("Color", rgb)) {
+            t.color.r = Math.round(rgb[0] * 255);
+            t.color.g = Math.round(rgb[1] * 255);
+            t.color.b = Math.round(rgb[2] * 255);
+          }
+          ImGui.textWrapped(
+              "Palette edits affect appearance; semantic voxel identity remains the same.");
+        } else if (state.draft instanceof Membership m) {
+          ImGui.text(m.voxelTypeUuids.size() + " member reference(s)");
+          if (ImGui.button("Edit Members...")) membershipDialog = new MembershipDialog(state, m);
+          ImGui.textWrapped(
+              "Membership editing offers a temporary searchable selection with Apply/Cancel.");
+        } else if (state.draft instanceof Folder folder) {
+          ImGui.text("Organizational folder: " + folder.rootKind);
+          ImGui.textWrapped(
+              "Folder placement never changes generation or adds resource inheritance.");
+        }
       }
     }
     ImGui.end();
