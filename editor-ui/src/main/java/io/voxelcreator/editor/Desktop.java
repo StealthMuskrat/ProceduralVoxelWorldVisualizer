@@ -176,6 +176,7 @@ public final class Desktop extends Application {
 
   @Override
   public void process() {
+    inputSettings.beginFrame();
     state.drain();
     ImGui.getIO().setFontGlobalScale(state.user.appearance.globalScale);
     captures.frame(ImGui.getIO().getDeltaTime(), views);

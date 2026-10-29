@@ -261,6 +261,9 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
           python scripts/verify_input_preferences.py build/input-probe/user-config.json
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutRecordingProbe build/input-recording
+          python scripts/verify_input_preferences.py build/input-recording/user-config.json
+          python scripts/verify_shortcut_recording.py build/input-recording
       - name: Strict OpenGL 3.0 arena reference
         run: |
           LIBGL_ALWAYS_SOFTWARE=1 MESA_GL_VERSION_OVERRIDE=3.0 MESA_GLSL_VERSION_OVERRIDE=130 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe --require-gl30
@@ -279,6 +282,8 @@ jobs:
             **/build/reports/tests/
             build/smoke/
             build/creation-profile/
+            build/input-probe/
+            build/input-recording/
             build/theme-probe/
             build/browser-probe/
             build/workflow-probe/
@@ -757,6 +762,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_input_preferences.py build/input-probe/user-config.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutRecordingProbe build/input-recording
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_input_preferences.py build/input-recording/user-config.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_shortcut_recording.py build/input-recording
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows strict OpenGL 3.0 arena reference
         shell: pwsh
         run: |
@@ -801,6 +812,8 @@ jobs:
             build/windows-smoke.log
             build/smoke/
             build/creation-profile/
+            build/input-probe/
+            build/input-recording/
             build/theme-probe/
             build/browser-probe/
             build/workflow-probe/
