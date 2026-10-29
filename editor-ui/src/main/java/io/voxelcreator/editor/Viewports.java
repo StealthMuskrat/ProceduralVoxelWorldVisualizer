@@ -1184,6 +1184,7 @@ public final class Viewports implements AutoCloseable {
             (long) state.user.performance.cacheMiB << 20,
             Math.max(0, ((long) state.user.performance.sceneCpuMiB << 20) - 64L * 256 * 256)));
     boolean visible = ImGui.begin("Visualizers");
+    UiScale.window(state.user, "Visualizers");
     var nextWindow = platform.current();
     if (!Objects.equals(surfaceWindow, nextWindow)) {
       for (var view : views) {
@@ -1197,7 +1198,6 @@ public final class Viewports implements AutoCloseable {
       surfaceWindow = nextWindow;
     }
     viewportFocused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
-    ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Visualizers", 1f));
     if (visible && ImGui.beginTabBar("view-tabs")) {
       for (int k = 0; k < 3; k++) {
         String name = k == 0 ? "2D Noise" : k == 1 ? "3D Noise" : "World";
@@ -3391,6 +3391,7 @@ public final class Viewports implements AutoCloseable {
     if (!inspector.get()) return;
     ImGui.setNextWindowSize(600, 600, ImGuiCond.FirstUseEver);
     boolean visible = ImGui.begin("Voxel Inspector", inspector);
+    UiScale.window(state.user, "Voxel Inspector");
     if (admissionProbe) {
       var position = ImGui.getWindowPos();
       var size = ImGui.getWindowSize();

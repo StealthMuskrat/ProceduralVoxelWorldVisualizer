@@ -429,6 +429,18 @@ public final class ContractGenerator {
                       .invoke(null));
           ObjectNode appearance = (ObjectNode) ed.path("Appearance");
           ObjectNode appearanceProperties = (ObjectNode) appearance.path("properties");
+          var scales = Class.forName("io.voxelcreator.editor.UiScalePreferences");
+          for (var value :
+              List.of(
+                  (ObjectNode) appearanceProperties.path("globalScale"),
+                  (ObjectNode)
+                      appearanceProperties.path("windowScales").path("additionalProperties")))
+            value
+                .put("minimum", scales.getField("MINIMUM").getFloat(null))
+                .put("maximum", scales.getField("MAXIMUM").getFloat(null));
+          writeJSON(
+              root.resolve("registries/ui-scale-targets.json"),
+              scales.getMethod("registry").invoke(null));
           var themes = obj().put("type", "string");
           themes.set("enum", themeRegistry.path("startingAppearances"));
           appearanceProperties.set("theme", themes);

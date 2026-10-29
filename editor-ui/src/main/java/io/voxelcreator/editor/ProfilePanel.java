@@ -173,6 +173,7 @@ public final class ProfilePanel {
     if (!open.get()) return;
     ImGui.setNextWindowSize(1050, 800, ImGuiCond.FirstUseEver);
     boolean visible = ImGui.begin("Profiler", open);
+    UiScale.window(state.user, "Profiler");
     if (!visible || !open.get()) {
       ImGui.end();
       return;

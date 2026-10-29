@@ -33,6 +33,7 @@ public final class Desktop extends Application {
   private UpdateTrustPanel updateTrust;
   private WorkspacePanel workspaceSettings;
   private PerformancePanel performanceSettings;
+  private UiScalePanel scaleSettings;
   private UpdateCheckPanel updateChecks;
   private final ImBoolean updateWindow = new ImBoolean(false);
   private String smokeDiagnosticDocument;
@@ -145,6 +146,12 @@ public final class Desktop extends Application {
             message ->
                 state.error(
                     "PERFORMANCE_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
+    scaleSettings =
+        new UiScalePanel(
+            state.user,
+            UserConfig.directory().resolve("user-config.json"),
+            message ->
+                state.error("UI_SCALE_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
     applicationSettings = new ApplicationSettingsPanel(state);
     projectSettings = new ProjectSettingsPanel(state);
     themePanel =
@@ -691,15 +698,18 @@ public final class Desktop extends Application {
     updateChecks.draw(updateWindow);
     diagnostics.drawNotifications(notifications, () -> logs.set(true));
     if (about.get()) {
-      ImGui.begin("About", about);
-      ImGui.text("Procedural Voxel Creator " + APPLICATION_VERSION);
-      ImGui.text("Noise Generator Engine " + CompiledProject.ENGINE_VERSION);
-      ImGui.text("Java " + System.getProperty("java.version"));
-      ImGui.text("OpenGL " + glGetString(GL_VERSION));
-      ImGui.textWrapped(
-          "Uses LWJGL (BSD), Dear ImGui/imgui-java (MIT), JOML (MIT), FastNoiseLite (MIT), Jackson"
-              + " (Apache-2.0), JUnit (EPL-2.0). See docs/LICENSES.md for attribution and"
-              + " notices.");
+      boolean visible = ImGui.begin("About", about);
+      UiScale.window(state.user, "About");
+      if (visible && about.get()) {
+        ImGui.text("Procedural Voxel Creator " + APPLICATION_VERSION);
+        ImGui.text("Noise Generator Engine " + CompiledProject.ENGINE_VERSION);
+        ImGui.text("Java " + System.getProperty("java.version"));
+        ImGui.text("OpenGL " + glGetString(GL_VERSION));
+        ImGui.textWrapped(
+            "Uses LWJGL (BSD), Dear ImGui/imgui-java (MIT), JOML (MIT), FastNoiseLite (MIT),"
+                + " Jackson (Apache-2.0), JUnit (EPL-2.0). See docs/LICENSES.md for attribution and"
+                + " notices.");
+      }
       ImGui.end();
     }
   }
@@ -718,6 +728,7 @@ public final class Desktop extends Application {
       inputSettings.cancelCapture();
     ImGui.setNextWindowSize(750, 650, ImGuiCond.FirstUseEver);
     boolean visible = ImGui.begin(settingsPage, settings);
+    UiScale.window(state.user, settingsPage);
     if (!settings.get()) {
       projectSettings.cancel();
       inputSettings.cancelCapture();
@@ -775,14 +786,7 @@ public final class Desktop extends Application {
                 state.user.appearance.theme = v;
                 applyTheme();
               });
-          float[] scale = {state.user.appearance.globalScale};
-          if (ImGui.sliderFloat("UI scale", scale, .5f, 2.5f, "%.2fx"))
-            state.user.appearance.globalScale = scale[0];
-          for (String window : List.of("Resources", "Properties", "Visualizers")) {
-            float[] value = {state.user.appearance.windowScales.getOrDefault(window, 1f)};
-            if (ImGui.sliderFloat(window + " scale", value, .5f, 2.5f, "%.2fx"))
-              state.user.appearance.windowScales.put(window, value[0]);
-          }
+          scaleSettings.draw();
           if (ImGui.button("Open Themes")) themes.set(true);
         }
         case "Workspace" -> workspaceSettings.draw();
@@ -882,16 +886,19 @@ public final class Desktop extends Application {
   private void drawHelp() {
     if (!help.get()) return;
     ImGui.setNextWindowSize(750, 550, ImGuiCond.FirstUseEver);
-    ImGui.begin("Help", help);
-    ImGui.inputText("Search features", search);
-    for (var e : state.metadata.orderedControls()) {
-      var c = e.getValue();
-      if ((c.label + c.description + c.tooltip)
-              .toLowerCase(Locale.ROOT)
-              .contains(search.get().toLowerCase(Locale.ROOT))
-          && ImGui.collapsingHeader(AppMetadata.uiText(c.label) + "###help" + e.getKey())) {
-        ImGui.textWrapped(c.tooltip);
-        ImGui.textWrapped(c.description);
+    boolean visible = ImGui.begin("Help", help);
+    UiScale.window(state.user, "Help");
+    if (visible && help.get()) {
+      ImGui.inputText("Search features", search);
+      for (var e : state.metadata.orderedControls()) {
+        var c = e.getValue();
+        if ((c.label + c.description + c.tooltip)
+                .toLowerCase(Locale.ROOT)
+                .contains(search.get().toLowerCase(Locale.ROOT))
+            && ImGui.collapsingHeader(AppMetadata.uiText(c.label) + "###help" + e.getKey())) {
+          ImGui.textWrapped(c.tooltip);
+          ImGui.textWrapped(c.description);
+        }
       }
     }
     ImGui.end();

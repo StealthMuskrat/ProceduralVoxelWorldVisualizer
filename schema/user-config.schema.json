@@ -12,12 +12,16 @@
           "enum" : [ "Dark", "Light" ]
         },
         "globalScale" : {
-          "type" : "number"
+          "type" : "number",
+          "minimum" : 0.5,
+          "maximum" : 2.5
         },
         "windowScales" : {
           "type" : "object",
           "additionalProperties" : {
-            "type" : "number"
+            "type" : "number",
+            "minimum" : 0.5,
+            "maximum" : 2.5
           }
         },
         "colors" : {

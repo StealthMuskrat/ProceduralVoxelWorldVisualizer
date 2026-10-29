@@ -515,12 +515,12 @@ public final class PropertyPanel {
     resourcePicker.synchronize();
     docking.prepare();
     boolean visible = ImGui.begin("Properties");
+    UiScale.window(state.user, "Properties");
     if (visible) {
       if (probeSeedTop) {
         ImGui.setScrollY(0);
         probeSeedTop = false;
       }
-      ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Properties", 1f));
       docking.draw();
       if (!Objects.equals(last, state.selected) || lastDraft != state.draft) {
         last = state.selected;

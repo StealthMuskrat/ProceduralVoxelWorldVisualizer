@@ -214,6 +214,7 @@ public final class CurveDialog {
     ImGui.setNextWindowSize(840, 760, ImGuiCond.FirstUseEver);
     if (controlFocus.windowRequest()) ImGui.setNextWindowFocus();
     boolean visible = ImGui.begin("Curve Editor", open);
+    UiScale.window(ownerState == null ? null : ownerState.user, "Curve Editor");
     if (!open.get()) {
       cancel();
       ImGui.end();

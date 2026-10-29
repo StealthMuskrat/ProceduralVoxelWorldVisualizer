@@ -1,0 +1,8 @@
+{
+  "registryVersion" : 1,
+  "minimum" : 0.5,
+  "maximum" : 2.5,
+  "windows" : [ "Resources", "Properties", "Visualizers", "Find", "Logs", "Validation", "Help", "Notifications", "Profiler", "Themes", "User Settings", "Project Settings", "Application Settings", "Debug & Profiling", "About", "Check for Updates", "Voxel Manager", "Voxel Inspector", "Curve Editor" ],
+  "composition" : "global scale multiplied by window multiplier",
+  "inheritance" : "absent window entry uses multiplier 1; unknown entries are retained"
+}

@@ -56,7 +56,16 @@ public final class ResourceFindPanel {
       return;
     }
     ImGui.setNextWindowSize(940, 680, ImGuiCond.FirstUseEver);
-    ImGui.begin("Find", open);
+    boolean visible = ImGui.begin("Find", open);
+    UiScale.window(state.user, "Find");
+    if (!visible || !open.get()) {
+      if (!open.get()) session.clear();
+      submitted = 0;
+      centers.clear();
+      ImGui.end();
+      guard();
+      return;
+    }
     ImGui.inputTextWithHint("##find-text", "Find ID, UUID, authored value or breadcrumb...", query);
     fields.choice(
         "Match",

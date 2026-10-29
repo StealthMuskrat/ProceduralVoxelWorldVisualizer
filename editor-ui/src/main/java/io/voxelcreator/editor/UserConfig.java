@@ -152,6 +152,7 @@ public final class UserConfig {
       throw new IllegalArgumentException("Invalid volume shadow steps");
     PerformancePreferences.validateStored(tree);
     WindowPlacement.validateStored(tree);
+    UiScalePreferences.validateStored(tree);
     var user = ProjectIO.JSON.treeToValue(tree, UserConfig.class);
     if (user.input == null) throw new IllegalArgumentException("Missing input preferences");
     user.input.shortcuts = Shortcuts.upgrade(user.input.shortcuts);
@@ -169,6 +170,7 @@ public final class UserConfig {
         || appearance.windowScales == null)
       throw new IllegalArgumentException("Missing preference section");
     ThemePalette.from(appearance);
+    UiScalePreferences.validate(appearance);
     if (workspace.docking == null)
       throw new IllegalArgumentException("Missing docking preferences");
     WorkspaceVisibility.validate(workspace.visibleWindows);
@@ -188,9 +190,6 @@ public final class UserConfig {
     if (!Float.isFinite(appearance.globalScale) || workspace.width < 400 || workspace.height < 300)
       throw new IllegalArgumentException("Invalid workspace preferences");
     PerformancePreferences.from(this).validate();
-    for (float value : appearance.windowScales.values())
-      if (!Float.isFinite(value) || value < .5f || value > 2.5f)
-        throw new IllegalArgumentException("Window scale outside 50..250%");
     if (input == null) throw new IllegalArgumentException("Missing input preferences");
     Shortcuts.canonical(input.shortcuts);
   }
@@ -245,6 +244,16 @@ public final class UserConfig {
     snapshot.validate();
     snapshot.writeSnapshot(path, files);
     candidate.writeTo(this);
+  }
+
+  /** Persist owned global/known window scales while retaining latest unrelated/extension values. */
+  public void applyScales(UiScalePreferences.Values candidate, Path path) {
+    Objects.requireNonNull(candidate);
+    var snapshot = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(this), UserConfig.class);
+    candidate.writeTo(snapshot.appearance);
+    snapshot.validate();
+    snapshot.writeSnapshot(path, files);
+    candidate.writeTo(appearance);
   }
 
   private void writeSnapshot(Path path, PreferenceFiles writer) {

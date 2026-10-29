@@ -38,7 +38,12 @@ public final class DiagnosticsPanel {
   public void drawLogs(ImBoolean open) {
     if (!open.get()) return;
     ImGui.setNextWindowSize(920, 640, ImGuiCond.FirstUseEver);
-    ImGui.begin("Logs & Error Center", open);
+    boolean visible = ImGui.begin("Logs & Error Center", open);
+    UiScale.window(state.user, "Logs");
+    if (!visible || !open.get()) {
+      ImGui.end();
+      return;
+    }
     logsDrawn = true;
     ImGui.inputText("Search code, message or source", filter);
     fields.choice("Severity", severity, choices(Diagnostic.Severity.values()), v -> severity = v);
@@ -66,7 +71,12 @@ public final class DiagnosticsPanel {
   public void drawNotifications(ImBoolean open, Runnable openLogs) {
     if (!open.get()) return;
     ImGui.setNextWindowSize(850, 580, ImGuiCond.FirstUseEver);
-    ImGui.begin("Notifications", open);
+    boolean visible = ImGui.begin("Notifications", open);
+    UiScale.window(state.user, "Notifications");
+    if (!visible || !open.get()) {
+      ImGui.end();
+      return;
+    }
     noticesDrawn = true;
     var counts = state.events.counts();
     ImGui.text(counts.unread() + " unread / " + counts.actionRequired() + " action required");
@@ -176,7 +186,12 @@ public final class DiagnosticsPanel {
   public void drawValidation(ImBoolean open) {
     if (!open.get()) return;
     ImGui.setNextWindowSize(900, 600, ImGuiCond.FirstUseEver);
-    ImGui.begin("Validation Results", open);
+    boolean visible = ImGui.begin("Validation Results", open);
+    UiScale.window(state.user, "Validation");
+    if (!visible || !open.get()) {
+      ImGui.end();
+      return;
+    }
     validationDrawn = true;
     if (ImGui.button("Validate Committed Project")) {
       state.validateProject();

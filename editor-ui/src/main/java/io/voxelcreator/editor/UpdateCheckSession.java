@@ -47,6 +47,10 @@ final class UpdateCheckSession implements AutoCloseable {
     }
   }
 
+  UserConfig preferences() {
+    return user;
+  }
+
   private final UserConfig user;
   private final ReleaseVersion installed;
   private final Executor executor;

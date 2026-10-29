@@ -69,6 +69,7 @@ public final class ThemePanel {
     safe.forEach((key, c) -> ImGui.pushStyleColor(key, c.r(), c.g(), c.b(), c.a()));
     ImGui.setNextWindowSize(980, 710, ImGuiCond.FirstUseEver);
     boolean visible = ImGui.begin("Themes", open);
+    UiScale.window(user, "Themes");
     try {
       if (visible && open.get()) {
         smokeDrawn = true;

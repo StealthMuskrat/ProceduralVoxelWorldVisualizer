@@ -46,6 +46,7 @@ final class UpdateCheckPanel implements AutoCloseable {
     }
     ImGui.setNextWindowSize(730, 350, ImGuiCond.FirstUseEver);
     boolean visible = ImGui.begin("Check for Updates", open);
+    UiScale.window(session.preferences(), "Check for Updates");
     try {
       if (!visible || !open.get()) return;
       var view = session.view();

@@ -118,8 +118,8 @@ public final class ResourcePanel {
     refreshBrowser();
     docking.prepare();
     boolean visible = ImGui.begin("Resources");
+    UiScale.window(state.user, "Resources");
     if (visible) {
-      ImGui.setWindowFontScale(state.user.appearance.windowScales.getOrDefault("Resources", 1f));
       docking.draw();
       ImGui.inputTextWithHint("##filter", "Filter resources...", filter);
       ImGui.beginChild(
@@ -933,7 +933,13 @@ public final class ResourcePanel {
     if (!manager.get()) return;
     refreshBrowser();
     ImGui.setNextWindowSize(650, 520, ImGuiCond.FirstUseEver);
-    ImGui.begin("Voxel Manager", manager);
+    boolean visible = ImGui.begin("Voxel Manager", manager);
+    UiScale.window(state.user, "Voxel Manager");
+    if (!visible || !manager.get()) {
+      submittedManagerRows = 0;
+      ImGui.end();
+      return;
+    }
     ImGui.inputTextWithHint(
         "##voxel-filter", "Filter voxel type, set or group IDs...", managerFilter);
     submittedManagerRows = 0;
