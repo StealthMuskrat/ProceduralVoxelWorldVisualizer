@@ -756,68 +756,68 @@
       "properties" : {
         "workers" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 1,
+          "maximum" : 64
         },
         "maxPreviewDimension" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 2,
+          "maximum" : 256
         },
         "previewCellBudget" : {
           "type" : "integer",
-          "minimum" : -9223372036854775808,
+          "minimum" : 1,
           "maximum" : 9223372036854775807
         },
         "cacheMiB" : {
           "type" : "integer",
-          "minimum" : -2147483648,
+          "minimum" : 0,
           "maximum" : 2147483647
         },
         "sceneCpuMiB" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 16,
+          "maximum" : 4096
         },
         "sceneGpuMiB" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 8,
+          "maximum" : 256
         },
         "uploadKiB" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 64,
+          "maximum" : 16384
         },
         "renderDistance" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 0,
+          "maximum" : 4
         },
         "verticalDistance" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 0,
+          "maximum" : 2
         },
         "lodStart" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 1,
+          "maximum" : 16
         },
         "lodQuality" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 0,
+          "maximum" : 2
         },
         "streamChunks" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 27,
+          "maximum" : 2048
         },
         "engineMiB" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 64,
+          "maximum" : 4096
         },
         "profiler" : {
           "type" : "boolean"
@@ -898,8 +898,8 @@
         },
         "previewSize" : {
           "type" : "integer",
-          "minimum" : -2147483648,
-          "maximum" : 2147483647
+          "minimum" : 2,
+          "maximum" : 256
         },
         "shadowResolution" : {
           "type" : "integer",

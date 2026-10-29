@@ -355,6 +355,16 @@ public final class ContractGenerator {
         ((ObjectNode) ed.path(editor[0]).path("properties"))
             .set("formatVersion", obj().put("const", 1));
         if (editor[0].equals("UserConfig")) {
+          // Reflection keeps the engine-only consumer independent of editor classes.
+          var performanceFields =
+              Class.forName("io.voxelcreator.editor.PerformancePreferences$Field");
+          for (var field : performanceFields.getEnumConstants()) {
+            String section = (String) performanceFields.getMethod("section").invoke(field);
+            String key = (String) performanceFields.getMethod("key").invoke(field);
+            ((ObjectNode) ed.path(section).path("properties").path(key))
+                .put("minimum", (Long) performanceFields.getMethod("minimum").invoke(field))
+                .put("maximum", (Long) performanceFields.getMethod("maximum").invoke(field));
+          }
           var workspace = (ObjectNode) ed.path("Workspace");
           var workspaceRequired = (ArrayNode) workspace.path("required");
           for (int i = workspaceRequired.size() - 1; i >= 0; i--)

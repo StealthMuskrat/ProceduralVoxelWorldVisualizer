@@ -1,0 +1,82 @@
+{
+  "formatVersion": 1,
+  "appearance": {
+    "theme": "Dark",
+    "globalScale": 1.0,
+    "windowScales": {},
+    "colors": {},
+    "statusColors": {}
+  },
+  "workspace": {
+    "multiViewport": true,
+    "width": 1440,
+    "height": 900,
+    "docking": "",
+    "visibleWindows": []
+  },
+  "input": {
+    "shortcuts": {
+      "New": "Ctrl+N",
+      "Open": "Ctrl+O",
+      "Save": "Ctrl+S",
+      "SaveAs": "Ctrl+Shift+S",
+      "Import": "Ctrl+I",
+      "Export": "Ctrl+E",
+      "Undo": "Ctrl+Z",
+      "Redo": "Ctrl+Y",
+      "Find": "Ctrl+F",
+      "FindReferences": "Ctrl+Shift+F",
+      "Validate": "F7",
+      "Settings": "Ctrl+Comma",
+      "Help": "F1",
+      "Profiler": "Ctrl+Shift+P",
+      "Logs": "Ctrl+Shift+L",
+      "Rename": "F2",
+      "Duplicate": "Ctrl+D",
+      "Copy": "Ctrl+C",
+      "Cut": "Ctrl+X",
+      "Paste": "Ctrl+V",
+      "Delete": "Delete",
+      "CurveDelete": "Delete",
+      "CurveUndo": "Ctrl+Z",
+      "CurveRedo": "Ctrl+Y"
+    }
+  },
+  "editor": {
+    "autoRegenerate": true,
+    "opportunitiesPerSecond": 10
+  },
+  "visualization": {
+    "grid": true,
+    "unlit": false,
+    "streaming": true,
+    "ambientOcclusion": true,
+    "fog": false,
+    "shadows": false,
+    "volumeShadows": false,
+    "indirectDrawing": true,
+    "noise2DMode": "Grayscale",
+    "threshold": 0.0,
+    "previewSize": 16,
+    "shadowResolution": 1024,
+    "volumeShadowSteps": 16
+  },
+  "performance": {
+    "workers": 2,
+    "maxPreviewDimension": 16,
+    "previewCellBudget": 9007199254740993,
+    "cacheMiB": 0,
+    "sceneCpuMiB": 16,
+    "sceneGpuMiB": 8,
+    "uploadKiB": 64,
+    "renderDistance": 0,
+    "verticalDistance": 0,
+    "lodStart": 1,
+    "lodQuality": 2,
+    "streamChunks": 27,
+    "engineMiB": 256,
+    "profiler": false,
+    "updateEndpoint": "",
+    "trustedOrigins": []
+  }
+}

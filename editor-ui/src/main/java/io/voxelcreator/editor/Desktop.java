@@ -32,6 +32,7 @@ public final class Desktop extends Application {
   private ThemePanel themePanel;
   private UpdateTrustPanel updateTrust;
   private WorkspacePanel workspaceSettings;
+  private PerformancePanel performanceSettings;
   private UpdateCheckPanel updateChecks;
   private final ImBoolean updateWindow = new ImBoolean(false);
   private String smokeDiagnosticDocument;
@@ -135,6 +136,13 @@ public final class Desktop extends Application {
             ImGui::setClipboardText,
             message ->
                 state.error("UPDATE_LINK_FAILED", EditorEvents.Subsystem.APPLICATION, message));
+    performanceSettings =
+        new PerformancePanel(
+            state.user,
+            UserConfig.directory().resolve("user-config.json"),
+            message ->
+                state.error(
+                    "PERFORMANCE_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
     applicationSettings = new ApplicationSettingsPanel(state);
     projectSettings = new ProjectSettingsPanel(state);
     themePanel =
@@ -831,62 +839,11 @@ public final class Desktop extends Application {
               "Indirect drawing when supported",
               state.user.visualization.indirectDrawing,
               v -> state.user.visualization.indirectDrawing = v);
-          fields.integer(
-              "Default preview extent",
-              state.user.visualization.previewSize,
-              v ->
-                  state.user.visualization.previewSize =
-                      Math.max(2, Math.min(state.user.performance.maxPreviewDimension, v)));
+          ImGui.text("Default preview extent: " + state.user.visualization.previewSize);
+          if (ImGui.button("Edit preview limits")) settingsCategory = "Performance";
         }
         case "Performance" -> {
-          fields.integer(
-              "Worker threads (restart)",
-              state.user.performance.workers,
-              v -> state.user.performance.workers = Math.max(1, Math.min(64, v)));
-          fields.integer(
-              "Maximum preview dimension",
-              state.user.performance.maxPreviewDimension,
-              v -> state.user.performance.maxPreviewDimension = Math.max(2, Math.min(256, v)));
-          fields.integer(
-              "Cache MiB",
-              state.user.performance.cacheMiB,
-              v -> state.user.performance.cacheMiB = Math.max(0, v));
-          fields.integer(
-              "Engine memory MiB (restart)",
-              state.user.performance.engineMiB,
-              v -> state.user.performance.engineMiB = Math.max(64, Math.min(4096, v)));
-          fields.integer(
-              "Streaming CPU MiB per view",
-              state.user.performance.sceneCpuMiB,
-              v -> state.user.performance.sceneCpuMiB = Math.max(16, Math.min(4096, v)));
-          fields.integer(
-              "Streaming GPU MiB per view",
-              state.user.performance.sceneGpuMiB,
-              v -> state.user.performance.sceneGpuMiB = Math.max(8, Math.min(256, v)));
-          fields.integer(
-              "Upload KiB per frame",
-              state.user.performance.uploadKiB,
-              v -> state.user.performance.uploadKiB = Math.max(64, Math.min(16384, v)));
-          fields.integer(
-              "Render distance in chunks",
-              state.user.performance.renderDistance,
-              v -> state.user.performance.renderDistance = Math.max(0, Math.min(4, v)));
-          fields.integer(
-              "Vertical distance in chunks",
-              state.user.performance.verticalDistance,
-              v -> state.user.performance.verticalDistance = Math.max(0, Math.min(2, v)));
-          fields.integer(
-              "LOD start distance in chunks",
-              state.user.performance.lodStart,
-              v -> state.user.performance.lodStart = Math.max(1, Math.min(16, v)));
-          fields.integer(
-              "LOD quality (0 low, 2 high)",
-              state.user.performance.lodQuality,
-              v -> state.user.performance.lodQuality = Math.max(0, Math.min(2, v)));
-          fields.integer(
-              "Resident streaming chunk limit",
-              state.user.performance.streamChunks,
-              v -> state.user.performance.streamChunks = Math.max(27, Math.min(2048, v)));
+          performanceSettings.draw();
           updateTrust.draw();
         }
         default -> {}

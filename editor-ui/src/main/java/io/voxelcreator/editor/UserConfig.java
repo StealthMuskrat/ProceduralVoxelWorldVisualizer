@@ -148,6 +148,7 @@ public final class UserConfig {
         && (!visualization.path("volumeShadowSteps").isIntegralNumber()
             || !visualization.path("volumeShadowSteps").canConvertToInt()))
       throw new IllegalArgumentException("Invalid volume shadow steps");
+    PerformancePreferences.validateStored(tree);
     var user = ProjectIO.JSON.treeToValue(tree, UserConfig.class);
     if (user.input == null) throw new IllegalArgumentException("Missing input preferences");
     user.input.shortcuts = Shortcuts.upgrade(user.input.shortcuts);
@@ -177,40 +178,12 @@ public final class UserConfig {
         || appearance.globalScale > 2.5
         || editor.opportunitiesPerSecond < 1
         || editor.opportunitiesPerSecond > 20
-        || performance.workers < 1
-        || performance.workers > 64
         || !io.voxelcreator.render.DirectionalShadow.validResolution(visualization.shadowResolution)
-        || !io.voxelcreator.render.VolumeLight.validSteps(visualization.volumeShadowSteps)
-        || visualization.previewSize < 2
-        || visualization.previewSize > performance.maxPreviewDimension)
+        || !io.voxelcreator.render.VolumeLight.validSteps(visualization.volumeShadowSteps))
       throw new IllegalArgumentException("Invalid user preferences");
-    if (!Float.isFinite(appearance.globalScale)
-        || workspace.width < 400
-        || workspace.height < 300
-        || performance.maxPreviewDimension < 2
-        || performance.maxPreviewDimension > 256
-        || performance.previewCellBudget < 1
-        || performance.cacheMiB < 0)
-      throw new IllegalArgumentException("Invalid workspace/performance preferences");
-    if (performance.sceneCpuMiB < 16
-        || performance.sceneCpuMiB > 4096
-        || performance.sceneGpuMiB < 8
-        || performance.sceneGpuMiB > 256
-        || performance.uploadKiB < 64
-        || performance.uploadKiB > 16384
-        || performance.renderDistance < 0
-        || performance.renderDistance > 4
-        || performance.verticalDistance < 0
-        || performance.verticalDistance > 2
-        || performance.lodStart < 1
-        || performance.lodStart > 16
-        || performance.lodQuality < 0
-        || performance.lodQuality > 2
-        || performance.streamChunks < 27
-        || performance.streamChunks > 2048
-        || performance.engineMiB < 64
-        || performance.engineMiB > 4096)
-      throw new IllegalArgumentException("Invalid streaming/render budgets");
+    if (!Float.isFinite(appearance.globalScale) || workspace.width < 400 || workspace.height < 300)
+      throw new IllegalArgumentException("Invalid workspace preferences");
+    PerformancePreferences.from(this).validate();
     for (float value : appearance.windowScales.values())
       if (!Float.isFinite(value) || value < .5f || value > 2.5f)
         throw new IllegalArgumentException("Window scale outside 50..250%");
@@ -258,6 +231,16 @@ public final class UserConfig {
     snapshot.writeSnapshot(path, files);
     performance.updateEndpoint = candidate.endpoint();
     performance.trustedOrigins = new ArrayList<>(candidate.origins());
+  }
+
+  /** Merge only the complete owned limits/default extent, persist, then publish together. */
+  public void applyPerformance(PerformancePreferences.Values candidate, Path path) {
+    Objects.requireNonNull(candidate).validate();
+    var snapshot = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(this), UserConfig.class);
+    candidate.writeTo(snapshot);
+    snapshot.validate();
+    snapshot.writeSnapshot(path, files);
+    candidate.writeTo(this);
   }
 
   private void writeSnapshot(Path path, PreferenceFiles writer) {

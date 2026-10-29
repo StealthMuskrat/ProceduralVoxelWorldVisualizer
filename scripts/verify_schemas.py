@@ -2,7 +2,7 @@
 from pathlib import Path
 import json,jsonschema
 root=Path(__file__).resolve().parent.parent
-for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json','creation-defaults-project.json','hierarchy.json','bookmarks.json','noise-authoring.json','field-operations.json','trace-workflow.json','scalar-remapping.json','warp-fields.json','placement-driver-phases.json','transform-drivers.json','work-profile-project.json','semantic-sharing.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json','user-theme-custom.json','user-shadow-settings.json','user-volume-light.json','user-workspace.json']),('app-config',['app-config-defaults.json','app-config-legacy.json','app-config-creation.json']),('profile-capture',['profile-capture.json','profile-capture-gpu.json','profile-capture-work.json']),('release-metadata',['release-metadata.json'])]:
+for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json','creation-defaults-project.json','hierarchy.json','bookmarks.json','noise-authoring.json','field-operations.json','trace-workflow.json','scalar-remapping.json','warp-fields.json','placement-driver-phases.json','transform-drivers.json','work-profile-project.json','semantic-sharing.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json','user-theme-custom.json','user-shadow-settings.json','user-volume-light.json','user-workspace.json','user-performance.json']),('app-config',['app-config-defaults.json','app-config-legacy.json','app-config-creation.json']),('profile-capture',['profile-capture.json','profile-capture-gpu.json','profile-capture-work.json']),('release-metadata',['release-metadata.json'])]:
  schema=json.loads((root/'schema'/f'{name}.schema.json').read_text())
  jsonschema.Draft202012Validator.check_schema(schema)
  validator=jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker())
@@ -65,3 +65,9 @@ workspace_schema=json.loads((root/'schema/user-config.schema.json').read_text())
 try:jsonschema.Draft202012Validator(workspace_schema).validate(json.loads((root/'fixtures/invalid-workspace-visibility.json').read_text()))
 except jsonschema.ValidationError:pass
 else:raise AssertionError('Duplicate workspace tool visibility was accepted')
+
+# Deferred canonical numeric performance ranges. Cross-field extent coupling is semantic.
+performance_schema=json.loads((root/'schema/user-config.schema.json').read_text())
+try:jsonschema.Draft202012Validator(performance_schema).validate(json.loads((root/'fixtures/invalid-performance-limit.json').read_text()))
+except jsonschema.ValidationError:pass
+else:raise AssertionError('Out-of-range performance limit was accepted')
