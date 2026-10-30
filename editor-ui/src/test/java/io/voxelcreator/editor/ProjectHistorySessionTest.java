@@ -314,4 +314,43 @@ class ProjectHistorySessionTest {
       assertEquals(17, state.project().noise2D.getFirst().seedOffset);
     }
   }
+
+  @Test
+  void pendingAndBlockedHistoryCannotReplaceAnAcceptedPresentationIdentity() {
+    try (var state = state()) {
+      var blocked = new AtomicBoolean(true);
+      var history = new ProjectHistorySession(state, blocked::get);
+      ((Noise) state.draft).id = "private";
+      long initial = history.requestVersion();
+      assertEquals(Result.UNAVAILABLE, history.request(Direction.UNDO));
+      assertEquals(initial, history.requestVersion());
+      blocked.set(false);
+      assertEquals(Result.NEEDS_DECISION, history.request(Direction.UNDO));
+      long request = history.requestVersion();
+      assertEquals(initial + 1, request);
+      assertEquals(Result.UNAVAILABLE, history.request(Direction.REDO));
+      assertEquals(request, history.requestVersion());
+      assertEquals(Direction.UNDO, history.direction());
+      assertEquals(Result.CANCELLED, history.decide(Decision.CANCEL));
+      assertEquals(Result.NEEDS_DECISION, history.request(Direction.UNDO));
+      assertEquals(request + 1, history.requestVersion());
+      history.clear();
+    }
+  }
+
+  @Test
+  void immediateHistoryMovesAdvanceTheIdentityButUnavailableDirectionsDoNot() {
+    try (var state = state()) {
+      var history = new ProjectHistorySession(state, () -> false);
+      long initial = history.requestVersion();
+      assertEquals(Result.UNAVAILABLE, history.request(Direction.REDO));
+      assertEquals(initial, history.requestVersion());
+      assertEquals(Result.MOVED, history.request(Direction.UNDO));
+      assertEquals(initial + 1, history.requestVersion());
+      assertEquals(Result.MOVED, history.request(Direction.REDO));
+      assertEquals(initial + 2, history.requestVersion());
+      assertFalse(history.pending());
+      assertEquals("owned", ((Noise) state.draft).id);
+    }
+  }
 }

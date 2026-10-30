@@ -243,4 +243,75 @@ class ProjectFileWorkflowTest {
       assertEquals(Phase.OPEN, f.phase());
     }
   }
+
+  @Test
+  void onlyAdmittedRequestsAdvanceThePresentationIdentityAndPendingActionsCannotRetargetIt() {
+    try (var s = state()) {
+      var blocked = new java.util.concurrent.atomic.AtomicBoolean(true);
+      var f =
+          new ProjectFileWorkflow(s, () -> fail("replacement"), () -> fail("exit"), blocked::get);
+      long initial = f.requestVersion();
+      f.request(Intent.NEW);
+      assertEquals(initial, f.requestVersion());
+      blocked.set(false);
+      f.request(Intent.OPEN);
+      long request = f.requestVersion();
+      assertEquals(initial + 1, request);
+      f.request(Intent.EXIT);
+      f.save(true);
+      assertEquals(request, f.requestVersion());
+      assertEquals("Open Project", f.action());
+      f.cancel();
+      f.request(Intent.OPEN);
+      assertEquals(request + 1, f.requestVersion());
+      assertEquals(Phase.DRAFT, f.phase());
+      f.cancel();
+    }
+  }
+
+  @Test
+  void oneRequestIdentitySurvivesInternalDecisionsFailureAndStandaloneRetry() throws Exception {
+    try (var s = state()) {
+      var f = new ProjectFileWorkflow(s, () -> fail("replacement"), () -> fail("exit"));
+      f.request(Intent.EXIT);
+      long request = f.requestVersion();
+      f.decideDraft(DraftDecision.DISCARD);
+      assertEquals(Phase.GUARD, f.phase());
+      assertEquals(request, f.requestVersion());
+      f.decide(Decision.SAVE);
+      assertEquals(Phase.SAVE, f.phase());
+      assertEquals(request, f.requestVersion());
+      f.submit("\u0000");
+      assertEquals(Phase.SAVE, f.phase());
+      assertFalse(f.error().isEmpty());
+      assertEquals(request, f.requestVersion());
+      f.submit(dir.resolve("presentation-retry.json").toString());
+      assertEquals(Phase.IDLE, f.phase());
+      assertEquals(request, f.requestVersion());
+      assertEquals("unapplied", ((Noise) s.draft).id);
+    }
+  }
+
+  @Test
+  void cancellingAndReopeningTheSamePathPhaseHasANewRequestIdentity() {
+    try (var s = state()) {
+      var f = new ProjectFileWorkflow(s, () -> fail("replacement"), () -> fail("exit"));
+      f.save(true);
+      long first = f.requestVersion();
+      assertEquals(Phase.SAVE, f.phase());
+      f.cancel();
+      f.save(true);
+      assertEquals(Phase.SAVE, f.phase());
+      assertEquals(first + 1, f.requestVersion());
+      f.cancel();
+      f.request(Intent.OPEN);
+      long open = f.requestVersion();
+      f.decideDraft(DraftDecision.DISCARD);
+      f.decide(Decision.DISCARD);
+      assertEquals(Phase.OPEN, f.phase());
+      assertEquals(open, f.requestVersion());
+      assertEquals("unapplied", ((Noise) s.draft).id);
+      f.cancel();
+    }
+  }
 }

@@ -42,6 +42,7 @@ final class ProjectFileWorkflow {
   private Phase phase = Phase.IDLE;
   private Intent pending;
   private String error = "";
+  private long requestVersion;
 
   ProjectFileWorkflow(EditorState state, Runnable replaced, Runnable exit) {
     this(state, replaced, exit, () -> false);
@@ -53,6 +54,10 @@ final class ProjectFileWorkflow {
     this.replaced = Objects.requireNonNull(replaced);
     this.exit = Objects.requireNonNull(exit);
     this.blocked = Objects.requireNonNull(blocked);
+  }
+
+  long requestVersion() {
+    return requestVersion;
   }
 
   Phase phase() {
@@ -82,6 +87,7 @@ final class ProjectFileWorkflow {
     }
     error = "";
     pending = Objects.requireNonNull(intent);
+    requestVersion++;
     transition = true;
     owner = new ProjectFileOwner(state);
     if (modifiedDraft()) phase = Phase.DRAFT;
@@ -127,6 +133,7 @@ final class ProjectFileWorkflow {
     error = "";
     pending = null;
     transition = false;
+    requestVersion++;
     owner = new ProjectFileOwner(state);
     beginSave(as);
   }

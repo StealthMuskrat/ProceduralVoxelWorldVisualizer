@@ -241,6 +241,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectHistoryProbe build/project-history
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectHistoryConsumer build/project-history
           python scripts/verify_project_history.py build/project-history
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectDecisionLayoutProbe build/project-decision-layout
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectDialogConsumer build/project-decision-layout
+          python scripts/verify_project_decision_layout.py build/project-decision-layout
       - name: Project transitions and unapplied Properties workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectDraftTransitionProbe build/project-drafts
@@ -408,6 +411,7 @@ jobs:
             build/browser-edits/
             build/project-drafts/
             build/project-history/
+            build/project-decision-layout/
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/
@@ -847,6 +851,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_project_history.py build/project-history
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectDecisionLayoutProbe build/project-decision-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ProjectDialogConsumer build/project-decision-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_project_decision_layout.py build/project-decision-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows project transitions and unapplied Properties workflow
         shell: pwsh
         run: |
@@ -1117,6 +1127,7 @@ jobs:
             build/browser-edits/
             build/project-drafts/
             build/project-history/
+            build/project-decision-layout/
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/

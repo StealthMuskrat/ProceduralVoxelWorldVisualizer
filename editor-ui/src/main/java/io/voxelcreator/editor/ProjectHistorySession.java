@@ -28,10 +28,15 @@ final class ProjectHistorySession {
   private final BooleanSupplier blocked;
   private Direction pending;
   private ProjectFileOwner owner;
+  private long requestVersion;
 
   ProjectHistorySession(EditorState state, BooleanSupplier blocked) {
     this.state = state;
     this.blocked = Objects.requireNonNull(blocked);
+  }
+
+  long requestVersion() {
+    return requestVersion;
   }
 
   boolean pending() {
@@ -54,6 +59,7 @@ final class ProjectHistorySession {
           "Finish the private editor or pending project action before using project history";
       return Result.UNAVAILABLE;
     }
+    requestVersion++;
     if (modified()) {
       pending = direction;
       owner = new ProjectFileOwner(state);
