@@ -7,6 +7,7 @@ import java.util.*;
 /** Production Workspace settings: actual tool flags and an explicit default-layout request. */
 final class WorkspacePanel {
   private final UserConfig user;
+  final SettingsPageChrome layout;
   private final Map<String, ImBoolean> tools;
   private final Runnable defaults, changed, center;
   private boolean probing;
@@ -31,23 +32,40 @@ final class WorkspacePanel {
     this.defaults = Objects.requireNonNull(defaults);
     this.changed = Objects.requireNonNull(changed);
     this.center = center;
+    layout = new SettingsPageChrome(center == null ? 1 : 2);
   }
 
   void draw() {
+    draw(null);
+  }
+
+  void draw(Runnable savePreferences) {
+    if (probing) controls.clear();
+    layout.begin("workspace-settings-body");
     var multi = new ImBoolean(user.workspace.multiViewport);
-    if (ImGui.checkbox("Multi-viewport windows (restart)", multi))
+    if (ImGui.checkbox("##workspace-multi-viewport", multi))
       user.workspace.multiViewport = multi.get();
+    control("multi-viewport");
+    DialogLayout.sameLine("Multi-viewport windows (restart)");
+    ImGui.textWrapped("Multi-viewport windows (restart)");
     ImGui.textWrapped(
         "Tool window visibility is retained in User Config. Reopening a tool does not start"
             + " profiling or a network check.");
     for (String name : WorkspaceVisibility.WINDOWS) {
-      if (ImGui.checkbox(name + " window", tools.get(name))) changed.run();
+      if (ImGui.checkbox("##workspace-tool-" + name, tools.get(name))) changed.run();
       control(name);
+      DialogLayout.sameLine(name + " window");
+      ImGui.textWrapped(name + " window");
     }
-    if (ImGui.button("Restore Default Docking")) defaults.run();
+    if (savePreferences != null) {
+      if (DialogLayout.button("Save Preferences")) savePreferences.run();
+      control("save-preferences");
+    }
+    layout.end();
+    if (layout.action("defaults", "Restore Default Docking")) defaults.run();
     control("defaults");
     if (center != null) {
-      if (ImGui.button("Center Main Window")) center.run();
+      if (layout.action("center", "Center Main Window")) center.run();
       control("center");
       if (ImGui.isItemHovered())
         UiScale.tooltip(

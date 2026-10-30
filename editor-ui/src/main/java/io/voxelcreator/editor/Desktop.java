@@ -36,6 +36,7 @@ public final class Desktop extends Application {
   private UpdateTrustPanel updateTrust;
   private WorkspacePanel workspaceSettings;
   private PerformancePanel performanceSettings;
+  private PerformanceSettingsPage performancePage;
   private UiScalePanel scaleSettings;
   private AppearanceSettingsPanel appearanceSettings;
   private UpdateCheckPanel updateChecks;
@@ -150,6 +151,7 @@ public final class Desktop extends Application {
             () -> {
               openSettings("User Settings");
               settingsCategory = "Performance";
+              performancePage.showUpdates();
             },
             UpdateCheckPanel::browse,
             ImGui::setClipboardText,
@@ -162,6 +164,7 @@ public final class Desktop extends Application {
             message ->
                 state.error(
                     "PERFORMANCE_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
+    performancePage = new PerformanceSettingsPage(performanceSettings, updateTrust);
     scaleSettings =
         new UiScalePanel(
             state.user,
@@ -826,7 +829,7 @@ public final class Desktop extends Application {
       AppearanceSettingsPanel.category(fields, settingsCategory, v -> settingsCategory = v);
       switch (settingsCategory) {
         case "Appearance" -> appearanceSettings.draw();
-        case "Workspace" -> workspaceSettings.draw();
+        case "Workspace" -> workspaceSettings.draw(this::savePreferences);
         case "Input" -> inputSettings.draw(this::savePreferences);
         case "Editor" -> {
           fields.bool(
@@ -899,16 +902,18 @@ public final class Desktop extends Application {
               state.user.visualization.indirectDrawing,
               v -> state.user.visualization.indirectDrawing = v);
           ImGui.text("Default preview extent: " + state.user.visualization.previewSize);
-          if (ImGui.button("Edit preview limits")) settingsCategory = "Performance";
+          if (DialogLayout.button("Edit preview limits")) {
+            settingsCategory = "Performance";
+            performancePage.showLimits();
+          }
         }
-        case "Performance" -> {
-          performanceSettings.draw();
-          updateTrust.draw();
-        }
+        case "Performance" -> performancePage.draw(this::savePreferences);
         default -> {}
       }
       if (!settingsCategory.equals("Appearance")
           && !settingsCategory.equals("Input")
+          && !settingsCategory.equals("Performance")
+          && !settingsCategory.equals("Workspace")
           && DialogLayout.button("Save Preferences")) savePreferences();
     }
     if (!settings.get()) projectSettings.cancel();

@@ -11,6 +11,9 @@ import java.util.function.Consumer;
 /** Production explicit performance preferences, including exact 64-bit cell-budget input. */
 final class PerformancePanel {
   private final UserConfig user;
+  final SettingsPageChrome layout = new SettingsPageChrome(3);
+  private Field reveal;
+  private final Map<Field, Integer> fieldIds = new EnumMap<>(Field.class);
   private final Path file;
   private final Consumer<String> errors;
   private final Values launched;
@@ -41,19 +44,37 @@ final class PerformancePanel {
   }
 
   void draw() {
+    draw(null);
+  }
+
+  void draw(Runnable savePreferences) {
     ensure();
-    if (probing) controls.clear();
+    if (probing) {
+      controls.clear();
+      fieldIds.clear();
+    }
+    layout.begin("performance-settings-body");
     ImGui.textWrapped(
         "Performance fields are private until Apply Performance. Revert reloads active values.");
     control("blur");
     for (var field : Field.values()) {
-      if (ImGui.inputText(field.label() + "###performance-" + field.key(), inputs.get(field)))
+      ImGui.textWrapped(field.label());
+      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+      String id = "###performance-" + field.key();
+      if (probing) fieldIds.put(field, ImGui.getID(id));
+      boolean focus = field == reveal;
+      if (focus) ImGui.setKeyboardFocusHere();
+      if (ImGui.inputText(id, inputs.get(field)))
         act(
             () -> {
               session.edit(field, inputs.get(field).get());
               message = "";
             });
       control(field.key());
+      if (focus) {
+        ImGui.setScrollHereY(.3f);
+        reveal = null;
+      }
       if (ImGui.isItemHovered())
         UiScale.tooltip("Whole decimal integer: " + field.minimum() + ".." + field.maximum());
     }
@@ -62,10 +83,11 @@ final class PerformancePanel {
         .problems()
         .forEach((field, problem) -> ImGui.textWrapped("! " + field.label() + ": " + problem));
     String displayedProblem = "";
+    var shown = displayed();
     try {
-      session.requireDisplayed(displayed());
+      session.requireDisplayed(shown);
     } catch (RuntimeException mismatch) {
-      displayedProblem = mismatch.getMessage();
+      displayedProblem = Objects.requireNonNullElse(mismatch.getMessage(), mismatch.toString());
     }
     if (!displayedProblem.isEmpty()) ImGui.textWrapped("! " + displayedProblem);
     boolean current = session.current(user);
@@ -74,27 +96,10 @@ final class PerformancePanel {
           "Active performance settings changed. Revert reloads them; private input is retained.");
     applyEnabled =
         current && session.changed() && feedback.value() != null && displayedProblem.isEmpty();
-    ImGui.beginDisabled(!applyEnabled);
-    if (ImGui.button("Apply Performance"))
-      act(
-          () -> {
-            session.apply(user, file, displayed());
-            sync();
-            message = "Performance preferences saved";
-          });
-    control("apply");
-    ImGui.endDisabled();
-    ImGui.sameLine();
-    if (ImGui.button("Revert Performance"))
-      act(
-          () -> {
-            session.revert(user);
-            sync();
-            message = "Active performance settings reloaded";
-          });
-    control("revert");
+    var firstProblem =
+        PerformanceProblemNavigation.first(session.text(), shown, feedback.problems());
     if (session.changed())
-      ImGui.textDisabled("Pending performance fields are excluded from Save Preferences");
+      ImGui.textWrapped("Pending performance fields are excluded from Save Preferences");
     var activeValues = PerformancePreferences.from(user);
     for (var field : List.of(Field.WORKERS, Field.ENGINE_MIB, Field.DEFAULT_EXTENT)) {
       long active = activeValues.get(field);
@@ -120,6 +125,37 @@ final class PerformancePanel {
                 + " Raise the budget if those previews are needed.");
     }
     if (!message.isEmpty()) ImGui.textWrapped(message);
+    if (savePreferences != null) {
+      if (DialogLayout.button("Save Preferences")) savePreferences.run();
+      control("save-preferences");
+    }
+    layout.end();
+    ImGui.beginDisabled(!applyEnabled);
+    if (layout.action("apply", "Apply Performance"))
+      act(
+          () -> {
+            session.apply(user, file, displayed());
+            sync();
+            message = "Performance preferences saved";
+          });
+    control("apply");
+    ImGui.endDisabled();
+    if (layout.action("revert", "Revert Performance"))
+      act(
+          () -> {
+            session.revert(user);
+            sync();
+            message = "Active performance settings reloaded";
+          });
+    control("revert");
+    ImGui.beginDisabled(firstProblem == null);
+    if (layout.action("problem", "Show Invalid Limit")) reveal = firstProblem;
+    control("problem");
+    ImGui.endDisabled();
+  }
+
+  Map<Field, Integer> fieldIds() {
+    return Map.copyOf(fieldIds);
   }
 
   private Map<Field, String> displayed() {

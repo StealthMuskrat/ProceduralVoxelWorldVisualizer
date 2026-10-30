@@ -6,6 +6,30 @@ import org.junit.jupiter.api.Test;
 
 class SettingsPageLayoutTest {
   @Test
+  void multilineEditorsUseFiveMeasuredRowsWithinTheVisibleBodyBudget() {
+    assertEquals(100, SettingsPageLayout.multiline(1000, 20));
+    assertEquals(40, SettingsPageLayout.multiline(100, 20));
+    assertEquals(102.5, SettingsPageLayout.multiline(400, 20.5f));
+    assertEquals(1, SettingsPageLayout.multiline(1, 80));
+  }
+
+  @Test
+  void multilineExtremeMetricsStayFinite() {
+    float value = SettingsPageLayout.multiline(Float.MAX_VALUE, Float.MAX_VALUE);
+    assertTrue(Float.isFinite(value) && value > 0 && value < Float.MAX_VALUE);
+  }
+
+  @Test
+  void multilineEditorsRejectInvalidBodyAndFontMetrics() {
+    assertThrows(IllegalArgumentException.class, () -> SettingsPageLayout.multiline(0, 20));
+    assertThrows(IllegalArgumentException.class, () -> SettingsPageLayout.multiline(400, 0));
+    assertThrows(IllegalArgumentException.class, () -> SettingsPageLayout.multiline(Float.NaN, 20));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SettingsPageLayout.multiline(400, Float.POSITIVE_INFINITY));
+  }
+
+  @Test
   void scaleTargetListUsesTwoToSixMeasuredRows() {
     assertEquals(120, SettingsPageLayout.choices(1000, 20));
     assertEquals(56, SettingsPageLayout.choices(200, 20), .001);

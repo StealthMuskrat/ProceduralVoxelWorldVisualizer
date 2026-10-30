@@ -122,3 +122,5 @@ The unvalidated [Appearance layout batch](docs/APPEARANCE_SETTINGS_LAYOUT.md) ke
 The unvalidated [Input Settings layout batch](docs/INPUT_SETTINGS_LAYOUT.md) reflows clipped shortcut rows, keeps edit/recording actions persistent and preserves same-frame capture suppression during cancellation and retry. Deferred checks remain unexecuted.
 
 The unvalidated [Themes layout batch](docs/THEME_LAYOUT.md) adds persistent recovery actions, responsive palette/contrast panes and RGBA rows, plus sticky rejected-channel save guards. Deferred checks remain unexecuted.
+
+The unvalidated [preference forms layout batch](docs/PREFERENCE_FORMS_LAYOUT.md) gives performance limits, update trust and Workspace separate scrolling bodies and persistent actions, preserving independent private drafts and exact save/retry behavior. Deferred checks remain unexecuted.

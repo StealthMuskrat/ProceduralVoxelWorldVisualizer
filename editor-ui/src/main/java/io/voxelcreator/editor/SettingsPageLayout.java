@@ -36,6 +36,12 @@ final class SettingsPageLayout {
             Math.max(2.0 * lineHeight, Math.min(6.0 * lineHeight, .28 * Math.max(0, height))));
   }
 
+  static float multiline(float bodyHeight, float lineHeight) {
+    positive(bodyHeight);
+    positive(lineHeight);
+    return (float) Math.max(1, Math.min(.4 * bodyHeight, 5.0 * lineHeight));
+  }
+
   static Pair pair(float width, float minimumFieldWidth, float gap) {
     finite(width);
     positive(minimumFieldWidth);

@@ -11,6 +11,11 @@ import java.util.function.Consumer;
  */
 final class UpdateTrustPanel {
   private final UserConfig user;
+  final SettingsPageChrome layout = new SettingsPageChrome(3);
+  private String reveal;
+  private boolean originsNext;
+  private final Map<String, Integer> fieldIds = new HashMap<>();
+  private final Map<String, DialogBounds.Rect> bounds = new HashMap<>();
   private final Path file;
   private final Consumer<String> errors;
   private UpdateTrustSession session;
@@ -44,23 +49,53 @@ final class UpdateTrustPanel {
   }
 
   void draw() {
+    draw(null);
+  }
+
+  void draw(Runnable savePreferences) {
     ensure();
-    ImGui.separator();
+    if (probing) {
+      controls.clear();
+      fieldIds.clear();
+      bounds.clear();
+    }
+    layout.begin("update-trust-body");
     ImGui.textWrapped(
         "Manual update checks use applied values only. This private draft is retained until Apply"
             + " or Revert; editing it makes no network requests.");
     control("blur");
-    if (ImGui.inputText("Manual update endpoint", endpoint))
+    ImGui.textWrapped("Manual update endpoint");
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+    if (probing) fieldIds.put("endpoint", ImGui.getID("##manual-update-endpoint"));
+    boolean focus = "endpoint".equals(reveal);
+    if (focus) ImGui.setKeyboardFocusHere();
+    if (ImGui.inputText("##manual-update-endpoint", endpoint))
       act(() -> session.editEndpoint(endpoint.get()));
     control("endpoint");
-    if (ImGui.inputTextMultiline("Approved HTTPS origins (one per line)", origins, 500, 100))
+    if (focus) {
+      ImGui.setScrollHereY(.2f);
+      reveal = null;
+    }
+    ImGui.textWrapped("Approved HTTPS origins (one per line)");
+    if (probing) fieldIds.put("origins", ImGui.getID("##manual-update-origins"));
+    focus = "origins".equals(reveal);
+    if (focus) ImGui.setKeyboardFocusHere();
+    if (ImGui.inputTextMultiline(
+        "##manual-update-origins",
+        origins,
+        Math.max(1, ImGui.getContentRegionAvailX()),
+        SettingsPageLayout.multiline(layout.body().height(), ImGui.getTextLineHeightWithSpacing())))
       act(() -> session.editOrigins(origins.get()));
     control("origins");
+    if (focus) {
+      ImGui.setScrollHereY(.5f);
+      reveal = null;
+    }
     String displayedProblem = "";
     try {
       session.requireDisplayed(displayed());
     } catch (RuntimeException mismatch) {
-      displayedProblem = mismatch.getMessage();
+      displayedProblem = Objects.requireNonNullElse(mismatch.getMessage(), mismatch.toString());
     }
     var feedback = session.feedback();
     if (!feedback.problem().isEmpty()) ImGui.textWrapped("! " + feedback.problem());
@@ -71,8 +106,15 @@ final class UpdateTrustPanel {
           "Active update settings changed. Revert reloads them; this private draft has been"
               + " retained.");
     applyEnabled = current && feedback.value() != null && displayedProblem.isEmpty();
+    if (session.changed()) ImGui.textWrapped("Pending update settings are private");
+    if (!message.isEmpty()) ImGui.textWrapped(message);
+    if (savePreferences != null) {
+      if (DialogLayout.button("Save Preferences")) savePreferences.run();
+      control("save-preferences");
+    }
+    layout.end();
     ImGui.beginDisabled(!applyEnabled);
-    if (ImGui.button("Apply Update Trust"))
+    if (layout.action("apply", "Apply Update Trust"))
       act(
           () -> {
             session.apply(user, file, displayed());
@@ -81,8 +123,7 @@ final class UpdateTrustPanel {
           });
     control("apply");
     ImGui.endDisabled();
-    ImGui.sameLine();
-    if (ImGui.button("Revert Update Trust"))
+    if (layout.action("revert", "Revert Update Trust"))
       act(
           () -> {
             session.revert(user);
@@ -90,8 +131,19 @@ final class UpdateTrustPanel {
             message = "Active update settings reloaded";
           });
     control("revert");
-    if (session.changed()) ImGui.textDisabled("Pending update settings are private");
-    if (!message.isEmpty()) ImGui.textWrapped(message);
+    if (layout.action("fields", "Show Update Fields")) {
+      reveal = originsNext ? "origins" : "endpoint";
+      originsNext = !originsNext;
+    }
+    control("fields");
+  }
+
+  Map<String, Integer> fieldIds() {
+    return Map.copyOf(fieldIds);
+  }
+
+  Map<String, DialogBounds.Rect> bounds() {
+    return Map.copyOf(bounds);
   }
 
   private UpdateTrustSession.Text displayed() {
@@ -115,13 +167,15 @@ final class UpdateTrustPanel {
   }
 
   private void control(String name) {
-    if (probing)
+    if (probing) {
+      bounds.put(name, PopupLayout.itemBounds());
       controls.put(
           name,
           new float[] {
             (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
             (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
           });
+    }
   }
 
   void probeControls() {
