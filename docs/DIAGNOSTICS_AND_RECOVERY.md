@@ -52,3 +52,5 @@ The development branch now separates keyboard activation from scroll acknowledge
 ## Development-branch seed input guards
 
 [Provisional Properties seed inputs](PROVISIONAL_SEED_INPUTS.md) retain invalid raw seed text, block parent/guarded Apply, publish resource-scoped virtual editor paths and detach text from changed gate rows. These UI/session changes and future verification definitions are uncompiled/untested under the owner testing pause. Earlier diagnostic evidence does not validate this extension.
+
+The unvalidated [diagnostic workspace follow-up](DIAGNOSTICS_LAYOUT.md) adds responsive panes, persistent recovery controls, immutable history/count view caching and displayed-occurrence acknowledgement guards. Validation selections now belong to exact publications/document lifetimes rather than reusable row indices. New definitions remain unexecuted and do not advance the earlier evidence.

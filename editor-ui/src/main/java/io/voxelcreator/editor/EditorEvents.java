@@ -95,10 +95,35 @@ public final class EditorEvents {
 
   public record Counts(int retained, int unread, int actionRequired, long evicted) {}
 
+  /** One immutable history/count view, reused until a real publication or state change. */
+  public record View(List<Entry> entries, Counts counts) {
+    public View {
+      entries = List.copyOf(entries);
+      Objects.requireNonNull(counts);
+    }
+
+    public List<Entry> search(
+        String query, Diagnostic.Severity severity, Subsystem subsystem, boolean noticesOnly) {
+      String text = Objects.requireNonNullElse(query, "").strip().toLowerCase(Locale.ROOT);
+      return entries.stream()
+          .filter(e -> !noticesOnly || !e.dismissed)
+          .filter(e -> severity == null || e.severity == severity)
+          .filter(e -> subsystem == null || e.subsystem == subsystem)
+          .filter(
+              e ->
+                  text.isEmpty()
+                      || (e.code + " " + e.message + " " + e.subsystem + " " + e.target)
+                          .toLowerCase(Locale.ROOT)
+                          .contains(text))
+          .toList();
+    }
+  }
+
   private final int capacity;
   private final Clock clock;
   private final LinkedHashMap<Key, Entry> entries = new LinkedHashMap<>();
   private long nextId = 1, evicted;
+  private View cachedView;
 
   public EditorEvents() {
     this(1000, Clock.systemUTC());
@@ -164,29 +189,33 @@ public final class EditorEvents {
       entries.remove(entries.keySet().iterator().next());
       if (evicted < Long.MAX_VALUE) evicted++;
     }
+    cachedView = null;
     return next;
   }
 
   public synchronized List<Entry> snapshot() {
-    var result = new ArrayList<>(entries.values());
-    Collections.reverse(result);
-    return List.copyOf(result);
+    return view().entries();
+  }
+
+  public synchronized View view() {
+    if (cachedView == null) {
+      var result = new ArrayList<>(entries.values());
+      Collections.reverse(result);
+      cachedView =
+          new View(
+              result,
+              new Counts(
+                  entries.size(),
+                  (int) entries.values().stream().filter(e -> !e.dismissed && !e.read).count(),
+                  (int) entries.values().stream().filter(e -> e.actionRequired).count(),
+                  evicted));
+    }
+    return cachedView;
   }
 
   public List<Entry> search(
       String query, Diagnostic.Severity severity, Subsystem subsystem, boolean noticesOnly) {
-    String text = Objects.requireNonNullElse(query, "").strip().toLowerCase(Locale.ROOT);
-    return snapshot().stream()
-        .filter(e -> !noticesOnly || !e.dismissed)
-        .filter(e -> severity == null || e.severity == severity)
-        .filter(e -> subsystem == null || e.subsystem == subsystem)
-        .filter(
-            e ->
-                text.isEmpty()
-                    || (e.code + " " + e.message + " " + e.subsystem + " " + e.target)
-                        .toLowerCase(Locale.ROOT)
-                        .contains(text))
-        .toList();
+    return view().search(query, severity, subsystem, noticesOnly);
   }
 
   public synchronized Optional<Entry> get(long id) {
@@ -201,6 +230,28 @@ public final class EditorEvents {
     update(id, null, false, null);
   }
 
+  public synchronized boolean current(Entry shown) {
+    return shown != null && get(shown.id()).orElse(null) == shown;
+  }
+
+  public synchronized boolean markRead(Entry shown) {
+    if (!current(shown)) return false;
+    update(shown.id(), true, null, null);
+    return true;
+  }
+
+  public synchronized boolean resolve(Entry shown) {
+    if (!current(shown)) return false;
+    update(shown.id(), null, false, null);
+    return true;
+  }
+
+  public synchronized boolean dismiss(Entry shown) {
+    if (!current(shown) || shown.actionRequired()) return false;
+    update(shown.id(), true, null, true);
+    return true;
+  }
+
   /** Dismissal never removes historical details or silently resolves an outstanding action. */
   public synchronized boolean dismiss(long id) {
     var e = get(id);
@@ -210,27 +261,40 @@ public final class EditorEvents {
   }
 
   public synchronized void markAllRead() {
+    markAllRead(view());
+  }
+
+  /** New or changed occurrences after the displayed view remain unread. */
+  public synchronized void markAllRead(View shown) {
+    var reviewed = new HashMap<Long, Entry>();
+    shown.entries().forEach(e -> reviewed.put(e.id(), e));
     entries.replaceAll(
-        (key, e) ->
-            new Entry(
-                e.id,
-                e.code,
-                e.severity,
-                e.subsystem,
-                e.message,
-                e.target,
-                e.first,
-                e.last,
-                e.count,
-                true,
-                e.actionRequired,
-                e.dismissed));
+        (key, e) -> {
+          if (reviewed.get(e.id()) != e || e.read()) return e;
+          cachedView = null;
+          return new Entry(
+              e.id,
+              e.code,
+              e.severity,
+              e.subsystem,
+              e.message,
+              e.target,
+              e.first,
+              e.last,
+              e.count,
+              true,
+              e.actionRequired,
+              e.dismissed);
+        });
   }
 
   private void update(long id, Boolean read, Boolean required, Boolean dismissed) {
     for (var pair : entries.entrySet()) {
       Entry e = pair.getValue();
       if (e.id != id) continue;
+      if ((read == null || read == e.read)
+          && (required == null || required == e.actionRequired)
+          && (dismissed == null || dismissed == e.dismissed)) return;
       pair.setValue(
           new Entry(
               e.id,
@@ -245,16 +309,13 @@ public final class EditorEvents {
               read == null ? e.read : read,
               required == null ? e.actionRequired : required,
               dismissed == null ? e.dismissed : dismissed));
+      cachedView = null;
       return;
     }
   }
 
   public synchronized Counts counts() {
-    return new Counts(
-        entries.size(),
-        (int) entries.values().stream().filter(e -> !e.dismissed && !e.read).count(),
-        (int) entries.values().stream().filter(e -> e.actionRequired).count(),
-        evicted);
+    return view().counts();
   }
 
   private static String clip(String value, int limit) {

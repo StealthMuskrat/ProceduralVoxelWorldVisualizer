@@ -23,3 +23,5 @@ The separate unvalidated [preference forms follow-up](PREFERENCE_FORMS_LAYOUT.md
 The unvalidated [general settings layout follow-up](GENERAL_SETTINGS_LAYOUT.md) reuses this measured chrome for Project Settings, Editor/Visualization and Debug & Profiling, preserving their separate transaction and active preference owners.
 
 The unvalidated [Profiler workspace follow-up](PROFILER_LAYOUT.md) extends the shared measured chrome to explicit multiple action rows while preserving all single-row callers. New analytical/native definitions remain deferred.
+
+The unvalidated [diagnostic workspace follow-up](DIAGNOSTICS_LAYOUT.md) reuses measured action rows and responsive list/detail budgets for Logs, Notifications and Validation Results, retaining their separate event/publication owners. New definitions remain deferred.

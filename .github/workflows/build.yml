@@ -97,6 +97,8 @@ jobs:
           python scripts/verify_general_settings_layout.py build/general-settings-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileLayoutProbe build/profile-layout
           python scripts/verify_profile_layout.py build/profile-layout
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DiagnosticsLayoutProbe build/diagnostics-layout
+          python scripts/verify_diagnostics_layout.py build/diagnostics-layout
           python scripts/verify_profile_capture.py build/profile-layout/reviewed.json build/profile-layout/reviewed.csv
           xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WindowPlacementProbe build/window-placement
           python scripts/verify_window_placement.py build/window-placement
@@ -346,6 +348,7 @@ jobs:
             build/preferences-layout/
             build/general-settings-layout/
             build/profile-layout/
+            build/diagnostics-layout/
             build/window-placement/
             build/ui-scales/
             build/ui-scale-layout/
@@ -553,6 +556,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileLayoutProbe build/profile-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_profile_layout.py build/profile-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DiagnosticsLayoutProbe build/diagnostics-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_diagnostics_layout.py build/diagnostics-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_profile_capture.py build/profile-layout/reviewed.json build/profile-layout/reviewed.csv
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -996,6 +1003,7 @@ jobs:
             build/preferences-layout/
             build/general-settings-layout/
             build/profile-layout/
+            build/diagnostics-layout/
             build/window-placement/
             build/ui-scales/
             build/ui-scale-layout/
