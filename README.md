@@ -142,3 +142,5 @@ The unvalidated [tooltip/fractional-font batch](docs/TOOLTIPS_AND_FRACTIONAL_FON
 The unvalidated [expanded expression layout batch](docs/EXPANDED_EXPRESSION_LAYOUT.md) keeps staging/cancellation/error actions persistent, measures editor/feedback viewports and preserves exact error selection through clipping and correction. Eleven regression definitions and six native size scenarios with recovery phases remain unexecuted.
 
 The unvalidated [Inspector layout batch](docs/INSPECTOR_LAYOUT.md) separates Coordinates/Trace, keeps request/restoration/bookmark actions persistent, focuses invalid displayed XYZ and invalidates source decisions after hidden trace replacement. Seven added regression definitions and twelve native layout cases with recovery phases remain unexecuted.
+
+The unvalidated [resource review layout batch](docs/RESOURCE_REVIEW_LAYOUT.md) adds persistent Import/Membership actions, separate review/filter/issue pages, measured clipped rows and Cancel-before-Apply decisions. Nine regression definitions and thirty native page/size cases with transaction recovery remain unexecuted.

@@ -104,7 +104,7 @@ public final class DialogLayoutProbe {
         state.dialogHosts.observe("Resources", 0xfedcba98, ImGui.getFrameCount());
         var incoming = new ProjectData();
         incoming.noise2D.add(noise("incoming"));
-        require(imports.stage(incoming), "Import fixture rejected");
+        require(imports.open(incoming), "Import fixture rejected");
         frames(5);
         require(
             imports.layout.viewportId() == ImGui.getMainViewport().getID(),

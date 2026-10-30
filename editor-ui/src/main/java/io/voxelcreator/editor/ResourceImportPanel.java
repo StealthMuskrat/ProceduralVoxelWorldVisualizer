@@ -18,15 +18,18 @@ final class ResourceImportPanel {
   private boolean prompt;
   private final ImString filter = new ImString(256);
   private final UiFields fields = new UiFields();
-  private String kind = "All", resolution = "All", queryKey = "", message = "";
-  private ResourceImport.Plan filteredPlan;
-  private List<ResourceImport.Row> rows = List.of();
+  private String kind = "All", resolution = "All", message = "", section = "Resources";
+  private final ImportRows projection = new ImportRows();
+  final SettingsPageChrome chrome = new SettingsPageChrome(4, 3);
   private final Map<String, float[]> controls = new HashMap<>();
   private final Map<UUID, float[]> rowControls = new HashMap<>();
+  private final Map<UUID, Integer> rowIds = new LinkedHashMap<>();
   private int submitted;
-  private int copies, reuses, skips;
+  private float rowStride;
+  private float rowLine, rowFrame, rowGap;
+  private DialogBounds.Rect listBounds;
   private Float scroll;
-  private long queries;
+  private boolean revealPage;
 
   ResourceImportPanel(EditorState state, BooleanSupplier blocked, Runnable validation) {
     this.state = state;
@@ -59,6 +62,7 @@ final class ResourceImportPanel {
     filter.set("");
     kind = resolution = "All";
     message = "";
+    section = "Resources";
     resetRows();
     prompt = true;
     return true;
@@ -74,16 +78,17 @@ final class ResourceImportPanel {
   }
 
   private void resetRows() {
-    filteredPlan = null;
-    rows = List.of();
-    queryKey = "";
+    projection.clear();
     scroll = 0f;
+    revealPage = true;
   }
 
   void draw() {
     controls.clear();
     rowControls.clear();
+    rowIds.clear();
     submitted = 0;
+    listBounds = null;
     if (prompt) {
       layout.open("Import Resources");
       prompt = false;
@@ -94,187 +99,242 @@ final class ResourceImportPanel {
       ImGui.endPopup();
       return;
     }
-    ImGui.textWrapped(
-        "Preview COPY, compatible REUSE and SKIP with dependent exclusion. Existing definitions"
-            + " stay owned by this project; import preserves a separate Properties draft.");
-    boolean current = session.current(), unavailable = blocked.getAsBoolean();
-    if (!current) {
+    boolean unavailable = blocked.getAsBoolean();
+    var preview = session.preview();
+    var view = projection.view(preview, new ImportRows.Filter(filter.get(), kind, resolution));
+    chrome.begin("import-body");
+    if (revealPage) {
+      ImGui.setScrollY(0);
+      revealPage = false;
+    }
+    if (section.equals("Resources")) {
+      search();
+      view = projection.view(preview, new ImportRows.Filter(filter.get(), kind, resolution));
+      ImGui.textWrapped("Rows " + view.rows().size() + " / " + view.total());
+      boolean visible = drawRows(view.rows(), session.current() && !unavailable);
+      // A changed choice makes this local plan obsolete; only a subsequent display acknowledges it.
+      if (visible) session.markShown(preview);
+    } else if (section.equals("Filters")) {
+      search();
       ImGui.textWrapped(
-          "The destination changed. Reload Preview to retain your choices and review a fresh"
-              + " transaction. COPY identities may change on reload.");
-      ImGui.beginDisabled(!session.canReload() || unavailable);
-      boolean reload = button("Reload Preview", "reload");
-      ImGui.endDisabled();
-      if (reload) {
+          "COPY "
+              + view.counts().copy()
+              + " / REUSE "
+              + view.counts().reuse()
+              + " / SKIP "
+              + view.counts().skip()
+              + " (including dependent exclusion)");
+      ImGui.textWrapped("Kind");
+      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+      fields.choice(
+          "##import-kind",
+          kind,
+          ImportRows.KINDS,
+          value -> {
+            kind = value;
+            scroll = 0f;
+          });
+      ImGui.textWrapped("Resolution filter");
+      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+      fields.choice(
+          "##import-resolution",
+          resolution,
+          ImportRows.RESOLUTIONS,
+          value -> {
+            resolution = value;
+            scroll = 0f;
+          });
+      ImGui.textWrapped(
+          "Filters match IDs, kinds, incoming/existing/target UUIDs and target IDs. Return to"
+              + " Resources to review the resulting transaction.");
+      ImGui.textWrapped(
+          "COPY, compatible REUSE and SKIP keep existing definitions owned by this project. SKIP"
+              + " can exclude dependent resources.");
+    } else {
+      ImGui.textWrapped("Import review and issues");
+      ImGui.textWrapped(
+          "COPY "
+              + view.counts().copy()
+              + " / REUSE "
+              + view.counts().reuse()
+              + " / SKIP "
+              + view.counts().skip()
+              + " (including dependent exclusion)");
+      ImGui.textWrapped(
+          "Import appends or reuses committed resources in one undoable edit. Unapplied Properties"
+              + " input remains private. Cancel discards these import choices.");
+      if (!session.current()) {
+        ImGui.textWrapped(
+            "The destination changed. Reload to retain choices and review a fresh transaction. COPY"
+                + " identities may change on reload.");
+        if (!session.canReload())
+          ImGui.textWrapped("The project was replaced. Cancel and reopen Import for that project.");
+      }
+      if (unavailable)
+        ImGui.textWrapped(
+            "Finish the other private editor or project action, or cancel this import.");
+      if (!message.isEmpty()) ImGui.textWrapped(bounded(message, 4096));
+      ImGui.textWrapped("Preview issues: " + preview.diagnostics().size());
+      preview.diagnostics().stream()
+          .limit(8)
+          .forEach(d -> ImGui.textWrapped(bounded(d.toString(), 1024)));
+      ImGui.textWrapped("Rejected candidate issues: " + session.issueCount());
+      session.applyIssues().stream()
+          .limit(8)
+          .forEach(d -> ImGui.textWrapped(bounded(d.toString(), 1024)));
+      if (preview.diagnostics().size() > 8 || session.issueCount() > 8)
+        ImGui.textWrapped(
+            "Only the first eight issues from each source are shown here. Candidate diagnostics are"
+                + " also available in Validation and Logs.");
+    }
+    if (!section.equals("Issues")) {
+      if (!session.current())
+        ImGui.textWrapped("! Destination changed. Reload and review before importing.");
+      if (unavailable)
+        ImGui.textWrapped("! Another private editor or project action blocks Import.");
+      if (!message.isEmpty() || !preview.diagnostics().isEmpty() || session.issueCount() > 0)
+        ImGui.textWrapped("! Review Issues for import feedback.");
+    }
+    chrome.end();
+    boolean apply = action("apply", "Import", session.canApply() && !unavailable);
+    boolean cancel = action("cancel", "Cancel", true);
+    boolean reload =
+        action("reload", "Reload", !session.current() && session.canReload() && !unavailable);
+    boolean validate = action("validation", "Validation", session.issueCount() > 0);
+    boolean resources = action("resources", "Resources", true);
+    boolean filters = action("filters", "Filters", true);
+    boolean issues = action("issues", "Issues", true);
+    if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      cancel();
+      ImGui.closeCurrentPopup();
+    } else if (reload) {
+      try {
         session.reload();
         resetRows();
         message = "";
-        ImGui.endPopup();
-        return;
+        page("Resources");
+      } catch (RuntimeException failure) {
+        message = Objects.requireNonNullElse(failure.getMessage(), failure.toString());
+        page("Issues");
       }
-      if (!session.canReload())
-        ImGui.textWrapped("The project was replaced. Cancel and reopen Import for that project.");
-    }
-    if (unavailable)
-      ImGui.textWrapped(
-          "Finish the other private editor or project action, or cancel this import.");
-    if (!message.isEmpty()) ImGui.textWrapped(message);
-    ImGui.inputTextWithHint(
-        "##import-filter", "Filter incoming IDs, kinds, UUIDs or target IDs...", filter);
+    } else if (apply && !blocked.getAsBoolean()) {
+      var result = session.apply();
+      if (result == ImportEditSession.Result.APPLIED) {
+        state.notify("Information", "Previewed resource import committed");
+        cancel();
+        ImGui.closeCurrentPopup();
+      } else {
+        message =
+            result == ImportEditSession.Result.STALE
+                ? "The destination changed; reload and review the import."
+                : "The import was rejected. Review its choices and validation results, or cancel.";
+        page("Issues");
+      }
+    } else if (validate) validation.run();
+    else if (resources) page("Resources");
+    else if (filters) page("Filters");
+    else if (issues) page("Issues");
+    ImGui.endPopup();
+  }
+
+  private void search() {
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+    if (ImGui.inputTextWithHint("##import-filter", "Filter incoming resources...", filter))
+      scroll = 0f;
     remember("filter");
-    fields.choice(
-        "Kind",
-        kind,
-        List.of("All", "noise2D", "noise3D", "folder", "layer", "voxel", "set", "group"),
-        v -> kind = v);
-    fields.choice(
-        "Resolution filter",
-        resolution,
-        List.of("All", "COPY", "REUSE", "SKIP"),
-        v -> resolution = v);
-    var preview = session.preview();
-    if (filteredPlan != preview) {
-      copies = reuses = skips = 0;
-      for (var row : preview.rows()) {
-        if (row.resolution().startsWith("COPY")) copies++;
-        else if (row.resolution().startsWith("REUSE")) reuses++;
-        else skips++;
-      }
-    }
-    String query = filter.get().strip().toLowerCase(Locale.ROOT);
-    String key = kind + "\n" + resolution + "\n" + query;
-    if (filteredPlan != preview || !key.equals(queryKey)) {
-      rows =
-          preview.rows().stream()
-              .filter(
-                  r ->
-                      (kind.equals("All") || kind.equals(r.kind()))
-                          && (resolution.equals("All") || r.resolution().startsWith(resolution))
-                          && (r.kind()
-                                  + " "
-                                  + r.id()
-                                  + " "
-                                  + r.uuid()
-                                  + " "
-                                  + r.resolution()
-                                  + " "
-                                  + Objects.toString(r.targetId(), ""))
-                              .toLowerCase(Locale.ROOT)
-                              .contains(query))
-              .toList();
-      filteredPlan = preview;
-      queryKey = key;
-      queries++;
-    }
-    ImGui.text(rows.size() + " matching / " + preview.rows().size() + " incoming resource rows");
-    ImGui.textDisabled(
-        "COPY "
-            + copies
-            + " / REUSE "
-            + reuses
-            + " / SKIP "
-            + skips
-            + " (including dependent exclusion)");
-    boolean hasIssues = !preview.diagnostics().isEmpty() || session.issueCount() > 0;
-    UiScale.beginChild(
-        "import-resources",
-        0,
-        Math.max(130, ImGui.getContentRegionAvailY() - (hasIssues ? 220 : 80)),
-        true);
-    var clipper = new ImGuiListClipper();
-    try {
-      clipper.begin(
-          rows.size(),
-          3 * ImGui.getTextLineHeightWithSpacing() + ImGui.getFrameHeightWithSpacing());
-      while (clipper.step())
-        for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
-          var row = rows.get(i);
-          submitted++;
-          ImGui.pushID(row.uuid().toString());
-          ImGui.text(AppMetadata.uiText(row.kind() + " / " + bounded(row.id(), 100)));
-          if (ImGui.isItemHovered())
-            UiScale.tooltip(bounded(row.id(), 1024) + "\nIncoming UUID: " + row.uuid());
-          ImGui.textDisabled(
-              row.existing() == null
-                  ? "No existing identity/ID conflict"
-                  : "Existing: " + row.existing() + "; compatible: " + row.compatible());
-          ImGui.beginDisabled(!current || unavailable);
-          boolean expanded = UiScale.beginCombo("Resolution", session.choice(row.uuid()).name());
-          var a = ImGui.getItemRectMin();
-          var b = ImGui.getItemRectMax();
-          rowControls.put(row.uuid(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
-          if (expanded) {
-            for (var choice : ResourceImport.Choice.values()) {
-              if (choice == ResourceImport.Choice.REUSE && !row.compatible()) continue;
-              if (ImGui.selectable(choice.name(), session.choice(row.uuid()) == choice))
-                session.choose(row.uuid(), choice);
-              remember(row.uuid() + ":" + choice);
+  }
+
+  private boolean drawRows(List<ResourceImport.Row> rows, boolean editable) {
+    boolean visible =
+        UiScale.beginChild(
+            "import-resources",
+            0,
+            ResourceReviewLayout.content(ImGui.getContentRegionAvailY()),
+            true);
+    listBounds =
+        new DialogBounds.Rect(
+            ImGui.getWindowPosX(),
+            ImGui.getWindowPosY(),
+            ImGui.getWindowSizeX(),
+            ImGui.getWindowSizeY());
+    rowLine = ImGui.getTextLineHeight();
+    rowFrame = ImGui.getFrameHeight();
+    rowGap = ImGui.getStyle().getItemSpacingY();
+    rowStride =
+        ResourceReviewLayout.importStride(
+            ImGui.getTextLineHeight(), ImGui.getFrameHeight(), ImGui.getStyle().getItemSpacingY());
+    if (visible) {
+      var clipper = new ImGuiListClipper();
+      try {
+        clipper.begin(rows.size(), rowStride);
+        while (clipper.step())
+          for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
+            var row = rows.get(i);
+            float top = ImGui.getCursorPosY();
+            submitted++;
+            ImGui.pushID(row.uuid().toString());
+            ImGui.textUnformatted(AppMetadata.uiText(row.kind() + " / " + bounded(row.id(), 100)));
+            if (ImGui.isItemHovered())
+              UiScale.tooltip(bounded(row.id(), 1024) + "\nIncoming UUID: " + row.uuid());
+            ImGui.textDisabled(
+                row.existing() == null
+                    ? "No identity/ID conflict"
+                    : "Existing: " + row.existing() + "; compatible: " + row.compatible());
+            ImGui.beginDisabled(!editable);
+            ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+            String label = "##import-resolution";
+            int widgetId = ImGui.getID(label);
+            boolean expanded = UiScale.beginCombo(label, session.choice(row.uuid()).name());
+            var a = ImGui.getItemRectMin();
+            var b = ImGui.getItemRectMax();
+            rowControls.put(row.uuid(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
+            rowIds.put(row.uuid(), widgetId);
+            if (expanded) {
+              for (var choice : ResourceImport.Choice.values()) {
+                if (choice == ResourceImport.Choice.REUSE && !row.compatible()) continue;
+                if (ImGui.selectable(choice.name(), session.choice(row.uuid()) == choice))
+                  session.choose(row.uuid(), choice);
+                remember(row.uuid() + ":" + choice);
+              }
+              ImGui.endCombo();
             }
-            ImGui.endCombo();
+            ImGui.endDisabled();
+            ImGui.textDisabled(
+                AppMetadata.uiText(
+                    row.resolution()
+                        + (row.targetId() == null ? "" : " -> " + bounded(row.targetId(), 100))));
+            if (ImGui.isItemHovered() && row.targetUuid() != null)
+              UiScale.tooltip("Preview target UUID: " + row.targetUuid());
+            ImGui.popID();
+            ImGui.setCursorPosY(top + rowStride - ImGui.getStyle().getItemSpacingY());
+            ImGui.dummy(0, 0);
           }
-          ImGui.endDisabled();
-          ImGui.textDisabled(
-              AppMetadata.uiText(
-                  row.resolution()
-                      + (row.targetId() == null ? "" : " -> " + bounded(row.targetId(), 100))));
-          if (ImGui.isItemHovered() && row.targetUuid() != null)
-            UiScale.tooltip("Preview target UUID: " + row.targetUuid());
-          ImGui.popID();
-        }
-      clipper.end();
-    } finally {
-      clipper.destroy();
+        clipper.end();
+      } finally {
+        clipper.destroy();
+      }
     }
     if (scroll != null) {
       ImGui.setScrollY(scroll);
       scroll = null;
     }
     ImGui.endChild();
-    if (hasIssues) UiScale.beginChild("import-issues", 0, 110, true);
-    if (!preview.diagnostics().isEmpty()) {
-      ImGui.textWrapped("Preview issues: " + preview.diagnostics().size());
-      preview.diagnostics().stream()
-          .limit(8)
-          .forEach(d -> ImGui.textWrapped(bounded(d.toString(), 1024)));
-    }
-    if (session.issueCount() > 0) {
-      ImGui.textWrapped("Rejected candidate issues: " + session.issueCount());
-      session.applyIssues().stream()
-          .limit(8)
-          .forEach(d -> ImGui.textWrapped(bounded(d.toString(), 1024)));
-    }
-    if (hasIssues) ImGui.endChild();
-    if (session.issueCount() > 0 && button("View Validation Results", "validation"))
-      validation.run();
-    // A choice edited while drawing invalidates this exact plan; its successor must be displayed.
-    session.markShown(preview);
-    ImGui.beginDisabled(!session.canApply() || unavailable);
-    boolean apply = button("Import Previewed Transaction", "apply");
-    ImGui.endDisabled();
-    if (apply && !blocked.getAsBoolean()) {
-      var result = session.apply();
-      if (result == ImportEditSession.Result.APPLIED) {
-        state.notify("Information", "Previewed resource import committed");
-        cancel();
-        ImGui.closeCurrentPopup();
-      } else
-        message =
-            result == ImportEditSession.Result.STALE
-                ? "The destination changed; reload and review the import."
-                : "The import was rejected. Review its choices and validation results, or cancel.";
-    }
-    DialogLayout.sameLine("Cancel");
-    if (button("Cancel", "cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      cancel();
-      ImGui.closeCurrentPopup();
-    }
-    ImGui.endPopup();
+    return visible;
   }
 
-  private boolean button(String label, String key) {
-    boolean clicked = DialogLayout.button(label);
+  private boolean action(String key, String label, boolean enabled) {
+    ImGui.beginDisabled(!enabled);
+    boolean clicked = chrome.identifiedAction(key, label);
+    ImGui.endDisabled();
     remember(key);
-    return clicked;
+    return enabled && clicked;
+  }
+
+  private void page(String value) {
+    if (!section.equals(value)) {
+      section = value;
+      revealPage = true;
+    }
   }
 
   private void remember(String key) {
@@ -284,7 +344,7 @@ final class ResourceImportPanel {
   }
 
   private static String bounded(String value, int length) {
-    return value.length() <= length ? value : value.substring(0, length - 1) + "…";
+    return StatusBarText.clip(value, length);
   }
 
   float[] control(String key) {
@@ -300,7 +360,27 @@ final class ResourceImportPanel {
   }
 
   long queries() {
-    return queries;
+    return projection.evaluations();
+  }
+
+  String section() {
+    return section;
+  }
+
+  DialogBounds.Rect listBounds() {
+    return listBounds;
+  }
+
+  Map<String, Float> rowMetrics() {
+    return Map.of("line", rowLine, "frame", rowFrame, "gap", rowGap);
+  }
+
+  float rowStride() {
+    return rowStride;
+  }
+
+  Map<UUID, Integer> rowIds() {
+    return Map.copyOf(rowIds);
   }
 
   void probeScroll(float y) {

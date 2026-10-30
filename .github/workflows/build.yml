@@ -228,6 +228,8 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImportWorkspaceProbe build/import-workspace
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ImportWorkspaceConsumer build/import-workspace
           python scripts/verify_import_workspace.py build/import-workspace
+          java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceReviewLayoutProbe build/resource-review-layout
+          python scripts/verify_resource_review_layout.py build/resource-review-layout
       - name: Project history and unapplied Properties workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectHistoryProbe build/project-history
@@ -401,6 +403,7 @@ jobs:
             build/project-drafts/
             build/project-history/
             build/import-workspace/
+            build/resource-review-layout/
             build/bookmark-inputs/
             build/pin-browser/
             build/project-settings/
@@ -811,6 +814,10 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_import_workspace.py build/import-workspace
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceReviewLayoutProbe build/resource-review-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_resource_review_layout.py build/resource-review-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows project history and unapplied Properties workflow
         shell: pwsh
         run: |
@@ -1091,6 +1098,7 @@ jobs:
             build/project-drafts/
             build/project-history/
             build/import-workspace/
+            build/resource-review-layout/
             build/bookmark-inputs/
             build/pin-browser/
             build/project-settings/
