@@ -124,3 +124,5 @@ The unvalidated [Input Settings layout batch](docs/INPUT_SETTINGS_LAYOUT.md) ref
 The unvalidated [Themes layout batch](docs/THEME_LAYOUT.md) adds persistent recovery actions, responsive palette/contrast panes and RGBA rows, plus sticky rejected-channel save guards. Deferred checks remain unexecuted.
 
 The unvalidated [preference forms layout batch](docs/PREFERENCE_FORMS_LAYOUT.md) gives performance limits, update trust and Workspace separate scrolling bodies and persistent actions, preserving independent private drafts and exact save/retry behavior. Deferred checks remain unexecuted.
+
+The unvalidated [general settings layout batch](docs/GENERAL_SETTINGS_LAYOUT.md) keeps Project Settings transactions and live Editor/Visualization actions reachable, with supported shadow choices and shared Debug/Profiler capture controls. Deferred checks remain unexecuted.

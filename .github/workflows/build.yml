@@ -93,6 +93,8 @@ jobs:
           python scripts/verify_performance_preferences.py build/performance-preferences
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreferencesLayoutProbe build/preferences-layout
           python scripts/verify_preferences_layout.py build/preferences-layout
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.GeneralSettingsLayoutProbe build/general-settings-layout
+          python scripts/verify_general_settings_layout.py build/general-settings-layout
           xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WindowPlacementProbe build/window-placement
           python scripts/verify_window_placement.py build/window-placement
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UiScaleProbe build/ui-scales
@@ -339,6 +341,7 @@ jobs:
             build/workspace/
             build/performance-preferences/
             build/preferences-layout/
+            build/general-settings-layout/
             build/window-placement/
             build/ui-scales/
             build/ui-scale-layout/
@@ -538,6 +541,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreferencesLayoutProbe build/preferences-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_preferences_layout.py build/preferences-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.GeneralSettingsLayoutProbe build/general-settings-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_general_settings_layout.py build/general-settings-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WindowPlacementProbe build/window-placement
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -977,6 +984,7 @@ jobs:
             build/workspace/
             build/performance-preferences/
             build/preferences-layout/
+            build/general-settings-layout/
             build/window-placement/
             build/ui-scales/
             build/ui-scale-layout/

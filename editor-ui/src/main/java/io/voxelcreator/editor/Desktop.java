@@ -39,6 +39,8 @@ public final class Desktop extends Application {
   private PerformanceSettingsPage performancePage;
   private UiScalePanel scaleSettings;
   private AppearanceSettingsPanel appearanceSettings;
+  private LivePreferencesPanel livePreferences;
+  private DebugSettingsPanel debugSettings;
   private UpdateCheckPanel updateChecks;
   private final ImBoolean updateWindow = new ImBoolean(false);
   private String smokeDiagnosticDocument;
@@ -247,6 +249,34 @@ public final class Desktop extends Application {
     imports =
         new ResourceImportPanel(state, this::packageInteractionBlocked, () -> validation.set(true));
     views = new Viewports(state, properties, handle);
+    livePreferences =
+        new LivePreferencesPanel(
+            state.user,
+            this::savePreferences,
+            () -> {
+              settingsCategory = "Performance";
+              performancePage.showLimits();
+            },
+            views::retryShadows,
+            () -> {
+              var descriptions = new ArrayList<String>();
+              var statistics = views.shadowStatistics();
+              for (int i = 0; i < statistics.size(); i++) {
+                var shadow = statistics.get(i);
+                descriptions.add(
+                    (i == 0 ? "2D" : i == 1 ? "3D Noise" : "World")
+                        + ": "
+                        + shadow.state()
+                        + " / "
+                        + shadow.bytes()
+                        + " bytes / "
+                        + shadow.detail());
+              }
+              return List.copyOf(descriptions);
+            });
+    debugSettings =
+        new DebugSettingsPanel(
+            state, views::streamingStatistics, captures::start, () -> profiler.set(true));
     views.tracePanel(new TracePanel(state, sourceNavigation));
     diagnostics.tracePanel(new TracePanel(state, sourceNavigation));
     glfwSetWindowCloseCallback(
@@ -800,121 +830,18 @@ public final class Desktop extends Application {
     } else if (settingsPage.equals("Application Settings")) {
       applicationSettings.draw();
     } else if (settingsPage.equals("Debug & Profiling")) {
-      for (String category :
-          List.of(
-              "General",
-              "Generation",
-              "World-Chunks",
-              "Rendering",
-              "Memory",
-              "Scheduler",
-              "LOD",
-              "Diagnostics"))
-        if (ImGui.collapsingHeader(category)) {
-          var m = state.engine.metrics();
-          ImGui.textWrapped(m.toString());
-          ImGui.textWrapped(views.streamingStatistics().toString());
-        }
-      fields.bool(
-          "Enable targeted profiling",
-          state.engine.profiler().current().map(Profiler.Capture::recording).orElse(false),
-          v -> {
-            if (v) {
-              captures.start();
-              profiler.set(true);
-            } else state.engine.profiler().stop();
-          });
-      if (ImGui.button("Open Profiler")) profiler.set(true);
+      debugSettings.draw();
     } else {
       AppearanceSettingsPanel.category(fields, settingsCategory, v -> settingsCategory = v);
       switch (settingsCategory) {
         case "Appearance" -> appearanceSettings.draw();
         case "Workspace" -> workspaceSettings.draw(this::savePreferences);
         case "Input" -> inputSettings.draw(this::savePreferences);
-        case "Editor" -> {
-          fields.bool(
-              "Auto regenerate on changes",
-              state.user.editor.autoRegenerate,
-              v -> state.user.editor.autoRegenerate = v);
-          int[] rate = {state.user.editor.opportunitiesPerSecond};
-          if (ImGui.sliderInt("Opportunities / second", rate, 1, 20))
-            state.user.editor.opportunitiesPerSecond = rate[0];
-        }
-        case "Visualization" -> {
-          fields.bool(
-              "Grid", state.user.visualization.grid, v -> state.user.visualization.grid = v);
-          fields.bool(
-              "Unlit", state.user.visualization.unlit, v -> state.user.visualization.unlit = v);
-          fields.bool(
-              "Camera-driven chunk streaming",
-              state.user.visualization.streaming,
-              v -> state.user.visualization.streaming = v);
-          fields.bool(
-              "Ambient occlusion",
-              state.user.visualization.ambientOcclusion,
-              v -> state.user.visualization.ambientOcclusion = v);
-          fields.bool(
-              "Distance fog", state.user.visualization.fog, v -> state.user.visualization.fog = v);
-          fields.bool(
-              "Directional shadows",
-              state.user.visualization.shadows,
-              v -> state.user.visualization.shadows = v);
-          if (state.user.visualization.shadows) {
-            fields.integer(
-                "Shadow map maximum resolution",
-                state.user.visualization.shadowResolution,
-                v ->
-                    state.user.visualization.shadowResolution =
-                        v <= 512 ? 512 : v <= 1024 ? 1024 : 2048);
-            ImGui.textWrapped(
-                "Triangle meshes cast shadows from complete resident geometry. GPU budget may lower"
-                    + " resolution. Unlit, points, volumes and slices bypass shadows.");
-            if (ImGui.button("Retry shadow rendering")) views.retryShadows();
-            var shadowStats = views.shadowStatistics();
-            for (int i = 0; i < shadowStats.size(); i++) {
-              var shadow = shadowStats.get(i);
-              ImGui.textWrapped(
-                  (i == 0 ? "2D" : i == 1 ? "3D Noise" : "World")
-                      + ": "
-                      + shadow.state()
-                      + " / "
-                      + shadow.bytes()
-                      + " bytes / "
-                      + shadow.detail());
-            }
-          }
-          fields.bool(
-              "Volume self-shadowing",
-              state.user.visualization.volumeShadows,
-              v -> state.user.visualization.volumeShadows = v);
-          if (state.user.visualization.volumeShadows) {
-            fields.integer(
-                "Volume light ray samples",
-                state.user.visualization.volumeShadowSteps,
-                v -> state.user.visualization.volumeShadowSteps = v <= 8 ? 8 : v <= 16 ? 16 : 32);
-            ImGui.textWrapped(
-                "Directional attenuation through the accepted volume only. Adds up to 32 texture"
-                    + " samples per view-ray step. Unlit bypasses it; no volume regeneration is"
-                    + " required.");
-          }
-          fields.bool(
-              "Indirect drawing when supported",
-              state.user.visualization.indirectDrawing,
-              v -> state.user.visualization.indirectDrawing = v);
-          ImGui.text("Default preview extent: " + state.user.visualization.previewSize);
-          if (DialogLayout.button("Edit preview limits")) {
-            settingsCategory = "Performance";
-            performancePage.showLimits();
-          }
-        }
+        case "Editor" -> livePreferences.drawEditor();
+        case "Visualization" -> livePreferences.drawVisualization();
         case "Performance" -> performancePage.draw(this::savePreferences);
         default -> {}
       }
-      if (!settingsCategory.equals("Appearance")
-          && !settingsCategory.equals("Input")
-          && !settingsCategory.equals("Performance")
-          && !settingsCategory.equals("Workspace")
-          && DialogLayout.button("Save Preferences")) savePreferences();
     }
     if (!settings.get()) projectSettings.cancel();
     ImGui.end();

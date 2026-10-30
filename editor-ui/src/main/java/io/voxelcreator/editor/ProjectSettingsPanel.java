@@ -13,6 +13,9 @@ public final class ProjectSettingsPanel {
   private final Map<String, ImString> buffers = new LinkedHashMap<>();
   private final Map<String, float[]> controls = new HashMap<>();
   private final PropertyFocus focus = new PropertyFocus();
+  final SettingsPageChrome layout = new SettingsPageChrome(4);
+  private final Map<String, Integer> fieldIds = new LinkedHashMap<>();
+  private final Map<String, DialogBounds.Rect> inputBounds = new LinkedHashMap<>();
   private boolean focusWindow;
   private String message = "";
   private int diagnosticRows;
@@ -58,6 +61,8 @@ public final class ProjectSettingsPanel {
     focusWindow = false;
     diagnosticRows = 0;
     controls.clear();
+    fieldIds.clear();
+    inputBounds.clear();
   }
 
   boolean pendingChanges() {
@@ -67,6 +72,8 @@ public final class ProjectSettingsPanel {
   /** Called inside the shared Settings window; true closes that window after Apply/Cancel. */
   public boolean draw() {
     controls.clear();
+    fieldIds.clear();
+    inputBounds.clear();
     diagnosticRows = 0;
     if (session == null || session.closed()) return true;
     if (focusWindow) {
@@ -75,17 +82,12 @@ public final class ProjectSettingsPanel {
     }
     boolean current = session.current(state);
     focus.synchronize(state.project().project.uuid, null, session);
+    layout.begin("project-settings-body");
     if (!current) {
       focus.cancel();
       ImGui.textWrapped(
           "The project changed while these settings were open. This private text is preserved;"
               + " discard and reload before applying.");
-      boolean reload = ImGui.button("Discard and Reload");
-      control("reload");
-      if (reload) {
-        reload();
-        return false;
-      }
     }
     ImGui.textWrapped(
         "Apply validates these values against the complete current project. Changes remain private"
@@ -93,14 +95,18 @@ public final class ProjectSettingsPanel {
     for (var field : ProjectSettingsSession.FIELDS) {
       boolean targeted = focus.matches(null, field);
       boolean submitted = targeted && focus.submit();
-      if (submitted) ImGui.setKeyboardFocusHere();
       String label =
           switch (field) {
             case "seed" -> "Project seed";
             case "minY" -> "Minimum Y (inclusive)";
             default -> "Maximum Y (inclusive)";
           };
-      if (ImGui.inputText(label, buffers.get(field))) {
+      ImGui.textWrapped(label);
+      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+      String id = "###project-setting-" + field;
+      fieldIds.put(field, ImGui.getID(id));
+      if (submitted) ImGui.setKeyboardFocusHere();
+      if (ImGui.inputText(id, buffers.get(field))) {
         String value = buffers.get(field).get();
         if (value.length() > ProjectSettingsSession.MAX_CHARACTERS) {
           buffers.get(field).set(session.text(field));
@@ -111,6 +117,7 @@ public final class ProjectSettingsPanel {
         }
       }
       control(field);
+      inputBounds.put(field, PopupLayout.itemBounds());
       if (targeted) {
         ImGui.setScrollHereY(.25f);
         if (ImGui.isItemActive() || ImGui.isItemFocused()) focus.acknowledge(field);
@@ -121,7 +128,12 @@ public final class ProjectSettingsPanel {
     var problems = session.validate();
     for (var problem : problems) ImGui.textWrapped("! " + problem.message());
     if (problems.isEmpty() && session.issueCount() > 0) {
-      UiScale.beginChild("project-settings-diagnostics", 0, 110, true);
+      UiScale.beginChild(
+          "project-settings-diagnostics",
+          0,
+          SettingsPageLayout.multiline(
+              layout.body().height(), ImGui.getTextLineHeightWithSpacing()),
+          true);
       for (var problem : session.applyIssues().stream().limit(8).toList()) {
         diagnosticRows++;
         ImGui.textWrapped("! " + bounded(problem.jsonPointer() + ": " + problem.message(), 1024));
@@ -130,14 +142,16 @@ public final class ProjectSettingsPanel {
       ImGui.textDisabled(session.issueCount() + " candidate diagnostic(s); showing up to eight.");
     }
     if (!message.isEmpty()) ImGui.textWrapped("! " + bounded(message, 512));
+    var owned = new LinkedHashMap<String, String>();
+    for (var field : ProjectSettingsSession.FIELDS) owned.put(field, session.text(field));
+    String firstProblem =
+        ProjectSettingsProblemNavigation.first(owned, displayed(), problems, session.applyIssues());
+    layout.end();
     boolean done = false;
     ImGui.beginDisabled(!current);
-    if (ImGui.button("Apply")) {
+    if (layout.action("apply", "Apply")) {
       try {
-        var displayed = new LinkedHashMap<String, String>();
-        for (var field : ProjectSettingsSession.FIELDS)
-          displayed.put(field, buffers.get(field).get());
-        done = session.apply(state, displayed);
+        done = session.apply(state, displayed());
         if (!done)
           message =
               session.applyFailure().isEmpty()
@@ -153,11 +167,39 @@ public final class ProjectSettingsPanel {
     }
     control("apply");
     ImGui.endDisabled();
-    ImGui.sameLine();
-    if (ImGui.button("Cancel")) done = true;
+    if (layout.action("cancel", "Cancel")) done = true;
     control("cancel");
+    ImGui.beginDisabled(current || done);
+    if (layout.action("reload", "Discard and Reload")) reload();
+    control("reload");
+    ImGui.endDisabled();
+    ImGui.beginDisabled(firstProblem == null || !current || done);
+    if (layout.action("problem", "Show Problem"))
+      focus.request(
+          new EditorEvents.Target(state.project().project.uuid, null, null, firstProblem, "", true),
+          session);
+    control("problem");
+    ImGui.endDisabled();
     if (done) cancel();
     return done;
+  }
+
+  private Map<String, String> displayed() {
+    var result = new LinkedHashMap<String, String>();
+    buffers.forEach((key, value) -> result.put(key, value.get()));
+    return result;
+  }
+
+  Map<String, Integer> fieldIds() {
+    return Map.copyOf(fieldIds);
+  }
+
+  Map<String, DialogBounds.Rect> inputBounds() {
+    return Map.copyOf(inputBounds);
+  }
+
+  List<Diagnostic> feedback() {
+    return session.validate();
   }
 
   private static String bounded(String text, int limit) {
