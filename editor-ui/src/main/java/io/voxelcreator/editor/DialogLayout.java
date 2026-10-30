@@ -9,11 +9,18 @@ final class DialogLayout {
   private final EditorState state;
   private final String owner;
   private final DialogBounds geometry;
-  private int viewportId, lastWorkViewport;
+  private int viewportId;
+  private final PopupWorkAreaResolver workAreas;
+  private PopupWorkArea.Plan workArea;
   private final float preferredWidth, preferredHeight;
-  private DialogBounds.Rect lastWork;
 
   DialogLayout(EditorState state, String owner, float width, float height) {
+    this(state, owner, width, height, new PopupWorkAreaResolver());
+  }
+
+  DialogLayout(
+      EditorState state, String owner, float width, float height, PopupWorkAreaResolver workAreas) {
+    this.workAreas = Objects.requireNonNull(workAreas);
     this.state = Objects.requireNonNull(state);
     this.owner = owner;
     geometry = new DialogBounds(width, height);
@@ -22,7 +29,15 @@ final class DialogLayout {
   }
 
   static void observe(EditorState state, String owner) {
-    state.dialogHosts.observe(owner, ImGui.getWindowViewport().getID(), ImGui.getFrameCount());
+    state.dialogHosts.observe(
+        owner,
+        ImGui.getWindowViewport().getID(),
+        ImGui.getFrameCount(),
+        new DialogBounds.Rect(
+            ImGui.getWindowPosX(),
+            ImGui.getWindowPosY(),
+            ImGui.getWindowSizeX(),
+            ImGui.getWindowSizeY()));
   }
 
   void open(String title) {
@@ -36,38 +51,11 @@ final class DialogLayout {
 
   boolean begin(String title, int flags) {
     int requested = state.dialogHosts.viewport(owner, ImGui.getFrameCount());
-    var viewport = requested == 0 ? null : ImGui.findViewportByID(requested);
-    if (viewport == null || !viewport.isValidPtr()) viewport = ImGui.getMainViewport();
-    viewportId = viewport.getID();
-    float x = viewport.getWorkPosX(),
-        y = viewport.getWorkPosY(),
-        width = viewport.getWorkSizeX(),
-        height = viewport.getWorkSizeY();
-    DialogBounds.Rect work;
-    if (valid(x, y, width, height)) work = new DialogBounds.Rect(x, y, width, height);
-    else if (lastWork != null && lastWorkViewport == viewportId) work = lastWork;
-    else {
-      var main = ImGui.getMainViewport();
-      x = main.getWorkPosX();
-      y = main.getWorkPosY();
-      width = main.getWorkSizeX();
-      height = main.getWorkSizeY();
-      viewportId = main.getID();
-      if (!valid(x, y, width, height)) {
-        x = main.getPosX();
-        y = main.getPosY();
-        width = main.getSizeX();
-        height = main.getSizeY();
-      }
-      if (!valid(x, y, width, height)) {
-        x = y = 0;
-        width = Math.max(160, preferredWidth) + 16;
-        height = Math.max(120, preferredHeight) + 16;
-      }
-      work = new DialogBounds.Rect(x, y, width, height);
-    }
-    lastWork = work;
-    lastWorkViewport = viewportId;
+    var anchor = geometry.observed();
+    if (anchor == null) anchor = state.dialogHosts.bounds(owner, ImGui.getFrameCount());
+    workArea = workAreas.resolve(requested, anchor, preferredWidth, preferredHeight);
+    viewportId = workArea.viewportId();
+    var work = workArea.bounds();
     var plan = geometry.prepare(viewportId, work);
     var usable = DialogBounds.inset(work);
     ImGui.setNextWindowViewport(viewportId);
@@ -90,13 +78,8 @@ final class DialogLayout {
     return true;
   }
 
-  private static boolean valid(float x, float y, float width, float height) {
-    return Float.isFinite(x)
-        && Float.isFinite(y)
-        && Float.isFinite(width)
-        && Float.isFinite(height)
-        && width > 0
-        && height > 0;
+  PopupWorkArea.Plan workArea() {
+    return workArea;
   }
 
   DialogBounds.Rect bounds() {

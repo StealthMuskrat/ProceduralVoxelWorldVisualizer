@@ -19,7 +19,7 @@ public final class ResourcePicker {
   }
 
   private final Map<Integer, Widget> widgets = new LinkedHashMap<>(16, .75f, true);
-  final PopupLayout layout = new PopupLayout();
+  final PopupLayout layout;
   private boolean probeOpen, focused;
   private final Map<UUID, float[]> optionBounds = new HashMap<>();
   private int submitted;
@@ -28,7 +28,12 @@ public final class ResourcePicker {
   private long observedRevision;
 
   public ResourcePicker(EditorState state) {
-    this.state = state;
+    this(state, new PopupLayout());
+  }
+
+  ResourcePicker(EditorState state, PopupLayout layout) {
+    this.state = Objects.requireNonNull(state);
+    this.layout = Objects.requireNonNull(layout);
   }
 
   public void synchronize() {

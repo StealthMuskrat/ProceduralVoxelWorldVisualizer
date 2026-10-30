@@ -9,6 +9,20 @@ import imgui.type.ImString;
  */
 final class PopupLayout {
   private DialogBounds.Rect bounds, query, list;
+  private final PopupWorkAreaResolver workAreas;
+  private PopupWorkArea.Plan workArea;
+
+  PopupLayout() {
+    this(new PopupWorkAreaResolver());
+  }
+
+  PopupLayout(PopupWorkAreaResolver workAreas) {
+    this.workAreas = java.util.Objects.requireNonNull(workAreas);
+  }
+
+  PopupWorkArea.Plan workArea() {
+    return workArea;
+  }
 
   static DialogBounds.Rect itemBounds() {
     return new DialogBounds.Rect(
@@ -20,18 +34,13 @@ final class PopupLayout {
 
   boolean begin(String title, DialogBounds.Rect anchor, float width, float height) {
     bounds = query = list = null;
+    workArea = null;
     // Do not submit NextWindow data when the selector is closed: it could affect the next window.
     if (!ImGui.isPopupOpen(title)) return false;
-    var viewport = ImGui.getWindowViewport();
-    if (viewport == null || !viewport.isValidPtr()) viewport = ImGui.getMainViewport();
-    var work = work(viewport);
-    if (work == null) {
-      viewport = ImGui.getMainViewport();
-      work = work(viewport);
-      if (work == null) work = new DialogBounds.Rect(0, 0, width + 16, height + 16);
-    }
-    var fit = PopupBounds.fit(work, anchor, width, height);
-    ImGui.setNextWindowViewport(viewport.getID());
+    int host = ImGui.getWindowViewport().getID();
+    workArea = workAreas.resolve(host, anchor, width, height);
+    var fit = PopupBounds.fit(workArea.bounds(), anchor, width, height);
+    ImGui.setNextWindowViewport(workArea.viewportId());
     ImGui.setNextWindowPos(fit.x(), fit.y(), ImGuiCond.Always);
     ImGui.setNextWindowSize(fit.width(), fit.height(), ImGuiCond.Always);
     ImGui.setNextWindowSizeConstraints(1, 1, fit.width(), fit.height());
@@ -43,20 +52,6 @@ final class PopupLayout {
             ImGui.getWindowSizeX(),
             ImGui.getWindowSizeY());
     return true;
-  }
-
-  private static DialogBounds.Rect work(ImGuiViewport viewport) {
-    float x = viewport.getWorkPosX(),
-        y = viewport.getWorkPosY(),
-        width = viewport.getWorkSizeX(),
-        height = viewport.getWorkSizeY();
-    if (!Float.isFinite(x)
-        || !Float.isFinite(y)
-        || !Float.isFinite(width)
-        || !Float.isFinite(height)
-        || width <= 0
-        || height <= 0) return null;
-    return new DialogBounds.Rect(x, y, width, height);
   }
 
   DialogBounds.Rect bounds() {

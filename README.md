@@ -108,3 +108,5 @@ The unvalidated [Curve Editor layout follow-up](docs/CURVE_LAYOUT.md) keeps Appl
 The unvalidated [status and utility layout batch](docs/STATUS_AND_UTILITY_LAYOUT.md) reserves a measured bottom status strip, keeps notifications reachable in narrow layouts, preserves dock identity and extends floating bounds to thirteen utility/settings windows. GitHub testing remains paused.
 
 The unvalidated [core window layout batch](docs/CORE_WINDOW_LAYOUT.md) extends outer bounds to the five remaining scale targets and adds responsive Inspector XYZ columns with stable raw input, plus bounded browser/trace actions. Full internal-layout and physical DPI acceptance remain pending.
+
+The unvalidated [popup monitor work-area follow-up](docs/POPUP_MONITOR_WORK_AREAS.md) intersects covered modals/selectors with current monitor work areas in absolute-coordinate mode and recovers offscreen detached owners to a usable main client. Relative/no-inventory and physical acceptance limits remain explicit.

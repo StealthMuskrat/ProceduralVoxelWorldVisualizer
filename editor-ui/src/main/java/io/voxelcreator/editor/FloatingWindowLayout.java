@@ -29,31 +29,18 @@ final class FloatingWindowLayout {
     if (initialSize) ImGui.setNextWindowSize(width, height, ImGuiCond.FirstUseEver);
     var main = ImGui.getMainViewport();
     var mainWork =
-        rectangle(main.getWorkPosX(), main.getWorkPosY(), main.getWorkSizeX(), main.getWorkSizeY());
-    boolean absolute = ImGui.getIO().hasConfigFlags(ImGuiConfigFlags.ViewportsEnable);
-    var monitors = new ArrayList<DialogBounds.Rect>();
-    if (absolute) {
-      var platform = ImGui.getPlatformIO();
-      for (int i = 0; i < platform.getMonitorsSize(); i++) {
-        var monitor = platform.getMonitors(i);
-        var area =
-            rectangle(
-                monitor.getWorkPosX(),
-                monitor.getWorkPosY(),
-                monitor.getWorkSizeX(),
-                monitor.getWorkSizeY());
-        if (area != null) monitors.add(area);
-      }
-    }
+        UiMonitorWorkAreas.rectangle(
+            main.getWorkPosX(), main.getWorkPosY(), main.getWorkSizeX(), main.getWorkSizeY());
+    var inventory = UiMonitorWorkAreas.snapshot();
     var host = geometry.viewport() == 0 ? null : ImGui.findViewportByID(geometry.viewport());
     boolean missing = geometry.viewport() != 0 && (host == null || !host.isValidPtr());
     var work =
         FloatingWindowBounds.work(
-            absolute,
+            inventory.absolute(),
             geometry.viewport() == main.getID() || missing,
             mainWork,
             geometry.bounds(),
-            monitors);
+            inventory.monitors());
     var plan =
         geometry.prepare(
             ImGui.isMouseDown(0) || ImGui.isMouseDown(1) || ImGui.isMouseDown(2), work);
@@ -84,16 +71,5 @@ final class FloatingWindowLayout {
 
   DialogBounds.Rect bounds() {
     return measured;
-  }
-
-  private static DialogBounds.Rect rectangle(float x, float y, float width, float height) {
-    return Float.isFinite(x)
-            && Float.isFinite(y)
-            && Float.isFinite(width)
-            && Float.isFinite(height)
-            && width > 0
-            && height > 0
-        ? new DialogBounds.Rect(x, y, width, height)
-        : null;
   }
 }

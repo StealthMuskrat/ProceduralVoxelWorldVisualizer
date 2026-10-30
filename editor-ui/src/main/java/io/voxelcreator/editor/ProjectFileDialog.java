@@ -20,8 +20,17 @@ final class ProjectFileDialog {
   }
 
   ProjectFileDialog(EditorState state, Runnable replaced, Runnable exit, BooleanSupplier blocked) {
+    this(state, replaced, exit, blocked, new PopupWorkAreaResolver());
+  }
+
+  ProjectFileDialog(
+      EditorState state,
+      Runnable replaced,
+      Runnable exit,
+      BooleanSupplier blocked,
+      PopupWorkAreaResolver workAreas) {
     this.state = state;
-    layout = new DialogLayout(state, null, 640, 300);
+    layout = new DialogLayout(state, null, 640, 300, workAreas);
     workflow = new ProjectFileWorkflow(state, replaced, exit, blocked);
   }
 
