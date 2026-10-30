@@ -26,7 +26,7 @@ View > Center Main Window and the same Workspace settings button restore normal 
 
 The pinned [imgui-java 1.89.0 Window implementation](https://github.com/SpaiR/imgui-java/blob/v1.89.0/imgui-app/src/main/java/imgui/app/Window.java) installs a native resize callback that directly invokes `runFrame`. Main-window restoration can invoke that callback before `preRun` has constructed the panels, and event polling during an editor frame can invoke it recursively. `EditorFrameGate`, used by Desktop's `runFrame` override, refuses frames until panel initialization finishes and while another frame is active. Its finally block releases ownership after an exception. The normal application loop renders the next ready frame.
 
-Placement is applied before the first editor frame. The pinned framework can present a cleared native buffer during its earlier initialization; complete no-intermediate-startup-UI acceptance remains separate. This batch does not replace the framework's window/GL bootstrap or event backend.
+The subsequent unvalidated [ready editor startup batch](READY_EDITOR_STARTUP.md) replaces Desktop's framework bootstrap with hidden native allocation and an owned launch lifecycle. Desktop uses `restoreHidden()` before its first draw-data frame and `shown()` after mapping: hidden samples retain saved placement intent, mapped decoration extents are refitted and maximize acknowledgement starts after show. Direct `restore()` callers keep their prior behavior. Physical first-pixel/maximize/DPI acceptance remains separate.
 
 ## Deferred definitions and remaining scope
 

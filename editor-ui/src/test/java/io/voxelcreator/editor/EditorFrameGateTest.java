@@ -7,6 +7,32 @@ import org.junit.jupiter.api.Test;
 
 class EditorFrameGateTest {
   @Test
+  void stoppedFramesCannotBeReopenedByLateResizeOrReadinessCallbacks() {
+    var gate = new EditorFrameGate();
+    gate.ready();
+    gate.stop();
+    gate.draw(() -> fail("Late resize"));
+    assertThrows(IllegalStateException.class, gate::ready);
+    gate.stop();
+    gate.draw(() -> fail("Late frame"));
+  }
+
+  @Test
+  void stopDuringAFrameKeepsItsOwnerUntilReturnAndBlocksTheNextFrame() {
+    var gate = new EditorFrameGate();
+    gate.ready();
+    var count = new AtomicInteger();
+    gate.draw(
+        () -> {
+          gate.stop();
+          gate.draw(() -> fail("Nested shutdown frame"));
+          count.incrementAndGet();
+        });
+    gate.draw(() -> fail("Frame after shutdown"));
+    assertEquals(1, count.get());
+  }
+
+  @Test
   void startupResizeCannotDrawUntilPanelsAreReady() {
     var gate = new EditorFrameGate();
     var frames = new AtomicInteger();

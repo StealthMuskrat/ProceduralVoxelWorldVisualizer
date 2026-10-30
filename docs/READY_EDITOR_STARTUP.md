@@ -1,0 +1,33 @@
+# Ready editor startup and failure cleanup
+
+Status: implemented on `codex/development-phase`, **uncompiled and untested**. No build, JUnit definition, native probe, independent replay or GitHub workflow has run for this batch. The validated baseline remains 922 tests across 120 suites. A01 and complete GUI/Windows 11 acceptance remain partial or pending.
+
+The pinned [imgui-java Window](https://github.com/SpaiR/imgui-java/blob/v1.89.0/imgui-app/src/main/java/imgui/app/Window.java) shows the native window and swaps a cleared buffer before application panels exist. Its [Application launcher](https://github.com/SpaiR/imgui-java/blob/v1.89.0/imgui-app/src/main/java/imgui/app/Application.java) does not place initialization and the loop inside a cleanup `finally`. Desktop now owns those two lifecycle boundaries while retaining the pinned ImGui GLFW/GL3 backends. This is a standalone application owner of GLFW, not a shared-runtime embedding API.
+
+`HiddenGlfwWindow` allocates a hidden window and current GL context without showing, swapping or polling an initial cleared buffer. It preserves the pinned non-macOS OpenGL 3.0/GLSL 130 and macOS 3.2 core forward-compatible/GLSL 150 requests, and swap interval 1. Native callbacks are installed before placement, but `EditorFrameGate` refuses frames until panel readiness and refuses recursive resize frames while the current frame owns drawing.
+
+The official Desktop entry point initializes the context, font atlas, backends, preferences, panels and services while hidden. It then builds and renders editor draw data. The first presentation requires finite positive display/framebuffer extents that fit native integer pixel dimensions and a nonempty vertex stream. An unavailable frame polls events while hidden; eight unavailable attempts terminate with cleanup. A successful first presentation swaps that rendered main backbuffer while hidden, shows the window, refits placement using mapped decoration extents, and only then updates/renders detached platform windows and polls events. Later frames retain platform rendering before the main swap. Platform rendering restores the previous GL context even after an exception.
+
+This establishes an implementation boundary around completed editor draw data. Nonempty draw data alone does not certify every first-frame panel pixel, compositor behavior or saved detached window. The deferred PNG readback inspects the actual rendered main backbuffer before show; it is not an observation of the first physical display scanout. Mapping or maximization can resize the window and require another frame. No splash screen or loading screen is introduced.
+
+## Placement and preference ownership
+
+Desktop uses `MainWindowPlacement.restoreHidden()` before drawing. Hidden captures/topology polls cannot replace saved normal geometry or maximized intent. `shown()` refits against current monitors and frame extents, requests saved maximization and starts its two-second acknowledgement window at that point. It runs once. Existing direct `restore()` and explicit centering retain their prior service behavior; see [main-window placement](MAIN_WINDOW_PLACEMENT.md).
+
+Periodic preference saving begins only after visibility. Successful loop exit captures placement, visibility and published docking before saving User Config. Startup/frame failures skip the normal exit save, and the state cleanup path releases CPU services without saving partial preferences. This does not roll back an explicit preference change or periodic save completed during an earlier visible frame. No project file is created or implicitly saved, no authoring resource/bookmark is added, and opening Profiler does not start instrumentation.
+
+## Teardown ownership
+
+`EditorLifecycle` owns reverse-order release callbacks. It stops frame callbacks and clears frame-scoped DPI before cleanup on normal exit, initialization failure, loop failure or preference-save failure. Acquired viewports and update services are released before renderer/window backends, ImGui context, native callbacks/window/context capabilities, GLFW and the editor state/workers. Registrations precede fallible native initialization where partial allocation needs cleanup. A failing release cannot skip later releases; the original throwable is retained and distinct later failures are suppressed. Closure is terminal and repeated closure does not repeat callbacks.
+
+The existing narrow unavailable-cursor shutdown workaround for the pinned GLFW backend remains. Backend partial initialization cleanup is attempted, but arbitrary driver/allocation failures and all internal backend allocations are not certified. Native error callback ownership is restored before its owned callback is freed. The official `Desktop.main` uses the owned lifecycle; an external call to the inherited framework launcher is outside this guarantee. Failures constructing Desktop before lifecycle registration also remain separate.
+
+## Deferred definitions
+
+Nineteen pure JUnit definitions cover six lifecycle ownership/failure cases, eight presentation/readiness/reentrancy cases, two stopped-frame cases and three hidden-placement/decoration/topology cases. They have not run.
+
+`StartupProbe` defines eight real Desktop launches with isolated preferences and the normal empty project: failure after native allocation, context creation, backend readiness, service readiness, rendering, immediately before show, after show, and one successful visible launch. It checks acquisition/release stages, no pre-ready resize frame, no early visibility, preservation of the exact injected failure, closed native/context/worker ownership and unchanged failed-startup preference bytes. The successful case reads back a bounded nonblank ready backbuffer and saves docking on normal exit. No `--smoke` resources are used. These hooks are package-owned fixture observation points with no product controls.
+
+`scripts/verify_startup.py` independently describes expected event prefixes and teardown order, preference hashes, empty authoring state and PNG CRC/hash/dimensions/filter reconstruction/color diversity. Future Linux/Xvfb and bundled Windows workflow steps include the probe, replay and artifacts. Workflow triggers remain unchanged; this development branch does not trigger them. Neither the definitions nor their replay have executed.
+
+Physical first-pixel/compositor timing, every initial panel pixel, maximize/restore/minimize repaint, real saved detached windows, monitor hotplug, mixed DPI, GPU/font upload and packaged Windows 11 hardware acceptance remain pending. The probe explicitly records those certification flags as false.

@@ -29,6 +29,7 @@ final class MainWindowPlacement {
   private List<WorkArea> topology = List.of();
   private long lastPoll, maximizeRequestedAt;
   private boolean initialized, adjusting, polled, awaitingMaximize;
+  private boolean hidden;
 
   MainWindowPlacement(UserConfig.Workspace workspace, Host host) {
     this(workspace, host, System::nanoTime);
@@ -44,6 +45,18 @@ final class MainWindowPlacement {
     apply(false);
   }
 
+  void restoreHidden() {
+    hidden = true;
+    apply(false);
+  }
+
+  void shown() {
+    if (!hidden) return;
+    hidden = false;
+    // Decorations may become measurable only after mapping; maximize acknowledgement starts here.
+    apply(false);
+  }
+
   void center() {
     apply(true);
   }
@@ -56,7 +69,7 @@ final class MainWindowPlacement {
       host.restore();
       var plan = WindowPlacement.restore(workspace, nextTopology, host.frame(), center);
       host.bounds(plan.normal());
-      if (plan.maximized()) host.maximize();
+      if (plan.maximized() && !hidden) host.maximize();
       WindowPlacement.remember(workspace, plan.normal(), plan.maximized());
       topology = nextTopology;
       lastPoll = clock.getAsLong();
@@ -69,7 +82,7 @@ final class MainWindowPlacement {
   }
 
   void capture() {
-    if (!initialized || adjusting) return;
+    if (!initialized || adjusting || hidden) return;
     capture(host.sample());
   }
 
@@ -87,7 +100,7 @@ final class MainWindowPlacement {
   }
 
   void frame() {
-    if (!initialized || adjusting) return;
+    if (!initialized || adjusting || hidden) return;
     var value = host.sample();
     capture(value);
     if (value == null || value.iconified() || value.width() <= 0 || value.height() <= 0) return;

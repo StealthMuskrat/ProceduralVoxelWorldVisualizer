@@ -62,6 +62,10 @@ jobs:
         run: |
           bash scripts/prepare_native_linux.sh
           LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -Dvoxel.configDir="$PWD/build/smoke" -jar build/release/jars/ProceduralVoxelCreator.jar --smoke
+      - name: Ready editor startup and failure ownership
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StartupProbe build/startup
+          python scripts/verify_startup.py build/startup
       - name: Native volume numerical reference
         run: LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.VolumeRenderProbe
       - name: Packed streaming renderer reference
@@ -340,6 +344,7 @@ jobs:
             build/input-recording/
             build/input-layout/
             build/profile-export/
+            build/startup/
             build/theme-probe/
             build/theme-workspace/
             build/theme-layout/
@@ -485,6 +490,13 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED "-Dvoxel.configDir=$PWD/build/smoke" -jar build/release/jars/ProceduralVoxelCreator.jar --smoke 2>&1 | Tee-Object build/windows-smoke.log
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           if (-not (Select-String -Path build/windows-smoke.log -Pattern 'THREE_ENGINE_VIEWPORTS_PASS')) { throw 'Viewport smoke did not complete' }
+      - name: Windows ready editor startup and failure ownership
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StartupProbe build/startup
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_startup.py build/startup
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows independent import transaction reference
         shell: pwsh
         run: |
@@ -1000,6 +1012,7 @@ jobs:
             build/input-recording/
             build/input-layout/
             build/profile-export/
+            build/startup/
             build/theme-probe/
             build/theme-workspace/
             build/theme-layout/

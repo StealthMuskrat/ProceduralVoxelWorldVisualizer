@@ -231,6 +231,70 @@ class MainWindowPlacementTest {
     assertFalse(workspace.maximized);
   }
 
+  @Test
+  void hiddenPreparationPreservesMaximizedIntentUntilVisibleAcknowledgementBegins() {
+    var workspace = workspace(100, 100, 800, 600);
+    workspace.maximized = true;
+    var host = new Host();
+    var clock = new AtomicLong();
+    var owner = new MainWindowPlacement(workspace, host, clock::get);
+    owner.restoreHidden();
+    assertEquals(List.of("restore", "bounds"), host.calls);
+    clock.set(10_000_000_000L);
+    host.sample = new MainWindowPlacement.Sample(4, 5, 500, 400, false, false);
+    owner.frame();
+    owner.capture();
+    assertTrue(workspace.maximized);
+    assertEquals(800, workspace.width);
+    assertEquals(100, workspace.x.intValue());
+    owner.shown();
+    assertEquals(List.of("restore", "bounds", "restore", "bounds", "maximize"), host.calls);
+    int calls = host.calls.size();
+    owner.shown();
+    assertEquals(calls, host.calls.size());
+    clock.addAndGet(1_999_999_999L);
+    owner.capture();
+    assertTrue(workspace.maximized);
+    host.sample = new MainWindowPlacement.Sample(0, 0, 1920, 1080, false, true);
+    owner.capture();
+    assertTrue(workspace.maximized);
+    assertEquals(800, workspace.width);
+  }
+
+  @Test
+  void firstShowRefitsFrameInsetsThatWereUnavailableWhileHidden() {
+    var workspace = workspace(0, 0, 800, 600);
+    var host = new Host();
+    var owner = new MainWindowPlacement(workspace, host);
+    owner.restoreHidden();
+    assertEquals(new Rect(0, 0, 800, 600), host.bounds);
+    host.insets = new Insets(8, 32, 8, 8);
+    owner.shown();
+    assertEquals(new Rect(8, 32, 800, 600), host.bounds);
+    assertEquals(8, workspace.x.intValue());
+    assertEquals(32, workspace.y.intValue());
+  }
+
+  @Test
+  void hiddenTopologyChangesWaitForShowWithoutLosingDockingOrVisibility() {
+    var workspace = workspace(-1800, 100, 800, 600);
+    workspace.docking = "retained";
+    workspace.visibleWindows.add("Logs");
+    var host = new Host();
+    host.areas = List.of(new WorkArea(0, 0, 1920, 1080), new WorkArea(-1920, 0, 1920, 1080));
+    var owner = new MainWindowPlacement(workspace, host);
+    owner.restoreHidden();
+    int polls = host.polls;
+    host.areas = List.of(new WorkArea(0, 0, 1920, 1080));
+    owner.frame();
+    assertEquals(polls, host.polls);
+    assertEquals(-1800, workspace.x.intValue());
+    owner.shown();
+    assertEquals(0, workspace.x.intValue());
+    assertEquals("retained", workspace.docking);
+    assertEquals(List.of("Logs"), workspace.visibleWindows);
+  }
+
   private static final class Host implements MainWindowPlacement.Host {
     List<WorkArea> areas = List.of(new WorkArea(0, 0, 1920, 1080));
     final List<String> calls = new ArrayList<>();
@@ -239,6 +303,7 @@ class MainWindowPlacementTest {
     Rect bounds;
     int polls;
     boolean failure;
+    Insets insets = Insets.NONE;
     Runnable duringBounds = () -> {};
 
     public MainWindowPlacement.Sample sample() {
@@ -251,7 +316,7 @@ class MainWindowPlacementTest {
     }
 
     public Insets frame() {
-      return Insets.NONE;
+      return insets;
     }
 
     public void restore() {

@@ -344,9 +344,13 @@ public final class EditorState implements AutoCloseable {
 
   @Override
   public void close() {
+    close(true);
+  }
+
+  void close(boolean savePreferences) {
     traces.clear();
     background.shutdownNow();
     engine.close();
-    if (persistPreferences) user.save();
+    if (persistPreferences && savePreferences) user.save();
   }
 }

@@ -21,6 +21,11 @@ import java.util.function.*;
 public final class Desktop extends Application {
   static final String APPLICATION_VERSION = "0.1.0";
   private final EditorState state = new EditorState();
+  private final EditorLifecycle lifecycle = new EditorLifecycle();
+  private final EditorPresentation presentation = new EditorPresentation();
+  private HiddenGlfwWindow nativeWindow;
+  private Consumer<String> startupObserver;
+  private boolean contextOwned;
   private PropertyPanel properties;
   private ResourcePanel resources;
   private Viewports views;
@@ -99,6 +104,60 @@ public final class Desktop extends Application {
   private int smokeFrames = 0;
   private long smokePhaseWait;
 
+  public Desktop() {
+    lifecycle.own(
+        () -> {
+          state.close(false);
+          startupStage("state-closed");
+        });
+  }
+
+  void startDesktop() {
+    lifecycle.run(
+        () -> {
+          var config = new Configuration();
+          configure(config);
+          init(config);
+          preRun();
+        },
+        this::run,
+        this::postRun,
+        () -> {
+          frames.stop();
+          presentation.close();
+          UiDpi.clear();
+        });
+  }
+
+  @Override
+  protected void init(Configuration config) {
+    nativeWindow = new HiddenGlfwWindow();
+    lifecycle.own(
+        () -> {
+          try {
+            nativeWindow.close();
+          } finally {
+            handle = 0;
+          }
+          startupStage("window-released");
+        });
+    nativeWindow.open(config, this::runFrame);
+    handle = nativeWindow.handle();
+    startupStage("window-created");
+    initImGui(config);
+    lifecycle.own(this::shutdownGlfw);
+    if (!imGuiGlfw.init(handle, true))
+      throw new IllegalStateException("Unable to initialize the ImGui window backend");
+    lifecycle.own(
+        () -> {
+          imGuiGl3.shutdown();
+          startupStage("renderer-released");
+        });
+    if (!imGuiGl3.init(nativeWindow.glsl()))
+      throw new IllegalStateException("Unable to initialize the ImGui renderer");
+    startupStage("backends-ready");
+  }
+
   @Override
   protected void configure(Configuration config) {
     config.setTitle("Procedural Voxel Creator");
@@ -109,6 +168,14 @@ public final class Desktop extends Application {
   @Override
   protected void initImGui(Configuration config) {
     super.initImGui(config);
+    contextOwned = true;
+    lifecycle.own(
+        () -> {
+          disposeImGui();
+          contextOwned = false;
+          startupStage("context-released");
+        });
+    startupStage("context-created");
     dpiBackend = new DpiGlfwBackend(handle);
     imGuiGlfw = dpiBackend;
     UiFontAtlas.install();
@@ -129,7 +196,7 @@ public final class Desktop extends Application {
   @Override
   protected void preRun() {
     mainWindow = new MainWindowPlacement(state.user.workspace, new GlfwMainWindow(handle));
-    mainWindow.restore();
+    mainWindow.restoreHidden();
     inputSettings = new InputSettingsPanel(state.user);
     updateTrust =
         new UpdateTrustPanel(
@@ -159,6 +226,11 @@ public final class Desktop extends Application {
             ImGui::setClipboardText,
             message ->
                 state.error("UPDATE_LINK_FAILED", EditorEvents.Subsystem.APPLICATION, message));
+    lifecycle.own(
+        () -> {
+          updateChecks.close();
+          startupStage("updates-released");
+        });
     performanceSettings =
         new PerformancePanel(
             state.user,
@@ -249,6 +321,11 @@ public final class Desktop extends Application {
     imports =
         new ResourceImportPanel(state, this::packageInteractionBlocked, () -> validation.set(true));
     views = new Viewports(state, properties, handle);
+    lifecycle.own(
+        () -> {
+          views.close();
+          startupStage("viewports-released");
+        });
     livePreferences =
         new LivePreferencesPanel(
             state.user,
@@ -309,6 +386,8 @@ public final class Desktop extends Application {
         state.notify("Error", e.getMessage());
       }
     }
+    startupStage("services-ready");
+    presentation.ready();
     frames.ready();
   }
 
@@ -371,7 +450,7 @@ public final class Desktop extends Application {
     status.draw();
     shortcuts();
     captureVisibility();
-    if (System.nanoTime() - preferenceSave > 5_000_000_000L) {
+    if (presentation.visible() && System.nanoTime() - preferenceSave > 5_000_000_000L) {
       preferenceSave = System.nanoTime();
       captureWorkspace();
       try {
@@ -477,12 +556,44 @@ public final class Desktop extends Application {
   @Override
   protected void endFrame() {
     ImGui.render();
-    imGuiGl3.renderDrawData(ImGui.getDrawData());
+    var draw = ImGui.getDrawData();
+    if (presentation.phase() == EditorPresentation.Phase.READY_HIDDEN
+        && !presentation.frameReady(
+            draw.getDisplaySizeX(),
+            draw.getDisplaySizeY(),
+            draw.getFramebufferScaleX(),
+            draw.getFramebufferScaleY(),
+            draw.getTotalVtxCount())) {
+      glfwPollEvents();
+      return;
+    }
+    imGuiGl3.renderDrawData(draw);
+    if (presentation.phase() == EditorPresentation.Phase.READY_HIDDEN)
+      startupStage("frame-rendered");
+    presentation.present(
+        () -> glfwSwapBuffers(handle),
+        () -> {
+          startupStage("before-show");
+          glfwShowWindow(handle);
+        },
+        () -> {
+          mainWindow.shown();
+          startupStage("shown");
+        },
+        this::renderPlatformWindows,
+        () -> glfwPollEvents());
+    startupStage("presented");
+  }
+
+  private void renderPlatformWindows() {
     if (ImGui.getIO().hasConfigFlags(ImGuiConfigFlags.ViewportsEnable)) {
       long previous = glfwGetCurrentContext();
-      ImGui.updatePlatformWindows();
-      ImGui.renderPlatformWindowsDefault();
-      glfwMakeContextCurrent(previous);
+      try {
+        ImGui.updatePlatformWindows();
+        ImGui.renderPlatformWindowsDefault();
+      } finally {
+        glfwMakeContextCurrent(previous);
+      }
     }
     if (smokeFrames > 0
         && (frameCount == 70
@@ -504,14 +615,9 @@ public final class Desktop extends Application {
             || frameCount == 450
             || frameCount == 455
             || frameCount == 470)) captureFrame();
-    glfwSwapBuffers(handle);
-    glfwPollEvents();
   }
 
-  @Override
-  protected void dispose() {
-    if (updateChecks != null) updateChecks.close();
-    imGuiGl3.shutdown();
+  private void shutdownGlfw() {
     try {
       imGuiGlfw.shutdown();
     } catch (NullPointerException failure) {
@@ -527,8 +633,18 @@ public final class Desktop extends Application {
       System.err.println(
           "NATIVE_CURSOR_CLEANUP: unavailable platform cursor; completing GLFW shutdown");
     }
-    disposeImGui();
-    disposeWindow();
+    startupStage("window-backend-released");
+  }
+
+  @Override
+  protected void dispose() {
+    frames.stop();
+    presentation.close();
+    UiDpi.clear();
+    var failure = lifecycle.close(null);
+    if (failure instanceof Error error) throw error;
+    if (failure instanceof RuntimeException runtime) throw runtime;
+    if (failure != null) throw new IllegalStateException("Editor cleanup failed", failure);
   }
 
   private void smokeDiagnostics(int frame) {
@@ -1104,11 +1220,51 @@ public final class Desktop extends Application {
 
   @Override
   protected void postRun() {
-    if (updateChecks != null) updateChecks.close();
-    mainWindow.capture();
-    captureWorkspace();
-    views.close();
-    state.close();
+    if (presentation.visible()) {
+      mainWindow.capture();
+      captureWorkspace();
+      state.user.save();
+    }
+  }
+
+  private void startupStage(String stage) {
+    if (startupObserver != null) startupObserver.accept(stage);
+  }
+
+  void observeStartup(Consumer<String> observer) {
+    if (nativeWindow != null)
+      throw new IllegalStateException("Startup observation must be installed before launch");
+    startupObserver = Objects.requireNonNull(observer);
+  }
+
+  EditorState startupState() {
+    return state;
+  }
+
+  boolean startupVisible() {
+    return nativeWindow != null
+        && nativeWindow.handle() != 0
+        && glfwGetWindowAttrib(nativeWindow.handle(), GLFW_VISIBLE) != 0;
+  }
+
+  boolean startupContextOwned() {
+    return contextOwned;
+  }
+
+  boolean startupReleased() {
+    return lifecycle.closed()
+        && nativeWindow != null
+        && nativeWindow.handle() == 0
+        && !contextOwned
+        && state.background.isShutdown();
+  }
+
+  int startupFrames() {
+    return frameCount;
+  }
+
+  void stopStartupProbe() {
+    glfwSetWindowShouldClose(handle, true);
   }
 
   public static void main(String[] args) {
@@ -1117,7 +1273,7 @@ public final class Desktop extends Application {
     if (java.util.Arrays.asList(args).contains("--smoke"))
       System.setProperty("java.awt.headless", "true");
     try {
-      launch(new Desktop());
+      new Desktop().startDesktop();
     } catch (Throwable e) {
       e.printStackTrace();
       System.exit(1);
