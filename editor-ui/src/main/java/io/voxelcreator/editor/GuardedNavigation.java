@@ -1,24 +1,20 @@
 package io.voxelcreator.editor;
 
 import imgui.*;
-import imgui.flag.*;
-import java.util.*;
 import java.util.function.BooleanSupplier;
 
 /** One draft guard for trace/log/profiler links; freshness is rechecked before every decision. */
 public final class GuardedNavigation {
-  private final EditorState state;
   private final PropertyPanel properties;
   private final SearchNavigation navigation;
+  final NavigationGuardDialog dialog;
   private BooleanSupplier fresh = () -> true;
   private boolean prompt, focus;
-  private String message = "";
-  private final Map<String, float[]> buttons = new HashMap<>();
 
   public GuardedNavigation(EditorState state, PropertyPanel properties) {
-    this.state = state;
     this.properties = properties;
     navigation = new SearchNavigation(state);
+    dialog = new NavigationGuardDialog(state);
   }
 
   public SearchNavigation.Result request(EditorEvents.Target target) {
@@ -26,7 +22,7 @@ public final class GuardedNavigation {
   }
 
   public SearchNavigation.Result request(EditorEvents.Target target, BooleanSupplier fresh) {
-    if (properties.searchBlocked() || !fresh.getAsBoolean())
+    if (navigation.pending() || properties.searchBlocked() || !fresh.getAsBoolean())
       return SearchNavigation.Result.UNAVAILABLE;
     this.fresh = fresh;
     var result = navigation.request(target);
@@ -39,9 +35,11 @@ public final class GuardedNavigation {
     var target = navigation.target();
     if (decision != SearchNavigation.Decision.CANCEL && !fresh.getAsBoolean()) {
       navigation.clear();
+      prompt = false;
       return SearchNavigation.Result.UNAVAILABLE;
     }
     var result = navigation.decide(decision);
+    if (result != SearchNavigation.Result.NEEDS_DECISION) prompt = false;
     if (result == SearchNavigation.Result.NAVIGATED) reveal(target);
     return result;
   }
@@ -55,7 +53,7 @@ public final class GuardedNavigation {
   }
 
   float[] button(String key) {
-    return buttons.get(key);
+    return dialog.button(key);
   }
 
   public void draw() {
@@ -64,37 +62,12 @@ public final class GuardedNavigation {
       focus = false;
     }
     if (prompt) {
-      ImGui.openPopup("Leave Property Draft for Source Link");
+      dialog.open("Leave Property Draft for Source Link");
       prompt = false;
     }
-    if (!UiScale.beginPopupModal(
-        "Leave Property Draft for Source Link", ImGuiWindowFlags.AlwaysAutoResize)) return;
-    ImGui.textWrapped(
-        "Apply the current property draft, discard it for this source link, or cancel.");
-    if (!message.isEmpty()) ImGui.textWrapped(message);
-    for (var decision : SearchNavigation.Decision.values()) {
-      if (decision != SearchNavigation.Decision.APPLY) ImGui.sameLine();
-      boolean clicked = ImGui.button(decision.name());
-      var a = ImGui.getItemRectMin();
-      var b = ImGui.getItemRectMax();
-      buttons.put(decision.name(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
-      if (clicked) {
-        var result = decide(decision);
-        if (result == SearchNavigation.Result.NEEDS_DECISION)
-          message = "Apply failed. Correct the draft or choose Discard/Cancel.";
-        else {
-          message =
-              result == SearchNavigation.Result.UNAVAILABLE
-                  ? "Source changed; request the link again."
-                  : "";
-          ImGui.closeCurrentPopup();
-        }
-      }
-    }
-    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      decide(SearchNavigation.Decision.CANCEL);
-      ImGui.closeCurrentPopup();
-    }
-    ImGui.endPopup();
+    dialog.draw(
+        "Leave Property Draft for Source Link",
+        "Apply the current property draft, discard it for this source link, or cancel.",
+        this::decide);
   }
 }

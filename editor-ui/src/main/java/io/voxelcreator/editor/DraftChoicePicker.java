@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.*;
+import imgui.flag.ImGuiKey;
 import imgui.type.ImString;
 import java.util.*;
 import java.util.function.Consumer;
@@ -34,6 +35,7 @@ public final class DraftChoicePicker {
 
   private final Map<Integer, Widget> widgets = new LinkedHashMap<>(16, .75f, true);
   private final Map<String, float[]> options = new HashMap<>();
+  final PopupLayout layout = new PopupLayout();
   private boolean open, focused;
   private int submitted;
   private float[] buttonCenter;
@@ -53,8 +55,10 @@ public final class DraftChoicePicker {
     boolean clicked =
         ImGui.button(
             AppMetadata.uiText(preview) + "  v###draft-choice",
-            Math.max(100, Math.min(330, ImGui.getContentRegionAvailX() * .7f)),
+            Math.max(1, Math.min(330, ImGui.getContentRegionAvailX() * .7f)),
             0);
+    var anchor = PopupLayout.itemBounds();
+    PopupLayout.clippedLabel(preview);
     focused = ImGui.isItemActive() || ImGui.isItemFocused();
     var lo = ImGui.getItemRectMin();
     var hi = ImGui.getItemRectMax();
@@ -63,25 +67,31 @@ public final class DraftChoicePicker {
       ImGui.openPopup("draft-choices");
       open = false;
     }
-    ImGui.sameLine();
-    ImGui.text(label);
-    if (UiScale.beginPopup("draft-choices")) {
+    DialogLayout.sameLine(label);
+    ImGui.textWrapped(label);
+    submitted = 0;
+    options.clear();
+    if (layout.begin("draft-choices", anchor, 480, 340)) {
+      if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+        ImGui.closeCurrentPopup();
+        ImGui.endPopup();
+        ImGui.popID();
+        return;
+      }
       if (!widgets.containsKey(id) && widgets.size() >= 128)
         widgets.remove(widgets.keySet().iterator().next());
       var widget = widgets.computeIfAbsent(id, ignored -> new Widget());
       if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
-      ImGui.setNextItemWidth(380);
-      ImGui.inputTextWithHint("##query", "Filter names, types or categories...", widget.query);
+      layout.search("##query", "Filter names, types or categories...", widget.query);
       if (none != null && ImGui.selectable(none + "###none")) {
         change.accept(null);
         ImGui.closeCurrentPopup();
       }
       var rows = widget.rows(choices);
-      ImGui.text(rows.size() + " matching choices");
-      UiScale.beginChild("options", 460, 220, true);
+      ImGui.textWrapped(rows.size() + " found");
+      UiScale.beginChild("options", 0, Math.max(1, ImGui.getContentRegionAvailY()), true);
+      layout.observeList();
       var clipper = new ImGuiListClipper();
-      submitted = 0;
-      options.clear();
       try {
         clipper.begin(rows.size(), ImGui.getTextLineHeightWithSpacing());
         while (clipper.step())
@@ -94,6 +104,7 @@ public final class DraftChoicePicker {
               change.accept(row.key());
               ImGui.closeCurrentPopup();
             }
+            PopupLayout.clippedLabel(row.label() + " / " + row.detail() + " / " + row.key());
             var a = ImGui.getItemRectMin();
             var b = ImGui.getItemRectMax();
             options.put(row.key(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});

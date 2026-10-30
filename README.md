@@ -112,3 +112,5 @@ The unvalidated [core window layout batch](docs/CORE_WINDOW_LAYOUT.md) extends o
 The unvalidated [popup monitor work-area follow-up](docs/POPUP_MONITOR_WORK_AREAS.md) intersects covered modals/selectors with current monitor work areas in absolute-coordinate mode and recovers offscreen detached owners to a usable main client. Relative/no-inventory and physical acceptance limits remain explicit.
 
 The unvalidated [DPI/font-density batch](docs/UI_DPI_AND_FONT_DENSITY.md) combines display density with user/window multipliers before each frame, adds a denser default atlas and preserves nested child/popup font sizes. Physical DPI, GPU font upload and visual quality remain unverified.
+
+The unvalidated [local choice/navigation popup batch](docs/DRAFT_POPUP_LAYOUT.md) bounds local typed-choice selectors, keeps draft-guard actions in a persistent row and preserves the freshness owner of pending source links. Its regression/native/replay definitions remain unexecuted.

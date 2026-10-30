@@ -95,6 +95,8 @@ jobs:
           python scripts/verify_dialog_layout.py build/dialog-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PopupLayoutProbe build/popup-layout
           python scripts/verify_popup_layout.py build/popup-layout
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DraftPopupLayoutProbe build/draft-popup-layout
+          python scripts/verify_draft_popup_layout.py build/draft-popup-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveLayoutProbe build/curve-layout
           python scripts/verify_curve_layout.py build/curve-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StatusBarProbe build/status-bar
@@ -327,6 +329,7 @@ jobs:
             build/ui-scales/
             build/dialog-layout/
             build/popup-layout/
+            build/draft-popup-layout/
             build/curve-layout/
             build/status-bar/
             build/core-window-layout/
@@ -524,6 +527,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PopupLayoutProbe build/popup-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_popup_layout.py build/popup-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DraftPopupLayoutProbe build/draft-popup-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_draft_popup_layout.py build/draft-popup-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveLayoutProbe build/curve-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -935,6 +942,7 @@ jobs:
             build/ui-scales/
             build/dialog-layout/
             build/popup-layout/
+            build/draft-popup-layout/
             build/curve-layout/
             build/status-bar/
             build/core-window-layout/

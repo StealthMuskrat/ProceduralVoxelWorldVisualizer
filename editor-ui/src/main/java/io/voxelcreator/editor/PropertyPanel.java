@@ -23,11 +23,11 @@ public final class PropertyPanel {
   private NoiseEditDialog noiseEdit;
   private ExpressionEditDialog expressionDialog;
   private SearchNavigation referenceNavigation;
+  final NavigationGuardDialog referenceDialog;
   private boolean referencePrompt;
   private String authoringMessage = "";
   private final Map<String, String> inputNames = new HashMap<>();
   private final Map<String, List<DraftChoicePicker.Choice>> catalogues = new HashMap<>();
-  private final Map<String, float[]> referenceButtons = new HashMap<>();
   public Consumer<UUID> findReferences = ignored -> {};
   private static final List<DraftChoicePicker.Choice> ALGORITHMS =
       NoiseAlgorithms.KEYS.stream()
@@ -487,6 +487,7 @@ public final class PropertyPanel {
     state = s;
     resourcePicker = new ResourcePicker(s);
     referenceNavigation = new SearchNavigation(s);
+    referenceDialog = new NavigationGuardDialog(s);
   }
 
   public void draw() {
@@ -1700,7 +1701,7 @@ public final class PropertyPanel {
   }
 
   float[] probeReferenceButton(String id) {
-    return referenceButtons.get(id).clone();
+    return referenceDialog.button(id);
   }
 
   int probeItemRows() {
@@ -1733,31 +1734,18 @@ public final class PropertyPanel {
 
   private void drawReferenceGuard() {
     if (referencePrompt) {
-      ImGui.openPopup("Leave Noise Property Draft");
+      referenceDialog.open("Leave Noise Property Draft");
       referencePrompt = false;
     }
-    if (!UiScale.beginPopupModal("Leave Noise Property Draft", ImGuiWindowFlags.AlwaysAutoResize))
-      return;
-    ImGui.textWrapped("Apply the current draft, discard it for this navigation, or cancel.");
-    for (var decision : SearchNavigation.Decision.values()) {
-      if (decision != SearchNavigation.Decision.APPLY) ImGui.sameLine();
-      boolean clicked = ImGui.button(decision.name());
-      var a = ImGui.getItemRectMin();
-      var b = ImGui.getItemRectMax();
-      referenceButtons.put(decision.name(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
-      if (clicked) {
-        var target = referenceNavigation.target();
-        var result = referenceNavigation.decide(decision);
-        if (result == SearchNavigation.Result.NAVIGATED && target != null) goToProblem(target);
-        if (result != SearchNavigation.Result.NEEDS_DECISION) ImGui.closeCurrentPopup();
-        else ImGui.textWrapped("Apply failed. Correct the draft or choose Discard/Cancel.");
-      }
-    }
-    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      referenceNavigation.decide(SearchNavigation.Decision.CANCEL);
-      ImGui.closeCurrentPopup();
-    }
-    ImGui.endPopup();
+    referenceDialog.draw(
+        "Leave Noise Property Draft",
+        "Apply the current draft, discard it for this navigation, or cancel.",
+        decision -> {
+          var target = referenceNavigation.target();
+          var result = referenceNavigation.decide(decision);
+          if (result == SearchNavigation.Result.NAVIGATED && target != null) goToProblem(target);
+          return result;
+        });
   }
 
   private boolean curveContains(Item item, UUID uuid) {

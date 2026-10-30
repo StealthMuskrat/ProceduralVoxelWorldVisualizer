@@ -50,6 +50,12 @@ final class DialogLayout {
   }
 
   boolean begin(String title, int flags) {
+    // An inactive dialog must preserve another caller's queued NextWindow data.
+    if (!ImGui.isPopupOpen(title)) {
+      geometry.reset();
+      workArea = null;
+      return false;
+    }
     int requested = state.dialogHosts.viewport(owner, ImGui.getFrameCount());
     var anchor = geometry.observed();
     if (anchor == null) anchor = state.dialogHosts.bounds(owner, ImGui.getFrameCount());
