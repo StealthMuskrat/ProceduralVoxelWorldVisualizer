@@ -25,3 +25,5 @@ The unvalidated [general settings layout follow-up](GENERAL_SETTINGS_LAYOUT.md) 
 The unvalidated [Profiler workspace follow-up](PROFILER_LAYOUT.md) extends the shared measured chrome to explicit multiple action rows while preserving all single-row callers. New analytical/native definitions remain deferred.
 
 The unvalidated [diagnostic workspace follow-up](DIAGNOSTICS_LAYOUT.md) reuses measured action rows and responsive list/detail budgets for Logs, Notifications and Validation Results, retaining their separate event/publication owners. New definitions remain deferred.
+
+The unvalidated [settings decision follow-up](SETTINGS_DECISIONS.md) scopes profile footer IDs to active/private metadata identities, prioritizes explicit Revert/built-in staging before Apply and suppresses profile mutation on Escape. Successful reset/publication advances the owner; failed save retries preserve it. Existing input/pane/child identities, cached rows and future-item-only publication remain. New native decision/retry/replay definitions are deferred.

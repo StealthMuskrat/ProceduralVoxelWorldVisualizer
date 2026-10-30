@@ -10,6 +10,8 @@ import java.util.*;
 public final class ProjectSettingsPanel {
   private final EditorState state;
   private ProjectSettingsSession session;
+  final SettingsActionScope actionScope = new SettingsActionScope();
+  private boolean revealFeedback;
   private final Map<String, ImString> buffers = new LinkedHashMap<>();
   private final Map<String, float[]> controls = new HashMap<>();
   private final PropertyFocus focus = new PropertyFocus();
@@ -42,6 +44,7 @@ public final class ProjectSettingsPanel {
   }
 
   private void reload() {
+    actionScope.release();
     if (session != null) session.cancel();
     session = new ProjectSettingsSession(state);
     buffers.clear();
@@ -50,9 +53,12 @@ public final class ProjectSettingsPanel {
           field, new ImString(session.text(field), ProjectSettingsSession.MAX_CHARACTERS + 1));
     focus.cancel();
     message = "";
+    revealFeedback = false;
   }
 
   public void cancel() {
+    actionScope.release();
+    revealFeedback = false;
     if (session != null) session.cancel();
     session = null;
     buffers.clear();
@@ -80,6 +86,7 @@ public final class ProjectSettingsPanel {
       ImGui.setWindowFocus("Project Settings");
       focusWindow = false;
     }
+    long request = actionScope.synchronize(state.project(), session, state.revision);
     boolean current = session.current(state);
     focus.synchronize(state.project().project.uuid, null, session);
     layout.begin("project-settings-body");
@@ -142,14 +149,43 @@ public final class ProjectSettingsPanel {
       ImGui.textDisabled(session.issueCount() + " candidate diagnostic(s); showing up to eight.");
     }
     if (!message.isEmpty()) ImGui.textWrapped("! " + bounded(message, 512));
+    if (revealFeedback) {
+      ImGui.setScrollHereY(.6f);
+      revealFeedback = false;
+    }
     var owned = new LinkedHashMap<String, String>();
     for (var field : ProjectSettingsSession.FIELDS) owned.put(field, session.text(field));
     String firstProblem =
         ProjectSettingsProblemNavigation.first(owned, displayed(), problems, session.applyIssues());
     layout.end();
-    boolean done = false;
+    ImGui.pushID("project-settings-request:" + request);
     ImGui.beginDisabled(!current);
-    if (layout.action("apply", "Apply")) {
+    boolean apply = layout.identifiedAction("apply", "Apply");
+    control("apply");
+    ImGui.endDisabled();
+    boolean cancel = layout.identifiedAction("cancel", "Cancel");
+    control("cancel");
+    ImGui.beginDisabled(current);
+    boolean reload = layout.identifiedAction("reload", "Discard and Reload");
+    control("reload");
+    ImGui.endDisabled();
+    ImGui.beginDisabled(firstProblem == null || !current);
+    boolean problem = layout.identifiedAction("problem", "Show Problem");
+    control("problem");
+    ImGui.endDisabled();
+    ImGui.popID();
+    boolean done = false;
+    if (!actionScope.current(state.project(), session, state.revision)) return false;
+    boolean escape =
+        ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows)
+            && ImGui.isKeyPressed(ImGuiKey.Escape, false);
+    if (cancel || escape) done = true;
+    else if (reload && !current) reload();
+    else if (problem && firstProblem != null && current)
+      focus.request(
+          new EditorEvents.Target(state.project().project.uuid, null, null, firstProblem, "", true),
+          session);
+    else if (apply && current) {
       try {
         done = session.apply(state, displayed());
         if (!done)
@@ -164,22 +200,8 @@ public final class ProjectSettingsPanel {
             Objects.requireNonNullElse(
                 invalid.getMessage(), "Project Settings could not be applied.");
       }
+      if (!done) revealFeedback = true;
     }
-    control("apply");
-    ImGui.endDisabled();
-    if (layout.action("cancel", "Cancel")) done = true;
-    control("cancel");
-    ImGui.beginDisabled(current || done);
-    if (layout.action("reload", "Discard and Reload")) reload();
-    control("reload");
-    ImGui.endDisabled();
-    ImGui.beginDisabled(firstProblem == null || !current || done);
-    if (layout.action("problem", "Show Problem"))
-      focus.request(
-          new EditorEvents.Target(state.project().project.uuid, null, null, firstProblem, "", true),
-          session);
-    control("problem");
-    ImGui.endDisabled();
     if (done) cancel();
     return done;
   }
@@ -203,8 +225,7 @@ public final class ProjectSettingsPanel {
   }
 
   private static String bounded(String text, int limit) {
-    text = Objects.requireNonNullElse(text, "");
-    return text.length() > limit ? text.substring(0, limit - 1) + "…" : text;
+    return StatusBarText.clip(Objects.requireNonNullElse(text, ""), limit);
   }
 
   private void control(String key) {
@@ -231,6 +252,11 @@ public final class ProjectSettingsPanel {
 
   int candidateIssueCount() {
     return session == null ? 0 : session.issueCount();
+  }
+
+  void probeText(String field, String text) {
+    session.edit(field, text);
+    buffers.get(field).set(text);
   }
 
   String applyFailure() {

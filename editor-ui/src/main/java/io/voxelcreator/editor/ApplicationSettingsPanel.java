@@ -2,6 +2,7 @@ package io.voxelcreator.editor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import imgui.*;
+import imgui.flag.ImGuiKey;
 import imgui.type.*;
 import io.voxelcreator.model.ProjectIO;
 import java.nio.file.Path;
@@ -29,6 +30,7 @@ public final class ApplicationSettingsPanel {
   private boolean applyEnabled;
   private boolean detailReset;
   private MetadataEditSession session;
+  final SettingsActionScope actionScope = new SettingsActionScope();
   private String page = "Presentation",
       selected = "noise2D.algorithm.CONSTANT.value",
       message = "",
@@ -60,6 +62,7 @@ public final class ApplicationSettingsPanel {
 
   public void draw() {
     ensure();
+    long request = actionScope.synchronize(state.metadata, session.draft());
     controls.clear();
     controlIds.clear();
     layout.begin("application-profile-body");
@@ -189,34 +192,41 @@ public final class ApplicationSettingsPanel {
     applyEnabled = issue.isEmpty();
     if (!message.isEmpty()) ImGui.textWrapped(bounded(message));
     layout.end();
+    ImGui.pushID("application-profile-request:" + request);
     ImGui.beginDisabled(!applyEnabled);
-    if (layout.action("apply", "Apply Application Profile"))
-      apply(UserConfig.directory().resolve("app-config.json"));
+    boolean apply = layout.identifiedAction("apply", "Apply Application Profile");
     control("apply");
     ImGui.endDisabled();
-    if (layout.action("revert", "Revert Profile")) {
+    boolean revert = layout.identifiedAction("revert", "Revert Profile");
+    control("revert");
+    boolean builtins = layout.identifiedAction("builtins", "Stage Built-In Profile");
+    control("builtins");
+    ImGui.beginDisabled(errors.isEmpty());
+    boolean invalid = layout.identifiedAction("invalid-value", "Show Invalid Value");
+    control("invalid-value");
+    ImGui.endDisabled();
+    ImGui.popID();
+    if (!actionScope.current(state.metadata, session.draft())) return;
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    // Resolve this entire frame before persisting or replacing any private profile.
+    if (revert) {
       session.revert(state.metadata);
       resetEditors();
       message = "Draft reverted";
-    }
-    control("revert");
-    if (layout.action("builtins", "Stage Built-In Profile")) {
+    } else if (builtins) {
       session.stageBuiltIns();
       resetEditors();
       message = "Built-in profile staged; Apply publishes it";
-    }
-    control("builtins");
-    ImGui.beginDisabled(errors.isEmpty());
-    if (layout.action("invalid-value", "Show Invalid Value")) {
+    } else if (apply && applyEnabled) apply(UserConfig.directory().resolve("app-config.json"));
+    else if (invalid && !errors.isEmpty()) {
       select(errors.keySet().iterator().next());
       page = "Creation Defaults";
       detailReset = true;
     }
-    control("invalid-value");
-    ImGui.endDisabled();
   }
 
   private void resetEditors() {
+    actionScope.release();
     fields.clear();
     values.clear();
     creationBuffers.clear();
@@ -521,6 +531,23 @@ public final class ApplicationSettingsPanel {
     select(id);
     if (!page.equals(section)) detailReset = true;
     page = section;
+  }
+
+  void probeStageCreation(String id, String raw) {
+    ensure();
+    session.inputs().override(id, true);
+    if (CreationRegistry.get(id).kind() == CreationRegistry.Kind.CHOICE)
+      session.inputs().replace(id, ProjectIO.JSON.valueToTree(raw));
+    else session.inputs().editAll(id, List.of(raw));
+    creationBuffers.remove(id);
+    changed();
+  }
+
+  void probeRevert() {
+    ensure();
+    session.revert(state.metadata);
+    resetEditors();
+    message = "";
   }
 
   List<String> rawText(String id) {

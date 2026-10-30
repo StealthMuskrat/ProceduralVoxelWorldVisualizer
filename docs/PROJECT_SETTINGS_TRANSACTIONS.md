@@ -33,3 +33,5 @@ Full Desktop menu/page-switch/window-X gestures, physical keyboard/IME/DPI cases
 The subsequent [project transition guard](PROJECT_DRAFT_TRANSITIONS.md) blocks New/Open/Exit while Project Settings contains pending raw input. Unmodified sessions are canceled after successful project replacement. These changes remain unvalidated.
 
 [Project transaction feedback and settings recovery](PROJECT_CHANGE_FEEDBACK.md) adds per-attempt bounded diagnostics, exact displayed-string checks, logical/source-value ownership, explicit consumed-panel lifetimes and collapsed-host handling. Its sixteen regression definitions and expanded native/report definitions remain uncompiled/untested under the owner testing pause.
+
+The unvalidated [settings decision follow-up](SETTINGS_DECISIONS.md) collects all footer actions before execution, gives Cancel and focused Escape priority, scopes each opening/reload and reveals failed-Apply feedback without replacing raw fields. The existing exact three-field transaction and separate Properties ownership remain. New native cancellation/reopen/focus/Undo definitions are deferred.
