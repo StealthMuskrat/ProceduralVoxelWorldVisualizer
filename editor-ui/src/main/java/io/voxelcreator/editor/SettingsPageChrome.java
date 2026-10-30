@@ -12,6 +12,7 @@ final class SettingsPageChrome {
   private float footerWidth;
   private DialogBounds.Rect body;
   private final Map<String, DialogBounds.Rect> actions = new LinkedHashMap<>();
+  private final Map<String, Integer> actionIds = new LinkedHashMap<>();
 
   SettingsPageChrome(int... rows) {
     if (rows.length < 1 || rows.length > 4)
@@ -26,7 +27,12 @@ final class SettingsPageChrome {
   }
 
   void begin(String id) {
+    begin(id, 0);
+  }
+
+  void begin(String id, int flags) {
     actions.clear();
+    actionIds.clear();
     submitted = 0;
     float height =
         SettingsPageLayout.body(
@@ -34,7 +40,7 @@ final class SettingsPageChrome {
             ImGui.getFrameHeight(),
             ImGui.getStyle().getItemSpacingY(),
             rows.length);
-    UiScale.beginChild(id, 0, height, false);
+    UiScale.beginChild(id, 0, height, false, flags);
     body =
         new DialogBounds.Rect(
             ImGui.getWindowPosX(),
@@ -63,6 +69,7 @@ final class SettingsPageChrome {
     if (submitted++ > first) ImGui.sameLine();
     float actionWidth =
         SettingsPageLayout.actionWidth(footerWidth, rows[row], ImGui.getStyle().getItemSpacingX());
+    actionIds.put(key, ImGui.getID(widget));
     boolean clicked =
         ImGui.button(widget, Math.min(actionWidth, Math.max(1, ImGui.getContentRegionAvailX())), 0);
     actions.put(key, PopupLayout.itemBounds());
@@ -76,6 +83,10 @@ final class SettingsPageChrome {
 
   Map<String, DialogBounds.Rect> actions() {
     return Map.copyOf(actions);
+  }
+
+  Map<String, Integer> actionIds() {
+    return Map.copyOf(actionIds);
   }
 
   static SettingsPageLayout.Pair pair() {

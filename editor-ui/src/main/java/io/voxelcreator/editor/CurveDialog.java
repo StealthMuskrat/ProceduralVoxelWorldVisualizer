@@ -15,6 +15,8 @@ import java.util.function.DoubleConsumer;
  */
 public final class CurveDialog {
   private final CurveEditSession session;
+  private final String actionScope = UUID.randomUUID().toString();
+  final SettingsPageChrome chrome = new SettingsPageChrome(1, 1);
   private final CurveApplySession publication;
   private final EditorState ownerState;
   private final CurveDraftEdit owner;
@@ -265,15 +267,8 @@ public final class CurveDialog {
     }
     focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
     if (!focused || ImGui.getIO().getAppFocusLost() || ShortcutKeys.popup()) pointer.cancel();
-    float bodyHeight =
-        CurveLayout.body(ImGui.getContentRegionAvailY(), ImGui.getFrameHeightWithSpacing());
-    UiScale.beginChild("curve-content", 0, bodyHeight, false, ImGuiWindowFlags.NoScrollWithMouse);
-    bodyBounds =
-        new DialogBounds.Rect(
-            ImGui.getWindowPosX(),
-            ImGui.getWindowPosY(),
-            ImGui.getWindowSizeX(),
-            ImGui.getWindowSizeY());
+    chrome.begin("curve-content", ImGuiWindowFlags.NoScrollWithMouse);
+    bodyBounds = chrome.body();
     Curve curve = session.curve();
     final Curve initial = curve;
     focusDestination = controlFocus.destination(curve);
@@ -704,9 +699,18 @@ public final class CurveDialog {
       ImGui.setScrollY(
           ImGui.getScrollY() - io.getMouseWheel() * ImGui.getTextLineHeightWithSpacing() * 3);
     bodyScroll = ImGui.getScrollY();
-    ImGui.endChild();
+    chrome.end();
+    ImGui.pushID(actionScope);
     ImGui.beginDisabled(!current);
-    if (DialogLayout.button("Apply")) {
+    boolean apply = chrome.identifiedAction("apply", "Apply");
+    controlRect("apply");
+    ImGui.endDisabled();
+    boolean cancel = chrome.identifiedAction("cancel", "Cancel");
+    controlRect("cancel");
+    ImGui.popID();
+    // Escape rolls back an owned plot gesture above and never authorizes a same-frame Apply.
+    if (cancel) cancel();
+    else if (apply && !ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       stopDrag();
       session.endGesture();
       if (publication.apply(session.curve())) {
@@ -721,13 +725,12 @@ public final class CurveDialog {
                   + Objects.requireNonNullElse(failure.getMessage(), failure.toString()));
       }
     }
-    controlRect("apply");
-    ImGui.endDisabled();
-    DialogLayout.sameLine("Cancel");
-    if (DialogLayout.button("Cancel")) cancel();
-    controlRect("cancel");
     ImGui.end();
     return !open.get();
+  }
+
+  String actionScope() {
+    return actionScope;
   }
 
   private void deleteSelected() {

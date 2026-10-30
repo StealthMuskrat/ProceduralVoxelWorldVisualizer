@@ -156,4 +156,77 @@ class MembershipEditSessionTest {
       assertEquals(17, state.project().voxelTypes.getLast().color.r);
     }
   }
+
+  @Test
+  void closedSessionsExposeTerminalStateAndCannotPublishOrChangePrivateMembers() {
+    for (boolean apply : new boolean[] {false, true})
+      try (var state = state()) {
+        var edit = new MembershipEditSession(state, draft(state));
+        edit.set(state.project().voxelTypes.getLast().uuid, true);
+        assertFalse(edit.closed());
+        if (apply) assertTrue(edit.apply(state));
+        else edit.cancel();
+        var committed = ProjectIO.JSON.valueToTree(state.project());
+        var parent = ProjectIO.JSON.valueToTree(state.draft);
+        var values = edit.values();
+        long revision = state.revision, history = state.document.historyBytes();
+        assertTrue(edit.closed());
+        assertFalse(edit.currentOwner(state));
+        assertThrows(
+            IllegalStateException.class,
+            () -> edit.set(state.project().voxelTypes.get(1).uuid, true));
+        assertThrows(IllegalStateException.class, () -> edit.apply(state));
+        edit.cancel();
+        assertEquals(values, edit.values());
+        assertEquals(committed, ProjectIO.JSON.valueToTree(state.project()));
+        assertEquals(parent, ProjectIO.JSON.valueToTree(state.draft));
+        assertEquals(revision, state.revision);
+        assertEquals(history, state.document.historyBytes());
+      }
+  }
+
+  @Test
+  void identicalFileReopenCannotAdoptAnOldMembershipDraft(
+      @org.junit.jupiter.api.io.TempDir java.nio.file.Path directory) throws Exception {
+    try (var state = state()) {
+      var path = directory.resolve("same-project.json");
+      state.document.save(path);
+      var parent = draft(state);
+      var edit = new MembershipEditSession(state, parent);
+      edit.set(state.project().voxelTypes.getLast().uuid, true);
+      var committed = ProjectIO.JSON.valueToTree(state.project());
+      var token = state.document.sessionToken();
+      assertTrue(state.document.open(path).isEmpty());
+      assertNotSame(token, state.document.sessionToken());
+      assertSame(parent, state.draft);
+      assertEquals(committed, ProjectIO.JSON.valueToTree(state.project()));
+      assertFalse(edit.currentOwner(state));
+      assertThrows(IllegalStateException.class, () -> edit.apply(state));
+      assertFalse(edit.closed());
+      edit.cancel();
+      assertTrue(edit.closed());
+      assertEquals(committed, ProjectIO.JSON.valueToTree(state.project()));
+      assertEquals(1, parent.voxelTypeUuids.size());
+    }
+  }
+
+  @Test
+  void unrelatedCatalogHistoryRetainsTheMembershipSessionLifetime() {
+    try (var state = state()) {
+      var token = state.document.sessionToken();
+      var edit = new MembershipEditSession(state, draft(state));
+      edit.set(state.project().voxelTypes.getLast().uuid, true);
+      assertTrue(state.change(p -> p.voxelTypes.getLast().color.r = 17));
+      state.document.undo();
+      state.revision++;
+      state.document.redo();
+      state.revision++;
+      assertSame(token, state.document.sessionToken());
+      assertTrue(edit.currentOwner(state));
+      assertTrue(edit.apply(state));
+      assertTrue(edit.closed());
+      assertEquals(17, state.project().voxelTypes.getLast().color.r);
+      assertEquals(2, state.project().voxelSets.getFirst().voxelTypeUuids.size());
+    }
+  }
 }

@@ -10,6 +10,7 @@ public final class MembershipEditSession {
   private final EditorState editor;
   private final Membership parent;
   private final UUID project;
+  private final Object projectSession;
   private final String kind;
   private final List<UUID> selection;
   private final UUID owner;
@@ -30,6 +31,7 @@ public final class MembershipEditSession {
     editor = state;
     parent = draft;
     project = state.project().project.uuid;
+    projectSession = state.document.sessionToken();
     kind = state.selectedKind;
     selection = List.copyOf(state.multiSelection);
     owner = draft.uuid;
@@ -122,6 +124,7 @@ public final class MembershipEditSession {
   boolean currentOwner(EditorState state) {
     return !closed
         && state == editor
+        && state.document.sessionToken() == projectSession
         && Objects.equals(project, state.project().project.uuid)
         && state.draft == parent
         && Objects.equals(owner, state.selected)
@@ -135,6 +138,10 @@ public final class MembershipEditSession {
 
   int issueCount() {
     return issueCount;
+  }
+
+  public boolean closed() {
+    return closed;
   }
 
   public void cancel() {

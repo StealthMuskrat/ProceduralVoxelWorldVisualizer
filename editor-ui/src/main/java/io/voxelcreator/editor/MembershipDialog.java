@@ -11,6 +11,7 @@ import java.util.*;
  */
 public final class MembershipDialog {
   private final EditorState state;
+  private final String actionScope = UUID.randomUUID().toString();
   final DialogLayout layout;
   private final MembershipEditSession session;
   private final ResourceTreeIndex.Cache cache = new ResourceTreeIndex.Cache();
@@ -42,6 +43,14 @@ public final class MembershipDialog {
     rowIds.clear();
     submitted = 0;
     listBounds = null;
+    if (session.closed()) {
+      pending = false;
+      if (layout.begin("Edit Voxel Membership")) {
+        ImGui.closeCurrentPopup();
+        ImGui.endPopup();
+      }
+      return true;
+    }
     if (pending) {
       layout.open("Edit Voxel Membership");
       pending = false;
@@ -91,6 +100,7 @@ public final class MembershipDialog {
         ImGui.textWrapped("No membership problems reported.");
     }
     chrome.end();
+    ImGui.pushID(actionScope);
     boolean apply = action("apply", "Apply Members", current);
     boolean cancel = action("cancel", "Cancel", true);
     boolean page = action("section", issuesPage ? "Members" : "Issues", true);
@@ -98,6 +108,7 @@ public final class MembershipDialog {
     boolean clear = action("clear", "Clear Matching", current && !issuesPage);
     boolean mode =
         action("selected-only", selectedOnly ? "Show All" : "Selected Only", !issuesPage);
+    ImGui.popID();
     boolean done = false;
     if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       session.cancel();
@@ -221,6 +232,10 @@ public final class MembershipDialog {
 
   float[] control(String key) {
     return controls.get(key);
+  }
+
+  String actionScope() {
+    return actionScope;
   }
 
   MembershipEditSession session() {

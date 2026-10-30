@@ -264,6 +264,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceFormsLayoutProbe build/resource-forms-layout
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ResourceFormsConsumer build/resource-forms-layout
           python scripts/verify_resource_forms_layout.py build/resource-forms-layout
+      - name: Private editor decision ownership and explicit handoff
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PrivateEditorDecisionProbe build/private-editor-decisions
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PrivateEditorDecisionConsumer build/private-editor-decisions
+          python scripts/verify_private_editor_decisions.py build/private-editor-decisions
       - name: Browser selection and protected Properties workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceSelectionProbe build/browser-selection
@@ -424,6 +429,7 @@ jobs:
             build/project-decision-layout/
             build/resource-decision-layout/
             build/resource-forms-layout/
+            build/private-editor-decisions/
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/
@@ -905,6 +911,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_resource_forms_layout.py build/resource-forms-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows private editor decision ownership and explicit handoff
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PrivateEditorDecisionProbe build/private-editor-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.PrivateEditorDecisionConsumer build/private-editor-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_private_editor_decisions.py build/private-editor-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows browser selection and protected Properties workflow
         shell: pwsh
         run: |
@@ -1160,6 +1175,7 @@ jobs:
             build/project-decision-layout/
             build/resource-decision-layout/
             build/resource-forms-layout/
+            build/private-editor-decisions/
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/

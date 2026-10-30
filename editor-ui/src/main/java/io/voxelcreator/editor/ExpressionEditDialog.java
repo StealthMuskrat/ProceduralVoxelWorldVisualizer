@@ -8,6 +8,7 @@ import java.util.*;
 /** A bounded multiline buffer, separate from both the document and the Properties draft. */
 public final class ExpressionEditDialog {
   private final EditorState state;
+  private final String actionScope = UUID.randomUUID().toString();
   final DialogLayout layout;
   private final ExpressionEditSession session;
   private final Runnable staged;
@@ -59,6 +60,10 @@ public final class ExpressionEditDialog {
     if (session.closed()) {
       selection.cancel();
       focusEditor = false;
+      if (layout.begin("Expanded Expression")) {
+        ImGui.closeCurrentPopup();
+        ImGui.endPopup();
+      }
       return true;
     }
     if (pending) {
@@ -151,18 +156,20 @@ public final class ExpressionEditDialog {
       revealFeedback = false;
     }
     chrome.end();
+    ImGui.pushID(actionScope);
     ImGui.beginDisabled(!current);
-    boolean stage = chrome.action("stage", "Use Text");
+    boolean stage = chrome.identifiedAction("stage", "Use Text");
     controlRect("stage");
     ImGui.endDisabled();
     boolean cancel =
-        chrome.action("cancel", "Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false);
+        chrome.identifiedAction("cancel", "Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false);
     controlRect("cancel");
     boolean problem = feedback != null && !feedback.valid() || !error.isEmpty() || !current;
     ImGui.beginDisabled(!problem);
-    boolean showError = chrome.action("selectError", "Show Error");
+    boolean showError = chrome.identifiedAction("selectError", "Show Error");
     controlRect("selectError");
     ImGui.endDisabled();
+    ImGui.popID();
     boolean done = false;
     if (cancel) {
       session.cancel();
@@ -217,6 +224,10 @@ public final class ExpressionEditDialog {
 
   float lineHeight() {
     return lineHeight;
+  }
+
+  String actionScope() {
+    return actionScope;
   }
 
   void probeScroll(float value) {
