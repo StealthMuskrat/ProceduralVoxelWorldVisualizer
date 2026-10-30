@@ -132,6 +132,7 @@ public final class ResourceWorkflowProbe {
         for (int i = 0; i < 3; i++) frame(export::draw);
         if (export.submitted() != 1 || export.preparations() != prepared || prepared != 1)
           throw new AssertionError("Export filtering rebuilt the payload");
+        int filteredExportRows = export.submitted();
         var payload = export.prepare().resources();
         if (payload.voxelTypes.size() != 2
             || payload.voxelSets.size() != 1
@@ -140,6 +141,8 @@ public final class ResourceWorkflowProbe {
           throw new AssertionError("Wrong export dependency closure");
         var packageFiles = new ResourcePackageFiles();
         Object exportDraft = state.draft;
+        click(export::draw, export.probeControl("included"));
+        for (int i = 0; i < 3; i++) frame(export::draw);
         if (!export.canExport())
           throw new AssertionError("Displayed export preview was not acknowledged");
         if (!state.change(p -> p.project.seed++))
@@ -209,7 +212,7 @@ public final class ResourceWorkflowProbe {
         report.put("pickerCallbacks", callbacks.get());
         report.put("membershipRows", membershipRows);
         report.put("exportRows", exportRows);
-        report.put("filteredExportRows", export.submitted());
+        report.put("filteredExportRows", filteredExportRows);
         report.put("preparations", prepared);
         report.put("exportedTypeIds", payload.voxelTypes.stream().map(t -> t.id).toList());
         report.put("exportedMembers", payload.voxelSets.getFirst().voxelTypeUuids.size());

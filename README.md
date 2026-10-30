@@ -144,3 +144,5 @@ The unvalidated [expanded expression layout batch](docs/EXPANDED_EXPRESSION_LAYO
 The unvalidated [Inspector layout batch](docs/INSPECTOR_LAYOUT.md) separates Coordinates/Trace, keeps request/restoration/bookmark actions persistent, focuses invalid displayed XYZ and invalidates source decisions after hidden trace replacement. Seven added regression definitions and twelve native layout cases with recovery phases remain unexecuted.
 
 The unvalidated [resource review layout batch](docs/RESOURCE_REVIEW_LAYOUT.md) adds persistent Import/Membership actions, separate review/filter/issue pages, measured clipped rows and Cancel-before-Apply decisions. Nine regression definitions and thirty native page/size cases with transaction recovery remain unexecuted.
+
+The unvalidated [package path/export layout batch](docs/PACKAGE_LAYOUT.md) adds persistent file actions, Choices/Included/Path pages, explicit dependency-preview review and same-frame Cancel priority before I/O. Nine regression definitions, twenty-four native page/size cases and existing engine-only package replay remain unexecuted.

@@ -851,6 +851,10 @@ public final class ResourcePanel {
     exportPanel.open();
   }
 
+  ResourceExportPanel exportView() {
+    return exportPanel;
+  }
+
   public void drawExportSelection() {
     exportPanel.draw();
   }

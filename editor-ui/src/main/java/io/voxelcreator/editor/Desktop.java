@@ -88,14 +88,9 @@ public final class Desktop extends Application {
   private final EditorFrameGate frames = new EditorFrameGate();
   private final UiDpiPolicy dpi = new UiDpiPolicy();
   private DpiGlfwBackend dpiBackend;
-  private final ImString pathInput = new ImString(4096);
-  private String settingsPage = "User Settings", settingsCategory = "Appearance", fileAction = "";
-  private boolean filePending = false;
-  private boolean packageFileOpen;
-  private final ResourcePackageFiles packageFiles = new ResourcePackageFiles();
-  private String packageFileError = "";
+  private String settingsPage = "User Settings", settingsCategory = "Appearance";
   private ProjectFileDialog projectFiles;
-  private DialogLayout packageLayout;
+  private ResourcePackageDialog packageDialog;
   private ProjectHistoryPanel projectHistory;
   private ProjectSettingsPanel projectSettings;
   private ResourceImportPanel imports;
@@ -300,7 +295,6 @@ public final class Desktop extends Application {
             target -> {
               if (state.canNavigate(target)) sourceNavigation.request(target);
             });
-    packageLayout = new DialogLayout(state, "Resources", 780, 620);
     projectFiles =
         new ProjectFileDialog(
             state,
@@ -322,6 +316,8 @@ public final class Desktop extends Application {
                     || projectFiles.workflow.phase() != ProjectFileWorkflow.Phase.IDLE);
     imports =
         new ResourceImportPanel(state, this::packageInteractionBlocked, () -> validation.set(true));
+    packageDialog =
+        new ResourcePackageDialog(state, resources, imports, this::packageInteractionBlocked);
     views = new Viewports(state, properties, handle);
     lifecycle.own(
         () -> {
@@ -812,88 +808,15 @@ public final class Desktop extends Application {
   }
 
   private void openFile(String action) {
-    if (packageInteractionBlocked() || filePending || packageFileOpen || imports.pending()) {
-      state.status =
-          "Finish the private editor or pending project action before opening a resource package";
-      return;
-    }
-    fileAction = action;
-    if (action.equals("Export")) resources.beginExport();
-    filePending = true;
-    packageFileOpen = true;
-    packageFileError = "";
-    pathInput.set(ResourcePackageFiles.suggestedLocation(state.document.path()).toString());
+    packageDialog.open(action);
   }
 
   private void fileDialogs() {
-    if (filePending) {
-      packageLayout.open("File Location");
-      filePending = false;
-    }
-    if (packageLayout.begin("File Location", ImGuiWindowFlags.AlwaysAutoResize)) {
-      ImGui.text(fileAction + " file");
-      DialogLayout.inputWidth("Path");
-      ImGui.inputText("Path", pathInput);
-      if (!packageFileError.isEmpty()) {
-        UiScale.beginChild("package-file-error", 0, 95, true);
-        ImGui.textWrapped(packageFileError);
-        ImGui.endChild();
-      }
-      if (fileAction.equals("Export")) {
-        UiScale.beginChild("export-resources", 0, 360, true);
-        resources.drawExportSelection();
-        if (smokeFrames > 0) smokeExportDrawn = true;
-        ImGui.endChild();
-      }
-      ImGui.beginDisabled(fileAction.equals("Export") && !resources.canExport());
-      if (DialogLayout.button(fileAction)) {
-        try {
-          Path path = ResourcePackageFiles.location(pathInput.get());
-          switch (fileAction) {
-            case "Export" -> {
-              if (resources.exportSelection.isEmpty())
-                throw new IOException("Select resources to export");
-              resources.writeExport(path, packageFiles);
-              resources.cancelExport();
-              state.notify("Information", "Resource package exported");
-            }
-            case "Import" -> {
-              var candidate = packageFiles.read(path);
-              if (!imports.open(candidate))
-                throw new IOException("Import is blocked or the package was rejected");
-            }
-          }
-          packageFileOpen = false;
-          ImGui.closeCurrentPopup();
-        } catch (Exception e) {
-          packageFileError =
-              fileAction + " failed: " + Objects.requireNonNullElse(e.getMessage(), e.toString());
-          state.error(
-              "FILE_" + fileAction.toUpperCase(Locale.ROOT) + "_FAILED",
-              Set.of("Import", "Export").contains(fileAction)
-                  ? EditorEvents.Subsystem.IMPORT_EXPORT
-                  : EditorEvents.Subsystem.PROJECT,
-              packageFileError);
-        }
-      }
-      ImGui.endDisabled();
-      DialogLayout.sameLine("Cancel");
-      if (DialogLayout.button("Cancel")) {
-        if (fileAction.equals("Export")) resources.cancelExport();
-        packageFileOpen = false;
-        ImGui.closeCurrentPopup();
-      }
-      if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-        if (fileAction.equals("Export")) resources.cancelExport();
-        packageFileOpen = false;
-        ImGui.closeCurrentPopup();
-      }
-      if (smokeFrames > 0 && 480 - smokeFrames == 236 && fileAction.equals("Export")) {
-        resources.cancelExport();
-        packageFileOpen = false;
-        ImGui.closeCurrentPopup();
-      }
-      ImGui.endPopup();
+    packageDialog.draw();
+    if (smokeFrames > 0) {
+      smokeExportDrawn |= packageDialog.exportDrawn();
+      if (480 - smokeFrames == 236 && packageDialog.action().equals("Export"))
+        packageDialog.cancel();
     }
     imports.draw();
   }
@@ -1108,8 +1031,7 @@ public final class Desktop extends Application {
 
   private boolean privateProjectInteraction() {
     return sourceProjectInteraction()
-        || filePending
-        || packageFileOpen
+        || (packageDialog != null && packageDialog.pending())
         || (imports != null && imports.pending());
   }
 

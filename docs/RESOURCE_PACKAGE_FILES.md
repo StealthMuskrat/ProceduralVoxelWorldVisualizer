@@ -24,3 +24,5 @@ Full file-dialog keyboard/path/selection interaction, arbitrary write/flush/repl
 
 
 [Owned export workspace](EXPORT_WORKSPACE.md) subsequently adds frozen-source ownership and exact displayed-preview publication in the editor, while retaining this package I/O contract. Its implementation and deferred definitions remain uncompiled/untested.
+
+The subsequent unvalidated [package layout follow-up](PACKAGE_LAYOUT.md) replaces fixed file-error/export children with one scrolling production modal and persistent decisions. Its deferred native scenarios cover protected paths, failed partial staging/retry, Cancel-before-I/O and Import review handoff through the same Desktop dialog. The writer/reader safety contract above is unchanged and none of the new definitions has run.
