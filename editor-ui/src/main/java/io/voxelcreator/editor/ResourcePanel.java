@@ -20,6 +20,19 @@ public final class ResourcePanel {
   private String createKind = "noise2D", createRoot = "noise2D";
   private UUID createParent, placementLayer;
   private boolean createPending = false;
+  private ResourceFormOwner createOwner, placementOwner, deleteOwner;
+  final SettingsPageChrome createChrome = new SettingsPageChrome(2),
+      placementChrome = new SettingsPageChrome(2),
+      deleteChrome = new SettingsPageChrome(2);
+  private final DraftChoicePicker deletePicker = new DraftChoicePicker();
+  private List<DraftChoicePicker.Choice> deleteChoices = List.of();
+  private List<String> deleteDependents = List.of();
+  private String deleteLabel = "", createMessage = "", placementMessage = "", deleteMessage = "";
+  private boolean createFocus, createReveal, placementReveal, deleteReveal;
+  private boolean placementListReveal, deleteListReveal;
+  private int placementSubmitted, deleteSubmitted;
+  private DialogBounds.Rect createInput;
+
   private ResourceClipboard clipboard;
   private boolean focused;
 
@@ -76,6 +89,9 @@ public final class ResourcePanel {
   }
 
   public void reset() {
+    closeCreate();
+    closePlacement();
+    closeDelete();
     edits.clear();
     editPrompt = false;
     if (editCommitted != null) editCommitted.clear();
@@ -300,65 +316,101 @@ public final class ResourcePanel {
   }
 
   private void beginPlacement(UUID layer) {
-    if (!actionAvailable()) return;
+    if (!formAvailable() || !(EditorState.find(state.project(), layer) instanceof Layer)) return;
+    placementOwner = new ResourceFormOwner(state);
     placementLayer = layer;
     placementNoise = null;
     placementFilter.set("");
     placementKey = null;
-    placementPending = true;
-    placementOpen = true;
+    placementMessage = "";
+    placementReveal = placementListReveal = true;
+    placementPending = placementOpen = true;
   }
 
   private void placementDialog() {
+    String title = "Add Noise Generator";
+    placementSubmitted = 0;
+    if (!placementOpen) {
+      closeInactive(title);
+      return;
+    }
     if (placementPending) {
-      dialog("Add Noise Generator").open("Add Noise Generator");
+      dialog(title).open(title);
       placementPending = false;
     }
-    if (!dialog("Add Noise Generator").begin("Add Noise Generator")) return;
+    if (!dialog(title).begin(title)) return;
+    boolean current = placementOwner.current(state);
+    placementChrome.begin("placement-body");
+    if (placementReveal) {
+      ImGui.setScrollY(0);
+      placementReveal = false;
+    }
+    ImGui.pushID(placementOwner.nativeId());
+    staleForm(current);
+    ImGui.beginDisabled(!current);
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
     ImGui.inputTextWithHint("##placement-filter", "Find noise by ID...", placementFilter);
     if (!Objects.equals(placementKey, placementFilter.get())) {
       placementKey = placementFilter.get();
       placementRows = browser.noises(placementKey);
+      placementListReveal = true;
     }
-    // Initial empty query also materializes the complete 2D/3D list.
-    if (placementRows.isEmpty() && placementKey.isEmpty()) placementRows = browser.noises("");
-    ImGui.text(placementRows.size() + " matching noise generator(s)");
+    ImGui.textWrapped(placementRows.size() + " matching noise generator(s)");
+    if (!placementMessage.isEmpty()) ImGui.textWrapped(placementMessage);
+    ImGui.popID();
     UiScale.beginChild(
-        "placement-options", 0, Math.max(120, ImGui.getContentRegionAvailY() - 48), true);
+        "placement-options", 0, ResourceReviewLayout.content(ImGui.getContentRegionAvailY()), true);
+    if (placementListReveal) {
+      ImGui.setScrollY(0);
+      placementListReveal = false;
+    }
+    ImGui.pushID(placementOwner.nativeId());
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(placementRows.size(), ImGui.getTextLineHeightWithSpacing());
       while (clipper.step())
         for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
           var node = placementRows.get(i);
-          if (ImGui.selectable(
-              AppMetadata.uiText(node.id())
+          placementSubmitted++;
+          String label =
+              StatusBarText.clip(node.id(), 512)
                   + " ["
                   + (node.kind().equals("noise2D") ? "2D" : "3D")
-                  + "]###"
-                  + node.uuid(),
-              node.uuid().equals(placementNoise))) placementNoise = node.uuid();
+                  + "]";
+          if (ImGui.selectable(
+              AppMetadata.uiText(label) + "###" + node.uuid(), node.uuid().equals(placementNoise)))
+            placementNoise = node.uuid();
+          PopupLayout.clippedLabel(node.id());
         }
       clipper.end();
     } finally {
       clipper.destroy();
     }
+    ImGui.popID();
     ImGui.endChild();
-    ImGui.beginDisabled(placementNoise == null || browser.get(placementLayer) == null);
-    if (DialogLayout.button("Add Placement")) {
-      UUID layerId = placementLayer, noiseId = placementNoise;
-      var result =
-          requestEdit("Add Placement", ResourceBrowserEdits.placement(layerId, noiseId), () -> {});
-      if (acceptedOrPending(result)) {
-        placementOpen = false;
-        ImGui.closeCurrentPopup();
-      }
-    }
     ImGui.endDisabled();
-    DialogLayout.sameLine("Cancel");
-    if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      placementOpen = false;
+    placementChrome.end();
+    ImGui.pushID(placementOwner.nativeId());
+    ImGui.beginDisabled(!current || placementNoise == null || browser.get(placementLayer) == null);
+    boolean add = placementChrome.identifiedAction("primary", "Add Placement");
+    ImGui.endDisabled();
+    boolean cancel =
+        placementChrome.identifiedAction("cancel", "Cancel")
+            || ImGui.isKeyPressed(ImGuiKey.Escape, false);
+    ImGui.popID();
+    if (cancel) {
+      closePlacement();
       ImGui.closeCurrentPopup();
+    } else if (add && placementOwner.current(state)) {
+      var result =
+          requestEdit(
+              "Add Placement",
+              ResourceBrowserEdits.placement(placementLayer, placementNoise),
+              () -> {});
+      if (acceptedOrPending(result)) {
+        closePlacement();
+        ImGui.closeCurrentPopup();
+      } else placementMessage = "Placement rejected. Check the selected resources or cancel.";
     }
     ImGui.endPopup();
   }
@@ -728,13 +780,18 @@ public final class ResourcePanel {
   }
 
   private void create(String kind, String root, UUID parent) {
-    if (!actionAvailable()) return;
+    if (!formAvailable()) return;
+    createOwner = new ResourceFormOwner(state);
     createKind = kind;
     createRoot = root;
     createParent = parent;
     name.set("");
-    createPending = true;
-    createOpen = true;
+    createMessage = "";
+    createPending = createOpen = createFocus = createReveal = true;
+  }
+
+  private boolean formAvailable() {
+    return !createOpen && !placementOpen && deleteId == null && actionAvailable();
   }
 
   private boolean actionAvailable() {
@@ -744,9 +801,35 @@ public final class ResourcePanel {
   }
 
   private void beginDelete(UUID id) {
-    if (!actionAvailable()) return;
+    if (!formAvailable()) return;
+    var source = ResourceGraph.find(state.project(), id);
+    if (source == null) return;
+    deleteOwner = new ResourceFormOwner(state);
     deleteId = id;
     replacement = null;
+    deleteMessage = "";
+    deleteReveal = deleteListReveal = true;
+    var deleted = ResourceGraph.subtree(state.project(), List.of(id));
+    deleteLabel =
+        "Delete "
+            + source.resource().id
+            + " and "
+            + (deleted.size() - 1)
+            + " contained resource(s)?";
+    deleteDependents =
+        ResourceGraph.dependents(state.project(), deleted).stream()
+            .map(e -> e.kind() + " / " + e.resource().id)
+            .toList();
+    deleteChoices =
+        source.resource() instanceof Folder
+            ? List.of()
+            : ResourceGraph.entries(state.project()).stream()
+                .filter(e -> e.kind().equals(source.kind()) && !deleted.contains(e.uuid()))
+                .map(
+                    e ->
+                        new DraftChoicePicker.Choice(
+                            e.uuid().toString(), e.resource().id, e.kind()))
+                .toList();
   }
 
   boolean blocksProjectTransition() {
@@ -760,27 +843,97 @@ public final class ResourcePanel {
   }
 
   private void createDialog() {
+    String title = "Create Resource";
+    if (!createOpen) {
+      closeInactive(title);
+      return;
+    }
     if (createPending) {
-      dialog("Create Resource").open("Create Resource");
+      dialog(title).open(title);
       createPending = false;
     }
-    if (dialog("Create Resource").begin("Create Resource", ImGuiWindowFlags.AlwaysAutoResize)) {
-      ImGui.text("New " + createKind);
-      ImGui.inputText("ID", name);
-      if (DialogLayout.button("Create")) {
-        var result = createResource(createKind, createRoot, createParent, name.get());
-        if (acceptedOrPending(result)) {
-          createOpen = false;
-          ImGui.closeCurrentPopup();
-        }
-      }
-      DialogLayout.sameLine("Cancel");
-      if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-        createOpen = false;
+    if (!dialog(title).begin(title)) return;
+    boolean current = createOwner.current(state);
+    createChrome.begin("create-body");
+    if (createReveal) {
+      ImGui.setScrollY(0);
+      createReveal = false;
+    }
+    ImGui.pushID(createOwner.nativeId());
+    ImGui.textWrapped("New " + createKind);
+    staleForm(current);
+    ImGui.beginDisabled(!current);
+    ImGui.text("ID");
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+    boolean focus = createFocus && current;
+    if (focus) ImGui.setKeyboardFocusHere();
+    ImGui.inputText("##resource-id", name);
+    if (focus) {
+      ImGui.setScrollHereY(.25f);
+      createFocus = false;
+    }
+    createInput = PopupLayout.itemBounds();
+    ImGui.endDisabled();
+    if (!createMessage.isEmpty()) ImGui.textWrapped(createMessage);
+    ImGui.popID();
+    createChrome.end();
+    ImGui.pushID(createOwner.nativeId());
+    ImGui.beginDisabled(!current);
+    boolean create = createChrome.identifiedAction("primary", "Create");
+    ImGui.endDisabled();
+    boolean cancel =
+        createChrome.identifiedAction("cancel", "Cancel")
+            || ImGui.isKeyPressed(ImGuiKey.Escape, false);
+    ImGui.popID();
+    if (cancel) {
+      closeCreate();
+      ImGui.closeCurrentPopup();
+    } else if (create && createOwner.current(state)) {
+      var result = createResource(createKind, createRoot, createParent, name.get());
+      if (acceptedOrPending(result)) {
+        closeCreate();
         ImGui.closeCurrentPopup();
+      } else {
+        createMessage = "Creation rejected. Correct the ID or cancel; no changes were published.";
+        createFocus = createReveal = true;
       }
+    }
+    ImGui.endPopup();
+  }
+
+  private void closeCreate() {
+    if (createOwner != null) createOwner.close();
+    createOwner = null;
+    createOpen = createPending = createFocus = false;
+    createMessage = "";
+  }
+
+  private void closePlacement() {
+    if (placementOwner != null) placementOwner.close();
+    placementOwner = null;
+    placementOpen = placementPending = false;
+    placementLayer = placementNoise = null;
+    placementMessage = "";
+  }
+
+  private void closeDelete() {
+    if (deleteOwner != null) deleteOwner.close();
+    deleteOwner = null;
+    deleteId = replacement = null;
+    deleteMessage = "";
+    deleteChoices = List.of();
+    deleteDependents = List.of();
+  }
+
+  private void closeInactive(String title) {
+    if (dialog(title).begin(title)) {
+      ImGui.closeCurrentPopup();
       ImGui.endPopup();
     }
+  }
+
+  private static void staleForm(boolean current) {
+    if (!current) ImGui.textWrapped("Project changed; Cancel and reopen this form.");
   }
 
   private void reorder(UUID uuid, int direction) {
@@ -885,59 +1038,158 @@ public final class ResourcePanel {
   }
 
   private void deleteDialog() {
-    if (deleteId != null && !ImGui.isPopupOpen("Delete Resource"))
-      dialog("Delete Resource").open("Delete Resource");
-    if (dialog("Delete Resource").begin("Delete Resource", ImGuiWindowFlags.AlwaysAutoResize)) {
-      var source = ResourceGraph.find(state.project(), deleteId);
-      var deleted = ResourceGraph.subtree(state.project(), List.of(deleteId));
-      var deps = ResourceGraph.dependents(state.project(), deleted);
-      ImGui.textWrapped(
-          "Delete "
-              + (source == null ? "resource" : source.resource().id)
-              + " and "
-              + (deleted.size() - 1)
-              + " contained resource(s)?");
-      if (!deps.isEmpty()) {
-        ImGui.text("External dependents:");
-        for (var d : deps) ImGui.bulletText(d.kind() + " / " + d.resource().id);
-        if (source != null && !(source.resource() instanceof Folder)) {
-          if (UiScale.beginCombo(
-              "Replace references with",
-              replacement == null
-                  ? "Choose compatible resource"
-                  : Optional.ofNullable(ResourceGraph.find(state.project(), replacement))
-                      .map(e -> e.resource().id)
-                      .orElse("Missing"))) {
-            for (var e : ResourceGraph.entries(state.project()))
-              if (e.kind().equals(source.kind())
-                  && !deleted.contains(e.uuid())
-                  && ImGui.selectable(e.resource().id)) replacement = e.uuid();
-            ImGui.endCombo();
-          }
-          ImGui.textWrapped("References and deletion commit together as one undoable edit.");
-        } else
-          ImGui.textWrapped("Edit the external references before deleting this folder subtree.");
-      }
-      boolean canDelete = deps.isEmpty() || replacement != null;
-      boolean deleteClicked = canDelete && DialogLayout.button("Delete");
-      if (canDelete) rememberEditButton("confirmDelete");
-      if (deleteClicked) {
-        UUID id = deleteId, target = replacement;
-        var result =
-            requestEdit(
-                "Delete Resource", ResourceBrowserEdits.delete(id, target), () -> deleteId = null);
-        if (acceptedOrPending(result)) {
-          deleteId = null;
-          ImGui.closeCurrentPopup();
-        }
-      }
-      DialogLayout.sameLine("Cancel");
-      if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-        deleteId = null;
-        ImGui.closeCurrentPopup();
-      }
-      ImGui.endPopup();
+    String title = "Delete Resource";
+    deleteSubmitted = 0;
+    if (deleteId == null) {
+      closeInactive(title);
+      return;
     }
+    if (!ImGui.isPopupOpen(title)) dialog(title).open(title);
+    if (!dialog(title).begin(title)) return;
+    boolean current = deleteOwner.current(state);
+    deleteChrome.begin("delete-body");
+    if (deleteReveal) {
+      ImGui.setScrollY(0);
+      deleteReveal = false;
+    }
+    ImGui.pushID(deleteOwner.nativeId());
+    ImGui.textWrapped(StatusBarText.clip(deleteLabel, 1024));
+    staleForm(current);
+    if (!deleteDependents.isEmpty()) {
+      ImGui.textWrapped(deleteDependents.size() + " external dependent(s)");
+      ImGui.beginDisabled(!current);
+      if (!deleteChoices.isEmpty()) {
+        deletePicker.draw(
+            "Replace references with",
+            replacement == null ? null : replacement.toString(),
+            deleteChoices,
+            null,
+            value -> replacement = UUID.fromString(value));
+        ImGui.textWrapped("References and deletion commit together as one undoable edit.");
+      } else
+        ImGui.textWrapped(
+            "Edit external references before deleting this resource or folder subtree.");
+      ImGui.endDisabled();
+    }
+    if (!deleteMessage.isEmpty()) ImGui.textWrapped(deleteMessage);
+    ImGui.popID();
+    UiScale.beginChild(
+        "delete-dependents", 0, ResourceReviewLayout.content(ImGui.getContentRegionAvailY()), true);
+    if (deleteListReveal) {
+      ImGui.setScrollY(0);
+      deleteListReveal = false;
+    }
+    var clipper = new ImGuiListClipper();
+    try {
+      clipper.begin(deleteDependents.size(), ImGui.getTextLineHeightWithSpacing());
+      while (clipper.step())
+        for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
+          String label = deleteDependents.get(i);
+          deleteSubmitted++;
+          ImGui.text(StatusBarText.clip(label, 512));
+          PopupLayout.clippedLabel(label);
+        }
+      clipper.end();
+    } finally {
+      clipper.destroy();
+    }
+    ImGui.endChild();
+    deleteChrome.end();
+    ImGui.pushID(deleteOwner.nativeId());
+    boolean canDelete = current && (deleteDependents.isEmpty() || replacement != null);
+    ImGui.beginDisabled(!canDelete);
+    boolean delete = deleteChrome.identifiedAction("primary", "Delete");
+    rememberEditButton("confirmDelete");
+    ImGui.endDisabled();
+    boolean cancel =
+        deleteChrome.identifiedAction("cancel", "Cancel")
+            || ImGui.isKeyPressed(ImGuiKey.Escape, false);
+    ImGui.popID();
+    if (cancel) {
+      closeDelete();
+      ImGui.closeCurrentPopup();
+    } else if (delete && deleteOwner.current(state)) {
+      var result =
+          requestEdit(
+              "Delete Resource", ResourceBrowserEdits.delete(deleteId, replacement), () -> {});
+      if (acceptedOrPending(result)) {
+        closeDelete();
+        ImGui.closeCurrentPopup();
+      } else {
+        deleteMessage =
+            "Deletion rejected. Correct the replacement or cancel; no changes were published.";
+        deleteReveal = true;
+      }
+    }
+    ImGui.endPopup();
+  }
+
+  void probeOpenForm(String form, UUID target) {
+    refreshBrowser();
+    switch (form) {
+      case "Create" -> create("noise2D", "noise2D", null);
+      case "Placement" -> beginPlacement(target);
+      case "Delete" -> beginDelete(target);
+      default -> throw new IllegalArgumentException(form);
+    }
+  }
+
+  void probeDrawForms() {
+    refreshBrowser();
+    createDialog();
+    placementDialog();
+    deleteDialog();
+  }
+
+  void probeFormName(String value) {
+    name.set(value);
+  }
+
+  void probePlacement(UUID id) {
+    placementNoise = id;
+  }
+
+  void probeReplacement(UUID id) {
+    replacement = id;
+  }
+
+  boolean probeFormOpen(String form) {
+    return form.equals("Create")
+        ? createOpen
+        : form.equals("Placement") ? placementOpen : deleteId != null;
+  }
+
+  SettingsPageChrome probeFormChrome(String form) {
+    return form.equals("Create")
+        ? createChrome
+        : form.equals("Placement") ? placementChrome : deleteChrome;
+  }
+
+  DialogLayout probeFormLayout(String form) {
+    return dialog(
+        form.equals("Create")
+            ? "Create Resource"
+            : form.equals("Placement") ? "Add Noise Generator" : "Delete Resource");
+  }
+
+  String probeFormId(String form) {
+    var owner =
+        form.equals("Create")
+            ? createOwner
+            : form.equals("Placement") ? placementOwner : deleteOwner;
+    return owner == null ? "" : owner.nativeId();
+  }
+
+  int probeFormSubmitted(String form) {
+    return form.equals("Placement") ? placementSubmitted : deleteSubmitted;
+  }
+
+  DraftChoicePicker probeDeletePicker() {
+    return deletePicker;
+  }
+
+  DialogBounds.Rect probeCreateInput() {
+    return createInput;
   }
 
   private final Map<String, DialogLayout> dialogs = new HashMap<>();

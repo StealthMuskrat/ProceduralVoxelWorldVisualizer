@@ -259,6 +259,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceDecisionLayoutProbe build/resource-decision-layout
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ResourceDecisionConsumer build/resource-decision-layout
           python scripts/verify_resource_decision_layout.py build/resource-decision-layout
+      - name: Resource form layout and private noise resolution
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceFormsLayoutProbe build/resource-forms-layout
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ResourceFormsConsumer build/resource-forms-layout
+          python scripts/verify_resource_forms_layout.py build/resource-forms-layout
       - name: Browser selection and protected Properties workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceSelectionProbe build/browser-selection
@@ -418,6 +423,7 @@ jobs:
             build/project-history/
             build/project-decision-layout/
             build/resource-decision-layout/
+            build/resource-forms-layout/
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/
@@ -890,6 +896,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_resource_decision_layout.py build/resource-decision-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows resource form layout and private noise resolution
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceFormsLayoutProbe build/resource-forms-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ResourceFormsConsumer build/resource-forms-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_resource_forms_layout.py build/resource-forms-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows browser selection and protected Properties workflow
         shell: pwsh
         run: |
@@ -1144,6 +1159,7 @@ jobs:
             build/project-history/
             build/project-decision-layout/
             build/resource-decision-layout/
+            build/resource-forms-layout/
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/

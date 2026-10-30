@@ -23,7 +23,10 @@ public final class NoiseEditDialog {
   private final DraftChoicePicker picker = new DraftChoicePicker();
   private boolean opening = true;
   private String message = "";
-  private float[] applyCenter;
+  final SettingsPageChrome chrome = new SettingsPageChrome(2, 2);
+  private final String nativeId = UUID.randomUUID().toString();
+  private boolean issues, reveal = true, issuesReveal = true;
+  private int submitted;
 
   public NoiseEditDialog(EditorState state, Noise owner, Request request, Consumer<UUID> applied) {
     this.state = state;
@@ -51,20 +54,85 @@ public final class NoiseEditDialog {
     try {
       session.choose(resolution, replacement);
       message = "";
+      reveal = issuesReveal = true;
     } catch (RuntimeException invalid) {
       message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+      reveal = true;
     }
   }
 
   public boolean draw() {
-    if (session.closed()) return true;
+    String title = "Resolve Noise Item Edit";
+    if (session.closed()) {
+      if (layout.begin(title)) {
+        ImGui.closeCurrentPopup();
+        ImGui.endPopup();
+      }
+      return true;
+    }
     if (opening) {
-      layout.open("Resolve Noise Item Edit");
+      layout.open(title);
       opening = false;
     }
-    if (!layout.begin("Resolve Noise Item Edit", ImGuiWindowFlags.AlwaysAutoResize)) return false;
+    if (!layout.begin(title)) return false;
     boolean current = session.current();
-    ImGui.text(action + " / " + bounded(row == null ? target.toString() : row.id(), 1024));
+    chrome.begin("noise-edit-body");
+    if (reveal) {
+      ImGui.setScrollY(0);
+      reveal = false;
+    }
+    ImGui.textWrapped(action + " / " + bounded(row == null ? target.toString() : row.id(), 1024));
+    if (!current) ImGui.textWrapped("Draft or project changed; Cancel and reopen this edit.");
+    if (!message.isEmpty()) ImGui.textWrapped(bounded(message, 2048));
+    if (issues) diagnostics();
+    else resolution(current);
+    chrome.end();
+    ImGui.pushID(nativeId);
+    ImGui.beginDisabled(!current || !session.preview().valid());
+    boolean apply = chrome.identifiedAction("apply", "Apply Resolved Edit");
+    ImGui.endDisabled();
+    boolean cancel =
+        chrome.identifiedAction("cancel", "Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false);
+    boolean showResolution = chrome.identifiedAction("resolution", "Resolution");
+    boolean showIssues =
+        chrome.identifiedAction(
+            "issues", "Issues (" + session.preview().diagnostics().size() + ")");
+    ImGui.popID();
+    boolean closed = false;
+    if (cancel) {
+      session.cancel();
+      closed = true;
+    } else if (apply) {
+      try {
+        UUID selected = session.stage();
+        closed = true;
+        try {
+          applied.accept(selected);
+        } catch (RuntimeException failure) {
+          state.error(
+              "NOISE_EDIT_FOCUS_FAILED",
+              EditorEvents.Subsystem.APPLICATION,
+              "Noise edit staged in Properties; focus could not be updated: "
+                  + Objects.requireNonNullElse(failure.getMessage(), failure.toString()));
+        }
+      } catch (RuntimeException invalid) {
+        message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+        reveal = true;
+      }
+    } else if (showResolution && issues) {
+      issues = false;
+      reveal = true;
+    } else if (showIssues && !issues) {
+      issues = true;
+      reveal = issuesReveal = true;
+    }
+    if (closed) ImGui.closeCurrentPopup();
+    ImGui.endPopup();
+    return closed;
+  }
+
+  private void resolution(boolean current) {
+    submitted = 0;
     ImGui.textWrapped(
         "Choose how to replace affected inputs and Output. Apply updates the noise draft; Apply in"
             + " Properties saves it to the project.");
@@ -73,9 +141,13 @@ public final class NoiseEditDialog {
     else if (row != null
         && row.section() == NoiseDraftIndex.Section.PROCESSING
         && row.type().equals("Scalar")) resolutions.add("SOURCE");
+    ImGui.pushID(nativeId);
     ImGui.beginDisabled(!current);
+    // A separate label preserves the complete preview width in narrow content.
+    ImGui.text("Resolution");
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
     fields.choice(
-        "Resolution",
+        "##resolution",
         session.resolution().name(),
         resolutions,
         value -> choose(Resolution.valueOf(value), null));
@@ -95,14 +167,28 @@ public final class NoiseEditDialog {
           null,
           value -> choose(Resolution.REPLACE, UUID.fromString(value)));
     ImGui.endDisabled();
-    var plan = session.preview();
-    UiScale.beginChild("edit-diagnostics", 0, 150, true);
+    ImGui.popID();
+    ImGui.textWrapped(
+        session.preview().diagnostics().size() + " issue(s); see Issues for the complete list.");
+  }
+
+  private void diagnostics() {
+    submitted = 0;
+    var diagnostics = session.preview().diagnostics();
+    ImGui.textWrapped(diagnostics.size() + " issue(s)");
+    UiScale.beginChild(
+        "edit-diagnostics", 0, ResourceReviewLayout.content(ImGui.getContentRegionAvailY()), true);
+    if (issuesReveal) {
+      ImGui.setScrollY(0);
+      issuesReveal = false;
+    }
     var clipper = new ImGuiListClipper();
     try {
-      clipper.begin(plan.diagnostics().size(), 2 * ImGui.getTextLineHeightWithSpacing());
+      clipper.begin(diagnostics.size(), 2 * ImGui.getTextLineHeightWithSpacing());
       while (clipper.step())
         for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
-          var diagnostic = plan.diagnostics().get(i);
+          var diagnostic = diagnostics.get(i);
+          submitted++;
           ImGui.text(bounded(diagnostic.code() + " / " + diagnostic.jsonPointer(), 1024));
           ImGui.textDisabled(bounded(diagnostic.message(), 1024));
           if (ImGui.isItemHovered()) UiScale.tooltip(bounded(diagnostic.toString(), 4096));
@@ -112,48 +198,34 @@ public final class NoiseEditDialog {
       clipper.destroy();
     }
     ImGui.endChild();
-    if (!current) ImGui.textWrapped("! Draft or project changed; Cancel and reopen this edit.");
-    if (!message.isEmpty()) ImGui.textWrapped(bounded(message, 2048));
-    boolean closed = false;
-    ImGui.beginDisabled(!current || !plan.valid());
-    if (DialogLayout.button("Apply Resolved Edit")) {
-      try {
-        UUID selected = session.stage();
-        closed = true;
-        // Focus is a consequence of accepted staging. A failed callback must not reopen/reapply it.
-        try {
-          applied.accept(selected);
-        } catch (RuntimeException failure) {
-          state.error(
-              "NOISE_EDIT_FOCUS_FAILED",
-              EditorEvents.Subsystem.APPLICATION,
-              "Noise edit staged in Properties; focus could not be updated: "
-                  + Objects.requireNonNullElse(failure.getMessage(), failure.toString()));
-        }
-      } catch (RuntimeException invalid) {
-        message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
-      }
-    }
-    var min = ImGui.getItemRectMin();
-    var max = ImGui.getItemRectMax();
-    applyCenter = new float[] {(min.x + max.x) / 2, (min.y + max.y) / 2};
-    ImGui.endDisabled();
-    DialogLayout.sameLine("Cancel");
-    if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      session.cancel();
-      closed = true;
-    }
-    if (closed) ImGui.closeCurrentPopup();
-    ImGui.endPopup();
-    return closed;
   }
 
   private static String bounded(String value, int limit) {
-    value = Objects.requireNonNullElse(value, "");
-    return value.length() > limit ? value.substring(0, limit - 1) + "…" : value;
+    return StatusBarText.clip(Objects.requireNonNullElse(value, ""), limit);
   }
 
   float[] applyCenter() {
-    return applyCenter == null ? null : applyCenter.clone();
+    return control("apply");
+  }
+
+  float[] control(String key) {
+    var b = chrome.actions().get(key);
+    return b == null ? null : new float[] {b.x() + b.width() / 2, b.y() + b.height() / 2};
+  }
+
+  String page() {
+    return issues ? "Issues" : "Resolution";
+  }
+
+  String nativeId() {
+    return nativeId;
+  }
+
+  void probeCancel() {
+    session.cancel();
+  }
+
+  int submitted() {
+    return submitted;
   }
 }
