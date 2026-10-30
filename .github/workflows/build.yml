@@ -233,6 +233,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PackageLayoutProbe build/package-layout
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ResourceSelectionConsumer build/package-layout/selection.pvresources.json
           python scripts/verify_package_layout.py build/package-layout
+          java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExportHierarchyProbe build/export-hierarchy
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExportHierarchyConsumer build/export-hierarchy/hierarchy.pvresources.json
+          python scripts/verify_export_hierarchy.py build/export-hierarchy
       - name: Project history and unapplied Properties workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectHistoryProbe build/project-history
@@ -408,6 +411,7 @@ jobs:
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/
+            build/export-hierarchy/
             build/bookmark-inputs/
             build/pin-browser/
             build/project-settings/
@@ -828,6 +832,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_package_layout.py build/package-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExportHierarchyProbe build/export-hierarchy
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ExportHierarchyConsumer build/export-hierarchy/hierarchy.pvresources.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_export_hierarchy.py build/export-hierarchy
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows project history and unapplied Properties workflow
         shell: pwsh
         run: |
@@ -1110,6 +1120,7 @@ jobs:
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/
+            build/export-hierarchy/
             build/bookmark-inputs/
             build/pin-browser/
             build/project-settings/

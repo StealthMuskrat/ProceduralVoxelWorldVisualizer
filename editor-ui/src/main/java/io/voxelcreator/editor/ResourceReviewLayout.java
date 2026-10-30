@@ -22,6 +22,19 @@ final class ResourceReviewLayout {
     return pixel((double) frame + gap);
   }
 
+  static float treeIndent(float available, int depth, float unit) {
+    finite(available);
+    positive(unit);
+    if (depth < 0) throw new IllegalArgumentException("Invalid export tree depth");
+    return (float) Math.min(.25 * Math.max(1, available), depth * (double) unit);
+  }
+
+  static float treeDisclosure(float available, float frame) {
+    finite(available);
+    positive(frame);
+    return (float) Math.max(1, Math.min(frame, .18 * Math.max(1, available)));
+  }
+
   private static float pixel(double value) {
     return (float) Math.min(Float.MAX_VALUE, Math.ceil(value));
   }

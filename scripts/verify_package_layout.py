@@ -50,7 +50,7 @@ for case in report['cases']:
     if form in ('Export-Choices', 'Export-Included'):
         contains(case['body'], case['list'])
         line, frame, gap = (case['metrics'][k] for k in ('line', 'frame', 'gap'))
-        assert case['stride'] == math.ceil((frame if form == 'Export-Choices' else line) + gap)
+        assert case['stride'] == math.ceil(frame + gap)
         if form == 'Export-Choices':
             assert case['choices'] == 1 and case['included'] == 0 and len(case['ids']) == 1
             if row_ids is None:

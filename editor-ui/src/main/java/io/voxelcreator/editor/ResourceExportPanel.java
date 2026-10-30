@@ -13,7 +13,10 @@ public final class ResourceExportPanel {
   private final Set<UUID> selected;
   private ExportEditSession edit;
   private final ImString filter = new ImString(256);
-  private final ExportRows projection = new ExportRows();
+  private final ExportTree choicesTree = new ExportTree(), includedTree = new ExportTree();
+  private ResourceExportSession.Preview coveragePreview;
+  private Set<UUID> coverage = Set.of();
+  private final Map<UUID, Integer> depths = new LinkedHashMap<>();
   private boolean selectedOnly, revealPage;
   private String message = "", section = "Choices";
   private int submitted, includedRows;
@@ -63,7 +66,8 @@ public final class ResourceExportPanel {
   void reload() {
     open();
     edit.reload();
-    projection.clear();
+    coveragePreview = null;
+    coverage = Set.of();
     message = "";
     revealPage = true;
   }
@@ -79,12 +83,16 @@ public final class ResourceExportPanel {
     edit = null;
     filter.set("");
     selectedOnly = false;
-    projection.clear();
+    choicesTree.clear();
+    includedTree.clear();
+    coveragePreview = null;
+    coverage = Set.of();
     message = "";
     section = "Choices";
     revealPage = true;
     controls.clear();
     rowIds.clear();
+    depths.clear();
     listBounds = null;
   }
 
@@ -124,6 +132,7 @@ public final class ResourceExportPanel {
     page(value);
     controls.clear();
     rowIds.clear();
+    depths.clear();
     submitted = includedRows = 0;
     listBounds = null;
     if (revealPage) {
@@ -154,7 +163,8 @@ public final class ResourceExportPanel {
     var only = new ImBoolean(selectedOnly);
     if (ImGui.checkbox("Selected only", only)) selectedOnly = only.get();
     remember("selected-only");
-    var rows = projection.rows(edit.catalog(), filter.get(), selectedOnly, selected);
+    var rows = choicesTree.choices(edit.catalog(), filter.get(), selectedOnly, selected);
+    observeCoverage();
     ImGui.textWrapped(selected.size() + " selected");
     if (ImGui.isItemHovered()) UiScale.tooltip(rows.size() + " matching catalog resources");
     if (!edit.current())
@@ -170,18 +180,32 @@ public final class ResourceExportPanel {
         clipper.begin(rows.size(), rowStride);
         while (clipper.step())
           for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
-            var node = rows.get(i);
-            float top = ImGui.getCursorPosY();
+            var row = rows.get(i);
+            var node = row.node();
+            float top = ImGui.getCursorPosY(), left = ImGui.getCursorPosX();
+            disclosure(row, choicesTree, "expand:");
+            String badge =
+                !selected.contains(node.uuid()) && coverage.contains(node.uuid())
+                    ? "[included] "
+                    : "";
+            String stage =
+                node.kind().equals("layer")
+                    ? " [run " + edit.catalog().stage(node.uuid()) + "]"
+                    : "";
             String label =
-                AppMetadata.uiText(bounded(node.kind() + " / " + node.id())) + "###" + node.uuid();
+                AppMetadata.uiText(bounded(badge + node.kind() + " / " + node.id() + stage))
+                    + "###"
+                    + node.uuid();
             var chosen = new ImBoolean(selected.contains(node.uuid()));
             if (ImGui.checkbox(label, chosen)) {
               if (chosen.get()) selected.add(node.uuid());
               else selected.remove(node.uuid());
             }
             rowIds.put(node.uuid(), ImGui.getID(label));
-            remember(node.uuid().toString());
+            depths.put(node.uuid(), row.depth());
+            rememberCheckbox(node.uuid().toString());
             tooltip(node);
+            ImGui.setCursorPosX(left);
             tail(top);
             submitted++;
           }
@@ -206,16 +230,20 @@ public final class ResourceExportPanel {
       return;
     }
     ImGui.textWrapped("Included " + preview.included().size() + " resources");
+    var rows = includedTree.included(edit.catalog(), preview.included());
     boolean visible = beginList("export-included", true);
-    rowStride = ResourceReviewLayout.membershipStride(rowLine, rowGap);
+    rowStride = ResourceReviewLayout.membershipStride(rowFrame, rowGap);
     if (visible) {
       var clipper = new ImGuiListClipper();
       try {
-        clipper.begin(preview.included().size(), rowStride);
+        clipper.begin(rows.size(), rowStride);
         while (clipper.step())
           for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
-            var node = preview.included().get(i);
-            float top = ImGui.getCursorPosY();
+            var row = rows.get(i);
+            var node = row.node();
+            float top = ImGui.getCursorPosY(), left = ImGui.getCursorPosX();
+            disclosure(row, includedTree, "included-expand:");
+            ImGui.setCursorPosY(top + ImGui.getStyle().getFramePaddingY());
             ImGui.textUnformatted(
                 AppMetadata.uiText(
                     bounded(
@@ -223,7 +251,9 @@ public final class ResourceExportPanel {
                             + node.kind()
                             + " / "
                             + node.id())));
+            depths.put(node.uuid(), row.depth());
             tooltip(node);
+            ImGui.setCursorPosX(left);
             tail(top);
             includedRows++;
           }
@@ -236,11 +266,47 @@ public final class ResourceExportPanel {
     if (visible) edit.markShown(preview);
   }
 
+  private void observeCoverage() {
+    var preview = edit.preview();
+    if (coveragePreview == preview) return;
+    coveragePreview = preview;
+    coverage =
+        preview == null
+            ? Set.of()
+            : Set.copyOf(preview.included().stream().map(ResourceTreeIndex.Node::uuid).toList());
+  }
+
+  private void disclosure(ExportTree.Row row, ExportTree tree, String key) {
+    float available = ImGui.getContentRegionAvailX();
+    float indent = ResourceReviewLayout.treeIndent(available, row.depth(), rowFrame * .7f);
+    ImGui.setCursorPosX(ImGui.getCursorPosX() + indent);
+    float width = ResourceReviewLayout.treeDisclosure(ImGui.getContentRegionAvailX(), rowFrame);
+    if (row.node().container()) {
+      ImGui.beginDisabled(row.forced());
+      if (ImGui.button((row.open() ? "-" : "+") + "###" + key + row.node().uuid(), width, rowFrame))
+        tree.open(row.node().uuid(), !row.open());
+      ImGui.endDisabled();
+      remember(key + row.node().uuid());
+      if (ImGui.isItemHovered())
+        UiScale.tooltip(row.open() ? "Collapse this container" : "Expand this container");
+    } else ImGui.dummy(width, rowFrame);
+    ImGui.sameLine();
+  }
+
+  private void rememberCheckbox(String key) {
+    var r = PopupLayout.itemBounds();
+    controls.put(
+        key, new float[] {r.x() + Math.min(rowFrame, r.width()) / 2, r.y() + r.height() / 2});
+  }
+
   private void drawIssues() {
     ImGui.textWrapped(
         "Export uses committed resources. Unapplied Properties input remains private. Visit"
             + " Included after changing the selection or reloading the source, then choose an"
             + " explicit output path.");
+    ImGui.textWrapped(
+        "Search and Selected Only temporarily reveal ancestors. Clear these filters to change their"
+            + " expansion.");
     if (!edit.current()) {
       ImGui.textWrapped(
           "The source changed. Reload retains selected UUIDs and prepares a new preview; it must be"
@@ -321,7 +387,7 @@ public final class ResourceExportPanel {
   }
 
   long queries() {
-    return projection.evaluations();
+    return choicesTree.projections();
   }
 
   void filter(String text) {
@@ -346,6 +412,14 @@ public final class ResourceExportPanel {
 
   Map<UUID, Integer> rowIds() {
     return Map.copyOf(rowIds);
+  }
+
+  Map<UUID, Integer> treeDepths() {
+    return Map.copyOf(depths);
+  }
+
+  long treeBuilds() {
+    return choicesTree.builds();
   }
 
   ExportEditSession session() {

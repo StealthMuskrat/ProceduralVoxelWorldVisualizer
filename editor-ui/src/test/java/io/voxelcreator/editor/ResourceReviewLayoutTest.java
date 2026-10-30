@@ -50,4 +50,32 @@ class ResourceReviewLayoutTest {
     assertThrows(
         IllegalArgumentException.class, () -> ResourceReviewLayout.membershipStride(19, -1));
   }
+
+  @Test
+  void treeIndentPreservesDepthButCapsItsMeasuredWidthShare() {
+    assertEquals(0, ResourceReviewLayout.treeIndent(80, 0, 14));
+    assertEquals(14, ResourceReviewLayout.treeIndent(80, 1, 14));
+    assertEquals(20, ResourceReviewLayout.treeIndent(80, 30, 14));
+    assertEquals(250, ResourceReviewLayout.treeIndent(1000, 100, 14));
+    assertEquals(.5f, ResourceReviewLayout.treeIndent(13.25f, 1, .5f));
+    assertEquals(14.4f, ResourceReviewLayout.treeDisclosure(80, 20));
+    assertEquals(20, ResourceReviewLayout.treeDisclosure(1000, 20));
+    assertEquals(1, ResourceReviewLayout.treeDisclosure(0, 20));
+    assertTrue(
+        Float.isFinite(
+            ResourceReviewLayout.treeIndent(Float.MAX_VALUE, Integer.MAX_VALUE, Float.MAX_VALUE)));
+  }
+
+  @Test
+  void invalidTreeMeasurementsRejectBeforeNativeSubmission() {
+    assertThrows(
+        IllegalArgumentException.class, () -> ResourceReviewLayout.treeIndent(100, -1, 10));
+    assertThrows(IllegalArgumentException.class, () -> ResourceReviewLayout.treeIndent(100, 2, 0));
+    assertThrows(
+        IllegalArgumentException.class, () -> ResourceReviewLayout.treeIndent(Float.NaN, 2, 10));
+    assertThrows(IllegalArgumentException.class, () -> ResourceReviewLayout.treeDisclosure(100, 0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> ResourceReviewLayout.treeDisclosure(Float.POSITIVE_INFINITY, 20));
+  }
 }
