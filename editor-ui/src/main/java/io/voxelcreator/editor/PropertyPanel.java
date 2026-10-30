@@ -15,6 +15,13 @@ public final class PropertyPanel {
   final FloatingWindowLayout windowLayout = new FloatingWindowLayout(480, 720);
   final PanelDockControls docking = new PanelDockControls("Properties");
   private final EditorState state;
+  final SettingsPageChrome chrome = new SettingsPageChrome(3);
+  final PropertyActionOwner actionOwner = new PropertyActionOwner();
+  private boolean revealProblems, footerEditable;
+  private Float probeBodyScroll;
+  private float bodyScroll;
+  private int bodySelectionCount = -1;
+
   private final UiFields f = new UiFields(this::noiseChanged);
   private long noiseVersion;
   private final NoiseDraftIndex.Cache noiseIndex = new NoiseDraftIndex.Cache();
@@ -492,6 +499,7 @@ public final class PropertyPanel {
   }
 
   public void draw() {
+    footerEditable = false;
     seedCenters.clear();
     worldControlCenters.clear();
     parameterCenters.clear();
@@ -516,6 +524,7 @@ public final class PropertyPanel {
       }
     }
     resourcePicker.synchronize();
+    long actionVersion = actionOwner.synchronize(state, searchBlocked());
     windowLayout.prepareExisting();
     docking.prepare();
     boolean visible = ImGui.begin("Properties");
@@ -523,11 +532,25 @@ public final class PropertyPanel {
     windowLayout.observe();
     DialogLayout.observe(state, "Properties");
     if (visible) {
+      boolean changedBody =
+          !Objects.equals(last, state.selected)
+              || lastDraft != state.draft
+              || bodySelectionCount != state.multiSelection.size();
+      bodySelectionCount = state.multiSelection.size();
+      docking.draw();
+      chrome.begin("properties-body");
+      if (changedBody || revealProblems) {
+        ImGui.setScrollY(0);
+        revealProblems = false;
+      }
+      if (probeBodyScroll != null) {
+        ImGui.setScrollY(probeBodyScroll);
+        probeBodyScroll = null;
+      }
       if (probeSeedTop) {
         ImGui.setScrollY(0);
         probeSeedTop = false;
       }
-      docking.draw();
       if (!Objects.equals(last, state.selected) || lastDraft != state.draft) {
         last = state.selected;
         lastDraft = state.draft;
@@ -558,19 +581,14 @@ public final class PropertyPanel {
           }
         }
         seedProblems();
-        if (DialogLayout.button("Apply")) state.applyDraft();
-        f.tooltip("Apply validates this edit and commits one undoable transaction.");
-        DialogLayout.sameLine("Revert");
-        if (DialogLayout.button("Revert")) {
-          state.refreshDraft();
-          f.clear();
-        }
-        f.tooltip("Revert reloads the selected resource and discards its private edits.");
+        if (searchBlocked())
+          ImGui.textWrapped(
+              "Finish or cancel the private editor before applying or reverting Properties.");
         if (!state.issues.isEmpty()) {
           ThemeStyle.text("Error", "! " + state.issues.size() + " validation issue(s)");
           for (int i = 0; i < Math.min(8, state.issues.size()); i++) {
             var d = state.issues.get(i);
-            ImGui.textWrapped(d.toString());
+            ImGui.textWrapped(StatusBarText.clip(d.toString(), 2048));
             var target = EditorEvents.Target.diagnostic(state.project().project.uuid, d);
             if (state.canNavigate(target)
                 && !target.settings()
@@ -615,6 +633,9 @@ public final class PropertyPanel {
               "Folder placement never changes generation or adds resource inheritance.");
         }
       }
+      bodyScroll = ImGui.getScrollY();
+      chrome.end();
+      drawActions(actionVersion);
     }
     ImGui.end();
     if (curve != null) {
@@ -626,6 +647,58 @@ public final class PropertyPanel {
     drawExpressionDialog();
     drawReferenceGuard();
     drawSmokeWorldControls();
+  }
+
+  private void drawActions(long version) {
+    boolean blocked = searchBlocked();
+    footerEditable = actionOwner.editable(state, blocked);
+    boolean problems = !state.issues.isEmpty() || state.seedInputs.pending(state);
+    ImGui.pushID("properties-actions:" + version);
+    ImGui.beginDisabled(!footerEditable);
+    boolean apply = chrome.identifiedAction("apply", "Apply");
+    f.tooltip("Apply validates this edit and commits one undoable transaction.");
+    boolean revert = chrome.identifiedAction("revert", "Revert");
+    f.tooltip("Revert reloads the selected resource and discards its private edits.");
+    ImGui.endDisabled();
+    ImGui.beginDisabled(!problems);
+    boolean show = chrome.identifiedAction("problems", "Show Problems");
+    ImGui.endDisabled();
+    ImGui.popID();
+    // Escape does not discard this parent draft or authorize a simultaneous document action.
+    if (!ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        && actionOwner.editable(state, searchBlocked())) {
+      if (revert) {
+        state.refreshDraft();
+        f.clear();
+        revealProblems();
+      } else if (apply && !state.applyDraft()) revealProblems();
+    }
+    if (show && problems) revealProblems();
+  }
+
+  private void revealProblems() {
+    revealProblems = true;
+    propertyFocus.cancel();
+    expressionSelection.cancel();
+    searchScroll = false;
+    focusedControl = null;
+  }
+
+  float[] probeAction(String key) {
+    var box = chrome.actions().get(key);
+    return box == null ? null : new float[] {box.x() + box.width() / 2, box.y() + box.height() / 2};
+  }
+
+  boolean probeFooterEditable() {
+    return footerEditable;
+  }
+
+  void probeBodyScroll(float value) {
+    probeBodyScroll = value;
+  }
+
+  float probeBodyScroll() {
+    return bodyScroll;
   }
 
   private void noise(Noise n) {
@@ -3218,7 +3291,8 @@ public final class PropertyPanel {
         "! "
             + problems.size()
             + " seed input(s) need correction or explicit restoration before Apply.");
-    if (ImGui.smallButton("Restore All Seed Text")) {
+    ImGui.pushID("seed-recovery:" + actionOwner.version());
+    if (DialogLayout.button("Restore All Seed Text")) {
       state.seedInputs.clear(state);
       seedTexts.clear();
     }
@@ -3234,25 +3308,26 @@ public final class PropertyPanel {
         break;
       }
       ImGui.pushID(problem.id());
-      if (ImGui.smallButton("Restore")) {
+      if (DialogLayout.button("Restore")) {
         state.seedInputs.discard(state, problem.id());
         seedTexts.remove(problem.path());
       }
-      ImGui.sameLine();
-      if (ImGui.smallButton("Go To Seed"))
+      DialogLayout.sameLine("Go To Seed");
+      if (DialogLayout.button("Go To Seed"))
         goToProblem(
             EditorEvents.Target.diagnostic(
                 state.project().project.uuid, problem.diagnostic(state.selected)));
-      ImGui.sameLine();
+      ImGui.newLine();
       String label =
           problem.label()
               + ": "
               + problem.text()
               + (problem.orphan() ? " (changed gate tree)" : "");
-      ImGui.text(AppMetadata.uiText(label.length() > 80 ? label.substring(0, 79) + "…" : label));
+      ImGui.textWrapped(AppMetadata.uiText(StatusBarText.clip(label, 160)));
       if (ImGui.isItemHovered()) UiScale.tooltip(problem.path() + "\n" + label);
       ImGui.popID();
     }
+    ImGui.popID();
   }
 
   private void longText(String label, long value, java.util.function.LongConsumer set) {
