@@ -41,7 +41,7 @@ final class StatusBarPanel {
     for (var label : noticeLabels) noticeWidths.add(ImGui.calcTextSize(label).x + padding);
     var metrics =
         new StatusBarLayout.Metrics(
-            ImGui.getFontSize(),
+            ImGui.getTextLineHeight(),
             ImGui.getFrameHeight(),
             ImGui.getStyle().getItemSpacingX(),
             Math.max(80, ImGui.calcTextSize("Ready").x),

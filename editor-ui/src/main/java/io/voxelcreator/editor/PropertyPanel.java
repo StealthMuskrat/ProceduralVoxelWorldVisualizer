@@ -597,7 +597,7 @@ public final class PropertyPanel {
         } else if (state.draft instanceof Operation op) placement(op);
         else if (state.draft instanceof VoxelType t) {
           float[] rgb = {t.color.r / 255f, t.color.g / 255f, t.color.b / 255f};
-          if (ImGui.colorEdit3("Color", rgb)) {
+          if (UiScale.colorEdit3("Color", rgb)) {
             t.color.r = Math.round(rgb[0] * 255);
             t.color.g = Math.round(rgb[1] * 255);
             t.color.b = Math.round(rgb[2] * 255);

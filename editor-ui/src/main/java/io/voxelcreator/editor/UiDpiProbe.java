@@ -165,15 +165,15 @@ public final class UiDpiProbe {
       ImGui.setNextWindowSize(1984, 1584, ImGuiCond.Always);
       ImGui.begin("DPI composition fixture");
       UiScale.window(state.user, "Resources");
-      sizes.put("root", ImGui.getFontSize());
+      sizes.put("root", ImGui.getTextLineHeight());
       ImGui.text("Root");
       for (int i = 1; i <= 3; i++) {
         UiScale.beginChild("level-" + i, 0, 0, true);
-        sizes.put("child-" + i, ImGui.getFontSize());
+        sizes.put("child-" + i, ImGui.getTextLineHeight());
         ImGui.text("Child " + i);
       }
       if (UiScale.beginCombo("Mode", "Current")) {
-        sizes.put("combo", ImGui.getFontSize());
+        sizes.put("combo", ImGui.getTextLineHeight());
         ImGui.selectable("Value");
         ImGui.endCombo();
       }
@@ -184,7 +184,7 @@ public final class UiDpiProbe {
           };
       if (popup) ImGui.openPopup("Nested Font Popup");
       if (UiScale.beginPopup("Nested Font Popup")) {
-        sizes.put("popup", ImGui.getFontSize());
+        sizes.put("popup", ImGui.getTextLineHeight());
         ImGui.text("Popup");
         ImGui.endPopup();
       }

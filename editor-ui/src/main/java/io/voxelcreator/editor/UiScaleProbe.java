@@ -208,7 +208,7 @@ public final class UiScaleProbe {
     ImGui.newFrame();
     ImGui.begin("Scale baseline fixture");
     UiScale.window(null, "Resources");
-    float result = ImGui.getFontSize();
+    float result = ImGui.getTextLineHeight();
     ImGui.end();
     ImGui.render();
     return result;
@@ -224,7 +224,7 @@ public final class UiScaleProbe {
         ImGui.setNextWindowSize(800, 600, ImGuiCond.Always);
         ImGui.begin("Scale metric fixture " + name, ImGuiWindowFlags.NoSavedSettings);
         UiScale.window(user, name);
-        metrics.put(name, ImGui.getFontSize());
+        metrics.put(name, ImGui.getTextLineHeight());
         ImGui.text("Metric fixture");
         ImGui.end();
       }

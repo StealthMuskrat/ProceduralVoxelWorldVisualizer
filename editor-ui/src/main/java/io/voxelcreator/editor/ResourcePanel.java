@@ -436,20 +436,23 @@ public final class ResourcePanel {
   }
 
   private void drag(UUID id, String root) {
-    if (ImGui.beginDragDropSource()) {
-      if (!dragActive) {
-        dragActive = true;
-        dragProject = state.project();
-        dragRevision = state.revision;
-        dragRoot = root;
-        dragSelection =
-            state.multiSelection.contains(id) ? List.copyOf(state.multiSelection) : List.of(id);
+    if (UiScale.beginDragDropSource()) {
+      try {
+        if (!dragActive) {
+          dragActive = true;
+          dragProject = state.project();
+          dragRevision = state.revision;
+          dragRoot = root;
+          dragSelection =
+              state.multiSelection.contains(id) ? List.copyOf(state.multiSelection) : List.of(id);
+        }
+        ImGui.setDragDropPayload("resource", id.toString());
+        ImGui.text("Move " + dragSelection.size() + " selected resource(s)");
+        if (ResourceGraph.ORGANIZATIONAL_ROOTS.contains(root))
+          ImGui.text("Folders: drop inside; hold Shift to place before. Stage order is unchanged.");
+      } finally {
+        UiScale.endDragDropSource();
       }
-      ImGui.setDragDropPayload("resource", id.toString());
-      ImGui.text("Move " + dragSelection.size() + " selected resource(s)");
-      if (ResourceGraph.ORGANIZATIONAL_ROOTS.contains(root))
-        ImGui.text("Folders: drop inside; hold Shift to place before. Stage order is unchanged.");
-      ImGui.endDragDropSource();
     }
   }
 
@@ -1008,7 +1011,7 @@ public final class ResourcePanel {
           submittedManagerRows++;
           if (node.swatch() != null) {
             var c = node.swatch();
-            ImGui.colorButton(
+            UiScale.colorButton(
                 "##swatch" + node.uuid(), new ImVec4(c.r() / 255f, c.g() / 255f, c.b() / 255f, 1));
             ImGui.sameLine();
           }

@@ -273,7 +273,7 @@ public final class ThemePanel {
           ImGui.setNextItemWidth(ImGui.getFrameHeight());
           ImGui.beginDisabled(colorIssues.blocked(row.key()));
           boolean changed =
-              ImGui.colorEdit4(
+              UiScale.colorEdit4(
                   "##theme-swatch",
                   components,
                   ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel);
