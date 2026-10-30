@@ -4,18 +4,25 @@ import imgui.ImGui;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** A scrolling settings body and one persistent, bounded action row. */
+/** A scrolling settings body and measured persistent action rows. */
 final class SettingsPageChrome {
   private final int actionCount;
+  private final int[] rows;
   private int submitted;
-  private float actionWidth;
+  private float footerWidth;
   private DialogBounds.Rect body;
   private final Map<String, DialogBounds.Rect> actions = new LinkedHashMap<>();
 
-  SettingsPageChrome(int actionCount) {
-    if (actionCount < 1 || actionCount > 16)
-      throw new IllegalArgumentException("Invalid action count");
-    this.actionCount = actionCount;
+  SettingsPageChrome(int... rows) {
+    if (rows.length < 1 || rows.length > 4)
+      throw new IllegalArgumentException("Invalid action row count");
+    int total = 0;
+    for (int count : rows) {
+      if (count < 1 || count > 16) throw new IllegalArgumentException("Invalid action count");
+      total += count;
+    }
+    this.rows = rows.clone();
+    actionCount = total;
   }
 
   void begin(String id) {
@@ -25,7 +32,8 @@ final class SettingsPageChrome {
         SettingsPageLayout.body(
             ImGui.getContentRegionAvailY(),
             ImGui.getFrameHeight(),
-            ImGui.getStyle().getItemSpacingY());
+            ImGui.getStyle().getItemSpacingY(),
+            rows.length);
     UiScale.beginChild(id, 0, height, false);
     body =
         new DialogBounds.Rect(
@@ -37,14 +45,16 @@ final class SettingsPageChrome {
 
   void end() {
     ImGui.endChild();
-    actionWidth =
-        SettingsPageLayout.actionWidth(
-            ImGui.getContentRegionAvailX(), actionCount, ImGui.getStyle().getItemSpacingX());
+    footerWidth = ImGui.getContentRegionAvailX();
   }
 
   boolean action(String key, String label) {
     if (submitted >= actionCount) throw new IllegalStateException("Too many settings actions");
-    if (submitted++ > 0) ImGui.sameLine();
+    int row = 0, first = 0;
+    while (submitted >= first + rows[row]) first += rows[row++];
+    if (submitted++ > first) ImGui.sameLine();
+    float actionWidth =
+        SettingsPageLayout.actionWidth(footerWidth, rows[row], ImGui.getStyle().getItemSpacingX());
     boolean clicked =
         ImGui.button(label, Math.min(actionWidth, Math.max(1, ImGui.getContentRegionAvailX())), 0);
     actions.put(key, PopupLayout.itemBounds());

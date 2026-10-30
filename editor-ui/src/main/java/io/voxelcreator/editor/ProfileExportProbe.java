@@ -69,6 +69,7 @@ public final class ProfileExportProbe {
             .scope(7, state.project().project.uuid, null)
             .gauge(Profiler.Kind.QUEUE_DEPTH, Profiler.Unit.COUNT, 123, "reviewed,雪");
         state.engine.profiler().stop();
+        panel.section("Measurements");
         frames(3);
         long queries = panel.rowQueries();
         frames(4);

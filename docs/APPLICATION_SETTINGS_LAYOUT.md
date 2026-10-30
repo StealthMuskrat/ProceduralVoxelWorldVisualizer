@@ -21,3 +21,5 @@ Future Linux/Windows probe/replay commands and artifact paths are wired with dev
 The separate unvalidated [preference forms follow-up](PREFERENCE_FORMS_LAYOUT.md) covers Performance limits, update trust and Workspace actions. Other settings internals and physical GUI/DPI acceptance remain pending.
 
 The unvalidated [general settings layout follow-up](GENERAL_SETTINGS_LAYOUT.md) reuses this measured chrome for Project Settings, Editor/Visualization and Debug & Profiling, preserving their separate transaction and active preference owners.
+
+The unvalidated [Profiler workspace follow-up](PROFILER_LAYOUT.md) extends the shared measured chrome to explicit multiple action rows while preserving all single-row callers. New analytical/native definitions remain deferred.

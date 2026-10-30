@@ -14,10 +14,15 @@ final class SettingsPageLayout {
   private SettingsPageLayout() {}
 
   static float body(float height, float frameHeight, float gap) {
+    return body(height, frameHeight, gap, 1);
+  }
+
+  static float body(float height, float frameHeight, float gap, int rows) {
     finite(height);
     positive(frameHeight);
     nonnegative(gap);
-    return (float) Math.max(1, (double) height - frameHeight - gap);
+    if (rows < 1 || rows > 4) throw new IllegalArgumentException("Invalid action row count");
+    return (float) Math.max(1, (double) height - rows * ((double) frameHeight + gap));
   }
 
   static float actionWidth(float width, int count, float gap) {

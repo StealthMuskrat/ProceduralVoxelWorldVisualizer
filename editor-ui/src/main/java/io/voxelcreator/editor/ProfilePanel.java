@@ -18,7 +18,20 @@ public final class ProfilePanel {
       exportPath = new ImString("profile-capture.json", 4096);
   private final List<GarbageCollectorMXBean> collectors =
       ManagementFactory.getGarbageCollectorMXBeans();
-  private int duration = 10000, samples = 8192, series = 128, stride = 256;
+  private final ProfileCaptureInputs captureInputs = new ProfileCaptureInputs();
+  private final Map<ProfileCaptureInputs.Field, ImString> captureText =
+      new EnumMap<>(ProfileCaptureInputs.Field.class);
+  final SettingsPageChrome layout = new SettingsPageChrome(4, 4);
+  static final List<String> SECTIONS = List.of("Capture & runtime", "Measurements", "Export");
+  private String section = "Capture & runtime";
+  private ProfileCaptureInputs.Field revealLimit;
+  private DialogBounds.Rect selector, seriesBounds;
+  private final Map<String, Integer> fieldIds = new LinkedHashMap<>();
+  private final Map<String, Integer> rowIds = new LinkedHashMap<>();
+  private float rowStride;
+  private int submittedRows;
+  private boolean revealSeries;
+  private final Map<String, DialogBounds.Rect> inputBounds = new LinkedHashMap<>();
   private String kind = "All", message = "";
   private Profiler.Capture displayed;
   private Profiler.Snapshot snapshot;
@@ -27,7 +40,6 @@ public final class ProfilePanel {
   private String filteredKind, filteredQuery;
   private List<Profiler.Series> filteredRows = List.of();
   private long rowQueries;
-  private boolean scrollToExport;
   private static final List<String> KINDS;
 
   static {
@@ -41,27 +53,46 @@ public final class ProfilePanel {
   private Profiler.Snapshot totalSnapshot;
   private long selectedTotal;
   private long refreshed, gaugesAt;
-  private boolean drawn, worldContributions;
+  private boolean drawn;
   private boolean workProbe;
   private final Map<String, float[]> workControls = new HashMap<>();
 
   public ProfilePanel(EditorState state, Consumer<EditorEvents.Target> navigate) {
     this.state = state;
     this.navigate = navigate;
+    captureInputs
+        .text()
+        .forEach(
+            (field, text) ->
+                captureText.put(field, new ImString(text, 4 * ProfileCaptureInputs.MAX_TEXT + 1)));
   }
 
   public void start() {
-    state
-        .engine
-        .profiler()
-        .start(new Profiler.Options(duration, samples, series, stride, worldContributions));
-    snapshot = null;
-    filteredSnapshot = null;
-    filteredRows = List.of();
-    selected = null;
-    clearWorkTotal();
-    gaugesAt = 0;
-    message = "";
+    try {
+      var options = captureInputs.request(displayedCaptureInputs());
+      state.engine.profiler().start(options);
+      snapshot = null;
+      filteredSnapshot = null;
+      filteredRows = List.of();
+      selected = null;
+      clearWorkTotal();
+      gaugesAt = 0;
+      message = "";
+    } catch (RuntimeException invalid) {
+      section = "Capture & runtime";
+      revealLimit = captureInputs.firstProblem(displayedCaptureInputs());
+      message =
+          "Capture not started: "
+              + Objects.requireNonNullElse(
+                  invalid.getMessage(), invalid.getClass().getSimpleName());
+      state.error("PROFILE_CAPTURE_REJECTED", EditorEvents.Subsystem.APPLICATION, message);
+    }
+  }
+
+  private Map<ProfileCaptureInputs.Field, String> displayedCaptureInputs() {
+    var result = new EnumMap<ProfileCaptureInputs.Field, String>(ProfileCaptureInputs.Field.class);
+    captureText.forEach((field, text) -> result.put(field, text.get()));
+    return result;
   }
 
   void probeWorkControls() {
@@ -73,13 +104,15 @@ public final class ProfilePanel {
   }
 
   private void workControl(String key) {
-    if (workProbe)
+    if (workProbe) {
       workControls.put(
           key,
           new float[] {
             (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
             (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
           });
+      if (fieldIds.containsKey(key)) inputBounds.put(key, PopupLayout.itemBounds());
+    }
   }
 
   /** Called once per editor frame, including while the Profiler window is closed. */
@@ -181,9 +214,52 @@ public final class ProfilePanel {
       return;
     }
     drawn = true;
+    if (workProbe) workControls.clear();
+    fieldIds.clear();
+    inputBounds.clear();
+    rowIds.clear();
+    submittedRows = 0;
+    seriesBounds = null;
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+    fields.choice("##profile-section", section, SECTIONS, this::section);
+    selector = PopupLayout.itemBounds();
+    fields.tooltip("Choose a profiler section");
+    refreshSnapshot();
+    layout.begin("profile-workspace-" + section);
+    if (snapshot == null) ImGui.textWrapped("No displayed capture. Prepare Export is unavailable.");
+    else
+      ImGui.textWrapped(
+          "Displayed capture: "
+              + snapshot.captureId()
+              + " / "
+              + snapshot.state()
+              + " / "
+              + snapshot.samples().size()
+              + " samples / "
+              + snapshot.series().size()
+              + " series");
+    switch (section) {
+      case "Capture & runtime" -> {
+        drawCaptureInputs();
+        drawRuntime(rendering, compact, gpuTimings);
+      }
+      case "Measurements" -> drawMeasurements();
+      case "Export" -> drawExport();
+      default -> throw new IllegalStateException("Unknown profiler section");
+    }
+    if (!message.isEmpty() && !section.equals("Export")) ImGui.textWrapped(message);
+    layout.end();
+    drawActions();
+    ImGui.end();
+  }
+
+  private void drawRuntime(
+      Viewports.StreamingStatistics rendering,
+      java.util.function.IntSupplier compact,
+      List<io.voxelcreator.render.GpuTimerQueries.Statistics> gpuTimings) {
     ImGui.textWrapped(state.engine.metrics().toString());
     ImGui.textWrapped(state.engine.schedulerStats().toString());
-    ImGui.text(
+    ImGui.textWrapped(
         String.format(
             Locale.ROOT,
             "Scene: %d chunks / %d jobs / %d visible / %d culled / %d draws / indirect %s",
@@ -193,7 +269,7 @@ public final class ProfilePanel {
             rendering.culled(),
             rendering.drawCalls(),
             rendering.indirect()));
-    ImGui.text(
+    ImGui.textWrapped(
         String.format(
             Locale.ROOT,
             "CPU: %,d resident + %,d reserved bytes | GPU data: %,d bytes | vertex arena"
@@ -202,7 +278,7 @@ public final class ProfilePanel {
             rendering.reserved(),
             rendering.gpuBytes(),
             rendering.gpuCapacityBytes()));
-    ImGui.text(
+    ImGui.textWrapped(
         String.format(
             Locale.ROOT,
             "GPU free: %,d bytes / largest range %,d | frame writes: %,d upload + %,d relocated"
@@ -211,24 +287,24 @@ public final class ProfilePanel {
             rendering.largestFreeRange(),
             rendering.uploadedBytes(),
             rendering.relocatedBytes()));
-    ImGui.text(
+    ImGui.textWrapped(
         String.format(
             Locale.ROOT,
             "Compaction: %d active or queued arenas / %,d bytes remain / %d completed",
             rendering.compactingArenas(),
             rendering.compactionRemainingBytes(),
             rendering.compactions()));
-    if (compact != null && ImGui.button("Compact GPU Arenas"))
+    if (compact != null && DialogLayout.button("Compact GPU Arenas"))
       message =
           "Requested compaction for "
               + compact.getAsInt()
               + " arenas; active uploads finish first.";
-    ImGui.textDisabled(
+    ImGui.textWrapped(
         "Relocation shares the upload budget; no additional GPU vertex arena is allocated.");
     for (int i = 0; i < gpuTimings.size(); i++) {
       var gpu = gpuTimings.get(i);
       String view = i == 0 ? "2D" : i == 1 ? "3D Noise" : "World";
-      ImGui.textDisabled(
+      ImGui.textWrapped(
           view
               + " GPU: "
               + gpu.state()
@@ -245,57 +321,71 @@ public final class ProfilePanel {
           || gpu.state() == io.voxelcreator.render.GpuTimerQueries.State.UNAVAILABLE)
         ImGui.textWrapped(gpu.detail());
     }
-    ImGui.textDisabled(
+    ImGui.textWrapped(
         "GPU_DRAW measures offscreen 3D commands; excludes chunk/volume transfers, UI and"
             + " presentation.");
-    ImGui.textDisabled(
+    ImGui.textWrapped(
         "Results expire after at most 2 s; stopping a capture discards unfinished GPU"
             + " measurements.");
-    if (workProbe) ImGui.setNextItemOpen(true, ImGuiCond.Always);
-    if (ImGui.collapsingHeader("Capture limits")) {
-      fields.integer("Duration (ms)", duration, v -> duration = Math.clamp(v, 100, 60000));
-      fields.integer("Maximum samples", samples, v -> samples = Math.clamp(v, 64, 65536));
-      fields.integer("Maximum series", series, v -> series = Math.clamp(v, 1, 1024));
-      fields.integer("Operation sampling stride", stride, v -> stride = Math.clamp(v, 1, 65536));
-      fields.bool("Layer/operation work totals", worldContributions, v -> worldContributions = v);
-      workControl("enabled");
+  }
+
+  private void drawCaptureInputs() {
+    ImGui.textWrapped(
+        "Limits configure the next capture. Current measurements and an export review keep their"
+            + " own immutable options.");
+    for (var field : ProfileCaptureInputs.Field.values()) {
+      ImGui.textWrapped(field.label);
+      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+      String id = "##profile-limit-" + field.name();
+      fieldIds.put(field.name(), ImGui.getID(id));
+      boolean reveal = field == revealLimit;
+      if (reveal) ImGui.setKeyboardFocusHere();
+      if (ImGui.inputText(id, captureText.get(field))) {
+        try {
+          captureInputs.edit(field, captureText.get(field).get());
+          message = "";
+        } catch (RuntimeException invalid) {
+          message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+        }
+      }
+      workControl(field.name());
+      if (reveal) {
+        ImGui.setScrollHereY(.25f);
+        revealLimit = null;
+      }
+    }
+    var work = new ImBoolean(captureInputs.work());
+    if (ImGui.checkbox("##profile-work-totals", work)) captureInputs.work(work.get());
+    workControl("enabled");
+    DialogLayout.sameLine("Layer/operation work totals");
+    ImGui.textWrapped("Layer/operation work totals");
+    ImGui.textWrapped(
+        "Work totals time every visited placement and include column prefetch. They add capture"
+            + " overhead; operation stride still applies only to individual OPERATION samples.");
+    var feedback = captureInputs.feedback();
+    feedback
+        .problems()
+        .forEach((field, problem) -> ImGui.textWrapped("! " + field.label + ": " + problem));
+    if (feedback.options() != null) {
+      var options = feedback.options();
       ImGui.textWrapped(
-          "Work totals time every visited placement and include column prefetch. They add capture"
-              + " overhead; operation stride still applies only to individual OPERATION samples.");
-      if (worldContributions)
-        ImGui.textDisabled(
+          "Next capture: "
+              + options.durationMillis()
+              + " ms / "
+              + options.maxSamples()
+              + " samples / "
+              + options.maxSeries()
+              + " series / operation stride "
+              + options.operationStride());
+      if (options.worldContributions())
+        ImGui.textWrapped(
             "Additional admitted scratch: up to "
-                + (256 + 256L * series)
+                + (256 + 256L * options.maxSeries())
                 + " bytes per generation task.");
     }
-    ImGui.text(
-        "Next capture: "
-            + duration
-            + " ms / "
-            + samples
-            + " samples / "
-            + series
-            + " series / operation stride "
-            + stride
-            + (worldContributions ? " / work totals enabled" : ""));
-    if (ImGui.button("Start Capture")) start();
-    workControl("start");
-    ImGui.sameLine();
-    if (ImGui.button("Stop")) {
-      state.engine.profiler().stop();
-      refreshed = 0;
-    }
-    workControl("stop");
-    ImGui.sameLine();
-    if (ImGui.button("Clear")) {
-      state.engine.profiler().clear();
-      snapshot = null;
-      filteredSnapshot = null;
-      filteredRows = List.of();
-      selected = null;
-      displayed = null;
-      clearWorkTotal();
-    }
+  }
+
+  private void refreshSnapshot() {
     var capture = state.engine.profiler().current().orElse(null);
     long now = System.nanoTime();
     if (capture != null
@@ -321,16 +411,17 @@ public final class ProfilePanel {
       displayed = null;
       clearWorkTotal();
     }
+  }
+
+  private void drawMeasurements() {
     if (snapshot == null) {
       ImGui.textWrapped(
           "Capture is disabled. Start to collect bounded timings and metrics. CPU-side elapsed"
-              + " timings include scheduling/preemption. GPU_DRAW uses optional asynchronous"
-              + " GPU timestamps; unavailable contexts produce no GPU samples.");
-      drawExport();
-      ImGui.end();
+              + " timings include scheduling/preemption. GPU_DRAW uses optional asynchronous GPU"
+              + " timestamps; unavailable contexts produce no GPU samples.");
       return;
     }
-    ImGui.text(
+    ImGui.textWrapped(
         String.format(
             Locale.ROOT,
             "%s / %.2f s / %d of %d samples / %d of %d series",
@@ -340,8 +431,14 @@ public final class ProfilePanel {
             snapshot.options().maxSamples(),
             snapshot.series().size(),
             snapshot.options().maxSeries()));
-    ImGui.inputText("Search label, UUID or context", filter);
-    fields.choice("Measurement", kind, KINDS, v -> kind = v);
+    ImGui.textWrapped("Search label, UUID or context");
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+    fieldIds.put("filter", ImGui.getID("##profile-series-filter"));
+    ImGui.inputText("##profile-series-filter", filter);
+    workControl("filter");
+    ImGui.textWrapped("Measurement");
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+    fields.choice("##profile-measurement", kind, KINDS, v -> kind = v);
     String query = filter.get().strip().toLowerCase(Locale.ROOT);
     if (filteredSnapshot != snapshot
         || !kind.equals(filteredKind)
@@ -354,26 +451,54 @@ public final class ProfilePanel {
       rowQueries++;
     }
     var rows = filteredRows;
-    UiScale.beginChild("profile-series", 0, 195, true);
+    float listHeight =
+        SettingsPageLayout.multiline(layout.body().height(), ImGui.getTextLineHeightWithSpacing());
+    UiScale.beginChild("profile-series", 0, listHeight, true);
+    seriesBounds =
+        new DialogBounds.Rect(
+            ImGui.getWindowPosX(),
+            ImGui.getWindowPosY(),
+            ImGui.getWindowSizeX(),
+            ImGui.getWindowSizeY());
     var clipper = new ImGuiListClipper();
+    rowStride = (float) Math.ceil(ImGui.getTextLineHeightWithSpacing());
     try {
-      clipper.begin(rows.size());
+      clipper.begin(rows.size(), rowStride);
       while (clipper.step())
         for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
           var row = rows.get(i);
+          float top = ImGui.getCursorPosY();
           String label =
               row.kind()
                   + " / "
                   + row.label().replace('\n', ' ').replace('\r', ' ').replace("##", "# #")
                   + " / context "
                   + row.contextId();
-          if (ImGui.selectable(label + "###series" + i, sameSeries(row, selected))) selected = row;
+          String key = ProfileSeriesKey.of(row).widgetId();
+          ImGui.pushID(key);
+          String id = StatusBarText.clip(label, 120) + "###series";
+          if (workProbe) rowIds.put(key, ImGui.getID(id));
+          if (ImGui.selectable(
+              id,
+              sameSeries(row, selected),
+              0,
+              Math.max(1, ImGui.getContentRegionAvailX()),
+              ImGui.getTextLineHeight())) selected = row;
+          PopupLayout.clippedLabel(label);
+          ImGui.popID();
+          ImGui.setCursorPosY(top + rowStride - ImGui.getStyle().getItemSpacingY());
+          ImGui.dummy(0, 0);
+          submittedRows++;
         }
       clipper.end();
     } finally {
       clipper.destroy();
     }
     ImGui.endChild();
+    if (revealSeries) {
+      ImGui.setScrollHereY(.3f);
+      revealSeries = false;
+    }
     if (selected != null) {
       ImGui.textWrapped(selected.kind() + " / " + selected.label());
       if (selected.kind() == Profiler.Kind.OPERATION_WORK
@@ -383,7 +508,7 @@ public final class ProfilePanel {
           totalSnapshot = snapshot;
           totalSeries = selected;
         }
-        ImGui.text(
+        ImGui.textWrapped(
             "Attributed total in retained capture: " + value(selectedTotal, selected.unit()));
         ImGui.textWrapped(
             "Each value sums attributed elapsed work in one chunk/stage computation. Layer totals"
@@ -391,7 +516,7 @@ public final class ProfilePanel {
                 + " overhead are outside these totals. Failed/cancelled computations describe an"
                 + " executed prefix.");
       }
-      ImGui.text(
+      ImGui.textWrapped(
           "Count "
               + selected.count()
               + "  Mean "
@@ -400,7 +525,7 @@ public final class ProfilePanel {
               + value(selected.minimum(), selected.unit())
               + "  Max "
               + value(selected.maximum(), selected.unit()));
-      ImGui.text(
+      ImGui.textWrapped(
           "P50 "
               + value(selected.p50(), selected.unit())
               + "  P95 "
@@ -419,22 +544,11 @@ public final class ProfilePanel {
               + " / context "
               + selected.contextId());
       var target = target(selected);
-      if (state.canNavigate(target) && ImGui.button("Go To Source")) navigate.accept(target);
+      if (state.canNavigate(target) && DialogLayout.button("Go To Source")) navigate.accept(target);
     } else ImGui.textDisabled("Select a series for counts, P50/P95/P99 and source navigation.");
-    drawExport();
-    ImGui.end();
   }
 
   private void drawExport() {
-    ImGui.separator();
-    ImGui.beginDisabled(snapshot == null);
-    if (ImGui.button("Prepare Export")) {
-      if (exportReview != null) exportReview.cancel();
-      exportReview = new ProfileExportSession(snapshot);
-      message = "";
-    }
-    workControl("prepare-export");
-    ImGui.endDisabled();
     if (exportReview != null) {
       var reviewed = exportReview.snapshot();
       ImGui.textWrapped(
@@ -447,35 +561,89 @@ public final class ProfilePanel {
               + " samples / "
               + reviewed.series().size()
               + " series");
-      ImGui.sameLine();
-      if (ImGui.button("Discard Export Review")) {
-        exportReview.cancel();
-        exportReview = null;
-        message = "";
-      }
-      workControl("discard-export");
-    } else ImGui.textDisabled("Prepare the displayed capture to review its export.");
-    ImGui.inputText("Export path", exportPath);
+      if (!exportReview.available())
+        ImGui.textWrapped(
+            "This review has been consumed. Prepare the displayed capture to export again.");
+    } else ImGui.textWrapped("Prepare the displayed capture to review its export.");
+    ImGui.textWrapped("Export path");
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+    fieldIds.put("export-path", ImGui.getID("##profile-export-path"));
+    ImGui.inputText("##profile-export-path", exportPath);
     workControl("export-path");
+    ImGui.textWrapped(message);
+    ImGui.textWrapped(
+        "Exports use the reviewed snapshot and include every retained sample and series. A failed"
+            + " export keeps its review. Prepare again to use the displayed capture.");
+  }
+
+  private void drawActions() {
+    var first = captureInputs.firstProblem(displayedCaptureInputs());
+    ImGui.beginDisabled(first != null);
+    if (layout.action("start", "Start Capture")) start();
+    workControl("start");
+    ImGui.endDisabled();
+    boolean recording =
+        state.engine.profiler().current().map(Profiler.Capture::recording).orElse(false);
+    ImGui.beginDisabled(!recording);
+    if (layout.action("stop", "Stop")) {
+      state.engine.profiler().stop();
+      refreshed = 0;
+    }
+    workControl("stop");
+    ImGui.endDisabled();
+    ImGui.beginDisabled(state.engine.profiler().current().isEmpty());
+    if (layout.action("clear", "Clear")) {
+      state.engine.profiler().clear();
+      resetDisplayed();
+    }
+    workControl("clear");
+    ImGui.endDisabled();
+    ImGui.beginDisabled(first == null);
+    if (layout.action("problem", "Show Invalid Limit")) {
+      section = "Capture & runtime";
+      revealLimit = first;
+    }
+    workControl("problem");
+    ImGui.endDisabled();
+    ImGui.beginDisabled(snapshot == null);
+    if (layout.action("prepare-export", "Prepare Export")) {
+      if (exportReview != null) exportReview.cancel();
+      exportReview = new ProfileExportSession(snapshot);
+      section = "Export";
+      message = "";
+    }
+    workControl("prepare-export");
+    ImGui.endDisabled();
+    ImGui.beginDisabled(exportReview == null);
+    if (layout.action("discard-export", "Discard Review")) {
+      exportReview.cancel();
+      exportReview = null;
+      message = "";
+    }
+    workControl("discard-export");
+    ImGui.endDisabled();
     ImGui.beginDisabled(exportReview == null || !exportReview.available());
-    if (ImGui.button("Export JSON")) export(false);
+    if (layout.action("export-json", "Export JSON")) export(false);
     workControl("export-json");
-    ImGui.sameLine();
-    if (ImGui.button("Export CSV")) export(true);
+    // A successful first format consumes the same token before another format can be submitted.
+    ImGui.endDisabled();
+    ImGui.beginDisabled(exportReview == null || !exportReview.available());
+    if (layout.action("export-csv", "Export CSV")) export(true);
     workControl("export-csv");
     ImGui.endDisabled();
-    ImGui.textWrapped(message);
-    ImGui.textDisabled(
-        "Exports use the reviewed snapshot and include every retained sample and series.");
-    ImGui.textDisabled(
-        "A failed export keeps its review. Prepare again to use the displayed capture.");
-    if (scrollToExport) {
-      ImGui.setScrollHereY(1);
-      scrollToExport = false;
-    }
+  }
+
+  private void resetDisplayed() {
+    snapshot = null;
+    filteredSnapshot = null;
+    filteredRows = List.of();
+    selected = null;
+    displayed = null;
+    clearWorkTotal();
   }
 
   private void export(boolean csv) {
+    section = "Export";
     try {
       var reviewed = exportReview.snapshot();
       var path = exportReview.write(exportPath.get(), csv, state.document.path());
@@ -503,7 +671,54 @@ public final class ProfilePanel {
 
   void probeExportPath(String path) {
     exportPath.set(path);
-    scrollToExport = true;
+    section = "Export";
+  }
+
+  void section(String value) {
+    if (value == null || !SECTIONS.contains(value))
+      throw new IllegalArgumentException("Unknown profiler section");
+    section = value;
+    if (value.equals("Measurements")) revealSeries = true;
+  }
+
+  String section() {
+    return section;
+  }
+
+  DialogBounds.Rect selector() {
+    return selector;
+  }
+
+  DialogBounds.Rect seriesBounds() {
+    return seriesBounds;
+  }
+
+  int submittedRows() {
+    return submittedRows;
+  }
+
+  Map<String, Integer> fieldIds() {
+    return Map.copyOf(fieldIds);
+  }
+
+  Map<ProfileCaptureInputs.Field, String> captureText() {
+    return displayedCaptureInputs();
+  }
+
+  ProfileCaptureInputs.Feedback captureFeedback() {
+    return captureInputs.feedback();
+  }
+
+  Map<String, Integer> rowIds() {
+    return Map.copyOf(rowIds);
+  }
+
+  float rowStride() {
+    return rowStride;
+  }
+
+  Map<String, DialogBounds.Rect> inputBounds() {
+    return Map.copyOf(inputBounds);
   }
 
   static List<Profiler.Series> filter(

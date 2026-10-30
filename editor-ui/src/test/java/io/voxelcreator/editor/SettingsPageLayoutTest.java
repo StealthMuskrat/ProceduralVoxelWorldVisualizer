@@ -6,6 +6,25 @@ import org.junit.jupiter.api.Test;
 
 class SettingsPageLayoutTest {
   @Test
+  void multiplePersistentRowsReserveTheirOwnFramesAndGaps() {
+    assertEquals(254, SettingsPageLayout.body(300, 19, 4, 2));
+    assertEquals(40, SettingsPageLayout.body(300, 81.25f, 5.4166665f, 3), .001);
+    assertEquals(1, SettingsPageLayout.body(100, 81.25f, 4, 2));
+    assertEquals(SettingsPageLayout.body(300, 19, 4), SettingsPageLayout.body(300, 19, 4, 1));
+  }
+
+  @Test
+  void actionRowCountsAndExtremeMeasurementsRejectOrRemainFiniteBeforeNativeUse() {
+    assertThrows(IllegalArgumentException.class, () -> SettingsPageLayout.body(300, 19, 4, 0));
+    assertThrows(IllegalArgumentException.class, () -> SettingsPageLayout.body(300, 19, 4, 5));
+    assertEquals(1, SettingsPageLayout.body(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, 4));
+    assertThrows(IllegalArgumentException.class, () -> new SettingsPageChrome());
+    assertThrows(IllegalArgumentException.class, () -> new SettingsPageChrome(4, 0));
+    assertThrows(IllegalArgumentException.class, () -> new SettingsPageChrome(17));
+    assertThrows(IllegalArgumentException.class, () -> new SettingsPageChrome(1, 1, 1, 1, 1));
+  }
+
+  @Test
   void multilineEditorsUseFiveMeasuredRowsWithinTheVisibleBodyBudget() {
     assertEquals(100, SettingsPageLayout.multiline(1000, 20));
     assertEquals(40, SettingsPageLayout.multiline(100, 20));
