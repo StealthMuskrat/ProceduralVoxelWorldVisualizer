@@ -120,3 +120,5 @@ The unvalidated [Application Settings layout batch](docs/APPLICATION_SETTINGS_LA
 The unvalidated [Appearance layout batch](docs/APPEARANCE_SETTINGS_LAYOUT.md) keeps scale actions persistent, stacks numeric rows, reveals hidden invalid fields and places active preference/theme controls inside the scrolling body. Deferred checks remain unexecuted.
 
 The unvalidated [Input Settings layout batch](docs/INPUT_SETTINGS_LAYOUT.md) reflows clipped shortcut rows, keeps edit/recording actions persistent and preserves same-frame capture suppression during cancellation and retry. Deferred checks remain unexecuted.
+
+The unvalidated [Themes layout batch](docs/THEME_LAYOUT.md) adds persistent recovery actions, responsive palette/contrast panes and RGBA rows, plus sticky rejected-channel save guards. Deferred checks remain unexecuted.

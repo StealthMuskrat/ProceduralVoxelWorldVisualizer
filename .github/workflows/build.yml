@@ -81,6 +81,8 @@ jobs:
           python scripts/verify_theme.py build/theme-probe/user-config.json build/theme-probe/theme-contrast.json
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeWorkspaceProbe build/theme-workspace
           python scripts/verify_theme_workspace.py build/theme-workspace
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeLayoutProbe build/theme-layout
+          python scripts/verify_theme_layout.py build/theme-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UpdateTrustProbe build/update-trust
           python scripts/verify_update_trust.py build/update-trust
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UpdateCheckProbe build/update-check
@@ -329,6 +331,7 @@ jobs:
             build/profile-export/
             build/theme-probe/
             build/theme-workspace/
+            build/theme-layout/
             build/update-trust/
             build/update-check/
             build/workspace/
@@ -508,6 +511,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeWorkspaceProbe build/theme-workspace
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_theme_workspace.py build/theme-workspace
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeLayoutProbe build/theme-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_theme_layout.py build/theme-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UpdateTrustProbe build/update-trust
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -957,6 +964,7 @@ jobs:
             build/profile-export/
             build/theme-probe/
             build/theme-workspace/
+            build/theme-layout/
             build/update-trust/
             build/update-check/
             build/workspace/
