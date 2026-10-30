@@ -11,6 +11,8 @@ import java.util.*;
 import java.util.function.*;
 
 public final class ResourcePanel {
+  final FloatingWindowLayout windowLayout = new FloatingWindowLayout(320, 640);
+  final FloatingWindowLayout managerLayout = new FloatingWindowLayout(650, 520);
   final PanelDockControls docking = new PanelDockControls("Resources");
   private final EditorState state;
   private final PropertyPanel properties;
@@ -116,15 +118,25 @@ public final class ResourcePanel {
     submittedRows = 0;
     submittedTreeIds.clear();
     refreshBrowser();
+    windowLayout.prepareExisting();
     docking.prepare();
     boolean visible = ImGui.begin("Resources");
     UiScale.window(state.user, "Resources");
+    windowLayout.observe();
     DialogLayout.observe(state, "Resources");
     if (visible) {
       docking.draw();
+      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
       ImGui.inputTextWithHint("##filter", "Filter resources...", filter);
       ImGui.beginChild(
-          "resource-tree", 0, Math.max(100, ImGui.getContentRegionAvailY() - 100), true);
+          "resource-tree",
+          0,
+          Math.max(
+              1,
+              ImGui.getContentRegionAvailY()
+                  - 2 * ImGui.getFrameHeightWithSpacing()
+                  - 2 * ImGui.getTextLineHeightWithSpacing()),
+          true);
       root("2D Noise", "noise2D");
       root("3D Noise", "noise3D");
       root("World Generator", "world");
@@ -134,11 +146,11 @@ public final class ResourcePanel {
       }
       ImGui.endChild();
       ImGui.separator();
-      if (ImGui.button("Voxel Manager")) manager.set(true);
+      if (DialogLayout.button("Voxel Manager")) manager.set(true);
       if (browser.get(state.selected) != null
           && browser.get(state.selected).kind().equals("layer")
-          && ImGui.button("Add Noise Generator to Layer")) beginPlacement(state.selected);
-      ImGui.textDisabled("Right-click a root to create resources");
+          && DialogLayout.button("Add Noise Generator to Layer")) beginPlacement(state.selected);
+      ImGui.textWrapped("Right-click a root to create resources");
       if (!renameError.isEmpty()) ImGui.textWrapped("! " + renameError);
       focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
       if (focused && ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
@@ -947,14 +959,16 @@ public final class ResourcePanel {
   private void manager() {
     if (!manager.get()) return;
     refreshBrowser();
-    ImGui.setNextWindowSize(650, 520, ImGuiCond.FirstUseEver);
+    managerLayout.prepare();
     boolean visible = ImGui.begin("Voxel Manager", manager);
     UiScale.window(state.user, "Voxel Manager");
+    managerLayout.observe();
     if (!visible || !manager.get()) {
       submittedManagerRows = 0;
       ImGui.end();
       return;
     }
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
     ImGui.inputTextWithHint(
         "##voxel-filter", "Filter voxel type, set or group IDs...", managerFilter);
     submittedManagerRows = 0;
@@ -970,7 +984,7 @@ public final class ResourcePanel {
 
   private void managerTab(String label, String kind, String createLabel) {
     if (!ImGui.beginTabItem(label)) return;
-    if (ImGui.button(createLabel)) create(kind, kind, null);
+    if (DialogLayout.button(createLabel)) create(kind, kind, null);
     String key = kind + ":" + managerFilter.get();
     if (!key.equals(managerKey)) {
       managerKey = key;
@@ -979,8 +993,12 @@ public final class ResourcePanel {
           managerRows.stream().map(n -> new ResourceTreeIndex.Row(n, 0, false)).toList();
     }
     selectionRows = managerSelectionRows;
-    ImGui.text(managerRows.size() + " matching " + label.toLowerCase(Locale.ROOT));
-    ImGui.beginChild("manager-rows", 0, Math.max(80, ImGui.getContentRegionAvailY() - 30), true);
+    ImGui.textWrapped(managerRows.size() + " matching " + label.toLowerCase(Locale.ROOT));
+    ImGui.beginChild(
+        "manager-rows",
+        0,
+        Math.max(1, ImGui.getContentRegionAvailY() - ImGui.getFrameHeightWithSpacing()),
+        true);
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(managerRows.size(), ImGui.getFrameHeightWithSpacing());
@@ -1004,7 +1022,7 @@ public final class ResourcePanel {
     if (findReferences != null
         && browser.get(state.selected) != null
         && browser.get(state.selected).kind().equals(kind)
-        && ImGui.button("Find References to Selected")) {
+        && DialogLayout.button("Find References to Selected")) {
       findReferences.accept(state.selected);
     }
     ImGui.endTabItem();

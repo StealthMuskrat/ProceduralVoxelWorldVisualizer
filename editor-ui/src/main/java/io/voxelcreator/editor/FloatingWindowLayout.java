@@ -17,7 +17,16 @@ final class FloatingWindowLayout {
   }
 
   void prepare() {
-    ImGui.setNextWindowSize(width, height, ImGuiCond.FirstUseEver);
+    prepare(true);
+  }
+
+  /** Preserve native/caller first-use sizing for core panels that historically have no default. */
+  void prepareExisting() {
+    prepare(false);
+  }
+
+  private void prepare(boolean initialSize) {
+    if (initialSize) ImGui.setNextWindowSize(width, height, ImGuiCond.FirstUseEver);
     var main = ImGui.getMainViewport();
     var mainWork =
         rectangle(main.getWorkPosX(), main.getWorkPosY(), main.getWorkSizeX(), main.getWorkSizeY());

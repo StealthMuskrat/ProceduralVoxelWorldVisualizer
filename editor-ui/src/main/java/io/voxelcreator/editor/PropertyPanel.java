@@ -12,6 +12,7 @@ import java.util.*;
 import java.util.function.*;
 
 public final class PropertyPanel {
+  final FloatingWindowLayout windowLayout = new FloatingWindowLayout(480, 720);
   final PanelDockControls docking = new PanelDockControls("Properties");
   private final EditorState state;
   private final UiFields f = new UiFields(this::noiseChanged);
@@ -513,9 +514,11 @@ public final class PropertyPanel {
       }
     }
     resourcePicker.synchronize();
+    windowLayout.prepareExisting();
     docking.prepare();
     boolean visible = ImGui.begin("Properties");
     UiScale.window(state.user, "Properties");
+    windowLayout.observe();
     DialogLayout.observe(state, "Properties");
     if (visible) {
       if (probeSeedTop) {
@@ -553,13 +556,14 @@ public final class PropertyPanel {
           }
         }
         seedProblems();
-        if (ImGui.button("Apply")) state.applyDraft();
-        ImGui.sameLine();
-        if (ImGui.button("Revert")) {
+        if (DialogLayout.button("Apply")) state.applyDraft();
+        f.tooltip("Apply validates this edit and commits one undoable transaction.");
+        DialogLayout.sameLine("Revert");
+        if (DialogLayout.button("Revert")) {
           state.refreshDraft();
           f.clear();
         }
-        f.tooltip("Apply validates this edit and commits one undoable transaction.");
+        f.tooltip("Revert reloads the selected resource and discards its private edits.");
         if (!state.issues.isEmpty()) {
           ThemeStyle.text("Error", "! " + state.issues.size() + " validation issue(s)");
           for (int i = 0; i < Math.min(8, state.issues.size()); i++) {

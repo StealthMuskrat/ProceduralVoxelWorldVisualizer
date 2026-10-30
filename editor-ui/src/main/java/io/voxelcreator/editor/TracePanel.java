@@ -45,10 +45,10 @@ public final class TracePanel {
       ImGui.textWrapped(
           "Project changed after this trace. Values belong to its snapshot; changed source links"
               + " require a new trace.");
-    if (ImGui.button("Copy Trace Details")) ImGui.setClipboardText(value.details());
+    if (DialogLayout.button("Copy Trace Details")) ImGui.setClipboardText(value.details());
     if (value.finalTypeTarget() != null && state.canNavigate(value.finalTypeTarget())) {
-      ImGui.sameLine();
-      if (ImGui.button("Go To Voxel Type")) {
+      DialogLayout.sameLine("Go To Voxel Type");
+      if (DialogLayout.button("Go To Voxel Type")) {
         var target = value.finalTypeTarget();
         if (navigation.request(target, () -> value.available(state, target))
             == SearchNavigation.Result.UNAVAILABLE)
@@ -84,6 +84,7 @@ public final class TracePanel {
       clipper.destroy();
     }
     ImGui.endChild();
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
     ImGui.inputTextWithHint(
         "##trace-search", "Find comparison, setting, noise item or value...", query);
     String text = query.get().strip().toLowerCase(Locale.ROOT);
@@ -100,7 +101,7 @@ public final class TracePanel {
       indexedStep = step;
       row = 0;
     }
-    ImGui.text(filtered.size() + " observations and controls");
+    ImGui.textWrapped(filtered.size() + " observations and controls");
     ImGui.beginChild("trace-values", 0, 180, true);
     var values = new ImGuiListClipper();
     try {
@@ -132,16 +133,16 @@ public final class TracePanel {
       ImGui.textWrapped(shortText(selected.label(), 512));
       int pages = TraceText.count(selected.value());
       if (pages > 1) {
-        if (ImGui.smallButton("Previous Page") && page > 0) page--;
-        ImGui.sameLine();
-        if (ImGui.smallButton("Next Page") && page + 1 < pages) page++;
-        ImGui.sameLine();
-        ImGui.text("Page " + (page + 1) + " / " + pages);
+        if (DialogLayout.button("Previous Page") && page > 0) page--;
+        DialogLayout.sameLine("Next Page");
+        if (DialogLayout.button("Next Page") && page + 1 < pages) page++;
+        DialogLayout.sameLine("Page " + (page + 1) + " / " + pages);
+        ImGui.textWrapped("Page " + (page + 1) + " / " + pages);
       }
       ImGui.textWrapped(TraceText.page(selected.value(), page));
-      if (ImGui.smallButton("Copy Selected Value")) ImGui.setClipboardText(selected.value());
+      if (DialogLayout.button("Copy Selected Value")) ImGui.setClipboardText(selected.value());
       if (selected.target() != null && state.canNavigate(selected.target())) {
-        boolean clicked = ImGui.button("Go To Control");
+        boolean clicked = DialogLayout.button("Go To Control");
         var a = ImGui.getItemRectMin();
         var b = ImGui.getItemRectMax();
         goToCenter = new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2};

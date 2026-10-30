@@ -1,0 +1,35 @@
+# Core window bounds and responsive Inspector coordinates
+
+Status: implemented on `codex/development-phase`, **uncompiled and untested**. Builds, JUnit/native execution, independent replay and GitHub testing remain paused by owner instruction. No historical pass total or acceptance gate changes.
+
+Resources, Properties, Visualizers, Voxel Manager and Voxel Inspector now adopt the shared [floating window policy](CURVE_LAYOUT.md). Together with the Curve Editor and thirteen [utility/settings presentations](STATUS_AND_UTILITY_LAYOUT.md), all nineteen logical scale-catalog targets have an implementation path for outer bounds. This does not certify their complete internal layouts, per-monitor DPI or hardware behavior.
+
+## Native sizing and docking ownership
+
+The three core panels use `FloatingWindowLayout.prepareExisting`: they keep their historical native/caller first-use sizing instead of submitting a new preferred FirstUseEver size. This matters for existing editor embeddings and native scenarios that provide explicit NextWindow dimensions. After an eligible observation, the same pure work-area constraints/correction policy applies. Voxel Manager/Inspector keep their previous 650 x 520 and 600 x 600 preferred sizes.
+
+Real Begin results are observed, including collapsed windows. Docking retains dock-node size ownership; Resources/Properties retain their existing frame-boundary Undock/Redock requests. A held mouse button defers fitting and a collapsed title bar does not overwrite the expanded height. Relative main-client coordinates and absolute backend monitor work areas remain separate. No viewport, monitor, GLFW or GL pointer is retained by the layout helper. Valid measured user position/size stays stable. First-frame pre-correction geometry and missing detached monitor data retain the limits documented in the shared policy.
+
+The Resource filter and Voxel Manager filter now fill available width. Resource-tree height reserves measured action/text rows instead of a fixed 100-unit footer; manager list height reserves a measured reference-action row instead of 30 units. Their former 100/80-unit minimum child heights no longer force those lists beyond short content. Existing clipped catalogs, UUID selection, draft/browser transaction guards and drag ownership are unchanged. Dock actions, resource footer/manager actions, Properties Apply/Revert and Inspector actions cap hit width to available content. Apply/Revert and Trace/Cancel rows wrap when needed. Apply's tooltip describes Apply; Revert's describes its private discard behavior.
+
+These changes do not promise a permanently visible footer for every wrapped explanation/error. Native parent/child scrolling still handles taller resource/property/trace content. Tree errors, arbitrary long labels and maximum compounded scale across every control need full GUI validation later.
+
+## Raw XYZ presentation
+
+`CoordinateFieldLayout` is a pure three-axis grid policy. It selects three, two or one columns using the available content width, measured minimum integer input width, axis labels and native item spacing. The native component derives the minimum from ten times the widest decimal digit plus a minus sign and frame padding, covering signed 32-bit decimal input. If even one inline label plus that input cannot fit, labels move above full-width fields. Inputs may scroll horizontally when the available area is smaller than the text; the full raw buffer is retained.
+
+`InspectorCoordinateFields` renders those production fields and keeps stable `###inspector-coordinate-X/Y/Z` IDs across all presentations. It does not own, parse, repair or replace raw coordinates. Viewports still supplies its existing ImString buffers, raw edit/feedback callback, exact displayed-value validation and task cancellation. Every edited axis still cancels its pending trace/pick request through the existing controller. Invalid text never falls back to an earlier parsed cell. Layout changes alone do not advance the raw-coordinate version, start a trace, restore XYZ, add a bookmark or publish a result.
+
+Inspector Refresh/Restore/Bookmark/Trace/Cancel actions keep their callbacks and ownership. The shared Inspector/Logs `TracePanel` also gets available-width search, wrapped count/page text and bounded/wrapping copy/navigation/page actions. Trace snapshots, paging values, guarded source availability, clipboard publication and accepted navigation semantics are unchanged.
+
+No engine/model, schema, registry, generator or public API changes are needed. Bounds/reflow do not publish Properties input, alter project dirty/history, change source identity or implicitly save files. Native workspace capture remains responsible for ordinary layout preferences. Per-monitor fonts/atlas/style scaling, independent physical monitor intersection for all popups, complete internal reflow and full specification 4.1.4/4.3/A32/Windows 11 acceptance remain pending.
+
+## Deferred definitions
+
+Ten `CoordinateFieldLayoutTest` definitions provide independent analytical three/two/one-column and stacked vectors, exact fit boundaries, proportional metric scaling, zero spacing/labels, temporarily negative remaining width, invalid/finite extreme metrics, and raw-coordinate separation with signed integer endpoints. The geometry definitions have no JNI or GL dependency.
+
+`CoreWindowLayoutProbe` defines actual Resources, Properties and Voxel Manager fitting at 1280 x 900/global 1 and 360 x 240/global 2.5. It checks that explicit caller Resources 280 x 520 and Properties 400 x 600 sizes survive the core helper's first-use path. A separate isolated Inspector fixture renders the exact production XYZ component with the shared floating helper: three columns at 960 x 640/global 1; two at 560 x 400/global 2.5; one at 360 x 240/global 2.5; and stacked labels at 360 x 240/global 2.5 times window 2.5. Native mouse/text events enter both signed integer limits and a negative Z, retain an invalid minus sign through all reflow modes without callbacks/version changes, and explicitly correct it after wheel scrolling reveals the stacked input. Field IDs stay equal across layouts. Private Properties/raw seed, preferences, project/history and profiler state must remain unchanged.
+
+The independent Python definition checks work-area margins, explicit caller dimensions, row/column ordering and horizontal field containment, plus the raw-input/identity receipts. Future Linux/Windows steps/artifacts preserve the development trigger exclusions. None has run.
+
+This probe has an isolated ImGui context and no renderer/GLFW platform window. It does not instantiate the production GPU Visualizers/Viewports or its asynchronous trace controller: the Inspector scenario exercises the shared production input component in a fixture window. Full Inspector task ownership remains covered by existing deferred controller/native definitions. Physical detached/DPI flags remain false, and every covered production embedding, core dock/undock gesture combination, renderer resize, 6.25-scale usability and hardware acceptance remain unverified.

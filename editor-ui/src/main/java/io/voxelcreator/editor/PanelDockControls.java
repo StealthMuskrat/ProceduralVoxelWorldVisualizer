@@ -50,13 +50,13 @@ final class PanelDockControls {
     int dock = current;
     state.observe(dock);
     if (dock != 0) {
-      if (ImGui.smallButton("Undock " + name)) state.undock();
+      if (DialogLayout.button("Undock " + name)) state.undock();
       control("undock");
     } else if (state.canRedock(this::exists)) {
-      if (ImGui.smallButton("Redock " + name)) state.redock(this::exists);
+      if (DialogLayout.button("Redock " + name)) state.redock(this::exists);
       control("redock");
     } else if (defaults != null) {
-      if (ImGui.smallButton("Redock (default layout)")) defaults.run();
+      if (DialogLayout.button("Redock (default layout)")) defaults.run();
       control("defaults");
       if (ImGui.isItemHovered())
         ImGui.setTooltip(

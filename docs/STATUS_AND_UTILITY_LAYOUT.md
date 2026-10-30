@@ -20,7 +20,9 @@ Thirteen additional presentations adopt the [floating window policy](CURVE_LAYOU
 
 The helper honors the first native INI observation, keeps valid user bounds stable, skips dock-node sizing/collapsed-height replacement, and defers correction during held mouse buttons. Relative main-client coordinates and absolute backend monitor work areas remain separate; live detached windows with no monitor data do not fit repeatedly inside their own client area. Native wrappers are resolved locally. Existing workspace capture still owns preference persistence. These outer-bound changes do not redesign every utility's internal list/action rows or reset private editors, searches, theme previews, update requests or profiler export reviews.
 
-The reserved dock rectangle does not mutate the viewport's global WorkPos/WorkSize. Floating tools and modals can still cover the strip like other application windows; their main-client fitting policy uses the original work rectangle. Independent physical monitor intersection for all popups, internal utility reflow, per-monitor font/atlas/style metrics, core-panel floating bounds, minimized/tiny-frame behavior and full GUI/Windows 11 acceptance remain pending. This is not a full specification 4.1.4/4.3 or A32 certification.
+The reserved dock rectangle does not mutate the viewport's global WorkPos/WorkSize. Floating tools and modals can still cover the strip like other application windows; their main-client fitting policy uses the original work rectangle. Independent physical monitor intersection for all popups, internal utility reflow, per-monitor font/atlas/style metrics, minimized/tiny-frame behavior and full GUI/Windows 11 acceptance remain pending. This is not a full specification 4.1.4/4.3 or A32 certification.
+
+Core panels and Voxel Manager/Inspector have a separate [outer-bounds and responsive XYZ follow-up](CORE_WINDOW_LAYOUT.md).
 
 ## Deferred definitions
 

@@ -19,6 +19,9 @@ import java.util.concurrent.atomic.*;
 import org.joml.Vector3d;
 
 public final class Viewports implements AutoCloseable {
+  final FloatingWindowLayout windowLayout = new FloatingWindowLayout(900, 700);
+  final FloatingWindowLayout inspectorLayout = new FloatingWindowLayout(600, 600);
+  private final InspectorCoordinateFields coordinateFields = new InspectorCoordinateFields();
   private final EditorState state;
   private final PropertyPanel properties;
   private TracePanel tracePanel;
@@ -1183,8 +1186,10 @@ public final class Viewports implements AutoCloseable {
         Math.min(
             (long) state.user.performance.cacheMiB << 20,
             Math.max(0, ((long) state.user.performance.sceneCpuMiB << 20) - 64L * 256 * 256)));
+    windowLayout.prepareExisting();
     boolean visible = ImGui.begin("Visualizers");
     UiScale.window(state.user, "Visualizers");
+    windowLayout.observe();
     DialogLayout.observe(state, "Visualizers");
     var nextWindow = platform.current();
     if (!Objects.equals(surfaceWindow, nextWindow)) {
@@ -3390,9 +3395,10 @@ public final class Viewports implements AutoCloseable {
 
   private void drawInspector() {
     if (!inspector.get()) return;
-    ImGui.setNextWindowSize(600, 600, ImGuiCond.FirstUseEver);
+    inspectorLayout.prepare();
     boolean visible = ImGui.begin("Voxel Inspector", inspector);
     UiScale.window(state.user, "Voxel Inspector");
+    inspectorLayout.observe();
     if (admissionProbe) {
       var position = ImGui.getWindowPos();
       var size = ImGui.getWindowSize();
@@ -3417,7 +3423,7 @@ public final class Viewports implements AutoCloseable {
             "Project changed since this trace. Refresh its displayed coordinate in the current"
                 + " project; entered XYZ stays unchanged.");
         inspectorFreshnessNoticeVisible = true;
-        if (ImGui.smallButton("Refresh Displayed Trace"))
+        if (DialogLayout.button("Refresh Displayed Trace"))
           startCoordinateTrace(traceSnapshot.trace().position());
         admissionControl("trace-refresh");
       } else if (freshness == TraceSnapshot.Freshness.OTHER_PROJECT) {
@@ -3434,27 +3440,21 @@ public final class Viewports implements AutoCloseable {
       ImGui.textWrapped(inspectorPickHint);
       inspectorHintVisible = true;
     }
-    ImGui.text("XYZ");
-    float fieldWidth = Math.max(70, (ImGui.getContentRegionAvailX() - 80) / 3);
-    for (var axis : inspectorCoordinates.axes()) {
-      if (!axis.equals("X")) ImGui.sameLine();
-      ImGui.pushItemWidth(fieldWidth);
-      var input = inspectorInput(axis);
-      if (ImGui.inputText(axis + "##inspector-coordinate", input)) {
-        boolean wasPending = inspectorTask.pending();
-        try {
-          inspectorCoordinates.edit(axis, input.get());
-          inspectorInputError = "";
-        } catch (RuntimeException invalid) {
-          inspectorInputError =
-              Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
-        }
-        cancelInspectorTask(
-            wasPending ? "Coordinate changed; Trace Coordinate to continue." : "", true);
-      }
-      ImGui.popItemWidth();
-      admissionControl("trace-" + axis.toLowerCase(Locale.ROOT));
-    }
+    coordinateFields.draw(
+        this::inspectorInput,
+        (axis, raw) -> {
+          boolean wasPending = inspectorTask.pending();
+          try {
+            inspectorCoordinates.edit(axis, raw);
+            inspectorInputError = "";
+          } catch (RuntimeException invalid) {
+            inspectorInputError =
+                Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+          }
+          cancelInspectorTask(
+              wasPending ? "Coordinate changed; Trace Coordinate to continue." : "", true);
+        },
+        axis -> admissionControl("trace-" + axis.toLowerCase(Locale.ROOT)));
     String coordinateProblem = inspectorCoordinates.problem();
     if (!coordinateProblem.isEmpty()) ImGui.textWrapped("! " + coordinateProblem);
     if (!inspectorInputError.isEmpty()) ImGui.textWrapped("! " + inspectorInputError);
@@ -3469,17 +3469,17 @@ public final class Viewports implements AutoCloseable {
               point.y(),
               point.z()));
       inspectorDraftNoticeVisible = true;
-      if (ImGui.smallButton("Use Traced Coordinate")) restoreTracedCoordinate();
+      if (DialogLayout.button("Use Traced Coordinate")) restoreTracedCoordinate();
       admissionControl("trace-restore");
     }
-    if (ImGui.smallButton("Add Bookmark at Coordinate")) addInspectorBookmark();
+    if (DialogLayout.button("Add Bookmark at Coordinate")) addInspectorBookmark();
     admissionControl("trace-bookmark");
-    if (ImGui.button("Trace Coordinate")) startCoordinateTrace();
+    if (DialogLayout.button("Trace Coordinate")) startCoordinateTrace();
     admissionControl("trace-coordinate");
     if (inspectorTask.pending()) {
-      ImGui.sameLine();
       boolean pick = inspectorTask.request().viewBound();
-      if (ImGui.button(pick ? "Cancel Pick" : "Cancel Trace"))
+      DialogLayout.sameLine(pick ? "Cancel Pick" : "Cancel Trace");
+      if (DialogLayout.button(pick ? "Cancel Pick" : "Cancel Trace"))
         cancelInspectorTask(pick ? "World pick canceled." : "Coordinate trace canceled.", true);
       admissionControl("trace-cancel");
     }
