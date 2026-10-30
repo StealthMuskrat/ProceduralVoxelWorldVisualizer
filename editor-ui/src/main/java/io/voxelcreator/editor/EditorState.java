@@ -15,6 +15,7 @@ public final class EditorState implements AutoCloseable {
   final UiWindowHosts dialogHosts = new UiWindowHosts();
   private final boolean persistPreferences;
   public AppMetadata metadata = AppMetadata.load();
+  final HelpRequests helpRequests = new HelpRequests();
   public final NoiseGeneratorEngine engine;
   public final ThreadPoolExecutor background =
       new ThreadPoolExecutor(

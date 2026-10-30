@@ -485,6 +485,7 @@ public final class PropertyPanel {
 
   public PropertyPanel(EditorState s) {
     state = s;
+    contextHelp = new ContextHelp(s.helpRequests);
     resourcePicker = new ResourcePicker(s);
     referenceNavigation = new SearchNavigation(s);
     referenceDialog = new NavigationGuardDialog(s);
@@ -1764,9 +1765,17 @@ public final class PropertyPanel {
         : state.metadata.label("algorithm." + key, key);
   }
 
+  private final ContextHelp contextHelp;
+
+  ContextHelp contextHelp() {
+    return contextHelp;
+  }
+
   private void metadataTooltip(String id) {
     var control = state.metadata.control(id);
-    if (control != null && ImGui.isItemHovered()) UiScale.tooltip(control.tooltip);
+    if (control != null && ImGui.isItemHovered())
+      UiScale.tooltip(control.tooltip + "\nRight-click for Help.");
+    if (control != null) contextHelp.item(id);
   }
 
   private final Set<String> sourceControlKeys = new LinkedHashSet<>();

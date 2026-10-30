@@ -2,6 +2,7 @@ package io.voxelcreator.editor;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL20.GL_SHADING_LANGUAGE_VERSION;
 
 import imgui.*;
 import imgui.app.*;
@@ -32,8 +33,6 @@ public final class Desktop extends Application {
   private DiagnosticsPanel diagnostics;
   private ProfilePanel captures;
   private final Map<String, FloatingWindowLayout> settingsLayouts = new HashMap<>();
-  private final FloatingWindowLayout helpLayout = new FloatingWindowLayout(750, 550);
-  private final FloatingWindowLayout aboutLayout = new FloatingWindowLayout(680, 350);
   private InputSettingsPanel inputSettings;
   private ApplicationSettingsPanel applicationSettings;
   private ResourceFindPanel findPanel;
@@ -52,6 +51,9 @@ public final class Desktop extends Application {
   private long smokeDiagnosticEvent;
   private boolean smokeSchedulerDrawn;
   private final UiFields fields = new UiFields();
+  private final ContextHelp contextHelp = new ContextHelp(state.helpRequests);
+  private HelpPanel helpPanel;
+  private AboutPanel aboutPanel;
   private final WorkspaceLayout workspaceLayout = new WorkspaceLayout(state.user.workspace);
   private final ImBoolean find = new ImBoolean(false),
       logs = new ImBoolean(false),
@@ -86,7 +88,7 @@ public final class Desktop extends Application {
   private final EditorFrameGate frames = new EditorFrameGate();
   private final UiDpiPolicy dpi = new UiDpiPolicy();
   private DpiGlfwBackend dpiBackend;
-  private final ImString search = new ImString(1024), pathInput = new ImString(4096);
+  private final ImString pathInput = new ImString(4096);
   private String settingsPage = "User Settings", settingsCategory = "Appearance", fileAction = "";
   private boolean filePending = false;
   private boolean packageFileOpen;
@@ -386,6 +388,20 @@ public final class Desktop extends Application {
         state.notify("Error", e.getMessage());
       }
     }
+    helpPanel = new HelpPanel(state, ImGui::setClipboardText);
+    var runtime = new LinkedHashMap<String, String>();
+    runtime.put("Java", System.getProperty("java.runtime.version", "Unavailable"));
+    runtime.put("Java VM", System.getProperty("java.vm.name", "Unavailable"));
+    runtime.put("OpenGL", glGetString(GL_VERSION));
+    runtime.put("OpenGL vendor", glGetString(GL_VENDOR));
+    runtime.put("OpenGL renderer", glGetString(GL_RENDERER));
+    runtime.put("GLSL", glGetString(GL_SHADING_LANGUAGE_VERSION));
+    aboutPanel =
+        new AboutPanel(
+            state.user,
+            new AboutDetails(APPLICATION_VERSION, CompiledProject.ENGINE_VERSION, runtime),
+            ImGui::setClipboardText,
+            () -> state.helpRequests.request("help.about"));
     startupStage("services-ready");
     presentation.ready();
     frames.ready();
@@ -739,29 +755,32 @@ public final class Desktop extends Application {
     if (ImGui.beginMainMenuBar()) {
       if (UiScale.beginMenu("File")) {
         for (String action : List.of("New", "Open", "Save", "SaveAs", "Import", "Export"))
-          if (ImGui.menuItem(Shortcuts.action(action).label(), binding(action))) command(action);
-        if (ImGui.menuItem("Exit")) projectFiles.workflow.request(ProjectFileWorkflow.Intent.EXIT);
+          if (helpMenuItem(action, Shortcuts.action(action).label(), binding(action), true))
+            command(action);
+        if (helpMenuItem("Exit", "Exit", "", true))
+          projectFiles.workflow.request(ProjectFileWorkflow.Intent.EXIT);
         ImGui.endMenu();
       }
       if (UiScale.beginMenu("Edit")) {
-        if (ImGui.menuItem("Undo", binding("Undo"), false, state.document.canUndo()))
+        if (helpMenuItem("Undo", "Undo", binding("Undo"), state.document.canUndo()))
           command("Undo");
-        if (ImGui.menuItem("Redo", binding("Redo"), false, state.document.canRedo()))
+        if (helpMenuItem("Redo", "Redo", binding("Redo"), state.document.canRedo()))
           command("Redo");
         ImGui.endMenu();
       }
       if (UiScale.beginMenu("View")) {
-        if (ImGui.menuItem("Find", binding("Find"))) command("Find");
-        if (ImGui.menuItem(
-            "Find References", binding("FindReferences"), false, state.selected != null))
+        if (helpMenuItem("Find", "Find", binding("Find"), true)) command("Find");
+        if (helpMenuItem(
+            "FindReferences", "Find References", binding("FindReferences"), state.selected != null))
           command("FindReferences");
-        if (ImGui.menuItem("Validate Project", binding("Validate"))) command("Validate");
-        if (ImGui.menuItem("Voxel Manager")) resources.showManager();
-        if (ImGui.menuItem("Profiler", binding("Profiler"))) command("Profiler");
-        if (ImGui.menuItem("Logs", binding("Logs"))) command("Logs");
-        if (ImGui.menuItem("Themes")) themes.set(true);
-        if (ImGui.menuItem("Center Main Window")) centerMainWindow();
-        if (ImGui.menuItem("Reset Dock Layout")) {
+        if (helpMenuItem("Validate", "Validate Project", binding("Validate"), true))
+          command("Validate");
+        if (helpMenuItem("Voxel Manager", "Voxel Manager", "", true)) resources.showManager();
+        if (helpMenuItem("Profiler", "Profiler", binding("Profiler"), true)) command("Profiler");
+        if (helpMenuItem("Logs", "Logs", binding("Logs"), true)) command("Logs");
+        if (helpMenuItem("Themes", "Themes", "", true)) themes.set(true);
+        if (helpMenuItem("Center Main Window", "Center Main Window", "", true)) centerMainWindow();
+        if (helpMenuItem("Reset Dock Layout", "Reset Dock Layout", "", true)) {
           resetDockLayout();
         }
         ImGui.endMenu();
@@ -770,18 +789,26 @@ public final class Desktop extends Application {
         for (String page :
             List.of(
                 "Project Settings", "Application Settings", "User Settings", "Debug & Profiling"))
-          if (ImGui.menuItem(page, page.equals("User Settings") ? binding("Settings") : ""))
+          if (helpMenuItem(
+              page, page, page.equals("User Settings") ? binding("Settings") : "", true))
             openSettings(page);
         ImGui.endMenu();
       }
       if (UiScale.beginMenu("Help")) {
-        if (ImGui.menuItem("Help", binding("Help"))) command("Help");
-        if (ImGui.menuItem("About")) about.set(true);
-        if (ImGui.menuItem("Check for Updates")) checkUpdates();
+        if (helpMenuItem("Help", "Help", binding("Help"), true)) command("Help");
+        if (helpMenuItem("About", "About", "", true)) about.set(true);
+        if (helpMenuItem("Check for Updates", "Check for Updates", "", true)) checkUpdates();
         ImGui.endMenu();
       }
       ImGui.endMainMenuBar();
     }
+  }
+
+  private boolean helpMenuItem(String action, String label, String shortcut, boolean enabled) {
+    boolean clicked = ImGui.menuItem(label, shortcut, false, enabled);
+    if (ImGui.isItemHovered()) UiScale.tooltip("Right-click for Help");
+    contextHelp.item(HelpDefinitions.menuTopic(action), action);
+    return clicked;
   }
 
   private void openFile(String action) {
@@ -893,23 +920,7 @@ public final class Desktop extends Application {
     drawThemes();
     updateChecks.draw(updateWindow);
     diagnostics.drawNotifications(notifications, () -> logs.set(true));
-    if (about.get()) {
-      aboutLayout.prepare();
-      boolean visible = ImGui.begin("About", about);
-      UiScale.window(state.user, "About");
-      aboutLayout.observe();
-      if (visible && about.get()) {
-        ImGui.text("Procedural Voxel Creator " + APPLICATION_VERSION);
-        ImGui.text("Noise Generator Engine " + CompiledProject.ENGINE_VERSION);
-        ImGui.text("Java " + System.getProperty("java.version"));
-        ImGui.text("OpenGL " + glGetString(GL_VERSION));
-        ImGui.textWrapped(
-            "Uses LWJGL (BSD), Dear ImGui/imgui-java (MIT), JOML (MIT), FastNoiseLite (MIT),"
-                + " Jackson (Apache-2.0), JUnit (EPL-2.0). See docs/LICENSES.md for attribution and"
-                + " notices.");
-      }
-      ImGui.end();
-    }
+    aboutPanel.draw(about);
   }
 
   private void drawFind() {
@@ -973,25 +984,15 @@ public final class Desktop extends Application {
   }
 
   private void drawHelp() {
-    if (!help.get()) return;
-    helpLayout.prepare();
-    boolean visible = ImGui.begin("Help", help);
-    UiScale.window(state.user, "Help");
-    helpLayout.observe();
-    if (visible && help.get()) {
-      ImGui.inputText("Search features", search);
-      for (var e : state.metadata.orderedControls()) {
-        var c = e.getValue();
-        if ((c.label + c.description + c.tooltip)
-                .toLowerCase(Locale.ROOT)
-                .contains(search.get().toLowerCase(Locale.ROOT))
-            && ImGui.collapsingHeader(AppMetadata.uiText(c.label) + "###help" + e.getKey())) {
-          ImGui.textWrapped(c.tooltip);
-          ImGui.textWrapped(c.description);
-        }
-      }
-    }
-    ImGui.end();
+    state
+        .helpRequests
+        .take()
+        .ifPresent(
+            id -> {
+              if (helpPanel.openTopic(id)) help.set(true);
+              else state.status = "Help topic is unavailable: " + id;
+            });
+    helpPanel.draw(help);
   }
 
   private void drawProfiler() {

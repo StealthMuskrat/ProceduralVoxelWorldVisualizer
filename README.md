@@ -134,3 +134,5 @@ The unvalidated [diagnostic workspace batch](docs/DIAGNOSTICS_LAYOUT.md) adds re
 The unvalidated [Find/Trace workspace batch](docs/FIND_AND_TRACE_LAYOUT.md) separates Find filters/results, keeps navigation/copy/paging actions persistent and binds source decisions to exact committed hits or trace observations. Deferred checks remain unexecuted.
 
 The unvalidated [ready editor startup batch](docs/READY_EDITOR_STARTUP.md) keeps native initialization hidden through a rendered editor frame, delays detached presentation, and adds shared failure cleanup and preference guards. Nineteen regression definitions and eight real Desktop scenarios remain unexecuted; physical startup/DPI acceptance remains pending.
+
+The unvalidated [Help/context/About batch](docs/HELP_AND_ABOUT.md) adds active-metadata options and related-topic search, retained topic navigation, explicit Inspector/menu context links and scrollable runtime/license sections with complete copying. Eleven regression definitions and 24 native layout cases remain unexecuted.
