@@ -150,3 +150,5 @@ The unvalidated [package path/export layout batch](docs/PACKAGE_LAYOUT.md) adds 
 The unvalidated [export hierarchy batch](docs/EXPORT_HIERARCHY.md) adds authored-order folder/layer disclosures, ancestor-aware search, explicit-versus-included choice markers and read-only included hierarchy. Ten regression definitions, twelve native layout cases and operation-only carrier/dependency engine replay remain unexecuted.
 
 The unvalidated [project decision layout batch](docs/PROJECT_DECISION_LAYOUT.md) adds persistent file/history actions, Cancel-before-mutation handling, request-scoped native IDs and retained path/focus recovery. Five regression definitions, thirty-six native form/size cases and independent saved/opened engine replay remain unexecuted.
+
+The unvalidated [resource draft decision layout](docs/RESOURCE_DECISION_LAYOUT.md) keeps selection, browser-action, Source and Find decisions reachable through scrolling explanations and persistent actions. Escape wins simultaneous clicks; post-commit UI refresh callbacks are consumed once. Four regression definitions, eighteen native layout cases and independent replay remain deferred.

@@ -61,6 +61,11 @@ public final class GuardedNavigation {
       ImGui.setWindowFocus(properties.navigationWindow());
       focus = false;
     }
+    if (!navigation.pending()) {
+      prompt = false;
+      dialog.close("Leave Property Draft for Source Link");
+      return;
+    }
     if (prompt) {
       dialog.open("Leave Property Draft for Source Link");
       prompt = false;

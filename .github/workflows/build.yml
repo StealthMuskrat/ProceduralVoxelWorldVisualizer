@@ -254,6 +254,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceEditProbe build/browser-edits
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.BrowserEditConsumer build/browser-edits/resource-edit-project.json
           python scripts/verify_browser_edits.py build/browser-edits
+      - name: Resource draft decision layout and callback ownership
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceDecisionLayoutProbe build/resource-decision-layout
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ResourceDecisionConsumer build/resource-decision-layout
+          python scripts/verify_resource_decision_layout.py build/resource-decision-layout
       - name: Browser selection and protected Properties workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceSelectionProbe build/browser-selection
@@ -412,6 +417,7 @@ jobs:
             build/project-drafts/
             build/project-history/
             build/project-decision-layout/
+            build/resource-decision-layout/
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/
@@ -875,6 +881,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_browser_edits.py build/browser-edits
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows resource draft decision layout and callback ownership
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceDecisionLayoutProbe build/resource-decision-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ResourceDecisionConsumer build/resource-decision-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_resource_decision_layout.py build/resource-decision-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows browser selection and protected Properties workflow
         shell: pwsh
         run: |
@@ -1128,6 +1143,7 @@ jobs:
             build/project-drafts/
             build/project-history/
             build/project-decision-layout/
+            build/resource-decision-layout/
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/

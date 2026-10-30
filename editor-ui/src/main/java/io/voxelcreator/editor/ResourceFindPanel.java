@@ -272,6 +272,11 @@ public final class ResourceFindPanel {
   }
 
   private void guard() {
+    if (!navigation.pending()) {
+      prompt = false;
+      guardDialog.close("Leave Property Draft");
+      return;
+    }
     if (prompt && navigation.pending()) {
       guardDialog.open("Leave Property Draft");
       prompt = false;

@@ -55,16 +55,14 @@ public final class ResourcePanel {
   private final ResourceSelectionSession selection;
   private final ResourceEditSession edits;
   private boolean editPrompt;
-  private String editMessage = "";
-  private Runnable editCommitted;
+  private ResourceEditCompletion editCommitted;
+  final NavigationGuardDialog selectionGuard, editGuard;
   private final Map<String, float[]> editButtons = new HashMap<>();
   private ProjectData dragProject;
   private long dragRevision;
   private boolean dragActive;
   private boolean selectionPrompt;
   private UUID pendingAnchor;
-  private String selectionMessage = "";
-  private final Map<String, float[]> selectionButtons = new HashMap<>();
   private final Map<UUID, float[]> rowCenters = new HashMap<>();
 
   public ResourcePanel(EditorState s, PropertyPanel properties) {
@@ -73,12 +71,14 @@ public final class ResourcePanel {
     exportPanel = new ResourceExportPanel(s, exportSelection);
     selection = new ResourceSelectionSession(s);
     edits = new ResourceEditSession(s);
+    selectionGuard = new NavigationGuardDialog(s, "Resources", 620, 300);
+    editGuard = new NavigationGuardDialog(s, "Resources", 620, 300);
   }
 
   public void reset() {
     edits.clear();
     editPrompt = false;
-    editMessage = "";
+    if (editCommitted != null) editCommitted.clear();
     editCommitted = null;
     editButtons.clear();
     dragProject = null;
@@ -86,8 +86,6 @@ public final class ResourcePanel {
     selection.clear();
     selectionPrompt = false;
     pendingAnchor = null;
-    selectionMessage = "";
-    selectionButtons.clear();
     rowCenters.clear();
     clipboard = null;
     browserCache.clear();
@@ -525,7 +523,6 @@ public final class ResourcePanel {
       case SELECTED -> rangeAnchor = anchor;
       case NEEDS_DECISION -> {
         pendingAnchor = anchor;
-        selectionMessage = "";
         selectionPrompt = true;
       }
       case UNAVAILABLE -> state.status = "Selection changed; choose the resource again";
@@ -534,63 +531,53 @@ public final class ResourcePanel {
   }
 
   private void selectionDialog() {
+    String title = "Leave Properties for Resource Selection";
+    if (!selection.pending()) {
+      selectionPrompt = false;
+      selectionGuard.close(title);
+      return;
+    }
     if (selectionPrompt) {
-      dialog("Leave Properties for Resource Selection")
-          .open("Leave Properties for Resource Selection");
+      selectionGuard.open(title);
       selectionPrompt = false;
     }
-    if (!dialog("Leave Properties for Resource Selection")
-        .begin("Leave Properties for Resource Selection", ImGuiWindowFlags.AlwaysAutoResize))
-      return;
-    if (!selection.pending()) {
-      ImGui.closeCurrentPopup();
-      ImGui.endPopup();
-      return;
-    }
-    ImGui.textWrapped(
-        "Apply the current Properties draft, discard it for this selection, or cancel.");
-    var destinations = selection.destinations();
-    ImGui.textDisabled(
-        destinations.isEmpty()
-            ? "Requested selection: none"
-            : "Requested selection: " + destinations.size() + " sibling resource(s)");
-    for (int i = 0; i < Math.min(4, destinations.size()); i++) {
-      var entry = ResourceGraph.find(state.project(), destinations.get(i));
-      String label = entry == null ? "Missing resource" : entry.resource().id;
-      ImGui.bulletText(
-          AppMetadata.uiText(label.length() > 80 ? label.substring(0, 79) + "…" : label));
-    }
-    if (destinations.size() > 4) ImGui.textDisabled("… and " + (destinations.size() - 4) + " more");
-    if (!selectionMessage.isEmpty()) ImGui.textWrapped(selectionMessage);
-    for (var decision : SearchNavigation.Decision.values()) {
-      if (decision != SearchNavigation.Decision.APPLY) DialogLayout.sameLine(decision.name());
-      boolean clicked = DialogLayout.button(decision.name());
-      var a = ImGui.getItemRectMin();
-      var b = ImGui.getItemRectMax();
-      selectionButtons.put(decision.name(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
-      if (clicked) {
-        var result =
-            properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
-                ? ResourceSelectionSession.Result.UNAVAILABLE
-                : selection.decide(decision);
-        if (result == ResourceSelectionSession.Result.NEEDS_DECISION)
-          selectionMessage = "Apply failed. Cancel to correct the draft, or choose Discard.";
-        else {
+    selectionGuard.draw(
+        title,
+        () -> {
+          ImGui.textWrapped(
+              "Apply the current Properties draft, discard it for this selection, or cancel.");
+          var destinations = selection.destinations();
+          ImGui.textWrapped(
+              destinations.isEmpty()
+                  ? "Requested selection: none"
+                  : "Requested selection: " + destinations.size() + " sibling resource(s)");
+          for (int i = 0; i < Math.min(4, destinations.size()); i++) {
+            var entry = ResourceGraph.find(state.project(), destinations.get(i));
+            ImGui.textWrapped(
+                AppMetadata.uiText(
+                    StatusBarText.clip(
+                        entry == null ? "Missing resource" : entry.resource().id, 80)));
+          }
+          if (destinations.size() > 4)
+            ImGui.textWrapped("... and " + (destinations.size() - 4) + " more");
+        },
+        decision -> {
+          var result =
+              properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
+                  ? ResourceSelectionSession.Result.UNAVAILABLE
+                  : selection.decide(decision);
+          if (result == ResourceSelectionSession.Result.NEEDS_DECISION)
+            return SearchNavigation.Result.NEEDS_DECISION;
           if (result == ResourceSelectionSession.Result.SELECTED) rangeAnchor = pendingAnchor;
           else if (result == ResourceSelectionSession.Result.UNAVAILABLE)
             state.status = "Selection or draft changed; choose the resource again";
           selection.clear();
           pendingAnchor = null;
-          ImGui.closeCurrentPopup();
-        }
-      }
-    }
-    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      selection.decide(SearchNavigation.Decision.CANCEL);
-      pendingAnchor = null;
-      ImGui.closeCurrentPopup();
-    }
-    ImGui.endPopup();
+          return result == ResourceSelectionSession.Result.SELECTED
+              ? SearchNavigation.Result.NAVIGATED
+              : SearchNavigation.Result.UNAVAILABLE;
+        },
+        "Apply failed. Cancel to correct the draft, or choose Discard.");
   }
 
   private void rememberRow(UUID id) {
@@ -604,7 +591,7 @@ public final class ResourcePanel {
   }
 
   float[] probeSelectionButton(String decision) {
-    return selectionButtons.get(decision);
+    return selectionGuard.button(decision);
   }
 
   boolean probeSelectionPending() {
@@ -626,63 +613,56 @@ public final class ResourcePanel {
       String label, ResourceBrowserEdits.Edit edit, Runnable committed) {
     if (!actionAvailable()) return ResourceEditSession.Result.UNAVAILABLE;
     var result = edits.request(label, edit);
-    if (result == ResourceEditSession.Result.APPLIED) committed.run();
+    if (result == ResourceEditSession.Result.APPLIED)
+      new ResourceEditCompletion(state, committed).complete();
     else if (result == ResourceEditSession.Result.NEEDS_DECISION) {
-      editCommitted = committed;
-      editMessage = "";
+      editCommitted = new ResourceEditCompletion(state, committed);
       editPrompt = true;
     }
     return result;
   }
 
   private void editDialog() {
-    if (editPrompt) {
-      dialog("Properties Draft and Resource Action").open("Properties Draft and Resource Action");
-      editPrompt = false;
-    }
-    if (!dialog("Properties Draft and Resource Action")
-        .begin("Properties Draft and Resource Action", ImGuiWindowFlags.AlwaysAutoResize)) return;
+    String title = "Properties Draft and Resource Action";
     if (!edits.pending()) {
-      ImGui.closeCurrentPopup();
-      ImGui.endPopup();
+      editPrompt = false;
+      if (editCommitted != null) editCommitted.clear();
+      editCommitted = null;
+      editGuard.close(title);
       return;
     }
-    ImGui.textWrapped(AppMetadata.uiText("Requested action: " + edits.label()));
-    ImGui.textWrapped(
-        "Apply the Properties draft and this action together as one undoable edit, discard the"
-            + " draft only if the action succeeds, or cancel.");
-    if (!editMessage.isEmpty()) ImGui.textWrapped(editMessage);
-    for (var decision : SearchNavigation.Decision.values()) {
-      if (decision != SearchNavigation.Decision.APPLY) DialogLayout.sameLine(decision.name());
-      boolean clicked = DialogLayout.button(decision.name());
-      var a = ImGui.getItemRectMin();
-      var b = ImGui.getItemRectMax();
-      editButtons.put(decision.name(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
-      if (clicked) {
-        var result =
-            properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
-                ? ResourceEditSession.Result.UNAVAILABLE
-                : edits.decide(decision);
-        if (result == ResourceEditSession.Result.REJECTED)
-          editMessage =
-              "The draft or action was rejected. Cancel to correct it; no changes were published.";
-        else {
-          if (result == ResourceEditSession.Result.APPLIED && editCommitted != null)
-            editCommitted.run();
+    if (editPrompt) {
+      editGuard.open(title);
+      editPrompt = false;
+    }
+    editGuard.draw(
+        title,
+        () -> {
+          ImGui.textWrapped(AppMetadata.uiText("Requested action: " + edits.label()));
+          ImGui.textWrapped(
+              "Apply the Properties draft and this action together as one undoable edit, discard"
+                  + " the draft only if the action succeeds, or cancel.");
+        },
+        decision -> {
+          var result =
+              properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
+                  ? ResourceEditSession.Result.UNAVAILABLE
+                  : edits.decide(decision);
+          if (result == ResourceEditSession.Result.REJECTED)
+            return SearchNavigation.Result.NEEDS_DECISION;
+          var completion = editCommitted;
+          editCommitted = null;
+          edits.clear();
+          if (result == ResourceEditSession.Result.APPLIED && completion != null)
+            completion.complete();
+          else if (completion != null) completion.clear();
           if (result == ResourceEditSession.Result.UNAVAILABLE)
             state.status = "Project, selection or draft changed; request the resource action again";
-          edits.clear();
-          editCommitted = null;
-          ImGui.closeCurrentPopup();
-        }
-      }
-    }
-    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      edits.decide(SearchNavigation.Decision.CANCEL);
-      editCommitted = null;
-      ImGui.closeCurrentPopup();
-    }
-    ImGui.endPopup();
+          return result == ResourceEditSession.Result.APPLIED
+              ? SearchNavigation.Result.NAVIGATED
+              : SearchNavigation.Result.UNAVAILABLE;
+        },
+        "The draft or action was rejected. Cancel to correct it; no changes were published.");
   }
 
   private ResourceEditSession.Result createResource(
@@ -718,11 +698,27 @@ public final class ResourcePanel {
   }
 
   float[] probeEditButton(String decision) {
-    return editButtons.get(decision);
+    return Set.of("APPLY", "DISCARD", "CANCEL").contains(decision)
+        ? editGuard.button(decision)
+        : editButtons.get(decision);
   }
 
   boolean probeEditPending() {
     return edits.pending();
+  }
+
+  void probeRequestSelection(UUID id) {
+    acceptSelection(selection.click(id, false), id);
+  }
+
+  ResourceEditSession.Result probeRequestEdit(
+      String label, ResourceBrowserEdits.Edit edit, Runnable committed) {
+    return requestEdit(label, edit, committed);
+  }
+
+  void probeDrawDecisions() {
+    selectionDialog();
+    editDialog();
   }
 
   private void rememberEditButton(String key) {
