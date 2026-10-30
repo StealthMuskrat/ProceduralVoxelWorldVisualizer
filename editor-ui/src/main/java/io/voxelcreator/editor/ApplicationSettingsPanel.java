@@ -10,6 +10,10 @@ import java.util.*;
 /** Clipped searchable application metadata/default editing; only Apply affects the live profile. */
 public final class ApplicationSettingsPanel {
   private final EditorState state;
+  final SettingsPageChrome layout = new SettingsPageChrome(4);
+  private DialogBounds.Rect resultsBounds, detailBounds;
+  private SettingsPageLayout.Panes panes;
+  private final Map<String, Integer> controlIds = new HashMap<>();
   private final UiFields fields = new UiFields();
   private final ImString filter = new ImString(256);
   private final Map<String, ImString> values = new HashMap<>();
@@ -21,6 +25,7 @@ public final class ApplicationSettingsPanel {
   private boolean rowsChanged = true;
   private long rowBuilds;
   private int submitted;
+  private float resultsRowHeight;
   private boolean applyEnabled;
   private boolean detailReset;
   private MetadataEditSession session;
@@ -56,13 +61,17 @@ public final class ApplicationSettingsPanel {
   public void draw() {
     ensure();
     controls.clear();
+    controlIds.clear();
+    layout.begin("application-profile-body");
     submitted = 0;
     drawn = true;
     ImGui.textWrapped(
         "Private application profile. Apply saves labels/help and validated defaults for future"
             + " user-created items. Existing project values remain authored values.");
+    ImGui.textWrapped("Section");
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
     fields.choice(
-        "Section",
+        "##metadata-section",
         page,
         List.of("Presentation", "Creation Defaults"),
         value -> {
@@ -71,6 +80,7 @@ public final class ApplicationSettingsPanel {
           values.clear();
           detailReset = true;
         });
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
     ImGui.inputTextWithHint(
         "##metadata-filter", "Filter labels, groups or stable control IDs...", filter);
     control("filter");
@@ -99,29 +109,39 @@ public final class ApplicationSettingsPanel {
       rowQuery = query;
       rowBuilds++;
     }
-    UiScale.beginChild("metadata-results", 0, 150, true);
+    panes =
+        SettingsPageLayout.panes(
+            ImGui.getContentRegionAvailX(),
+            ImGui.getContentRegionAvailY() - 3 * ImGui.getFrameHeightWithSpacing(),
+            ImGui.calcTextSize("0000000000000000000000000000").x,
+            ImGui.getTextLineHeightWithSpacing(),
+            ImGui.getStyle().getItemSpacingX(),
+            ImGui.getStyle().getItemSpacingY());
+    UiScale.beginChild("metadata-results", panes.resultsWidth(), panes.resultsHeight(), true);
+    resultsBounds = windowBounds();
+    resultsRowHeight = ImGui.getTextLineHeightWithSpacing();
     var clipper = new ImGuiListClipper();
     try {
-      clipper.begin(rows.size());
+      clipper.begin(rows.size(), resultsRowHeight);
       while (clipper.step())
         for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
           var row = rows.get(i);
           submitted++;
+          String fullLabel = row.getValue().group + " / " + row.getValue().label;
+          String rowLabel = AppMetadata.uiText(StatusBarText.clip(fullLabel, 243));
           if (ImGui.selectable(
-              AppMetadata.uiText(row.getValue().group)
-                  + " / "
-                  + AppMetadata.uiText(row.getValue().label)
-                  + "###profile"
-                  + row.getKey(),
-              row.getKey().equals(selected))) select(row.getKey());
+              rowLabel + "###profile" + row.getKey(), row.getKey().equals(selected)))
+            select(row.getKey());
+          if (ImGui.isItemHovered()) UiScale.tooltip(fullLabel + " / " + row.getKey());
         }
       clipper.end();
     } finally {
       clipper.destroy();
     }
     ImGui.endChild();
-    UiScale.beginChild(
-        "metadata-detail", 0, Math.max(150, ImGui.getContentRegionAvailY() - 170), true);
+    if (panes.columns()) ImGui.sameLine();
+    UiScale.beginChild("metadata-detail", panes.detailWidth(), panes.detailHeight(), true);
+    detailBounds = windowBounds();
     if (detailReset) {
       ImGui.setScrollY(0);
       detailReset = false;
@@ -161,40 +181,39 @@ public final class ApplicationSettingsPanel {
       } catch (RuntimeException invalid) {
         issue = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
       }
-    ImGui.text(
+    ImGui.textWrapped(
         draftChanged
             ? "Unsaved application profile draft"
             : "Application profile matches active metadata");
     if (!issue.isEmpty()) ImGui.textWrapped("! " + bounded(issue));
-    if (!errors.isEmpty()) {
-      if (ImGui.smallButton("Show Invalid Value")) {
-        select(errors.keySet().iterator().next());
-        page = "Creation Defaults";
-        detailReset = true;
-      }
-      control("invalid-value");
-    }
     applyEnabled = issue.isEmpty();
+    if (!message.isEmpty()) ImGui.textWrapped(bounded(message));
+    layout.end();
     ImGui.beginDisabled(!applyEnabled);
-    if (ImGui.button("Apply Application Profile"))
+    if (layout.action("apply", "Apply Application Profile"))
       apply(UserConfig.directory().resolve("app-config.json"));
     control("apply");
     ImGui.endDisabled();
-    ImGui.sameLine();
-    if (ImGui.button("Revert Profile")) {
+    if (layout.action("revert", "Revert Profile")) {
       session.revert(state.metadata);
       resetEditors();
       message = "Draft reverted";
     }
     control("revert");
-    ImGui.sameLine();
-    if (ImGui.button("Stage Built-In Profile")) {
+    if (layout.action("builtins", "Stage Built-In Profile")) {
       session.stageBuiltIns();
       resetEditors();
       message = "Built-in profile staged; Apply publishes it";
     }
     control("builtins");
-    ImGui.textWrapped(bounded(message));
+    ImGui.beginDisabled(errors.isEmpty());
+    if (layout.action("invalid-value", "Show Invalid Value")) {
+      select(errors.keySet().iterator().next());
+      page = "Creation Defaults";
+      detailReset = true;
+    }
+    control("invalid-value");
+    ImGui.endDisabled();
   }
 
   private void resetEditors() {
@@ -208,15 +227,17 @@ public final class ApplicationSettingsPanel {
   }
 
   private void presentation(AppMetadata.Control control) {
+    presentationLabel("Label");
     fields.text(
-        "Label",
+        "##profile-label",
         control.label,
         v -> {
           control.label = v;
           changed();
         });
+    presentationLabel("Tooltip");
     fields.text(
-        "Tooltip",
+        "##profile-tooltip",
         control.tooltip,
         v -> {
           control.tooltip = v;
@@ -225,19 +246,26 @@ public final class ApplicationSettingsPanel {
     var description =
         values.computeIfAbsent(
             "description:" + selected, key -> new ImString(control.description, 16384));
-    if (ImGui.inputTextMultiline("Description", description, ImGui.getContentRegionAvailX(), 90)) {
+    ImGui.textWrapped("Description");
+    if (ImGui.inputTextMultiline(
+        "##profile-description",
+        description,
+        Math.max(1, ImGui.getContentRegionAvailX()),
+        Math.max(90, 3 * ImGui.getTextLineHeightWithSpacing()))) {
       control.description = description.get();
       changed();
     }
+    presentationLabel("Presentation group");
     fields.text(
-        "Presentation group",
+        "##profile-group",
         control.group,
         v -> {
           control.group = v;
           changed();
         });
+    presentationLabel("Order");
     fields.integer(
-        "Order",
+        "##profile-order",
         control.order,
         v -> {
           control.order = v;
@@ -246,16 +274,23 @@ public final class ApplicationSettingsPanel {
     var spec = CreationRegistry.CONTROLS.get(selected);
     if (spec != null && !spec.options().isEmpty()) {
       ImGui.textDisabled("Option keys are fixed; only their display labels can change.");
-      for (String option : spec.options())
+      for (String option : spec.options()) {
+        presentationLabel(option);
         fields.text(
-            option,
+            "##profile-option-" + option,
             control.options.getOrDefault(option, option),
             value -> {
               if (value.equals(option)) control.options.remove(option);
               else control.options.put(option, value);
               changed();
             });
+      }
     }
+  }
+
+  private void presentationLabel(String label) {
+    ImGui.textWrapped(label);
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
   }
 
   private void creation(CreationRegistry.Spec spec) {
@@ -263,13 +298,13 @@ public final class ApplicationSettingsPanel {
     boolean overridden = draft.creationDefaults.containsKey(spec.id());
     ImGui.textWrapped("Immutable type: " + spec.kind() + " / built-in: " + spec.builtIn());
     if (spec.kind() == CreationRegistry.Kind.LONG)
-      ImGui.textDisabled("Signed 64-bit integer; use exact integer text.");
+      ImGui.textWrapped("Signed 64-bit integer; use exact integer text.");
     else if (spec.options().isEmpty()
         && spec.kind() != CreationRegistry.Kind.TEXT
         && spec.kind() != CreationRegistry.Kind.BOOLEAN)
-      ImGui.text("Creation range: " + spec.minimum() + " .. " + spec.maximum());
+      ImGui.textWrapped("Creation range: " + spec.minimum() + " .. " + spec.maximum());
     fields.bool(
-        "Override future-item default",
+        "##creation-override",
         overridden,
         value -> {
           session.inputs().override(spec.id(), value);
@@ -277,13 +312,15 @@ public final class ApplicationSettingsPanel {
           changed();
         });
     control("override");
+    DialogLayout.sameLine("Override future-item default");
+    ImGui.textWrapped("Override future-item default");
     ImGui.beginDisabled(!draft.creationDefaults.containsKey(spec.id()));
     JsonNode value = CreationRegistry.value(draft, spec.id());
     switch (spec.kind()) {
       case BOOLEAN ->
           fields.bool("Value", value.asBoolean(), v -> put(spec, ProjectIO.JSON.valueToTree(v)));
       case CHOICE -> {
-        if (UiScale.beginCombo("Value", draft.option(spec.id(), value.asText()))) {
+        if (creationCombo(draft.option(spec.id(), value.asText()))) {
           for (String option : spec.options())
             if (ImGui.selectable(draft.option(spec.id(), option) + "###" + option))
               put(spec, ProjectIO.JSON.valueToTree(option));
@@ -298,7 +335,7 @@ public final class ApplicationSettingsPanel {
               current >= 0 && current < spec.options().size()
                   ? draft.option(spec.id(), spec.options().get(current))
                   : "Invalid index " + value;
-          if (UiScale.beginCombo("Value", label)) {
+          if (creationCombo(label)) {
             for (int i = 0; i < spec.options().size(); i++)
               if (ImGui.selectable(
                   draft.option(spec.id(), spec.options().get(i)) + "###source-index-" + i,
@@ -312,14 +349,14 @@ public final class ApplicationSettingsPanel {
       case VECTOR2, VECTOR3 -> rawValue(spec, value);
     }
     ImGui.endDisabled();
-    if (ImGui.button("Use Built-In Value")) {
+    if (DialogLayout.button("Use Built-In Value")) {
       session.inputs().override(spec.id(), false);
       creationBuffers.remove(spec.id());
       changed();
     }
     control("builtin-value");
-    ImGui.sameLine();
-    if (ImGui.button("Reload Value")) {
+    DialogLayout.sameLine("Reload Value");
+    if (DialogLayout.button("Reload Value")) {
       session.inputs().reload(spec.id());
       creationBuffers.remove(spec.id());
       changed();
@@ -328,6 +365,12 @@ public final class ApplicationSettingsPanel {
     ImGui.textWrapped(
         "New items store concrete values; changing this profile never updates existing resources or"
             + " resets a loaded definition.");
+  }
+
+  private boolean creationCombo(String preview) {
+    ImGui.textWrapped("Value");
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+    return UiScale.beginCombo("##creation-value", preview);
   }
 
   private void rawValue(CreationRegistry.Spec spec, JsonNode value) {
@@ -346,9 +389,11 @@ public final class ApplicationSettingsPanel {
       String label = buffers.size() == 1 ? "Value" : "Component " + i;
       boolean numeric =
           spec.kind() != CreationRegistry.Kind.LONG && spec.kind() != CreationRegistry.Kind.TEXT;
+      ImGui.textWrapped(label);
+      var pair = SettingsPageChrome.pair();
       if (numeric) {
-        ImGui.text(label);
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * .52f);
+        ImGui.setNextItemWidth(pair.sliderWidth());
+        controlIds.put("slider-" + i, ImGui.getID("##slider"));
         double[] slider = {value.isArray() ? value.get(i).asDouble() : value.asDouble()};
         ImGui.beginDisabled(
             !input.error(spec.id()).isEmpty()
@@ -370,13 +415,23 @@ public final class ApplicationSettingsPanel {
         }
         control("slider-" + i);
         ImGui.endDisabled();
-        ImGui.sameLine();
-        ImGui.setNextItemWidth(-1);
+        if (pair.inline()) ImGui.sameLine();
       }
+      ImGui.setNextItemWidth(
+          numeric ? pair.inputWidth() : Math.max(1, ImGui.getContentRegionAvailX()));
+      String inputLabel =
+          spec.kind() == CreationRegistry.Kind.TEXT
+              ? "##raw-text"
+              : numeric ? "##number" : "##raw-value";
+      controlIds.put("value-" + i, ImGui.getID(inputLabel));
       boolean edited =
           spec.kind() == CreationRegistry.Kind.TEXT
-              ? ImGui.inputTextMultiline(label, buffer, ImGui.getContentRegionAvailX(), 90)
-              : ImGui.inputText(numeric ? "##number" : label, buffer);
+              ? ImGui.inputTextMultiline(
+                  inputLabel,
+                  buffer,
+                  Math.max(1, ImGui.getContentRegionAvailX()),
+                  Math.max(90, 3 * ImGui.getTextLineHeightWithSpacing()))
+              : ImGui.inputText(inputLabel, buffer);
       control("value-" + i);
       if (edited) {
         message = "";
@@ -430,6 +485,30 @@ public final class ApplicationSettingsPanel {
         });
   }
 
+  private static DialogBounds.Rect windowBounds() {
+    return new DialogBounds.Rect(
+        ImGui.getWindowPosX(),
+        ImGui.getWindowPosY(),
+        ImGui.getWindowSizeX(),
+        ImGui.getWindowSizeY());
+  }
+
+  DialogBounds.Rect resultsBounds() {
+    return resultsBounds;
+  }
+
+  DialogBounds.Rect detailBounds() {
+    return detailBounds;
+  }
+
+  SettingsPageLayout.Panes panes() {
+    return panes;
+  }
+
+  Map<String, Integer> controlIds() {
+    return Map.copyOf(controlIds);
+  }
+
   float[] controlAt(String name) {
     return controls.get(name);
   }
@@ -465,6 +544,14 @@ public final class ApplicationSettingsPanel {
 
   int submittedRows() {
     return submitted;
+  }
+
+  int totalRows() {
+    return rows.size();
+  }
+
+  float resultsRowHeight() {
+    return resultsRowHeight;
   }
 
   public void smokeDraft() {

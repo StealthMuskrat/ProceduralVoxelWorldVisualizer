@@ -114,3 +114,5 @@ The unvalidated [popup monitor work-area follow-up](docs/POPUP_MONITOR_WORK_AREA
 The unvalidated [DPI/font-density batch](docs/UI_DPI_AND_FONT_DENSITY.md) combines display density with user/window multipliers before each frame, adds a denser default atlas and preserves nested child/popup font sizes. Physical DPI, GPU font upload and visual quality remain unverified.
 
 The unvalidated [local choice/navigation popup batch](docs/DRAFT_POPUP_LAYOUT.md) bounds local typed-choice selectors, keeps draft-guard actions in a persistent row and preserves the freshness owner of pending source links. Its regression/native/replay definitions remain unexecuted.
+
+The unvalidated [Application Settings layout batch](docs/APPLICATION_SETTINGS_LAYOUT.md) keeps four profile actions outside scrolling content, reflows list/detail panes and stacks numeric controls while preserving private input and field identity. Deferred checks remain unexecuted.

@@ -55,7 +55,11 @@ public final class ApplicationProfileInputsProbe {
         long builds = panel.rowBuilds();
         frames(6);
         require(
-            panel.rowBuilds() == builds && panel.submittedRows() > 0 && panel.submittedRows() < 20,
+            panel.rowBuilds() == builds
+                && panel.submittedRows() > 0
+                && panel.submittedRows() < panel.totalRows()
+                && panel.submittedRows()
+                    <= Math.ceil(panel.resultsBounds().height() / panel.resultsRowHeight()) + 2,
             "Unchanged creation rows rebuilt or escaped clipping");
         click(panel.controlAt("override"));
         type(0, "-");
@@ -135,7 +139,7 @@ public final class ApplicationProfileInputsProbe {
             out.resolve("creation-input-native.json"),
             ProjectIO.JSON.writeValueAsString(
                 Map.ofEntries(
-                    Map.entry("formatVersion", 1),
+                    Map.entry("formatVersion", 2),
                     Map.entry("rawNavigation", true),
                     Map.entry("hiddenErrorBlocked", true),
                     Map.entry("vectorAtomic", true),
@@ -144,6 +148,9 @@ public final class ApplicationProfileInputsProbe {
                     Map.entry("privateSeedPreserved", true),
                     Map.entry("cachedRows", true),
                     Map.entry("submittedRows", panel.submittedRows()),
+                    Map.entry("totalRows", panel.totalRows()),
+                    Map.entry("rowBounds", panel.resultsBounds()),
+                    Map.entry("rowHeight", panel.resultsRowHeight()),
                     Map.entry("exactSeed", Long.MAX_VALUE),
                     Map.entry("tiny", 1e-9),
                     Map.entry("vector", List.of(3.5, 2.25, 9.)))));

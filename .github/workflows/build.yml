@@ -73,6 +73,8 @@ jobs:
           python scripts/verify_app_metadata.py build/creation-profile/app-config.json
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ApplicationProfileInputsProbe build/creation-profile/raw-inputs
           python scripts/verify_creation_inputs.py build/creation-profile/raw-inputs
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SettingsLayoutProbe build/settings-layout
+          python scripts/verify_settings_layout.py build/settings-layout
       - name: Theme preview and contrast reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ThemeReferenceProbe build/theme-probe
@@ -316,6 +318,7 @@ jobs:
             **/build/reports/tests/
             build/smoke/
             build/creation-profile/
+            build/settings-layout/
             build/input-probe/
             build/input-recording/
             build/profile-export/
@@ -484,6 +487,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ApplicationProfileInputsProbe build/creation-profile/raw-inputs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_creation_inputs.py build/creation-profile/raw-inputs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SettingsLayoutProbe build/settings-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_settings_layout.py build/settings-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows theme preview and contrast reference
         shell: pwsh
@@ -929,6 +936,7 @@ jobs:
             build/windows-smoke.log
             build/smoke/
             build/creation-profile/
+            build/settings-layout/
             build/input-probe/
             build/input-recording/
             build/profile-export/
