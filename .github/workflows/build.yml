@@ -298,6 +298,8 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutRecordingProbe build/input-recording
           python scripts/verify_input_preferences.py build/input-recording/user-config.json
           python scripts/verify_shortcut_recording.py build/input-recording
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.InputLayoutProbe build/input-layout
+          python scripts/verify_input_layout.py build/input-layout
       - name: Profiler export review reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileExportProbe build/profile-export
@@ -323,6 +325,7 @@ jobs:
             build/settings-layout/
             build/input-probe/
             build/input-recording/
+            build/input-layout/
             build/profile-export/
             build/theme-probe/
             build/theme-workspace/
@@ -892,6 +895,10 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_shortcut_recording.py build/input-recording
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.InputLayoutProbe build/input-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_input_layout.py build/input-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows profiler export review reference
         shell: pwsh
         run: |
@@ -946,6 +953,7 @@ jobs:
             build/settings-layout/
             build/input-probe/
             build/input-recording/
+            build/input-layout/
             build/profile-export/
             build/theme-probe/
             build/theme-workspace/

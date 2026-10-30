@@ -2,6 +2,8 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
+The [Input Settings layout batch](INPUT_SETTINGS_LAYOUT.md), thirteen pure regression definitions, six synthetic-font layout cases and additional native recording/cancellation/retry phases are **uncompiled and untested** under the owner pause. Future platform/replay wiring is not physical DPI or full GUI evidence; the validated 922-test/120-suite baseline is unchanged.
+
 The [Appearance layout batch](APPEARANCE_SETTINGS_LAYOUT.md), eight additional pure regression definitions and six production composition/input/retry cases under explicit synthetic font magnification are **uncompiled and untested** under the owner pause. Future platform/replay wiring is not physical DPI or full GUI evidence; the validated 922-test/120-suite baseline is unchanged.
 
 The [Application Settings layout batch](APPLICATION_SETTINGS_LAYOUT.md), ten analytical regression definitions and six production native reflow/input/retry case definitions are **uncompiled and untested** under the owner pause. Future workflow/replay wiring and the measured version-2 creation-input receipt are definitions, not pass evidence; the validated 922-test/120-suite baseline is unchanged.

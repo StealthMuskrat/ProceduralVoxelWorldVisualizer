@@ -17,3 +17,5 @@ The deferred `UiScaleLayoutProbe` uses the production Appearance composition, ca
 `scripts/verify_ui_scale_layout.py` independently checks geometry/order, target-row limits, raw maps/flags/IDs, pair plans, exact ordinary and accepted saved values and unrelated preference preservation. Future Linux/Windows commands/artifacts are wired without changing development trigger exclusions or starting a run. The existing `UiScaleProbe` remains a separate deferred ownership/composition definition.
 
 All eight new regression definitions, six native cases, replay, compilation and GitHub execution remain deferred. The last validated baseline stays at 922 tests / 120 suites. Settings other than Appearance, deep tooltip/style/title scaling, actual physical mixed-DPI behavior, all scroll/keyboard/IME paths and full program acceptance remain pending. A client too short to contain the category and one native action row cannot guarantee physical reachability.
+
+The separate unvalidated [Input Settings follow-up](INPUT_SETTINGS_LAYOUT.md) covers shortcut row/footer reflow and recording cancellation. It does not add physical DPI or full GUI evidence.

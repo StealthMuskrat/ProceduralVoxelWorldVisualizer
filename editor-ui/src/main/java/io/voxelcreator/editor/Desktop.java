@@ -827,7 +827,7 @@ public final class Desktop extends Application {
       switch (settingsCategory) {
         case "Appearance" -> appearanceSettings.draw();
         case "Workspace" -> workspaceSettings.draw();
-        case "Input" -> inputSettings.draw();
+        case "Input" -> inputSettings.draw(this::savePreferences);
         case "Editor" -> {
           fields.bool(
               "Auto regenerate on changes",
@@ -907,8 +907,9 @@ public final class Desktop extends Application {
         }
         default -> {}
       }
-      if (!settingsCategory.equals("Appearance") && DialogLayout.button("Save Preferences"))
-        savePreferences();
+      if (!settingsCategory.equals("Appearance")
+          && !settingsCategory.equals("Input")
+          && DialogLayout.button("Save Preferences")) savePreferences();
     }
     if (!settings.get()) projectSettings.cancel();
     ImGui.end();
