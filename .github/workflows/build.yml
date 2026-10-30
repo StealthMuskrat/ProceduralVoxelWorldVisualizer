@@ -214,6 +214,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpandedExpressionProbe build/expanded-expression
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExpressionRecoveryConsumer build/expanded-expression/expanded-expression-project.json 6
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpressionLayoutProbe build/expression-layout
+          python scripts/verify_expression_layout.py build/expression-layout
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExpressionRecoveryConsumer build/expression-layout/expression-layout-project.json 2
       - name: Bookmark and teleport raw coordinate workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.BookmarkInputProbe build/bookmark-inputs
@@ -388,6 +391,7 @@ jobs:
             build/placement-drivers/
             build/expression-recovery/
             build/expanded-expression/
+            build/expression-layout/
             build/seed-text/
             build/browser-selection/
             build/browser-edits/
@@ -778,6 +782,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_expression_selection.py build/expression-recovery build/expanded-expression
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExpressionLayoutProbe build/expression-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_expression_layout.py build/expression-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ExpressionRecoveryConsumer build/expression-layout/expression-layout-project.json 2
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows bookmark and teleport raw coordinate workflow
         shell: pwsh
         run: |
@@ -1066,6 +1076,7 @@ jobs:
             build/placement-drivers/
             build/expression-recovery/
             build/expanded-expression/
+            build/expression-layout/
             build/seed-text/
             build/browser-selection/
             build/browser-edits/

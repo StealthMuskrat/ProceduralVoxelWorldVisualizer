@@ -15,7 +15,12 @@ public final class ExpressionEditDialog {
   private boolean pending = true;
   private String error = "";
   private final ExpressionSelectionCallback selection = new ExpressionSelectionCallback();
-  private boolean selectionFocus;
+  private boolean focusEditor = true;
+  private boolean revealFeedback;
+  final SettingsPageChrome chrome = new SettingsPageChrome(2, 1);
+  private DialogBounds.Rect editorBounds, feedbackBounds;
+  private int editorWidgetId;
+  private float lineHeight;
 
   String bufferText() {
     return text.get();
@@ -53,7 +58,7 @@ public final class ExpressionEditDialog {
     controls.clear();
     if (session.closed()) {
       selection.cancel();
-      selectionFocus = false;
+      focusEditor = false;
       return true;
     }
     if (pending) {
@@ -61,9 +66,14 @@ public final class ExpressionEditDialog {
       pending = false;
     }
     if (!layout.begin("Expanded Expression")) return false;
+    chrome.begin("expanded-expression-body");
+    if (probeScroll != null) {
+      ImGui.setScrollY(probeScroll);
+      probeScroll = null;
+    }
     ImGui.textWrapped(
-        "Use in Properties stages only this text. Apply in Properties validates and commits the"
-            + " complete resource. Cancel discards this buffer.");
+        "Use Text stages only this expression in Properties. Apply in Properties validates and"
+            + " commits the complete resource. Cancel discards this expanded buffer.");
     selection.context(state.project(), state.draft, session, session.text());
     boolean current = session.current(state);
     ExpressionFeedback.Result feedback = null;
@@ -72,15 +82,17 @@ public final class ExpressionEditDialog {
     } catch (RuntimeException invalid) {
       error = message(invalid);
       selection.cancel();
-      selectionFocus = false;
     }
-    if (ImGui.isWindowAppearing() || selectionFocus) ImGui.setKeyboardFocusHere();
-    selectionFocus = false;
+    ImGui.textWrapped("Expression text");
+    lineHeight = ImGui.getTextLineHeightWithSpacing();
+    editorWidgetId = ImGui.getID("##expression-expanded");
+    boolean focus = focusEditor || selection.pending();
+    if (focus) ImGui.setKeyboardFocusHere();
     if (ImGui.inputTextMultiline(
         "##expression-expanded",
         text,
-        ImGui.getContentRegionAvailX(),
-        Math.max(140, ImGui.getContentRegionAvailY() - 175),
+        Math.max(1, ImGui.getContentRegionAvailX()),
+        ExpressionEditorLayout.editor(chrome.body().height(), ImGui.getTextLineHeightWithSpacing()),
         ImGuiInputTextFlags.CallbackAlways,
         selection)) {
       error = "";
@@ -91,12 +103,31 @@ public final class ExpressionEditDialog {
         error = message(invalid);
         feedback = null;
       }
+      selection.context(state.project(), state.draft, session, session.text());
     }
+    editorBounds = PopupLayout.itemBounds();
     controlRect("text");
-    ImGui.text(
+    if (focus) {
+      ImGui.setScrollHereY(.2f);
+      if (ImGui.isItemActive() || ImGui.isItemFocused()) focusEditor = false;
+    }
+    ImGui.textWrapped(
         text.get().length() + " / " + ExpressionEditSession.MAX_CHARACTERS + " UTF-16 characters");
+    UiScale.beginChild(
+        "expanded-expression-feedback",
+        0,
+        ExpressionEditorLayout.feedback(
+            chrome.body().height(), ImGui.getTextLineHeightWithSpacing()),
+        true);
+    feedbackBounds =
+        new DialogBounds.Rect(
+            ImGui.getWindowPosX(),
+            ImGui.getWindowPosY(),
+            ImGui.getWindowSizeX(),
+            ImGui.getWindowSizeY());
+    if (revealFeedback) ImGui.setScrollY(0);
     if (feedback != null) {
-      if (feedback.valid()) ImGui.text("Valid " + feedback.type() + " expression");
+      if (feedback.valid()) ImGui.textWrapped("Valid " + feedback.type() + " expression");
       else if (feedback.input() != null)
         ImGui.textWrapped("! " + bounded("Input " + feedback.input() + ": " + feedback.error()));
       else
@@ -108,26 +139,38 @@ public final class ExpressionEditDialog {
                 + ".."
                 + feedback.end()
                 + ", zero-based UTF-16, end exclusive]");
-      if (!feedback.valid() && feedback.input() == null) {
-        if (ImGui.smallButton("Select Expression Error")) {
-          selection.request(text.get(), feedback);
-          selectionFocus = true;
-        }
-        controlRect("selectError");
-      }
     }
     if (!current)
       ImGui.textWrapped(
           "The source or selection changed. This buffer is preserved; Cancel and reopen the"
               + " expression.");
     if (!error.isEmpty()) ImGui.textWrapped("! " + bounded(error));
-    boolean done = false;
+    ImGui.endChild();
+    if (revealFeedback) {
+      ImGui.setScrollHereY(.5f);
+      revealFeedback = false;
+    }
+    chrome.end();
     ImGui.beginDisabled(!current);
-    if (DialogLayout.button("Use in Properties")) {
+    boolean stage = chrome.action("stage", "Use Text");
+    controlRect("stage");
+    ImGui.endDisabled();
+    boolean cancel =
+        chrome.action("cancel", "Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false);
+    controlRect("cancel");
+    boolean problem = feedback != null && !feedback.valid() || !error.isEmpty() || !current;
+    ImGui.beginDisabled(!problem);
+    boolean showError = chrome.action("selectError", "Show Error");
+    controlRect("selectError");
+    ImGui.endDisabled();
+    boolean done = false;
+    if (cancel) {
+      session.cancel();
+      done = true;
+    } else if (stage && current) {
       try {
         session.stage(state, text.get());
         done = true;
-        // Refresh follows accepted, consumed staging; failure cannot turn it into a retry.
         try {
           staged.run();
         } catch (RuntimeException failure) {
@@ -139,22 +182,48 @@ public final class ExpressionEditDialog {
       } catch (RuntimeException invalid) {
         error = message(invalid);
       }
+    } else if (showError && problem) {
+      focusEditor = false;
+      if (feedback != null
+          && !feedback.valid()
+          && feedback.input() == null
+          && session.text().equals(text.get())) {
+        selection.request(text.get(), feedback);
+      } else {
+        selection.cancel();
+        revealFeedback = true;
+      }
     }
-    controlRect("stage");
-    ImGui.endDisabled();
-    DialogLayout.sameLine("Cancel");
-    if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      session.cancel();
-      done = true;
-    }
-    controlRect("cancel");
     if (done) {
+      focusEditor = false;
       selection.cancel();
       ImGui.closeCurrentPopup();
     }
     ImGui.endPopup();
     return done;
   }
+
+  DialogBounds.Rect editorBounds() {
+    return editorBounds;
+  }
+
+  DialogBounds.Rect feedbackBounds() {
+    return feedbackBounds;
+  }
+
+  int editorWidgetId() {
+    return editorWidgetId;
+  }
+
+  float lineHeight() {
+    return lineHeight;
+  }
+
+  void probeScroll(float value) {
+    probeScroll = value;
+  }
+
+  private Float probeScroll;
 
   private static String message(RuntimeException failure) {
     var value = failure.getMessage();
