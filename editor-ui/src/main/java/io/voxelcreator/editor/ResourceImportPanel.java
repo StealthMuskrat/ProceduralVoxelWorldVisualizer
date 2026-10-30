@@ -176,7 +176,7 @@ final class ResourceImportPanel {
             + skips
             + " (including dependent exclusion)");
     boolean hasIssues = !preview.diagnostics().isEmpty() || session.issueCount() > 0;
-    ImGui.beginChild(
+    UiScale.beginChild(
         "import-resources",
         0,
         Math.max(130, ImGui.getContentRegionAvailY() - (hasIssues ? 220 : 80)),
@@ -193,13 +193,13 @@ final class ResourceImportPanel {
           ImGui.pushID(row.uuid().toString());
           ImGui.text(AppMetadata.uiText(row.kind() + " / " + bounded(row.id(), 100)));
           if (ImGui.isItemHovered())
-            ImGui.setTooltip(bounded(row.id(), 1024) + "\nIncoming UUID: " + row.uuid());
+            UiScale.tooltip(bounded(row.id(), 1024) + "\nIncoming UUID: " + row.uuid());
           ImGui.textDisabled(
               row.existing() == null
                   ? "No existing identity/ID conflict"
                   : "Existing: " + row.existing() + "; compatible: " + row.compatible());
           ImGui.beginDisabled(!current || unavailable);
-          boolean expanded = ImGui.beginCombo("Resolution", session.choice(row.uuid()).name());
+          boolean expanded = UiScale.beginCombo("Resolution", session.choice(row.uuid()).name());
           var a = ImGui.getItemRectMin();
           var b = ImGui.getItemRectMax();
           rowControls.put(row.uuid(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
@@ -218,7 +218,7 @@ final class ResourceImportPanel {
                   row.resolution()
                       + (row.targetId() == null ? "" : " -> " + bounded(row.targetId(), 100))));
           if (ImGui.isItemHovered() && row.targetUuid() != null)
-            ImGui.setTooltip("Preview target UUID: " + row.targetUuid());
+            UiScale.tooltip("Preview target UUID: " + row.targetUuid());
           ImGui.popID();
         }
       clipper.end();
@@ -230,7 +230,7 @@ final class ResourceImportPanel {
       scroll = null;
     }
     ImGui.endChild();
-    if (hasIssues) ImGui.beginChild("import-issues", 0, 110, true);
+    if (hasIssues) UiScale.beginChild("import-issues", 0, 110, true);
     if (!preview.diagnostics().isEmpty()) {
       ImGui.textWrapped("Preview issues: " + preview.diagnostics().size());
       preview.diagnostics().stream()

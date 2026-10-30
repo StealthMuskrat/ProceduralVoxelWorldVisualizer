@@ -71,7 +71,7 @@ public final class UiFields {
   }
 
   public void choice(String label, String value, List<String> choices, Consumer<String> set) {
-    if (ImGui.beginCombo(label, value)) {
+    if (UiScale.beginCombo(label, value)) {
       for (String c : choices)
         if (ImGui.selectable(c, c.equals(value))) {
           set.accept(c);
@@ -82,6 +82,6 @@ public final class UiFields {
   }
 
   public void tooltip(String message) {
-    if (ImGui.isItemHovered()) ImGui.setTooltip(message);
+    if (ImGui.isItemHovered()) UiScale.tooltip(message);
   }
 }

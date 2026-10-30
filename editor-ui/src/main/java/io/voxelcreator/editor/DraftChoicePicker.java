@@ -65,7 +65,7 @@ public final class DraftChoicePicker {
     }
     ImGui.sameLine();
     ImGui.text(label);
-    if (ImGui.beginPopup("draft-choices")) {
+    if (UiScale.beginPopup("draft-choices")) {
       if (!widgets.containsKey(id) && widgets.size() >= 128)
         widgets.remove(widgets.keySet().iterator().next());
       var widget = widgets.computeIfAbsent(id, ignored -> new Widget());
@@ -78,7 +78,7 @@ public final class DraftChoicePicker {
       }
       var rows = widget.rows(choices);
       ImGui.text(rows.size() + " matching choices");
-      ImGui.beginChild("options", 460, 220, true);
+      UiScale.beginChild("options", 460, 220, true);
       var clipper = new ImGuiListClipper();
       submitted = 0;
       options.clear();

@@ -67,7 +67,7 @@ public final class GuardedNavigation {
       ImGui.openPopup("Leave Property Draft for Source Link");
       prompt = false;
     }
-    if (!ImGui.beginPopupModal(
+    if (!UiScale.beginPopupModal(
         "Leave Property Draft for Source Link", ImGuiWindowFlags.AlwaysAutoResize)) return;
     ImGui.textWrapped(
         "Apply the current property draft, discard it for this source link, or cancel.");

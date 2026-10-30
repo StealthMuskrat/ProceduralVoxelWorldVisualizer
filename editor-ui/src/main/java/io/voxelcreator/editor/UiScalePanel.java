@@ -49,13 +49,13 @@ final class UiScalePanel {
     ensure();
     if (probing) controls.clear();
     ImGui.textWrapped(
-        "Text size uses global scale multiplied by the window multiplier. Changes take effect after"
-            + " Apply UI Scales saves them.");
+        "Your text factor uses global scale multiplied by the window multiplier. Display scaling is"
+            + " applied automatically. Changes take effect after Apply UI Scales saves them.");
     control("blur");
     scale("Global UI scale", global, UiScaleEditSession.GLOBAL, raw -> session.editGlobal(raw));
     ImGui.inputTextWithHint("##scale-filter", "Filter window names...", filter);
     control("filter");
-    ImGui.beginChild("scale-targets", 0, 150, true);
+    UiScale.beginChild("scale-targets", 0, 150, true);
     String query = filter.get().toLowerCase(Locale.ROOT);
     for (var name : UiScalePreferences.WINDOWS)
       if (name.toLowerCase(Locale.ROOT).contains(query)) {

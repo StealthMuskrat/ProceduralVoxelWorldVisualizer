@@ -99,7 +99,7 @@ public final class ApplicationSettingsPanel {
       rowQuery = query;
       rowBuilds++;
     }
-    ImGui.beginChild("metadata-results", 0, 150, true);
+    UiScale.beginChild("metadata-results", 0, 150, true);
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(rows.size());
@@ -120,7 +120,7 @@ public final class ApplicationSettingsPanel {
       clipper.destroy();
     }
     ImGui.endChild();
-    ImGui.beginChild(
+    UiScale.beginChild(
         "metadata-detail", 0, Math.max(150, ImGui.getContentRegionAvailY() - 170), true);
     if (detailReset) {
       ImGui.setScrollY(0);
@@ -283,7 +283,7 @@ public final class ApplicationSettingsPanel {
       case BOOLEAN ->
           fields.bool("Value", value.asBoolean(), v -> put(spec, ProjectIO.JSON.valueToTree(v)));
       case CHOICE -> {
-        if (ImGui.beginCombo("Value", draft.option(spec.id(), value.asText()))) {
+        if (UiScale.beginCombo("Value", draft.option(spec.id(), value.asText()))) {
           for (String option : spec.options())
             if (ImGui.selectable(draft.option(spec.id(), option) + "###" + option))
               put(spec, ProjectIO.JSON.valueToTree(option));
@@ -298,7 +298,7 @@ public final class ApplicationSettingsPanel {
               current >= 0 && current < spec.options().size()
                   ? draft.option(spec.id(), spec.options().get(current))
                   : "Invalid index " + value;
-          if (ImGui.beginCombo("Value", label)) {
+          if (UiScale.beginCombo("Value", label)) {
             for (int i = 0; i < spec.options().size(); i++)
               if (ImGui.selectable(
                   draft.option(spec.id(), spec.options().get(i)) + "###source-index-" + i,

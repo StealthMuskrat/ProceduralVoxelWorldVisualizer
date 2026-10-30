@@ -128,7 +128,7 @@ public final class ResourcePanel {
       docking.draw();
       ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
       ImGui.inputTextWithHint("##filter", "Filter resources...", filter);
-      ImGui.beginChild(
+      UiScale.beginChild(
           "resource-tree",
           0,
           Math.max(
@@ -325,7 +325,7 @@ public final class ResourcePanel {
     // Initial empty query also materializes the complete 2D/3D list.
     if (placementRows.isEmpty() && placementKey.isEmpty()) placementRows = browser.noises("");
     ImGui.text(placementRows.size() + " matching noise generator(s)");
-    ImGui.beginChild(
+    UiScale.beginChild(
         "placement-options", 0, Math.max(120, ImGui.getContentRegionAvailY() - 48), true);
     var clipper = new ImGuiListClipper();
     try {
@@ -366,7 +366,7 @@ public final class ResourcePanel {
   }
 
   private void rootMenu(String kind, UUID parent) {
-    if (ImGui.beginPopupContextItem("root-menu" + kind + parent)) {
+    if (UiScale.beginPopupContextItem("root-menu" + kind + parent)) {
       if (ImGui.menuItem(kind.equals("world") ? "Create Layer" : "Create Noise Generator"))
         create(kind.equals("world") ? "layer" : kind, kind, parent);
       if (ImGui.menuItem("Create Folder")) create("folder", kind, parent);
@@ -377,7 +377,7 @@ public final class ResourcePanel {
   }
 
   private void rowMenu(String kind, Identity r, String root, UUID parent) {
-    if (ImGui.beginPopupContextItem("resource-menu" + r.uuid)) {
+    if (UiScale.beginPopupContextItem("resource-menu" + r.uuid)) {
       if (r instanceof Folder) {
         if (ImGui.menuItem(root.equals("world") ? "Create Layer" : "Create Noise Generator"))
           create(root.equals("world") ? "layer" : root, root, r.uuid);
@@ -898,7 +898,7 @@ public final class ResourcePanel {
         ImGui.text("External dependents:");
         for (var d : deps) ImGui.bulletText(d.kind() + " / " + d.resource().id);
         if (source != null && !(source.resource() instanceof Folder)) {
-          if (ImGui.beginCombo(
+          if (UiScale.beginCombo(
               "Replace references with",
               replacement == null
                   ? "Choose compatible resource"
@@ -994,7 +994,7 @@ public final class ResourcePanel {
     }
     selectionRows = managerSelectionRows;
     ImGui.textWrapped(managerRows.size() + " matching " + label.toLowerCase(Locale.ROOT));
-    ImGui.beginChild(
+    UiScale.beginChild(
         "manager-rows",
         0,
         Math.max(1, ImGui.getContentRegionAvailY() - ImGui.getFrameHeightWithSpacing()),

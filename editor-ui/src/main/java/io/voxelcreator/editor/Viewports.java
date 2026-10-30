@@ -1590,7 +1590,7 @@ public final class Viewports implements AutoCloseable {
                 .map(e -> e.kind() + " / " + e.resource().id)
                 .findFirst()
                 .orElse("Choose stage");
-        if (ImGui.beginCombo("Boundary", label)) {
+        if (UiScale.beginCombo("Boundary", label)) {
           for (var entry : stages)
             if (ImGui.selectable(
                 entry.kind() + " / " + entry.resource().id + "###stage" + entry.uuid())) {
@@ -1876,7 +1876,7 @@ public final class Viewports implements AutoCloseable {
       rememberPicked(v, px, py, w, h);
       ImGui.openPopup("viewport-context");
     }
-    if (ImGui.beginPopup("viewport-context")) {
+    if (UiScale.beginPopup("viewport-context")) {
       probeOrbitContextVisible = true;
       if (v.kind == 0) {
         for (String mode : List.of("Grayscale", "Heatmap", "Contour", "Threshold", "Histogram"))

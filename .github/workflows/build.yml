@@ -103,6 +103,8 @@ jobs:
           python scripts/verify_core_window_layout.py build/core-window-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PopupMonitorProbe build/popup-monitor
           python scripts/verify_popup_monitor.py build/popup-monitor
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UiDpiProbe build/ui-dpi
+          python scripts/verify_ui_dpi.py build/ui-dpi
       - name: Large resource browser reference
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
@@ -329,6 +331,7 @@ jobs:
             build/status-bar/
             build/core-window-layout/
             build/popup-monitor/
+            build/ui-dpi/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/
@@ -537,6 +540,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PopupMonitorProbe build/popup-monitor
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_popup_monitor.py build/popup-monitor
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UiDpiProbe build/ui-dpi
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_ui_dpi.py build/ui-dpi
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows large resource browser reference
         shell: pwsh
@@ -932,6 +939,7 @@ jobs:
             build/status-bar/
             build/core-window-layout/
             build/popup-monitor/
+            build/ui-dpi/
             build/browser-probe/
             build/workflow-probe/
             build/find-probe/

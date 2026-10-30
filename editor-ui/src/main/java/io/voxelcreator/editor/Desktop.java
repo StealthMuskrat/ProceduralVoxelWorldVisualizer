@@ -75,6 +75,8 @@ public final class Desktop extends Application {
           state, () -> openSettings("User Settings"), () -> this.notifications.set(true));
   private MainWindowPlacement mainWindow;
   private final EditorFrameGate frames = new EditorFrameGate();
+  private final UiDpiPolicy dpi = new UiDpiPolicy();
+  private DpiGlfwBackend dpiBackend;
   private final ImString search = new ImString(1024), pathInput = new ImString(4096);
   private String settingsPage = "User Settings", settingsCategory = "Appearance", fileAction = "";
   private boolean filePending = false;
@@ -103,9 +105,14 @@ public final class Desktop extends Application {
   @Override
   protected void initImGui(Configuration config) {
     super.initImGui(config);
+    dpiBackend = new DpiGlfwBackend(handle);
+    imGuiGlfw = dpiBackend;
+    UiFontAtlas.install();
     state.dialogHosts.clear();
     var io = ImGui.getIO();
     io.addConfigFlags(ImGuiConfigFlags.DockingEnable);
+    io.removeConfigFlags(
+        ImGuiConfigFlags.DpiEnableScaleFonts | ImGuiConfigFlags.DpiEnableScaleViewports);
     if (state.user.workspace.multiViewport) io.addConfigFlags(ImGuiConfigFlags.ViewportsEnable);
     io.setIniFilename(null);
     if (!state.user.workspace.docking.isBlank())
@@ -266,7 +273,30 @@ public final class Desktop extends Application {
 
   @Override
   protected void runFrame() {
-    frames.draw(() -> super.runFrame());
+    frames.draw(
+        () -> {
+          try {
+            super.runFrame();
+          } finally {
+            UiDpi.clear();
+          }
+        });
+  }
+
+  @Override
+  protected void startFrame() {
+    glClearColor(colorBg.getRed(), colorBg.getGreen(), colorBg.getBlue(), colorBg.getAlpha());
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    imGuiGl3.newFrame();
+    imGuiGlfw.newFrame();
+    var frame =
+        dpi.sample(
+            dpiBackend.mainContentScale(),
+            ImGui.getIO().getDisplayFramebufferScaleY(),
+            state.user.appearance.globalScale);
+    UiDpi.begin(frame);
+    ImGui.getIO().setFontGlobalScale(frame.fontGlobalScale());
+    ImGui.newFrame();
   }
 
   @Override
@@ -278,7 +308,6 @@ public final class Desktop extends Application {
     } catch (RuntimeException failure) {
       placementError(failure);
     }
-    ImGui.getIO().setFontGlobalScale(state.user.appearance.globalScale);
     captures.frame(ImGui.getIO().getDeltaTime(), views);
     frameCount++;
     menu();
@@ -551,20 +580,20 @@ public final class Desktop extends Application {
 
   private void menu() {
     if (ImGui.beginMainMenuBar()) {
-      if (ImGui.beginMenu("File")) {
+      if (UiScale.beginMenu("File")) {
         for (String action : List.of("New", "Open", "Save", "SaveAs", "Import", "Export"))
           if (ImGui.menuItem(Shortcuts.action(action).label(), binding(action))) command(action);
         if (ImGui.menuItem("Exit")) projectFiles.workflow.request(ProjectFileWorkflow.Intent.EXIT);
         ImGui.endMenu();
       }
-      if (ImGui.beginMenu("Edit")) {
+      if (UiScale.beginMenu("Edit")) {
         if (ImGui.menuItem("Undo", binding("Undo"), false, state.document.canUndo()))
           command("Undo");
         if (ImGui.menuItem("Redo", binding("Redo"), false, state.document.canRedo()))
           command("Redo");
         ImGui.endMenu();
       }
-      if (ImGui.beginMenu("View")) {
+      if (UiScale.beginMenu("View")) {
         if (ImGui.menuItem("Find", binding("Find"))) command("Find");
         if (ImGui.menuItem(
             "Find References", binding("FindReferences"), false, state.selected != null))
@@ -580,7 +609,7 @@ public final class Desktop extends Application {
         }
         ImGui.endMenu();
       }
-      if (ImGui.beginMenu("Settings")) {
+      if (UiScale.beginMenu("Settings")) {
         for (String page :
             List.of(
                 "Project Settings", "Application Settings", "User Settings", "Debug & Profiling"))
@@ -588,7 +617,7 @@ public final class Desktop extends Application {
             openSettings(page);
         ImGui.endMenu();
       }
-      if (ImGui.beginMenu("Help")) {
+      if (UiScale.beginMenu("Help")) {
         if (ImGui.menuItem("Help", binding("Help"))) command("Help");
         if (ImGui.menuItem("About")) about.set(true);
         if (ImGui.menuItem("Check for Updates")) checkUpdates();
@@ -622,12 +651,12 @@ public final class Desktop extends Application {
       DialogLayout.inputWidth("Path");
       ImGui.inputText("Path", pathInput);
       if (!packageFileError.isEmpty()) {
-        ImGui.beginChild("package-file-error", 0, 95, true);
+        UiScale.beginChild("package-file-error", 0, 95, true);
         ImGui.textWrapped(packageFileError);
         ImGui.endChild();
       }
       if (fileAction.equals("Export")) {
-        ImGui.beginChild("export-resources", 0, 360, true);
+        UiScale.beginChild("export-resources", 0, 360, true);
         resources.drawExportSelection();
         if (smokeFrames > 0) smokeExportDrawn = true;
         ImGui.endChild();

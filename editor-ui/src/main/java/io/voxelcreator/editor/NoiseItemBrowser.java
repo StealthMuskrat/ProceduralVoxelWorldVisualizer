@@ -56,7 +56,7 @@ public final class NoiseItemBrowser {
     filterCenter = new float[] {(fa.x + fb.x) / 2, (fa.y + fb.y) / 2};
     ImGui.sameLine();
     ImGui.setNextItemWidth(130);
-    if (ImGui.beginCombo("##type", view.type)) {
+    if (UiScale.beginCombo("##type", view.type)) {
       if (ImGui.selectable("All")) view.type = "All";
       for (String type : NoiseAuthoring.TYPES) if (ImGui.selectable(type)) view.type = type;
       ImGui.endCombo();
@@ -80,7 +80,7 @@ public final class NoiseItemBrowser {
     }
     ImGui.text(
         view.rows.size() + " matching / " + index.rows(section).size() + " authored item(s)");
-    ImGui.beginChild("ordered-items", 0, 180, true);
+    UiScale.beginChild("ordered-items", 0, 180, true);
     centers.clear();
     submitted = 0;
     var clipper = new ImGuiListClipper();

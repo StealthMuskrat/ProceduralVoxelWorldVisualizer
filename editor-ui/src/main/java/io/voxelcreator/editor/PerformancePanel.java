@@ -55,7 +55,7 @@ final class PerformancePanel {
             });
       control(field.key());
       if (ImGui.isItemHovered())
-        ImGui.setTooltip("Whole decimal integer: " + field.minimum() + ".." + field.maximum());
+        UiScale.tooltip("Whole decimal integer: " + field.minimum() + ".." + field.maximum());
     }
     var feedback = session.feedback();
     feedback

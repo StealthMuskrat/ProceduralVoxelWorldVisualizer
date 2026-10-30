@@ -2,6 +2,8 @@
 
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
+The [DPI/font-density batch](UI_DPI_AND_FONT_DENSITY.md), fifteen pure regression definitions and dense-atlas/nested native scope scenarios with synthetic DPI frames are **uncompiled and untested** under the owner pause. Future replay/platform wiring does not certify OS DPI, GPU font upload or visual quality.
+
 The [popup monitor work-area batch](POPUP_MONITOR_WORK_AREAS.md), twenty-two analytical regression definitions and real file/resource popup scenarios with explicitly synthetic monitor inventory are **uncompiled and untested** under the owner pause. Future replay/platform wiring is not physical monitor or pass evidence.
 
 The [core window/Inspector layout batch](CORE_WINDOW_LAYOUT.md), ten analytical regression definitions and native core-panel/caller-size/XYZ input-reflow definitions are **uncompiled and untested** under the owner pause. Deferred replay/platform wiring is not pass evidence.

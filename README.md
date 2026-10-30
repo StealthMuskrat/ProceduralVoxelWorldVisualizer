@@ -110,3 +110,5 @@ The unvalidated [status and utility layout batch](docs/STATUS_AND_UTILITY_LAYOUT
 The unvalidated [core window layout batch](docs/CORE_WINDOW_LAYOUT.md) extends outer bounds to the five remaining scale targets and adds responsive Inspector XYZ columns with stable raw input, plus bounded browser/trace actions. Full internal-layout and physical DPI acceptance remain pending.
 
 The unvalidated [popup monitor work-area follow-up](docs/POPUP_MONITOR_WORK_AREAS.md) intersects covered modals/selectors with current monitor work areas in absolute-coordinate mode and recovers offscreen detached owners to a usable main client. Relative/no-inventory and physical acceptance limits remain explicit.
+
+The unvalidated [DPI/font-density batch](docs/UI_DPI_AND_FONT_DENSITY.md) combines display density with user/window multipliers before each frame, adds a denser default atlas and preserves nested child/popup font sizes. Physical DPI, GPU font upload and visual quality remain unverified.

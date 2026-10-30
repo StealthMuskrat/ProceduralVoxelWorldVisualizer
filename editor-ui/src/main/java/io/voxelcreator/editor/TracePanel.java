@@ -63,7 +63,7 @@ public final class TracePanel {
       return;
     }
     step = Math.min(step, steps.size() - 1);
-    ImGui.beginChild("trace-steps", 0, 120, true);
+    UiScale.beginChild("trace-steps", 0, 120, true);
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(steps.size());
@@ -102,7 +102,7 @@ public final class TracePanel {
       row = 0;
     }
     ImGui.textWrapped(filtered.size() + " observations and controls");
-    ImGui.beginChild("trace-values", 0, 180, true);
+    UiScale.beginChild("trace-values", 0, 180, true);
     var values = new ImGuiListClipper();
     try {
       values.begin(filtered.size());

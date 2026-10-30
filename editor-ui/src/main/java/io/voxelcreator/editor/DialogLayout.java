@@ -65,7 +65,7 @@ final class DialogLayout {
       ImGui.setNextWindowPos(plan.bounds().x(), plan.bounds().y(), ImGuiCond.Always);
     if (plan.size())
       ImGui.setNextWindowSize(plan.bounds().width(), plan.bounds().height(), ImGuiCond.Always);
-    if (!ImGui.beginPopupModal(title, flags & ~ImGuiWindowFlags.AlwaysAutoResize)) {
+    if (!UiScale.beginPopupModal(title, flags & ~ImGuiWindowFlags.AlwaysAutoResize)) {
       geometry.reset();
       return false;
     }
@@ -99,7 +99,7 @@ final class DialogLayout {
     float desired = ImGui.calcTextSize(label).x + 24;
     float available = Math.max(1, ImGui.getContentRegionAvailX());
     boolean clicked = ImGui.button(label, Math.min(desired, available), 0);
-    if (desired > available && ImGui.isItemHovered()) ImGui.setTooltip(label);
+    if (desired > available && ImGui.isItemHovered()) UiScale.tooltip(label);
     return clicked;
   }
 

@@ -121,7 +121,7 @@ public final class ProjectSettingsPanel {
     var problems = session.validate();
     for (var problem : problems) ImGui.textWrapped("! " + problem.message());
     if (problems.isEmpty() && session.issueCount() > 0) {
-      ImGui.beginChild("project-settings-diagnostics", 0, 110, true);
+      UiScale.beginChild("project-settings-diagnostics", 0, 110, true);
       for (var problem : session.applyIssues().stream().limit(8).toList()) {
         diagnosticRows++;
         ImGui.textWrapped("! " + bounded(problem.jsonPointer() + ": " + problem.message(), 1024));

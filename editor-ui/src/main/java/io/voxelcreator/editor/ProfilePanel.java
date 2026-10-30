@@ -354,7 +354,7 @@ public final class ProfilePanel {
       rowQueries++;
     }
     var rows = filteredRows;
-    ImGui.beginChild("profile-series", 0, 195, true);
+    UiScale.beginChild("profile-series", 0, 195, true);
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(rows.size());

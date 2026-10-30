@@ -64,7 +64,7 @@ public final class MembershipDialog {
             + (current ? 0 : 40)
             + (error.isEmpty() ? 0 : 40)
             + (session.issueCount() == 0 ? 0 : 130);
-    ImGui.beginChild(
+    UiScale.beginChild(
         "membership-options", 0, Math.max(100, ImGui.getContentRegionAvailY() - footer), true);
     submitted = 0;
     var clipper = new ImGuiListClipper();
@@ -86,7 +86,7 @@ public final class MembershipDialog {
     if (!current) ImGui.textWrapped("! Membership owner changed; Cancel and reopen the editor.");
     if (!error.isEmpty()) ImGui.textWrapped("! " + error);
     if (session.issueCount() != 0) {
-      ImGui.beginChild("membership-diagnostics", 0, 110, true);
+      UiScale.beginChild("membership-diagnostics", 0, 110, true);
       for (var issue : session.applyIssues().stream().limit(8).toList()) {
         var detail = issue.toString();
         ImGui.textWrapped(detail.length() > 1024 ? detail.substring(0, 1023) + "…" : detail);

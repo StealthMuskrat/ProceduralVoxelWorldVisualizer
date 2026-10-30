@@ -166,12 +166,12 @@ public final class ThemePanel {
 
   private void paletteRows() {
     submittedRows = 0;
-    ImGui.beginChild("theme-palette", ImGui.getContentRegionAvailX() * .51f, 0, true);
+    UiScale.beginChild("theme-palette", ImGui.getContentRegionAvailX() * .51f, 0, true);
     ImGui.inputTextWithHint("##theme-filter", "Filter palette names...", filter);
     control("filter");
     fields.choice("Palette group", group, ThemeRows.GROUPS, v -> group = v);
     var visible = rows.get(group, filter.get());
-    ImGui.beginChild("theme-palette-rows", 0, 0, false, ImGuiWindowFlags.HorizontalScrollbar);
+    UiScale.beginChild("theme-palette-rows", 0, 0, false, ImGuiWindowFlags.HorizontalScrollbar);
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(visible.size(), 2 * ImGui.getFrameHeightWithSpacing());
@@ -195,7 +195,7 @@ public final class ThemePanel {
             feedback.update(session.draft());
           }
           control(row.key());
-          if (ImGui.isItemHovered()) ImGui.setTooltip(row.group() + " / " + row.label());
+          if (ImGui.isItemHovered()) UiScale.tooltip(row.group() + " / " + row.label());
           if (ImGui.button("Use starting color")) {
             session.edit(
                 row.role() == null
@@ -217,7 +217,7 @@ public final class ThemePanel {
   private void contrast() {
     var resolved = feedback.colors();
     var checks = feedback.checks();
-    ImGui.beginChild("theme-contrast", 0, 0, true);
+    UiScale.beginChild("theme-contrast", 0, 0, true);
     long attention = checks.stream().filter(ThemeContrast.Check::attention).count();
     ImGui.text("Contrast feedback / " + attention + " need attention");
     ImGui.textWrapped(
@@ -242,7 +242,7 @@ public final class ThemePanel {
     var fg = resolved.get(ImGuiCol.Text);
     ImGui.pushStyleColor(ImGuiCol.ChildBg, bg.r(), bg.g(), bg.b(), bg.a());
     ImGui.pushStyleColor(ImGuiCol.Text, fg.r(), fg.g(), fg.b(), fg.a());
-    ImGui.beginChild("theme-samples", 0, 130, true);
+    UiScale.beginChild("theme-samples", 0, 130, true);
     ImGui.text("Primary text / selected palette");
     for (String role : ThemePalette.ROLES) {
       var c = session.draft().status(role);

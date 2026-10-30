@@ -50,7 +50,7 @@ final class WorkspacePanel {
       if (ImGui.button("Center Main Window")) center.run();
       control("center");
       if (ImGui.isItemHovered())
-        ImGui.setTooltip(
+        UiScale.tooltip(
             "Restore the normal window and center it on the primary monitor. Docking and private"
                 + " editors are retained.");
     }

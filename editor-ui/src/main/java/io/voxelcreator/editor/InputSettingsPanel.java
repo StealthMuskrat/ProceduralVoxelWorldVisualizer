@@ -89,7 +89,7 @@ public final class InputSettingsPanel {
       previousQuery = query;
       queries++;
     }
-    ImGui.beginChild(
+    UiScale.beginChild(
         "shortcut-rows",
         0,
         Math.max(160, ImGui.getContentRegionAvailY() - 210),

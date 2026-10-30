@@ -102,7 +102,7 @@ public final class ResourceFindPanel {
     ImGui.text(results.size() + " result(s) / committed resources");
     if (!results.isEmpty()) smokeDrawn = true;
     if (!message.isEmpty()) ImGui.textWrapped(message);
-    ImGui.beginChild("find-results", 0, 0, true);
+    UiScale.beginChild("find-results", 0, 0, true);
     submitted = 0;
     centers.clear();
     var clipper = new ImGuiListClipper();
@@ -122,7 +122,7 @@ public final class ResourceFindPanel {
           centers.put(hit.key(), new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
           ImGui.textDisabled(hit.breadcrumb());
           if (ImGui.isItemHovered())
-            ImGui.setTooltip(hit.breadcrumb() + "\n" + hit.target().pointer());
+            UiScale.tooltip(hit.breadcrumb() + "\n" + hit.target().pointer());
         }
       clipper.end();
     } finally {

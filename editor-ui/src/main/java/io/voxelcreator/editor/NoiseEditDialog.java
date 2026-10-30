@@ -96,7 +96,7 @@ public final class NoiseEditDialog {
           value -> choose(Resolution.REPLACE, UUID.fromString(value)));
     ImGui.endDisabled();
     var plan = session.preview();
-    ImGui.beginChild("edit-diagnostics", 0, 150, true);
+    UiScale.beginChild("edit-diagnostics", 0, 150, true);
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(plan.diagnostics().size(), 2 * ImGui.getTextLineHeightWithSpacing());
@@ -105,7 +105,7 @@ public final class NoiseEditDialog {
           var diagnostic = plan.diagnostics().get(i);
           ImGui.text(bounded(diagnostic.code() + " / " + diagnostic.jsonPointer(), 1024));
           ImGui.textDisabled(bounded(diagnostic.message(), 1024));
-          if (ImGui.isItemHovered()) ImGui.setTooltip(bounded(diagnostic.toString(), 4096));
+          if (ImGui.isItemHovered()) UiScale.tooltip(bounded(diagnostic.toString(), 4096));
         }
       clipper.end();
     } finally {

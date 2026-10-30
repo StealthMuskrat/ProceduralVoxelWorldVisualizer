@@ -105,7 +105,7 @@ final class StatusBarPanel {
         if (ImGui.isWindowHovered()
             && ImGui.isMouseHoveringRect(
                 text.x(), text.y(), text.x() + text.width(), text.y() + text.height()))
-          ImGui.setTooltip(StatusBarText.clip(state.status, 2048));
+          UiScale.tooltip(StatusBarText.clip(state.status, 2048));
       }
       if (button("settings", SETTINGS[plan.settingsLabel()], plan.settings(), "User Settings"))
         settings.run();
@@ -126,7 +126,7 @@ final class StatusBarPanel {
     ImGui.setCursorScreenPos(bounds.x(), bounds.y());
     boolean clicked = ImGui.button(label + "###status-" + key, bounds.width(), bounds.height());
     controls.put(key, PopupLayout.itemBounds());
-    if (ImGui.isItemHovered()) ImGui.setTooltip(description);
+    if (ImGui.isItemHovered()) UiScale.tooltip(description);
     return clicked;
   }
 

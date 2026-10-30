@@ -61,7 +61,7 @@ public final class BookmarkPanel {
         Math.max(1, Math.min(360, ImGui.getContentRegionAvailX())),
         0)) ImGui.openPopup("bookmark-choice");
     var anchor = PopupLayout.itemBounds();
-    if (ImGui.isItemHovered()) ImGui.setTooltip(preview);
+    if (ImGui.isItemHovered()) UiScale.tooltip(preview);
     record("picker");
     if (choicesLayout.begin("bookmark-choice", anchor, 480, 340)) {
       if (ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();
@@ -102,7 +102,7 @@ public final class BookmarkPanel {
     choicesLayout.search("##bookmark-query", "Filter names or coordinates...", filters.get(tab));
     var rows = index.rows(filters.get(tab).get());
     ImGui.textWrapped(rows.size() + " found");
-    ImGui.beginChild("bookmark-options", 0, Math.max(1, ImGui.getContentRegionAvailY()), true);
+    UiScale.beginChild("bookmark-options", 0, Math.max(1, ImGui.getContentRegionAvailY()), true);
     choicesLayout.observeList();
     var clipper = new ImGuiListClipper();
     submitted = 0;
@@ -243,7 +243,7 @@ public final class BookmarkPanel {
         ImGui.textWrapped(
             "Document or bookmark changed. Your text is preserved; Cancel and reopen this dialog.");
       if (session.result().issueCount() > 0) {
-        ImGui.beginChild("bookmark-diagnostics", 0, 110, true);
+        UiScale.beginChild("bookmark-diagnostics", 0, 110, true);
         for (var issue : session.result().issues().stream().limit(8).toList()) {
           diagnosticRows++;
           ImGui.textWrapped(bounded(issue.toString()));

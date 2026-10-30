@@ -1129,7 +1129,7 @@ public final class PropertyPanel {
         ImGui.popID();
       }
       if (ImGui.button("Add Parameter")) ImGui.openPopup("new-parameter");
-      if (ImGui.beginPopup("new-parameter")) {
+      if (UiScale.beginPopup("new-parameter")) {
         for (String type : List.of("Scalar", "Boolean", "Vector2", "Vector3"))
           if (ImGui.menuItem(type)) {
             var param = new Parameter();
@@ -1280,7 +1280,7 @@ public final class PropertyPanel {
   private void dependencies(Noise noise, UUID uuid) {
     var users = index(noise).users(uuid);
     if (!ImGui.treeNode("Used By (" + users.size() + ")###uses")) return;
-    ImGui.beginChild("local-users", 0, 120, true);
+    UiScale.beginChild("local-users", 0, 120, true);
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(users.size(), ImGui.getTextLineHeightWithSpacing());
@@ -1606,7 +1606,7 @@ public final class PropertyPanel {
         }
         expressionRect("focus");
         if (ImGui.isItemHovered())
-          ImGui.setTooltip(
+          UiScale.tooltip(
               "Select the current parser error, or place the caret at an empty error span.");
       }
     } else {
@@ -1736,7 +1736,7 @@ public final class PropertyPanel {
       ImGui.openPopup("Leave Noise Property Draft");
       referencePrompt = false;
     }
-    if (!ImGui.beginPopupModal("Leave Noise Property Draft", ImGuiWindowFlags.AlwaysAutoResize))
+    if (!UiScale.beginPopupModal("Leave Noise Property Draft", ImGuiWindowFlags.AlwaysAutoResize))
       return;
     ImGui.textWrapped("Apply the current draft, discard it for this navigation, or cancel.");
     for (var decision : SearchNavigation.Decision.values()) {
@@ -1778,7 +1778,7 @@ public final class PropertyPanel {
 
   private void metadataTooltip(String id) {
     var control = state.metadata.control(id);
-    if (control != null && ImGui.isItemHovered()) ImGui.setTooltip(control.tooltip);
+    if (control != null && ImGui.isItemHovered()) UiScale.tooltip(control.tooltip);
   }
 
   private final Set<String> sourceControlKeys = new LinkedHashSet<>();
@@ -3003,7 +3003,7 @@ public final class PropertyPanel {
       if (smokeWorldSettings != null || probingParameterDrivers)
         ImGui.setNextItemOpen(true, ImGuiCond.Always);
       if (ImGui.treeNode("Driver " + (i + 1) + " : " + AppMetadata.settingLabel(d.destination))) {
-        if (ImGui.beginCombo("Destination", AppMetadata.settingLabel(d.destination))) {
+        if (UiScale.beginCombo("Destination", AppMetadata.settingLabel(d.destination))) {
           for (String destination : WorldSemantics.PARAMETER_TARGETS)
             if (ImGui.selectable(
                 AppMetadata.settingLabel(destination), d.destination.equals(destination))) {
@@ -3253,7 +3253,7 @@ public final class PropertyPanel {
               + problem.text()
               + (problem.orphan() ? " (changed gate tree)" : "");
       ImGui.text(AppMetadata.uiText(label.length() > 80 ? label.substring(0, 79) + "…" : label));
-      if (ImGui.isItemHovered()) ImGui.setTooltip(problem.path() + "\n" + label);
+      if (ImGui.isItemHovered()) UiScale.tooltip(problem.path() + "\n" + label);
       ImGui.popID();
     }
   }

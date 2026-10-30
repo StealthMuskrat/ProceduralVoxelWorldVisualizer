@@ -44,7 +44,7 @@ final class PopupLayout {
     ImGui.setNextWindowPos(fit.x(), fit.y(), ImGuiCond.Always);
     ImGui.setNextWindowSize(fit.width(), fit.height(), ImGuiCond.Always);
     ImGui.setNextWindowSizeConstraints(1, 1, fit.width(), fit.height());
-    if (!ImGui.beginPopup(title, ImGuiWindowFlags.NoMove)) return false;
+    if (!UiScale.beginPopup(title, ImGuiWindowFlags.NoMove)) return false;
     bounds =
         new DialogBounds.Rect(
             ImGui.getWindowPosX(),
@@ -84,6 +84,6 @@ final class PopupLayout {
   static void clippedLabel(String text) {
     if (ImGui.isItemHovered()
         && ImGui.calcTextSize(text).x > ImGui.getItemRectMaxX() - ImGui.getItemRectMinX())
-      ImGui.setTooltip(text);
+      UiScale.tooltip(text);
   }
 }

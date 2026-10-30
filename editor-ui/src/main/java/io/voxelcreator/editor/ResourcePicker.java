@@ -78,7 +78,7 @@ public final class ResourcePicker {
           (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
           (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
         };
-    if (ImGui.isItemHovered() && current != null) ImGui.setTooltip(preview + " / " + current);
+    if (ImGui.isItemHovered() && current != null) UiScale.tooltip(preview + " / " + current);
     DialogLayout.sameLine(label);
     ImGui.textWrapped(label);
     submitted = 0;
@@ -109,7 +109,7 @@ public final class ResourcePicker {
       }
       var rows = widget.choices.rows(index, kind, widget.filter.get());
       ImGui.textWrapped(rows.size() + " found");
-      ImGui.beginChild("resource-options", 0, Math.max(1, ImGui.getContentRegionAvailY()), true);
+      UiScale.beginChild("resource-options", 0, Math.max(1, ImGui.getContentRegionAvailY()), true);
       layout.observeList();
       var clipper = new ImGuiListClipper();
       try {

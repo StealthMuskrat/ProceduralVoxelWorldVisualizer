@@ -32,13 +32,17 @@ public final class UiScalePreferences {
 
   public static Map<String, Object> registry() {
     var result = new LinkedHashMap<String, Object>();
-    result.put("registryVersion", 1);
+    result.put("registryVersion", 2);
     result.put("minimum", MINIMUM);
     result.put("maximum", MAXIMUM);
     result.put("windows", WINDOWS);
     result.put("composition", "global scale multiplied by window multiplier");
     result.put(
         "inheritance", "absent window entry uses multiplier 1; unknown entries are retained");
+    result.put("runtimeDpiComposition", "monitor content scale divided by framebuffer density");
+    result.put("minimumContentScale", UiDpiPolicy.MINIMUM);
+    result.put("maximumContentScale", UiDpiPolicy.MAXIMUM);
+    result.put("fontRasterDensity", UiFontAtlas.RASTER_DENSITY);
     return Collections.unmodifiableMap(result);
   }
 

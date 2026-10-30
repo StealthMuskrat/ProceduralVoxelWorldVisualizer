@@ -154,7 +154,7 @@ public final class CurveDialog {
   }
 
   private void modeChoice(String label, String value, List<String> options, Consumer<String> set) {
-    if (ImGui.beginCombo(fieldLabel(label), value)) {
+    if (UiScale.beginCombo(fieldLabel(label), value)) {
       UiScale.window(ownerState == null ? null : ownerState.user, "Curve Editor");
       for (String option : options) {
         if (ImGui.selectable(option, option.equals(value))) set.accept(option);
@@ -267,8 +267,7 @@ public final class CurveDialog {
     if (!focused || ImGui.getIO().getAppFocusLost() || ShortcutKeys.popup()) pointer.cancel();
     float bodyHeight =
         CurveLayout.body(ImGui.getContentRegionAvailY(), ImGui.getFrameHeightWithSpacing());
-    ImGui.beginChild("curve-content", 0, bodyHeight, false, ImGuiWindowFlags.NoScrollWithMouse);
-    ImGui.setWindowFontScale(1); // Inherit the root multiplier exactly once.
+    UiScale.beginChild("curve-content", 0, bodyHeight, false, ImGuiWindowFlags.NoScrollWithMouse);
     bodyBounds =
         new DialogBounds.Rect(
             ImGui.getWindowPosX(),
@@ -568,7 +567,7 @@ public final class CurveDialog {
             stepY);
       else pointer.cancel();
     }
-    if (ImGui.beginPopupContextItem("curve-actions")) {
+    if (UiScale.beginPopupContextItem("curve-actions")) {
       UiScale.window(ownerState == null ? null : ownerState.user, "Curve Editor");
       if (ImGui.menuItem("Select All")) selectAll();
       controlRect("menu/selectAll");

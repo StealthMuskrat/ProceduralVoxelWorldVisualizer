@@ -59,7 +59,7 @@ final class PanelDockControls {
       if (DialogLayout.button("Redock (default layout)")) defaults.run();
       control("defaults");
       if (ImGui.isItemHovered())
-        ImGui.setTooltip(
+        UiScale.tooltip(
             "Restore the default docking layout for Resources, Properties and Visualizers");
     } else ImGui.textDisabled("Drag the title bar to dock this panel");
   }

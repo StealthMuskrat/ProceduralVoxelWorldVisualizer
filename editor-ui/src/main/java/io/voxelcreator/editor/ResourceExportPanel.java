@@ -113,7 +113,7 @@ public final class ResourceExportPanel {
         selected.removeIf(id -> index.get(id) == null);
       remember("remove-unavailable");
     }
-    boolean choicesVisible = ImGui.beginChild("export-choices", 0, 125, true);
+    boolean choicesVisible = UiScale.beginChild("export-choices", 0, 125, true);
     if (choicesVisible) {
       var clipper = new ImGuiListClipper();
       try {
@@ -157,7 +157,7 @@ public final class ResourceExportPanel {
         "Package contains "
             + included.size()
             + " resources (with dependencies and folder context)");
-    boolean previewVisible = ImGui.beginChild("export-included", 0, 100, true);
+    boolean previewVisible = UiScale.beginChild("export-included", 0, 100, true);
     if (previewVisible) {
       var clipper = new ImGuiListClipper();
       try {

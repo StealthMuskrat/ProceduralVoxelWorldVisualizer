@@ -26,7 +26,7 @@ assert appearance['theme'] == 'Light' and saved['workspace']['width'] == 1234
 assert saved['input']['shortcuts']['Profiler'] == 'Alt+F9'
 assert saved['performance']['cacheMiB'] == 17
 registry = json.loads((root / 'registries/ui-scale-targets.json').read_text(encoding='utf-8'))
-assert registry['registryVersion'] == 1 and registry['minimum'] == .5 and registry['maximum'] == 2.5
+assert registry['registryVersion'] == 2 and registry['minimum'] == .5 and registry['maximum'] == 2.5
 assert len(registry['windows']) == len(set(registry['windows'])) == 19
 assert set(report['fontSizes']) == set(registry['windows'])
 assert report['baseFontSize'] > 0 and math.isfinite(report['baseFontSize'])

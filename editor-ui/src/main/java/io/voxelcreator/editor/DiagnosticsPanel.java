@@ -99,7 +99,7 @@ public final class DiagnosticsPanel {
   }
 
   private void eventRows(List<EditorEvents.Entry> rows, String id) {
-    ImGui.beginChild(id, 0, Math.max(100, ImGui.getContentRegionAvailY() * .38f), true);
+    UiScale.beginChild(id, 0, Math.max(100, ImGui.getContentRegionAvailY() * .38f), true);
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(rows.size());
@@ -122,7 +122,7 @@ public final class DiagnosticsPanel {
             selected = e.id();
             state.events.markRead(selected);
           }
-          if (ImGui.isItemHovered()) ImGui.setTooltip(e.last() + " / " + e.subsystem());
+          if (ImGui.isItemHovered()) UiScale.tooltip(e.last() + " / " + e.subsystem());
         }
       clipper.end();
     } finally {
@@ -159,7 +159,7 @@ public final class DiagnosticsPanel {
     }
     var trace = state.traces.get(e.id());
     if (tracePanel != null && trace.isPresent()) {
-      ImGui.beginChild("retained-trace", 0, 0, true);
+      UiScale.beginChild("retained-trace", 0, 0, true);
       tracePanel.draw(trace.get());
       ImGui.endChild();
       return;
@@ -168,7 +168,7 @@ public final class DiagnosticsPanel {
       ImGui.textWrapped(
           "Detailed trace payload is no longer retained. Trace the coordinate again for source"
               + " links.");
-    ImGui.beginChild("event-details", 0, 0, true);
+    UiScale.beginChild("event-details", 0, 0, true);
     ThemeStyle.text("Information", e.code() + " / " + e.subsystem());
     if (e.actionRequired())
       ThemeStyle.text("Warning", "! Action required; reading this entry does not resolve it.");
@@ -209,7 +209,7 @@ public final class DiagnosticsPanel {
       ThemeStyle.text("Success", "OK: Project is valid; no validation issues.");
     else {
       ImGui.text(state.issues.size() + " issue(s)");
-      ImGui.beginChild(
+      UiScale.beginChild(
           "validation-list", 0, Math.max(100, ImGui.getContentRegionAvailY() * .4f), true);
       var clipper = new ImGuiListClipper();
       try {
@@ -247,7 +247,7 @@ public final class DiagnosticsPanel {
         if (ImGui.button(target.settings() ? "Open Project Settings" : "Go To Problem"))
           navigate.accept(target);
       }
-      ImGui.beginChild("validation-detail", 0, 0, true);
+      UiScale.beginChild("validation-detail", 0, 0, true);
       ImGui.textWrapped(d.toString());
       if (d.sourceUuid() != null) ImGui.textWrapped("Resource: " + d.sourceUuid());
       if (d.itemUuid() != null) ImGui.textWrapped("Control: " + d.itemUuid());
