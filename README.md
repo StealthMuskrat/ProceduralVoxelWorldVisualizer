@@ -130,3 +130,5 @@ The unvalidated [general settings layout batch](docs/GENERAL_SETTINGS_LAYOUT.md)
 The unvalidated [Profiler workspace batch](docs/PROFILER_LAYOUT.md) adds retained sections, exact next-capture limits, persistent capture/export actions and logical series IDs across filtering/reflow. Deferred checks remain unexecuted.
 
 The unvalidated [diagnostic workspace batch](docs/DIAGNOSTICS_LAYOUT.md) adds responsive result/detail panes and persistent recovery actions, cached immutable event views, displayed-occurrence acknowledgements and publication-owned validation selection. Deferred checks remain unexecuted.
+
+The unvalidated [Find/Trace workspace batch](docs/FIND_AND_TRACE_LAYOUT.md) separates Find filters/results, keeps navigation/copy/paging actions persistent and binds source decisions to exact committed hits or trace observations. Deferred checks remain unexecuted.

@@ -14,7 +14,11 @@ final class NavigationGuardDialog {
   private String message = "";
 
   NavigationGuardDialog(EditorState state) {
-    layout = new DialogLayout(state, "Properties", 600, 360);
+    this(state, "Properties");
+  }
+
+  NavigationGuardDialog(EditorState state, String owner) {
+    layout = new DialogLayout(state, owner, 600, 360);
   }
 
   void open(String title) {
