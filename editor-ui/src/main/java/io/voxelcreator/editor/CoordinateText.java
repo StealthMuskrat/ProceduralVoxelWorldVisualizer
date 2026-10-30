@@ -35,17 +35,31 @@ final class CoordinateText {
     text.put(axis, value);
   }
 
-  Coordinates parse() {
-    var values = new HashMap<String, Integer>();
+  /** First malformed accepted axis, without returning a fallback coordinate. */
+  String problemAxis() {
     for (var axis : axes) {
-      String raw = text.get(axis);
       try {
-        if (!raw.matches("[+-]?[0-9]+")) throw new NumberFormatException();
-        values.put(axis, Integer.parseInt(raw));
-      } catch (NumberFormatException invalid) {
-        throw new IllegalArgumentException(axis + " requires a signed 32-bit decimal integer");
+        parseAxis(axis);
+      } catch (IllegalArgumentException invalid) {
+        return axis;
       }
     }
+    return null;
+  }
+
+  private int parseAxis(String axis) {
+    String raw = text.get(axis);
+    try {
+      if (!raw.matches("[+-]?[0-9]+")) throw new NumberFormatException();
+      return Integer.parseInt(raw);
+    } catch (NumberFormatException invalid) {
+      throw new IllegalArgumentException(axis + " requires a signed 32-bit decimal integer");
+    }
+  }
+
+  Coordinates parse() {
+    var values = new HashMap<String, Integer>();
+    for (var axis : axes) values.put(axis, parseAxis(axis));
     return new Coordinates(values.get("X"), values.get("Y"), values.get("Z"));
   }
 

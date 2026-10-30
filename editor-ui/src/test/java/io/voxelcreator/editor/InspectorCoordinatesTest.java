@@ -113,4 +113,80 @@ class InspectorCoordinatesTest {
     assertEquals(new BlockPos(0, 0, 0), input.coordinate());
     assertEquals(0, input.version());
   }
+
+  @Test
+  void problemNavigationUsesCanonicalAxisOrderAndRetainsEveryRawValue() {
+    var input = new InspectorCoordinates();
+    input.edit("Z", "-");
+    input.edit("Y", "2147483648");
+    input.edit("X", "+");
+    long version = input.version();
+    assertEquals("X", input.problemAxis(displayed(input)));
+    assertEquals(version, input.version());
+    assertEquals("+", input.text("X"));
+    input.edit("X", "-2147483648");
+    assertEquals("Y", input.problemAxis(displayed(input)));
+    input.edit("Y", "+2147483647");
+    assertEquals("Z", input.problemAxis(displayed(input)));
+    input.edit("Z", "+0");
+    assertNull(input.problemAxis(displayed(input)));
+    assertEquals(new BlockPos(Integer.MIN_VALUE, Integer.MAX_VALUE, 0), input.coordinate());
+  }
+
+  @Test
+  void displayedDisagreementPrecedesSyntaxAndDoesNotAdoptNativeText() {
+    var input = new InspectorCoordinates();
+    input.edit("X", "-");
+    var raw = displayed(input);
+    raw.put("Z", "7");
+    long version = input.version();
+    assertEquals("Z", input.problemAxis(raw));
+    assertEquals("0", input.text("Z"));
+    assertEquals("-", input.text("X"));
+    assertEquals(version, input.version());
+    raw.put("Z", "0");
+    assertEquals("X", input.problemAxis(raw));
+    assertThrows(IllegalArgumentException.class, () -> input.coordinate(raw));
+  }
+
+  @Test
+  void firstDisplayMismatchUsesCanonicalOrderRegardlessOfMapOrder() {
+    var input = new InspectorCoordinates();
+    var raw = new LinkedHashMap<String, String>();
+    raw.put("Z", "3");
+    raw.put("Y", "2");
+    raw.put("X", "1");
+    assertEquals("X", input.problemAxis(raw));
+    raw.put("X", "0");
+    assertEquals("Y", input.problemAxis(raw));
+    raw.put("Y", "0");
+    assertEquals("Z", input.problemAxis(raw));
+    assertEquals(new BlockPos(0, 0, 0), input.coordinate());
+  }
+
+  @Test
+  void navigationRejectsMissingExtraAndNullBuffersWithoutChangingAcceptedInput() {
+    var input = new InspectorCoordinates();
+    assertThrows(IllegalStateException.class, () -> input.problemAxis(Map.of("X", "0")));
+    var raw = displayed(input);
+    raw.put("Q", "0");
+    assertThrows(IllegalStateException.class, () -> input.problemAxis(raw));
+    raw.remove("Q");
+    raw.put("Y", null);
+    assertEquals("Y", input.problemAxis(raw));
+    assertEquals(new BlockPos(0, 0, 0), input.coordinate());
+    assertEquals(0, input.version());
+  }
+
+  @Test
+  void everyAxisUsesTheSameStrictDecimalPolicyForFocusAndParsing() {
+    for (var axis : List.of("X", "Y", "Z"))
+      for (var raw : List.of("", "+", "-", " 7", "7 ", "1.0", "1e3", "٧", "2147483648")) {
+        var input = new InspectorCoordinates();
+        input.edit(axis, raw);
+        assertEquals(axis, input.problemAxis(displayed(input)));
+        assertTrue(input.problem().startsWith(axis + " "));
+        assertThrows(IllegalArgumentException.class, input::coordinate);
+      }
+  }
 }

@@ -12,6 +12,17 @@ final class InspectorCoordinateFields {
   private final Map<String, DialogBounds.Rect> bounds = new LinkedHashMap<>();
   private final Map<String, Integer> ids = new LinkedHashMap<>();
   private CoordinateFieldLayout.Plan plan;
+  private String focus;
+
+  void reveal(String axis) {
+    if (axis != null && !List.of("X", "Y", "Z").contains(axis))
+      throw new IllegalArgumentException("Unknown Inspector axis " + axis);
+    focus = axis;
+  }
+
+  String pendingFocus() {
+    return focus;
+  }
 
   void draw(
       Function<String, ImString> buffers,
@@ -44,7 +55,13 @@ final class InspectorCoordinateFields {
       String label = (plan.stackedLabels() ? "" : axis) + "###inspector-coordinate-" + axis;
       ImGui.setNextItemWidth(plan.inputWidth());
       var input = buffers.apply(axis);
+      boolean reveal = axis.equals(focus);
+      if (reveal) ImGui.setKeyboardFocusHere();
       if (ImGui.inputText(label, input)) edit.accept(axis, input.get());
+      if (reveal) {
+        ImGui.setScrollHereY(.5f);
+        if (ImGui.isItemActive() || ImGui.isItemFocused()) focus = null;
+      }
       bounds.put(axis, PopupLayout.itemBounds());
       ids.put(axis, ImGui.getID(label));
       record.accept(axis);

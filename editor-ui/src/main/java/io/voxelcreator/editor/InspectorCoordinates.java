@@ -76,6 +76,14 @@ final class InspectorCoordinates {
     return coordinate();
   }
 
+  /** Display disagreement has priority over syntax in the accepted private input. */
+  String problemAxis(Map<String, String> displayed) {
+    if (!displayed.keySet().equals(Set.of("X", "Y", "Z")))
+      throw new IllegalStateException("All three Inspector coordinate fields are required");
+    for (var axis : axes()) if (!Objects.equals(text(axis), displayed.get(axis))) return axis;
+    return input.problemAxis();
+  }
+
   boolean differs(BlockPos point) {
     check();
     return parsed == null || !parsed.equals(point);

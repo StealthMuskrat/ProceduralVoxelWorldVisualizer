@@ -140,3 +140,5 @@ The unvalidated [Help/context/About batch](docs/HELP_AND_ABOUT.md) adds active-m
 The unvalidated [tooltip/fractional-font batch](docs/TOOLTIPS_AND_FRACTIONAL_FONTS.md) preserves fractional inherited text height, adds bounded scaled hover previews and routes outer color/resource drag previews through that scale path. Eleven regression definitions and 30 native cases remain unexecuted.
 
 The unvalidated [expanded expression layout batch](docs/EXPANDED_EXPRESSION_LAYOUT.md) keeps staging/cancellation/error actions persistent, measures editor/feedback viewports and preserves exact error selection through clipping and correction. Eleven regression definitions and six native size scenarios with recovery phases remain unexecuted.
+
+The unvalidated [Inspector layout batch](docs/INSPECTOR_LAYOUT.md) separates Coordinates/Trace, keeps request/restoration/bookmark actions persistent, focuses invalid displayed XYZ and invalidates source decisions after hidden trace replacement. Seven added regression definitions and twelve native layout cases with recovery phases remain unexecuted.

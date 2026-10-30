@@ -31,4 +31,21 @@ class TraceLayoutTest {
     assertThrows(
         IllegalArgumentException.class, () -> TraceLayout.values(100, Float.POSITIVE_INFINITY));
   }
+
+  @Test
+  void containedWorkspaceNeverAddsFiveFramesToAnAlreadyPartitionedInspector() {
+    assertEquals(240, TraceLayout.contained(240));
+    assertEquals(12.75f, TraceLayout.contained(12.75f));
+    assertEquals(1, TraceLayout.contained(0));
+    assertEquals(1, TraceLayout.contained(-200));
+    assertEquals(Float.MAX_VALUE, TraceLayout.contained(Float.MAX_VALUE));
+    for (float scale : new float[] {.5f, 1, 2.5f, 6.25f})
+      assertEquals(70 * scale, TraceLayout.contained(70 * scale));
+  }
+
+  @Test
+  void containedWorkspaceRejectsNonfiniteNativeGeometry() {
+    for (float invalid : new float[] {Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY})
+      assertThrows(IllegalArgumentException.class, () -> TraceLayout.contained(invalid));
+  }
 }

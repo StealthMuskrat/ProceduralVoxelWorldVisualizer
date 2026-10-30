@@ -587,6 +587,8 @@ final class WorldLodPickingProbe {
   }
 
   private static void control(String name) {
+    if (Set.of("trace-x", "trace-y", "trace-z").contains(name))
+      views.probeInspectorCoordinatesPage();
     frames(2);
     var button = views.probeAdmissionControl(name);
     require(button != null, "No Inspector control " + name);

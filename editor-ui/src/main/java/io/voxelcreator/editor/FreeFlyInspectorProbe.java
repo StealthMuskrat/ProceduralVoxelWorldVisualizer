@@ -236,6 +236,8 @@ final class FreeFlyInspectorProbe {
   }
 
   private static void control(String name) {
+    if (Set.of("trace-x", "trace-y", "trace-z").contains(name))
+      views.probeInspectorCoordinatesPage();
     frames(2);
     var p = views.probeAdmissionControl(name);
     require(p != null, "Missing flight control " + name);

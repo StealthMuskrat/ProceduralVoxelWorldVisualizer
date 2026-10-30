@@ -21,7 +21,7 @@ import org.joml.Vector3d;
 public final class Viewports implements AutoCloseable {
   final FloatingWindowLayout windowLayout = new FloatingWindowLayout(900, 700);
   final FloatingWindowLayout inspectorLayout = new FloatingWindowLayout(600, 600);
-  private final InspectorCoordinateFields coordinateFields = new InspectorCoordinateFields();
+  private final InspectorPanel inspectorPanel;
   private final EditorState state;
   private final PropertyPanel properties;
   private TracePanel tracePanel;
@@ -119,7 +119,7 @@ public final class Viewports implements AutoCloseable {
       cancelInspectorTask(
           inspectorTask.request().viewBound()
               ? "Preview changed; pick canceled."
-              : "Project changed; Trace Coordinate to use the current project.",
+              : "Project changed; Trace XYZ to use the current project.",
           false);
   }
 
@@ -241,6 +241,10 @@ public final class Viewports implements AutoCloseable {
     return inspectorCoordinates.text(axis);
   }
 
+  void probeInspectorCoordinatesPage() {
+    inspectorPanel.showCoordinates(false);
+  }
+
   boolean probeInspectorCoordinateValid() {
     return inspectorCoordinates.problem().isEmpty();
   }
@@ -271,6 +275,7 @@ public final class Viewports implements AutoCloseable {
     } catch (RuntimeException invalid) {
       inspectorInputError = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
       cancelInspectorTask("Invalid Inspector coordinates; correct XYZ before bookmarking.", true);
+      inspectorPanel.showCoordinates(true);
       return;
     }
     inspectorInputError = "";
@@ -1134,6 +1139,13 @@ public final class Viewports implements AutoCloseable {
 
   public Viewports(EditorState state, PropertyPanel properties, long handle) {
     this.state = state;
+    inspectorPanel =
+        new InspectorPanel(
+            state,
+            inspectorCoordinates,
+            this::inspectorInput,
+            this::editInspectorCoordinate,
+            this::admissionControl);
     generatorPicker = new ResourcePicker(state);
     this.properties = properties;
     platform = new ViewportPlatformInput(handle);
@@ -3236,7 +3248,7 @@ public final class Viewports implements AutoCloseable {
                       () -> {
                         if (!finishInspectorTask(request, current)) return;
                         inspectorTaskFeedback =
-                            "Pick failed; choose a voxel or Trace Coordinate to retry.";
+                            "Pick failed; choose a voxel or Trace XYZ to retry.";
                         state.status = inspectorTaskFeedback;
                         state.notify("Error", e.getMessage());
                       });
@@ -3244,8 +3256,7 @@ public final class Viewports implements AutoCloseable {
               }));
     } catch (RejectedExecutionException e) {
       finishInspectorTask(request, current);
-      inspectorTaskFeedback =
-          "Inspector queue is full; choose a voxel or Trace Coordinate to retry.";
+      inspectorTaskFeedback = "Inspector queue is full; choose a voxel or Trace XYZ to retry.";
       state.status = inspectorTaskFeedback;
       state.notify("Warning", "Inspector queue is full");
     }
@@ -3270,6 +3281,7 @@ public final class Viewports implements AutoCloseable {
     traceSnapshot = null;
     inspectorTaskFeedback = "";
     inspectorPickHint = message;
+    inspectorPanel.showCoordinates(false);
     inspector.set(true);
     state.status = message;
   }
@@ -3289,6 +3301,7 @@ public final class Viewports implements AutoCloseable {
       java.util.function.BooleanSupplier valid,
       String feedback) {
     inspectorTask.begin(request, target);
+    inspectorPanel.showTrace();
     inspectorTaskValid = valid;
     state.background.purge();
     inspectorTaskFeedback = feedback;
@@ -3300,8 +3313,7 @@ public final class Viewports implements AutoCloseable {
     if (!inspectorTask.finish(request)) return false;
     inspectorTaskValid = null;
     if (!valid.getAsBoolean()) {
-      inspectorTaskFeedback =
-          "Inspector request expired; choose a voxel or Trace Coordinate to retry.";
+      inspectorTaskFeedback = "Inspector request expired; choose a voxel or Trace XYZ to retry.";
       state.status = inspectorTaskFeedback;
       return false;
     }
@@ -3316,6 +3328,7 @@ public final class Viewports implements AutoCloseable {
     } catch (RuntimeException invalid) {
       inspectorInputError = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
       cancelInspectorTask("Invalid Inspector coordinates; correct XYZ before tracing.", true);
+      inspectorPanel.showCoordinates(true);
       return;
     }
     inspectorInputError = "";
@@ -3355,7 +3368,7 @@ public final class Viewports implements AutoCloseable {
                         inspectorTaskFeedback =
                             String.format(
                                 Locale.ROOT,
-                                "Trace failed at X %d, Y %d, Z %d. Trace Coordinate to retry.",
+                                "Trace failed at X %d, Y %d, Z %d. Trace XYZ to retry.",
                                 pos.x(),
                                 pos.y(),
                                 pos.z());
@@ -3366,18 +3379,10 @@ public final class Viewports implements AutoCloseable {
               }));
     } catch (RejectedExecutionException full) {
       finishInspectorTask(request, current);
-      inspectorTaskFeedback = "Inspector queue is full; Trace Coordinate to retry.";
+      inspectorTaskFeedback = "Inspector queue is full; Trace XYZ to retry.";
       state.status = inspectorTaskFeedback;
       state.notify("Warning", "Inspector queue is full");
     }
-  }
-
-  private boolean inspectorCoordinatesDiffer() {
-    if (traceSnapshot == null) return false;
-    if (inspectorCoordinates.differs(traceSnapshot.trace().position())) return true;
-    for (var axis : inspectorCoordinates.axes())
-      if (!inspectorCoordinates.text(axis).equals(inspectorInput(axis).get())) return true;
-    return false;
   }
 
   private void restoreTracedCoordinate() {
@@ -3393,7 +3398,19 @@ public final class Viewports implements AutoCloseable {
             point.z());
   }
 
+  private void editInspectorCoordinate(String axis, String raw) {
+    boolean wasPending = inspectorTask.pending();
+    try {
+      inspectorCoordinates.edit(axis, raw);
+      inspectorInputError = "";
+    } catch (RuntimeException invalid) {
+      inspectorInputError = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+    }
+    cancelInspectorTask(wasPending ? "Coordinate changed; Trace XYZ to continue." : "", true);
+  }
+
   private void drawInspector() {
+    if (tracePanel != null) tracePanel.hide(traceSnapshot);
     if (!inspector.get()) return;
     inspectorLayout.prepare();
     boolean visible = ImGui.begin("Voxel Inspector", inspector);
@@ -3416,78 +3433,28 @@ public final class Viewports implements AutoCloseable {
       ImGui.end();
       return;
     }
-    if (traceSnapshot != null) {
-      var freshness = traceSnapshot.freshness(state.project().project.uuid, state.revision);
-      if (freshness == TraceSnapshot.Freshness.PROJECT_CHANGED) {
-        ImGui.textWrapped(
-            "Project changed since this trace. Refresh its displayed coordinate in the current"
-                + " project; entered XYZ stays unchanged.");
-        inspectorFreshnessNoticeVisible = true;
-        if (DialogLayout.button("Refresh Displayed Trace"))
-          startCoordinateTrace(traceSnapshot.trace().position());
-        admissionControl("trace-refresh");
-      } else if (freshness == TraceSnapshot.Freshness.OTHER_PROJECT) {
-        ImGui.textWrapped(
-            "This trace belongs to another project. Enter a coordinate and use Trace Coordinate to"
-                + " inspect the current project.");
-        inspectorFreshnessNoticeVisible = true;
-      }
-    }
-    if (!inspectorTaskFeedback.isEmpty()) ImGui.textWrapped(inspectorTaskFeedback);
-    if (!inspectorTask.pending()
-        && !inspectorPickHint.isEmpty()
-        && (inspectorTaskFeedback.isEmpty() || traceSnapshot != null)) {
-      ImGui.textWrapped(inspectorPickHint);
-      inspectorHintVisible = true;
-    }
-    coordinateFields.draw(
-        this::inspectorInput,
-        (axis, raw) -> {
-          boolean wasPending = inspectorTask.pending();
-          try {
-            inspectorCoordinates.edit(axis, raw);
-            inspectorInputError = "";
-          } catch (RuntimeException invalid) {
-            inspectorInputError =
-                Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
-          }
+    var status =
+        new InspectorPanel.Status(
+            traceSnapshot,
+            inspectorTask.pending(),
+            inspectorTask.pending() && inspectorTask.request().viewBound(),
+            inspectorTaskFeedback,
+            inspectorPickHint,
+            inspectorInputError);
+    var action = inspectorPanel.draw(status, tracePanel);
+    inspectorTraceVisible = inspectorPanel.traceVisible();
+    inspectorHintVisible = inspectorPanel.hintVisible();
+    inspectorDraftNoticeVisible = inspectorPanel.draftNoticeVisible();
+    inspectorFreshnessNoticeVisible = inspectorPanel.freshnessNoticeVisible();
+    switch (action) {
+      case NONE -> {}
+      case TRACE -> startCoordinateTrace();
+      case BOOKMARK -> addInspectorBookmark();
+      case RESTORE -> restoreTracedCoordinate();
+      case REFRESH -> startCoordinateTrace(traceSnapshot.trace().position());
+      case CANCEL ->
           cancelInspectorTask(
-              wasPending ? "Coordinate changed; Trace Coordinate to continue." : "", true);
-        },
-        axis -> admissionControl("trace-" + axis.toLowerCase(Locale.ROOT)));
-    String coordinateProblem = inspectorCoordinates.problem();
-    if (!coordinateProblem.isEmpty()) ImGui.textWrapped("! " + coordinateProblem);
-    if (!inspectorInputError.isEmpty()) ImGui.textWrapped("! " + inspectorInputError);
-    if (inspectorCoordinatesDiffer()) {
-      var point = traceSnapshot.trace().position();
-      ImGui.textWrapped(
-          String.format(
-              Locale.ROOT,
-              "XYZ differs from the displayed trace at X %d, Y %d, Z %d. Trace the entered"
-                  + " coordinate or use the traced coordinate.",
-              point.x(),
-              point.y(),
-              point.z()));
-      inspectorDraftNoticeVisible = true;
-      if (DialogLayout.button("Use Traced Coordinate")) restoreTracedCoordinate();
-      admissionControl("trace-restore");
-    }
-    if (DialogLayout.button("Add Bookmark at Coordinate")) addInspectorBookmark();
-    admissionControl("trace-bookmark");
-    if (DialogLayout.button("Trace Coordinate")) startCoordinateTrace();
-    admissionControl("trace-coordinate");
-    if (inspectorTask.pending()) {
-      boolean pick = inspectorTask.request().viewBound();
-      DialogLayout.sameLine(pick ? "Cancel Pick" : "Cancel Trace");
-      if (DialogLayout.button(pick ? "Cancel Pick" : "Cancel Trace"))
-        cancelInspectorTask(pick ? "World pick canceled." : "Coordinate trace canceled.", true);
-      admissionControl("trace-cancel");
-    }
-    if (traceSnapshot != null && tracePanel != null) {
-      if (!inspectorTaskFeedback.isEmpty() || inspectorCoordinatesDiffer())
-        ImGui.textDisabled("Previous trace result");
-      tracePanel.draw(traceSnapshot);
-      inspectorTraceVisible = true;
+              status.pick() ? "World pick canceled." : "Coordinate trace canceled.", true);
     }
     ImGui.end();
   }

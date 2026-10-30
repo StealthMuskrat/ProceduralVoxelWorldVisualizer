@@ -36,6 +36,15 @@ public final class TracePanel {
   }
 
   public void draw(TraceSnapshot value) {
+    draw(value, List.of(), false);
+  }
+
+  void drawContained(TraceSnapshot value, List<String> notices) {
+    draw(value, List.copyOf(notices), true);
+  }
+
+  /** Keep source decisions current even when the containing Inspector is hidden or on XYZ. */
+  void hide(TraceSnapshot value) {
     submittedSteps = submittedRows = 0;
     goToCenter = null;
     controls.clear();
@@ -45,27 +54,37 @@ public final class TracePanel {
       snapshot = value;
       step = page = 0;
       pagedRow = null;
+      revealValues = false;
       observations.clear();
       query.set("");
       message = "";
       publication = UUID.randomUUID().toString();
     }
+  }
+
+  private void draw(TraceSnapshot value, List<String> notices, boolean contained) {
+    hide(value);
     if (value == null) {
       ImGui.textWrapped("No retained trace selected.");
       return;
     }
+    float available =
+        contained
+            ? ImGui.getContentRegionAvailY()
+            : ImGui.getWindowSizeY() - ImGui.getCursorPosY() - ImGui.getStyle().getWindowPaddingY();
     float height =
-        TraceLayout.workspace(
-            ImGui.getWindowSizeY() - ImGui.getCursorPosY() - ImGui.getStyle().getWindowPaddingY(),
-            ImGui.getFrameHeight());
+        contained
+            ? TraceLayout.contained(available)
+            : TraceLayout.workspace(available, ImGui.getFrameHeight());
     UiScale.beginChild("trace-workspace", 0, height, false);
     workspaceBounds = bounds();
     chrome.begin("trace-body");
+    for (var notice : notices) ImGui.textWrapped(notice);
     ImGui.textWrapped(shortText(value.summary(), 1024));
     var freshness = value.freshness(state.project().project.uuid, state.revision);
-    if (freshness == TraceSnapshot.Freshness.OTHER_PROJECT)
+    if (!contained && freshness == TraceSnapshot.Freshness.OTHER_PROJECT)
       ImGui.textWrapped("Historical project: source links are unavailable.");
-    else if (freshness == TraceSnapshot.Freshness.PROJECT_CHANGED)
+    else if (!contained && freshness == TraceSnapshot.Freshness.PROJECT_CHANGED)
       ImGui.textWrapped(
           "Project changed after this trace. Values belong to its snapshot; changed source links"
               + " require a new trace.");

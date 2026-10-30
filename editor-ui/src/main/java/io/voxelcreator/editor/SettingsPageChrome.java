@@ -49,6 +49,14 @@ final class SettingsPageChrome {
   }
 
   boolean action(String key, String label) {
+    return action(key, label, label);
+  }
+
+  boolean identifiedAction(String key, String label) {
+    return action(key, label, label + "###" + key);
+  }
+
+  private boolean action(String key, String label, String widget) {
     if (submitted >= actionCount) throw new IllegalStateException("Too many settings actions");
     int row = 0, first = 0;
     while (submitted >= first + rows[row]) first += rows[row++];
@@ -56,7 +64,7 @@ final class SettingsPageChrome {
     float actionWidth =
         SettingsPageLayout.actionWidth(footerWidth, rows[row], ImGui.getStyle().getItemSpacingX());
     boolean clicked =
-        ImGui.button(label, Math.min(actionWidth, Math.max(1, ImGui.getContentRegionAvailX())), 0);
+        ImGui.button(widget, Math.min(actionWidth, Math.max(1, ImGui.getContentRegionAvailX())), 0);
     actions.put(key, PopupLayout.itemBounds());
     PopupLayout.clippedLabel(label);
     return clicked;
