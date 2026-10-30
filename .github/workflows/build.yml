@@ -93,6 +93,8 @@ jobs:
           python scripts/verify_window_placement.py build/window-placement
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UiScaleProbe build/ui-scales
           python scripts/verify_ui_scales.py build/ui-scales
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UiScaleLayoutProbe build/ui-scale-layout
+          python scripts/verify_ui_scale_layout.py build/ui-scale-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DialogLayoutProbe build/dialog-layout
           python scripts/verify_dialog_layout.py build/dialog-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PopupLayoutProbe build/popup-layout
@@ -330,6 +332,7 @@ jobs:
             build/performance-preferences/
             build/window-placement/
             build/ui-scales/
+            build/ui-scale-layout/
             build/dialog-layout/
             build/popup-layout/
             build/draft-popup-layout/
@@ -526,6 +529,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UiScaleProbe build/ui-scales
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_ui_scales.py build/ui-scales
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UiScaleLayoutProbe build/ui-scale-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_ui_scale_layout.py build/ui-scale-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DialogLayoutProbe build/dialog-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -948,6 +955,7 @@ jobs:
             build/performance-preferences/
             build/window-placement/
             build/ui-scales/
+            build/ui-scale-layout/
             build/dialog-layout/
             build/popup-layout/
             build/draft-popup-layout/

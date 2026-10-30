@@ -6,6 +6,31 @@ import org.junit.jupiter.api.Test;
 
 class SettingsPageLayoutTest {
   @Test
+  void scaleTargetListUsesTwoToSixMeasuredRows() {
+    assertEquals(120, SettingsPageLayout.choices(1000, 20));
+    assertEquals(56, SettingsPageLayout.choices(200, 20), .001);
+    assertEquals(40, SettingsPageLayout.choices(0, 20));
+    assertEquals(40, SettingsPageLayout.choices(-100, 20));
+    assertEquals(160, SettingsPageLayout.choices(200, 80));
+  }
+
+  @Test
+  void scaleTargetListBoundsRemainFiniteAtExtremeFontMetrics() {
+    assertEquals(Float.MAX_VALUE, SettingsPageLayout.choices(Float.MAX_VALUE, Float.MAX_VALUE));
+    assertTrue(SettingsPageLayout.choices(Float.MAX_VALUE, Float.MIN_NORMAL) > 0);
+  }
+
+  @Test
+  void scaleTargetListRejectsInvalidMetrics() {
+    assertThrows(IllegalArgumentException.class, () -> SettingsPageLayout.choices(Float.NaN, 20));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SettingsPageLayout.choices(300, Float.POSITIVE_INFINITY));
+    assertThrows(IllegalArgumentException.class, () -> SettingsPageLayout.choices(300, 0));
+    assertThrows(IllegalArgumentException.class, () -> SettingsPageLayout.choices(300, -1));
+  }
+
+  @Test
   void footerBudgetTracksMeasuredFontHeight() {
     assertEquals(277, SettingsPageLayout.body(300, 19, 4));
     assertEquals(258, SettingsPageLayout.body(300, 38, 4));

@@ -9,6 +9,12 @@ import java.util.function.Consumer;
 /** Searchable private global/window scale controls; native application follows successful save. */
 final class UiScalePanel {
   private final UserConfig user;
+  final SettingsPageChrome layout = new SettingsPageChrome(3);
+  private DialogBounds.Rect targets;
+  private float targetRowHeight;
+  private final Map<String, Integer> controlIds = new HashMap<>();
+  private final Map<String, SettingsPageLayout.Pair> rowPlans = new HashMap<>();
+  private String reveal;
   private final Path file;
   private final Consumer<String> errors;
   private UiScaleEditSession session;
@@ -46,22 +52,46 @@ final class UiScalePanel {
   }
 
   void draw() {
+    draw(() -> {}, () -> {});
+  }
+
+  void draw(Runnable heading, Runnable trailing) {
     ensure();
-    if (probing) controls.clear();
+    if (probing) {
+      controls.clear();
+      controlIds.clear();
+      rowPlans.clear();
+    }
+    layout.begin("ui-scale-body");
+    heading.run();
     ImGui.textWrapped(
         "Your text factor uses global scale multiplied by the window multiplier. Display scaling is"
             + " applied automatically. Changes take effect after Apply UI Scales saves them.");
     control("blur");
     scale("Global UI scale", global, UiScaleEditSession.GLOBAL, raw -> session.editGlobal(raw));
+    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
     ImGui.inputTextWithHint("##scale-filter", "Filter window names...", filter);
     control("filter");
-    UiScale.beginChild("scale-targets", 0, 150, true);
+    UiScale.beginChild(
+        "scale-targets",
+        0,
+        SettingsPageLayout.choices(
+            ImGui.getContentRegionAvailY(), ImGui.getTextLineHeightWithSpacing()),
+        true);
+    targets =
+        new DialogBounds.Rect(
+            ImGui.getWindowPosX(),
+            ImGui.getWindowPosY(),
+            ImGui.getWindowSizeX(),
+            ImGui.getWindowSizeY());
+    targetRowHeight = ImGui.getTextLineHeightWithSpacing();
     String query = filter.get().toLowerCase(Locale.ROOT);
     for (var name : UiScalePreferences.WINDOWS)
       if (name.toLowerCase(Locale.ROOT).contains(query)) {
         if (ImGui.selectable(name + "###scale-target-" + name, name.equals(selected)))
           selected = name;
         control("target-" + name);
+        PopupLayout.clippedLabel(name);
       }
     ImGui.endChild();
     ImGui.textWrapped("Window: " + selected);
@@ -76,7 +106,7 @@ final class UiScalePanel {
           });
     }
     control("override");
-    ImGui.sameLine();
+    DialogLayout.sameLine("Use a window multiplier");
     ImGui.textWrapped("Use a window multiplier");
     ImGui.beginDisabled(!enabled.contains(selected));
     scale(
@@ -85,14 +115,15 @@ final class UiScalePanel {
         selected,
         raw -> session.editWindow(selected, raw));
     ImGui.endDisabled();
-    if (!enabled.contains(selected)) ImGui.textDisabled("This window inherits the global scale");
+    if (!enabled.contains(selected)) ImGui.textWrapped("This window inherits the global scale");
     var feedback = session.feedback();
     feedback.problems().forEach((name, problem) -> ImGui.textWrapped("! " + name + ": " + problem));
     String displayedProblem = "";
+    var shown = displayed();
     try {
-      session.requireDisplayed(displayed());
+      session.requireDisplayed(shown);
     } catch (RuntimeException mismatch) {
-      displayedProblem = mismatch.getMessage();
+      displayedProblem = Objects.requireNonNullElse(mismatch.getMessage(), mismatch.toString());
     }
     if (!displayedProblem.isEmpty()) ImGui.textWrapped("! " + displayedProblem);
     boolean current = session.current(user);
@@ -101,8 +132,15 @@ final class UiScalePanel {
           "Active scales changed. Revert reloads them; pending inputs have been retained.");
     applyEnabled =
         current && session.changed() && feedback.value() != null && displayedProblem.isEmpty();
+    String firstProblem =
+        UiScaleProblemNavigation.first(session.text(), shown, feedback.problems());
+    if (session.changed())
+      ImGui.textWrapped("Pending UI scales are excluded from Save Preferences");
+    if (!message.isEmpty()) ImGui.textWrapped(message);
+    trailing.run();
+    layout.end();
     ImGui.beginDisabled(!applyEnabled);
-    if (ImGui.button("Apply UI Scales"))
+    if (layout.action("apply", "Apply UI Scales"))
       act(
           () -> {
             session.apply(user, file, displayed());
@@ -111,7 +149,7 @@ final class UiScalePanel {
           });
     control("apply");
     ImGui.endDisabled();
-    if (ImGui.button("Revert UI Scales"))
+    if (layout.action("revert", "Revert UI Scales"))
       act(
           () -> {
             session.revert(user);
@@ -119,9 +157,16 @@ final class UiScalePanel {
             message = "Active UI scales reloaded";
           });
     control("revert");
-    if (session.changed())
-      ImGui.textDisabled("Pending UI scales are excluded from Save Preferences");
-    if (!message.isEmpty()) ImGui.textWrapped(message);
+    ImGui.beginDisabled(firstProblem == null);
+    if (layout.action("invalid", "Show Invalid Scale")) {
+      if (!UiScaleEditSession.GLOBAL.equals(firstProblem)) {
+        selected = firstProblem;
+        filter.set(firstProblem);
+      }
+      reveal = firstProblem;
+    }
+    control("invalid");
+    ImGui.endDisabled();
   }
 
   private void scale(String label, ImString text, String key, Consumer<String> edit) {
@@ -133,10 +178,11 @@ final class UiScalePanel {
       valid = false;
     }
     ImGui.textWrapped(label);
-    float available = ImGui.getContentRegionAvailX();
-    float sliderWidth = Math.max(30, available * .55f);
+    var plan = SettingsPageChrome.pair();
+    if (probing) rowPlans.put(key, plan);
     ImGui.beginDisabled(!valid);
-    ImGui.setNextItemWidth(sliderWidth);
+    ImGui.setNextItemWidth(plan.sliderWidth());
+    if (probing) controlIds.put(key + "-slider", ImGui.getID("##scale-slider-" + key));
     float[] slider = {value};
     if (ImGui.sliderFloat("##scale-slider-" + key, slider, .5f, 2.5f, "%.2fx")) {
       String raw = Float.toString(slider[0]);
@@ -149,8 +195,11 @@ final class UiScalePanel {
     }
     control(key + "-slider");
     ImGui.endDisabled();
-    ImGui.sameLine();
-    ImGui.setNextItemWidth(Math.max(30, available - sliderWidth - 12));
+    if (plan.inline()) ImGui.sameLine();
+    ImGui.setNextItemWidth(plan.inputWidth());
+    if (probing) controlIds.put(key, ImGui.getID("##scale-text-" + key));
+    boolean focus = key.equals(reveal);
+    if (focus) ImGui.setKeyboardFocusHere();
     if (ImGui.inputText("##scale-text-" + key, text))
       act(
           () -> {
@@ -158,6 +207,10 @@ final class UiScalePanel {
             message = "";
           });
     control(key);
+    if (focus) {
+      ImGui.setScrollHereY(.5f);
+      reveal = null;
+    }
   }
 
   private UiScaleEditSession.Text displayed() {
@@ -206,6 +259,26 @@ final class UiScalePanel {
 
   boolean probeApplyEnabled() {
     return applyEnabled;
+  }
+
+  Map<String, Integer> probeIds() {
+    return Map.copyOf(controlIds);
+  }
+
+  Map<String, SettingsPageLayout.Pair> probeRows() {
+    return Map.copyOf(rowPlans);
+  }
+
+  DialogBounds.Rect targetBounds() {
+    return targets;
+  }
+
+  float targetRowHeight() {
+    return targetRowHeight;
+  }
+
+  String probeSelected() {
+    return selected;
   }
 
   long validations() {

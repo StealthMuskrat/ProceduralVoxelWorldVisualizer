@@ -27,6 +27,15 @@ final class SettingsPageLayout {
     return (float) Math.max(1, ((double) width - (count - 1.0) * gap) / count);
   }
 
+  static float choices(float height, float lineHeight) {
+    finite(height);
+    positive(lineHeight);
+    return (float)
+        Math.min(
+            Float.MAX_VALUE,
+            Math.max(2.0 * lineHeight, Math.min(6.0 * lineHeight, .28 * Math.max(0, height))));
+  }
+
   static Pair pair(float width, float minimumFieldWidth, float gap) {
     finite(width);
     positive(minimumFieldWidth);

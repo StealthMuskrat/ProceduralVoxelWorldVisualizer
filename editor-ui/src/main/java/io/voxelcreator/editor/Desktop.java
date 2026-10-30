@@ -37,6 +37,7 @@ public final class Desktop extends Application {
   private WorkspacePanel workspaceSettings;
   private PerformancePanel performanceSettings;
   private UiScalePanel scaleSettings;
+  private AppearanceSettingsPanel appearanceSettings;
   private UpdateCheckPanel updateChecks;
   private final ImBoolean updateWindow = new ImBoolean(false);
   private String smokeDiagnosticDocument;
@@ -167,6 +168,13 @@ public final class Desktop extends Application {
             UserConfig.directory().resolve("user-config.json"),
             message ->
                 state.error("UI_SCALE_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
+    appearanceSettings =
+        new AppearanceSettingsPanel(
+            state.user,
+            scaleSettings,
+            this::applyTheme,
+            () -> themes.set(true),
+            this::savePreferences);
     applicationSettings = new ApplicationSettingsPanel(state);
     projectSettings = new ProjectSettingsPanel(state);
     themePanel =
@@ -815,24 +823,9 @@ public final class Desktop extends Application {
           });
       if (ImGui.button("Open Profiler")) profiler.set(true);
     } else {
-      fields.choice(
-          "Category",
-          settingsCategory,
-          List.of("Appearance", "Workspace", "Input", "Editor", "Visualization", "Performance"),
-          v -> settingsCategory = v);
+      AppearanceSettingsPanel.category(fields, settingsCategory, v -> settingsCategory = v);
       switch (settingsCategory) {
-        case "Appearance" -> {
-          fields.choice(
-              "Theme",
-              state.user.appearance.theme,
-              List.of("Dark", "Light"),
-              v -> {
-                state.user.appearance.theme = v;
-                applyTheme();
-              });
-          scaleSettings.draw();
-          if (ImGui.button("Open Themes")) themes.set(true);
-        }
+        case "Appearance" -> appearanceSettings.draw();
         case "Workspace" -> workspaceSettings.draw();
         case "Input" -> inputSettings.draw();
         case "Editor" -> {
@@ -914,17 +907,20 @@ public final class Desktop extends Application {
         }
         default -> {}
       }
-      if (ImGui.button("Save Preferences")) {
-        try {
-          state.user.save();
-          state.status = "Preferences saved";
-        } catch (Exception e) {
-          state.notify("Error", e.getMessage());
-        }
-      }
+      if (!settingsCategory.equals("Appearance") && DialogLayout.button("Save Preferences"))
+        savePreferences();
     }
     if (!settings.get()) projectSettings.cancel();
     ImGui.end();
+  }
+
+  private void savePreferences() {
+    try {
+      state.user.save();
+      state.status = "Preferences saved";
+    } catch (Exception e) {
+      state.notify("Error", e.getMessage());
+    }
   }
 
   private void drawHelp() {
