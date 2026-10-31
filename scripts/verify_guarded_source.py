@@ -17,6 +17,7 @@ assert report['formatVersion'] == 1
 assert report['fontSource'] == 'synthetic-global-window-fixture'
 assert report['physicalDpiVerified'] is False
 assert report['popupScopesRestored'] is True and report['oneUndoRestored'] is True
+assert report['callbacksAfterPopup'] == 13
 expected = [('child', 1, 'layer', 3, 0, 0), ('unchanged', 1, 'noise', 3, 1, 0),
             ('precheck', 0, 'layer', 2, 0, 1), ('postcheck', 1, 'layer', 3, 0, 2),
             ('reveal', 1, 'noise', 3, 2, 3), ('successor', 1, 'layer', 3, 0, 3)]

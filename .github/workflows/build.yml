@@ -218,6 +218,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.GuardedSourceProbe build/guarded-source
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.GuardedSourceConsumer build/guarded-source
           python scripts/verify_guarded_source.py build/guarded-source
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.NavigationDeliveryProbe build/navigation-delivery
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.TraceSourceConsumer build/navigation-delivery
+          python scripts/verify_navigation_delivery.py build/navigation-delivery
       - name: Source algorithm controls and independent references
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SourceAlgorithmProbe build/algorithm-reference
@@ -521,6 +524,7 @@ jobs:
             build/inspector-retry/
             build/trace-source/
             build/guarded-source/
+            build/navigation-delivery/
             build/algorithm-reference/
             build/scalar-remapping/
             build/warp-controls/
@@ -963,6 +967,12 @@ jobs:
           & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.GuardedSourceConsumer build/guarded-source
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_guarded_source.py build/guarded-source
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.NavigationDeliveryProbe build/navigation-delivery
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.TraceSourceConsumer build/navigation-delivery
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_navigation_delivery.py build/navigation-delivery
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows source algorithm controls and independent references
         shell: pwsh
@@ -1475,6 +1485,7 @@ jobs:
             build/inspector-retry/
             build/trace-source/
             build/guarded-source/
+            build/navigation-delivery/
             build/algorithm-reference/
             build/scalar-remapping/
             build/warp-controls/

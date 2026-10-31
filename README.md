@@ -210,3 +210,5 @@ The unvalidated [exact Inspector retry follow-up](docs/INSPECTOR_TRACE_RETRY.md)
 The unvalidated [trace source availability follow-up](docs/TRACE_SOURCE_AVAILABILITY.md) disables changed/missing/private-unavailable source links with specific explanations, caches bounded committed-definition checks and keeps private control availability live. Six regression definitions, twelve native footer receipts and independent trace replay remain deferred.
 
 The unvalidated [guarded source completion follow-up](docs/GUARDED_SOURCE_COMPLETION.md) rechecks source links after Apply, preserves committed edits when a trace source changed, contains source/reveal failures and protects successor drafts. Nine regression definitions, twelve native modal receipts and independent project/trace replay remain deferred.
+
+The unvalidated [shared draft decision delivery follow-up](docs/NAVIGATION_DECISION_DELIVERY.md) delivers Apply/Discard/Cancel after popup unwind, protects successor dialogs and limits rendering/delivery to once per frame. Six regression definitions, twelve native modal receipts, ten delivery routes and extended production source callbacks remain deferred.

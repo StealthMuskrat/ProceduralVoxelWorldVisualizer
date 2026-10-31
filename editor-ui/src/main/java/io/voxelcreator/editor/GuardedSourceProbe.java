@@ -19,6 +19,8 @@ public final class GuardedSourceProbe {
   private static float global = 1;
   private static String phase;
   private static boolean revealFailure;
+  private static boolean inFrame;
+  private static int callerRoot, callbackScopes;
   private static final List<Map<String, Object>> phases = new ArrayList<>(),
       cases = new ArrayList<>();
 
@@ -47,6 +49,7 @@ public final class GuardedSourceProbe {
         run("postcheck", false);
         run("reveal", false);
         run("successor", false);
+        require(callbackScopes == 13, "Unexpected post-popup production callback coverage");
         state.user.save(out.resolve("preferences.json"));
         require(
             read("preferences-before.json").equals(read("preferences.json")),
@@ -102,6 +105,8 @@ public final class GuardedSourceProbe {
                 true,
                 "oneUndoRestored",
                 true,
+                "callbacksAfterPopup",
+                callbackScopes,
                 "physicalDpiVerified",
                 false));
         System.out.println(
@@ -157,6 +162,7 @@ public final class GuardedSourceProbe {
             state,
             new PropertyPanel(state),
             target -> {
+              observeCallback();
               reveals++;
               if (revealFailure) throw new IllegalStateException("source reveal boundary");
               return false;
@@ -166,6 +172,7 @@ public final class GuardedSourceProbe {
                 destination,
                 () -> {
                   checks++;
+                  if (checks > 1) observeCallback();
                   if (mode.equals("precheck") && checks == 2)
                     throw new IllegalStateException("source check before apply");
                   if (mode.equals("postcheck") && checks == 3)
@@ -313,7 +320,13 @@ public final class GuardedSourceProbe {
     ImGui.begin("Guarded Source Completion");
     UiScale.window(state.user, "Properties");
     int root = ImGui.getID("source-root");
-    guard.draw();
+    callerRoot = root;
+    inFrame = true;
+    try {
+      guard.draw();
+    } finally {
+      inFrame = false;
+    }
     require(root == ImGui.getID("source-root"), "Source callback left an unbalanced popup scope");
     ImGui.end();
     ImGui.render();
@@ -321,6 +334,12 @@ public final class GuardedSourceProbe {
 
   private static void frames(int n) {
     for (int i = 0; i < n; i++) frame();
+  }
+
+  private static void observeCallback() {
+    if (!inFrame) return;
+    require(callerRoot == ImGui.getID("source-root"), "Source callback ran inside the draft popup");
+    callbackScopes++;
   }
 
   private static void click(String key) {
