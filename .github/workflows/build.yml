@@ -113,6 +113,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.HelpAboutProbe build/help-about
           python scripts/verify_help_about.py build/help-about
           python scripts/verify_profile_capture.py build/profile-layout/reviewed.json build/profile-layout/reviewed.csv
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileDecisionProbe build/profile-decisions
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProfileDecisionConsumer build/profile-decisions
+          python scripts/verify_profile_decisions.py build/profile-decisions
+          python scripts/verify_profile_capture.py build/profile-decisions/reviewed.json build/profile-decisions/reviewed.csv
+          python scripts/verify_profile_capture.py build/profile-decisions/replacement.json build/profile-decisions/replacement.csv
           xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WindowPlacementProbe build/window-placement
           python scripts/verify_window_placement.py build/window-placement
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UiScaleProbe build/ui-scales
@@ -419,6 +424,7 @@ jobs:
             build/preferences-layout/
             build/general-settings-layout/
             build/profile-layout/
+            build/profile-decisions/
             build/diagnostics-layout/
             build/find-trace-layout/
             build/inspector-layout/
@@ -675,6 +681,16 @@ jobs:
           python scripts/verify_help_about.py build/help-about
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_profile_capture.py build/profile-layout/reviewed.json build/profile-layout/reviewed.csv
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileDecisionProbe build/profile-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ProfileDecisionConsumer build/profile-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_profile_decisions.py build/profile-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_profile_capture.py build/profile-decisions/reviewed.json build/profile-decisions/reviewed.csv
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_profile_capture.py build/profile-decisions/replacement.json build/profile-decisions/replacement.csv
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WindowPlacementProbe build/window-placement
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -1222,6 +1238,7 @@ jobs:
             build/preferences-layout/
             build/general-settings-layout/
             build/profile-layout/
+            build/profile-decisions/
             build/diagnostics-layout/
             build/find-trace-layout/
             build/inspector-layout/

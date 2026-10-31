@@ -22,6 +22,9 @@ public final class ProfilePanel {
   private final Map<ProfileCaptureInputs.Field, ImString> captureText =
       new EnumMap<>(ProfileCaptureInputs.Field.class);
   final SettingsPageChrome layout = new SettingsPageChrome(4, 4);
+  final PreferenceActionScope captureActions = new PreferenceActionScope();
+  final SettingsActionScope prepareActions = new SettingsActionScope(),
+      reviewActions = new SettingsActionScope();
   static final List<String> SECTIONS = List.of("Capture & runtime", "Measurements", "Export");
   private String section = "Capture & runtime";
   private ProfileCaptureInputs.Field revealLimit;
@@ -204,12 +207,16 @@ public final class ProfilePanel {
       Viewports.StreamingStatistics rendering,
       java.util.function.IntSupplier compact,
       List<io.voxelcreator.render.GpuTimerQueries.Statistics> gpuTimings) {
-    if (!open.get()) return;
+    if (!open.get()) {
+      suspendActions();
+      return;
+    }
     windowLayout.prepare();
     boolean visible = ImGui.begin("Profiler", open);
     UiScale.window(state.user, "Profiler");
     windowLayout.observe();
     if (!visible || !open.get()) {
+      suspendActions();
       ImGui.end();
       return;
     }
@@ -225,6 +232,14 @@ public final class ProfilePanel {
     selector = PopupLayout.itemBounds();
     fields.tooltip("Choose a profiler section");
     refreshSnapshot();
+    var capture = ProfileActionContext.from(state.engine.profiler());
+    long captureRequest = captureActions.synchronize(capture);
+    var shown = snapshot;
+    long prepareRequest = prepareActions.synchronize(this, shown == null ? this : shown);
+    var review = exportReview;
+    long reviewRequest =
+        reviewActions.synchronize(
+            this, review == null ? this : review, review != null && review.available() ? 1 : 0);
     layout.begin("profile-workspace-" + section);
     if (snapshot == null) ImGui.textWrapped("No displayed capture. Prepare Export is unavailable.");
     else
@@ -249,7 +264,7 @@ public final class ProfilePanel {
     }
     if (!message.isEmpty() && !section.equals("Export")) ImGui.textWrapped(message);
     layout.end();
-    drawActions();
+    drawActions(capture, captureRequest, shown, prepareRequest, review, reviewRequest);
     ImGui.end();
   }
 
@@ -576,61 +591,86 @@ public final class ProfilePanel {
             + " export keeps its review. Prepare again to use the displayed capture.");
   }
 
-  private void drawActions() {
+  private void drawActions(
+      ProfileActionContext capture,
+      long captureRequest,
+      Profiler.Snapshot shown,
+      long prepareRequest,
+      ProfileExportSession review,
+      long reviewRequest) {
     var first = captureInputs.firstProblem(displayedCaptureInputs());
+    ImGui.pushID("profile-capture:" + captureRequest);
     ImGui.beginDisabled(first != null);
-    if (layout.action("start", "Start Capture")) start();
+    boolean start = layout.identifiedAction("start", "Start Capture");
     workControl("start");
     ImGui.endDisabled();
-    boolean recording =
-        state.engine.profiler().current().map(Profiler.Capture::recording).orElse(false);
-    ImGui.beginDisabled(!recording);
-    if (layout.action("stop", "Stop")) {
-      state.engine.profiler().stop();
-      refreshed = 0;
-    }
+    ImGui.beginDisabled(!capture.recording());
+    boolean stop = layout.identifiedAction("stop", "Stop");
     workControl("stop");
     ImGui.endDisabled();
-    ImGui.beginDisabled(state.engine.profiler().current().isEmpty());
-    if (layout.action("clear", "Clear")) {
-      state.engine.profiler().clear();
-      resetDisplayed();
-    }
+    ImGui.beginDisabled(capture.capture() == null);
+    boolean clear = layout.identifiedAction("clear", "Clear");
     workControl("clear");
     ImGui.endDisabled();
     ImGui.beginDisabled(first == null);
-    if (layout.action("problem", "Show Invalid Limit")) {
-      section = "Capture & runtime";
-      revealLimit = first;
-    }
+    boolean problem = layout.identifiedAction("problem", "Show Invalid Limit");
     workControl("problem");
     ImGui.endDisabled();
-    ImGui.beginDisabled(snapshot == null);
-    if (layout.action("prepare-export", "Prepare Export")) {
-      if (exportReview != null) exportReview.cancel();
-      exportReview = new ProfileExportSession(snapshot);
-      section = "Export";
-      message = "";
-    }
+    ImGui.popID();
+    ImGui.pushID("profile-prepare:" + prepareRequest);
+    ImGui.beginDisabled(shown == null);
+    boolean prepare = layout.identifiedAction("prepare-export", "Prepare Export");
     workControl("prepare-export");
     ImGui.endDisabled();
-    ImGui.beginDisabled(exportReview == null);
-    if (layout.action("discard-export", "Discard Review")) {
-      exportReview.cancel();
-      exportReview = null;
-      message = "";
-    }
+    ImGui.popID();
+    ImGui.pushID("profile-review:" + reviewRequest);
+    ImGui.beginDisabled(review == null);
+    boolean discard = layout.identifiedAction("discard-export", "Discard Review");
     workControl("discard-export");
     ImGui.endDisabled();
-    ImGui.beginDisabled(exportReview == null || !exportReview.available());
-    if (layout.action("export-json", "Export JSON")) export(false);
+    ImGui.beginDisabled(review == null || !review.available());
+    boolean json = layout.identifiedAction("export-json", "Export JSON");
     workControl("export-json");
-    // A successful first format consumes the same token before another format can be submitted.
-    ImGui.endDisabled();
-    ImGui.beginDisabled(exportReview == null || !exportReview.available());
-    if (layout.action("export-csv", "Export CSV")) export(true);
+    boolean csv = layout.identifiedAction("export-csv", "Export CSV");
     workControl("export-csv");
     ImGui.endDisabled();
+    ImGui.popID();
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    boolean captureCurrent =
+        captureActions.current(ProfileActionContext.from(state.engine.profiler()));
+    boolean prepareCurrent = prepareActions.current(this, snapshot == null ? this : snapshot);
+    boolean reviewCurrent =
+        reviewActions.current(
+            this,
+            exportReview == null ? this : exportReview,
+            exportReview != null && exportReview.available() ? 1 : 0);
+    if (discard && review != null && reviewCurrent) {
+      review.cancel();
+      exportReview = null;
+      message = "";
+    } else if (stop && capture.recording() && captureCurrent) {
+      capture.profiler().stop();
+      refreshed = 0;
+    } else if (clear && capture.capture() != null && captureCurrent) {
+      capture.profiler().clear();
+      resetDisplayed();
+    } else if (problem && first != null && captureCurrent) {
+      section = "Capture & runtime";
+      revealLimit = first;
+    } else if (start && first == null && captureCurrent) start();
+    else if (prepare && shown != null && prepareCurrent) {
+      if (exportReview != null) exportReview.cancel();
+      exportReview = new ProfileExportSession(shown);
+      section = "Export";
+      message = "";
+    } else if (json && review != null && review.available() && reviewCurrent) export(review, false);
+    else if (csv && review != null && review.available() && reviewCurrent) export(review, true);
+  }
+
+  void suspendActions() {
+    captureActions.resetDraft();
+    prepareActions.release();
+    reviewActions.release();
   }
 
   private void resetDisplayed() {
@@ -642,18 +682,19 @@ public final class ProfilePanel {
     clearWorkTotal();
   }
 
-  private void export(boolean csv) {
+  private void export(ProfileExportSession owner, boolean csv) {
     section = "Export";
     try {
-      var reviewed = exportReview.snapshot();
-      var path = exportReview.write(exportPath.get(), csv, state.document.path());
-      message = "Exported " + reviewed.samples().size() + " samples to " + path;
+      var reviewed = owner.snapshot();
+      var path = owner.write(exportPath.get(), csv, state.document.path());
+      if (exportReview == owner)
+        message = "Exported " + reviewed.samples().size() + " samples to " + path;
     } catch (Exception error) {
       String detail = error.getMessage();
       if (detail == null || detail.isBlank()) detail = error.getClass().getSimpleName();
-      message =
-          "Export failed: " + (detail.length() > 1024 ? detail.substring(0, 1023) + "…" : detail);
-      state.error("PROFILE_EXPORT_FAILED", EditorEvents.Subsystem.IMPORT_EXPORT, message);
+      String feedback = "Export failed: " + StatusBarText.clip(detail, 1024);
+      state.error("PROFILE_EXPORT_FAILED", EditorEvents.Subsystem.IMPORT_EXPORT, feedback);
+      if (exportReview == owner) message = feedback;
     }
   }
 
@@ -667,6 +708,18 @@ public final class ProfilePanel {
 
   long rowQueries() {
     return rowQueries;
+  }
+
+  void probeCaptureInput(ProfileCaptureInputs.Field field, String raw) {
+    captureInputs.edit(field, raw);
+    captureText.get(field).set(raw);
+  }
+
+  void probeReview(Profiler.Snapshot value) {
+    if (exportReview != null) exportReview.cancel();
+    exportReview = new ProfileExportSession(value);
+    section = "Export";
+    message = "";
   }
 
   void probeExportPath(String path) {

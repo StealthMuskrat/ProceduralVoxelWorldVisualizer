@@ -23,3 +23,5 @@ Six deferred `ProjectSettingsProblemNavigationTest` definitions cover unchanged 
 The unvalidated [Profiler workspace follow-up](PROFILER_LAYOUT.md) makes Debug's shared Start reject invalid next-capture raw limits without replacing a running/stopped capture. The dedicated Profiler now has retained sections and persistent capture/export actions; physical and complete GUI acceptance remain pending.
 
 The unvalidated [settings decision follow-up](SETTINGS_DECISIONS.md) changes Project/Application footer arbitration and per-draft action scopes while preserving this shared measured body/footer policy and the independent User Config forms. Existing native settings definitions and new focused-Escape/held-owner/retry phases remain deferred.
+
+The unvalidated [Profiler/Debug decision follow-up](PROFILER_DECISIONS.md) adds exact shared capture/recording eligibility to Debug footer activation, complete decision collection, Escape suppression and release on hidden/collapsed Settings. It retains the shared ProfilePanel.start validator and read-only section behavior. New definitions remain deferred.

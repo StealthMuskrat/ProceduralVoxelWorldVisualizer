@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import io.voxelcreator.api.Profiler;
 import java.util.*;
 import java.util.function.Supplier;
@@ -22,6 +23,7 @@ final class DebugSettingsPanel {
   private final Runnable start, open;
   private final UiFields fields = new UiFields();
   final SettingsPageChrome layout = new SettingsPageChrome(2);
+  final PreferenceActionScope actionScope = new PreferenceActionScope();
   private String section = "General";
   private DialogBounds.Rect selector;
 
@@ -37,12 +39,14 @@ final class DebugSettingsPanel {
   }
 
   void draw() {
+    var context = ProfileActionContext.from(state.engine.profiler());
+    long request = actionScope.synchronize(context);
     ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
     fields.choice("##debug-settings-section", section, SECTIONS, value -> section = value);
     selector = PopupLayout.itemBounds();
     fields.tooltip("Choose a diagnostic section");
     layout.begin("debug-settings-body");
-    boolean recording = recording();
+    boolean recording = context.recording();
     ImGui.textWrapped(
         recording ? "Targeted capture is recording." : "Targeted capture is stopped.");
     ImGui.textWrapped(
@@ -137,15 +141,24 @@ final class DebugSettingsPanel {
       default -> throw new IllegalStateException("Unknown diagnostic section");
     }
     layout.end();
-    if (layout.action("capture", recording ? "Stop Capture" : "Start Capture")) {
-      // A timed-out Stop button must not become a request to start a replacement capture.
-      if (recording) state.engine.profiler().stop();
-      else if (!recording()) {
+    ImGui.pushID("debug-capture:" + request);
+    boolean capture =
+        layout.identifiedAction("capture", recording ? "Stop Capture" : "Start Capture");
+    boolean profiler = layout.identifiedAction("profiler", "Open Profiler");
+    ImGui.popID();
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        || !actionScope.current(ProfileActionContext.from(state.engine.profiler()))) return;
+    if (capture) {
+      if (recording) context.profiler().stop();
+      else {
         start.run();
         open.run();
       }
-    }
-    if (layout.action("profiler", "Open Profiler")) open.run();
+    } else if (profiler) open.run();
+  }
+
+  void suspendActions() {
+    actionScope.resetDraft();
   }
 
   boolean recording() {

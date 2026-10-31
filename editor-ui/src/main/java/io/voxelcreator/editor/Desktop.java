@@ -851,6 +851,8 @@ public final class Desktop extends Application {
   }
 
   private void drawSettings() {
+    if (!settings.get() || !settingsPage.equals("Debug & Profiling"))
+      debugSettings.suspendActions();
     if (!settings.get()) {
       projectSettings.cancel();
       inputSettings.cancelCapture();
@@ -867,11 +869,13 @@ public final class Desktop extends Application {
     if (!settings.get()) {
       projectSettings.cancel();
       inputSettings.cancelCapture();
+      debugSettings.suspendActions();
       ImGui.end();
       return;
     }
     if (!visible) {
       inputSettings.cancelCapture();
+      debugSettings.suspendActions();
       ImGui.end();
       return;
     }
@@ -919,7 +923,10 @@ public final class Desktop extends Application {
   }
 
   private void drawProfiler() {
-    if (!profiler.get()) return;
+    if (!profiler.get()) {
+      captures.suspendActions();
+      return;
+    }
     if (smokeFrames > 0) smokeSchedulerDrawn = true;
     captures.draw(
         profiler, views.streamingStatistics(), views::compactArenas, views.gpuTimingStatistics());

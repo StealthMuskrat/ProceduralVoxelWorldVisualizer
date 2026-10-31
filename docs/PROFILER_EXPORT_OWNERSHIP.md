@@ -21,3 +21,5 @@ Ten new `ProfileExportSessionTest` definitions describe capture growth/replaceme
 Broader GUI/DPI, actual window-X gestures, concurrent external filesystem races, unsupported filesystems, physical keyboards and Windows 11 hardware/release acceptance remain pending. These definitions do not advance the baseline pass count or certify a finished program.
 
 The unvalidated [Profiler workspace follow-up](PROFILER_LAYOUT.md) keeps Prepare/Discard/JSON/CSV and capture recovery actions persistent across retained sections, adds exact next-capture text and stable logical series identities, and retains the reviewed-token/atomic-file contracts described above. New definitions remain unexecuted.
+
+The unvalidated [Profiler/Debug decision follow-up](PROFILER_DECISIONS.md) binds export footer IDs to the exact review and consumption state, independently of live captures/display refresh. A held frozen-review export remains valid through unrelated capture replacement; a held predecessor cannot consume a newly prepared review. Failed writes retain retry IDs. New definitions remain deferred.
