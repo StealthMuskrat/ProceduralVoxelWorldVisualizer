@@ -208,3 +208,5 @@ The unvalidated [Logs-to-Inspector follow-up](docs/TRACE_INSPECTOR_HANDOFF.md) a
 The unvalidated [exact Inspector retry follow-up](docs/INSPECTOR_TRACE_RETRY.md) retains the last failed coordinate and offers Retry Trace without replacing entered XYZ or borrowing an older result. Six regression definitions, twelve native Inspector receipts and real full-queue recovery definitions remain deferred.
 
 The unvalidated [trace source availability follow-up](docs/TRACE_SOURCE_AVAILABILITY.md) disables changed/missing/private-unavailable source links with specific explanations, caches bounded committed-definition checks and keeps private control availability live. Six regression definitions, twelve native footer receipts and independent trace replay remain deferred.
+
+The unvalidated [guarded source completion follow-up](docs/GUARDED_SOURCE_COMPLETION.md) rechecks source links after Apply, preserves committed edits when a trace source changed, contains source/reveal failures and protects successor drafts. Nine regression definitions, twelve native modal receipts and independent project/trace replay remain deferred.

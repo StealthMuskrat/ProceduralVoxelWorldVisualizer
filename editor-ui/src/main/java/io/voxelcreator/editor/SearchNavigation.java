@@ -3,6 +3,7 @@ package io.voxelcreator.editor;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.voxelcreator.model.*;
 import java.util.*;
+import java.util.function.BooleanSupplier;
 
 /** Search-specific draft protection. A target always resolves UUIDs in the current project. */
 public final class SearchNavigation {
@@ -27,6 +28,7 @@ public final class SearchNavigation {
   private ProjectData project;
   private Object draftOwner;
   private List<UUID> selection;
+  private long version;
 
   public SearchNavigation(EditorState state) {
     this.state = state;
@@ -43,6 +45,7 @@ public final class SearchNavigation {
   public Result request(EditorEvents.Target target) {
     if (pending != null) return Result.UNAVAILABLE;
     if (!state.canNavigate(target)) return Result.UNAVAILABLE;
+    version++;
     if (!Objects.equals(state.selected, target.resource()) && modified()) {
       pending = target;
       source = state.selected;
@@ -73,6 +76,10 @@ public final class SearchNavigation {
   }
 
   public Result decide(Decision decision) {
+    return decide(decision, () -> true);
+  }
+
+  Result decide(Decision decision, BooleanSupplier afterApply) {
     if (pending == null) return Result.UNAVAILABLE;
     if (decision == Decision.CANCEL) {
       clear();
@@ -91,11 +98,37 @@ public final class SearchNavigation {
       return Result.UNAVAILABLE;
     }
     if (decision == Decision.APPLY && !state.applyDraft()) return Result.NEEDS_DECISION;
+    // A post-Apply source check may open a successor; retire this intent before calling it.
     clear();
+    if (decision == Decision.APPLY) {
+      long completed = version, revision = state.revision;
+      var document = state.document.sessionToken();
+      var applied = state.project();
+      var selected = state.selected;
+      var draft = state.draft;
+      var values = ProjectIO.JSON.valueToTree(draft);
+      var selectedResources = List.copyOf(state.multiSelection);
+      long inputs = state.seedInputs.version(state);
+      if (!afterApply.getAsBoolean()
+          || version != completed
+          || state.document.sessionToken() != document
+          || state.project() != applied
+          || state.revision != revision
+          || state.draft != draft
+          || !Objects.equals(state.selected, selected)
+          || !selectedResources.equals(List.copyOf(state.multiSelection))
+          || state.seedInputs.version(state) != inputs
+          || !values.equals(ProjectIO.JSON.valueToTree(state.draft))) return Result.UNAVAILABLE;
+    }
     return state.navigate(target) ? Result.NAVIGATED : Result.UNAVAILABLE;
   }
 
+  long version() {
+    return version;
+  }
+
   public void clear() {
+    version++;
     pending = null;
     source = null;
     draftBase = null;
