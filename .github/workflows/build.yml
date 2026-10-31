@@ -117,6 +117,9 @@ jobs:
           python scripts/verify_diagnostic_decisions.py build/diagnostic-decisions
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.FindTraceLayoutProbe build/find-trace-layout
           python scripts/verify_find_trace_layout.py build/find-trace-layout
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UtilityDecisionProbe build/utility-decisions
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.TraceConsumer build/utility-decisions/unchanged-project.json
+          python scripts/verify_utility_decisions.py build/utility-decisions
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.InspectorLayoutProbe build/inspector-layout
           python scripts/verify_inspector_layout.py build/inspector-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.HelpAboutProbe build/help-about
@@ -439,6 +442,7 @@ jobs:
             build/diagnostics-layout/
             build/diagnostic-decisions/
             build/find-trace-layout/
+            build/utility-decisions/
             build/inspector-layout/
             build/help-about/
             build/window-placement/
@@ -701,6 +705,12 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.FindTraceLayoutProbe build/find-trace-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_find_trace_layout.py build/find-trace-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UtilityDecisionProbe build/utility-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.TraceConsumer build/utility-decisions/unchanged-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_utility_decisions.py build/utility-decisions
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.InspectorLayoutProbe build/inspector-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -1274,6 +1284,7 @@ jobs:
             build/diagnostics-layout/
             build/diagnostic-decisions/
             build/find-trace-layout/
+            build/utility-decisions/
             build/inspector-layout/
             build/help-about/
             build/window-placement/

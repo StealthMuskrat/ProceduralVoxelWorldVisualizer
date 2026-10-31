@@ -52,6 +52,10 @@ public final class GuardedNavigation {
     return navigation.pending();
   }
 
+  boolean blocked() {
+    return properties.searchBlocked();
+  }
+
   float[] button(String key) {
     return dialog.button(key);
   }

@@ -33,3 +33,5 @@ Each successful inspector trace publishes a project-scoped informational Generat
 Independent numerical tests, immutable/source/stale checks, bounded clipping and real native navigation/Cancel/Apply checks provide scoped evidence. Full interactive Inspector/Logs recovery, all expression-input routing, representative hardware and Windows 11 acceptance remain separate.
 
 The unvalidated [Find/Trace workspace follow-up](FIND_AND_TRACE_LAYOUT.md) replaces fixed shared-trace list heights with measured budgets, keeps copy/link/page actions persistent and owns source decisions by exact snapshot/step/row/query. New definitions remain unexecuted; physical and complete GUI acceptance remain separate.
+
+The unvalidated [Find/Trace footer decision follow-up](UTILITY_DECISIONS.md) adds complete footer collection, Escape suppression and exact raw query/page/document/native-host action scopes. Trace clipboard failures are contained, and accepted source guards also check the document lifetime. The new four regression definitions, eighteen native cases and independent replay remain uncompiled/untested under the owner pause.

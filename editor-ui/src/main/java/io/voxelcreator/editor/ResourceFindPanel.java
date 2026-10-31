@@ -14,6 +14,18 @@ public final class ResourceFindPanel {
   private final ResourceSearchSession session = new ResourceSearchSession();
   private final SearchNavigation navigation;
   private final FindSelection selection = new FindSelection();
+  private final SettingsActionScope actions = new SettingsActionScope();
+  private final String actionId = UUID.randomUUID().toString();
+  private ActionContext actionContext;
+
+  private record ActionContext(
+      ResourceSearchIndex.Hit hit,
+      ResourceSearchIndex.Filter filter,
+      String query,
+      String section,
+      boolean available,
+      boolean pending) {}
+
   private ResourceSearchIndex.Hit pendingHit;
   final SettingsPageChrome chrome = new SettingsPageChrome(3);
   final NavigationGuardDialog guardDialog;
@@ -66,6 +78,7 @@ public final class ResourceFindPanel {
   public void draw(ImBoolean open) {
     directories.synchronize();
     if (!open.get()) {
+      actions.release();
       session.clear();
       if (!navigation.pending()) selection.clear();
       guard();
@@ -77,6 +90,7 @@ public final class ResourceFindPanel {
     windowLayout.observe();
     DialogLayout.observe(state, "Find");
     if (!visible || !open.get()) {
+      actions.release();
       if (!open.get()) session.clear();
       submitted = 0;
       centers.clear();
@@ -118,21 +132,49 @@ public final class ResourceFindPanel {
     if (!message.isEmpty()) ImGui.textWrapped(message);
     chrome.end();
     var hit = selection.hit();
-    ImGui.beginDisabled(
-        hit == null
-            || !selection.owns(state, hit)
-            || !state.canNavigate(hit.target())
-            || navigation.pending());
-    if (chrome.action("navigate", "Go To Selected")) activate(hit);
+    var context = actionContext();
+    if (actionContext == null
+        || context.hit() != actionContext.hit()
+        || !context.equals(actionContext)) actionContext = context;
+    long version =
+        actions.synchronize(state.document.sessionToken(), actionContext, state.revision);
+    ImGui.pushID("find-actions:" + actionId + ":" + version);
+    ImGui.beginDisabled(!context.available() || context.pending());
+    boolean navigate = chrome.identifiedAction("navigate", "Go To Selected");
     control("navigate");
     ImGui.endDisabled();
-    if (chrome.action("section", section.equals("Results") ? "Show Filters" : "Show Results"))
-      section = section.equals("Results") ? "Filters" : "Results";
+    boolean toggle =
+        chrome.identifiedAction(
+            "section", section.equals("Results") ? "Show Filters" : "Show Results");
     control("section");
-    if (chrome.action("clear", "Clear Filters")) filter(ResourceSearchIndex.Filter.all());
+    boolean clear = chrome.identifiedAction("clear", "Clear Filters");
     control("clear");
+    ImGui.popID();
+    if (!ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        && hit == selection.hit()
+        && context.equals(actionContext())
+        && actions.current(state.document.sessionToken(), actionContext, state.revision)) {
+      if (navigate && context.available() && !context.pending()) activate(hit);
+      else if (toggle) section = section.equals("Results") ? "Filters" : "Results";
+      else if (clear) filter(ResourceSearchIndex.Filter.all());
+    }
     ImGui.end();
     guard();
+  }
+
+  private ActionContext actionContext() {
+    var hit = selection.hit();
+    return new ActionContext(
+        hit,
+        new ResourceSearchIndex.Filter(
+            query.get(), kind, status, root, directory, reference, containers, mode),
+        query.get(),
+        section,
+        hit != null
+            && selection.owns(state, hit)
+            && state.canNavigate(hit.target())
+            && !properties.searchBlocked(),
+        navigation.pending());
   }
 
   private void choice(
@@ -380,6 +422,10 @@ public final class ResourceFindPanel {
 
   boolean guardDrawn() {
     return guardDrawn;
+  }
+
+  String query() {
+    return query.get();
   }
 
   void query(String text) {

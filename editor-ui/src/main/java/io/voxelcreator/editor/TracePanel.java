@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.*;
+import imgui.flag.ImGuiKey;
 import imgui.type.*;
 import java.util.*;
 import java.util.function.Consumer;
@@ -12,6 +13,8 @@ public final class TracePanel {
   private final Consumer<String> copy;
   private final ImString query = new ImString(256);
   private final TraceObservationSelection observations = new TraceObservationSelection();
+  private final TraceActionScope actions = new TraceActionScope();
+  private final String actionId = UUID.randomUUID().toString();
   final SettingsPageChrome chrome = new SettingsPageChrome(3, 3);
   private TraceSnapshot snapshot;
   private String publication = UUID.randomUUID().toString();
@@ -156,10 +159,7 @@ public final class TracePanel {
               0,
               Math.max(1, ImGui.getContentRegionAvailX()),
               ImGui.getTextLineHeight())) {
-            step = i;
-            page = 0;
-            observations.clear();
-            revealValues = true;
+            selectStep(i);
           }
           rowIds.put("step:" + i, ImGui.getID(label + "###trace-step-" + i));
           control("step:" + i);
@@ -218,47 +218,92 @@ public final class TracePanel {
 
   private void drawActions(TraceSnapshot shown, TraceObservationSelection.Review review) {
     String shownQuery = query.get();
-    // Scope native activation to the exact shown trace/step/row, including across held gestures.
-    ImGui.pushID(publication + ":" + step + ":" + (review == null ? -1 : review.row()));
-    if (chrome.action("copy-trace", "Copy Trace Details")) copy.accept(shown.details());
+    var context = actionContext(shown, review);
+    var ticket =
+        actions.synchronize(ImGui.getID("trace-footer-host"), ImGui.getFrameCount(), context);
+    ImGui.pushID("trace-actions:" + actionId + ":" + ticket.version());
+    boolean copyTrace = chrome.identifiedAction("copy-trace", "Copy Trace Details");
     control("copy-trace");
     var voxel = shown.finalTypeTarget();
-    ImGui.beginDisabled(voxel == null || !state.canNavigate(voxel));
-    if (chrome.action("voxel", "Go To Voxel Type")) {
-      if (navigation.request(voxel, () -> snapshot == shown && shown.available(state, voxel))
-          == SearchNavigation.Result.UNAVAILABLE)
-        message = "Voxel type changed since this trace; retrace before navigating.";
-    }
+    ImGui.beginDisabled(!context.voxel() || context.pending());
+    boolean goVoxel = chrome.identifiedAction("voxel", "Go To Voxel Type");
     control("voxel");
     ImGui.endDisabled();
     var target = review == null ? null : review.value().target();
-    boolean available = target != null && state.canNavigate(target);
+    boolean available = context.control() && !context.pending();
     ImGui.beginDisabled(!available);
-    if (chrome.action("control", "Go To Control")) {
-      var result = navigation.request(target, () -> available(shown, review, shownQuery, target));
-      message =
-          result == SearchNavigation.Result.UNAVAILABLE
-              ? "Source or trace selection changed. Retrace or finish the current edit before"
-                  + " navigating."
-              : "";
-    }
+    boolean goControl = chrome.identifiedAction("control", "Go To Control");
     control("control");
     if (available) goToCenter = controls.get("control");
     ImGui.endDisabled();
     ImGui.beginDisabled(review == null);
-    if (chrome.action("copy-value", "Copy Selected Value")) copy.accept(review.value().value());
+    boolean copyValue = chrome.identifiedAction("copy-value", "Copy Selected Value");
     control("copy-value");
     ImGui.endDisabled();
     int pages = review == null ? 1 : TraceText.count(review.value().value());
     ImGui.beginDisabled(review == null || page <= 0);
-    if (chrome.action("previous", "Previous Page")) page--;
+    boolean previous = chrome.identifiedAction("previous", "Previous Page");
     control("previous");
     ImGui.endDisabled();
     ImGui.beginDisabled(review == null || page + 1 >= pages);
-    if (chrome.action("next", "Next Page")) page++;
+    boolean next = chrome.identifiedAction("next", "Next Page");
     control("next");
     ImGui.endDisabled();
     ImGui.popID();
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        || !actions.current(ticket, actionContext(shown, observations.review()))) return;
+    try {
+      if (copyTrace) copy.accept(shown.details());
+      else if (goVoxel && context.voxel() && !navigation.pending()) {
+        if (navigation.request(
+                voxel,
+                () ->
+                    snapshot == shown
+                        && state.document.sessionToken() == context.document()
+                        && shown.available(state, voxel))
+            == SearchNavigation.Result.UNAVAILABLE)
+          message = "Voxel type changed since this trace; retrace before navigating.";
+      } else if (goControl && available) {
+        var result =
+            navigation.request(
+                target,
+                () ->
+                    state.document.sessionToken() == context.document()
+                        && available(shown, review, shownQuery, target));
+        message =
+            result == SearchNavigation.Result.UNAVAILABLE
+                ? "Source or trace selection changed. Retrace or finish the current edit before"
+                    + " navigating."
+                : "";
+      } else if (copyValue && review != null) copy.accept(review.value().value());
+      else if (previous && review != null && page > 0) page--;
+      else if (next && review != null && page + 1 < pages) page++;
+    } catch (RuntimeException failure) {
+      String detail = failure.getMessage();
+      if (detail == null || detail.isBlank()) detail = failure.getClass().getName();
+      state.error(
+          "TRACE_ACTION_FAILED",
+          EditorEvents.Subsystem.APPLICATION,
+          StatusBarText.clip(detail, 1024));
+    }
+  }
+
+  private TraceActionScope.Context actionContext(
+      TraceSnapshot shown, TraceObservationSelection.Review review) {
+    var voxel = shown.finalTypeTarget();
+    var target = review == null ? null : review.value().target();
+    boolean blocked = navigation.blocked();
+    return new TraceActionScope.Context(
+        state.document.sessionToken(),
+        state.revision,
+        snapshot,
+        step,
+        review == null ? -1 : review.row(),
+        query.get(),
+        page,
+        !blocked && voxel != null && state.canNavigate(voxel),
+        !blocked && target != null && state.canNavigate(target),
+        navigation.pending());
   }
 
   private boolean available(
@@ -296,6 +341,15 @@ public final class TracePanel {
   private void control(String key) {
     var r = PopupLayout.itemBounds();
     controls.put(key, new float[] {r.x() + r.width() / 2, r.y() + r.height() / 2});
+  }
+
+  void selectStep(int index) {
+    if (snapshot == null || index < 0 || index >= snapshot.trace().steps().size())
+      throw new IllegalArgumentException("Unknown trace step");
+    step = index;
+    page = 0;
+    observations.clear();
+    revealValues = true;
   }
 
   void filter(String text) {
