@@ -148,6 +148,9 @@ jobs:
           python scripts/verify_popup_layout.py build/popup-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DraftPopupLayoutProbe build/draft-popup-layout
           python scripts/verify_draft_popup_layout.py build/draft-popup-layout
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SelectorDecisionProbe build/selector-decisions
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.SelectorDecisionConsumer build/selector-decisions
+          python scripts/verify_selector_decisions.py build/selector-decisions
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveLayoutProbe build/curve-layout
           python scripts/verify_curve_layout.py build/curve-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StatusBarProbe build/status-bar
@@ -459,6 +462,7 @@ jobs:
             build/dialog-layout/
             build/popup-layout/
             build/draft-popup-layout/
+            build/selector-decisions/
             build/curve-layout/
             build/status-bar/
             build/core-window-layout/
@@ -775,6 +779,12 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DraftPopupLayoutProbe build/draft-popup-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_draft_popup_layout.py build/draft-popup-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SelectorDecisionProbe build/selector-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.SelectorDecisionConsumer build/selector-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_selector_decisions.py build/selector-decisions
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveLayoutProbe build/curve-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -1315,6 +1325,7 @@ jobs:
             build/dialog-layout/
             build/popup-layout/
             build/draft-popup-layout/
+            build/selector-decisions/
             build/curve-layout/
             build/status-bar/
             build/core-window-layout/

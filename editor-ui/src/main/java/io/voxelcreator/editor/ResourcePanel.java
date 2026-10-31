@@ -24,7 +24,7 @@ public final class ResourcePanel {
   final SettingsPageChrome createChrome = new SettingsPageChrome(2),
       placementChrome = new SettingsPageChrome(2),
       deleteChrome = new SettingsPageChrome(2);
-  private final DraftChoicePicker deletePicker = new DraftChoicePicker();
+  private final DraftChoicePicker deletePicker;
   private List<DraftChoicePicker.Choice> deleteChoices = List.of();
   private List<String> deleteDependents = List.of();
   private String deleteLabel = "", createMessage = "", placementMessage = "", deleteMessage = "";
@@ -80,6 +80,9 @@ public final class ResourcePanel {
 
   public ResourcePanel(EditorState s, PropertyPanel properties) {
     state = s;
+    deletePicker =
+        new DraftChoicePicker(
+            s, () -> deleteOwner, () -> deleteOwner != null && deleteOwner.current(state) ? 0 : 1);
     this.properties = properties;
     exportPanel = new ResourceExportPanel(s, exportSelection);
     selection = new ResourceSelectionSession(s);

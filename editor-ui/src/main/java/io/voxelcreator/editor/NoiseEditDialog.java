@@ -20,7 +20,7 @@ public final class NoiseEditDialog {
   private final List<DraftChoicePicker.Choice> candidates;
   private final Consumer<UUID> applied;
   private final UiFields fields = new UiFields();
-  private final DraftChoicePicker picker = new DraftChoicePicker();
+  private final DraftChoicePicker picker;
   private boolean opening = true;
   private String message = "";
   final SettingsPageChrome chrome = new SettingsPageChrome(2, 2);
@@ -33,6 +33,7 @@ public final class NoiseEditDialog {
     layout = new DialogLayout(state, "Properties", 640, 510);
     this.applied = Objects.requireNonNull(applied);
     session = new NoiseEditSession(state, owner, request);
+    picker = new DraftChoicePicker(state, () -> session, () -> session.current() ? 0 : 1);
     target = request.target();
     action = request.action();
     var index = new NoiseDraftIndex(owner);

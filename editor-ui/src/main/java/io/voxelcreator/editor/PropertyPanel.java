@@ -26,7 +26,7 @@ public final class PropertyPanel {
   private long noiseVersion;
   private final NoiseDraftIndex.Cache noiseIndex = new NoiseDraftIndex.Cache();
   private final NoiseItemBrowser noiseBrowser = new NoiseItemBrowser();
-  private final DraftChoicePicker draftChoices = new DraftChoicePicker();
+  private final DraftChoicePicker draftChoices;
   private NoiseEditDialog noiseEdit;
   private ExpressionEditDialog expressionDialog;
   private SearchNavigation referenceNavigation;
@@ -493,9 +493,18 @@ public final class PropertyPanel {
   public PropertyPanel(EditorState s) {
     state = s;
     contextHelp = new ContextHelp(s.helpRequests);
-    resourcePicker = new ResourcePicker(s);
+    resourcePicker = new ResourcePicker(s, () -> state.draft, () -> noiseVersion);
+    draftChoices = new DraftChoicePicker(s, () -> state.draft, () -> noiseVersion);
     referenceNavigation = new SearchNavigation(s);
     referenceDialog = new NavigationGuardDialog(s);
+  }
+
+  ResourcePicker probeResourcePicker() {
+    return resourcePicker;
+  }
+
+  DraftChoicePicker probeDraftPicker() {
+    return draftChoices;
   }
 
   public void draw() {
