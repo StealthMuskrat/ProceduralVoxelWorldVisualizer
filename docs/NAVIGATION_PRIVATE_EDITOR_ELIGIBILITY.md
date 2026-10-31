@@ -1,0 +1,31 @@
+# Find and reference navigation with private property editors
+
+Status: **uncompiled and untested** on `codex/development-phase` under the owner testing pause. The validated baseline remains 922 tests / 120 suites. This extends [shared draft decisions](NAVIGATION_DECISION_DELIVERY.md) and [guarded completion](GUARDED_SOURCE_COMPLETION.md). No A01–A36 acceptance gate advances.
+
+Find checked whether Properties was blocked when a result was activated, but its pending Apply/Discard callback checked only the selected committed hit. A private Curve Editor could open against the current draft after the Find request and before the decision. Discard could then replace that draft, or Apply could commit and refresh it underneath the private editor. Find now rechecks live private-editor eligibility at the decision boundary. A blocked Apply or Discard retires only the old navigation, retaining the selected resource, exact draft, raw seed text and private editor. The user can finish that editor and explicitly select the Find result again. Cancel remains independent of eligibility and preserves the same private state.
+
+SearchNavigation adds a package-level before-decision predicate alongside its existing post-Apply predicate. Cancel consumes the pending intent without evaluating either predicate. Before Apply/Discard, a false gate retires the original intent; a gate that replaces it cannot clear the successor. The existing project/draft/selection/raw-input checks then run against the pending owner. A failed model Apply still leaves its pending decision intact and never invokes the post-Apply predicate. A successful Apply consumes the old intent and rechecks eligibility before destination selection, retaining the existing exact completed-context checks. Public and existing post-Apply-only overloads retain their behavior.
+
+PropertyPanel separates private Curve/Membership/Noise/Expression editors from its own reference-navigation request. Reference Apply/Discard checks private editors before the decision and after a successful Apply, without treating its own pending reference as a blocker. Terminal reference state closes its old modal explicitly. This avoids rejecting every healthy reference decision while preserving editor exclusion.
+
+Find and reference decision/reveal runtime failures are contained as bounded application errors with separate navigation/reveal codes. Reporting after Apply identifies the committed draft; consumed navigation cannot apply it again. Cleanup retires only the owned pending navigation. Find also synchronizes its committed selection after terminal completion, releasing an outdated selected hit/canonical project when Apply replaced it. Cancel in an unchanged context retains the selected Find hit. Source trace fingerprint rules remain in GuardedNavigation; ordinary Find/reference navigation continues to resolve current UUID targets.
+
+## Deferred definitions
+
+Nine NavigationEligibilityTest definitions cover blocked Apply/Discard with raw input, Cancel without predicate evaluation, a blocked post-Apply destination with one committed edit/Undo, successors opened by before/after gates, private draft mutation during the before gate, rejected Apply without completion, healthy reference Apply despite its own pending request and rejected reference input through explicit Cancel. None ran.
+
+NavigationEligibilityProbe uses production ResourceFindPanel, PropertyPanel, SearchNavigation and the shared modal. Twelve Find/reference modal receipts cover six wide/narrow/short/global/window font combinations, including a synthetic 6.25 font product. Nine routes cover rejected Find/reference Apply followed by Cancel; Find Apply/Discard/Cancel with an already opened private curve; and healthy Find/reference Apply/Discard. Find requests come from native result-row clicks. The private curve is opened through the real property navigation API after the Find request; its exact dialog object, draft and raw text must survive the Find decision. The probe does not draw that curve editor or certify its full GUI. Normal reference guards must remain usable while they themselves block unrelated Properties actions.
+
+Healthy Apply must commit only the source Noise ID once and navigate to the destination. One Undo must restore the complete source project for each form. Discard and blocked/cancelled routes publish no edit. Fixture reopening resets history between routes. The fixture extends the established trace workflow with an unused destination resource and an unselected curve item; canonical output remains the analytical field `(2 + 2 * (2 + 1) + 3) * 2 = 22`, final voxel type 1, and SET followed by NO_CHANGE.
+
+scripts/verify_navigation_eligibility.py independently checks route observations, modal geometry/IDs, complete persisted transformations, one Undo and preferences. NavigationEligibilityConsumer uses only the engine JAR, reuses the original field/provenance oracle and independently compares complete regenerated traces for both saved applied projects. The final saved project/preferences must equal their originals. These are future definitions, not observed evidence. Error containment is implemented but does not have injected failure coverage for every Find/reference reveal path.
+
+Future Linux commands after validation resumes:
+
+```sh
+java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.NavigationEligibilityProbe build/navigation-eligibility
+java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.NavigationEligibilityConsumer build/navigation-eligibility
+python scripts/verify_navigation_eligibility.py build/navigation-eligibility
+```
+
+Future Windows wiring uses the bundled runtime, semicolon classpaths and exit-code guards. Artifact lists include the new receipts. Workflow triggers remain unchanged; development-branch pushes launch no workflows. No compiler, build, test, native probe, Python checker, schema/generator or GitHub workflow ran for this batch. Physical input/DPI, every private-editor/reveal path, full GUI/Windows 11 acceptance and production sign-off remain pending.

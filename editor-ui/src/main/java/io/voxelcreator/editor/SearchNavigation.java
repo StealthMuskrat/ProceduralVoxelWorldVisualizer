@@ -80,10 +80,19 @@ public final class SearchNavigation {
   }
 
   Result decide(Decision decision, BooleanSupplier afterApply) {
+    return decide(decision, () -> true, afterApply);
+  }
+
+  Result decide(Decision decision, BooleanSupplier beforeDecision, BooleanSupplier afterApply) {
     if (pending == null) return Result.UNAVAILABLE;
     if (decision == Decision.CANCEL) {
       clear();
       return Result.CANCELLED;
+    }
+    long owner = version;
+    if (!beforeDecision.getAsBoolean() || version != owner) {
+      if (version == owner) clear();
+      return Result.UNAVAILABLE;
     }
     var target = pending;
     if (state.project() != project

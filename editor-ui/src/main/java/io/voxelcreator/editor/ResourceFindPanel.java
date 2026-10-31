@@ -301,16 +301,69 @@ public final class ResourceFindPanel {
       return;
     }
     var result = navigation.request(hit.target());
-    if (result == SearchNavigation.Result.NAVIGATED) reveal(hit.target());
+    if (result == SearchNavigation.Result.NAVIGATED) reveal(hit.target(), false);
     else if (result == SearchNavigation.Result.NEEDS_DECISION) {
       pendingHit = hit;
       prompt = true;
     } else message = "This target is unavailable in the current project or draft.";
   }
 
-  private void reveal(EditorEvents.Target target) {
+  private void reveal(EditorEvents.Target target, boolean applied) {
+    try {
+      message =
+          properties.revealSearch(target)
+              ? ""
+              : (applied ? "Draft applied. " : "")
+                  + "This target is unavailable in the current draft.";
+    } catch (RuntimeException failure) {
+      reportNavigationFailure("FIND_REVEAL_FAILED", failure, applied);
+    }
+  }
+
+  SearchNavigation.Result decideNavigation(SearchNavigation.Decision decision) {
+    if (!navigation.pending()) return SearchNavigation.Result.UNAVAILABLE;
+    var target = navigation.target();
+    long owner = navigation.version();
+    boolean[] applied = {false};
+    try {
+      var result =
+          navigation.decide(
+              decision,
+              () -> selection.owns(state, pendingHit) && !properties.searchBlocked(),
+              () -> {
+                applied[0] = true;
+                return !properties.searchBlocked();
+              });
+      retireNavigation();
+      if (result == SearchNavigation.Result.NAVIGATED) reveal(target, applied[0]);
+      else if (result == SearchNavigation.Result.UNAVAILABLE)
+        message =
+            (applied[0] ? "Draft applied. " : "")
+                + "Navigation became stale or a property editor is open; finish that editor and"
+                + " select the result again.";
+      return result;
+    } catch (RuntimeException failure) {
+      if (navigation.pending() && navigation.version() == owner) navigation.clear();
+      retireNavigation();
+      reportNavigationFailure("FIND_NAVIGATION_FAILED", failure, applied[0]);
+      return SearchNavigation.Result.UNAVAILABLE;
+    }
+  }
+
+  private void retireNavigation() {
+    if (!navigation.pending()) {
+      prompt = false;
+      pendingHit = null;
+      selection.synchronize(state);
+    }
+  }
+
+  private void reportNavigationFailure(String code, RuntimeException failure, boolean applied) {
+    String detail = failure.getMessage();
+    if (detail == null || detail.isBlank()) detail = failure.getClass().getSimpleName();
     message =
-        properties.revealSearch(target) ? "" : "This target is unavailable in the current draft.";
+        StatusBarText.clip((applied ? "Draft applied; navigation failed: " : "") + detail, 1024);
+    state.error(code, EditorEvents.Subsystem.APPLICATION, message);
   }
 
   private void guard() {
@@ -327,22 +380,7 @@ public final class ResourceFindPanel {
         "Leave Property Draft",
         "The current resource has unapplied edits. Apply them, discard them for this navigation, or"
             + " cancel.",
-        decision -> {
-          var target = navigation.target();
-          SearchNavigation.Result result;
-          if (decision != SearchNavigation.Decision.CANCEL && !selection.owns(state, pendingHit)) {
-            navigation.clear();
-            result = SearchNavigation.Result.UNAVAILABLE;
-          } else result = navigation.decide(decision);
-          if (result != SearchNavigation.Result.NEEDS_DECISION) {
-            prompt = false;
-            pendingHit = null;
-          }
-          if (result == SearchNavigation.Result.NAVIGATED) reveal(target);
-          else if (result == SearchNavigation.Result.UNAVAILABLE)
-            message = "Navigation became stale; select the result again.";
-          return result;
-        });
+        this::decideNavigation);
     if (!guardDialog.buttons().isEmpty()) guardDrawn = true;
   }
 

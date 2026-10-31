@@ -343,11 +343,14 @@ public final class PropertyPanel {
   }
 
   public boolean searchBlocked() {
+    return privateEditorOpen() || referenceNavigation.pending();
+  }
+
+  private boolean privateEditorOpen() {
     return curve != null
         || membershipDialog != null
         || noiseEdit != null
-        || expressionDialog != null
-        || referenceNavigation.pending();
+        || expressionDialog != null;
   }
 
   public boolean revealSearch(EditorEvents.Target target) {
@@ -1816,6 +1819,11 @@ public final class PropertyPanel {
   }
 
   private void drawReferenceGuard() {
+    if (!referenceNavigation.pending()) {
+      referencePrompt = false;
+      referenceDialog.close("Leave Noise Property Draft");
+      return;
+    }
     if (referencePrompt) {
       referenceDialog.open("Leave Noise Property Draft");
       referencePrompt = false;
@@ -1823,12 +1831,51 @@ public final class PropertyPanel {
     referenceDialog.draw(
         "Leave Noise Property Draft",
         "Apply the current draft, discard it for this navigation, or cancel.",
-        decision -> {
-          var target = referenceNavigation.target();
-          var result = referenceNavigation.decide(decision);
-          if (result == SearchNavigation.Result.NAVIGATED && target != null) goToProblem(target);
-          return result;
-        });
+        this::decideReferenceNavigation);
+  }
+
+  SearchNavigation.Result decideReferenceNavigation(SearchNavigation.Decision decision) {
+    if (!referenceNavigation.pending()) return SearchNavigation.Result.UNAVAILABLE;
+    var target = referenceNavigation.target();
+    long owner = referenceNavigation.version();
+    boolean[] applied = {false};
+    try {
+      var result =
+          referenceNavigation.decide(
+              decision,
+              () -> !privateEditorOpen(),
+              () -> {
+                applied[0] = true;
+                return !privateEditorOpen();
+              });
+      if (!referenceNavigation.pending()) referencePrompt = false;
+      if (result == SearchNavigation.Result.NAVIGATED && target != null) {
+        try {
+          goToProblem(target);
+        } catch (RuntimeException failure) {
+          referenceFailure("REFERENCE_REVEAL_FAILED", failure, applied[0]);
+        }
+      } else if (result == SearchNavigation.Result.UNAVAILABLE)
+        authoringMessage =
+            (applied[0] ? "Draft applied. " : "")
+                + "Navigation became stale or a property editor is open; finish that editor and"
+                + " request the reference again.";
+      return result;
+    } catch (RuntimeException failure) {
+      if (referenceNavigation.pending() && referenceNavigation.version() == owner)
+        referenceNavigation.clear();
+      if (!referenceNavigation.pending()) referencePrompt = false;
+      referenceFailure("REFERENCE_NAVIGATION_FAILED", failure, applied[0]);
+      return SearchNavigation.Result.UNAVAILABLE;
+    }
+  }
+
+  private void referenceFailure(String code, RuntimeException failure, boolean applied) {
+    String detail = failure.getMessage();
+    if (detail == null || detail.isBlank()) detail = failure.getClass().getSimpleName();
+    authoringMessage =
+        StatusBarText.clip((applied ? "Draft applied; navigation failed: " : "") + detail, 1024);
+    state.error(code, EditorEvents.Subsystem.APPLICATION, authoringMessage);
   }
 
   private boolean curveContains(Item item, UUID uuid) {
