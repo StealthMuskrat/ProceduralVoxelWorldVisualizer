@@ -266,6 +266,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ViewportCommandProbe build/viewport-commands
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ViewportCommandConsumer build/viewport-commands
           python scripts/verify_viewport_commands.py build/viewport-commands
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreviewResumeProbe build/preview-resume
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PreviewResumeConsumer build/preview-resume
+          python scripts/verify_preview_resume.py build/preview-resume
       - name: Owned import workspace and native resolution workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImportWorkspaceProbe build/import-workspace
@@ -515,6 +518,7 @@ jobs:
             build/bookmark-decisions/
             build/stage-boundaries/
             build/viewport-commands/
+            build/preview-resume/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/
@@ -1000,6 +1004,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_viewport_commands.py build/viewport-commands
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreviewResumeProbe build/preview-resume
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.PreviewResumeConsumer build/preview-resume
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_preview_resume.py build/preview-resume
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows owned import workspace and native resolution workflow
         shell: pwsh
         run: |
@@ -1399,6 +1409,7 @@ jobs:
             build/bookmark-decisions/
             build/stage-boundaries/
             build/viewport-commands/
+            build/preview-resume/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/

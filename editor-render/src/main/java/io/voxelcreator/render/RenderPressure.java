@@ -8,6 +8,14 @@ public final class RenderPressure {
   private int level;
   private long lastChange, goodSince;
   private boolean manuallyPaused, changed;
+  private long pauseVersion;
+
+  /**
+   * Identity of the current/most recent pause; ordinary pressure measurements do not replace it.
+   */
+  public long pauseVersion() {
+    return pauseVersion;
+  }
 
   public int level() {
     return level;
@@ -51,7 +59,9 @@ public final class RenderPressure {
     if (pressure) {
       goodSince = 0;
       if (level < 5 && (!changed || now - lastChange >= 1_000_000_000L)) {
+        boolean wasPaused = paused();
         level++;
+        if (!wasPaused && paused()) pauseVersion++;
         lastChange = now;
         changed = true;
         return true;
@@ -76,6 +86,14 @@ public final class RenderPressure {
   }
 
   public void pause() {
+    if (!paused()) pauseVersion++;
     manuallyPaused = true;
+  }
+
+  /** Admit only an explicit decision for this still-active pause. */
+  public boolean resume(long expectedPause, long now) {
+    if (!paused() || pauseVersion != expectedPause) return false;
+    resume(now);
+    return true;
   }
 }

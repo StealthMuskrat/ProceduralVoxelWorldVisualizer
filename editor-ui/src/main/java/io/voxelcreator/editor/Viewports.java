@@ -70,6 +70,7 @@ public final class Viewports implements AutoCloseable {
   private final ResourcePicker generatorPicker;
   private final StageBoundaryPicker stagePicker;
   private final ViewportCommands[] commands;
+  private final PreviewResumePanel[] resumePanels;
   private boolean admissionProbe;
   private final java.util.concurrent.atomic.AtomicBoolean probeRendererStartupFailure =
       new java.util.concurrent.atomic.AtomicBoolean();
@@ -1154,6 +1155,12 @@ public final class Viewports implements AutoCloseable {
         new ViewportCommands[] {
           new ViewportCommands(state), new ViewportCommands(state), new ViewportCommands(state)
         };
+    resumePanels =
+        new PreviewResumePanel[] {
+          new PreviewResumePanel(state),
+          new PreviewResumePanel(state),
+          new PreviewResumePanel(state)
+        };
     this.properties = properties;
     platform = new ViewportPlatformInput(handle);
     flightCursor = new FlightCursor(platform, GLFW_CURSOR_DISABLED);
@@ -1236,6 +1243,7 @@ public final class Viewports implements AutoCloseable {
       ImGui.endTabBar();
     }
     ImGui.end();
+    for (var resume : resumePanels) resume.finishFrame(ImGui.getFrameCount());
     for (var v : views) {
       if (v.kind != drawnView) v.flight.pause();
       if (v.kind != drawnView || !flightImageVisible) v.orbit.reset();
@@ -2159,12 +2167,14 @@ public final class Viewports implements AutoCloseable {
     if (v.pressure.paused()) {
       if (v.activeJob || v.pendingVolume != null) mark(v);
       v.message = volumePressureMessage(v) + "; previous display retained";
-      if (ImGui.smallButton("Resume Volume")) {
-        v.pressure.resume(now);
-        v.volumeRejected = false;
-        mark(v);
-      }
-      admissionControl("volume-resume");
+      resumePanels[v.kind].draw(
+          () -> resumeContext(v, PreviewResumeContext.Kind.VOLUME),
+          () -> v.volumeClock == 0 ? System.nanoTime() : v.volumeClock,
+          () -> {
+            v.volumeRejected = false;
+            mark(v);
+          });
+      if (admissionProbe) admissionControls.put("volume-resume", resumePanels[v.kind].center());
       return;
     }
     if (!v.pressure.acceptExpensive()) {
@@ -2365,6 +2375,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   private boolean stream(View v) {
+    if (admissionProbe) admissionControls.remove("stream-resume");
     if (v.kind == 1 && v.noise == null) return true;
     String key = sceneKey(v);
     if (key.equals(v.failedKey)) return !v.streamFallback;
@@ -2594,9 +2605,24 @@ public final class Viewports implements AutoCloseable {
       }
     }
     if (v.pressure.paused()) {
-      if (ImGui.smallButton("Resume Streaming")) v.pressure.resume(now);
+      resumePanels[v.kind].draw(
+          () -> resumeContext(v, PreviewResumeContext.Kind.STREAMING), System::nanoTime, () -> {});
+      if (admissionProbe) admissionControls.put("stream-resume", resumePanels[v.kind].center());
     }
     return true;
+  }
+
+  private PreviewResumeContext resumeContext(View v, PreviewResumeContext.Kind kind) {
+    boolean volume = kind == PreviewResumeContext.Kind.VOLUME;
+    return PreviewResumeContext.capture(
+        state,
+        commandContext(v),
+        kind,
+        v.pressure,
+        volume ? v.volumeSnapshot : v.scene,
+        volume ? v.volumeSourceKey : v.activeSceneKey,
+        v.size,
+        volume && v.volumeRejected);
   }
 
   private boolean surfaceNativeFocused() {
