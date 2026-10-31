@@ -21,3 +21,5 @@ Four deferred `PerformanceProblemNavigationTest` definitions cover unchanged raw
 All seven additional regression definitions and eighteen native cases remain deferred. Combo/popup fitting, internal multiline font metrics, every focus/scroll/IME/paste path, extreme clients smaller than their selector/action rows, physical mixed-DPI displays, other settings internals and full program acceptance remain pending.
 
 The unvalidated [general settings layout follow-up](GENERAL_SETTINGS_LAYOUT.md) adds persistent actions for immediate Editor/Visualization preferences and shared Debug/Profiler controls, plus Project Settings raw-field/retry layout. Their new definitions remain deferred.
+
+The unvalidated [preference decision follow-up](PREFERENCE_DECISIONS.md) scopes Performance/Trust footer activation to owned active values and private resets, collects decisions before publication and gives Revert/Escape priority. Failed writes retain their retry owner and input; unrelated forms/ordinary active saves remain separate. Four regression definitions and eighteen shared native cases remain deferred.

@@ -279,6 +279,11 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SettingsDecisionProbe build/settings-decisions
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.SettingsDecisionConsumer build/settings-decisions
           python scripts/verify_settings_decisions.py build/settings-decisions
+      - name: Scoped performance trust and scale preference decisions
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreferenceDecisionProbe build/preference-decisions
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PreferenceDecisionConsumer build/preference-decisions
+          python scripts/verify_preference_decisions.py build/preference-decisions
       - name: Browser selection and protected Properties workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceSelectionProbe build/browser-selection
@@ -442,6 +447,7 @@ jobs:
             build/private-editor-decisions/
             build/properties-layout/
             build/settings-decisions/
+            build/preference-decisions/
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/
@@ -950,6 +956,15 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_settings_decisions.py build/settings-decisions
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows scoped performance trust and scale preference decisions
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreferenceDecisionProbe build/preference-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.PreferenceDecisionConsumer build/preference-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_preference_decisions.py build/preference-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows browser selection and protected Properties workflow
         shell: pwsh
         run: |
@@ -1208,6 +1223,7 @@ jobs:
             build/private-editor-decisions/
             build/properties-layout/
             build/settings-decisions/
+            build/preference-decisions/
             build/import-workspace/
             build/resource-review-layout/
             build/package-layout/

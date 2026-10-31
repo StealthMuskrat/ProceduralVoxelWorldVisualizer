@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.*;
+import imgui.flag.ImGuiKey;
 import imgui.type.ImString;
 import java.nio.file.Path;
 import java.util.*;
@@ -11,6 +12,7 @@ import java.util.function.Consumer;
  */
 final class UpdateTrustPanel {
   private final UserConfig user;
+  final PreferenceActionScope actionScope = new PreferenceActionScope();
   final SettingsPageChrome layout = new SettingsPageChrome(3);
   private String reveal;
   private boolean originsNext;
@@ -38,6 +40,7 @@ final class UpdateTrustPanel {
   }
 
   private void sync() {
+    actionScope.resetDraft();
     endpoint =
         new ImString(
             session.text().endpoint(),
@@ -54,6 +57,7 @@ final class UpdateTrustPanel {
 
   void draw(Runnable savePreferences) {
     ensure();
+    long request = actionScope.synchronize(activeValues());
     if (probing) {
       controls.clear();
       fieldIds.clear();
@@ -113,29 +117,59 @@ final class UpdateTrustPanel {
       control("save-preferences");
     }
     layout.end();
+    ImGui.pushID("update-trust-request:" + request);
     ImGui.beginDisabled(!applyEnabled);
-    if (layout.action("apply", "Apply Update Trust"))
-      act(
-          () -> {
-            session.apply(user, file, displayed());
-            sync();
-            message = "Update trust saved";
-          });
+    boolean apply = layout.identifiedAction("apply", "Apply Update Trust");
     control("apply");
     ImGui.endDisabled();
-    if (layout.action("revert", "Revert Update Trust"))
+    boolean revert = layout.identifiedAction("revert", "Revert Update Trust");
+    control("revert");
+    boolean fields = layout.identifiedAction("fields", "Show Update Fields");
+    control("fields");
+    ImGui.popID();
+    if (!actionScope.current(activeValues()) || ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    if (revert)
       act(
           () -> {
             session.revert(user);
             sync();
             message = "Active update settings reloaded";
           });
-    control("revert");
-    if (layout.action("fields", "Show Update Fields")) {
+    else if (apply && applyEnabled)
+      act(
+          () -> {
+            session.apply(user, file, displayed());
+            sync();
+            message = "Update trust saved";
+          });
+    else if (fields) {
       reveal = originsNext ? "origins" : "endpoint";
       originsNext = !originsNext;
     }
-    control("fields");
+  }
+
+  private record ActiveValues(String endpoint, List<String> origins) {
+    ActiveValues {
+      if (origins != null) origins = Collections.unmodifiableList(new ArrayList<>(origins));
+    }
+  }
+
+  private ActiveValues activeValues() {
+    return new ActiveValues(user.performance.updateEndpoint, user.performance.trustedOrigins);
+  }
+
+  void probeEdit(String target, String approved) {
+    ensure();
+    session.editEndpoint(target);
+    session.editOrigins(approved);
+    endpoint.set(target);
+    origins.set(approved);
+  }
+
+  void probeRevert() {
+    ensure();
+    session.revert(user);
+    sync();
   }
 
   Map<String, Integer> fieldIds() {

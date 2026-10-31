@@ -3,6 +3,7 @@ package io.voxelcreator.editor;
 import static io.voxelcreator.editor.PerformancePreferences.*;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.type.ImString;
 import java.nio.file.Path;
 import java.util.*;
@@ -11,6 +12,7 @@ import java.util.function.Consumer;
 /** Production explicit performance preferences, including exact 64-bit cell-budget input. */
 final class PerformancePanel {
   private final UserConfig user;
+  final PreferenceActionScope actionScope = new PreferenceActionScope();
   final SettingsPageChrome layout = new SettingsPageChrome(3);
   private Field reveal;
   private final Map<Field, Integer> fieldIds = new EnumMap<>(Field.class);
@@ -38,6 +40,7 @@ final class PerformancePanel {
   }
 
   private void sync() {
+    actionScope.resetDraft();
     for (var field : Field.values())
       inputs.put(
           field, new ImString(session.text().get(field), 4 * PerformanceEditSession.MAX_TEXT + 1));
@@ -49,6 +52,7 @@ final class PerformancePanel {
 
   void draw(Runnable savePreferences) {
     ensure();
+    long request = actionScope.synchronize(PerformancePreferences.from(user));
     if (probing) {
       controls.clear();
       fieldIds.clear();
@@ -130,28 +134,47 @@ final class PerformancePanel {
       control("save-preferences");
     }
     layout.end();
+    ImGui.pushID("performance-request:" + request);
     ImGui.beginDisabled(!applyEnabled);
-    if (layout.action("apply", "Apply Performance"))
-      act(
-          () -> {
-            session.apply(user, file, displayed());
-            sync();
-            message = "Performance preferences saved";
-          });
+    boolean apply = layout.identifiedAction("apply", "Apply Performance");
     control("apply");
     ImGui.endDisabled();
-    if (layout.action("revert", "Revert Performance"))
+    boolean revert = layout.identifiedAction("revert", "Revert Performance");
+    control("revert");
+    ImGui.beginDisabled(firstProblem == null);
+    boolean problem = layout.identifiedAction("problem", "Show Invalid Limit");
+    control("problem");
+    ImGui.endDisabled();
+    ImGui.popID();
+    if (!actionScope.current(PerformancePreferences.from(user))
+        || ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    if (revert)
       act(
           () -> {
             session.revert(user);
             sync();
             message = "Active performance settings reloaded";
           });
-    control("revert");
-    ImGui.beginDisabled(firstProblem == null);
-    if (layout.action("problem", "Show Invalid Limit")) reveal = firstProblem;
-    control("problem");
-    ImGui.endDisabled();
+    else if (apply && applyEnabled)
+      act(
+          () -> {
+            session.apply(user, file, displayed());
+            sync();
+            message = "Performance preferences saved";
+          });
+    else if (problem && firstProblem != null) reveal = firstProblem;
+  }
+
+  void probeEdit(Field field, String value) {
+    ensure();
+    session.edit(field, value);
+    inputs.get(field).set(value);
+  }
+
+  void probeRevert() {
+    ensure();
+    session.revert(user);
+    sync();
   }
 
   Map<Field, Integer> fieldIds() {

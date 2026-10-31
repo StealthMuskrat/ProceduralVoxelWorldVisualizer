@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.type.*;
 import java.nio.file.Path;
 import java.util.*;
@@ -9,6 +10,7 @@ import java.util.function.Consumer;
 /** Searchable private global/window scale controls; native application follows successful save. */
 final class UiScalePanel {
   private final UserConfig user;
+  final PreferenceActionScope actionScope = new PreferenceActionScope();
   final SettingsPageChrome layout = new SettingsPageChrome(3);
   private DialogBounds.Rect targets;
   private float targetRowHeight;
@@ -40,6 +42,7 @@ final class UiScalePanel {
   }
 
   private void sync() {
+    actionScope.resetDraft();
     global = new ImString(session.text().global(), 4 * UiScaleEditSession.MAX_TEXT + 1);
     session
         .text()
@@ -57,6 +60,7 @@ final class UiScalePanel {
 
   void draw(Runnable heading, Runnable trailing) {
     ensure();
+    long request = actionScope.synchronize(activeValues());
     if (probing) {
       controls.clear();
       controlIds.clear();
@@ -139,34 +143,74 @@ final class UiScalePanel {
     if (!message.isEmpty()) ImGui.textWrapped(message);
     trailing.run();
     layout.end();
+    ImGui.pushID("ui-scale-request:" + request);
     ImGui.beginDisabled(!applyEnabled);
-    if (layout.action("apply", "Apply UI Scales"))
-      act(
-          () -> {
-            session.apply(user, file, displayed());
-            sync();
-            message = "UI scales saved";
-          });
+    boolean apply = layout.identifiedAction("apply", "Apply UI Scales");
     control("apply");
     ImGui.endDisabled();
-    if (layout.action("revert", "Revert UI Scales"))
+    boolean revert = layout.identifiedAction("revert", "Revert UI Scales");
+    control("revert");
+    ImGui.beginDisabled(firstProblem == null);
+    boolean invalid = layout.identifiedAction("invalid", "Show Invalid Scale");
+    control("invalid");
+    ImGui.endDisabled();
+    ImGui.popID();
+    if (!actionScope.current(activeValues()) || ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    if (revert)
       act(
           () -> {
             session.revert(user);
             sync();
             message = "Active UI scales reloaded";
           });
-    control("revert");
-    ImGui.beginDisabled(firstProblem == null);
-    if (layout.action("invalid", "Show Invalid Scale")) {
+    else if (apply && applyEnabled)
+      act(
+          () -> {
+            session.apply(user, file, displayed());
+            sync();
+            message = "UI scales saved";
+          });
+    else if (invalid && firstProblem != null) {
       if (!UiScaleEditSession.GLOBAL.equals(firstProblem)) {
         selected = firstProblem;
         filter.set(firstProblem);
       }
       reveal = firstProblem;
     }
-    control("invalid");
-    ImGui.endDisabled();
+  }
+
+  private record ActiveValues(float global, Map<String, Float> overrides) {
+    ActiveValues {
+      overrides = Collections.unmodifiableMap(new LinkedHashMap<>(overrides));
+    }
+  }
+
+  private ActiveValues activeValues() {
+    var owned = new LinkedHashMap<String, Float>();
+    for (var name : UiScalePreferences.WINDOWS)
+      if (user.appearance.windowScales.containsKey(name))
+        owned.put(name, user.appearance.windowScales.get(name));
+    return new ActiveValues(user.appearance.globalScale, owned);
+  }
+
+  void probeEditGlobal(String value) {
+    ensure();
+    session.editGlobal(value);
+    global.set(value);
+  }
+
+  void probeEditWindow(String name, String value) {
+    ensure();
+    session.override(name, true);
+    session.editWindow(name, value);
+    enabled.add(name);
+    windows.get(name).set(value);
+  }
+
+  void probeRevert() {
+    ensure();
+    session.revert(user);
+    sync();
   }
 
   private void scale(String label, ImString text, String key, Consumer<String> edit) {
