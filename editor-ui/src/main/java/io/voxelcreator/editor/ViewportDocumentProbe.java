@@ -107,6 +107,10 @@ public final class ViewportDocumentProbe {
               retired = views.probeDocumentViews();
               requireRetired(before, retired);
               require(
+                  ((List<?>) views.probeWorldPalette().get("types")).isEmpty()
+                      && ((List<?>) views.probeWorldPalette().get("colors")).isEmpty(),
+                  "Document replacement retained a source palette binding");
+              require(
                   !views.probeCoordinateTracePending()
                       && !views.probeInspectorOpen()
                       && views.probeInspectorTrace() == null
@@ -187,6 +191,7 @@ public final class ViewportDocumentProbe {
                 List.of(
                     "manualSameDocumentRetained",
                     "sameUuidRevisionReplacement",
+                    "sourcePaletteRetired",
                     "pendingInspectorCanceled",
                     "queuedPublicationRejectedBeforeDraw",
                     "immutableImageRetained",

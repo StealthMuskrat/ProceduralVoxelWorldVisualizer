@@ -698,6 +698,22 @@ public final class Viewports implements AutoCloseable {
     startCoordinateTrace(position);
   }
 
+  Map<String, Object> probeWorldPalette() {
+    var owner = views[2].worldPalette;
+    if (owner == null) return Map.of("types", List.of(), "colors", List.of(), "sceneEpoch", 0L);
+    return Map.of(
+        "types",
+        owner.types(),
+        "colors",
+        Arrays.stream(owner.colors()).limit(2L * owner.types().size() + 1).boxed().toList(),
+        "sceneEpoch",
+        views[2].scene == null ? 0L : views[2].scene.epoch());
+  }
+
+  boolean probeWorldSetupPending() {
+    return views[2].setup.pending();
+  }
+
   java.util.List<Map<String, Object>> probeDocumentViews() {
     var result = new ArrayList<Map<String, Object>>();
     for (var v : views) {
@@ -821,6 +837,7 @@ public final class Viewports implements AutoCloseable {
     NoiseImageView displayedImage;
     VoxelRaycast.Bounds fixedPickBounds;
     UUID noise, stage, keyNoise;
+    WorldPreviewPalette worldPalette;
     long keyRevision = -1, rebuildSerial = 0;
     String geometryKey = "",
         fingerprint = "",
@@ -878,7 +895,12 @@ public final class Viewports implements AutoCloseable {
   }
 
   private record SceneSetup(
-      long id, String key, ChunkScene.Source source, int[] palette, String error)
+      long id,
+      String key,
+      ChunkScene.Source source,
+      int[] palette,
+      String error,
+      WorldPreviewPalette worldPalette)
       implements AutoCloseable {
     public void close() {
       if (source != null) source.close();
@@ -1082,7 +1104,66 @@ public final class Viewports implements AutoCloseable {
       NoiseImageView imageView,
       SliceImageView sliceView,
       VolumeWindows.Statistics volumeWindowStatistics,
-      VolumeTextureUpload.Region volumeRegion) {
+      VolumeTextureUpload.Region volumeRegion,
+      WorldPreviewPalette worldPalette) {
+    Preview withWorldPalette(WorldPreviewPalette palette) {
+      return new Preview(
+          epoch,
+          mesh,
+          image,
+          raw,
+          width,
+          origin,
+          this.palette,
+          histogram,
+          sampler,
+          error,
+          volume,
+          imageStatistics,
+          imageView,
+          sliceView,
+          volumeWindowStatistics,
+          volumeRegion,
+          palette);
+    }
+
+    Preview(
+        long epoch,
+        Mesh mesh,
+        int[] image,
+        double[] raw,
+        int width,
+        Vector3d origin,
+        int[] palette,
+        float[] histogram,
+        NoiseAlgorithms.Field sampler,
+        String error,
+        VolumeData volume,
+        NoiseImageRows.Statistics imageStatistics,
+        NoiseImageView imageView,
+        SliceImageView sliceView,
+        VolumeWindows.Statistics volumeWindowStatistics,
+        VolumeTextureUpload.Region volumeRegion) {
+      this(
+          epoch,
+          mesh,
+          image,
+          raw,
+          width,
+          origin,
+          palette,
+          histogram,
+          sampler,
+          error,
+          volume,
+          imageStatistics,
+          imageView,
+          sliceView,
+          volumeWindowStatistics,
+          volumeRegion,
+          null);
+    }
+
     Preview(
         long epoch,
         Mesh mesh,
@@ -1532,6 +1613,7 @@ public final class Viewports implements AutoCloseable {
             v.displayedSlice = null;
             v.imageStatistics = null;
             v.fixedPickBounds = null;
+            v.worldPalette = null;
             v.image = v.completed = v.force = false;
             v.completedModes.clear();
             v.pickedBookmark = null;
@@ -1552,8 +1634,12 @@ public final class Viewports implements AutoCloseable {
     if (!identity.equals(v.geometryKey)) {
       v.geometryKey = identity;
       mark(v);
-    } else if (v.revision != state.revision && v.kind == 2)
-      v.gl.setPalette(palette(state.project(), 2));
+    }
+    if (v.revision != state.revision && v.kind == 2 && v.worldPalette != null) {
+      var palette = v.worldPalette.refresh(state.project());
+      v.gl.setPalette(palette.colors());
+      v.worldPalette = palette;
+    }
     v.revision = state.revision;
     if (v.kind < 2) {
       ImGui.pushID("viewport-generator-" + v.kind);
@@ -2252,7 +2338,13 @@ public final class Viewports implements AutoCloseable {
     v.volumeWorkingBytes = 0;
     v.origin.set(ready.origin);
     v.fixedPickBounds = v.kind == 2 ? VoxelRaycast.Bounds.cube(ready.origin, ready.width) : null;
-    v.gl.setPalette(ready.palette);
+    if (v.kind == 2) {
+      var palette =
+          Objects.requireNonNull(ready.worldPalette, "World preview source palette")
+              .refresh(state.project());
+      v.gl.setPalette(palette.colors());
+      v.worldPalette = palette;
+    } else v.gl.setPalette(ready.palette);
     v.raw = ready.raw;
     if (v.kind == 0) {
       v.imageStatistics = ready.imageStatistics;
@@ -2572,6 +2664,8 @@ public final class Viewports implements AutoCloseable {
                         throw new IllegalStateException(
                             "Injected streaming source compilation failure");
                       var sourcePalette = palette(snapshot, kind);
+                      var worldPalette =
+                          kind == 2 ? WorldPreviewPalette.capture(snapshot, sourcePalette) : null;
                       var source =
                           PreviewSources.create(
                               snapshot,
@@ -2582,10 +2676,11 @@ public final class Viewports implements AutoCloseable {
                               mode,
                               stage,
                               representation);
-                      result = new SceneSetup(id, key, source, sourcePalette, null);
+                      result = new SceneSetup(id, key, source, sourcePalette, null, worldPalette);
                     } catch (Throwable failure) {
                       result =
-                          new SceneSetup(id, key, null, null, String.valueOf(failure.getMessage()));
+                          new SceneSetup(
+                              id, key, null, null, String.valueOf(failure.getMessage()), null);
                     }
                     v.setup.publish(id, result);
                   });
@@ -2638,7 +2733,13 @@ public final class Viewports implements AutoCloseable {
           if (admissionProbe && probeRendererStartupFailure.compareAndSet(true, false))
             throw new IllegalStateException("Injected streaming renderer startup failure");
           v.gpuBudget = sceneGpuBudget(v);
-          v.gl.setPalette(setup.palette);
+          var palette =
+              v.kind == 2
+                  ? Objects.requireNonNull(setup.worldPalette, "World streaming source palette")
+                      .refresh(state.project())
+                  : null;
+          v.gl.setPalette(palette == null ? setup.palette : palette.colors());
+          v.worldPalette = palette;
         } catch (RuntimeException gpu) {
           rendererFallback(v, key);
           state.notify(
@@ -3189,19 +3290,15 @@ public final class Viewports implements AutoCloseable {
                       }
                       mesh = MeshBuilder.greedy(n, (x, y, z) -> cells[(y * n + z) * n + x]);
                     }
+                    var result =
+                        new Preview(
+                            epoch, mesh, null, null, n, origin, palette, new float[64], null, null);
                     publish(
                         v,
-                        new Preview(
-                            epoch,
-                            mesh,
-                            null,
-                            null,
-                            n,
-                            origin,
-                            palette,
-                            new float[64],
-                            null,
-                            null));
+                        kind == 2
+                            ? result.withWorldPalette(
+                                WorldPreviewPalette.capture(snapshot, palette))
+                            : result);
                   }
                   outcome = Profiler.Outcome.SUCCESS;
                 } catch (Throwable e) {

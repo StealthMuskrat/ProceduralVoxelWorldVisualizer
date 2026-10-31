@@ -14,7 +14,7 @@ report = read('viewport-document-native.json')
 assert report['formatVersion'] == 1
 assert report['fixture'] == 'direct-document-session-native-gl'
 assert report['physicalDpiVerified'] is False and report['fileDialogUxVerified'] is False
-for key in ('manualSameDocumentRetained', 'sameUuidRevisionReplacement',
+for key in ('manualSameDocumentRetained', 'sameUuidRevisionReplacement', 'sourcePaletteRetired',
             'pendingInspectorCanceled', 'queuedPublicationRejectedBeforeDraw',
             'immutableImageRetained', 'privateFixturePreserved', 'preferencesPreserved'):
     assert report[key] is True, key
