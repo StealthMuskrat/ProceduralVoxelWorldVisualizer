@@ -71,6 +71,7 @@ public final class Viewports implements AutoCloseable {
   private final StageBoundaryPicker stagePicker;
   private final ViewportCommands[] commands;
   private final PreviewResumePanel[] resumePanels;
+  private final ViewportChoicePanel[] optionPanels;
   private boolean admissionProbe;
   private final java.util.concurrent.atomic.AtomicBoolean probeRendererStartupFailure =
       new java.util.concurrent.atomic.AtomicBoolean();
@@ -1151,6 +1152,10 @@ public final class Viewports implements AutoCloseable {
             this::admissionControl);
     generatorPicker = new ResourcePicker(state);
     stagePicker = new StageBoundaryPicker(state);
+    optionPanels =
+        Arrays.stream(ViewportChoicePanel.Option.values())
+            .map(option -> new ViewportChoicePanel(state, option))
+            .toArray(ViewportChoicePanel[]::new);
     commands =
         new ViewportCommands[] {
           new ViewportCommands(state), new ViewportCommands(state), new ViewportCommands(state)
@@ -1244,6 +1249,8 @@ public final class Viewports implements AutoCloseable {
     }
     ImGui.end();
     for (var resume : resumePanels) resume.finishFrame(ImGui.getFrameCount());
+    for (var option : optionPanels) option.finishFrame(ImGui.getFrameCount());
+    for (var command : commands) command.finishFrame(ImGui.getFrameCount());
     for (var v : views) {
       if (v.kind != drawnView) v.flight.pause();
       if (v.kind != drawnView || !flightImageVisible) v.orbit.reset();
@@ -1439,23 +1446,23 @@ public final class Viewports implements AutoCloseable {
           "toolbar", commands[v.kind].toolbarCenter(ViewportCommands.Command.REGENERATE));
     ImGui.textWrapped(v.message);
     if (v.kind == 0) {
-      fields.choice(
-          "Display",
-          v.mode,
-          List.of("Grayscale", "Heatmap", "Contour", "Threshold", "Histogram"),
+      optionPanels[ViewportChoicePanel.Option.DISPLAY.ordinal()].draw(
+          () -> new ViewportChoicePanel.Review(commandContext(v), v.mode),
           m -> {
-            v.mode = m;
-            mark(v);
+            if (!v.mode.equals(m)) {
+              v.mode = m;
+              mark(v);
+            }
           });
     } else {
       if (v.kind == 1) {
-        fields.choice(
-            "Representation",
-            v.mode,
-            List.of("Threshold Voxels", "Isosurface", "Volume", "Point Cloud", "Slices"),
+        optionPanels[ViewportChoicePanel.Option.REPRESENTATION.ordinal()].draw(
+            () -> new ViewportChoicePanel.Review(commandContext(v), v.mode),
             m -> {
-              v.mode = m;
-              mark(v);
+              if (!v.mode.equals(m)) {
+                v.mode = m;
+                mark(v);
+              }
             });
         fields.number(
             "Threshold",
@@ -1506,13 +1513,14 @@ public final class Viewports implements AutoCloseable {
                     + " analysis extent.");
         }
         if (v.mode.equals("Slices")) {
-          fields.choice(
-              "Slice normal",
-              v.slicePlane.name(),
-              List.of("X", "Y", "Z"),
+          optionPanels[ViewportChoicePanel.Option.SLICE_NORMAL.ordinal()].draw(
+              () -> new ViewportChoicePanel.Review(commandContext(v), v.slicePlane.name()),
               x -> {
-                v.slicePlane = SlicePlane.valueOf(x);
-                mark(v);
+                var plane = SlicePlane.valueOf(x);
+                if (v.slicePlane != plane) {
+                  v.slicePlane = plane;
+                  mark(v);
+                }
               });
           fields.integer(
               "Slice " + v.slicePlane.name(),
@@ -1579,13 +1587,13 @@ public final class Viewports implements AutoCloseable {
     }
     bookmarkPanel.draw(Tab.values()[v.kind]);
     if (v.kind == 2) {
-      fields.choice(
-          "Stage preview",
-          v.stageMode,
-          List.of("Final", "Before", "After", "Only Changes"),
+      optionPanels[ViewportChoicePanel.Option.STAGE_PREVIEW.ordinal()].draw(
+          () -> new ViewportChoicePanel.Review(commandContext(v), v.stageMode),
           mode -> {
-            v.stageMode = mode;
-            mark(v);
+            if (!v.stageMode.equals(mode)) {
+              v.stageMode = mode;
+              mark(v);
+            }
           });
       if (!v.stageMode.equals("Final")) {
         UUID initial = stagePicker.initial(v.stage, state.selected);
@@ -1605,10 +1613,12 @@ public final class Viewports implements AutoCloseable {
           });
       if (v.stageMode.equals("Only Changes"))
         ImGui.textDisabled("SET: voxel palette | CLEAR: red removal ghosts | unchanged: hidden");
-      if (ImGui.button("Inspect Coordinate")) inspector.set(true);
-      admissionControl("inspect-coordinate");
-      ImGui.sameLine();
-      ImGui.textDisabled("Read-only procedural world");
+      commands[v.kind].inspect(
+          () -> commandContext(v), (command, review) -> command(v, command, review));
+      if (admissionProbe)
+        admissionControls.put("inspect-coordinate", commands[v.kind].inspectCenter());
+      DialogLayout.sameLine("Read-only procedural world");
+      ImGui.textWrapped("Read-only procedural world");
     }
     if (v.kind == 2 && !stagePicker.available(v.stageMode, v.stage)) {
       stopStream(v);
@@ -2042,6 +2052,7 @@ public final class Viewports implements AutoCloseable {
       case GRID -> state.user.visualization.grid = !review.grid();
       case TELEPORT -> bookmarkPanel.openTeleport(Tab.values()[v.kind]);
       case ADD_BOOKMARK -> bookmarkPanel.openAdd(Tab.values()[v.kind], review.picked());
+      case INSPECT_COORDINATE -> inspector.set(true);
       default -> {
         v.mode = command.label;
         mark(v);

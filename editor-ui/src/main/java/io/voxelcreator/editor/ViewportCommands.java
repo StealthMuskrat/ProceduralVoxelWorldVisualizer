@@ -18,7 +18,8 @@ final class ViewportCommands {
     TELEPORT("Teleport"),
     ADD_BOOKMARK("Add Bookmark"),
     REGENERATE("Regenerate"),
-    AUTO("Auto");
+    AUTO("Auto"),
+    INSPECT_COORDINATE("Inspect Coordinate");
     final String label;
 
     Command(String label) {
@@ -40,9 +41,55 @@ final class ViewportCommands {
   private final Map<String, DialogBounds.Rect> toolbarBounds = new LinkedHashMap<>(),
       menuBounds = new LinkedHashMap<>();
   private DialogBounds.Rect popupBounds;
+  private final SettingsActionScope inspect = new SettingsActionScope();
+  private ViewportActionContext inspectReview;
+  private int inspectFrame = -1, inspectId;
+  private DialogBounds.Rect inspectBounds;
 
   ViewportCommands(EditorState state) {
     this.state = Objects.requireNonNull(state);
+  }
+
+  void inspect(
+      Supplier<ViewportActionContext> context, BiConsumer<Command, ViewportActionContext> apply) {
+    var review = context.get();
+    int frame = ImGui.getFrameCount();
+    if (frame < inspectFrame || frame - inspectFrame > 1) inspect.release();
+    inspectFrame = frame;
+    if (!review.same(inspectReview)) inspectReview = review;
+    long version = inspect.synchronize(review.document(), inspectReview);
+    ImGui.pushID("viewport-inspect:" + nativeId + ":" + version);
+    inspectId = ImGui.getID(Command.INSPECT_COORDINATE.label);
+    boolean clicked = DialogLayout.button(Command.INSPECT_COORDINATE.label);
+    inspectBounds = PopupLayout.itemBounds();
+    ImGui.popID();
+    if (clicked
+        && !ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        && review.same(context.get())
+        && inspect.current(review.document(), inspectReview)
+        && invoke(Command.INSPECT_COORDINATE, review, apply)) inspect.release();
+  }
+
+  void finishFrame(int frame) {
+    if (inspectFrame != frame) {
+      inspect.release();
+      inspectReview = null;
+      inspectFrame = -1;
+      inspectId = 0;
+      inspectBounds = null;
+    }
+  }
+
+  int inspectId() {
+    return inspectId;
+  }
+
+  DialogBounds.Rect inspectBounds() {
+    return inspectBounds;
+  }
+
+  float[] inspectCenter() {
+    return center(inspectBounds);
   }
 
   void toolbar(
