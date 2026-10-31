@@ -323,6 +323,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectHistoryProbe build/project-history
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectHistoryConsumer build/project-history
           python scripts/verify_project_history.py build/project-history
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectHistoryCompletionProbe build/project-history-completion
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectHistoryCompletionConsumer build/project-history-completion
+          python scripts/verify_project_history_completion.py build/project-history-completion
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectDecisionLayoutProbe build/project-decision-layout
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectDialogConsumer build/project-decision-layout
           python scripts/verify_project_decision_layout.py build/project-decision-layout
@@ -545,6 +548,7 @@ jobs:
             build/browser-edits/
             build/project-drafts/
             build/project-history/
+            build/project-history-completion/
             build/project-decision-layout/
             build/resource-decision-layout/
             build/resource-forms-layout/
@@ -1164,6 +1168,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_project_history.py build/project-history
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectHistoryCompletionProbe build/project-history-completion
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ProjectHistoryCompletionConsumer build/project-history-completion
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_project_history_completion.py build/project-history-completion
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectDecisionLayoutProbe build/project-decision-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ProjectDialogConsumer build/project-decision-layout
@@ -1520,6 +1530,7 @@ jobs:
             build/browser-edits/
             build/project-drafts/
             build/project-history/
+            build/project-history-completion/
             build/project-decision-layout/
             build/resource-decision-layout/
             build/resource-forms-layout/

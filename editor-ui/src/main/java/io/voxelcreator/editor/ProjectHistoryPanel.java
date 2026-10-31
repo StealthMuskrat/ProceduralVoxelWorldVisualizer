@@ -11,11 +11,17 @@ final class ProjectHistoryPanel {
   final DialogLayout layout;
   private boolean prompt, revealBody;
   private long shownRequest = -1;
+  private final NavigationDecisionScope decisions = new NavigationDecisionScope();
+  private int drawnFrame = Integer.MIN_VALUE;
   final SettingsPageChrome chrome = new SettingsPageChrome(2);
   private final Map<String, float[]> controls = new HashMap<>();
 
   ProjectHistoryPanel(EditorState state, BooleanSupplier blocked) {
-    session = new ProjectHistorySession(state, blocked);
+    this(state, blocked, () -> state.reconcileSelection(state.multiSelection, state.selected));
+  }
+
+  ProjectHistoryPanel(EditorState state, BooleanSupplier blocked, Runnable refresh) {
+    session = new ProjectHistorySession(state, blocked, refresh);
     layout = new DialogLayout(state, "Properties", 620, 280);
   }
 
@@ -24,16 +30,18 @@ final class ProjectHistoryPanel {
   }
 
   void draw() {
+    int frame = ImGui.getFrameCount();
+    if (drawnFrame == frame) return;
+    drawnFrame = frame;
     controls.clear();
     if (!session.pending()) {
       prompt = false;
-      if (layout.begin("Unapplied Properties and Project History")) {
-        ImGui.closeCurrentPopup();
-        ImGui.endPopup();
-      }
+      decisions.close();
+      closePopup();
       return;
     }
     if (prompt || shownRequest != session.requestVersion()) {
+      decisions.open();
       layout.open("Unapplied Properties and Project History");
       prompt = false;
       shownRequest = session.requestVersion();
@@ -41,29 +49,57 @@ final class ProjectHistoryPanel {
     }
     if (!layout.begin(
         "Unapplied Properties and Project History", ImGuiWindowFlags.AlwaysAutoResize)) return;
+    var ticket = decisions.capture(frame);
+    long request = shownRequest;
     String action = session.direction() == ProjectHistorySession.Direction.UNDO ? "Undo" : "Redo";
-    chrome.begin("project-history-body");
-    if (revealBody) {
-      ImGui.setScrollY(0);
-      revealBody = false;
+    boolean discard = false, cancel = false;
+    try {
+      chrome.begin("project-history-body");
+      try {
+        if (revealBody) {
+          ImGui.setScrollY(0);
+          revealBody = false;
+        }
+        ImGui.textWrapped("Requested project action: " + action);
+        ImGui.textWrapped(
+            "Undo and Redo affect committed project history. Discard unapplied Properties input to"
+                + " continue, or cancel to keep editing.");
+      } finally {
+        chrome.end();
+      }
+      ImGui.pushID("project-history:" + request);
+      try {
+        discard = button("Discard Draft and " + action, "DISCARD");
+        cancel = button("Cancel", "CANCEL");
+      } finally {
+        ImGui.popID();
+      }
+      cancel |= ImGui.isKeyPressed(ImGuiKey.Escape, false);
+    } finally {
+      ImGui.endPopup();
     }
-    ImGui.textWrapped("Requested project action: " + action);
-    ImGui.textWrapped(
-        "Undo and Redo affect committed project history. Discard unapplied Properties input to"
-            + " continue, or cancel to keep editing.");
-    chrome.end();
-    ImGui.pushID("project-history:" + session.requestVersion());
-    boolean discard = button("Discard Draft and " + action, "DISCARD");
-    boolean cancel = button("Cancel", "CANCEL");
-    ImGui.popID();
-    if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      session.decide(ProjectHistorySession.Decision.CANCEL);
-      ImGui.closeCurrentPopup();
-    } else if (discard) {
-      session.decide(ProjectHistorySession.Decision.DISCARD);
-      ImGui.closeCurrentPopup();
+    if ((cancel || discard)
+        && decisions.consume(ticket, frame)
+        && session.pending()
+        && session.requestVersion() == request) {
+      session.decide(
+          cancel ? ProjectHistorySession.Decision.CANCEL : ProjectHistorySession.Decision.DISCARD);
+      if (!session.pending() && decisions.owns(ticket)) {
+        decisions.close();
+        controls.clear();
+        closePopup();
+      }
     }
-    ImGui.endPopup();
+  }
+
+  private void closePopup() {
+    if (layout.begin("Unapplied Properties and Project History")) {
+      try {
+        ImGui.closeCurrentPopup();
+      } finally {
+        ImGui.endPopup();
+      }
+    }
   }
 
   private boolean button(String label, String key) {

@@ -26,13 +26,21 @@ final class ProjectHistorySession {
 
   private final EditorState state;
   private final BooleanSupplier blocked;
+  private final Runnable refresh;
   private Direction pending;
   private ProjectFileOwner owner;
   private long requestVersion;
+  private long generation;
+  private boolean moving;
 
   ProjectHistorySession(EditorState state, BooleanSupplier blocked) {
+    this(state, blocked, () -> state.reconcileSelection(state.multiSelection, state.selected));
+  }
+
+  ProjectHistorySession(EditorState state, BooleanSupplier blocked, Runnable refresh) {
     this.state = state;
     this.blocked = Objects.requireNonNull(blocked);
+    this.refresh = Objects.requireNonNull(refresh);
   }
 
   long requestVersion() {
@@ -41,6 +49,10 @@ final class ProjectHistorySession {
 
   boolean pending() {
     return pending != null;
+  }
+
+  boolean busy() {
+    return moving || pending();
   }
 
   Direction direction() {
@@ -53,19 +65,34 @@ final class ProjectHistorySession {
 
   Result request(Direction direction) {
     Objects.requireNonNull(direction);
-    if (pending() || !available(direction)) return Result.UNAVAILABLE;
-    if (blocked.getAsBoolean()) {
-      state.status =
-          "Finish the private editor or pending project action before using project history";
-      return Result.UNAVAILABLE;
+    if (moving || pending() || !available(direction)) return Result.UNAVAILABLE;
+    long attempt = generation;
+    try {
+      var opening = new ProjectFileOwner(state);
+      boolean denied = blocked.getAsBoolean();
+      if (generation != attempt || pending()) return Result.UNAVAILABLE;
+      if (denied) {
+        state.status =
+            "Finish the private editor or pending project action before using project history";
+        return Result.UNAVAILABLE;
+      }
+      if (!opening.current(state) || !available(direction)) {
+        state.status = "Project history or draft changed; request Undo or Redo again";
+        return Result.UNAVAILABLE;
+      }
+      boolean dirty = modified();
+      requestVersion++;
+      generation++;
+      if (dirty) {
+        pending = direction;
+        owner = opening;
+        return Result.NEEDS_DECISION;
+      }
+      return move(direction);
+    } catch (RuntimeException failure) {
+      report("PROJECT_HISTORY_GUARD_FAILED", "Project history request failed: ", failure);
+      return Result.REJECTED;
     }
-    requestVersion++;
-    if (modified()) {
-      pending = direction;
-      owner = new ProjectFileOwner(state);
-      return Result.NEEDS_DECISION;
-    }
-    return move(direction);
   }
 
   private boolean modified() {
@@ -79,40 +106,73 @@ final class ProjectHistorySession {
   }
 
   Result decide(Decision decision) {
-    if (!pending()) return Result.UNAVAILABLE;
+    if (moving || !pending()) return Result.UNAVAILABLE;
     if (decision == Decision.CANCEL) {
       clear();
       return Result.CANCELLED;
     }
     var direction = pending;
-    if (!owner.current(state) || blocked.getAsBoolean() || !available(direction)) {
-      clear();
-      state.status = "Project history or draft changed; request Undo or Redo again";
-      return Result.UNAVAILABLE;
+    var original = owner;
+    long attempt = generation;
+    try {
+      if (!original.current(state)) {
+        clear();
+        state.status = "Project history or draft changed; request Undo or Redo again";
+        return Result.UNAVAILABLE;
+      }
+      boolean denied = blocked.getAsBoolean();
+      if (generation != attempt || owner != original || pending != direction)
+        return Result.UNAVAILABLE;
+      if (denied || !original.current(state) || !available(direction)) {
+        clear();
+        state.status = "Project history or draft changed; request Undo or Redo again";
+        return Result.UNAVAILABLE;
+      }
+      return move(direction);
+    } catch (RuntimeException failure) {
+      if (generation == attempt) clear();
+      report("PROJECT_HISTORY_GUARD_FAILED", "Project history decision failed: ", failure);
+      return Result.REJECTED;
     }
-    return move(direction);
   }
 
   private Result move(Direction direction) {
-    try {
-      if (direction == Direction.UNDO) state.document.undo();
-      else state.document.redo();
-    } catch (RuntimeException failure) {
-      clear();
-      state.error(
-          "PROJECT_HISTORY_FAILED",
-          EditorEvents.Subsystem.PROJECT,
-          Objects.requireNonNullElse(failure.getMessage(), failure.toString()));
-      return Result.REJECTED;
-    }
+    // Retire the decision before model validation; keep other history/file work fenced until
+    // refresh.
     clear();
-    state.revision++;
-    state.reconcileSelection(state.multiSelection, state.selected);
-    state.status = direction == Direction.UNDO ? "Project edit undone" : "Project edit redone";
-    return Result.MOVED;
+    moving = true;
+    try {
+      try {
+        if (direction == Direction.UNDO) state.document.undo();
+        else state.document.redo();
+      } catch (RuntimeException failure) {
+        report("PROJECT_HISTORY_FAILED", "Project history failed: ", failure);
+        return Result.REJECTED;
+      }
+      state.revision++;
+      try {
+        refresh.run();
+        state.status = direction == Direction.UNDO ? "Project edit undone" : "Project edit redone";
+      } catch (RuntimeException failure) {
+        report(
+            "PROJECT_HISTORY_REFRESH_FAILED",
+            (direction == Direction.UNDO ? "Undo" : "Redo") + " completed; UI refresh failed: ",
+            failure);
+      }
+      return Result.MOVED;
+    } finally {
+      moving = false;
+    }
+  }
+
+  private void report(String code, String prefix, RuntimeException failure) {
+    String detail = failure.getMessage();
+    if (detail == null || detail.isBlank()) detail = failure.getClass().getSimpleName();
+    state.error(code, EditorEvents.Subsystem.PROJECT, StatusBarText.clip(prefix + detail, 1024));
   }
 
   void clear() {
+    generation++;
     pending = null;
     owner = null;
   }

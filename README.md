@@ -216,3 +216,5 @@ The unvalidated [shared draft decision delivery follow-up](docs/NAVIGATION_DECIS
 The unvalidated [Find/reference private-editor eligibility follow-up](docs/NAVIGATION_PRIVATE_EDITOR_ELIGIBILITY.md) rechecks pending Apply/Discard decisions against live private property editors while preserving drafts and raw input. Nine regression definitions, twelve native modal receipts, nine integration routes and independent project/engine replay remain deferred.
 
 The unvalidated [named dialog scaling follow-up](docs/DIALOG_OWNER_SCALING.md) keeps modal body/control text tied to its configured owner when another window draws it, including hidden owners and DPI composition. Eight regression definitions, thirty native font/geometry cases and independent persistence/trace replay remain deferred.
+
+The unvalidated [project history completion follow-up](docs/PROJECT_HISTORY_COMPLETION.md) delivers Undo/Redo confirmations after popup unwind, preserves successor requests and keeps accepted moves busy through validation/refresh. Eight regression definitions, twelve native modal receipts, ten completion routes and independent persistence/engine replay remain deferred.

@@ -307,7 +307,7 @@ public final class Desktop extends Application {
             () -> glfwSetWindowShouldClose(handle, true),
             () ->
                 privateProjectInteraction()
-                    || (projectHistory != null && projectHistory.session.pending()));
+                    || (projectHistory != null && projectHistory.session.busy()));
     projectHistory =
         new ProjectHistoryPanel(
             state,
@@ -1041,7 +1041,7 @@ public final class Desktop extends Application {
 
   private boolean packageInteractionBlocked() {
     return sourceProjectInteraction()
-        || projectHistory.session.pending()
+        || projectHistory.session.busy()
         || projectFiles.workflow.phase() != ProjectFileWorkflow.Phase.IDLE;
   }
 
