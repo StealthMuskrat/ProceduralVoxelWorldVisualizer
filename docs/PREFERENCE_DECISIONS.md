@@ -17,3 +17,5 @@ scripts/verify_preference_decisions.py defines independent body/footer containme
 Complete text/checkbox/keyboard/IME/paste/focus/category/closure/reentrant timing, opaque body/ordinary-save callbacks, Theme/Input decisions, every failure combination, representative latency, physical DPI/detached/GPU behavior and full GUI/Windows 11 acceptance remain pending. This does not advance A01–A36 or production sign-off.
 
 The unvalidated [Theme/Input follow-up](INTERACTIVE_PREFERENCE_DECISIONS.md) now extends complete footer collection, Escape suppression and scoped activation to Theme and Input, including preview/recording transitions and hidden presentation contexts. The earlier Theme/Input exclusion describes this original batch; all new definitions remain deferred.
+
+The unvalidated [ordinary-save follow-up](PRIVATE_PREFERENCE_SAVES.md) now defers Performance/Trust Save callbacks through complete footer arbitration, adds parent/availability callback scopes and releases inactive Performance section/category presentations. Private values remain retained and ordinary saves remain active-only; new definitions are deferred.

@@ -10,6 +10,9 @@ final class AppearanceSettingsPanel {
   private final UiScalePanel scales;
   private final Runnable themeChanged, openThemes, savePreferences;
   private final UiFields fields = new UiFields();
+  private final PreferenceSaveAction callbacks = new PreferenceSaveAction();
+  private final Map<String, Integer> callbackIds = new HashMap<>();
+  private boolean revealCallbacks;
   private final Map<String, float[]> controls = new HashMap<>();
 
   AppearanceSettingsPanel(
@@ -37,27 +40,56 @@ final class AppearanceSettingsPanel {
 
   void draw() {
     controls.clear();
-    scales.draw(
-        () -> {
-          ImGui.textWrapped("Theme");
-          ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
-          fields.choice(
-              "##appearance-theme",
-              user.appearance.theme,
-              List.of("Dark", "Light"),
-              value -> {
-                user.appearance.theme = value;
-                themeChanged.run();
-              });
-          control("theme");
-        },
-        () -> {
-          if (DialogLayout.button("Open Themes")) openThemes.run();
-          control("themes");
-          DialogLayout.sameLine("Save Preferences");
-          if (DialogLayout.button("Save Preferences")) savePreferences.run();
-          control("save");
-        });
+    callbackIds.clear();
+    boolean[] requested = new boolean[2];
+    boolean idle =
+        scales.draw(
+            () -> {
+              ImGui.textWrapped("Theme");
+              ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+              fields.choice(
+                  "##appearance-theme",
+                  user.appearance.theme,
+                  List.of("Dark", "Light"),
+                  value -> {
+                    user.appearance.theme = value;
+                    themeChanged.run();
+                  });
+              control("theme");
+            },
+            () -> {
+              long request = callbacks.synchronize(scales.actionScope, true);
+              ImGui.pushID("appearance-callbacks:" + callbacks.nativeId() + ":" + request);
+              callbackIds.put("themes", ImGui.getID("Open Themes"));
+              requested[0] = DialogLayout.button("Open Themes");
+              control("themes");
+              DialogLayout.sameLine("Save Preferences");
+              callbackIds.put("save", ImGui.getID("Save Preferences"));
+              requested[1] = DialogLayout.button("Save Preferences");
+              control("save");
+              if (revealCallbacks) {
+                ImGui.setScrollHereY(.5f);
+                revealCallbacks = false;
+              }
+              ImGui.popID();
+            });
+    if (!idle || !scales.presentationCurrent() || !callbacks.current(scales.actionScope, true))
+      return;
+    if (requested[0]) openThemes.run();
+    else if (requested[1]) savePreferences.run();
+  }
+
+  void suspendActions() {
+    callbacks.release();
+    scales.suspendActions();
+  }
+
+  void probeRevealCallbacks() {
+    revealCallbacks = true;
+  }
+
+  Map<String, Integer> callbackIds() {
+    return Map.copyOf(callbackIds);
   }
 
   private void control(String key) {

@@ -10,6 +10,9 @@ import java.util.*;
 public final class InputSettingsPanel {
   private final UserConfig user;
   final PreferenceActionScope actionScope = new PreferenceActionScope();
+  private final PreferenceSaveAction saveActions = new PreferenceSaveAction();
+  private int saveId;
+  private boolean revealSave;
   final SettingsPageChrome layout = new SettingsPageChrome(5);
   private ShortcutRowLayout.Plan rowLayout;
   private DialogBounds.Rect listBounds;
@@ -66,6 +69,7 @@ public final class InputSettingsPanel {
   public void cancelCapture() {
     capture.cancel();
     actionScope.resetDraft();
+    saveActions.release();
   }
 
   public void draw() {
@@ -75,6 +79,9 @@ public final class InputSettingsPanel {
   void draw(Runnable savePreferences) {
     ensure();
     long request = actionScope.synchronize(activeValues());
+    long saveRequest = saveActions.synchronize(actionScope, savePreferences != null);
+    boolean save = false;
+    saveId = 0;
     controls.clear();
     controlBounds.clear();
     fieldIds.clear();
@@ -239,16 +246,20 @@ public final class InputSettingsPanel {
     if (!message.isEmpty()) ImGui.textWrapped(bounded(message));
     ImGui.textWrapped("Save Preferences saves active bindings; it does not apply this draft.");
     if (savePreferences != null) {
-      if (DialogLayout.button("Save Preferences")) {
-        capture.cancel();
-        savePreferences.run();
-      }
+      ImGui.pushID("input-save:" + saveActions.nativeId() + ":" + saveRequest);
+      saveId = ImGui.getID("Save Preferences");
+      save = DialogLayout.button("Save Preferences");
       control("save-preferences");
+      if (revealSave) {
+        ImGui.setScrollHereY(.5f);
+        revealSave = false;
+      }
+      ImGui.popID();
     }
     layout.end();
     applyEnabled =
         problems.isEmpty() && displayedProblem.isEmpty() && !recording() && session.current(user);
-    ImGui.pushID("input-request:" + request);
+    ImGui.pushID("input-request:" + actionScope.nativeId() + ":" + request);
     ImGui.beginDisabled(!applyEnabled);
     boolean apply = layout.identifiedAction("apply", "Apply Bindings");
     control("apply");
@@ -290,10 +301,21 @@ public final class InputSettingsPanel {
         scroll = 0f;
         reveal = firstProblem;
         revealList = true;
+      } else if (save && savePreferences != null && saveActions.current(actionScope, true)) {
+        capture.cancel();
+        savePreferences.run();
       }
     }
     // Footer cancellation must precede capture polling; suppression remains owned for this frame.
     pollCapture(editingText);
+  }
+
+  void probeRevealSave() {
+    revealSave = true;
+  }
+
+  int probeSaveId() {
+    return saveId;
   }
 
   private record ActiveValues(Map<String, String> bindings, String recording) {

@@ -851,17 +851,13 @@ public final class Desktop extends Application {
   }
 
   private void drawSettings() {
-    if (!settings.get() || !settingsPage.equals("User Settings"))
-      suspendImmediateSettingsActions(null);
+    if (!settings.get() || !settingsPage.equals("User Settings")) suspendUserSettingsActions(null);
     if (!settings.get() || !settingsPage.equals("Debug & Profiling"))
       debugSettings.suspendActions();
     if (!settings.get()) {
       projectSettings.cancel();
-      inputSettings.cancelCapture();
       return;
     }
-    if (!settingsPage.equals("User Settings") || !settingsCategory.equals("Input"))
-      inputSettings.cancelCapture();
     var windowLayout =
         settingsLayouts.computeIfAbsent(settingsPage, key -> new FloatingWindowLayout(750, 650));
     windowLayout.prepare();
@@ -870,16 +866,14 @@ public final class Desktop extends Application {
     windowLayout.observe();
     if (!settings.get()) {
       projectSettings.cancel();
-      inputSettings.cancelCapture();
       debugSettings.suspendActions();
-      suspendImmediateSettingsActions(null);
+      suspendUserSettingsActions(null);
       ImGui.end();
       return;
     }
     if (!visible) {
-      inputSettings.cancelCapture();
       debugSettings.suspendActions();
-      suspendImmediateSettingsActions(null);
+      suspendUserSettingsActions(null);
       ImGui.end();
       return;
     }
@@ -891,7 +885,7 @@ public final class Desktop extends Application {
       debugSettings.draw();
     } else {
       AppearanceSettingsPanel.category(fields, settingsCategory, v -> settingsCategory = v);
-      suspendImmediateSettingsActions(settingsCategory);
+      suspendUserSettingsActions(settingsCategory);
       switch (settingsCategory) {
         case "Appearance" -> appearanceSettings.draw();
         case "Workspace" -> workspaceSettings.draw(this::savePreferences);
@@ -906,7 +900,10 @@ public final class Desktop extends Application {
     ImGui.end();
   }
 
-  private void suspendImmediateSettingsActions(String visible) {
+  private void suspendUserSettingsActions(String visible) {
+    if (!"Appearance".equals(visible)) appearanceSettings.suspendActions();
+    if (!"Input".equals(visible)) inputSettings.cancelCapture();
+    if (!"Performance".equals(visible)) performancePage.suspendActions();
     if (!"Workspace".equals(visible)) workspaceSettings.suspendActions();
     if (!"Editor".equals(visible)) livePreferences.suspendEditorActions();
     if (!"Visualization".equals(visible)) livePreferences.suspendVisualizationActions();

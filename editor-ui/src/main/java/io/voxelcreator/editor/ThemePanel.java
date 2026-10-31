@@ -192,7 +192,7 @@ public final class ThemePanel {
   private void actions(long request) {
     applyEnabled = session.current(user) && !preview.paused() && !colorIssues.any();
     boolean resumeEnabled = preview.paused() && session.current(user);
-    ImGui.pushID("theme-request:" + request);
+    ImGui.pushID("theme-request:" + actionScope.nativeId() + ":" + request);
     ImGui.beginDisabled(!applyEnabled);
     boolean save = layout.identifiedAction("save", "Save Theme");
     control("save");

@@ -58,7 +58,7 @@ final class UiScalePanel {
     draw(() -> {}, () -> {});
   }
 
-  void draw(Runnable heading, Runnable trailing) {
+  boolean draw(Runnable heading, Runnable trailing) {
     ensure();
     long request = actionScope.synchronize(activeValues());
     if (probing) {
@@ -143,7 +143,7 @@ final class UiScalePanel {
     if (!message.isEmpty()) ImGui.textWrapped(message);
     trailing.run();
     layout.end();
-    ImGui.pushID("ui-scale-request:" + request);
+    ImGui.pushID("ui-scale-request:" + actionScope.nativeId() + ":" + request);
     ImGui.beginDisabled(!applyEnabled);
     boolean apply = layout.identifiedAction("apply", "Apply UI Scales");
     control("apply");
@@ -155,7 +155,8 @@ final class UiScalePanel {
     control("invalid");
     ImGui.endDisabled();
     ImGui.popID();
-    if (!actionScope.current(activeValues()) || ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    if (!actionScope.current(activeValues()) || ImGui.isKeyPressed(ImGuiKey.Escape, false))
+      return false;
     if (revert)
       act(
           () -> {
@@ -177,6 +178,15 @@ final class UiScalePanel {
       }
       reveal = firstProblem;
     }
+    return !revert && !(apply && applyEnabled) && !(invalid && firstProblem != null);
+  }
+
+  void suspendActions() {
+    actionScope.resetDraft();
+  }
+
+  boolean presentationCurrent() {
+    return actionScope.current(activeValues());
   }
 
   private record ActiveValues(float global, Map<String, Float> overrides) {

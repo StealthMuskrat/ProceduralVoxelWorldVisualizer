@@ -13,6 +13,9 @@ import java.util.function.Consumer;
 final class UpdateTrustPanel {
   private final UserConfig user;
   final PreferenceActionScope actionScope = new PreferenceActionScope();
+  private final PreferenceSaveAction saveActions = new PreferenceSaveAction();
+  private int saveId;
+  private boolean revealSave;
   final SettingsPageChrome layout = new SettingsPageChrome(3);
   private String reveal;
   private boolean originsNext;
@@ -58,6 +61,9 @@ final class UpdateTrustPanel {
   void draw(Runnable savePreferences) {
     ensure();
     long request = actionScope.synchronize(activeValues());
+    long saveRequest = saveActions.synchronize(actionScope, savePreferences != null);
+    boolean save = false;
+    saveId = 0;
     if (probing) {
       controls.clear();
       fieldIds.clear();
@@ -113,11 +119,18 @@ final class UpdateTrustPanel {
     if (session.changed()) ImGui.textWrapped("Pending update settings are private");
     if (!message.isEmpty()) ImGui.textWrapped(message);
     if (savePreferences != null) {
-      if (DialogLayout.button("Save Preferences")) savePreferences.run();
+      ImGui.pushID("update-trust-save:" + saveActions.nativeId() + ":" + saveRequest);
+      saveId = ImGui.getID("Save Preferences");
+      save = DialogLayout.button("Save Preferences");
       control("save-preferences");
+      if (revealSave) {
+        ImGui.setScrollHereY(.5f);
+        revealSave = false;
+      }
+      ImGui.popID();
     }
     layout.end();
-    ImGui.pushID("update-trust-request:" + request);
+    ImGui.pushID("update-trust-request:" + actionScope.nativeId() + ":" + request);
     ImGui.beginDisabled(!applyEnabled);
     boolean apply = layout.identifiedAction("apply", "Apply Update Trust");
     control("apply");
@@ -145,7 +158,8 @@ final class UpdateTrustPanel {
     else if (fields) {
       reveal = originsNext ? "origins" : "endpoint";
       originsNext = !originsNext;
-    }
+    } else if (save && savePreferences != null && saveActions.current(actionScope, true))
+      savePreferences.run();
   }
 
   private record ActiveValues(String endpoint, List<String> origins) {
@@ -156,6 +170,19 @@ final class UpdateTrustPanel {
 
   private ActiveValues activeValues() {
     return new ActiveValues(user.performance.updateEndpoint, user.performance.trustedOrigins);
+  }
+
+  void suspendActions() {
+    actionScope.resetDraft();
+    saveActions.release();
+  }
+
+  void probeRevealSave() {
+    revealSave = true;
+  }
+
+  int probeSaveId() {
+    return saveId;
   }
 
   void probeEdit(String target, String approved) {

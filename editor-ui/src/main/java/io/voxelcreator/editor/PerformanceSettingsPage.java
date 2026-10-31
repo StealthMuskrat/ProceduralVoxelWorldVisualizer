@@ -25,8 +25,18 @@ final class PerformanceSettingsPage {
         value -> section = value);
     selector = PopupLayout.itemBounds();
     fields.tooltip("Choose performance limits or manual update trust");
-    if (section.equals("Performance limits")) limits.draw(savePreferences);
-    else trust.draw(savePreferences);
+    if (section.equals("Performance limits")) {
+      trust.suspendActions();
+      limits.draw(savePreferences);
+    } else {
+      limits.suspendActions();
+      trust.draw(savePreferences);
+    }
+  }
+
+  void suspendActions() {
+    limits.suspendActions();
+    trust.suspendActions();
   }
 
   void showLimits() {

@@ -13,6 +13,9 @@ import java.util.function.Consumer;
 final class PerformancePanel {
   private final UserConfig user;
   final PreferenceActionScope actionScope = new PreferenceActionScope();
+  private final PreferenceSaveAction saveActions = new PreferenceSaveAction();
+  private int saveId;
+  private boolean revealSave;
   final SettingsPageChrome layout = new SettingsPageChrome(3);
   private Field reveal;
   private final Map<Field, Integer> fieldIds = new EnumMap<>(Field.class);
@@ -53,6 +56,9 @@ final class PerformancePanel {
   void draw(Runnable savePreferences) {
     ensure();
     long request = actionScope.synchronize(PerformancePreferences.from(user));
+    long saveRequest = saveActions.synchronize(actionScope, savePreferences != null);
+    boolean save = false;
+    saveId = 0;
     if (probing) {
       controls.clear();
       fieldIds.clear();
@@ -130,11 +136,18 @@ final class PerformancePanel {
     }
     if (!message.isEmpty()) ImGui.textWrapped(message);
     if (savePreferences != null) {
-      if (DialogLayout.button("Save Preferences")) savePreferences.run();
+      ImGui.pushID("performance-save:" + saveActions.nativeId() + ":" + saveRequest);
+      saveId = ImGui.getID("Save Preferences");
+      save = DialogLayout.button("Save Preferences");
       control("save-preferences");
+      if (revealSave) {
+        ImGui.setScrollHereY(.5f);
+        revealSave = false;
+      }
+      ImGui.popID();
     }
     layout.end();
-    ImGui.pushID("performance-request:" + request);
+    ImGui.pushID("performance-request:" + actionScope.nativeId() + ":" + request);
     ImGui.beginDisabled(!applyEnabled);
     boolean apply = layout.identifiedAction("apply", "Apply Performance");
     control("apply");
@@ -163,6 +176,21 @@ final class PerformancePanel {
             message = "Performance preferences saved";
           });
     else if (problem && firstProblem != null) reveal = firstProblem;
+    else if (save && savePreferences != null && saveActions.current(actionScope, true))
+      savePreferences.run();
+  }
+
+  void suspendActions() {
+    actionScope.resetDraft();
+    saveActions.release();
+  }
+
+  void probeRevealSave() {
+    revealSave = true;
+  }
+
+  int probeSaveId() {
+    return saveId;
   }
 
   void probeEdit(Field field, String value) {

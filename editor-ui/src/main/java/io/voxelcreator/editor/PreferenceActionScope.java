@@ -1,10 +1,12 @@
 package io.voxelcreator.editor;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /** Owned immutable active values and explicit private resets scope preference footer activation. */
 final class PreferenceActionScope {
   private final SettingsActionScope scope = new SettingsActionScope();
+  private final String nativeId = UUID.randomUUID().toString();
   private Object active, source = new Object(), draft = new Object();
 
   long synchronize(Object values) {
@@ -23,6 +25,14 @@ final class PreferenceActionScope {
   void resetDraft() {
     draft = new Object();
     scope.release();
+  }
+
+  boolean active() {
+    return scope.current(source, draft);
+  }
+
+  String nativeId() {
+    return nativeId;
   }
 
   long version() {
