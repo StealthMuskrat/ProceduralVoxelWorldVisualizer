@@ -69,6 +69,7 @@ public final class Viewports implements AutoCloseable {
 
   private final ResourcePicker generatorPicker;
   private final StageBoundaryPicker stagePicker;
+  private final ViewportCommands[] commands;
   private boolean admissionProbe;
   private final java.util.concurrent.atomic.AtomicBoolean probeRendererStartupFailure =
       new java.util.concurrent.atomic.AtomicBoolean();
@@ -1149,6 +1150,10 @@ public final class Viewports implements AutoCloseable {
             this::admissionControl);
     generatorPicker = new ResourcePicker(state);
     stagePicker = new StageBoundaryPicker(state);
+    commands =
+        new ViewportCommands[] {
+          new ViewportCommands(state), new ViewportCommands(state), new ViewportCommands(state)
+        };
     this.properties = properties;
     platform = new ViewportPlatformInput(handle);
     flightCursor = new FlightCursor(platform, GLFW_CURSOR_DISABLED);
@@ -1419,22 +1424,12 @@ public final class Viewports implements AutoCloseable {
       if (admissionProbe) admissionControls.put("generator", generatorPicker.buttonCenter());
       ImGui.popID();
     }
-    if (ImGui.button("Regenerate")) {
-      v.force = true;
-      v.rebuildSerial++;
-      mark(v);
-    }
-    admissionControl("toolbar");
-    ImGui.sameLine();
-    fields.bool(
-        "Auto",
-        state.user.editor.autoRegenerate,
-        x -> {
-          state.user.editor.autoRegenerate = x;
-          state.user.save();
-        });
-    ImGui.sameLine();
-    ImGui.textDisabled(v.message);
+    commands[v.kind].toolbar(
+        () -> commandContext(v), (command, review) -> command(v, command, review));
+    if (admissionProbe)
+      admissionControls.put(
+          "toolbar", commands[v.kind].toolbarCenter(ViewportCommands.Command.REGENERATE));
+    ImGui.textWrapped(v.message);
     if (v.kind == 0) {
       fields.choice(
           "Display",
@@ -1882,30 +1877,14 @@ public final class Viewports implements AutoCloseable {
     boolean imageContext = imageContextInput(v, hovered);
     if (orbitClick == OrbitGesture.Click.CONTEXT || imageContext) {
       rememberPicked(v, px, py, w, h);
-      ImGui.openPopup("viewport-context");
+      commands[v.kind].openContext(commandContext(v));
     }
-    if (UiScale.beginPopup("viewport-context")) {
-      probeOrbitContextVisible = true;
-      if (v.kind == 0) {
-        for (String mode : List.of("Grayscale", "Heatmap", "Contour", "Threshold", "Histogram"))
-          if (ImGui.menuItem(mode)) {
-            v.mode = mode;
-            mark(v);
-          }
-      }
-      if (v.kind == 0 && ImGui.menuItem("Grid overlay", "", state.user.visualization.grid))
-        state.user.visualization.grid = !state.user.visualization.grid;
-      if (ImGui.menuItem("Teleport")) bookmarkPanel.openTeleport(Tab.values()[v.kind]);
-      if (ImGui.menuItem("Add Bookmark"))
-        bookmarkPanel.openAdd(Tab.values()[v.kind], v.pickedBookmark);
-      if (ImGui.menuItem("Regenerate")) {
-        v.force = true;
-        v.rebuildSerial++;
-        mark(v);
-      }
-      admissionControl("context");
-      if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) ImGui.closeCurrentPopup();
-      ImGui.endPopup();
+    probeOrbitContextVisible =
+        commands[v.kind].context(
+            () -> commandContext(v), (command, review) -> command(v, command, review));
+    if (admissionProbe && probeOrbitContextVisible) {
+      var at = commands[v.kind].menuCenter(ViewportCommands.Command.REGENERATE);
+      if (at != null) admissionControls.put("context", at);
     }
     if (v.kind == 0) {
       try {
@@ -2023,6 +2002,41 @@ public final class Viewports implements AutoCloseable {
         v.panX = cx;
         v.panZ = cz;
         if (!usesStreaming(v)) mark(v);
+      }
+    }
+  }
+
+  private ViewportActionContext commandContext(View v) {
+    return ViewportActionContext.capture(
+        state,
+        v,
+        surfaceWindow,
+        v.kind,
+        v.epoch,
+        v.noise,
+        v.stage,
+        v.mode,
+        v.stageMode,
+        bookmarkPanel.interactionOwner(),
+        v.pickedBookmark);
+  }
+
+  private void command(View v, ViewportCommands.Command command, ViewportActionContext review) {
+    switch (command) {
+      case REGENERATE -> {
+        v.force = true;
+        v.rebuildSerial++;
+        mark(v);
+      }
+      case AUTO ->
+          state.user.applyAutoRegenerate(
+              !review.auto(), UserConfig.directory().resolve("user-config.json"));
+      case GRID -> state.user.visualization.grid = !review.grid();
+      case TELEPORT -> bookmarkPanel.openTeleport(Tab.values()[v.kind]);
+      case ADD_BOOKMARK -> bookmarkPanel.openAdd(Tab.values()[v.kind], review.picked());
+      default -> {
+        v.mode = command.label;
+        mark(v);
       }
     }
   }

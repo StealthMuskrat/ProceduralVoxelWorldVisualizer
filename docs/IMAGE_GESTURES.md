@@ -12,3 +12,5 @@ These changes do not alter project data, Undo history, field generation, engine 
 
 
 [Native viewport input ownership](NATIVE_VIEWPORT_INPUT.md) subsequently uses the hosting ImGui viewport's native window for eligibility and drops gesture ownership when that host changes. This development extension remains uncompiled/untested under the owner testing pause.
+
+The unvalidated [visualizer command follow-up](VIEWPORT_COMMANDS.md) retains short-right-click admission and accepted coordinate capture while adding bounded scrolling context menus, complete source/Escape arbitration and post-popup command callbacks. Four regression definitions, thirty-six native reflow cases and independent route/persistence replay remain deferred; actual image/camera/rendering acceptance remains separate.

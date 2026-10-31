@@ -609,6 +609,10 @@ public final class BookmarkPanel {
     return session != null && !session.closed();
   }
 
+  Object interactionOwner() {
+    return session;
+  }
+
   String rawText(String field) {
     return field.equals("Name") ? name.get() : coordinateBuffers.get(field).get();
   }

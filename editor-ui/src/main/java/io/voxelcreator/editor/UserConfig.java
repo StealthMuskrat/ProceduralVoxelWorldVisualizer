@@ -205,6 +205,15 @@ public final class UserConfig {
     snapshot.writeSnapshot(path, files);
   }
 
+  /** Persist one live preview preference before publishing its active value. */
+  void applyAutoRegenerate(boolean candidate, Path path) {
+    var snapshot = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(this), UserConfig.class);
+    snapshot.editor.autoRegenerate = candidate;
+    snapshot.validate();
+    snapshot.writeSnapshot(path, files);
+    editor.autoRegenerate = candidate;
+  }
+
   /** Publish new live bindings only after validation and the entire preference write succeed. */
   public void applyShortcuts(Map<String, String> candidate, Path path) {
     var canonical = Shortcuts.canonical(candidate);
