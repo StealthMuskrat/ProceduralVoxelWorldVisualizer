@@ -39,7 +39,10 @@ public final class Viewports implements AutoCloseable {
   private FlightCursor.Window surfaceWindow;
   private boolean closed;
   private final View[] views = {new View(0), new View(1), new View(2)};
-  private final UiFields fields = new UiFields();
+  private final ViewportFields fields = new ViewportFields();
+  private final ViewportControlsPane[] controlPanes = {
+    new ViewportControlsPane(), new ViewportControlsPane(), new ViewportControlsPane()
+  };
   private int active = 0;
   private int drawnView = -1;
   private boolean viewportFocused,
@@ -821,6 +824,7 @@ public final class Viewports implements AutoCloseable {
     VolumeStreamingLimits.Limits volumeLimits;
     VolumeStreamingLimits.Plan volumePlan;
     String message = "Ready";
+    String sampleStatus = "Hover preview for coordinates";
     Vector3d origin = new Vector3d();
     double[] raw;
     NoiseAlgorithms.Field hoverSampler;
@@ -1412,6 +1416,18 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void drawView(View v) {
+    var pane = controlPanes[v.kind];
+    pane.begin("visualizer-controls-" + v.kind);
+    boolean available;
+    try {
+      available = drawControls(v);
+    } finally {
+      pane.end();
+    }
+    if (available) drawSurface(v);
+  }
+
+  private boolean drawControls(View v) {
     String identity = fingerprint(v);
     if (!identity.equals(v.geometryKey)) {
       v.geometryKey = identity;
@@ -1626,7 +1642,7 @@ public final class Viewports implements AutoCloseable {
       v.imageContext.reset();
       v.pickedBookmark = null;
       v.message = "Stage boundary unavailable; choose a boundary or Final";
-      return;
+      return false;
     }
     boolean missingSource =
         v.kind < 2
@@ -1780,13 +1796,26 @@ public final class Viewports implements AutoCloseable {
                   + (v.kind == 0 ? "2D" : "3D")
                   + " noise generator in Resources, then select it above. The project starts"
                   + " empty.");
-      return;
+      return false;
     }
-    float w = Math.max(16, ImGui.getContentRegionAvailX()),
-        h = Math.max(16, ImGui.getContentRegionAvailY() - 28);
-    if (v.kind == 0 && v.mode.equals("Histogram") && v.raw != null) {
+    return true;
+  }
+
+  private void drawSurface(View v) {
+    boolean histogram = v.kind == 0 && v.mode.equals("Histogram") && v.raw != null;
+    boolean samples = v.kind == 0 || v.kind == 1 && v.mode.equals("Slices");
+    var region =
+        ViewportPanelLayout.surface(
+            ImGui.getContentRegionAvailY(),
+            ImGui.getTextLineHeight(),
+            ImGui.getStyle().getItemSpacingY(),
+            histogram,
+            samples);
+    float w = Math.max(1, ImGui.getContentRegionAvailX()), h = region.image();
+    if (region.histogram() > 0) {
+      float top = ImGui.getCursorPosY();
       ImGui.plotHistogram(
-          "Raw value distribution",
+          "##Raw value distribution",
           v.histogram,
           v.histogram.length,
           0,
@@ -1794,8 +1823,10 @@ public final class Viewports implements AutoCloseable {
           0,
           Float.MAX_VALUE,
           w,
-          100);
-      h = Math.max(16, h - 110);
+          region.histogram());
+      if (ImGui.isItemHovered())
+        UiScale.tooltip("Raw value distribution; display bins [-1,1]. Raw samples are unchanged.");
+      ImGui.setCursorPosY(top + region.histogram() + region.histogramGap());
     }
     if (v.kind == 1 && v.mode.equals("Volume")) {
       v.gl.volumeAppearance(v.volumeMin, v.volumeMax, v.volumeOpacity, v.threshold, v.volumeSteps);
@@ -1955,7 +1986,7 @@ public final class Viewports implements AutoCloseable {
             sample = "Sample unavailable at pointer";
           }
         }
-        ImGui.textDisabled(sample);
+        v.sampleStatus = "Last hover: " + sample;
       } else if (v.kind == 1 && v.mode.equals("Slices")) {
         if (v.displayedSlice != null && v.image) {
           try {
@@ -1964,16 +1995,16 @@ public final class Viewports implements AutoCloseable {
                     (io.getMousePosX() - px) / (double) w, (io.getMousePosY() - py) / (double) h);
             probeSliceHover = sample;
             var point = sample.point();
-            ImGui.textDisabled(
+            v.sampleStatus =
                 String.format(
                     Locale.ROOT,
-                    "X %.5f Y %.5f Z %.5f  Raw %.8f",
+                    "Last hover: X %.5f Y %.5f Z %.5f  Raw %.8f",
                     point.x(),
                     point.y(),
                     point.z(),
-                    sample.raw()));
+                    sample.raw());
           } catch (RuntimeException failure) {
-            ImGui.textDisabled("Sample failed: " + failure.getMessage());
+            v.sampleStatus = "Sample failed: " + failure.getMessage();
           }
         }
       } else {
@@ -2021,6 +2052,10 @@ public final class Viewports implements AutoCloseable {
         v.panZ = cz;
         if (!usesStreaming(v)) mark(v);
       }
+    }
+    if (samples && region.status() > 0) {
+      ImGui.setCursorPosY(cursorY + h + region.statusGap());
+      ViewportSampleStatus.draw("preview-sample-" + v.kind, v.sampleStatus, w, region.status());
     }
   }
 
@@ -2104,6 +2139,7 @@ public final class Viewports implements AutoCloseable {
       v.displayedImage = ready.imageView;
     }
     v.hoverSampler = ready.sampler;
+    v.sampleStatus = "Hover preview for coordinates";
     v.histogram = ready.histogram;
     v.message = v.streamFallback ? "Ready (fixed fallback; Regenerate retries streaming)" : "Ready";
     if (ready.volumeWindowStatistics != null

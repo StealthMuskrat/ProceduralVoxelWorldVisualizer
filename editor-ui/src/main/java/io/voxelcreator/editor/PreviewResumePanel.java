@@ -27,6 +27,11 @@ final class PreviewResumePanel {
     int currentFrame = ImGui.getFrameCount();
     if (currentFrame < frame || currentFrame - frame > 1) suspend();
     frame = currentFrame;
+    boolean revealPause =
+        shown == null
+            || shown.pressure() != review.pressure()
+            || shown.pauseVersion() != review.pauseVersion()
+            || shown.view().document() != review.view().document();
     if (!review.same(shown)) shown = review;
     long request = scope.synchronize(review.view().document(), shown);
     ImGui.textWrapped(
@@ -35,6 +40,7 @@ final class PreviewResumePanel {
     actionId = ImGui.getID(review.kind().label);
     boolean clicked = DialogLayout.button(review.kind().label);
     actionBounds = PopupLayout.itemBounds();
+    if (revealPause) ImGui.setScrollHereY(1);
     ImGui.popID();
     if (!clicked
         || ImGui.isKeyPressed(ImGuiKey.Escape, false)

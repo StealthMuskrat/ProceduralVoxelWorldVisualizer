@@ -272,6 +272,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ViewportOptionProbe build/viewport-options
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ViewportOptionConsumer build/viewport-options
           python scripts/verify_viewport_options.py build/viewport-options
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ViewportControlsProbe build/viewport-controls
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PreviewResumeConsumer build/viewport-controls
+          python scripts/verify_viewport_controls.py build/viewport-controls
       - name: Owned import workspace and native resolution workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImportWorkspaceProbe build/import-workspace
@@ -523,6 +526,7 @@ jobs:
             build/viewport-commands/
             build/preview-resume/
             build/viewport-options/
+            build/viewport-controls/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/
@@ -1020,6 +1024,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_viewport_options.py build/viewport-options
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ViewportControlsProbe build/viewport-controls
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.PreviewResumeConsumer build/viewport-controls
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_viewport_controls.py build/viewport-controls
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows owned import workspace and native resolution workflow
         shell: pwsh
         run: |
@@ -1421,6 +1431,7 @@ jobs:
             build/viewport-commands/
             build/preview-resume/
             build/viewport-options/
+            build/viewport-controls/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/
