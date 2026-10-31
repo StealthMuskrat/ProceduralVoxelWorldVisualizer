@@ -13,6 +13,7 @@ final class ValidationSelection {
   private String scope;
   private List<Diagnostic> source, rows = List.of();
   private int selected = -1;
+  private Object selection = new Object();
 
   void synchronize(EditorState state) {
     if (current(state)) return;
@@ -25,6 +26,7 @@ final class ValidationSelection {
     source = state.issues;
     rows = List.copyOf(source);
     selected = -1;
+    selection = new Object();
     publication = UUID.randomUUID();
   }
 
@@ -51,6 +53,14 @@ final class ValidationSelection {
     return publication.toString();
   }
 
+  Object publicationToken() {
+    return publication;
+  }
+
+  Object selectionToken() {
+    return selection;
+  }
+
   int index() {
     return selected;
   }
@@ -58,7 +68,10 @@ final class ValidationSelection {
   void select(int index) {
     if (index < 0 || index >= rows.size())
       throw new IllegalArgumentException("Unknown diagnostic row");
-    selected = index;
+    if (selected != index) {
+      selected = index;
+      selection = new Object();
+    }
   }
 
   Diagnostic selected() {

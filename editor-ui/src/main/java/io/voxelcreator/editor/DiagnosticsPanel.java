@@ -15,6 +15,11 @@ public final class DiagnosticsPanel {
   final SettingsPageChrome logsChrome = new SettingsPageChrome(3);
   final SettingsPageChrome noticesChrome = new SettingsPageChrome(3, 3);
   final SettingsPageChrome validationChrome = new SettingsPageChrome(3);
+  final SettingsActionScope logsActions = new SettingsActionScope(),
+      noticesActions = new SettingsActionScope(),
+      bulkReadActions = new SettingsActionScope(),
+      validationActions = new SettingsActionScope();
+  private final String actionId = UUID.randomUUID().toString();
   private final EditorState state;
   private final Consumer<EditorEvents.Target> navigate;
   private final Consumer<String> copy;
@@ -61,7 +66,7 @@ public final class DiagnosticsPanel {
   }
 
   public void drawLogs(ImBoolean open) {
-    if (!begin(open, "Logs & Error Center", "Logs", logsLayout)) return;
+    if (!begin(open, "Logs & Error Center", "Logs", logsLayout, logsActions)) return;
     logsDrawn = true;
     logsChrome.begin("logs-workspace-body");
     ImGui.textWrapped("Search code, message or source");
@@ -100,17 +105,29 @@ public final class DiagnosticsPanel {
     eventRows(rows, "log-results", true);
     var entry = eventDetail("log-details");
     logsChrome.end();
-    copyAction(logsChrome, entry);
-    navigateAction(logsChrome, entry);
+    boolean available = entry != null && state.canNavigate(entry.target());
+    long request = eventScope(logsActions, entry, available);
+    ImGui.pushID("logs-actions:" + actionId + ":" + request);
+    boolean copied = copyButton(logsChrome, entry);
+    boolean navigated = navigateButton(logsChrome, entry, available);
     ImGui.beginDisabled(entry == null);
-    if (logsChrome.action("show", "Show Selected")) reveal(selected);
+    boolean show = logsChrome.identifiedAction("show", "Show Selected");
     control("show");
     ImGui.endDisabled();
+    ImGui.popID();
+    if (!ImGui.isKeyPressed(ImGuiKey.Escape, false) && (copied || navigated || show)) {
+      if (!eventCurrent(logsActions, entry, available)) acknowledge(false);
+      else if (copied) external("DIAGNOSTIC_COPY_FAILED", () -> copy.accept(entry.details()));
+      else if (navigated) navigate(entry);
+      else if (show) reveal(entry.id());
+    }
     ImGui.end();
   }
 
   public void drawNotifications(ImBoolean open, Runnable openLogs) {
-    if (!begin(open, "Notifications", "Notifications", noticesLayout)) return;
+    if (!begin(
+        open, "Notifications", "Notifications", noticesLayout, noticesActions, bulkReadActions))
+      return;
     noticesDrawn = true;
     noticesChrome.begin("notifications-workspace-body");
     var view = state.events.view();
@@ -128,30 +145,49 @@ public final class DiagnosticsPanel {
     eventRows(rows, "notice-results", false);
     var entry = eventDetail("notice-details");
     noticesChrome.end();
-    if (noticesChrome.action("all-read", "Mark All Read")) {
-      state.events.markAllRead(view);
-      eventMessage = "Marked reviewed entries read. Newer occurrences stay unread.";
-    }
+    boolean available = entry != null && state.canNavigate(entry.target());
+    long request = eventScope(noticesActions, entry, available);
+    long bulk = bulkReadActions.synchronize(state.events, view);
+    ImGui.pushID("notifications-bulk:" + actionId + ":" + bulk);
+    boolean allRead = noticesChrome.identifiedAction("all-read", "Mark All Read");
     control("all-read");
+    ImGui.popID();
+    ImGui.pushID("notifications-entry:" + actionId + ":" + request);
     ImGui.beginDisabled(entry == null);
-    if (noticesChrome.action("logs", "View Selected in Logs")) {
-      reveal(entry.id());
-      openLogs.run();
-    }
+    boolean logs = noticesChrome.identifiedAction("logs", "View Selected in Logs");
     control("logs");
     ImGui.endDisabled();
-    copyAction(noticesChrome, entry);
-    navigateAction(noticesChrome, entry);
+    boolean copied = copyButton(noticesChrome, entry);
+    boolean navigated = navigateButton(noticesChrome, entry, available);
     ImGui.beginDisabled(entry == null);
-    if (noticesChrome.action("read", "Mark Read")) acknowledge(state.events.markRead(entry));
+    boolean read = noticesChrome.identifiedAction("read", "Mark Read");
     control("read");
-    if (noticesChrome.action(
-        "acknowledge",
-        entry != null && entry.actionRequired() ? "Mark Action Resolved" : "Dismiss Notification"))
-      acknowledge(
-          entry.actionRequired() ? state.events.resolve(entry) : state.events.dismiss(entry));
+    boolean resolve =
+        noticesChrome.identifiedAction(
+            "acknowledge",
+            entry != null && entry.actionRequired()
+                ? "Mark Action Resolved"
+                : "Dismiss Notification");
     control("acknowledge");
     ImGui.endDisabled();
+    ImGui.popID();
+    if (!ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      if (allRead && bulkReadActions.current(state.events, view)) {
+        state.events.markAllRead(view);
+        eventMessage = "Marked reviewed entries read. Newer occurrences stay unread.";
+      } else if (logs || copied || navigated || read || resolve) {
+        if (!eventCurrent(noticesActions, entry, available)) acknowledge(false);
+        else if (logs) {
+          reveal(entry.id());
+          external("DIAGNOSTIC_LOGS_FAILED", openLogs);
+        } else if (copied) external("DIAGNOSTIC_COPY_FAILED", () -> copy.accept(entry.details()));
+        else if (navigated) navigate(entry);
+        else if (read) acknowledge(state.events.markRead(entry));
+        else if (resolve)
+          acknowledge(
+              entry.actionRequired() ? state.events.resolve(entry) : state.events.dismiss(entry));
+      }
+    }
     ImGui.end();
   }
 
@@ -162,13 +198,22 @@ public final class DiagnosticsPanel {
     if (!eventMessage.isEmpty()) ImGui.textWrapped(eventMessage);
   }
 
-  private boolean begin(ImBoolean open, String title, String scale, FloatingWindowLayout window) {
-    if (!open.get()) return false;
+  private boolean begin(
+      ImBoolean open,
+      String title,
+      String scale,
+      FloatingWindowLayout window,
+      SettingsActionScope... actions) {
+    if (!open.get()) {
+      for (var scope : actions) scope.release();
+      return false;
+    }
     window.prepare();
     boolean visible = ImGui.begin(title, open);
     UiScale.window(state.user, scale);
     window.observe();
     if (!visible || !open.get()) {
+      for (var scope : actions) scope.release();
       ImGui.end();
       return false;
     }
@@ -298,27 +343,57 @@ public final class DiagnosticsPanel {
     return e;
   }
 
-  private void copyAction(SettingsPageChrome chrome, EditorEvents.Entry entry) {
-    ImGui.beginDisabled(entry == null);
-    if (chrome.action("copy", "Copy Details")) copy.accept(entry.details());
-    control("copy");
-    ImGui.endDisabled();
+  private long eventScope(SettingsActionScope scope, EditorEvents.Entry entry, boolean available) {
+    return scope.synchronize(
+        state.document.sessionToken(), entry == null ? this : entry, available ? 1 : 0);
   }
 
-  private void navigateAction(SettingsPageChrome chrome, EditorEvents.Entry entry) {
-    boolean available = entry != null && state.canNavigate(entry.target());
+  private boolean eventCurrent(
+      SettingsActionScope scope, EditorEvents.Entry entry, boolean available) {
+    return entry != null
+        && selected == entry.id()
+        && state.events.current(entry)
+        && available == state.canNavigate(entry.target())
+        && scope.current(state.document.sessionToken(), entry, available ? 1 : 0);
+  }
+
+  private boolean copyButton(SettingsPageChrome chrome, EditorEvents.Entry entry) {
+    ImGui.beginDisabled(entry == null);
+    boolean clicked = chrome.identifiedAction("copy", "Copy Details");
+    control("copy");
+    ImGui.endDisabled();
+    return clicked;
+  }
+
+  private boolean navigateButton(
+      SettingsPageChrome chrome, EditorEvents.Entry entry, boolean available) {
     ImGui.beginDisabled(!available);
-    if (chrome.action(
-        "navigate",
-        entry != null && entry.target() != null && entry.target().settings()
-            ? "Open Project Settings"
-            : "Go To Problem")) {
-      if (state.events.markRead(entry) && state.canNavigate(entry.target()))
-        navigate.accept(entry.target());
-      else acknowledge(false);
-    }
+    boolean clicked =
+        chrome.identifiedAction(
+            "navigate",
+            entry != null && entry.target() != null && entry.target().settings()
+                ? "Open Project Settings"
+                : "Go To Problem");
     control("navigate");
     ImGui.endDisabled();
+    return clicked;
+  }
+
+  private void navigate(EditorEvents.Entry entry) {
+    if (state.events.markRead(entry) && state.canNavigate(entry.target()))
+      external("DIAGNOSTIC_NAVIGATION_FAILED", () -> navigate.accept(entry.target()));
+    else acknowledge(false);
+  }
+
+  private void external(String code, Runnable action) {
+    try {
+      action.run();
+    } catch (RuntimeException failure) {
+      String detail = failure.getMessage();
+      if (detail == null || detail.isBlank()) detail = failure.getClass().getSimpleName();
+      if (detail.isBlank()) detail = failure.getClass().getName();
+      state.error(code, EditorEvents.Subsystem.APPLICATION, StatusBarText.clip(detail, 1024));
+    }
   }
 
   private void acknowledge(boolean accepted) {
@@ -330,7 +405,8 @@ public final class DiagnosticsPanel {
   }
 
   public void drawValidation(ImBoolean open) {
-    if (!begin(open, "Validation Results", "Validation", validationLayout)) return;
+    if (!begin(open, "Validation Results", "Validation", validationLayout, validationActions))
+      return;
     validationDrawn = true;
     validationSelection.synchronize(state);
     validationChrome.begin("validation-workspace-body");
@@ -385,27 +461,42 @@ public final class DiagnosticsPanel {
     else ImGui.textWrapped(diagnosticDetails(diagnostic));
     ImGui.endChild();
     validationChrome.end();
-    if (validationChrome.action("validate", "Validate Committed Project")) {
-      state.validateProject();
-      validationSelection.synchronize(state);
-    }
+    var target = validationSelection.target(state);
+    boolean available = target != null && state.canNavigate(target);
+    var publication = validationSelection.publicationToken();
+    var selection = validationSelection.selectionToken();
+    long request = validationActions.synchronize(publication, selection, available ? 1 : 0);
+    ImGui.pushID("validation-actions:" + actionId + ":" + request);
+    boolean validate = validationChrome.identifiedAction("validate", "Validate Committed Project");
     control("validate");
-    ImGui.beginDisabled(
-        diagnostic == null
-            || validationSelection.selected() != diagnostic
-            || !validationSelection.current(state));
-    if (validationChrome.action("copy", "Copy Details")) copy.accept(diagnosticDetails(diagnostic));
+    ImGui.beginDisabled(diagnostic == null || !validationSelection.current(state));
+    boolean copied = validationChrome.identifiedAction("copy", "Copy Details");
     control("copy");
     ImGui.endDisabled();
-    var target = validationSelection.target(state);
-    ImGui.beginDisabled(target == null || !state.canNavigate(target));
-    if (validationChrome.action(
+    ImGui.beginDisabled(!available);
+    boolean navigated =
+        validationChrome.identifiedAction(
             "navigate",
-            target != null && target.settings() ? "Open Project Settings" : "Go To Problem")
-        && validationSelection.current(state)
-        && state.canNavigate(target)) navigate.accept(target);
+            target != null && target.settings() ? "Open Project Settings" : "Go To Problem");
     control("navigate");
     ImGui.endDisabled();
+    ImGui.popID();
+    var currentTarget = validationSelection.target(state);
+    boolean currentAvailable = currentTarget != null && state.canNavigate(currentTarget);
+    if (!ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        && validationSelection.current(state)
+        && validationActions.current(
+            validationSelection.publicationToken(),
+            validationSelection.selectionToken(),
+            currentAvailable ? 1 : 0)) {
+      if (validate) {
+        state.validateProject();
+        validationSelection.synchronize(state);
+      } else if (copied && diagnostic != null && validationSelection.selected() == diagnostic)
+        external("DIAGNOSTIC_COPY_FAILED", () -> copy.accept(diagnosticDetails(diagnostic)));
+      else if (navigated && target != null && state.canNavigate(target))
+        external("DIAGNOSTIC_NAVIGATION_FAILED", () -> navigate.accept(target));
+    }
     ImGui.end();
   }
 
@@ -445,6 +536,19 @@ public final class DiagnosticsPanel {
     result.add("All");
     for (Object value : values) result.add(value.toString());
     return List.copyOf(result);
+  }
+
+  void probeSelectIssue(int index) {
+    validationSelection.synchronize(state);
+    validationSelection.select(index);
+  }
+
+  void probeFilter(String text) {
+    filter.set(text);
+  }
+
+  String probeFilter() {
+    return filter.get();
   }
 
   void probeControls() {

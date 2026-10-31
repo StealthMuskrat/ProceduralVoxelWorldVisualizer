@@ -130,4 +130,29 @@ class ValidationSelectionTest {
       assertNotNull(selection.target(state));
     }
   }
+
+  @Test
+  void identicalDiagnosticObjectsAtDifferentRowsStillHaveDistinctActionSelections() {
+    try (var state = new EditorState(new UserConfig(), false)) {
+      var shared = issue("seed");
+      state.issues = List.of(shared, shared);
+      var selection = new ValidationSelection();
+      selection.synchronize(state);
+      var publication = selection.publicationToken();
+      selection.select(0);
+      var first = selection.selectionToken();
+      selection.select(0);
+      assertSame(first, selection.selectionToken());
+      selection.select(1);
+      assertSame(publication, selection.publicationToken());
+      assertSame(shared, selection.selected());
+      assertNotSame(first, selection.selectionToken());
+      var second = selection.selectionToken();
+      state.issues = new ArrayList<>(state.issues);
+      selection.synchronize(state);
+      assertNull(selection.selected());
+      assertNotSame(publication, selection.publicationToken());
+      assertNotSame(second, selection.selectionToken());
+    }
+  }
 }
