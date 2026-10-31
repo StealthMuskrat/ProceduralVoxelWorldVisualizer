@@ -51,99 +51,269 @@ public final class BookmarkPanel {
     for (Tab tab : Tab.values()) filters.put(tab, new ImString(256));
   }
 
-  public void draw(Tab tab) {
+  private static final class Toolbar {
+    final SettingsActionScope scope = new SettingsActionScope();
+    BookmarkActionContext context;
+    int frame = -1;
+    final Map<String, Integer> ids = new LinkedHashMap<>();
+    final Map<String, DialogBounds.Rect> bounds = new LinkedHashMap<>();
+  }
+
+  private record Choice(Tab tab, BookmarkIndex.Row row, SelectorSession.Ticket ticket) {}
+
+  private final Map<Tab, Toolbar> toolbars = new EnumMap<>(Tab.class);
+  private final Map<Tab, SelectorSession> choiceSessions = new EnumMap<>(Tab.class);
+  private final String nativeId = UUID.randomUUID().toString();
+  private long choiceOpenings;
+  private final Map<String, Integer> choiceIds = new LinkedHashMap<>();
+  private Tab probeOpen;
+  private float choiceStride;
+
+  private Toolbar toolbar(Tab tab) {
+    return toolbars.computeIfAbsent(tab, key -> new Toolbar());
+  }
+
+  private SelectorSession choices(Tab tab) {
+    return choiceSessions.computeIfAbsent(tab, key -> new SelectorSession());
+  }
+
+  private void synchronize() {
     if (state.document.sessionToken() != observedDocument) {
       selected.clear();
       filters.values().forEach(filter -> filter.set(""));
+      choiceSessions.values().forEach(SelectorSession::retire);
+      toolbars
+          .values()
+          .forEach(
+              toolbar -> {
+                toolbar.scope.release();
+                toolbar.context = null;
+              });
       observedDocument = state.document.sessionToken();
     }
-    var index = cache.get(state.project(), state.revision, tab);
-    var current = index.get(selected.get(tab));
-    ImGui.pushID("bookmarks-" + tab.key());
-    String preview = current == null ? "Choose coordinates..." : current.label();
-    if (ImGui.button(
-        AppMetadata.uiText(preview) + "  v###bookmark-picker",
-        Math.max(1, Math.min(360, ImGui.getContentRegionAvailX())),
-        0)) ImGui.openPopup("bookmark-choice");
-    var anchor = PopupLayout.itemBounds();
-    if (ImGui.isItemHovered()) UiScale.tooltip(preview);
-    record("picker");
-    if (choicesLayout.begin("bookmark-choice", anchor, 480, 340)) {
-      if (ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();
-      else drawChoices(tab, index);
-      ImGui.endPopup();
-    }
-    if (button("Add Bookmark")) {
-      try {
-        openAdd(tab, navigation.picked(tab));
-      } catch (RuntimeException failure) {
-        state.error("BOOKMARK_DIALOG_FAILED", EditorEvents.Subsystem.APPLICATION, message(failure));
-      }
-    }
-    DialogLayout.sameLine("Teleport");
-    if (button("Teleport")) openTeleport(tab);
-    ImGui.beginDisabled(current == null || pending());
-    if (button("Rename")) openRename(tab, current.uuid());
-    DialogLayout.sameLine("Update Coordinates");
-    if (button("Update Coordinates")) {
-      try {
-        Coordinates captured = navigation.current(tab);
-        state.change(p -> BookmarkTransactions.update(p, tab, current.uuid(), captured));
-      } catch (RuntimeException failure) {
-        state.error("BOOKMARK_UPDATE_FAILED", EditorEvents.Subsystem.APPLICATION, message(failure));
-      }
-    }
-    DialogLayout.sameLine("Delete Bookmark");
-    if (button("Delete Bookmark")) {
-      if (state.change(p -> BookmarkTransactions.delete(p, tab, current.uuid())))
-        selected.remove(tab);
-    }
-    ImGui.endDisabled();
-    ImGui.popID();
   }
 
-  private void drawChoices(Tab tab, BookmarkIndex index) {
+  private BookmarkActionContext context(Tab tab) {
+    return BookmarkActionContext.capture(
+        state,
+        tab,
+        selected.get(tab),
+        cache.get(state.project(), state.revision, tab).get(selected.get(tab)),
+        session,
+        pending());
+  }
+
+  private boolean current(BookmarkActionContext context) {
+    return context.current(state, context.tab(), selected.get(context.tab()), session, pending());
+  }
+
+  private void requireCurrent(BookmarkActionContext context) {
+    if (!current(context))
+      throw new IllegalStateException(
+          "Document or bookmark context changed during coordinate capture; retry.");
+  }
+
+  private SelectorSession.Context choiceContext(Tab tab, BookmarkIndex index) {
+    return new SelectorSession.Context(
+        state.document.sessionToken(),
+        state.project(),
+        state.revision,
+        session == null ? tab : session,
+        pending() ? 1 : 0,
+        selected.get(tab),
+        tab.key(),
+        null,
+        index,
+        filters.get(tab).get());
+  }
+
+  public void draw(Tab tab) {
+    synchronize();
+    var index = cache.get(state.project(), state.revision, tab);
+    var current = index.get(selected.get(tab));
+    var review = context(tab);
+    var toolbar = toolbar(tab);
+    int frame = ImGui.getFrameCount();
+    if (frame < toolbar.frame || frame - toolbar.frame > 1) toolbar.scope.release();
+    toolbar.frame = frame;
+    if (!review.same(toolbar.context)) toolbar.context = review;
+    long version = toolbar.scope.synchronize(review.lifetime(), toolbar.context);
+    toolbar.ids.clear();
+    toolbar.bounds.clear();
+    ImGui.pushID("bookmarks-" + tab.key());
+    String scope = "bookmark-toolbar:" + nativeId + ":" + version;
+    ImGui.pushID(scope);
+    String preview = current == null ? "Choose coordinates..." : current.label();
+    String widget = AppMetadata.uiText(preview) + "  v###bookmark-picker";
+    toolbar.ids.put("picker", ImGui.getID(widget));
+    boolean picker =
+        ImGui.button(widget, Math.max(1, Math.min(360, ImGui.getContentRegionAvailX())), 0);
+    var anchor = PopupLayout.itemBounds();
+    toolbar.bounds.put("picker", anchor);
+    if (ImGui.isItemHovered()) UiScale.tooltip(preview);
+    record("picker");
+    ImGui.popID();
+    boolean escape = ImGui.isKeyPressed(ImGuiKey.Escape, false);
+    var choiceSession = choices(tab);
+    boolean retrying = false;
+    if ((picker || probeOpen == tab) && !escape && current(review)) {
+      choiceSession.open();
+      choiceOpenings++;
+      ImGui.openPopup("bookmark-choice");
+    } else if (!escape && choiceSession.retry(choiceContext(tab, index), frame)) {
+      choiceOpenings++;
+      retrying = true;
+      ImGui.openPopup("bookmark-choice");
+    }
+    if (probeOpen == tab) probeOpen = null;
+    submitted = 0;
+    options.clear();
+    choiceIds.clear();
+    Choice chosen = null;
+    if (choicesLayout.begin("bookmark-choice", anchor, 480, 340)) {
+      var ticket = choiceSession.observe(frame, choiceContext(tab, index));
+      if (escape || ticket == null) {
+        choiceSession.retire();
+        ImGui.closeCurrentPopup();
+      } else chosen = drawChoices(tab, index, ticket, retrying);
+      ImGui.endPopup();
+    } else if (choiceSession.active()) choiceSession.retire();
+    ImGui.pushID(scope);
+    boolean add = button(toolbar, "Add Bookmark");
+    DialogLayout.sameLine("Teleport");
+    boolean teleport = button(toolbar, "Teleport");
+    ImGui.beginDisabled(current == null || pending());
+    boolean rename = button(toolbar, "Rename");
+    DialogLayout.sameLine("Update Coordinates");
+    boolean update = button(toolbar, "Update Coordinates");
+    DialogLayout.sameLine("Delete Bookmark");
+    boolean delete = button(toolbar, "Delete Bookmark");
+    ImGui.endDisabled();
+    ImGui.popID();
+    ImGui.popID();
+    if (escape) return;
+    if (chosen != null) {
+      navigate(chosen, index);
+      return;
+    }
+    if (!current(review) || !toolbar.scope.current(state.document.sessionToken(), toolbar.context))
+      return;
+    if (add) {
+      try {
+        var picked = navigation.picked(tab);
+        requireCurrent(review);
+        openAdd(tab, picked);
+      } catch (RuntimeException failure) {
+        state.error(
+            "BOOKMARK_DIALOG_FAILED",
+            EditorEvents.Subsystem.APPLICATION,
+            bounded(message(failure)));
+      }
+    } else if (teleport) openTeleport(tab);
+    else if (rename && current != null && !pending()) openRename(tab, current.uuid());
+    else if (update && current != null && !pending()) {
+      try {
+        var captured = navigation.current(tab);
+        requireCurrent(review);
+        state.change(p -> BookmarkTransactions.update(p, tab, current.uuid(), captured));
+      } catch (RuntimeException failure) {
+        state.error(
+            "BOOKMARK_UPDATE_FAILED",
+            EditorEvents.Subsystem.APPLICATION,
+            bounded(message(failure)));
+      }
+    } else if (delete && current != null && !pending()) {
+      if (state.change(p -> BookmarkTransactions.delete(p, tab, current.uuid()))
+          && currentSelection(tab, current.uuid())) selected.remove(tab);
+    }
+  }
+
+  private boolean currentSelection(Tab tab, UUID id) {
+    return Objects.equals(selected.get(tab), id);
+  }
+
+  private Choice drawChoices(
+      Tab tab, BookmarkIndex index, SelectorSession.Ticket ticket, boolean retrying) {
+    var owner = choices(tab);
     if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
     choicesLayout.search("##bookmark-query", "Filter names or coordinates...", filters.get(tab));
+    ticket = owner.observe(ImGui.getFrameCount(), choiceContext(tab, index));
+    if (ticket == null) {
+      ImGui.closeCurrentPopup();
+      return null;
+    }
     var rows = index.rows(filters.get(tab).get());
     ImGui.textWrapped(rows.size() + " found");
     UiScale.beginChild("bookmark-options", 0, Math.max(1, ImGui.getContentRegionAvailY()), true);
     choicesLayout.observeList();
+    if (retrying) ImGui.setScrollY(0);
+    if (!owner.feedback().isEmpty()) ImGui.textWrapped("! " + owner.feedback());
+    choiceStride = (float) Math.ceil(ImGui.getTextLineHeightWithSpacing());
+    ImGui.pushID("bookmark-rows:" + nativeId + ":" + tab.key() + ":" + ticket.version());
+    ImGui.beginDisabled(pending());
     var clipper = new ImGuiListClipper();
-    submitted = 0;
-    options.clear();
+    BookmarkIndex.Row chosen = null;
     try {
-      clipper.begin(rows.size(), ImGui.getTextLineHeightWithSpacing());
+      clipper.begin(rows.size(), choiceStride);
       while (clipper.step())
         for (int i = clipper.getDisplayStart(); i < clipper.getDisplayEnd(); i++) {
           var row = rows.get(i);
           submitted++;
+          float top = ImGui.getCursorPosY();
+          String label = AppMetadata.uiText(row.label()) + "###" + row.uuid();
+          choiceIds.put(row.uuid().toString(), ImGui.getID(label));
           if (ImGui.selectable(
-              AppMetadata.uiText(row.label()) + "###" + row.uuid(),
-              row.uuid().equals(selected.get(tab)))) {
-            try {
-              navigation.teleport(tab, row.coordinates());
-              selected.put(tab, row.uuid());
-              ImGui.closeCurrentPopup();
-            } catch (RuntimeException failure) {
-              state.error(
-                  "BOOKMARK_NAVIGATION_FAILED",
-                  EditorEvents.Subsystem.APPLICATION,
-                  message(failure));
-            }
-          }
+                  label,
+                  row.uuid().equals(selected.get(tab)),
+                  0,
+                  Math.max(1, ImGui.getContentRegionAvailX()),
+                  ImGui.getTextLineHeight())
+              && chosen == null) chosen = row;
           PopupLayout.clippedLabel(row.label() + " / " + row.uuid());
           options.put(row.uuid(), bounds());
+          ImGui.setCursorPosY(top + choiceStride - ImGui.getStyle().getItemSpacingY());
+          ImGui.dummy(0, 0);
         }
       clipper.end();
     } finally {
       clipper.destroy();
     }
+    ImGui.endDisabled();
+    ImGui.popID();
     ImGui.endChild();
+    if (chosen != null
+        && !pending()
+        && BookmarkActionContext.rowCurrent(state, tab, chosen)
+        && owner.consume(ticket, ImGui.getFrameCount(), choiceContext(tab, index))) {
+      ImGui.closeCurrentPopup();
+      return new Choice(tab, chosen, ticket);
+    }
+    return null;
   }
 
-  private boolean button(String label) {
+  private void navigate(Choice choice, BookmarkIndex index) {
+    var owner = choices(choice.tab());
+    long completion = choiceOpenings;
+    try {
+      navigation.teleport(choice.tab(), choice.row().coordinates());
+      if (choice.ticket().context().same(choiceContext(choice.tab(), index))
+          && BookmarkActionContext.rowCurrent(state, choice.tab(), choice.row()))
+        selected.put(choice.tab(), choice.row().uuid());
+      owner.complete(choice.ticket());
+    } catch (RuntimeException failure) {
+      String detail = bounded(message(failure));
+      state.error("BOOKMARK_NAVIGATION_FAILED", EditorEvents.Subsystem.APPLICATION, detail);
+      if (completion == choiceOpenings) owner.failed(choice.ticket(), detail);
+      else owner.complete(choice.ticket());
+    } finally {
+      synchronize();
+    }
+  }
+
+  private boolean button(Toolbar toolbar, String label) {
+    toolbar.ids.put(label, ImGui.getID(label));
     boolean clicked = DialogLayout.button(label);
+    toolbar.bounds.put(label, PopupLayout.itemBounds());
     record(label);
     return clicked;
   }
@@ -154,7 +324,9 @@ public final class BookmarkPanel {
       return;
     }
     try {
+      var review = context(tab);
       var captured = picked == null ? navigation.current(tab) : picked;
+      requireCurrent(review);
       open(BookmarkEditSession.add(state, tab, captured));
     } catch (RuntimeException failure) {
       state.error("BOOKMARK_DIALOG_FAILED", EditorEvents.Subsystem.APPLICATION, message(failure));
@@ -167,7 +339,10 @@ public final class BookmarkPanel {
       return;
     }
     try {
-      open(BookmarkEditSession.teleport(state, tab, navigation.current(tab)));
+      var review = context(tab);
+      var captured = navigation.current(tab);
+      requireCurrent(review);
+      open(BookmarkEditSession.teleport(state, tab, captured));
     } catch (RuntimeException failure) {
       state.error("BOOKMARK_DIALOG_FAILED", EditorEvents.Subsystem.APPLICATION, message(failure));
     }
@@ -191,6 +366,8 @@ public final class BookmarkPanel {
       buffers.put(axis, new ImString(next.text(axis), 4 * CoordinateText.MAX_CHARACTERS + 1));
     var nameBuffer =
         new ImString(next.name(), Math.addExact(Math.multiplyExact(4, next.nameLimit()), 1));
+    choiceOpenings++;
+    choiceSessions.values().forEach(SelectorSession::retire);
     actionScope.release();
     session = next;
     revealBody = true;
@@ -343,7 +520,7 @@ public final class BookmarkPanel {
             owner.result().failure().isEmpty()
                 ? "Bookmark edit rejected. Correct the values or inspect Validation Results."
                 : "Bookmark edit could not be applied. Your text is preserved; retry or inspect"
-                      + " Logs.";
+                    + " Logs.";
         revealFeedback = true;
       } else close(owner);
     } catch (RuntimeException failure) {
@@ -363,6 +540,8 @@ public final class BookmarkPanel {
   }
 
   public void cancel() {
+    choiceOpenings++;
+    choiceSessions.values().forEach(SelectorSession::retire);
     closing = session != null || closing;
     if (session != null) session.cancel();
     session = null;
@@ -458,5 +637,46 @@ public final class BookmarkPanel {
 
   int diagnosticRows() {
     return diagnosticRows;
+  }
+
+  Map<String, Integer> toolbarIds(Tab tab) {
+    return Map.copyOf(toolbar(tab).ids);
+  }
+
+  Map<String, DialogBounds.Rect> toolbarBounds(Tab tab) {
+    return Map.copyOf(toolbar(tab).bounds);
+  }
+
+  Map<String, Integer> choiceIds() {
+    return Map.copyOf(choiceIds);
+  }
+
+  float choiceStride() {
+    return choiceStride;
+  }
+
+  String choiceFeedback(Tab tab) {
+    return choices(tab).feedback();
+  }
+
+  String query(Tab tab) {
+    return filters.get(tab).get();
+  }
+
+  void probeQuery(Tab tab, String value) {
+    filters.get(tab).set(value);
+  }
+
+  void probeOpenChoices(Tab tab) {
+    choiceOpenings++;
+    choices(tab).retire();
+    probeOpen = tab;
+  }
+
+  void probeSelect(Tab tab, UUID id) {
+    synchronize();
+    if (cache.get(state.project(), state.revision, tab).get(id) == null)
+      throw new IllegalArgumentException("Unknown bookmark");
+    selected.put(tab, id);
   }
 }
