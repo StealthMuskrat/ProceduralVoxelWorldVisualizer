@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 public final class ThemePanel {
   final FloatingWindowLayout windowLayout = new FloatingWindowLayout(980, 710);
   private final UserConfig user;
+  final PreferenceActionScope actionScope = new PreferenceActionScope();
   final SettingsPageChrome layout = new SettingsPageChrome(5);
   private ThemeLayout.Panes panes;
   private ThemeLayout.Channels channelLayout;
@@ -51,6 +52,7 @@ public final class ThemePanel {
   private void ensure() {
     if (session != null) return;
     session = new ThemeEditSession(user);
+    actionScope.resetDraft();
     safe = ThemeStyle.resolve(ThemePalette.starting("Dark"));
     feedback = new ThemeFeedback(ThemeStyle::resolve);
     preview =
@@ -83,6 +85,7 @@ public final class ThemePanel {
     }
     ensure();
     preview.refresh();
+    long request = actionScope.synchronize(ThemeActionValues.from(user, preview.paused()));
     // Push before Begin so even authored transparent/identical text remains recoverable.
     safe.forEach((key, c) -> ImGui.pushStyleColor(key, c.r(), c.g(), c.b(), c.a()));
     windowLayout.prepare();
@@ -120,10 +123,10 @@ public final class ThemePanel {
           revealPane = false;
         }
         layout.end();
-        actions();
+        actions(request);
         if (smoke && feedback.checks().stream().noneMatch(ThemeContrast.Check::attention))
           throw new AssertionError("Low-contrast draft was not detected");
-      }
+      } else actionScope.resetDraft();
     } finally {
       ImGui.end();
       ImGui.popStyleColor(safe.size());
@@ -131,7 +134,11 @@ public final class ThemePanel {
     if (open.get()) {
       if (resumeRequested) {
         resumeRequested = false;
-        act(preview::resume);
+        act(
+            () -> {
+              preview.resume();
+              actionScope.resetDraft();
+            });
       }
       preview.refresh();
     } else close();
@@ -182,50 +189,61 @@ public final class ThemePanel {
     if (!message.isEmpty()) ImGui.textWrapped(message);
   }
 
-  private void actions() {
+  private void actions(long request) {
     applyEnabled = session.current(user) && !preview.paused() && !colorIssues.any();
+    boolean resumeEnabled = preview.paused() && session.current(user);
+    ImGui.pushID("theme-request:" + request);
     ImGui.beginDisabled(!applyEnabled);
-    if (layout.action("save", "Save Theme"))
-      act(
-          () -> {
-            session.apply(
-                user, UserConfig.directory().resolve("user-config.json"), feedback.palette());
-            message = "Theme saved";
-          });
+    boolean save = layout.identifiedAction("save", "Save Theme");
     control("save");
     ImGui.endDisabled();
-    if (layout.action("revert", "Revert Theme"))
-      act(
-          () -> {
-            session.revert(user);
-            colorIssues.clearAll();
-            resumeRequested = true;
-            message = "Theme reverted";
-          });
+    boolean revert = layout.identifiedAction("revert", "Revert Theme");
     control("revert");
-    if (layout.action("reset", "Reset to Default")) {
-      session.edit(ThemePalette.starting("Dark"));
-      colorIssues.clearAll();
-      message = "Default Dark staged for Save Theme";
-    }
+    boolean reset = layout.identifiedAction("reset", "Reset to Default");
     control("reset");
-    ImGui.beginDisabled(!preview.paused() || !session.current(user));
-    if (layout.action("resume", "Resume Preview")) {
-      resumeRequested = true;
-      message = "Private preview resumed";
-    }
+    ImGui.beginDisabled(!resumeEnabled);
+    boolean resume = layout.identifiedAction("resume", "Resume Preview");
     control("resume");
     ImGui.endDisabled();
-    if (layout.action("view", "Palette / Contrast")) {
-      if (!panes.columns()) showContrast = !showContrast;
-      revealPane = true;
-    }
+    boolean view = layout.identifiedAction("view", "Palette / Contrast");
     control("view");
     if (ImGui.isItemHovered())
       UiScale.tooltip(
           panes.columns()
               ? "Show the palette and contrast panels"
               : showContrast ? "Show palette" : "Show contrast");
+    ImGui.popID();
+    if (!actionScope.current(ThemeActionValues.from(user, preview.paused()))
+        || ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    if (revert)
+      act(
+          () -> {
+            session.revert(user);
+            actionScope.resetDraft();
+            colorIssues.clearAll();
+            resumeRequested = true;
+            message = "Theme reverted";
+          });
+    else if (reset) {
+      session.edit(ThemePalette.starting("Dark"));
+      actionScope.resetDraft();
+      colorIssues.clearAll();
+      message = "Default Dark staged for Save Theme";
+    } else if (save && applyEnabled)
+      act(
+          () -> {
+            session.apply(
+                user, UserConfig.directory().resolve("user-config.json"), feedback.palette());
+            actionScope.resetDraft();
+            message = "Theme saved";
+          });
+    else if (resume && resumeEnabled) {
+      resumeRequested = true;
+      message = "Private preview resumed";
+    } else if (view) {
+      if (!panes.columns()) showContrast = !showContrast;
+      revealPane = true;
+    }
   }
 
   private void paletteRows() {
@@ -413,6 +431,7 @@ public final class ThemePanel {
   public void close() {
     if (session == null) return;
     preview.close();
+    actionScope.resetDraft();
     session = null;
     preview = null;
     feedback = null;

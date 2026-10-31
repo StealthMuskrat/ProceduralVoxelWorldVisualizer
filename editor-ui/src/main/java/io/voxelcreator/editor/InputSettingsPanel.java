@@ -9,6 +9,7 @@ import java.util.*;
 /** Keyboard changes remain private until Apply writes and publishes a valid preference snapshot. */
 public final class InputSettingsPanel {
   private final UserConfig user;
+  final PreferenceActionScope actionScope = new PreferenceActionScope();
   final SettingsPageChrome layout = new SettingsPageChrome(5);
   private ShortcutRowLayout.Plan rowLayout;
   private DialogBounds.Rect listBounds;
@@ -44,6 +45,7 @@ public final class InputSettingsPanel {
   }
 
   private void sync() {
+    actionScope.resetDraft();
     texts.clear();
     session
         .values()
@@ -63,6 +65,7 @@ public final class InputSettingsPanel {
 
   public void cancelCapture() {
     capture.cancel();
+    actionScope.resetDraft();
   }
 
   public void draw() {
@@ -71,6 +74,7 @@ public final class InputSettingsPanel {
 
   void draw(Runnable savePreferences) {
     ensure();
+    long request = actionScope.synchronize(activeValues());
     controls.clear();
     controlBounds.clear();
     fieldIds.clear();
@@ -244,45 +248,81 @@ public final class InputSettingsPanel {
     layout.end();
     applyEnabled =
         problems.isEmpty() && displayedProblem.isEmpty() && !recording() && session.current(user);
+    ImGui.pushID("input-request:" + request);
     ImGui.beginDisabled(!applyEnabled);
-    if (layout.action("apply", "Apply Bindings"))
-      apply(UserConfig.directory().resolve("user-config.json"));
+    boolean apply = layout.identifiedAction("apply", "Apply Bindings");
     control("apply");
     ImGui.endDisabled();
-    if (layout.action("revert", "Revert Bindings")) {
-      capture.cancel();
-      try {
-        session.revert(user.input.shortcuts);
-        sync();
-        message = "Draft reverted";
-      } catch (RuntimeException invalid) {
-        message = "! " + detail(invalid);
-      }
-    }
+    boolean revert = layout.identifiedAction("revert", "Revert Bindings");
     control("revert");
-    if (layout.action("reset", "Reset Binding Defaults")) {
-      capture.cancel();
-      session.resetAll();
-      sync();
-      message = "Defaults staged; Apply publishes them";
-    }
+    boolean reset = layout.identifiedAction("reset", "Reset Binding Defaults");
     control("reset");
     ImGui.beginDisabled(firstProblem == null);
-    if (layout.action("show-problem", "Show First Problem")) {
-      capture.cancel();
-      filter.set(firstProblem);
-      scroll = 0f;
-      reveal = firstProblem;
-      revealList = true;
-    }
+    boolean problem = layout.identifiedAction("show-problem", "Show First Problem");
     control("show-problem");
     ImGui.endDisabled();
     ImGui.beginDisabled(!capture.active());
-    if (layout.action("cancel-recording", "Cancel Recording")) capture.cancel();
+    boolean cancelRecording = layout.identifiedAction("cancel-recording", "Cancel Recording");
     control("cancel-recording");
     ImGui.endDisabled();
+    ImGui.popID();
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) capture.cancel();
+    else if (actionScope.current(activeValues())) {
+      if (cancelRecording) capture.cancel();
+      else if (revert) {
+        capture.cancel();
+        try {
+          session.revert(user.input.shortcuts);
+          sync();
+          message = "Draft reverted";
+        } catch (RuntimeException invalid) {
+          message = "! " + detail(invalid);
+        }
+      } else if (reset) {
+        capture.cancel();
+        session.resetAll();
+        sync();
+        message = "Defaults staged; Apply publishes them";
+      } else if (apply && applyEnabled) apply(UserConfig.directory().resolve("user-config.json"));
+      else if (problem && firstProblem != null) {
+        capture.cancel();
+        filter.set(firstProblem);
+        scroll = 0f;
+        reveal = firstProblem;
+        revealList = true;
+      }
+    }
     // Footer cancellation must precede capture polling; suppression remains owned for this frame.
     pollCapture(editingText);
+  }
+
+  private record ActiveValues(Map<String, String> bindings, String recording) {
+    ActiveValues {
+      if (bindings != null) bindings = Collections.unmodifiableMap(new LinkedHashMap<>(bindings));
+    }
+  }
+
+  private ActiveValues activeValues() {
+    return new ActiveValues(user.input.shortcuts, capture.action());
+  }
+
+  void probeEdit(String action, String value) {
+    ensure();
+    capture.cancel();
+    session.edit(action, value);
+    texts.get(action).set(value);
+  }
+
+  void probeRevert() {
+    ensure();
+    capture.cancel();
+    session.revert(user.input.shortcuts);
+    sync();
+  }
+
+  boolean probeRecord(String action) {
+    ensure();
+    return capture.start(session, action);
   }
 
   private void actionPosition(int index) {
@@ -402,6 +442,10 @@ public final class InputSettingsPanel {
 
   String draftValue(String key) {
     return texts.get(key).get();
+  }
+
+  String probeMessage() {
+    return message;
   }
 
   boolean applyEnabled() {
