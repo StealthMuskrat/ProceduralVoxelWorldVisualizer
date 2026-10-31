@@ -21,6 +21,11 @@ public final class BookmarkPanel {
 
   private final EditorState state;
   final DialogLayout layout;
+  final SettingsPageChrome chrome = new SettingsPageChrome(2, 2);
+  final SettingsActionScope actionScope = new SettingsActionScope();
+  private final Map<String, Integer> fieldIds = new LinkedHashMap<>();
+  private boolean revealBody, revealFeedback;
+  private String revealField;
   final PopupLayout choicesLayout = new PopupLayout();
   private final Navigation navigation;
   private final BookmarkIndex.Cache cache = new BookmarkIndex.Cache();
@@ -186,7 +191,11 @@ public final class BookmarkPanel {
       buffers.put(axis, new ImString(next.text(axis), 4 * CoordinateText.MAX_CHARACTERS + 1));
     var nameBuffer =
         new ImString(next.name(), Math.addExact(Math.multiplyExact(4, next.nameLimit()), 1));
+    actionScope.release();
     session = next;
+    revealBody = true;
+    revealFeedback = false;
+    revealField = next.named() ? "Name" : "X";
     name = nameBuffer;
     closing = false;
     coordinateBuffers.clear();
@@ -209,89 +218,158 @@ public final class BookmarkPanel {
       layout.open("Bookmark Coordinates");
       pending = false;
     }
-    if (layout.begin("Bookmark Coordinates")) {
-      ImGui.text(session.title() + " / " + session.tab().key());
-      if (session.named()) {
-        if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
-        if (ImGui.inputText("Name", name, ImGuiInputTextFlags.AutoSelectAll)) {
+    var owner = session;
+    var document = state.document.sessionToken();
+    long eligibility = owner.current() ? 1 : 0;
+    long request = actionScope.synchronize(document, owner, eligibility);
+    if (!layout.begin("Bookmark Coordinates")) return;
+    fieldIds.clear();
+    chrome.begin("bookmark-body");
+    if (revealBody) {
+      ImGui.setScrollY(0);
+      revealBody = false;
+    }
+    ImGui.textWrapped(owner.title() + " / " + owner.tab().key());
+    ImGui.pushID("bookmark-fields:" + request);
+    if (owner.named()) {
+      ImGui.textWrapped("Name");
+      if (ImGui.isWindowAppearing() || "Name".equals(revealField)) ImGui.setKeyboardFocusHere();
+      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+      fieldIds.put("Name", ImGui.getID("##name"));
+      if (ImGui.inputText("##name", name, ImGuiInputTextFlags.AutoSelectAll)) {
+        try {
+          owner.editName(name.get());
+          error = "";
+        } catch (RuntimeException failure) {
+          error = message(failure);
+        }
+      }
+      record("Name");
+      reveal("Name");
+    }
+    if (owner.axes().isEmpty()) ImGui.textWrapped(owner.renamedCoordinates().label());
+    else {
+      for (var axis : owner.axes()) {
+        var buffer = coordinateBuffers.get(axis);
+        ImGui.textWrapped(axis);
+        if (axis.equals(revealField)
+            || !owner.named() && ImGui.isWindowAppearing() && axis.equals("X"))
+          ImGui.setKeyboardFocusHere();
+        ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+        fieldIds.put(axis, ImGui.getID("##" + axis));
+        if (ImGui.inputText("##" + axis, buffer)) {
           try {
-            session.editName(name.get());
+            owner.edit(axis, buffer.get());
             error = "";
           } catch (RuntimeException failure) {
             error = message(failure);
           }
         }
-        record("Name");
+        record(axis);
+        reveal(axis);
       }
-      if (session.axes().isEmpty()) ImGui.text(session.renamedCoordinates().label());
-      else {
-        for (var axis : session.axes()) {
-          var buffer = coordinateBuffers.get(axis);
-          if (ImGui.inputText(axis, buffer)) {
-            try {
-              session.edit(axis, buffer.get());
-              error = "";
-            } catch (RuntimeException failure) {
-              error = message(failure);
-            }
-          }
-          record(axis);
-        }
+    }
+    ImGui.popID();
+    boolean current = owner.current();
+    ImGui.separator();
+    ImGui.textWrapped("Attempt feedback");
+    if (!current)
+      ImGui.textWrapped(
+          "Document or bookmark changed. Your text is preserved; Cancel and reopen this dialog.");
+    if (owner.result().issueCount() > 0) {
+      for (var issue : owner.result().issues().stream().limit(8).toList()) {
+        diagnosticRows++;
+        ImGui.textWrapped(bounded(issue.toString()));
       }
-      boolean current = session.current();
-      if (!current)
-        ImGui.textWrapped(
-            "Document or bookmark changed. Your text is preserved; Cancel and reopen this dialog.");
-      if (session.result().issueCount() > 0) {
-        UiScale.beginChild("bookmark-diagnostics", 0, 110, true);
-        for (var issue : session.result().issues().stream().limit(8).toList()) {
-          diagnosticRows++;
-          ImGui.textWrapped(bounded(issue.toString()));
-        }
-        ImGui.endChild();
-        ImGui.textDisabled(
-            session.result().issueCount() + " candidate diagnostic(s); showing up to eight.");
-      }
-      if (!error.isEmpty()) ImGui.textWrapped("! " + bounded(error));
-      ImGui.beginDisabled(!current);
-      if (DialogLayout.button("Apply")) {
-        try {
-          var displayed = new LinkedHashMap<String, String>();
-          coordinateBuffers.forEach((axis, buffer) -> displayed.put(axis, buffer.get()));
-          if (session.apply(session.named() ? name.get() : null, displayed, navigation::teleport)) {
-            if (session.uuid() != null) selected.put(session.tab(), session.uuid());
-            close();
-          } else {
-            error =
-                session.result().failure().isEmpty()
-                    ? "Bookmark edit rejected. Correct the values or inspect Validation Results."
-                    : "Bookmark edit could not be applied. Your text is preserved; retry or inspect"
-                        + " Logs.";
-          }
-        } catch (RuntimeException failure) {
-          error = message(failure);
-        }
-      }
-      record("Apply");
-      ImGui.endDisabled();
-      DialogLayout.sameLine("Cancel");
-      if (DialogLayout.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) close();
-      record("Cancel");
-      ImGui.endPopup();
+      ImGui.textWrapped(
+          owner.result().issueCount() + " candidate diagnostic(s); showing up to eight.");
+    }
+    if (!error.isEmpty()) ImGui.textWrapped("! " + bounded(error));
+    else if (current && owner.result().issueCount() == 0)
+      ImGui.textWrapped(
+          "Apply validates all displayed fields together. Teleport changes only the view.");
+    if (revealFeedback) {
+      ImGui.setScrollHereY(1);
+      revealFeedback = false;
+    }
+    chrome.end();
+    ImGui.pushID("bookmark-actions:" + request);
+    ImGui.beginDisabled(!current);
+    boolean apply = chrome.identifiedAction("apply", "Apply");
+    record("Apply");
+    ImGui.endDisabled();
+    boolean cancel = chrome.identifiedAction("cancel", "Cancel");
+    record("Cancel");
+    boolean fields = chrome.identifiedAction("fields", "Show Fields");
+    record("Show Fields");
+    boolean feedback = chrome.identifiedAction("feedback", "Show Feedback");
+    record("Show Feedback");
+    ImGui.popID();
+    if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) close(owner);
+    else if (session == owner
+        && actionScope.current(state.document.sessionToken(), owner, owner.current() ? 1 : 0)) {
+      if (fields) {
+        revealBody = true;
+        revealField = owner.named() ? "Name" : "X";
+      } else if (feedback) revealFeedback = true;
+      else if (apply && current) apply(owner);
+    }
+    ImGui.endPopup();
+  }
+
+  private void reveal(String field) {
+    if (field.equals(revealField)) {
+      ImGui.setScrollHereY(.5f);
+      revealField = null;
     }
   }
 
-  private void close() {
-    if (session == null) return;
-    cancel();
+  private String problemField(BookmarkEditSession owner) {
+    if (owner.named() && !Objects.equals(name.get(), owner.name())) return "Name";
+    for (var axis : owner.axes())
+      if (!Objects.equals(coordinateBuffers.get(axis).get(), owner.text(axis))) return axis;
+    return owner.problemField();
+  }
+
+  private void apply(BookmarkEditSession owner) {
+    try {
+      var displayed = new LinkedHashMap<String, String>();
+      coordinateBuffers.forEach((axis, buffer) -> displayed.put(axis, buffer.get()));
+      if (owner.apply(owner.named() ? name.get() : null, displayed, navigation::teleport)) {
+        if (owner.uuid() != null) selected.put(owner.tab(), owner.uuid());
+        close(owner);
+      } else if (session == owner) {
+        error =
+            owner.result().failure().isEmpty()
+                ? "Bookmark edit rejected. Correct the values or inspect Validation Results."
+                : "Bookmark edit could not be applied. Your text is preserved; retry or inspect"
+                      + " Logs.";
+        revealFeedback = true;
+      } else close(owner);
+    } catch (RuntimeException failure) {
+      if (session == owner) {
+        error = message(failure);
+        revealField = problemField(owner);
+        revealFeedback = revealField == null;
+      } else close(owner);
+    }
+  }
+
+  /** A callback may cancel this opening and admit a successor before it returns. */
+  private void close(BookmarkEditSession owner) {
+    if (session == owner) cancel();
     ImGui.closeCurrentPopup();
-    closing = false;
+    if (session == null) closing = false;
   }
 
   public void cancel() {
     closing = session != null || closing;
     if (session != null) session.cancel();
     session = null;
+    actionScope.release();
+    revealBody = revealFeedback = false;
+    revealField = null;
+    fieldIds.clear();
     pending = false;
     coordinateBuffers.clear();
     name = new ImString(4 * BookmarkEditSession.MAX_NAME_CHARACTERS + 1);
@@ -304,7 +382,7 @@ public final class BookmarkPanel {
   }
 
   private static String bounded(String value) {
-    return value.length() > 1024 ? value.substring(0, 1023) + "…" : value;
+    return StatusBarText.clip(value, 1024);
   }
 
   private static float[] bounds() {
@@ -354,6 +432,24 @@ public final class BookmarkPanel {
 
   String rawText(String field) {
     return field.equals("Name") ? name.get() : coordinateBuffers.get(field).get();
+  }
+
+  Map<String, Integer> fieldIds() {
+    return Map.copyOf(fieldIds);
+  }
+
+  void probeEdit(String field, String value) {
+    if ("Name".equals(field)) {
+      session.editName(value);
+      name.set(value);
+    } else {
+      session.edit(field, value);
+      coordinateBuffers.get(field).set(value);
+    }
+  }
+
+  UUID probeUuid() {
+    return session == null ? null : session.uuid();
   }
 
   int candidateIssueCount() {

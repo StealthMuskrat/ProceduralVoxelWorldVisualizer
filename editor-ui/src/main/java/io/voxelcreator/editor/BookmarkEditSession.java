@@ -90,6 +90,12 @@ final class BookmarkEditSession {
     return input == null ? List.of() : input.axes();
   }
 
+  /** Correction target only; Apply still validates complete displayed input. */
+  String problemField() {
+    if (named() && name.isBlank()) return "Name";
+    return input == null ? null : input.problemAxis();
+  }
+
   String text(String axis) {
     if (input == null) throw new IllegalStateException("Rename has no editable coordinate fields");
     return input.text(axis);

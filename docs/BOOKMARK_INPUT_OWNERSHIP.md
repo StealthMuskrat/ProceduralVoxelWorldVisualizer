@@ -13,3 +13,5 @@ Coordinate validation precedes a navigation callback. A runtime callback failure
 Physical keyboard/IME/DPI behavior, full viewport/camera endpoint handling, all private-dialog interactions, arbitrary callback side effects and Windows 11 acceptance remain pending. Existing bookmark/navigation evidence remains scoped to its recorded source, and no passing count advances.
 
 [Bookmark dialog ownership and recovery](BOOKMARK_DIALOG_OWNERSHIP.md) subsequently adds exact document-lifetime tokens, same-UUID reopen rejection, complete displayed-input checks, bounded attempt feedback, consumed sessions and picker/modal callback containment. Its fourteen regression definitions and expanded native/report definitions remain uncompiled/untested under the owner testing pause.
+
+The unvalidated [bookmark layout follow-up](BOOKMARK_LAYOUT.md) adds persistent Apply/Cancel and Fields/Feedback navigation, per-opening field/action identity and Cancel/Escape priority. Rejected raw input still uses complete displayed-value validation, with a read-only first-problem correction target. New native/replay definitions remain deferred.
