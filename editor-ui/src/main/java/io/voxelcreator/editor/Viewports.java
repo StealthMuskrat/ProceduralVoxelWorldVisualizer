@@ -3411,7 +3411,10 @@ public final class Viewports implements AutoCloseable {
 
   private void drawInspector() {
     if (tracePanel != null) tracePanel.hide(traceSnapshot);
-    if (!inspector.get()) return;
+    if (!inspector.get()) {
+      inspectorPanel.suspend();
+      return;
+    }
     inspectorLayout.prepare();
     boolean visible = ImGui.begin("Voxel Inspector", inspector);
     UiScale.window(state.user, "Voxel Inspector");
@@ -3424,24 +3427,18 @@ public final class Viewports implements AutoCloseable {
           "inspector-close", new float[] {position.x + size.x - halfTitle, position.y + halfTitle});
     }
     if (!inspector.get()) {
+      inspectorPanel.suspend();
       cancelInspectorTask("", true);
       state.status = "Inspector closed.";
       ImGui.end();
       return;
     }
     if (!visible) {
+      inspectorPanel.suspend();
       ImGui.end();
       return;
     }
-    var status =
-        new InspectorPanel.Status(
-            traceSnapshot,
-            inspectorTask.pending(),
-            inspectorTask.pending() && inspectorTask.request().viewBound(),
-            inspectorTaskFeedback,
-            inspectorPickHint,
-            inspectorInputError);
-    var action = inspectorPanel.draw(status, tracePanel);
+    var action = inspectorPanel.draw(this::inspectorStatus, tracePanel);
     inspectorTraceVisible = inspectorPanel.traceVisible();
     inspectorHintVisible = inspectorPanel.hintVisible();
     inspectorDraftNoticeVisible = inspectorPanel.draftNoticeVisible();
@@ -3454,9 +3451,19 @@ public final class Viewports implements AutoCloseable {
       case REFRESH -> startCoordinateTrace(traceSnapshot.trace().position());
       case CANCEL ->
           cancelInspectorTask(
-              status.pick() ? "World pick canceled." : "Coordinate trace canceled.", true);
+              inspectorStatus().pick() ? "World pick canceled." : "Coordinate trace canceled.",
+              true);
     }
     ImGui.end();
+  }
+
+  private InspectorPanel.Status inspectorStatus() {
+    return new InspectorPanel.Status(
+        traceSnapshot,
+        inspectorTask.request(),
+        inspectorTaskFeedback,
+        inspectorPickHint,
+        inspectorInputError);
   }
 
   @Override

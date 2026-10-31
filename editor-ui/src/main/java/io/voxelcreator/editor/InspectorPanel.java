@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.type.ImString;
 import java.util.*;
 import java.util.function.*;
@@ -18,8 +19,7 @@ final class InspectorPanel {
 
   record Status(
       TraceSnapshot trace,
-      boolean pending,
-      boolean pick,
+      InspectorRequests.Request request,
       String feedback,
       String hint,
       String error) {
@@ -27,6 +27,14 @@ final class InspectorPanel {
       Objects.requireNonNull(feedback);
       Objects.requireNonNull(hint);
       Objects.requireNonNull(error);
+    }
+
+    boolean pending() {
+      return request != null;
+    }
+
+    boolean pick() {
+      return request != null && request.viewBound();
     }
   }
 
@@ -40,6 +48,9 @@ final class InspectorPanel {
   private final Map<String, float[]> controls = new LinkedHashMap<>();
   private boolean tracePage, revealPage;
   private boolean traceVisible, hintVisible, draftNoticeVisible, freshnessNoticeVisible;
+  private final SettingsActionScope actions = new SettingsActionScope();
+  private final String actionId = UUID.randomUUID().toString();
+  private InspectorActionContext actionContext;
 
   InspectorPanel(
       EditorState state,
@@ -84,7 +95,8 @@ final class InspectorPanel {
     return false;
   }
 
-  Action draw(Status status, TracePanel tracePanel) {
+  Action draw(Supplier<Status> currentStatus, TracePanel tracePanel) {
+    var status = Objects.requireNonNull(currentStatus.get());
     controls.clear();
     traceVisible = hintVisible = draftNoticeVisible = freshnessNoticeVisible = false;
     var trace = status.trace();
@@ -153,14 +165,34 @@ final class InspectorPanel {
                 + " Traced replaces entered XYZ without tracing.");
     }
     chrome.end();
+    var context =
+        InspectorActionContext.capture(state, coordinates, displayed(), status, tracePage);
+    if (!context.same(actionContext)) actionContext = context;
+    long version = actions.synchronize(context.lifetime(), actionContext);
+    ImGui.pushID("inspector-actions:" + actionId + ":" + version);
     boolean traceClicked = action("trace-coordinate", "Trace XYZ", true);
     boolean cancel =
         action("trace-cancel", status.pick() ? "Cancel Pick" : "Cancel Trace", status.pending());
     boolean bookmark = action("trace-bookmark", "Bookmark", true);
-    boolean restore = action("trace-restore", "Use Traced", different);
+    boolean restore = action("trace-restore", "Use Traced", differs(trace));
     boolean refresh =
-        action("trace-refresh", "Refresh", freshness == TraceSnapshot.Freshness.PROJECT_CHANGED);
+        action(
+            "trace-refresh",
+            "Refresh",
+            trace != null
+                && trace.freshness(state.project().project.uuid, state.revision)
+                    == TraceSnapshot.Freshness.PROJECT_CHANGED);
     boolean section = action("trace-page", tracePage ? "XYZ" : "Trace", true);
+    ImGui.popID();
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        || !context.same(
+            InspectorActionContext.capture(
+                state,
+                coordinates,
+                displayed(),
+                Objects.requireNonNull(currentStatus.get()),
+                tracePage))
+        || !actions.current(state.document.sessionToken(), actionContext)) return Action.NONE;
     // A cancellation decision takes priority over starting/replacing work in the same frame.
     if (cancel) return Action.CANCEL;
     if (restore) return Action.RESTORE;
@@ -172,6 +204,11 @@ final class InspectorPanel {
       else showTrace();
     }
     return Action.NONE;
+  }
+
+  void suspend() {
+    actions.release();
+    controls.clear();
   }
 
   private boolean action(String key, String label, boolean enabled) {

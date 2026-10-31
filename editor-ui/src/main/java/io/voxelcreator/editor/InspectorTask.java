@@ -42,7 +42,7 @@ final class InspectorTask implements AutoCloseable {
   }
 
   private boolean matches(InspectorRequests.Request value) {
-    return !closed && request != null && request.equals(value);
+    return !closed && request != null && request == value;
   }
 
   boolean finish(InspectorRequests.Request owner) {

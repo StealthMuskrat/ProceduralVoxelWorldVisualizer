@@ -391,7 +391,7 @@ public final class InspectorLayoutProbe {
             ImGui.getWindowSizeY());
     var action =
         panel.draw(
-            new InspectorPanel.Status(shown, task.pending(), false, feedback, hint, error), trace);
+            () -> new InspectorPanel.Status(shown, task.request(), feedback, hint, error), trace);
     ImGui.end();
     guard.draw();
     ImGui.render();

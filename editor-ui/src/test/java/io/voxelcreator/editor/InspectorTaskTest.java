@@ -11,6 +11,47 @@ class InspectorTaskTest {
   private static final BlockPos POINT = new BlockPos(-2, 3, 4);
 
   @Test
+  void equalValuedPredecessorCannotFinishOrReplaceTheSuccessorsAttachedFuture() {
+    try (var task = new InspectorTask()) {
+      var first = new InspectorRequests().begin(1, false);
+      var next = new InspectorRequests().begin(1, false);
+      assertEquals(first, next);
+      assertNotSame(first, next);
+      task.begin(first, POINT);
+      var old = new FutureTask<>(() -> 1);
+      task.attach(first, old);
+      task.begin(next, POINT);
+      var current = new FutureTask<>(() -> 2);
+      task.attach(next, current);
+      assertTrue(old.isCancelled());
+      assertFalse(task.finish(first));
+      var late = new FutureTask<>(() -> 3);
+      task.attach(first, late);
+      assertTrue(late.isCancelled());
+      assertFalse(current.isCancelled());
+      assertSame(next, task.request());
+      assertTrue(task.finish(next));
+    }
+  }
+
+  @Test
+  void reconstructedRequestValuesDoNotAcquireTaskAuthority() {
+    try (var task = new InspectorTask()) {
+      var owner = new InspectorRequests().begin(7, true);
+      task.begin(owner, null);
+      var copy =
+          new InspectorRequests.Request(
+              owner.serial(), owner.revision(), owner.viewVersion(), owner.viewBound());
+      var late = new FutureTask<>(() -> 1);
+      task.attach(copy, late);
+      assertTrue(late.isCancelled());
+      assertFalse(task.finish(copy));
+      assertTrue(task.pending());
+      assertTrue(task.finish(owner));
+    }
+  }
+
+  @Test
   void worldPicksOwnUnknownOrKnownCoordinatesAndCanReplaceCoordinateWork() {
     var gate = new InspectorRequests();
     try (var task = new InspectorTask()) {
