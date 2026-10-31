@@ -80,6 +80,11 @@ final class UpdateCheckSession implements AutoCloseable {
     this.errors = Objects.requireNonNull(errors);
   }
 
+  /** Opaque presentation identity only; result/configuration checks retain all authority. */
+  Object requestToken() {
+    return token;
+  }
+
   View view() {
     refresh();
     return new View(phase, message, result);

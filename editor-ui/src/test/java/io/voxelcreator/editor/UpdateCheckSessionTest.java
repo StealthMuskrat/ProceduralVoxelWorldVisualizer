@@ -244,4 +244,36 @@ class UpdateCheckSessionTest {
       assertNull(session.view().result());
     }
   }
+
+  @Test
+  void presentationTokenTracksRequestsWithoutReplacingPublicationOrExactResultAuthority() {
+    try (var session = session((e, o) -> new UpdateChecker.Release("1.0.1", LINK))) {
+      var idle = session.requestToken();
+      assertTrue(session.start());
+      var first = session.requestToken();
+      assertNotSame(idle, first);
+      assertFalse(session.start());
+      assertSame(first, session.requestToken());
+      deliver();
+      var reviewed = session.view().result();
+      assertSame(first, session.requestToken());
+      assertTrue(session.start());
+      assertNotSame(first, session.requestToken());
+      deliver();
+      assertEquals(reviewed, session.view().result());
+      assertNotSame(reviewed, session.view().result());
+      assertThrows(
+          IllegalStateException.class,
+          () -> session.copy(reviewed, text -> fail("Old review copied")));
+      session.cancel();
+      var cancelled = session.requestToken();
+      session.cancel();
+      assertSame(cancelled, session.requestToken());
+      session.close();
+      assertNotSame(cancelled, session.requestToken());
+      var closed = session.requestToken();
+      session.close();
+      assertSame(closed, session.requestToken());
+    }
+  }
 }

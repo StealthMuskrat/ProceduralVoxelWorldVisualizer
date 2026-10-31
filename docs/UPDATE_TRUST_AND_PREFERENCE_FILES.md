@@ -33,3 +33,5 @@ No build, test, native probe, schema validator, checker or workflow was executed
 The later unvalidated [manual update-results batch](MANUAL_UPDATE_CHECKS.md) adds owned cancellation/publication, reviewed version comparison/link actions and body-complete timeout/cancellation. Its eighteen deferred regressions and native/schema/independent definitions have not run; network/browser/hardware acceptance remains pending.
 
 The separate unvalidated [preference form layout follow-up](PREFERENCE_FORMS_LAYOUT.md) adds retained limits/trust sections and persistent form/Workspace actions without changing this ownership contract. Seven additional regression definitions and eighteen native form/layout/retry cases remain uncompiled/untested; physical centering and full GUI/DPI acceptance remain separate.
+
+The unvalidated [manual update layout follow-up](UPDATE_CHECK_LAYOUT.md) keeps result-window actions persistent and exact-request scoped. It preserves applied trust and private preference ownership, including late-result rejection; all new regression/native/replay definitions remain deferred.

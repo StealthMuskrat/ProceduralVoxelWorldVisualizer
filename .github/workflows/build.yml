@@ -91,6 +91,9 @@ jobs:
           python scripts/verify_update_trust.py build/update-trust
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UpdateCheckProbe build/update-check
           python scripts/verify_update_check.py build/update-check
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UpdateCheckLayoutProbe build/update-check-layout
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.UpdateCheckLayoutConsumer build/update-check-layout
+          python scripts/verify_update_check_layout.py build/update-check-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorkspaceProbe build/workspace
           python scripts/verify_workspace.py build/workspace
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PerformancePreferencesProbe build/performance-preferences
@@ -410,6 +413,7 @@ jobs:
             build/theme-layout/
             build/update-trust/
             build/update-check/
+            build/update-check-layout/
             build/workspace/
             build/performance-preferences/
             build/preferences-layout/
@@ -627,6 +631,12 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UpdateCheckProbe build/update-check
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_update_check.py build/update-check
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UpdateCheckLayoutProbe build/update-check-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.UpdateCheckLayoutConsumer build/update-check-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_update_check_layout.py build/update-check-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorkspaceProbe build/workspace
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -1206,6 +1216,7 @@ jobs:
             build/theme-layout/
             build/update-trust/
             build/update-check/
+            build/update-check-layout/
             build/workspace/
             build/performance-preferences/
             build/preferences-layout/
