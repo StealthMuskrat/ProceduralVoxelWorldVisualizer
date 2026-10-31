@@ -22,7 +22,17 @@ final class InspectorPanel {
       InspectorRequests.Request request,
       String feedback,
       String hint,
-      String error) {
+      String error,
+      InspectorTraceRetry retry) {
+    Status(
+        TraceSnapshot trace,
+        InspectorRequests.Request request,
+        String feedback,
+        String hint,
+        String error) {
+      this(trace, request, feedback, hint, error, null);
+    }
+
     Status {
       Objects.requireNonNull(feedback);
       Objects.requireNonNull(hint);
@@ -35,6 +45,10 @@ final class InspectorPanel {
 
     boolean pick() {
       return request != null && request.viewBound();
+    }
+
+    boolean retryCurrent(EditorState state, long inputVersion) {
+      return !pending() && retry != null && retry.current(state, inputVersion);
     }
   }
 
@@ -100,6 +114,8 @@ final class InspectorPanel {
     controls.clear();
     traceVisible = hintVisible = draftNoticeVisible = freshnessNoticeVisible = false;
     var trace = status.trace();
+    var retry = status.retry();
+    boolean retryAvailable = status.retryCurrent(state, coordinates.version());
     if (tracePanel != null && (!tracePage || trace == null)) tracePanel.hide(trace);
     var freshness = trace == null ? null : trace.freshness(state);
     chrome.begin("inspector-body");
@@ -115,6 +131,17 @@ final class InspectorPanel {
       if (!status.error().isEmpty()) ImGui.textWrapped("! " + status.error());
     }
     var notices = new ArrayList<String>();
+    if (retryAvailable) {
+      var target = retry.position();
+      notices.add(
+          String.format(
+              Locale.ROOT,
+              "Retry Trace evaluates the last failed target at X %d, Y %d, Z %d; entered XYZ stays"
+                  + " unchanged.",
+              target.x(),
+              target.y(),
+              target.z()));
+    }
     if (freshness == TraceSnapshot.Freshness.PROJECT_CHANGED) {
       notices.add(
           trace.reopened(state)
@@ -160,7 +187,9 @@ final class InspectorPanel {
         ImGui.textWrapped(
             status.pending()
                 ? "Waiting for the requested trace."
-                : "No trace selected. Enter XYZ or choose a voxel in World.");
+                : retryAvailable
+                    ? "No result was published for this target. Use Retry Trace to try it again."
+                    : "No trace selected. Enter XYZ or choose a voxel in World.");
       else
         ImGui.textWrapped(
             "Trace XYZ inspects the committed project. Bookmark opens a separate explicit edit. Use"
@@ -180,8 +209,10 @@ final class InspectorPanel {
     boolean refresh =
         action(
             "trace-refresh",
-            "Refresh",
-            trace != null && trace.freshness(state) == TraceSnapshot.Freshness.PROJECT_CHANGED);
+            retryAvailable ? "Retry Trace" : "Refresh",
+            retryAvailable
+                || trace != null
+                    && trace.freshness(state) == TraceSnapshot.Freshness.PROJECT_CHANGED);
     boolean section = action("trace-page", tracePage ? "XYZ" : "Trace", true);
     ImGui.popID();
     if (ImGui.isKeyPressed(ImGuiKey.Escape, false)

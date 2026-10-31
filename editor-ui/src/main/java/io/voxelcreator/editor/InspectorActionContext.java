@@ -14,7 +14,9 @@ record InspectorActionContext(
     long inputVersion,
     Map<String, String> raw,
     Map<String, String> displayed,
-    boolean tracePage) {
+    boolean tracePage,
+    InspectorTraceRetry retry,
+    boolean retryAvailable) {
   InspectorActionContext {
     raw = Collections.unmodifiableMap(new LinkedHashMap<>(raw));
     displayed = Collections.unmodifiableMap(new LinkedHashMap<>(displayed));
@@ -37,7 +39,9 @@ record InspectorActionContext(
         coordinates.version(),
         raw,
         displayed,
-        tracePage);
+        tracePage,
+        status.retry(),
+        status.retryCurrent(state, coordinates.version()));
   }
 
   boolean same(InspectorActionContext other) {
@@ -50,6 +54,8 @@ record InspectorActionContext(
         && inputVersion == other.inputVersion
         && raw.equals(other.raw)
         && displayed.equals(other.displayed)
-        && tracePage == other.tracePage;
+        && tracePage == other.tracePage
+        && retry == other.retry
+        && retryAvailable == other.retryAvailable;
   }
 }

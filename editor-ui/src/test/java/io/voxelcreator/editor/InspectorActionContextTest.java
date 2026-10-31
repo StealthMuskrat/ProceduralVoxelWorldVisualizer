@@ -9,6 +9,59 @@ import org.junit.jupiter.api.Test;
 
 /** Deferred exact footer input/request ownership without native state or background work. */
 class InspectorActionContextTest {
+  @Test
+  void equalLookingRetryReplacementsCannotBorrowThePreviousFooter() {
+    try (var state = new EditorState(new UserConfig(), false)) {
+      var input = new InspectorCoordinates();
+      var raw = Map.of("X", "0", "Y", "0", "Z", "0");
+      var request =
+          new InspectorRequests().begin(state.document.sessionToken(), state.revision, false);
+      var first =
+          InspectorTraceRetry.capture(state, request, new BlockPos(7, 0, 3), input.version());
+      var clone =
+          InspectorTraceRetry.capture(state, request, new BlockPos(7, 0, 3), input.version());
+      var before =
+          InspectorActionContext.capture(
+              state, input, raw, new InspectorPanel.Status(null, null, "", "", "", first), true);
+      var after =
+          InspectorActionContext.capture(
+              state, input, raw, new InspectorPanel.Status(null, null, "", "", "", clone), true);
+      assertTrue(before.retryAvailable());
+      assertTrue(after.retryAvailable());
+      assertFalse(before.same(after));
+    }
+  }
+
+  @Test
+  void pendingWorkAndCanonicalIdentityChangesRetireRetryEligibilityWithoutParsingXyz() {
+    try (var state = new EditorState(new UserConfig(), false)) {
+      var input = new InspectorCoordinates();
+      input.edit("X", "-");
+      var raw = Map.of("X", "-", "Y", "0", "Z", "0");
+      var request =
+          new InspectorRequests().begin(state.document.sessionToken(), state.revision, false);
+      var retry =
+          InspectorTraceRetry.capture(state, request, new BlockPos(7, 0, 3), input.version());
+      var status = new InspectorPanel.Status(null, null, "", "", "", retry);
+      var first = InspectorActionContext.capture(state, input, raw, status, false);
+      assertTrue(first.retryAvailable());
+      var pending =
+          InspectorActionContext.capture(
+              state,
+              input,
+              raw,
+              new InspectorPanel.Status(null, request, "", "", "", retry),
+              false);
+      assertFalse(pending.retryAvailable());
+      assertFalse(first.same(pending));
+      assertTrue(state.document.edit(p -> p.project.seed++).isEmpty());
+      var replaced = InspectorActionContext.capture(state, input, raw, status, false);
+      assertFalse(replaced.retryAvailable());
+      assertFalse(first.same(replaced));
+      assertEquals("-", input.text("X"));
+    }
+  }
+
   private InspectorActionContext capture(
       EditorState state,
       InspectorCoordinates coordinates,

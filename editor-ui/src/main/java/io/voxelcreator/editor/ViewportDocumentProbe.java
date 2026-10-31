@@ -68,8 +68,10 @@ public final class ViewportDocumentProbe {
           ((Noise) draft).id = "private draft";
           state.seedInputs.edit(state, "seedOffset", "Seed", "-");
           var privateValues = ProjectIO.JSON.valueToTree(draft);
-          try (var viewport = new Viewports(state, new PropertyPanel(state), window)) {
+          var properties = new PropertyPanel(state);
+          try (var viewport = new Viewports(state, properties, window)) {
             views = viewport;
+            views.tracePanel(new TracePanel(state, new GuardedNavigation(state, properties)));
             views.probeAdmissionSource(state.project().noise2D.getFirst().uuid);
             views.probeNoiseTab(0);
             until(views::probeAdmissionReady);
@@ -146,7 +148,28 @@ public final class ViewportDocumentProbe {
             new ProjectIO().save(out.resolve("replacement-after.json"), state.project());
 
             var entered = views.probeInspectorCoordinate();
-            views.inspectTrace(TraceCoordinateIntent.capture(state, historical));
+            until(
+                () ->
+                    state.background.getActiveCount() == 0
+                        && state.background.getQueue().isEmpty());
+            var fillers = new ArrayList<Future<?>>();
+            try (var hold = holdWorkers()) {
+              int remaining = state.background.getQueue().remainingCapacity();
+              for (int i = 0; i < remaining; i++) fillers.add(state.background.submit(() -> {}));
+              views.inspectTrace(TraceCoordinateIntent.capture(state, historical));
+              frame();
+              require(
+                  !views.probeCoordinateTracePending()
+                      && new BlockPos(2, 0, 0).equals(views.probeInspectorRetry())
+                      && views.probeInspectorTrace() == historical
+                      && state.traces.size() == 0,
+                  "Queue rejection did not retain the exact failed Logs target");
+            }
+            for (var filler : fillers) filler.get(5, TimeUnit.SECONDS);
+            require(
+                new BlockPos(2, 0, 0).equals(views.probeInspectorRetry()),
+                "Queue recovery retried without user action");
+            clickRetry();
             until(
                 () ->
                     !views.probeCoordinateTracePending()
@@ -161,7 +184,9 @@ public final class ViewportDocumentProbe {
                     && entered.equals(views.probeInspectorCoordinate()),
                 "Logs coordinate did not use the current document while preserving entered XYZ");
             int retained = state.traces.size();
-            require(retained == 1, "Logs request did not publish exactly one trace");
+            require(
+                retained == 1 && views.probeInspectorRetry() == null,
+                "Explicit retry did not publish exactly one trace and clear recovery");
 
             // Complete a request but leave its UI callback queued. Desktop drains callbacks before
             // Viewports observes the replacement, so the request's token must independently reject
@@ -225,6 +250,7 @@ public final class ViewportDocumentProbe {
                     "sameUuidRevisionReplacement",
                     "sourcePaletteRetired",
                     "logsCoordinateTraced",
+                    "queueRetryExactTarget",
                     "pendingInspectorCanceled",
                     "queuedPublicationRejectedBeforeDraw",
                     "immutableImageRetained",
@@ -276,6 +302,19 @@ public final class ViewportDocumentProbe {
               && ((Number) row.get("cacheRows")).intValue() == 0,
           "Retained image rows");
     }
+  }
+
+  private static void clickRetry() {
+    frame();
+    var point = views.probeAdmissionControl("trace-refresh");
+    require(point != null, "Missing Retry Trace action");
+    var io = ImGui.getIO();
+    io.addMousePosEvent(point[0], point[1]);
+    frame();
+    io.addMouseButtonEvent(0, true);
+    frame();
+    io.addMouseButtonEvent(0, false);
+    frame();
   }
 
   private static void fixture(ProjectData p) {
