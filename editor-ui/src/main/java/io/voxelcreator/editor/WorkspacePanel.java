@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.type.ImBoolean;
 import java.util.*;
 
@@ -8,6 +9,8 @@ import java.util.*;
 final class WorkspacePanel {
   private final UserConfig user;
   final SettingsPageChrome layout;
+  final SettingsActionScope actionScope = new SettingsActionScope();
+  private final String actionId = UUID.randomUUID().toString();
   private final Map<String, ImBoolean> tools;
   private final Runnable defaults, changed, center;
   private boolean probing;
@@ -32,7 +35,7 @@ final class WorkspacePanel {
     this.defaults = Objects.requireNonNull(defaults);
     this.changed = Objects.requireNonNull(changed);
     this.center = center;
-    layout = new SettingsPageChrome(center == null ? 1 : 2);
+    layout = new SettingsPageChrome(center == null ? 2 : 3);
   }
 
   void draw() {
@@ -41,6 +44,7 @@ final class WorkspacePanel {
 
   void draw(Runnable savePreferences) {
     if (probing) controls.clear();
+    long request = actionScope.synchronize(user, this, savePreferences == null ? 0 : 1);
     layout.begin("workspace-settings-body");
     var multi = new ImBoolean(user.workspace.multiViewport);
     if (ImGui.checkbox("##workspace-multi-viewport", multi))
@@ -57,21 +61,33 @@ final class WorkspacePanel {
       DialogLayout.sameLine(name + " window");
       ImGui.textWrapped(name + " window");
     }
-    if (savePreferences != null) {
-      if (DialogLayout.button("Save Preferences")) savePreferences.run();
-      control("save-preferences");
-    }
     layout.end();
-    if (layout.action("defaults", "Restore Default Docking")) defaults.run();
+    ImGui.pushID("workspace-actions:" + actionId + ":" + request);
+    boolean restore = layout.identifiedAction("defaults", "Restore Default Docking");
     control("defaults");
+    boolean locate = false;
     if (center != null) {
-      if (layout.action("center", "Center Main Window")) center.run();
+      locate = layout.identifiedAction("center", "Center Main Window");
       control("center");
       if (ImGui.isItemHovered())
         UiScale.tooltip(
             "Restore the normal window and center it on the primary monitor. Docking and private"
                 + " editors are retained.");
     }
+    ImGui.beginDisabled(savePreferences == null);
+    boolean save = layout.identifiedAction("save-preferences", "Save Preferences");
+    control("save-preferences");
+    ImGui.endDisabled();
+    ImGui.popID();
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        || !actionScope.current(user, this, savePreferences == null ? 0 : 1)) return;
+    if (restore) defaults.run();
+    else if (locate && center != null) center.run();
+    else if (save && savePreferences != null) savePreferences.run();
+  }
+
+  void suspendActions() {
+    actionScope.release();
   }
 
   void probeControls() {

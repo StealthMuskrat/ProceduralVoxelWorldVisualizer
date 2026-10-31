@@ -25,3 +25,5 @@ The unvalidated [Profiler workspace follow-up](PROFILER_LAYOUT.md) makes Debug's
 The unvalidated [settings decision follow-up](SETTINGS_DECISIONS.md) changes Project/Application footer arbitration and per-draft action scopes while preserving this shared measured body/footer policy and the independent User Config forms. Existing native settings definitions and new focused-Escape/held-owner/retry phases remain deferred.
 
 The unvalidated [Profiler/Debug decision follow-up](PROFILER_DECISIONS.md) adds exact shared capture/recording eligibility to Debug footer activation, complete decision collection, Escape suppression and release on hidden/collapsed Settings. It retains the shared ProfilePanel.start validator and read-only section behavior. New definitions remain deferred.
+
+The unvalidated [immediate-settings decision follow-up](IMMEDIATE_SETTINGS_DECISIONS.md) adds complete Editor/Visualization footer arbitration, Escape suppression and per-category presentation scopes with Desktop hide release. Live widgets stay immediate and ordinary saves retain private-form isolation; all new native/replay definitions remain deferred.

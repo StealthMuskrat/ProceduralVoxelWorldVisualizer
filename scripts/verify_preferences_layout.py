@@ -19,7 +19,7 @@ sizes = ((1400, 1200), (360, 640), (360, 640), (360, 640), (720, 640), (1000, 30
 globals_ = (1, .5, 1, 2.5, 2.5, 1)
 windows = (1, 1, 1, 1, 2.5, 1)
 orders = {'limits': ('apply', 'revert', 'problem'), 'trust': ('apply', 'revert', 'fields'),
-          'workspace': ('defaults', 'center')}
+          'workspace': ('defaults', 'center', 'save-preferences')}
 performance_fields = {'WORKERS', 'MAX_DIMENSION', 'DEFAULT_EXTENT', 'PREVIEW_CELLS', 'CACHE_MIB',
                       'ENGINE_MIB', 'SCENE_CPU_MIB', 'SCENE_GPU_MIB', 'UPLOAD_KIB', 'RENDER_DISTANCE',
                       'VERTICAL_DISTANCE', 'LOD_START', 'LOD_QUALITY', 'STREAM_CHUNKS'}

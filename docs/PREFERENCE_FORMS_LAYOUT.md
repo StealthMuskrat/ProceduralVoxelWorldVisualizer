@@ -23,3 +23,5 @@ All seven additional regression definitions and eighteen native cases remain def
 The unvalidated [general settings layout follow-up](GENERAL_SETTINGS_LAYOUT.md) adds persistent actions for immediate Editor/Visualization preferences and shared Debug/Profiler controls, plus Project Settings raw-field/retry layout. Their new definitions remain deferred.
 
 The unvalidated [preference decision follow-up](PREFERENCE_DECISIONS.md) scopes Performance/Trust footer activation to owned active values and private resets, collects decisions before publication and gives Revert/Escape priority. Failed writes retain their retry owner and input; unrelated forms/ordinary active saves remain separate. Four regression definitions and eighteen shared native cases remain deferred.
+
+The unvalidated [immediate-settings decision follow-up](IMMEDIATE_SETTINGS_DECISIONS.md) moves Workspace Save Preferences into the persistent docking/centering row, scopes per-instance callbacks and releases hidden presentation state. The deferred preference-layout checker now includes the save-preferences footer key; private Performance/Trust forms retain their existing ordinary-save composition.

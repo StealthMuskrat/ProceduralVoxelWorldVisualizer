@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.type.ImBoolean;
 import java.util.*;
 import java.util.function.*;
@@ -10,6 +11,9 @@ final class LivePreferencesPanel {
   private final UserConfig user;
   private final Runnable save, limits, retryShadows;
   private final Supplier<List<String>> shadows;
+  final SettingsActionScope editorActions = new SettingsActionScope(),
+      visualizationActions = new SettingsActionScope();
+  private final String actionId = UUID.randomUUID().toString();
   final SettingsPageChrome editorLayout = new SettingsPageChrome(1);
   final SettingsPageChrome visualizationLayout = new SettingsPageChrome(3);
   private final Map<String, float[]> controls = new HashMap<>();
@@ -32,6 +36,7 @@ final class LivePreferencesPanel {
   }
 
   void drawEditor() {
+    long request = editorActions.synchronize(user, this);
     begin(editorLayout, "editor-preferences-body");
     ImGui.textWrapped(
         "These preferences take effect immediately. Save Preferences retains them for the next"
@@ -53,11 +58,16 @@ final class LivePreferencesPanel {
         "Auto mode offers 1–20 opportunities per second and regenerates only dirty selected data or"
             + " dependencies. It does not generate on every opportunity.");
     editorLayout.end();
-    if (editorLayout.action("save", "Save Preferences")) save.run();
+    ImGui.pushID("editor-actions:" + actionId + ":" + request);
+    boolean persist = editorLayout.identifiedAction("save", "Save Preferences");
     control("save");
+    ImGui.popID();
+    if (!ImGui.isKeyPressed(ImGuiKey.Escape, false) && editorActions.current(user, this) && persist)
+      save.run();
   }
 
   void drawVisualization() {
+    long request = visualizationActions.synchronize(user, this, user.visualization.shadows ? 1 : 0);
     begin(visualizationLayout, "visualization-preferences-body");
     ImGui.textWrapped(
         "Display preferences take effect immediately and do not alter generated voxel values. Save"
@@ -108,14 +118,29 @@ final class LivePreferencesPanel {
         "Edit preview limits opens the separate private Performance form. Saving these active"
             + " display preferences does not apply its pending text.");
     visualizationLayout.end();
-    if (visualizationLayout.action("save", "Save Preferences")) save.run();
+    ImGui.pushID("visualization-actions:" + actionId + ":" + request);
+    boolean persist = visualizationLayout.identifiedAction("save", "Save Preferences");
     control("save");
-    if (visualizationLayout.action("limits", "Edit Preview Limits")) limits.run();
+    boolean editLimits = visualizationLayout.identifiedAction("limits", "Edit Preview Limits");
     control("limits");
     ImGui.beginDisabled(!v.shadows);
-    if (visualizationLayout.action("retry", "Retry Shadows")) retryShadows.run();
+    boolean retry = visualizationLayout.identifiedAction("retry", "Retry Shadows");
     control("retry");
     ImGui.endDisabled();
+    ImGui.popID();
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        || !visualizationActions.current(user, this, user.visualization.shadows ? 1 : 0)) return;
+    if (persist) save.run();
+    else if (editLimits) limits.run();
+    else if (retry && user.visualization.shadows) retryShadows.run();
+  }
+
+  void suspendEditorActions() {
+    editorActions.release();
+  }
+
+  void suspendVisualizationActions() {
+    visualizationActions.release();
   }
 
   private void begin(SettingsPageChrome layout, String id) {

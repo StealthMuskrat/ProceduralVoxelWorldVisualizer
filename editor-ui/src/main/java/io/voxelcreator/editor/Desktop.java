@@ -851,6 +851,8 @@ public final class Desktop extends Application {
   }
 
   private void drawSettings() {
+    if (!settings.get() || !settingsPage.equals("User Settings"))
+      suspendImmediateSettingsActions(null);
     if (!settings.get() || !settingsPage.equals("Debug & Profiling"))
       debugSettings.suspendActions();
     if (!settings.get()) {
@@ -870,12 +872,14 @@ public final class Desktop extends Application {
       projectSettings.cancel();
       inputSettings.cancelCapture();
       debugSettings.suspendActions();
+      suspendImmediateSettingsActions(null);
       ImGui.end();
       return;
     }
     if (!visible) {
       inputSettings.cancelCapture();
       debugSettings.suspendActions();
+      suspendImmediateSettingsActions(null);
       ImGui.end();
       return;
     }
@@ -887,6 +891,7 @@ public final class Desktop extends Application {
       debugSettings.draw();
     } else {
       AppearanceSettingsPanel.category(fields, settingsCategory, v -> settingsCategory = v);
+      suspendImmediateSettingsActions(settingsCategory);
       switch (settingsCategory) {
         case "Appearance" -> appearanceSettings.draw();
         case "Workspace" -> workspaceSettings.draw(this::savePreferences);
@@ -899,6 +904,12 @@ public final class Desktop extends Application {
     }
     if (!settings.get()) projectSettings.cancel();
     ImGui.end();
+  }
+
+  private void suspendImmediateSettingsActions(String visible) {
+    if (!"Workspace".equals(visible)) workspaceSettings.suspendActions();
+    if (!"Editor".equals(visible)) livePreferences.suspendEditorActions();
+    if (!"Visualization".equals(visible)) livePreferences.suspendVisualizationActions();
   }
 
   private void savePreferences() {

@@ -102,6 +102,9 @@ jobs:
           python scripts/verify_preferences_layout.py build/preferences-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.GeneralSettingsLayoutProbe build/general-settings-layout
           python scripts/verify_general_settings_layout.py build/general-settings-layout
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImmediateSettingsDecisionProbe build/immediate-settings-decisions
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ImmediateSettingsDecisionConsumer build/immediate-settings-decisions
+          python scripts/verify_immediate_settings_decisions.py build/immediate-settings-decisions
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileLayoutProbe build/profile-layout
           python scripts/verify_profile_layout.py build/profile-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DiagnosticsLayoutProbe build/diagnostics-layout
@@ -423,6 +426,7 @@ jobs:
             build/performance-preferences/
             build/preferences-layout/
             build/general-settings-layout/
+            build/immediate-settings-decisions/
             build/profile-layout/
             build/profile-decisions/
             build/diagnostics-layout/
@@ -659,6 +663,12 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.GeneralSettingsLayoutProbe build/general-settings-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_general_settings_layout.py build/general-settings-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImmediateSettingsDecisionProbe build/immediate-settings-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ImmediateSettingsDecisionConsumer build/immediate-settings-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_immediate_settings_decisions.py build/immediate-settings-decisions
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileLayoutProbe build/profile-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -1237,6 +1247,7 @@ jobs:
             build/performance-preferences/
             build/preferences-layout/
             build/general-settings-layout/
+            build/immediate-settings-decisions/
             build/profile-layout/
             build/profile-decisions/
             build/diagnostics-layout/
