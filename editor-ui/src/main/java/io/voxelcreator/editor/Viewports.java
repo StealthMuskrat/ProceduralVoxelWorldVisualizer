@@ -70,11 +70,12 @@ public final class Viewports implements AutoCloseable {
     return bookmarkPanel.pending();
   }
 
-  private final ResourcePicker generatorPicker;
-  private final StageBoundaryPicker stagePicker;
+  private ResourcePicker generatorPicker;
+  private StageBoundaryPicker stagePicker;
   private final ViewportCommands[] commands;
   private final PreviewResumePanel[] resumePanels;
   private final ViewportChoicePanel[] optionPanels;
+  private final PreviewDocumentLifetime documentLifetime;
   private boolean admissionProbe;
   private final java.util.concurrent.atomic.AtomicBoolean probeRendererStartupFailure =
       new java.util.concurrent.atomic.AtomicBoolean();
@@ -663,7 +664,13 @@ public final class Viewports implements AutoCloseable {
   }
 
   java.util.List<Integer> probeSurfacePixel() {
-    org.lwjgl.opengl.GL11.glBindTexture(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, views[1].gl.texture());
+    return probePreviewPixel(1);
+  }
+
+  java.util.List<Integer> probePreviewPixel(int kind) {
+    int previous = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL11.GL_TEXTURE_BINDING_2D);
+    org.lwjgl.opengl.GL11.glBindTexture(
+        org.lwjgl.opengl.GL11.GL_TEXTURE_2D, views[kind].gl.texture());
     int[] width = {0}, height = {0};
     org.lwjgl.opengl.GL11.glGetTexLevelParameteriv(
         org.lwjgl.opengl.GL11.GL_TEXTURE_2D, 0, org.lwjgl.opengl.GL11.GL_TEXTURE_WIDTH, width);
@@ -676,12 +683,43 @@ public final class Viewports implements AutoCloseable {
         org.lwjgl.opengl.GL11.GL_RGBA,
         org.lwjgl.opengl.GL11.GL_UNSIGNED_BYTE,
         all);
+    org.lwjgl.opengl.GL11.glBindTexture(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, previous);
     int at = ((height[0] / 2) * width[0] + width[0] / 2) * 4;
     return java.util.List.of(
         Byte.toUnsignedInt(all.get(at)),
         Byte.toUnsignedInt(all.get(at + 1)),
         Byte.toUnsignedInt(all.get(at + 2)),
         Byte.toUnsignedInt(all.get(at + 3)));
+  }
+
+  void probeTraceCoordinate(BlockPos position) {
+    setInspectorCoordinate(position);
+    inspector.set(true);
+    startCoordinateTrace(position);
+  }
+
+  java.util.List<Map<String, Object>> probeDocumentViews() {
+    var result = new ArrayList<Map<String, Object>>();
+    for (var v : views) {
+      var row = new LinkedHashMap<String, Object>();
+      row.put("kind", v.kind);
+      row.put("epoch", v.epoch);
+      row.put("noise", v.noise);
+      row.put("stage", v.stage);
+      row.put("stageMode", v.stageMode);
+      row.put("force", v.force);
+      row.put("lastSubmit", v.lastSubmit);
+      row.put("scene", v.scene != null);
+      row.put("volumeSnapshot", v.volumeSnapshot != null);
+      row.put("pendingVolume", v.pendingVolume != null);
+      row.put("cacheRows", v.imageRows.memory().rows());
+      row.put("cacheBytes", v.imageRows.memory().bytes());
+      row.put("acceptedImage", v.displayedImage != null);
+      row.put("acceptedSlice", v.displayedSlice != null);
+      row.put("completed", v.completed);
+      result.add(Collections.unmodifiableMap(row));
+    }
+    return List.copyOf(result);
   }
 
   ChunkScene.Statistics probeSurfaceStatistics() {
@@ -790,7 +828,7 @@ public final class Viewports implements AutoCloseable {
         activeSceneKey = "",
         failedKey = "";
     ChunkScene scene;
-    final RenderPressure pressure = new RenderPressure();
+    RenderPressure pressure = new RenderPressure();
     Future<?> compiler;
     final OwnedPreviewMailbox<SceneSetup> setup = new OwnedPreviewMailbox<>();
     int gpuBudget;
@@ -901,6 +939,8 @@ public final class Viewports implements AutoCloseable {
    * Called even when visualizer tabs are hidden, so capture stop/replacement reclaims old queries.
    */
   public void collectGpuTimings() {
+    if (closed) return;
+    synchronizeDocument();
     shadowPreferences();
     var scope = state.engine.profiler().scope(0, state.project().project.uuid, null);
     for (var view : views) view.gl.collectGpuTimings(scope);
@@ -1147,6 +1187,7 @@ public final class Viewports implements AutoCloseable {
 
   public Viewports(EditorState state, PropertyPanel properties, long handle) {
     this.state = state;
+    documentLifetime = new PreviewDocumentLifetime(state.document.sessionToken());
     inspectorPanel =
         new InspectorPanel(
             state,
@@ -1202,6 +1243,7 @@ public final class Viewports implements AutoCloseable {
 
   public void draw() {
     if (closed) return;
+    synchronizeDocument();
     shadowPreferences();
     for (var view : views) view.gl.advanceVolume(0);
     drawnView = -1;
@@ -1425,6 +1467,84 @@ public final class Viewports implements AutoCloseable {
       pane.end();
     }
     if (available) drawSurface(v);
+  }
+
+  private void synchronizeDocument() {
+    documentLifetime.synchronize(
+        state.document.sessionToken(),
+        () -> {
+          drawnView = -1;
+          viewportFocused = false;
+          flightImageVisible = sliceImageVisible = noiseImageVisible = surfacePressed = false;
+          probeImageHover = null;
+          probeSliceHover = null;
+          probeOrbitContextVisible = false;
+          inspectorTraceVisible = inspectorHintVisible = false;
+          for (var v : views) v.flight.pause();
+          syncFlightCursor();
+          cancelInspectorTask("", true);
+          inspector.set(false);
+          inspectorPanel.suspend();
+          inspectorPanel.showCoordinates(false);
+          traceSnapshot = null;
+          inspectorPickHint = "";
+          inspectorInputError = "";
+          observedPickView = null;
+          if (tracePanel != null) tracePanel.hide(null);
+          admissionControls.clear();
+          for (var option : optionPanels) option.reset();
+          fields.reset();
+          generatorPicker = new ResourcePicker(state);
+          stagePicker = new StageBoundaryPicker(state);
+          for (var v : views) {
+            release(v);
+            mark(v);
+            stopStream(v);
+            v.job = null;
+            v.imageRows.clear(v.epoch);
+            v.volumeWindows.clear();
+            v.volumeSnapshot = null;
+            v.volumeNoise = null;
+            v.volumeSourceKey = "";
+            v.volumeRequestTag = "";
+            v.volumeLimits = null;
+            v.volumePlan = null;
+            v.volumeRejected = false;
+            v.displayedVolumeWindow = null;
+            v.gl.clearPreview();
+            v.pressure = new RenderPressure();
+            v.frameMillis = 16;
+            v.gpuBudget = 0;
+            v.noise = null;
+            v.stage = null;
+            v.stageMode = "Final";
+            v.keyNoise = null;
+            v.keyRevision = -1;
+            v.revision = -1;
+            v.geometryKey = v.fingerprint = v.requestedKey = v.activeSceneKey = v.failedKey = "";
+            v.reportedShadowFailure = "";
+            v.streamingObserved = v.streamFallback = false;
+            v.raw = null;
+            v.colors = null;
+            v.hoverSampler = null;
+            v.histogram = new float[64];
+            v.displayedImage = null;
+            v.displayedSlice = null;
+            v.imageStatistics = null;
+            v.fixedPickBounds = null;
+            v.image = v.completed = v.force = false;
+            v.completedModes.clear();
+            v.pickedBookmark = null;
+            v.rebuildSerial++;
+            v.lastSubmit = 0;
+            v.origin.set(0, 0, 0);
+            v.message = "Ready";
+            v.sampleStatus = "Hover preview for coordinates";
+            commands[v.kind].reset();
+            resumePanels[v.kind].suspend();
+            controlPanes[v.kind].reset();
+          }
+        });
   }
 
   private boolean drawControls(View v) {
@@ -3235,7 +3355,7 @@ public final class Viewports implements AutoCloseable {
     observePickView();
     long revision = state.revision;
     cancelInspectorTask("", false);
-    var request = traceRequests.begin(revision, true);
+    var request = traceRequests.begin(state.document.sessionToken(), revision, true);
     var sourceScene = v.scene;
     var sourceGpu = v.gl.sceneRenderer();
     var drawn = streamingPick ? sourceGpu.pickingVersions() : Map.<ChunkPos, Long>of();
@@ -3253,7 +3373,7 @@ public final class Viewports implements AutoCloseable {
     long coordinateVersion = inspectorCoordinates.version();
     java.util.function.BooleanSupplier current =
         () ->
-            traceRequests.current(request, state.revision)
+            traceRequests.current(request, state.document.sessionToken(), state.revision)
                 && coordinateVersion == inspectorCoordinates.version()
                 && (!streamingPick
                     || v.scene == sourceScene
@@ -3428,11 +3548,11 @@ public final class Viewports implements AutoCloseable {
   private void startCoordinateTrace(BlockPos pos) {
     var p = ProjectIO.copy(state.project());
     long revision = state.revision;
-    var request = traceRequests.begin(revision, false);
+    var request = traceRequests.begin(state.document.sessionToken(), revision, false);
     long coordinateVersion = inspectorCoordinates.version();
     java.util.function.BooleanSupplier current =
         () ->
-            traceRequests.current(request, state.revision)
+            traceRequests.current(request, state.document.sessionToken(), state.revision)
                 && coordinateVersion == inspectorCoordinates.version();
     beginInspectorTask(
         request,

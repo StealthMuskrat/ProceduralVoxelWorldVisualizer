@@ -6,6 +6,37 @@ import org.junit.jupiter.api.Test;
 
 class InspectorRequestsTest {
   @Test
+  void boundIdentityCannotBeBypassedByEqualValuesOrTheLegacyOverload() {
+    var gate = new InspectorRequests();
+    var document = new String("same UUID and revision");
+    var request = gate.begin(document, 4, false);
+    assertTrue(gate.current(request, document, 4));
+    assertFalse(gate.current(request, new String(document), 4));
+    assertFalse(gate.current(request, 4));
+    gate.viewChanged();
+    assertTrue(gate.current(request, document, 4));
+  }
+
+  @Test
+  void sameUuidReopenRejectsCoordinateAndPickBeforeViewportSynchronization(
+      @org.junit.jupiter.api.io.TempDir java.nio.file.Path out) throws Exception {
+    var document = new io.voxelcreator.model.DocumentSession();
+    var file = out.resolve("same-project.json");
+    document.save(file);
+    var id = document.data().project.uuid;
+    for (boolean viewBound : new boolean[] {false, true}) {
+      var gate = new InspectorRequests();
+      var request = gate.begin(document.sessionToken(), 7, viewBound);
+      assertTrue(document.open(file).isEmpty());
+      assertEquals(id, document.data().project.uuid);
+      assertFalse(gate.current(request, document.sessionToken(), 7));
+      assertTrue(
+          gate.current(
+              gate.begin(document.sessionToken(), 7, viewBound), document.sessionToken(), 7));
+    }
+  }
+
+  @Test
   void explicitCancellationRejectsCurrentWorkAndAllowsAnotherRequest() {
     for (boolean viewBound : new boolean[] {false, true}) {
       var gate = new InspectorRequests();

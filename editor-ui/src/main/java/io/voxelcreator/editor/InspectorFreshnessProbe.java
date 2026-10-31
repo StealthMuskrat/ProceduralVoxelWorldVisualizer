@@ -121,20 +121,19 @@ final class InspectorFreshnessProbe {
         frames(3);
         require(
             !oldProject.equals(state.project().project.uuid)
-                && views.probeInspectorTrace() == refreshed
-                && views.probeInspectorFreshness() == TraceSnapshot.Freshness.OTHER_PROJECT
-                && views.probeInspectorFreshnessNoticeVisible()
+                && views.probeInspectorTrace() == null
+                && !views.probeInspectorOpen()
+                && !views.probeCoordinateTracePending()
                 && views.probeAdmissionControl("trace-refresh") == null,
-            "Foreign snapshot offered refresh or lost its historical scope");
+            "New document retained a live Inspector presentation or request");
         require(state.traces.size() == 0, "New project retained the old project's Logs payloads");
         require(
             !refreshed.available(state, layerTarget),
             "Foreign trace allowed old-project source navigation");
         var empty = ProjectIO.JSON.valueToTree(state.project());
         long emptyRevision = state.revision, emptyHistory = state.document.historyBytes();
-        control("trace-coordinate");
-        until(
-            () -> views.probeInspectorTrace() != refreshed && !views.probeCoordinateTracePending());
+        views.probeTraceCoordinate(new BlockPos(7, 0, 0));
+        until(() -> views.probeInspectorTrace() != null && !views.probeCoordinateTracePending());
         frames(2);
         var current = views.probeInspectorTrace();
         require(
@@ -175,14 +174,14 @@ final class InspectorFreshnessProbe {
                     Map.entry("manualPreviewUnchanged", true),
                     Map.entry("oldSnapshotImmutable", true),
                     Map.entry("sourceLinksRefreshed", true),
-                    Map.entry("foreignReadOnly", true),
-                    Map.entry("foreignRefreshUnavailable", true),
+                    Map.entry("documentInspectorRetired", true),
+                    Map.entry("historicalSourceUnavailable", true),
                     Map.entry("newTraceViewOnly", true),
                     Map.entry("emptyTraceCountersReset", true))));
         System.out.println(
             "INSPECTOR_FRESHNESS_NATIVE_PASS queued project-change cancellation /"
                 + " displayed-coordinate refresh / entered XYZ preserved / immutable prior result /"
-                + " foreign read-only / new empty-project trace");
+                + " document Inspector retirement / new empty-project trace");
       }
     }
   }

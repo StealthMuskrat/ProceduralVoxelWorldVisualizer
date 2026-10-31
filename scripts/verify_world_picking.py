@@ -92,8 +92,8 @@ assert fresh['initial'] == [3, 0, 0, 1] and fresh['refreshed'] == [3, 0, 0, 0]
 assert fresh['entered'] == [7, 0, 0] and fresh['newProjectTrace'] == [7, 0, 0, 0]
 assert all(fresh[key] is True for key in ['projectChangeCanceled', 'refreshPreservedDraft',
     'refreshViewOnly', 'manualPreviewUnchanged', 'oldSnapshotImmutable', 'sourceLinksRefreshed',
-    'foreignReadOnly', 'foreignRefreshUnavailable', 'newTraceViewOnly', 'emptyTraceCountersReset'])
-print('INSPECTOR_FRESHNESS_PASS committed SET-CLEAR / queued cancellation / refresh preserves XYZ / changed-source link recovery / foreign read-only / new empty-project trace')
+    'documentInspectorRetired', 'historicalSourceUnavailable', 'newTraceViewOnly', 'emptyTraceCountersReset'])
+print('INSPECTOR_FRESHNESS_PASS committed SET-CLEAR / queued cancellation / refresh preserves XYZ / changed-source link recovery / document retirement / new empty-project trace')
 
 flight_root = Path(sys.argv[1]) / 'free-fly'
 flight = json.loads((flight_root / 'free-fly-native.json').read_text())

@@ -268,4 +268,16 @@ public final class NoiseImageRows implements AutoCloseable {
     bytes = 0;
     source = null;
   }
+
+  /** Retire all row leases and fence earlier requests while allowing this view to be reused. */
+  public synchronized void clear(long nextRequest) {
+    if (closed) return;
+    if (nextRequest < latest)
+      throw new IllegalArgumentException("Image request cannot move backward");
+    latest = nextRequest;
+    generation++;
+    rows = new LinkedHashMap<>(16, .75f, true);
+    bytes = 0;
+    source = null;
+  }
 }

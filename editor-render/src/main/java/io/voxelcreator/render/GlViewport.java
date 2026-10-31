@@ -360,6 +360,18 @@ public final class GlViewport implements AutoCloseable {
     return texture;
   }
 
+  /** Retire accepted and incomplete data at a document boundary; keep reusable device objects. */
+  public void clearPreview() {
+    if (gpuTimer != null) {
+      gpuTimer.close();
+      gpuTimer = null;
+    }
+    setImage(1, 1, new int[] {0});
+    setMesh(new Mesh(new float[0], false));
+    setPalette(new int[] {0});
+    retryShadows();
+  }
+
   public void setImage(int w, int h, int[] rgba) {
     volumeUpload.clear();
     retainFrame = false;

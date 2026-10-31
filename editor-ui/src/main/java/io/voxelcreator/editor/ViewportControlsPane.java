@@ -7,6 +7,7 @@ final class ViewportControlsPane {
   private float contentHeight, scroll, maximumScroll;
   private ViewportPanelLayout.Split plan;
   private DialogBounds.Rect bounds;
+  private boolean resetScroll;
 
   void begin(String id) {
     plan =
@@ -17,6 +18,10 @@ final class ViewportControlsPane {
             ImGui.getStyle().getWindowPaddingY(),
             ImGui.getStyle().getItemSpacingY());
     UiScale.beginChild(id, 0, plan.controls(), true);
+    if (resetScroll) {
+      ImGui.setScrollY(0);
+      resetScroll = false;
+    }
     bounds =
         new DialogBounds.Rect(
             ImGui.getWindowPosX(),
@@ -55,5 +60,12 @@ final class ViewportControlsPane {
 
   float maximumScroll() {
     return maximumScroll;
+  }
+
+  void reset() {
+    contentHeight = scroll = maximumScroll = 0;
+    bounds = null;
+    plan = null;
+    resetScroll = true;
   }
 }

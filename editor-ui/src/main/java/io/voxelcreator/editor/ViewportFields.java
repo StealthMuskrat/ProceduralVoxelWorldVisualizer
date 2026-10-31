@@ -58,4 +58,10 @@ final class ViewportFields {
   Map<String, Integer> ids() {
     return Map.copyOf(ids);
   }
+
+  void reset() {
+    bounds.clear();
+    ids.clear();
+    nonfinite.clear();
+  }
 }

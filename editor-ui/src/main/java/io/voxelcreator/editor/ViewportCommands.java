@@ -80,6 +80,20 @@ final class ViewportCommands {
     }
   }
 
+  void reset() {
+    toolbar.release();
+    inspect.release();
+    retireMenu();
+    toolbarReview = inspectReview = null;
+    toolbarFrame = inspectFrame = -1;
+    toolbarIds.clear();
+    toolbarBounds.clear();
+    menuIds.clear();
+    menuBounds.clear();
+    inspectId = 0;
+    inspectBounds = popupBounds = anchor = null;
+  }
+
   int inspectId() {
     return inspectId;
   }

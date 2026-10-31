@@ -163,6 +163,11 @@ final class ViewportChoicePanel {
     if (frame != currentFrame) suspend();
   }
 
+  void reset() {
+    openRequested = false;
+    suspend();
+  }
+
   private void suspend() {
     trigger.release();
     session.retire();
