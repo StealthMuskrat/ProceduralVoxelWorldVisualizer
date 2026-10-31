@@ -214,3 +214,5 @@ The unvalidated [guarded source completion follow-up](docs/GUARDED_SOURCE_COMPLE
 The unvalidated [shared draft decision delivery follow-up](docs/NAVIGATION_DECISION_DELIVERY.md) delivers Apply/Discard/Cancel after popup unwind, protects successor dialogs and limits rendering/delivery to once per frame. Six regression definitions, twelve native modal receipts, ten delivery routes and extended production source callbacks remain deferred.
 
 The unvalidated [Find/reference private-editor eligibility follow-up](docs/NAVIGATION_PRIVATE_EDITOR_ELIGIBILITY.md) rechecks pending Apply/Discard decisions against live private property editors while preserving drafts and raw input. Nine regression definitions, twelve native modal receipts, nine integration routes and independent project/engine replay remain deferred.
+
+The unvalidated [named dialog scaling follow-up](docs/DIALOG_OWNER_SCALING.md) keeps modal body/control text tied to its configured owner when another window draws it, including hidden owners and DPI composition. Eight regression definitions, thirty native font/geometry cases and independent persistence/trace replay remain deferred.

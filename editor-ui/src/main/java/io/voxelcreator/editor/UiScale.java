@@ -15,6 +15,21 @@ final class UiScale {
     ImGui.setWindowFontScale(UiScalePreferences.window(user, name) * UiDpi.windowRatio());
   }
 
+  static void ownedDialog(UserConfig user, String name) {
+    var font = ImGui.getFont();
+    float desired =
+        UiDpiPolicy.ownedFont(
+            font.getFontSize(),
+            font.getScale(),
+            ImGui.getIO().getFontGlobalScale(),
+            UiScalePreferences.window(user, name),
+            UiDpi.windowRatio());
+    // Popup font calculation can include its caller's local scale; normalize that contribution.
+    ImGui.setWindowFontScale(1);
+    float baseline = ImGui.getTextLineHeight();
+    ImGui.setWindowFontScale(desired / baseline);
+  }
+
   record Parent(float fontSize, float contentScale) {}
 
   static Parent parent() {

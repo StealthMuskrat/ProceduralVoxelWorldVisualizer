@@ -22,6 +22,8 @@ final class DialogLayout {
       EditorState state, String owner, float width, float height, PopupWorkAreaResolver workAreas) {
     this.workAreas = Objects.requireNonNull(workAreas);
     this.state = Objects.requireNonNull(state);
+    if (owner != null && !UiScalePreferences.WINDOWS.contains(owner))
+      throw new IllegalArgumentException("Unknown dialog scale owner");
     this.owner = owner;
     geometry = new DialogBounds(width, height);
     preferredWidth = width;
@@ -75,6 +77,7 @@ final class DialogLayout {
       geometry.reset();
       return false;
     }
+    if (owner != null) UiScale.ownedDialog(state.user, owner);
     geometry.observe(
         new DialogBounds.Rect(
             ImGui.getWindowPosX(),

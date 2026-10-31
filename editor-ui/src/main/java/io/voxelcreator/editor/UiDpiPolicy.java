@@ -52,6 +52,18 @@ final class UiDpiPolicy {
     return (float) result;
   }
 
+  /** Recompose a named window's font without inheriting an unrelated caller's window multiplier. */
+  static float ownedFont(
+      float rasterSize, float fontScale, float globalScale, float windowScale, float dpiRatio) {
+    UiScalePreferences.validateScale(windowScale);
+    if (!valid(rasterSize) || !valid(fontScale) || !valid(globalScale) || !valid(dpiRatio))
+      throw new IllegalArgumentException("Invalid owned font metrics");
+    double result = (double) rasterSize * fontScale * globalScale * windowScale * dpiRatio;
+    if (result > Float.MAX_VALUE || result < Float.MIN_VALUE)
+      throw new IllegalArgumentException("Owned font is outside native float bounds");
+    return (float) result;
+  }
+
   private static boolean valid(float value) {
     return Float.isFinite(value) && value > 0;
   }

@@ -224,6 +224,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.NavigationEligibilityProbe build/navigation-eligibility
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.NavigationEligibilityConsumer build/navigation-eligibility
           python scripts/verify_navigation_eligibility.py build/navigation-eligibility
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DialogOwnerScaleProbe build/dialog-owner-scale
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.TraceSourceConsumer build/dialog-owner-scale
+          python scripts/verify_dialog_owner_scale.py build/dialog-owner-scale
       - name: Source algorithm controls and independent references
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SourceAlgorithmProbe build/algorithm-reference
@@ -529,6 +532,7 @@ jobs:
             build/guarded-source/
             build/navigation-delivery/
             build/navigation-eligibility/
+            build/dialog-owner-scale/
             build/algorithm-reference/
             build/scalar-remapping/
             build/warp-controls/
@@ -983,6 +987,12 @@ jobs:
           & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.NavigationEligibilityConsumer build/navigation-eligibility
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_navigation_eligibility.py build/navigation-eligibility
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.DialogOwnerScaleProbe build/dialog-owner-scale
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.TraceSourceConsumer build/dialog-owner-scale
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_dialog_owner_scale.py build/dialog-owner-scale
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows source algorithm controls and independent references
         shell: pwsh
@@ -1497,6 +1507,7 @@ jobs:
             build/guarded-source/
             build/navigation-delivery/
             build/navigation-eligibility/
+            build/dialog-owner-scale/
             build/algorithm-reference/
             build/scalar-remapping/
             build/warp-controls/

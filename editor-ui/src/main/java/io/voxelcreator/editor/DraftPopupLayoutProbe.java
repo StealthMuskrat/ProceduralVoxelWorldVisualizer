@@ -63,10 +63,12 @@ public final class DraftPopupLayoutProbe {
                   "Scalar / deliberately long category description"));
         choices = List.copyOf(rows);
         var cases = new ArrayList<Map<String, Object>>();
+        var oldPropertiesScale = state.user.appearance.windowScales.get("Properties");
         for (int scenario = 0; scenario < 4; scenario++) {
           width = scenario == 3 ? 720 : 360;
           height = scenario == 3 ? 480 : 240;
           windowScale = scenario == 3 ? 2.5f : 1;
+          state.user.appearance.windowScales.put("Properties", windowScale);
           state.user.appearance.globalScale = new float[] {.5f, 1, 2.5f, 2.5f}[scenario];
           if (scenario == 0) {
             mode = "source";
@@ -90,6 +92,8 @@ public final class DraftPopupLayoutProbe {
           exerciseGuard(cases, scenario, "reference");
           exerciseGuard(cases, scenario, "source");
         }
+        if (oldPropertiesScale == null) state.user.appearance.windowScales.remove("Properties");
+        else state.user.appearance.windowScales.put("Properties", oldPropertiesScale);
         var following = closedDialogPreservesNextWindow();
         require(selections == 4, "Choice callback repeated");
         require(
