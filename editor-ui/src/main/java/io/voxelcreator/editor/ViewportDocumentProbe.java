@@ -81,6 +81,17 @@ public final class ViewportDocumentProbe {
             var occupiedPixel = views.probePreviewPixel(2);
             require(red(occupiedPixel), "Source world center is not occupied red");
             var before = views.probeDocumentViews();
+            TraceSnapshot historical;
+            var traceSource = ProjectIO.copy(state.project());
+            try (var world =
+                state.engine.openWorld(new io.voxelcreator.api.CompiledProject(traceSource))) {
+              historical =
+                  new TraceSnapshot(
+                      state.document.sessionToken(),
+                      traceSource,
+                      state.revision,
+                      world.trace(new BlockPos(2, 0, 0)));
+            }
             long stamp = views.probeSubmissionStamp(2);
             require(
                 state.change(p -> p.worldGenerator.layers.getFirst().defaults.action = "CLEAR"),
@@ -134,6 +145,24 @@ public final class ViewportDocumentProbe {
                 "Preview changed replacement project");
             new ProjectIO().save(out.resolve("replacement-after.json"), state.project());
 
+            var entered = views.probeInspectorCoordinate();
+            views.inspectTrace(TraceCoordinateIntent.capture(state, historical));
+            until(
+                () ->
+                    !views.probeCoordinateTracePending()
+                        && views.probeInspectorTrace() != historical);
+            var logsTrace = views.probeInspectorTrace();
+            require(
+                logsTrace != null
+                    && logsTrace.trace().position().equals(new BlockPos(2, 0, 0))
+                    && logsTrace.trace().finalType() == 0
+                    && logsTrace.freshness(state) == TraceSnapshot.Freshness.CURRENT
+                    && entered.equals(new BlockPos(1, 0, 0))
+                    && entered.equals(views.probeInspectorCoordinate()),
+                "Logs coordinate did not use the current document while preserving entered XYZ");
+            int retained = state.traces.size();
+            require(retained == 1, "Logs request did not publish exactly one trace");
+
             // Complete a request but leave its UI callback queued. Desktop drains callbacks before
             // Viewports observes the replacement, so the request's token must independently reject
             // it.
@@ -142,12 +171,12 @@ public final class ViewportDocumentProbe {
                     state.background.getActiveCount() == 0
                         && state.background.getQueue().isEmpty());
             state.drain();
-            views.probeTraceCoordinate(new BlockPos(2, 0, 0));
+            views.inspectTrace(TraceCoordinateIntent.capture(state, historical));
             waitWithoutDrain(() -> !state.uiQueue.isEmpty());
             require(state.document.open(source).isEmpty(), "Second same-UUID reopen failed");
             state.drain();
             require(
-                state.traces.size() == 0 && views.probeInspectorTrace() == null,
+                state.traces.size() == retained && views.probeInspectorTrace() == historical,
                 "Queued old-document publication escaped its token gate");
             frame();
             until(views::probeWorldReady);
@@ -163,7 +192,7 @@ public final class ViewportDocumentProbe {
                 "New document retained source content");
             require(
                 revision == state.revision
-                    && state.traces.size() == 0
+                    && state.traces.size() == retained
                     && image.sample(.5, .5).raw() == .125,
                 "Document isolation changed revision, Logs or immutable prior image");
             require(
@@ -187,11 +216,15 @@ public final class ViewportDocumentProbe {
             report.put("emptyPixel", emptyPixel);
             report.put("oldSubmission", stamp);
             report.put("replacementSubmission", replacementStamp);
+            report.put("logsCoordinate", List.of(2, 0, 0, logsTrace.trace().finalType()));
+            report.put("enteredCoordinate", List.of(entered.x(), entered.y(), entered.z()));
+            report.put("retainedTraces", retained);
             for (var key :
                 List.of(
                     "manualSameDocumentRetained",
                     "sameUuidRevisionReplacement",
                     "sourcePaletteRetired",
+                    "logsCoordinateTraced",
                     "pendingInspectorCanceled",
                     "queuedPublicationRejectedBeforeDraw",
                     "immutableImageRetained",

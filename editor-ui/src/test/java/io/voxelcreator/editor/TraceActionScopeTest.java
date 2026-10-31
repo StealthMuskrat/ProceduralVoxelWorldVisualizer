@@ -6,6 +6,45 @@ import org.junit.jupiter.api.Test;
 
 /** Deferred native-host lifetime and exact footer value ownership, without an ImGui context. */
 class TraceActionScopeTest {
+  @Test
+  void consumedInspectCannotReplayAfterFailureAndAnotherHostKeepsItsOwnPresentation() {
+    var scope = new TraceActionScope();
+    var project = new Object();
+    var values =
+        new TraceActionScope.Context(
+            document, project, 4, null, 0, 0, "", 0, true, true, true, false);
+    var first = scope.synchronize(11, 3, values);
+    var other = scope.synchronize(22, 3, values);
+    assertTrue(scope.consume(first, values));
+    assertFalse(scope.consume(first, values));
+    assertFalse(scope.current(first, values));
+    assertTrue(scope.current(other, values));
+    var retry = scope.synchronize(11, 4, values);
+    assertNotEquals(first.version(), retry.version());
+    assertTrue(scope.consume(retry, values));
+  }
+
+  @Test
+  void canonicalProjectIdentityAndInspectEligibilityRetireHeldFootersWithoutARevisionChange() {
+    var scope = new TraceActionScope();
+    var project = new Object();
+    var values =
+        new TraceActionScope.Context(
+            document, project, 4, null, 0, 0, "", 0, true, true, true, false);
+    var first = scope.synchronize(11, 3, values);
+    var replaced =
+        new TraceActionScope.Context(
+            document, new Object(), 4, null, 0, 0, "", 0, true, true, true, false);
+    var disabled =
+        new TraceActionScope.Context(
+            document, project, 4, null, 0, 0, "", 0, true, true, false, false);
+    assertFalse(scope.consume(first, replaced));
+    assertFalse(scope.consume(first, disabled));
+    assertTrue(scope.current(first, values));
+    assertNotEquals(first.version(), scope.synchronize(11, 4, replaced).version());
+    assertFalse(scope.current(first, values));
+  }
+
   private final Object document = new Object();
 
   private TraceActionScope.Context context(

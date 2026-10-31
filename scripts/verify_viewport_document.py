@@ -14,10 +14,12 @@ report = read('viewport-document-native.json')
 assert report['formatVersion'] == 1
 assert report['fixture'] == 'direct-document-session-native-gl'
 assert report['physicalDpiVerified'] is False and report['fileDialogUxVerified'] is False
-for key in ('manualSameDocumentRetained', 'sameUuidRevisionReplacement', 'sourcePaletteRetired',
+for key in ('manualSameDocumentRetained', 'sameUuidRevisionReplacement', 'sourcePaletteRetired', 'logsCoordinateTraced',
             'pendingInspectorCanceled', 'queuedPublicationRejectedBeforeDraw',
             'immutableImageRetained', 'privateFixturePreserved', 'preferencesPreserved'):
     assert report[key] is True, key
+assert report['logsCoordinate'] == [2, 0, 0, 0]
+assert report['enteredCoordinate'] == [1, 0, 0] and report['retainedTraces'] == 1
 assert len(report['before']) == len(report['retired']) == len(report['afterNew']) == 3
 assert report['before'][0]['noise'] is not None
 assert report['before'][0]['acceptedImage'] and report['before'][0]['cacheRows'] > 0

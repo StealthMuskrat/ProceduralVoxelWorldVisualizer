@@ -64,6 +64,7 @@ public final class Viewports implements AutoCloseable {
   private final InspectorCoordinates inspectorCoordinates = new InspectorCoordinates();
   private final Map<String, ImString> inspectorInputs = new LinkedHashMap<>();
   private String inspectorInputError = "";
+  private boolean inspectorReveal;
   private final BookmarkPanel bookmarkPanel;
 
   boolean bookmarkInteractionPending() {
@@ -1563,6 +1564,7 @@ public final class Viewports implements AutoCloseable {
           syncFlightCursor();
           cancelInspectorTask("", true);
           inspector.set(false);
+          inspectorReveal = false;
           inspectorPanel.suspend();
           inspectorPanel.showCoordinates(false);
           traceSnapshot = null;
@@ -3640,7 +3642,24 @@ public final class Viewports implements AutoCloseable {
     startCoordinateTrace(point);
   }
 
+  void inspectTrace(TraceCoordinateIntent intent) {
+    Objects.requireNonNull(intent);
+    if (closed || !intent.current(state)) return;
+    synchronizeDocument();
+    if (!intent.current(state)) return;
+    inspectorPanel.suspend();
+    traceSnapshot = intent.snapshot();
+    inspectorPickHint = "";
+    inspector.set(true);
+    inspectorReveal = true;
+    startCoordinateTrace(intent.position(), "Use Trace In Inspector in Logs to retry.");
+  }
+
   private void startCoordinateTrace(BlockPos pos) {
+    startCoordinateTrace(pos, "Trace XYZ to retry.");
+  }
+
+  private void startCoordinateTrace(BlockPos pos, String retry) {
     var p = ProjectIO.copy(state.project());
     long revision = state.revision;
     var request = traceRequests.begin(state.document.sessionToken(), revision, false);
@@ -3673,10 +3692,11 @@ public final class Viewports implements AutoCloseable {
                         inspectorTaskFeedback =
                             String.format(
                                 Locale.ROOT,
-                                "Trace failed at X %d, Y %d, Z %d. Trace XYZ to retry.",
+                                "Trace failed at X %d, Y %d, Z %d. %s",
                                 pos.x(),
                                 pos.y(),
-                                pos.z());
+                                pos.z(),
+                                retry);
                         state.status = inspectorTaskFeedback;
                         state.notify("Error", e.getMessage());
                       });
@@ -3684,7 +3704,7 @@ public final class Viewports implements AutoCloseable {
               }));
     } catch (RejectedExecutionException full) {
       finishInspectorTask(request, current);
-      inspectorTaskFeedback = "Inspector queue is full; Trace XYZ to retry.";
+      inspectorTaskFeedback = "Inspector queue is full; " + retry;
       state.status = inspectorTaskFeedback;
       state.notify("Warning", "Inspector queue is full");
     }
@@ -3717,10 +3737,16 @@ public final class Viewports implements AutoCloseable {
   private void drawInspector() {
     if (tracePanel != null) tracePanel.hide(traceSnapshot);
     if (!inspector.get()) {
+      inspectorReveal = false;
       inspectorPanel.suspend();
       return;
     }
     inspectorLayout.prepare();
+    if (inspectorReveal) {
+      ImGui.setNextWindowCollapsed(false, ImGuiCond.Always);
+      ImGui.setNextWindowFocus();
+      inspectorReveal = false;
+    }
     boolean visible = ImGui.begin("Voxel Inspector", inspector);
     UiScale.window(state.user, "Voxel Inspector");
     inspectorLayout.observe();

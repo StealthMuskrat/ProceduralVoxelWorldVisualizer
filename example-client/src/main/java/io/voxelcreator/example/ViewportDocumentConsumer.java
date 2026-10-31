@@ -43,6 +43,9 @@ public final class ViewportDocumentConsumer {
           try (var world =
               engine.openWorld(
                   compiled, new WorldOptions(null, root, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+            if (world.trace(new BlockPos(2, 0, 0)).finalType() != (solid ? 1 : 0))
+              throw new AssertionError(
+                  "Logs coordinate disagrees with the canonical current/source world");
             for (int cx : new int[] {-1, 0}) {
               var chunk = world.generateChunk(new ChunkPos(cx, 0, -1));
               for (int z = 0; z < root; z++)

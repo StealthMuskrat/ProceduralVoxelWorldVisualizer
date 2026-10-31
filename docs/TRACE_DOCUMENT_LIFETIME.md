@@ -29,3 +29,5 @@ python scripts/verify_trace_lifetime.py build/trace-lifetime
 ```
 
 Future Windows wiring uses the bundled runtime, semicolon classpath and exit-code guards. Artifact lists include the native receipt, original/current projects and trace JSON. Development-branch push triggers remain disabled. No compiler, build, test, native probe, Python checker, generator or GitHub workflow ran for this batch. Physical input/DPI, full GUI/Windows 11 acceptance and production sign-off remain pending.
+
+The unvalidated [Logs Inspector handoff](TRACE_INSPECTOR_HANDOFF.md) adds an explicit new current-document request at a retained same-project trace coordinate. It preserves the original historical source-link restrictions and separately entered XYZ. New regression, native footer and actual-worker definitions remain deferred.

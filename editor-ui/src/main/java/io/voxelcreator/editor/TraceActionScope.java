@@ -6,6 +6,7 @@ import java.util.*;
 final class TraceActionScope {
   record Context(
       Object document,
+      Object project,
       long revision,
       TraceSnapshot snapshot,
       int step,
@@ -14,7 +15,24 @@ final class TraceActionScope {
       int page,
       boolean voxel,
       boolean control,
-      boolean pending) {}
+      boolean inspect,
+      boolean pending) {
+    Context(
+        Object document,
+        long revision,
+        TraceSnapshot snapshot,
+        int step,
+        int row,
+        String query,
+        int page,
+        boolean voxel,
+        boolean control,
+        boolean pending) {
+      this(
+          document, null, revision, snapshot, step, row, query, page, voxel, control, false,
+          pending);
+    }
+  }
 
   record Ticket(int host, long version, Context context) {}
 
@@ -39,5 +57,11 @@ final class TraceActionScope {
         && presentation.version() == ticket.version()
         && presentation.context().equals(context)
         && ticket.context().equals(context);
+  }
+
+  boolean consume(Ticket ticket, Context context) {
+    if (!current(ticket, context)) return false;
+    hosts.remove(ticket.host());
+    return true;
   }
 }

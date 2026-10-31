@@ -206,6 +206,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.TraceLifetimeProbe build/trace-lifetime
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.TraceLifetimeConsumer build/trace-lifetime
           python scripts/verify_trace_lifetime.py build/trace-lifetime
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.TraceInspectProbe build/trace-inspect
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.TraceConsumer build/trace-inspect/trace-project.json
+          python scripts/verify_trace_inspect.py build/trace-inspect
       - name: Source algorithm controls and independent references
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SourceAlgorithmProbe build/algorithm-reference
@@ -505,6 +508,7 @@ jobs:
             build/field-operations/
             build/trace-workflow/
             build/trace-lifetime/
+            build/trace-inspect/
             build/algorithm-reference/
             build/scalar-remapping/
             build/warp-controls/
@@ -923,6 +927,12 @@ jobs:
           & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.TraceLifetimeConsumer build/trace-lifetime
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_trace_lifetime.py build/trace-lifetime
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.TraceInspectProbe build/trace-inspect
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.TraceConsumer build/trace-inspect/trace-project.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_trace_inspect.py build/trace-inspect
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows source algorithm controls and independent references
         shell: pwsh
@@ -1431,6 +1441,7 @@ jobs:
             build/field-operations/
             build/trace-workflow/
             build/trace-lifetime/
+            build/trace-inspect/
             build/algorithm-reference/
             build/scalar-remapping/
             build/warp-controls/

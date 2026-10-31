@@ -3,6 +3,7 @@ package io.voxelcreator.editor;
 import imgui.*;
 import imgui.flag.ImGuiKey;
 import imgui.type.*;
+import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -11,11 +12,14 @@ public final class TracePanel {
   private final EditorState state;
   private final GuardedNavigation navigation;
   private final Consumer<String> copy;
+  private final Consumer<TraceCoordinateIntent> inspect;
   private final ImString query = new ImString(256);
   private final TraceObservationSelection observations = new TraceObservationSelection();
   private final TraceActionScope actions = new TraceActionScope();
   private final String actionId = UUID.randomUUID().toString();
-  final SettingsPageChrome chrome = new SettingsPageChrome(3, 3);
+  private WeakReference<Object> canonicalProject = new WeakReference<>(null);
+  private Object canonicalOwner = new Object();
+  final SettingsPageChrome chrome;
   private TraceSnapshot snapshot;
   private String publication = UUID.randomUUID().toString();
   private int step, submittedSteps, submittedRows, page;
@@ -33,9 +37,19 @@ public final class TracePanel {
   }
 
   TracePanel(EditorState state, GuardedNavigation navigation, Consumer<String> copy) {
+    this(state, navigation, copy, null);
+  }
+
+  TracePanel(
+      EditorState state,
+      GuardedNavigation navigation,
+      Consumer<String> copy,
+      Consumer<TraceCoordinateIntent> inspect) {
     this.state = Objects.requireNonNull(state);
     this.navigation = Objects.requireNonNull(navigation);
     this.copy = Objects.requireNonNull(copy);
+    this.inspect = inspect;
+    chrome = inspect == null ? new SettingsPageChrome(3, 3) : new SettingsPageChrome(3, 3, 1);
   }
 
   public void draw(TraceSnapshot value) {
@@ -93,7 +107,7 @@ public final class TracePanel {
               ? "This project was reopened after this trace. Values belong to the earlier document;"
                   + " source links require a new trace."
               : "Project changed after this trace. Values belong to its snapshot; changed source"
-                    + " links require a new trace.");
+                  + " links require a new trace.");
     if (!message.isEmpty()) ImGui.textWrapped(message);
     var steps = value.trace().steps();
     TraceObservationSelection.Review review = null;
@@ -221,6 +235,7 @@ public final class TracePanel {
 
   private void drawActions(TraceSnapshot shown, TraceObservationSelection.Review review) {
     String shownQuery = query.get();
+    var intent = inspect == null ? null : TraceCoordinateIntent.capture(state, shown);
     var context = actionContext(shown, review);
     var ticket =
         actions.synchronize(ImGui.getID("trace-footer-host"), ImGui.getFrameCount(), context);
@@ -252,11 +267,24 @@ public final class TracePanel {
     boolean next = chrome.identifiedAction("next", "Next Page");
     control("next");
     ImGui.endDisabled();
+    boolean traceCoordinate = false;
+    if (inspect != null) {
+      ImGui.beginDisabled(!context.inspect() || context.pending());
+      traceCoordinate = chrome.identifiedAction("inspect", "Trace In Inspector");
+      control("inspect");
+      ImGui.endDisabled();
+    }
     ImGui.popID();
     if (ImGui.isKeyPressed(ImGuiKey.Escape, false)
         || !actions.current(ticket, actionContext(shown, observations.review()))) return;
     try {
-      if (copyTrace) copy.accept(shown.details());
+      if (traceCoordinate
+          && context.inspect()
+          && intent != null
+          && intent.current(state)
+          && actions.consume(ticket, actionContext(shown, observations.review())))
+        inspect.accept(intent);
+      else if (copyTrace) copy.accept(shown.details());
       else if (goVoxel && context.voxel() && !navigation.pending()) {
         if (navigation.request(
                 voxel,
@@ -293,11 +321,17 @@ public final class TracePanel {
 
   private TraceActionScope.Context actionContext(
       TraceSnapshot shown, TraceObservationSelection.Review review) {
+    if (canonicalProject.get() != state.project()) {
+      canonicalProject = new WeakReference<>(state.project());
+      canonicalOwner = new Object();
+    }
     var voxel = shown.finalTypeTarget();
     var target = review == null ? null : review.value().target();
-    boolean blocked = navigation.blocked() || !shown.sameDocument(state);
+    boolean editing = navigation.blocked();
+    boolean blocked = editing || !shown.sameDocument(state);
     return new TraceActionScope.Context(
         state.document.sessionToken(),
+        canonicalOwner,
         state.revision,
         snapshot,
         step,
@@ -306,6 +340,7 @@ public final class TracePanel {
         page,
         !blocked && voxel != null && state.canNavigate(voxel),
         !blocked && target != null && state.canNavigate(target),
+        inspect != null && !editing && shown.project().equals(state.project().project.uuid),
         navigation.pending());
   }
 

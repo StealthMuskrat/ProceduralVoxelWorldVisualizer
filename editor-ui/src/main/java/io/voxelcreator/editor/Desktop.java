@@ -353,7 +353,8 @@ public final class Desktop extends Application {
         new DebugSettingsPanel(
             state, views::streamingStatistics, captures::start, () -> profiler.set(true));
     views.tracePanel(new TracePanel(state, sourceNavigation));
-    diagnostics.tracePanel(new TracePanel(state, sourceNavigation));
+    diagnostics.tracePanel(
+        new TracePanel(state, sourceNavigation, ImGui::setClipboardText, views::inspectTrace));
     glfwSetWindowCloseCallback(
         handle,
         window -> {
