@@ -101,8 +101,7 @@ final class InspectorPanel {
     traceVisible = hintVisible = draftNoticeVisible = freshnessNoticeVisible = false;
     var trace = status.trace();
     if (tracePanel != null && (!tracePage || trace == null)) tracePanel.hide(trace);
-    var freshness =
-        trace == null ? null : trace.freshness(state.project().project.uuid, state.revision);
+    var freshness = trace == null ? null : trace.freshness(state);
     chrome.begin("inspector-body");
     if (revealPage) {
       ImGui.setScrollY(0);
@@ -118,8 +117,11 @@ final class InspectorPanel {
     var notices = new ArrayList<String>();
     if (freshness == TraceSnapshot.Freshness.PROJECT_CHANGED) {
       notices.add(
-          "Project changed since this trace. Refresh its displayed coordinate in the current"
-              + " project; entered XYZ stays unchanged.");
+          trace.reopened(state)
+              ? "This project was reopened after this trace. Refresh its displayed coordinate to"
+                  + " use the current document; entered XYZ stays unchanged."
+              : "Project changed since this trace. Refresh its displayed coordinate in the current"
+                  + " project; entered XYZ stays unchanged.");
       freshnessNoticeVisible = true;
     } else if (freshness == TraceSnapshot.Freshness.OTHER_PROJECT) {
       notices.add(
@@ -179,9 +181,7 @@ final class InspectorPanel {
         action(
             "trace-refresh",
             "Refresh",
-            trace != null
-                && trace.freshness(state.project().project.uuid, state.revision)
-                    == TraceSnapshot.Freshness.PROJECT_CHANGED);
+            trace != null && trace.freshness(state) == TraceSnapshot.Freshness.PROJECT_CHANGED);
     boolean section = action("trace-page", tracePage ? "XYZ" : "Trace", true);
     ImGui.popID();
     if (ImGui.isKeyPressed(ImGuiKey.Escape, false)

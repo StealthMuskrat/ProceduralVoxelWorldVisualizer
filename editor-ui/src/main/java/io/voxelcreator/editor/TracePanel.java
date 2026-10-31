@@ -84,13 +84,16 @@ public final class TracePanel {
     chrome.begin("trace-body");
     for (var notice : notices) ImGui.textWrapped(notice);
     ImGui.textWrapped(shortText(value.summary(), 1024));
-    var freshness = value.freshness(state.project().project.uuid, state.revision);
+    var freshness = value.freshness(state);
     if (!contained && freshness == TraceSnapshot.Freshness.OTHER_PROJECT)
       ImGui.textWrapped("Historical project: source links are unavailable.");
     else if (!contained && freshness == TraceSnapshot.Freshness.PROJECT_CHANGED)
       ImGui.textWrapped(
-          "Project changed after this trace. Values belong to its snapshot; changed source links"
-              + " require a new trace.");
+          value.reopened(state)
+              ? "This project was reopened after this trace. Values belong to the earlier document;"
+                  + " source links require a new trace."
+              : "Project changed after this trace. Values belong to its snapshot; changed source"
+                    + " links require a new trace.");
     if (!message.isEmpty()) ImGui.textWrapped(message);
     var steps = value.trace().steps();
     TraceObservationSelection.Review review = null;
@@ -292,7 +295,7 @@ public final class TracePanel {
       TraceSnapshot shown, TraceObservationSelection.Review review) {
     var voxel = shown.finalTypeTarget();
     var target = review == null ? null : review.value().target();
-    boolean blocked = navigation.blocked();
+    boolean blocked = navigation.blocked() || !shown.sameDocument(state);
     return new TraceActionScope.Context(
         state.document.sessionToken(),
         state.revision,

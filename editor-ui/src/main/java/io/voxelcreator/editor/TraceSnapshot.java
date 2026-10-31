@@ -20,6 +20,7 @@ public final class TraceSnapshot {
   public record Row(String label, String value, EditorEvents.Target target) {}
 
   private final UUID project;
+  private final Object document;
   private final long revision;
   private final GenerationTrace trace;
   private final Map<Integer, String> names;
@@ -29,7 +30,16 @@ public final class TraceSnapshot {
   private final String summary;
   private final long bytes;
 
+  /**
+   * Compatibility constructor for standalone source/revision presentations without a live owner.
+   */
   public TraceSnapshot(ProjectData source, long revision, GenerationTrace trace) {
+    this(null, source, revision, trace);
+  }
+
+  /** Production snapshots bind the exact successful request's document lifetime. */
+  TraceSnapshot(Object document, ProjectData source, long revision, GenerationTrace trace) {
+    this.document = document;
     this.project = source.project.uuid;
     this.revision = revision;
     this.trace = Objects.requireNonNull(trace);
@@ -98,9 +108,30 @@ public final class TraceSnapshot {
     return project;
   }
 
+  /** Context-free queries cannot certify a document-bound snapshot as current. */
   public Freshness freshness(UUID currentProject, long currentRevision) {
+    return freshness(null, currentProject, currentRevision);
+  }
+
+  public Freshness freshness(EditorState state) {
+    return freshness(state.document.sessionToken(), state.project().project.uuid, state.revision);
+  }
+
+  Freshness freshness(Object currentDocument, UUID currentProject, long currentRevision) {
     if (!project.equals(currentProject)) return Freshness.OTHER_PROJECT;
+    if (document != null && document != currentDocument) return Freshness.PROJECT_CHANGED;
     return revision == currentRevision ? Freshness.CURRENT : Freshness.PROJECT_CHANGED;
+  }
+
+  boolean reopened(EditorState state) {
+    return project.equals(state.project().project.uuid)
+        && document != null
+        && document != state.document.sessionToken();
+  }
+
+  boolean sameDocument(EditorState state) {
+    return project.equals(state.project().project.uuid)
+        && (document == null || document == state.document.sessionToken());
   }
 
   public String summary() {
@@ -317,9 +348,7 @@ public final class TraceSnapshot {
   }
 
   public boolean available(EditorState state, EditorEvents.Target target) {
-    if (target == null
-        || !project.equals(state.project().project.uuid)
-        || !state.canNavigate(target)) return false;
+    if (target == null || !sameDocument(state) || !state.canNavigate(target)) return false;
     var entry = ResourceGraph.find(state.project(), target.resource());
     return entry != null
         && Objects.equals(fingerprints.get(target.resource()), hash(entry.resource()));

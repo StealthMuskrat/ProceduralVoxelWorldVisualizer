@@ -90,7 +90,7 @@ assert before['noise3D'][0]['algorithm']['parameters']['value'] == 1
 assert empty['noise3D'] == [] and empty['voxelTypes'] == [] and empty['worldGenerator']['layers'] == []
 assert fresh['initial'] == [3, 0, 0, 1] and fresh['refreshed'] == [3, 0, 0, 0]
 assert fresh['entered'] == [7, 0, 0] and fresh['newProjectTrace'] == [7, 0, 0, 0]
-assert all(fresh[key] is True for key in ['projectChangeCanceled', 'refreshPreservedDraft',
+assert all(fresh[key] is True for key in ['projectChangeCanceled', 'documentBoundSnapshots', 'refreshPreservedDraft',
     'refreshViewOnly', 'manualPreviewUnchanged', 'oldSnapshotImmutable', 'sourceLinksRefreshed',
     'documentInspectorRetired', 'historicalSourceUnavailable', 'newTraceViewOnly', 'emptyTraceCountersReset'])
 print('INSPECTOR_FRESHNESS_PASS committed SET-CLEAR / queued cancellation / refresh preserves XYZ / changed-source link recovery / document retirement / new empty-project trace')

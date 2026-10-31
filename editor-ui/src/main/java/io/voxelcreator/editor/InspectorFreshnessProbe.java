@@ -34,6 +34,11 @@ final class InspectorFreshnessProbe {
         until(views::probeInspectorOpen);
         frames(2);
         var original = views.probeInspectorTrace();
+        require(
+            original.freshness(state) == TraceSnapshot.Freshness.CURRENT
+                && original.freshness(state.project().project.uuid, state.revision)
+                    == TraceSnapshot.Freshness.PROJECT_CHANGED,
+            "Production Inspector snapshot is not bound to its document lifetime");
         var layerTarget =
             new EditorEvents.Target(
                 state.project().project.uuid,
@@ -169,6 +174,7 @@ final class InspectorFreshnessProbe {
                             views.probeInspectorCoordinate().z())),
                     Map.entry("newProjectTrace", List.of(7, 0, 0, current.trace().finalType())),
                     Map.entry("projectChangeCanceled", true),
+                    Map.entry("documentBoundSnapshots", true),
                     Map.entry("refreshPreservedDraft", true),
                     Map.entry("refreshViewOnly", true),
                     Map.entry("manualPreviewUnchanged", true),

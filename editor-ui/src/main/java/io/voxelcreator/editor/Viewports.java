@@ -300,9 +300,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   TraceSnapshot.Freshness probeInspectorFreshness() {
-    return traceSnapshot == null
-        ? null
-        : traceSnapshot.freshness(state.project().project.uuid, state.revision);
+    return traceSnapshot == null ? null : traceSnapshot.freshness(state);
   }
 
   boolean probeInspectorFreshnessNoticeVisible() {
@@ -3572,7 +3570,7 @@ public final class Viewports implements AutoCloseable {
   private void acceptTrace(GenerationTrace result, ProjectData snapshot, long revision) {
     inspectorPickHint = "";
     inspectorTaskFeedback = "";
-    traceSnapshot = new TraceSnapshot(snapshot, revision, result);
+    traceSnapshot = new TraceSnapshot(state.document.sessionToken(), snapshot, revision, result);
     state.status =
         String.format(
             Locale.ROOT,
