@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.*;
+import imgui.flag.ImGuiKey;
 import imgui.type.*;
 import java.util.*;
 import java.util.function.Consumer;
@@ -12,6 +13,13 @@ final class HelpPanel {
   private final EditorState state;
   private final Consumer<String> copy;
   private final HelpSession session = new HelpSession();
+  private final SettingsActionScope actions = new SettingsActionScope();
+  private final String actionId = UUID.randomUUID().toString();
+  private ActionContext actionContext;
+
+  private record ActionContext(
+      HelpCatalog.Topic selected, String page, String query, long version) {}
+
   private final ImString query = new ImString(1024);
   private final UiFields fields = new UiFields();
   private String page = "Topics";
@@ -31,6 +39,7 @@ final class HelpPanel {
   boolean openTopic(String id) {
     session.synchronize(state.metadata);
     if (!session.open(id)) return false;
+    actions.release();
     query.set("");
     page = "Guidance";
     scrollTop = true;
@@ -38,12 +47,16 @@ final class HelpPanel {
   }
 
   void draw(ImBoolean open) {
-    if (!open.get()) return;
+    if (!open.get()) {
+      actions.release();
+      return;
+    }
     windowLayout.prepare();
     boolean visible = ImGui.begin("Help", open);
     UiScale.window(state.user, "Help");
     windowLayout.observe();
     if (!visible || !open.get()) {
+      actions.release();
       ImGui.end();
       return;
     }
@@ -71,6 +84,9 @@ final class HelpPanel {
       scrollEnd = false;
     }
     var selected = session.selected();
+    var catalog = session.catalog();
+    var shown = new ActionContext(selected, page, query.get(), session.version());
+    boolean canBack = session.canBack();
     if (selected != null) {
       ImGui.text(
           "Selected: "
@@ -83,26 +99,48 @@ final class HelpPanel {
     if (page.equals("Topics")) results(results);
     else guidance(selected);
     chrome.end();
+    if (!shown.equals(actionContext)) actionContext = shown;
+    long version = actions.synchronize(catalog, actionContext);
+    ImGui.pushID("help-actions:" + actionId + ":" + version);
     ImGui.beginDisabled(selected == null);
-    if (chrome.action("copy", "Copy")) copy.accept(selected.copyText(session.catalog()));
+    boolean copied = chrome.identifiedAction("copy", "Copy");
     control("copy");
     ImGui.endDisabled();
-    if (chrome.action("page", page.equals("Topics") ? "Guidance" : "Topics"))
-      page(page.equals("Topics") ? "Guidance" : "Topics");
+    boolean toggle =
+        chrome.identifiedAction("page", shown.page().equals("Topics") ? "Guidance" : "Topics");
     control("page");
-    ImGui.beginDisabled(!session.canBack());
-    if (chrome.action("back", "Back") && session.back()) {
-      query.set("");
-      page("Guidance");
-    }
+    ImGui.beginDisabled(!canBack);
+    boolean back = chrome.identifiedAction("back", "Back");
     control("back");
     ImGui.endDisabled();
-    if (chrome.action("clear", "Clear")) {
-      query.set("");
-      page("Topics");
-      reveal = true;
-    }
+    boolean clear = chrome.identifiedAction("clear", "Clear");
     control("clear");
+    ImGui.popID();
+    if (!ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        && shown.equals(new ActionContext(session.selected(), page, query.get(), session.version()))
+        && catalog == session.catalog()
+        && actions.current(catalog, actionContext)) {
+      if (copied && selected != null) {
+        try {
+          copy.accept(selected.copyText(catalog));
+        } catch (RuntimeException failure) {
+          String detail = failure.getMessage();
+          if (detail == null || detail.isBlank()) detail = failure.getClass().getName();
+          state.error(
+              "HELP_COPY_FAILED",
+              EditorEvents.Subsystem.APPLICATION,
+              StatusBarText.clip(detail, 1024));
+        }
+      } else if (toggle) page(shown.page().equals("Topics") ? "Guidance" : "Topics");
+      else if (back && canBack && session.back()) {
+        query.set("");
+        page("Guidance");
+      } else if (clear) {
+        query.set("");
+        page("Topics");
+        reveal = true;
+      }
+    }
     ImGui.end();
   }
 
@@ -241,5 +279,13 @@ final class HelpPanel {
 
   void probeEnd() {
     scrollEnd = true;
+  }
+
+  void query(String value) {
+    query.set(value);
+  }
+
+  String query() {
+    return query.get();
   }
 }

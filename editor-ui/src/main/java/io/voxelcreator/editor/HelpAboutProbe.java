@@ -64,7 +64,7 @@ public final class HelpAboutProbe {
         help = new HelpPanel(state, text -> copied = text);
         about =
             new AboutPanel(
-                state.user,
+                state,
                 details,
                 text -> copied = text,
                 () -> state.helpRequests.request("help.about"));

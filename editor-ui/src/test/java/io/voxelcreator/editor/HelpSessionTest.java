@@ -7,6 +7,55 @@ import org.junit.jupiter.api.Test;
 
 class HelpSessionTest {
   @Test
+  void navigationVersionDistinguishesRoundTripsButIgnoresSearchAndRepeatedCurrentLinks() {
+    var metadata = AppMetadata.defaults();
+    var session = new HelpSession();
+    session.synchronize(metadata);
+    long initial = session.version();
+    session.synchronize(metadata);
+    session.catalog().search("noise");
+    assertFalse(session.open("unknown"));
+    assertFalse(session.back());
+    assertEquals(initial, session.version());
+    session.open("noise");
+    var selected = session.selected();
+    long first = session.version();
+    assertTrue(first > initial);
+    session.open("noise");
+    assertEquals(first, session.version());
+    session.open("layers");
+    session.open("noise");
+    assertSame(selected, session.selected());
+    assertTrue(session.canBack());
+    long roundTrip = session.version();
+    assertTrue(roundTrip > first);
+    assertTrue(session.back());
+    assertTrue(session.version() > roundTrip);
+    assertEquals("layers", session.selected().id());
+    assertTrue(session.back());
+    long empty = session.version();
+    assertFalse(session.back());
+    assertEquals(empty, session.version());
+  }
+
+  @Test
+  void equalMetadataPublicationHasAnotherVersionWhilePreservingCanonicalSelection() {
+    var metadata = AppMetadata.defaults();
+    var session = new HelpSession();
+    session.synchronize(metadata);
+    session.open("noise");
+    var catalog = session.catalog();
+    var selected = session.selected();
+    long version = session.version();
+    session.synchronize(AppMetadata.copy(metadata));
+    assertTrue(session.version() > version);
+    assertNotSame(catalog, session.catalog());
+    assertNotSame(selected, session.selected());
+    assertEquals(selected, session.selected());
+    assertFalse(session.canBack());
+  }
+
+  @Test
   void filteringAndUnknownLinksRetainTheActualSelectedTopicAndHistory() {
     var session = new HelpSession();
     session.synchronize(AppMetadata.defaults());

@@ -124,6 +124,9 @@ jobs:
           python scripts/verify_inspector_layout.py build/inspector-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.HelpAboutProbe build/help-about
           python scripts/verify_help_about.py build/help-about
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ManualDecisionProbe build/manual-decisions
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ManualDecisionConsumer build/manual-decisions
+          python scripts/verify_manual_decisions.py build/manual-decisions
           python scripts/verify_profile_capture.py build/profile-layout/reviewed.json build/profile-layout/reviewed.csv
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileDecisionProbe build/profile-decisions
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProfileDecisionConsumer build/profile-decisions
@@ -445,6 +448,7 @@ jobs:
             build/utility-decisions/
             build/inspector-layout/
             build/help-about/
+            build/manual-decisions/
             build/window-placement/
             build/ui-scales/
             build/ui-scale-layout/
@@ -719,6 +723,12 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.HelpAboutProbe build/help-about
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_help_about.py build/help-about
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ManualDecisionProbe build/manual-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ManualDecisionConsumer build/manual-decisions
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_manual_decisions.py build/manual-decisions
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_profile_capture.py build/profile-layout/reviewed.json build/profile-layout/reviewed.csv
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -1287,6 +1297,7 @@ jobs:
             build/utility-decisions/
             build/inspector-layout/
             build/help-about/
+            build/manual-decisions/
             build/window-placement/
             build/ui-scales/
             build/ui-scale-layout/

@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.type.ImBoolean;
 import java.util.*;
 import java.util.function.Consumer;
@@ -10,28 +11,37 @@ final class AboutPanel {
   final FloatingWindowLayout windowLayout = new FloatingWindowLayout(680, 500);
   final SettingsPageChrome chrome = new SettingsPageChrome(2);
   private final UserConfig user;
+  private final EditorState state;
   private final AboutDetails details;
   private final Consumer<String> copy;
   private final Runnable help;
   private final UiFields fields = new UiFields();
   private String section = "Runtime";
+  private String actionSection;
+  private final SettingsActionScope actions = new SettingsActionScope();
+  private final String actionId = UUID.randomUUID().toString();
   private final Map<String, float[]> controls = new HashMap<>();
   private DialogBounds.Rect selectorBounds;
 
-  AboutPanel(UserConfig user, AboutDetails details, Consumer<String> copy, Runnable help) {
-    this.user = Objects.requireNonNull(user);
+  AboutPanel(EditorState state, AboutDetails details, Consumer<String> copy, Runnable help) {
+    this.state = Objects.requireNonNull(state);
+    user = state.user;
     this.details = Objects.requireNonNull(details);
     this.copy = Objects.requireNonNull(copy);
     this.help = Objects.requireNonNull(help);
   }
 
   void draw(ImBoolean open) {
-    if (!open.get()) return;
+    if (!open.get()) {
+      actions.release();
+      return;
+    }
     windowLayout.prepare();
     boolean visible = ImGui.begin("About", open);
     UiScale.window(user, "About");
     windowLayout.observe();
     if (!visible || !open.get()) {
+      actions.release();
       ImGui.end();
       return;
     }
@@ -54,12 +64,41 @@ final class AboutPanel {
       }
     }
     chrome.end();
-    if (chrome.action("copy", "Copy"))
-      copy.accept(section.equals("Runtime") ? details.runtimeText() : details.licenseText());
+    String shown = section;
+    if (!shown.equals(actionSection)) actionSection = shown;
+    long version = actions.synchronize(details, actionSection);
+    ImGui.pushID("about-actions:" + actionId + ":" + version);
+    boolean copied = chrome.identifiedAction("copy", "Copy");
     control("copy");
-    if (chrome.action("help", "Help")) help.run();
+    boolean helped = chrome.identifiedAction("help", "Help");
     control("help");
+    ImGui.popID();
+    if (!ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        && shown.equals(section)
+        && actions.current(details, actionSection)) {
+      if (copied)
+        external(
+            "ABOUT_COPY_FAILED",
+            () ->
+                copy.accept(
+                    shown.equals("Runtime") ? details.runtimeText() : details.licenseText()));
+      else if (helped) external("ABOUT_HELP_FAILED", help);
+    }
     ImGui.end();
+  }
+
+  private void external(String code, Runnable callback) {
+    try {
+      callback.run();
+    } catch (RuntimeException failure) {
+      String detail = failure.getMessage();
+      if (detail == null || detail.isBlank()) detail = failure.getClass().getName();
+      state.error(code, EditorEvents.Subsystem.APPLICATION, StatusBarText.clip(detail, 1024));
+    }
+  }
+
+  String section() {
+    return section;
   }
 
   private void control(String key) {

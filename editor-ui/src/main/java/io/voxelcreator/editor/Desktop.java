@@ -394,7 +394,7 @@ public final class Desktop extends Application {
     runtime.put("GLSL", glGetString(GL_SHADING_LANGUAGE_VERSION));
     aboutPanel =
         new AboutPanel(
-            state.user,
+            state,
             new AboutDetails(APPLICATION_VERSION, CompiledProject.ENGINE_VERSION, runtime),
             ImGui::setClipboardText,
             () -> state.helpRequests.request("help.about"));
