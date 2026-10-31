@@ -11,6 +11,12 @@ import java.util.*;
  * Immutable source-scoped trace presentation. Navigation never replays a historical array index.
  */
 public final class TraceSnapshot {
+  enum Definition {
+    MATCH,
+    MISSING,
+    CHANGED
+  }
+
   public enum Freshness {
     CURRENT,
     PROJECT_CHANGED,
@@ -349,9 +355,16 @@ public final class TraceSnapshot {
 
   public boolean available(EditorState state, EditorEvents.Target target) {
     if (target == null || !sameDocument(state) || !state.canNavigate(target)) return false;
-    var entry = ResourceGraph.find(state.project(), target.resource());
-    return entry != null
-        && Objects.equals(fingerprints.get(target.resource()), hash(entry.resource()));
+    return definition(state.project(), target.resource()) == Definition.MATCH;
+  }
+
+  Definition definition(ProjectData current, UUID resource) {
+    if (resource == null || !project.equals(current.project.uuid)) return Definition.CHANGED;
+    var entry = ResourceGraph.find(current, resource);
+    if (entry == null) return Definition.MISSING;
+    return Objects.equals(fingerprints.get(resource), hash(entry.resource()))
+        ? Definition.MATCH
+        : Definition.CHANGED;
   }
 
   private static String hash(Object value) {

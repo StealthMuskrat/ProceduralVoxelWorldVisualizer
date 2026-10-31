@@ -16,6 +16,8 @@ public final class TracePanel {
   private final ImString query = new ImString(256);
   private final TraceObservationSelection observations = new TraceObservationSelection();
   private final TraceActionScope actions = new TraceActionScope();
+  private final TraceSourceCache sources = new TraceSourceCache();
+  private final Map<String, String> sourceStates = new LinkedHashMap<>();
   private final String actionId = UUID.randomUUID().toString();
   private WeakReference<Object> canonicalProject = new WeakReference<>(null);
   private Object canonicalOwner = new Object();
@@ -62,12 +64,14 @@ public final class TracePanel {
 
   /** Keep source decisions current even when the containing Inspector is hidden or on XYZ. */
   void hide(TraceSnapshot value) {
+    sourceStates.clear();
     submittedSteps = submittedRows = 0;
     goToCenter = null;
     controls.clear();
     rowIds.clear();
     workspaceBounds = stepsBounds = valuesBounds = null;
     if (snapshot != value) {
+      sources.clear();
       snapshot = value;
       step = page = 0;
       pagedRow = null;
@@ -139,6 +143,17 @@ public final class TracePanel {
         ImGui.textWrapped(TraceText.page(selected.value(), page));
       } else ImGui.textWrapped("No observation matches this filter.");
     }
+    var voxelSource = sources.evaluate(state, value, value.finalTypeTarget());
+    var controlSource =
+        sources.evaluate(state, value, review == null ? null : review.value().target());
+    if (value.finalTypeTarget() != null && !voxelSource.available())
+      ImGui.textWrapped("Voxel link unavailable: " + voxelSource.explanation);
+    if (review != null && !controlSource.available())
+      ImGui.textWrapped("Control link unavailable: " + controlSource.explanation);
+    if (navigation.blocked())
+      ImGui.textWrapped("Finish the current Properties editor before following source links.");
+    else if (navigation.pending())
+      ImGui.textWrapped("Finish or cancel the current source-link decision before navigating.");
     chrome.end();
     drawActions(value, review);
     ImGui.endChild();
@@ -328,7 +343,10 @@ public final class TracePanel {
     var voxel = shown.finalTypeTarget();
     var target = review == null ? null : review.value().target();
     boolean editing = navigation.blocked();
-    boolean blocked = editing || !shown.sameDocument(state);
+    var voxelSource = sources.evaluate(state, shown, voxel);
+    var controlSource = sources.evaluate(state, shown, target);
+    sourceStates.put("voxel", voxelSource.name());
+    sourceStates.put("control", controlSource.name());
     return new TraceActionScope.Context(
         state.document.sessionToken(),
         canonicalOwner,
@@ -338,8 +356,8 @@ public final class TracePanel {
         review == null ? -1 : review.row(),
         query.get(),
         page,
-        !blocked && voxel != null && state.canNavigate(voxel),
-        !blocked && target != null && state.canNavigate(target),
+        !editing && voxelSource.available(),
+        !editing && controlSource.available(),
         inspect != null && !editing && shown.project().equals(state.project().project.uuid),
         navigation.pending());
   }
@@ -441,5 +459,17 @@ public final class TracePanel {
 
   int page() {
     return page;
+  }
+
+  Map<String, String> sourceStates() {
+    return Map.copyOf(sourceStates);
+  }
+
+  long sourceChecks() {
+    return sources.checks();
+  }
+
+  int retainedSources() {
+    return sources.retained();
   }
 }

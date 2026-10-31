@@ -206,3 +206,5 @@ The unvalidated [retained trace document-lifetime follow-up](docs/TRACE_DOCUMENT
 The unvalidated [Logs-to-Inspector follow-up](docs/TRACE_INSPECTOR_HANDOFF.md) adds a bounded Trace In Inspector action for retained same-project traces, preserves separately entered XYZ and evaluates the displayed historical coordinate in the current document. Six regression definitions, twelve native footer receipts and extended real-worker document replay remain deferred.
 
 The unvalidated [exact Inspector retry follow-up](docs/INSPECTOR_TRACE_RETRY.md) retains the last failed coordinate and offers Retry Trace without replacing entered XYZ or borrowing an older result. Six regression definitions, twelve native Inspector receipts and real full-queue recovery definitions remain deferred.
+
+The unvalidated [trace source availability follow-up](docs/TRACE_SOURCE_AVAILABILITY.md) disables changed/missing/private-unavailable source links with specific explanations, caches bounded committed-definition checks and keeps private control availability live. Six regression definitions, twelve native footer receipts and independent trace replay remain deferred.
