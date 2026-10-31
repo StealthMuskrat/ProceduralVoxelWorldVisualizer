@@ -260,6 +260,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.BookmarkDecisionProbe build/bookmark-decisions
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.BookmarkDecisionConsumer build/bookmark-decisions
           python scripts/verify_bookmark_decisions.py build/bookmark-decisions
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StageBoundaryProbe build/stage-boundaries
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.StageBoundaryConsumer build/stage-boundaries
+          python scripts/verify_stage_boundaries.py build/stage-boundaries
       - name: Owned import workspace and native resolution workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImportWorkspaceProbe build/import-workspace
@@ -507,6 +510,7 @@ jobs:
             build/bookmark-inputs/
             build/bookmark-layout/
             build/bookmark-decisions/
+            build/stage-boundaries/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/
@@ -980,6 +984,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_bookmark_decisions.py build/bookmark-decisions
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StageBoundaryProbe build/stage-boundaries
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.StageBoundaryConsumer build/stage-boundaries
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_stage_boundaries.py build/stage-boundaries
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows owned import workspace and native resolution workflow
         shell: pwsh
         run: |
@@ -1377,6 +1387,7 @@ jobs:
             build/bookmark-inputs/
             build/bookmark-layout/
             build/bookmark-decisions/
+            build/stage-boundaries/
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/

@@ -68,6 +68,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   private final ResourcePicker generatorPicker;
+  private final StageBoundaryPicker stagePicker;
   private boolean admissionProbe;
   private final java.util.concurrent.atomic.AtomicBoolean probeRendererStartupFailure =
       new java.util.concurrent.atomic.AtomicBoolean();
@@ -1147,6 +1148,7 @@ public final class Viewports implements AutoCloseable {
             this::editInspectorCoordinate,
             this::admissionControl);
     generatorPicker = new ResourcePicker(state);
+    stagePicker = new StageBoundaryPicker(state);
     this.properties = properties;
     platform = new ViewportPlatformInput(handle);
     flightCursor = new FlightCursor(platform, GLFW_CURSOR_DISABLED);
@@ -1583,41 +1585,35 @@ public final class Viewports implements AutoCloseable {
             mark(v);
           });
       if (!v.stageMode.equals("Final")) {
-        var stages =
-            ResourceGraph.entries(state.project()).stream()
-                .filter(e -> e.kind().equals("layer") || e.kind().equals("operation"))
-                .toList();
-        if (v.stage == null && !stages.isEmpty()) {
-          v.stage =
-              stages.stream()
-                  .filter(e -> e.uuid().equals(state.selected))
-                  .findFirst()
-                  .orElse(stages.getFirst())
-                  .uuid();
+        UUID initial = stagePicker.initial(v.stage, state.selected);
+        if (!Objects.equals(v.stage, initial)) {
+          v.stage = initial;
           mark(v);
         }
-        String label =
-            stages.stream()
-                .filter(e -> e.uuid().equals(v.stage))
-                .map(e -> e.kind() + " / " + e.resource().id)
-                .findFirst()
-                .orElse("Choose stage");
-        if (UiScale.beginCombo("Boundary", label)) {
-          for (var entry : stages)
-            if (ImGui.selectable(
-                entry.kind() + " / " + entry.resource().id + "###stage" + entry.uuid())) {
-              v.stage = entry.uuid();
+      }
+      stagePicker.draw(
+          v.stageMode,
+          v.stage,
+          id -> {
+            if (!Objects.equals(v.stage, id)) {
+              v.stage = id;
               mark(v);
             }
-          ImGui.endCombo();
-        }
-        if (v.stageMode.equals("Only Changes"))
-          ImGui.textDisabled("SET: voxel palette | CLEAR: red removal ghosts | unchanged: hidden");
-      }
+          });
+      if (v.stageMode.equals("Only Changes"))
+        ImGui.textDisabled("SET: voxel palette | CLEAR: red removal ghosts | unchanged: hidden");
       if (ImGui.button("Inspect Coordinate")) inspector.set(true);
       admissionControl("inspect-coordinate");
       ImGui.sameLine();
       ImGui.textDisabled("Read-only procedural world");
+    }
+    if (v.kind == 2 && !stagePicker.available(v.stageMode, v.stage)) {
+      stopStream(v);
+      v.orbit.reset();
+      v.imageContext.reset();
+      v.pickedBookmark = null;
+      v.message = "Stage boundary unavailable; choose a boundary or Final";
+      return;
     }
     boolean missingSource =
         v.kind < 2
@@ -3132,6 +3128,10 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void pick(View v, float nx, float ny, float aspect) {
+    if (!stagePicker.available(v.stageMode, v.stage)) {
+      state.status = "Choose an existing stage boundary or Final before picking";
+      return;
+    }
     if (usesStreaming(v)
         ? v.scene == null
             || !v.activeSceneKey.equals(sceneKey(v))
@@ -3190,12 +3190,15 @@ public final class Viewports implements AutoCloseable {
                         new CompiledProject(p),
                         new WorldOptions(null, 32, WorldOptions.CachePolicy.NO_CACHE, 0))) {
                   GenerationStage boundary =
-                      selectedMode.equals("Final") || selectedStage == null
+                      selectedMode.equals("Final")
                           ? null
                           : world.stages().stream()
                               .filter(stage -> stage.uuid().equals(selectedStage))
                               .findFirst()
-                              .orElse(null);
+                              .orElseThrow(
+                                  () ->
+                                      new IllegalStateException(
+                                          "Selected stage boundary no longer exists"));
                   VoxelRaycast.Cells evaluator =
                       (x, y, z) -> {
                         var position = new BlockPos(x, y, z);
