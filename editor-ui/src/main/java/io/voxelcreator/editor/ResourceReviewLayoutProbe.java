@@ -79,7 +79,12 @@ public final class ResourceReviewLayoutProbe {
               imports.submitted() == 1 && imports.session().canApply(),
               "Filtered resources were not reviewed");
           int id = imports.rowIds().get(needle);
-          require(importId == null || importId == id, "Import row identity changed across reflow");
+          require(
+              importId == null || importId != id,
+              "Reopened Import reused a predecessor row identity");
+          frames(3);
+          require(
+              imports.rowIds().get(needle) == id, "Import row identity changed within its opening");
           importId = id;
           cases.add(importReceipt(i, globals[i], scales[i]));
           click(imports.control("filters"));

@@ -16,7 +16,13 @@ def read(name):
 report = read('resource-review-lifetime-native.json')
 assert report['formatVersion'] == 1 and report['fontSource'] == 'synthetic-global-window-fixture'
 assert report['physicalDpiVerified'] is False
-assert report['importValidations'] == report['exportWrites'] == report['exportReplacements'] == 1
+assert report['importValidations'] == 2
+assert report['exportWrites'] == report['exportReplacements'] == 1
+assert report['deliveryRoutes'] == ['import-held', 'import-escape', 'validation-successor',
+                                    'validation-throw', 'validation-nested', 'export-held', 'export-escape']
+assert report['eligibilityCallbacksOutsidePopup'] > 0
+assert report['publicationCallbacksAfterPopup'] == 4
+assert report['validationCallbacksAfterPopup'] == 3
 expected = [('import-current', True, True, 1), ('import-reopened', False, False, 1),
             ('import-committed', False, False, 2), ('import-undone', False, False, 1),
             ('export-current', True, True, 1), ('export-reopened', False, False, 1),
@@ -76,4 +82,7 @@ assert portable['project']['seed'] == 0 and portable['project']['rootOrder'] == 
 assert portable['project']['minY'] == -64 and portable['project']['maxY'] == 319
 assert not (out / 'stale-must-not-write.pvresources.json').exists()
 assert not (out / 'nested-must-not-write.pvresources.json').exists()
-print('Resource review lifetime, seven phases, 24 native receipts, one exact import/Undo, noise-only package and original preferences PASS')
+
+assert not (out / 'escape-must-not-write.pvresources.json').exists()
+assert not (out / 'held-must-not-write.pvresources.json').exists()
+print('Resource review lifetime, seven delivery routes, post-popup callbacks, 24 native receipts, exact import/Undo, noise-only package and original preferences PASS')

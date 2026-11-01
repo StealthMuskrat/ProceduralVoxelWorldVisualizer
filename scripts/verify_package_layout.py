@@ -19,7 +19,7 @@ forms = ('Export-Choices', 'Export-Included', 'Export-Path', 'Import-Path')
 assert len(report['cases']) == 24
 assert {(c['scenario'], c['form']) for c in report['cases']} == {(i, f) for i in range(6) for f in forms}
 globals_, windows = (1, .5, 1, 2.5, 2.5, 1), (1, 1, 1, 1, 2.5, 1)
-row_ids = None
+row_ids = set()
 
 
 def contains(outer, inner):
@@ -53,9 +53,9 @@ for case in report['cases']:
         assert case['stride'] == math.ceil(frame + gap)
         if form == 'Export-Choices':
             assert case['choices'] == 1 and case['included'] == 0 and len(case['ids']) == 1
-            if row_ids is None:
-                row_ids = case['ids']
-            assert case['ids'] == row_ids
+            identity = tuple(sorted(case['ids'].items()))
+            assert identity not in row_ids and all(value != 0 for value in case['ids'].values())
+            row_ids.add(identity)
         else:
             assert case['choices'] == 0 and 0 < case['included'] <= 4 and case['ids'] == {}
             assert case['included'] <= math.ceil(case['list']['height'] / case['stride']) + 2

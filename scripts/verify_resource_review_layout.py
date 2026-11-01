@@ -21,6 +21,7 @@ globals_, windows = (1, .5, 1, 2.5, 2.5, 1), (1, 1, 1, 1, 2.5, 1)
 orders = {'import': (('apply', 'cancel', 'reload', 'validation'), ('resources', 'filters', 'issues')),
           'membership': (('apply', 'cancel', 'section'), ('select', 'clear', 'selected-only'))}
 identities = {}
+import_openings = set()
 
 
 def contains(outer, inner):
@@ -51,9 +52,14 @@ for case in report['cases']:
     if case['form'] in ('import-Resources', 'membership-Members'):
         contains(case['body'], case['list'])
         assert case['rows'] == 1 and len(case['ids']) == 1
-        if kind not in identities:
-            identities[kind] = case['ids']
-        assert case['ids'] == identities[kind]
+        if kind == 'import':
+            opening_ids = tuple(sorted(case['ids'].items()))
+            assert opening_ids not in import_openings and all(value != 0 for value in case['ids'].values())
+            import_openings.add(opening_ids)
+        else:
+            if kind not in identities:
+                identities[kind] = case['ids']
+            assert case['ids'] == identities[kind]
         line, frame, gap = (case['metrics'][k] for k in ('line', 'frame', 'gap'))
         assert line > 0 and frame > 0 and gap >= 0
         expected = math.ceil(3 * line + frame + 4 * gap if kind == 'import' else frame + gap)

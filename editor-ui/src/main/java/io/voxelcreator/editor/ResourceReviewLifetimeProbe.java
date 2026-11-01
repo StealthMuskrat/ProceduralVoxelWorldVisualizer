@@ -18,7 +18,10 @@ public final class ResourceReviewLifetimeProbe {
   private static ResourcePackageDialog packages;
   private static ProjectData incoming;
   private static String form = "import";
-  private static boolean publishingImport;
+  private static boolean publishingImport, rejectImport, inFrame, nestedSeen;
+  private static String validationMode = "";
+  private static int root, eligibilityObservations, publicationObservations, validationObservations;
+  private static final List<String> deliveryRoutes = new ArrayList<>();
   private static int width = 1200, height = 900, validations, writes, replacements;
   private static float global = 1;
   private static final List<Map<String, Object>> cases = new ArrayList<>(),
@@ -52,11 +55,14 @@ public final class ResourceReviewLifetimeProbe {
         incoming.noise2D.add(added);
         new ProjectIO().save(out.resolve("incoming.json"), incoming);
         resources = new ResourcePanel(state, new PropertyPanel(state));
-        imports = new ResourceImportPanel(state, () -> false, () -> {});
+        imports =
+            new ResourceImportPanel(
+                state, ResourceReviewLifetimeProbe::gate, ResourceReviewLifetimeProbe::validation);
         var files =
             new ResourcePackageFiles(
                 new ResourcePackageFiles.Storage() {
                   public void write(Path temporary, byte[] bytes) throws IOException {
+                    observePublication();
                     writes++;
                     var edit = resources.exportView().session();
                     var selection = Set.copyOf(resources.exportSelection);
@@ -89,6 +95,7 @@ public final class ResourceReviewLifetimeProbe {
                   }
 
                   public void replace(Path temporary, Path target) throws IOException {
+                    observePublication();
                     replacements++;
                     Files.move(
                         temporary,
@@ -97,24 +104,12 @@ public final class ResourceReviewLifetimeProbe {
                         StandardCopyOption.REPLACE_EXISTING);
                   }
                 });
-        packages = new ResourcePackageDialog(state, resources, imports, () -> false, files);
-        state.document.setValidator(
-            p -> {
-              if (publishingImport) {
-                validations++;
-                var edit = imports.session();
-                require(
-                    edit != null && edit.busy() && !edit.current() && !edit.canReload(),
-                    "Import publication lost its fence");
-                require(edit.apply() == ImportEditSession.Result.BUSY, "Nested import accepted");
-                imports.cancel();
-                require(
-                    imports.session() == edit && imports.pending() && !imports.open(incoming),
-                    "Publication replaced the active import");
-              }
-              return NoiseCompiler.validate(p);
-            });
+        packages =
+            new ResourcePackageDialog(
+                state, resources, imports, ResourceReviewLifetimeProbe::gate, files);
+        state.document.setValidator(ResourceReviewLifetimeProbe::validate);
 
+        importDelivery();
         require(imports.open(incoming), "Import did not open");
         frames(5);
         var oldImport = imports.session();
@@ -161,7 +156,7 @@ public final class ResourceReviewLifetimeProbe {
             !imports.pending()
                 && freshImport.closed()
                 && !freshImport.busy()
-                && validations == 1
+                && validations == 2
                 && state.revision == revision + 1,
             "Fresh import did not publish exactly once");
         new ProjectIO().save(out.resolve("imported-project.json"), state.project());
@@ -175,6 +170,7 @@ public final class ResourceReviewLifetimeProbe {
         phase("import-undone", false, false);
 
         form = "export";
+        packageDelivery(out);
         require(packages.open("Export"), "Export did not open");
         frames(5);
         click(packages.control("included"));
@@ -240,30 +236,24 @@ public final class ResourceReviewLifetimeProbe {
             read(out, "source-project.json").equals(read(out, "after.json"))
                 && read(out, "preferences-before.json").equals(read(out, "preferences.json")),
             "Review lifetime changed final project/preferences");
+        var report = new LinkedHashMap<String, Object>();
+        report.put("formatVersion", 1);
+        report.put("fontSource", "synthetic-global-window-fixture");
+        report.put("cases", cases);
+        report.put("phases", phases);
+        report.put("copiedTarget", target);
+        report.put("incoming", added.uuid);
+        report.put("importValidations", validations);
+        report.put("exportWrites", writes);
+        report.put("exportReplacements", replacements);
+        report.put("physicalDpiVerified", false);
+        report.put("deliveryRoutes", deliveryRoutes);
+        report.put("eligibilityCallbacksOutsidePopup", eligibilityObservations);
+        report.put("publicationCallbacksAfterPopup", publicationObservations);
+        report.put("validationCallbacksAfterPopup", validationObservations);
         Files.writeString(
             out.resolve("resource-review-lifetime-native.json"),
-            ProjectIO.JSON.writeValueAsString(
-                Map.of(
-                    "formatVersion",
-                    1,
-                    "fontSource",
-                    "synthetic-global-window-fixture",
-                    "cases",
-                    cases,
-                    "phases",
-                    phases,
-                    "copiedTarget",
-                    target,
-                    "incoming",
-                    added.uuid,
-                    "importValidations",
-                    validations,
-                    "exportWrites",
-                    writes,
-                    "exportReplacements",
-                    replacements,
-                    "physicalDpiVerified",
-                    false)));
+            ProjectIO.JSON.writeValueAsString(report));
         System.out.println(
             "RESOURCE_REVIEW_LIFETIME_NATIVE_PASS identical reopen retires reviews / disabled"
                 + " Reload / explicit fresh review / busy publication / one import Undo / one"
@@ -272,6 +262,178 @@ public final class ResourceReviewLifetimeProbe {
     } finally {
       ImGui.destroyContext();
     }
+  }
+
+  private static boolean gate() {
+    if (inFrame) {
+      observe();
+      eligibilityObservations++;
+    }
+    return false;
+  }
+
+  private static void observe() {
+    require(
+        inFrame && root == ImGui.getID("review-root"),
+        "Resource callback delivered inside a popup or child");
+  }
+
+  private static void observePublication() {
+    observe();
+    publicationObservations++;
+  }
+
+  private static void validation() {
+    observe();
+    validationObservations++;
+    if (validationMode.equals("nested")) {
+      imports.cancel();
+      ImGui.openPopup("Resource validation destination");
+    } else {
+      imports.cancel();
+      require(imports.open(incoming), "Validation did not open its successor");
+      if (validationMode.equals("throw"))
+        throw new IllegalStateException("validation callback boundary");
+    }
+  }
+
+  private static void importDelivery() {
+    var before = ProjectIO.JSON.valueToTree(state.project());
+    long revision = state.revision;
+    require(imports.open(incoming), "Held Import did not open");
+    frames(4);
+    var oldIds = imports.chrome.actionIds();
+    press(imports.control("apply"));
+    imports.cancel();
+    require(imports.open(incoming), "Held Import successor did not open");
+    frame();
+    release();
+    require(
+        imports.pending()
+            && !oldIds.equals(imports.chrome.actionIds())
+            && state.revision == revision,
+        "Held Import activated its successor");
+    click(imports.control("cancel"));
+    deliveryRoutes.add("import-held");
+    require(imports.open(incoming), "Escape Import did not open");
+    frames(4);
+    press(imports.control("apply"));
+    escapeRelease();
+    require(!imports.pending() && state.revision == revision, "Escape did not supersede Import");
+    deliveryRoutes.add("import-escape");
+    require(imports.open(incoming), "Rejected Import did not open");
+    frames(4);
+    rejectImport = publishingImport = true;
+    click(imports.control("apply"));
+    rejectImport = publishingImport = false;
+    require(
+        imports.pending() && imports.session().issueCount() > 0 && state.revision == revision,
+        "Rejected import published");
+    for (var mode : List.of("successor", "throw", "nested")) {
+      if (imports.session().issueCount() == 0) {
+        state.document.setValidator(
+            p -> List.of(Diagnostic.error("FIXTURE_REJECT", "/fixture", "Deferred rejection")));
+        imports.session().markShown(imports.session().preview());
+        require(
+            imports.session().apply() == ImportEditSession.Result.REJECTED,
+            "Validation fixture did not reject");
+        state.document.setValidator(ResourceReviewLifetimeProbe::validate);
+      }
+      validationMode = mode;
+      frames(3);
+      click(imports.control("validation"));
+      if (mode.equals("nested")) {
+        require(!imports.pending() && nestedSeen, "Old import closed the destination popup");
+      } else {
+        require(
+            imports.pending()
+                && imports.message().isEmpty()
+                && imports.section().equals("Resources"),
+            "Old validation completion annotated its successor");
+      }
+      deliveryRoutes.add("validation-" + mode);
+    }
+    frames(3);
+    require(
+        before.equals(ProjectIO.JSON.valueToTree(state.project())) && state.revision == revision,
+        "Import delivery changed committed resources");
+  }
+
+  private static List<Diagnostic> validate(ProjectData project) {
+    if (publishingImport) {
+      observePublication();
+      validations++;
+      var edit = imports.session();
+      require(
+          edit != null && edit.busy() && !edit.current() && !edit.canReload(),
+          "Import publication lost busy state");
+      require(edit.apply() == ImportEditSession.Result.BUSY, "Nested import accepted");
+      imports.cancel();
+      require(
+          imports.session() == edit && imports.pending() && !imports.open(incoming),
+          "Busy import was cancelled or replaced");
+    }
+    return rejectImport
+        ? List.of(Diagnostic.error("FIXTURE_REJECT", "/fixture", "Deferred rejection"))
+        : NoiseCompiler.validate(project);
+  }
+
+  private static void packageDelivery(Path out) {
+    for (boolean escape : new boolean[] {false, true}) {
+      require(packages.open("Export"), "Delivery Export did not open");
+      frames(4);
+      click(packages.control("included"));
+      click(packages.control("location"));
+      var forbidden =
+          out.resolve(
+              escape
+                  ? "escape-must-not-write.pvresources.json"
+                  : "held-must-not-write.pvresources.json");
+      path(forbidden);
+      var oldIds = packages.chrome().actionIds();
+      press(packages.control("submit"));
+      if (escape) {
+        escapeRelease();
+        require(!packages.pending(), "Escape did not cancel Export");
+      } else {
+        packages.cancel();
+        require(packages.open("Export"), "Held export successor did not open");
+        frame();
+        release();
+        require(
+            packages.pending()
+                && !oldIds.equals(packages.chrome().actionIds())
+                && !resources.canExport(),
+            "Held Export activated/reviewed its successor");
+        click(packages.control("cancel"));
+      }
+      require(writes == 0 && !Files.exists(forbidden), "Cancelled export reached storage");
+      deliveryRoutes.add(escape ? "export-escape" : "export-held");
+    }
+  }
+
+  private static void press(float[] at) {
+    require(at != null, "Missing held action");
+    var io = ImGui.getIO();
+    io.addMousePosEvent(at[0], at[1]);
+    frame();
+    io.addMouseButtonEvent(0, true);
+    frame();
+  }
+
+  private static void release() {
+    ImGui.getIO().addMouseButtonEvent(0, false);
+    frame();
+    frames(2);
+  }
+
+  private static void escapeRelease() {
+    var io = ImGui.getIO();
+    io.addMouseButtonEvent(0, false);
+    io.addKeyEvent(ImGuiKey.Escape, true);
+    frame();
+    io.addKeyEvent(ImGuiKey.Escape, false);
+    frames(2);
   }
 
   private static void phase(String name, boolean current, boolean reload) {
@@ -304,10 +466,29 @@ public final class ResourceReviewLifetimeProbe {
     ImGui.setNextWindowSize(width, height, ImGuiCond.Always);
     ImGui.begin("Resource review lifetime caller");
     UiScale.window(state.user, "Resources");
-    int root = ImGui.getID("review-root");
-    if (form.equals("import")) imports.draw();
-    else packages.draw();
-    require(root == ImGui.getID("review-root"), "Review draw leaked native scopes");
+    root = ImGui.getID("review-root");
+    inFrame = true;
+    try {
+      if (form.equals("import")) {
+        imports.draw();
+        imports.draw();
+      } else {
+        packages.draw();
+        packages.draw();
+      }
+      require(root == ImGui.getID("review-root"), "Review draw leaked native scopes");
+      if (ImGui.beginPopup("Resource validation destination")) {
+        try {
+          nestedSeen = true;
+          ImGui.textUnformatted("Validation destination");
+          ImGui.closeCurrentPopup();
+        } finally {
+          ImGui.endPopup();
+        }
+      }
+    } finally {
+      inFrame = false;
+    }
     ImGui.end();
     ImGui.render();
   }

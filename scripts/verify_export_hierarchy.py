@@ -51,6 +51,8 @@ assert payload['noise2D'][0]['parentFolderUuid'] == folders['nested']['uuid']
 assert folders['nested']['parentFolderUuid'] == folders['fields']['uuid']
 assert len(report['cases']) == 12
 assert {(c['scenario'], c['form']) for c in report['cases']} == {(i, form) for i in range(6) for form in ('Choices', 'Included')}
+assert len(report['stableOperationIds']) == len(set(report['stableOperationIds'])) == 6
+assert all(value != 0 for value in report['stableOperationIds'])
 globals_, scales = (1, .5, 1, 2.5, 2.5, 1), (1, 1, 1, 1, 2.5, 1)
 
 
@@ -82,7 +84,7 @@ for case in report['cases']:
     assert 0 < case['rows'] <= math.ceil(case['list']['height'] / case['stride']) + 2
     if case['form'] == 'Choices':
         assert case['rows'] <= 4
-        assert case['ids'][chosen] == report['stableOperationId'] and case['depths'][chosen] == 3
+        assert case['ids'][chosen] == report['stableOperationIds'][i] and case['depths'][chosen] == 3
     else:
         assert case['rows'] <= 3 and case['ids'] == {}
         assert set(case['depths']).issubset({folders['fields']['uuid'], folders['world-folder']['uuid'], payload['voxelTypes'][0]['uuid']})

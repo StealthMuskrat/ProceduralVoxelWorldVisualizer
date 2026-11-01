@@ -86,11 +86,14 @@ public final class PackageLayoutProbe {
           require(!resources.canExport(), "Choices alone acknowledged the export closure");
           Integer id = view.rowIds().get(state.project().voxelSets.getFirst().uuid);
           require(
-              id != null && (rowId == null || rowId.equals(id)),
-              "Export row identity changed across reflow");
+              id != null && (rowId == null || !rowId.equals(id)),
+              "Reopened Export reused its predecessor row identity");
           rowId = id;
           long preparations = view.preparations(), queries = view.queries();
           frames(4);
+          require(
+              id.equals(view.rowIds().get(state.project().voxelSets.getFirst().uuid)),
+              "Export row identity changed within its opening");
           require(
               preparations == view.preparations() && queries == view.queries(),
               "Idle export rebuilt its query/closure");

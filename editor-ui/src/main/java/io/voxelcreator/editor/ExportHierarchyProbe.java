@@ -42,6 +42,7 @@ public final class ExportHierarchyProbe {
         var engine = state.engine;
         var cases = new ArrayList<Map<String, Object>>();
         Integer id = null;
+        var operationIds = new ArrayList<Integer>();
         int[][] sizes = {{1200, 900}, {360, 640}, {360, 640}, {360, 640}, {720, 640}, {1000, 320}};
         float[] globals = {1, .5f, 1, 2.5f, 2.5f, 1}, scales = {1, 1, 1, 1, 2.5f, 1};
         for (int i = 0; i < sizes.length; i++) {
@@ -62,10 +63,16 @@ public final class ExportHierarchyProbe {
               view.rowIds().containsKey(chosen) && view.treeDepths().get(chosen) == 3,
               "Search failed to reveal deep operation");
           Integer actual = view.rowIds().get(chosen);
-          require(id == null || id.equals(actual), "Operation checkbox ID changed on reflow");
+          require(
+              id == null || !id.equals(actual),
+              "Reopened hierarchy reused its predecessor checkbox ID");
+          operationIds.add(actual);
           id = actual;
           long queries = view.queries(), builds = view.treeBuilds(), prepared = view.preparations();
           frames(4);
+          require(
+              actual.equals(view.rowIds().get(chosen)),
+              "Operation checkbox ID changed within its opening");
           require(
               queries == view.queries()
                   && builds == view.treeBuilds()
@@ -174,7 +181,7 @@ public final class ExportHierarchyProbe {
                     Map.entry("formatVersion", 1),
                     Map.entry("fontSource", "user-scale-fixture"),
                     Map.entry("cases", cases),
-                    Map.entry("stableOperationId", id),
+                    Map.entry("stableOperationIds", operationIds),
                     Map.entry("searchContext", true),
                     Map.entry("selectedOnlyContext", true),
                     Map.entry("expansionRestored", true),
