@@ -413,6 +413,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldSettingFocusProbe build/world-setting-focus
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WorldSettingFocusConsumer build/world-setting-focus/world-setting-focus-project.json
           python scripts/verify_world_setting_focus.py build/world-setting-focus
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldNumericProbe build/world-numeric
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WorldNumericConsumer build/world-numeric
+          python scripts/verify_world_numeric.py build/world-numeric
       - name: Curve diagnostic control focus workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveFocusProbe build/curve-focus
@@ -593,6 +596,7 @@ jobs:
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/
+            build/world-numeric/
             build/curve-focus/
             build/curve-gesture/
             build/curve-point/
@@ -1355,6 +1359,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_world_setting_focus.py build/world-setting-focus
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldNumericProbe build/world-numeric
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.WorldNumericConsumer build/world-numeric
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_world_numeric.py build/world-numeric
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows curve diagnostic control focus workflow
         shell: pwsh
         run: |
@@ -1610,6 +1620,7 @@ jobs:
             build/pin-browser/
             build/project-settings/
             build/world-setting-focus/
+            build/world-numeric/
             build/curve-focus/
             build/curve-gesture/
             build/curve-point/

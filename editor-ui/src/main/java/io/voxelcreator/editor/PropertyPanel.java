@@ -204,7 +204,12 @@ public final class PropertyPanel {
   private boolean searchScroll;
   private WorldSettingNavigation.Route worldRoute;
   private String worldSettingPath;
+  private boolean probingWorldNumbers;
   private final Map<String, float[]> worldControlCenters = new HashMap<>();
+
+  void probeWorldNumericRows(boolean value) {
+    probingWorldNumbers = value;
+  }
 
   float[] probeWorldControl(String key) {
     return worldControlCenters.get(key);
@@ -235,8 +240,20 @@ public final class PropertyPanel {
         "settings/" + worldSettingPath + (leaf.isEmpty() ? "" : "/" + leaf), draw, focused);
   }
 
+  private void settingNumber(
+      String leaf, String label, double value, double minimum, double maximum, DoubleConsumer set) {
+    numeric(f, label, value, minimum, maximum, false, set, draw -> settingControl(leaf, draw));
+  }
+
+  private void settingInteger(
+      String leaf, String label, int value, int minimum, int maximum, IntConsumer set) {
+    var row = f.integer(label, value, minimum, maximum, set, draw -> settingControl(leaf, draw));
+    numericRows.put(row.inputId(), row);
+  }
+
   private boolean settingTree(String label) {
     String key = "settings/" + worldSettingPath;
+    if (probingWorldNumbers) ImGui.setNextItemOpen(true, ImGuiCond.Always);
     if (worldRoute != null
         && navigationDraft == state.draft
         && (worldRoute.control().equals(key) || worldRoute.control().startsWith(key + "/"))
@@ -2747,7 +2764,14 @@ public final class PropertyPanel {
         editSetting(effective, key);
         JsonNode node = ProjectIO.JSON.valueToTree(effective);
         op.overrides.put(key, node.get(key).deepCopy());
-        if (ImGui.smallButton("Reset to Layer Default")) {
+        boolean reset = ImGui.smallButton("Reset to Layer Default");
+        var resetBounds = PopupLayout.itemBounds();
+        worldControlCenters.put(
+            "reset/" + key,
+            new float[] {
+              resetBounds.x() + resetBounds.width() / 2, resetBounds.y() + resetBounds.height() / 2
+            });
+        if (reset) {
           seedPrefix("settings/" + key, false);
           op.overrides.remove(key);
         }
@@ -2816,34 +2840,51 @@ public final class PropertyPanel {
       var field = Settings.class.getField(key);
       if (field.getType() == double.class) {
         double value = field.getDouble(s);
-        settingControl(
+        double minimum =
+            switch (key) {
+              case "strength", "probability" -> 0;
+              case "baseHeight" -> state.project().project.minY;
+              case "heightScale" -> -256;
+              case "scaleX", "scaleY", "scaleZ" -> -8;
+              case "offsetX", "offsetY", "offsetZ" -> -1024;
+              default -> -1;
+            };
+        double maximum =
+            switch (key) {
+              case "baseHeight" -> state.project().project.maxY;
+              case "heightScale" -> 256;
+              case "scaleX", "scaleY", "scaleZ" -> 8;
+              case "offsetX", "offsetY", "offsetZ" -> 1024;
+              default -> 1;
+            };
+        settingNumber(
             "",
-            () ->
-                f.number(
-                    AppMetadata.settingLabel(key),
-                    value,
-                    v -> {
-                      try {
-                        field.setDouble(s, v);
-                      } catch (Exception e) {
-                        throw new IllegalStateException(e);
-                      }
-                    }));
+            AppMetadata.settingLabel(key),
+            value,
+            minimum,
+            maximum,
+            v -> {
+              try {
+                field.setDouble(s, v);
+              } catch (Exception e) {
+                throw new IllegalStateException(e);
+              }
+            });
       } else if (field.getType() == int.class) {
         int value = field.getInt(s);
-        settingControl(
+        settingInteger(
             "",
-            () ->
-                f.integer(
-                    AppMetadata.settingLabel(key),
-                    value,
-                    v -> {
-                      try {
-                        field.setInt(s, v);
-                      } catch (Exception e) {
-                        throw new IllegalStateException(e);
-                      }
-                    }));
+            AppMetadata.settingLabel(key),
+            value,
+            state.project().project.minY,
+            state.project().project.maxY,
+            v -> {
+              try {
+                field.setInt(s, v);
+              } catch (Exception e) {
+                throw new IllegalStateException(e);
+              }
+            });
       } else if (key.equals("seedOffset"))
         settingControl(
             "", () -> longText(AppMetadata.settingLabel(key), s.seedOffset, v -> s.seedOffset = v));
@@ -3017,10 +3058,9 @@ public final class PropertyPanel {
                     g.comparison,
                     List.of("GE", "GT", "LE", "LT", "EQ", "NE"),
                     v -> g.comparison = v));
-      settingControl(
-          "threshold", () -> f.number("Threshold / minimum", g.threshold, v -> g.threshold = v));
+      settingNumber("threshold", "Threshold / minimum", g.threshold, -1, 1, v -> g.threshold = v);
       if (g.kind.equals("INTERVAL")) {
-        settingControl("max", () -> f.number("Maximum", g.max, v -> g.max = v));
+        settingNumber("max", "Maximum", g.max, -1, 1, v -> g.max = v);
         settingControl(
             "includeMin", () -> f.bool("Include minimum", g.includeMin, v -> g.includeMin = v));
         settingControl(
@@ -3028,9 +3068,8 @@ public final class PropertyPanel {
       }
     }
     if (g.kind.equals("PROBABILITY")) {
-      settingControl(
-          "probability",
-          () -> f.number("Gate probability [0,1]", g.probability, v -> g.probability = v));
+      settingNumber(
+          "probability", "Gate probability [0,1]", g.probability, 0, 1, v -> g.probability = v);
       settingControl(
           "seedOffset", () -> longText("Gate seed offset", g.seedOffset, v -> g.seedOffset = v));
       ImGui.textWrapped("Independent deterministic XYZ draw, stable within this gate path.");
@@ -3038,7 +3077,8 @@ public final class PropertyPanel {
     if (g.kind.equals("AND") || g.kind.equals("OR") || g.kind.equals("NOT")) {
       for (int i = 0; i < g.children.size(); i++) {
         ImGui.pushID(i);
-        if (smokeWorldSettings != null) ImGui.setNextItemOpen(true, ImGuiCond.Always);
+        if (smokeWorldSettings != null || probingWorldNumbers)
+          ImGui.setNextItemOpen(true, ImGuiCond.Always);
         if (ImGui.treeNode("Gate clause " + i)) {
           var child = g.children.get(i);
           nestedSetting("children/" + i, () -> gate(child, depth + 1));
@@ -3078,8 +3118,14 @@ public final class PropertyPanel {
     }
   }
 
-  private void driverNumber(String key, String label, double value, DoubleConsumer update) {
-    settingControl(key, () -> f.number(label, value, update));
+  private void driverNumber(
+      String key,
+      String label,
+      double value,
+      double minimum,
+      double maximum,
+      DoubleConsumer update) {
+    settingNumber(key, label, value, minimum, maximum, update);
     if (parameterDriverRow >= 0) {
       var lo = ImGui.getItemRectMin();
       var hi = ImGui.getItemRectMax();
@@ -3098,17 +3144,21 @@ public final class PropertyPanel {
     settingControl(
         "mapping",
         () -> f.choice("Mapping", d.mapping, WorldSemantics.MAPPINGS, v -> d.mapping = v));
-    driverNumber("inputMin", "Input minimum", d.inputMin, v -> d.inputMin = v);
-    driverNumber("inputMax", "Input maximum", d.inputMax, v -> d.inputMax = v);
+    driverNumber("inputMin", "Input minimum", d.inputMin, -1, 1, v -> d.inputMin = v);
+    driverNumber("inputMax", "Input maximum", d.inputMax, -1, 1, v -> d.inputMax = v);
     driverNumber(
         "outputMin",
         "Output at minimum" + (unitOutput ? " [0,1]" : ""),
         d.outputMin,
+        unitOutput ? 0 : -256,
+        unitOutput ? 1 : 256,
         v -> d.outputMin = v);
     driverNumber(
         "outputMax",
         "Output at maximum" + (unitOutput ? " [0,1]" : ""),
         d.outputMax,
+        unitOutput ? 0 : -256,
+        unitOutput ? 1 : 256,
         v -> d.outputMax = v);
     if (unitOutput)
       ImGui.textWrapped(
@@ -3132,7 +3182,7 @@ public final class PropertyPanel {
     for (int i = 0; i < drivers.size(); i++) {
       ImGui.pushID(i);
       var d = drivers.get(i);
-      if (smokeWorldSettings != null || probingParameterDrivers)
+      if (smokeWorldSettings != null || probingParameterDrivers || probingWorldNumbers)
         ImGui.setNextItemOpen(true, ImGuiCond.Always);
       if (ImGui.treeNode("Driver " + (i + 1) + " : " + AppMetadata.settingLabel(d.destination))) {
         if (UiScale.beginCombo("Destination", AppMetadata.settingLabel(d.destination))) {
@@ -3151,9 +3201,12 @@ public final class PropertyPanel {
         if (WorldSemantics.PARAMETER_TARGETS.contains(d.destination)) {
           var target = WorldSemantics.parameter(d.destination);
           if (target.transform()) {
-            f.integer(
+            settingInteger(
+                "transformIndex",
                 "Transform row (1-based)",
                 d.transformIndex + 1,
+                1,
+                Math.max(1, settings.samplingTransforms.size()),
                 v -> d.transformIndex = v <= 0 ? -1 : v - 1);
             if (d.transformIndex >= 0 && d.transformIndex < settings.samplingTransforms.size()) {
               var transform = settings.samplingTransforms.get(d.transformIndex);
@@ -3206,11 +3259,12 @@ public final class PropertyPanel {
     for (int i = 0; i < intervals.size(); i++) {
       ImGui.pushID(i);
       var r = intervals.get(i);
-      if (smokeWorldSettings != null) ImGui.setNextItemOpen(true, ImGuiCond.Always);
+      if (smokeWorldSettings != null || probingWorldNumbers)
+        ImGui.setNextItemOpen(true, ImGuiCond.Always);
       if (ImGui.treeNode(
           "Interval " + (i + 1) + " : " + idFor(state.project().voxelTypes, r.voxelTypeUuid))) {
-        f.number("Minimum", r.min, v -> r.min = v);
-        f.number("Maximum", r.max, v -> r.max = v);
+        settingNumber("min", "Minimum", r.min, -1, 1, v -> r.min = v);
+        settingNumber("max", "Maximum", r.max, -1, 1, v -> r.max = v);
         f.bool("Include minimum", r.includeMin, v -> r.includeMin = v);
         f.bool("Include maximum", r.includeMax, v -> r.includeMax = v);
         typePicker("Voxel type", r.voxelTypeUuid, v -> r.voxelTypeUuid = v);
@@ -3251,7 +3305,8 @@ public final class PropertyPanel {
     for (int i = 0; i < transforms.size(); i++) {
       ImGui.pushID(i);
       var t = transforms.get(i);
-      if (smokeWorldSettings != null) ImGui.setNextItemOpen(true, ImGuiCond.Always);
+      if (smokeWorldSettings != null || probingWorldNumbers)
+        ImGui.setNextItemOpen(true, ImGuiCond.Always);
       if (ImGui.treeNode("Transform " + (i + 1) + " : " + t.kind)) {
         f.bool("Enabled", t.enabled, v -> t.enabled = v);
         f.choice(
@@ -3262,13 +3317,14 @@ public final class PropertyPanel {
               t.kind = v;
               t.x = t.y = t.z = v.equals("SCALE") ? 1 : 0;
             });
-        f.number("X", t.x, v -> t.x = v);
-        f.number("Y", t.y, v -> t.y = v);
-        f.number("Z", t.z, v -> t.z = v);
+        double extent = t.kind.equals("ROTATE") ? 180 : t.kind.equals("SCALE") ? 8 : 1024;
+        settingNumber("x", "X", t.x, -extent, extent, v -> t.x = v);
+        settingNumber("y", "Y", t.y, -extent, extent, v -> t.y = v);
+        settingNumber("z", "Z", t.z, -extent, extent, v -> t.z = v);
         if (!t.kind.equals("TRANSLATE")) {
-          f.number("Pivot X", t.pivotX, v -> t.pivotX = v);
-          f.number("Pivot Y", t.pivotY, v -> t.pivotY = v);
-          f.number("Pivot Z", t.pivotZ, v -> t.pivotZ = v);
+          settingNumber("pivotX", "Pivot X", t.pivotX, -1024, 1024, v -> t.pivotX = v);
+          settingNumber("pivotY", "Pivot Y", t.pivotY, -1024, 1024, v -> t.pivotY = v);
+          settingNumber("pivotZ", "Pivot Z", t.pivotZ, -1024, 1024, v -> t.pivotZ = v);
           if (t.kind.equals("ROTATE"))
             f.choice(
                 "Axis order",

@@ -73,6 +73,44 @@ public final class UiFields {
       boolean integer,
       DoubleConsumer set,
       Consumer<Runnable> input) {
+    return numeric(
+        label,
+        value,
+        minimum,
+        maximum,
+        integer,
+        set,
+        (key, exact) -> number(key, exact, set),
+        input);
+  }
+
+  NumericRow integer(
+      String label,
+      int value,
+      int minimum,
+      int maximum,
+      IntConsumer set,
+      Consumer<Runnable> input) {
+    return numeric(
+        label,
+        value,
+        minimum,
+        maximum,
+        true,
+        v -> set.accept((int) v),
+        (key, exact) -> integer(key, exact.intValue(), set),
+        input);
+  }
+
+  private NumericRow numeric(
+      String label,
+      double value,
+      double minimum,
+      double maximum,
+      boolean integer,
+      DoubleConsumer set,
+      BiConsumer<String, Double> edit,
+      Consumer<Runnable> input) {
     if (!Double.isFinite(minimum)
         || !Double.isFinite(maximum)
         || minimum > maximum
@@ -88,14 +126,23 @@ public final class UiFields {
     String sliderKey = "##slider-" + label, inputKey = "##" + label;
     int sliderId = ImGui.getID(sliderKey), inputId = ImGui.getID(inputKey);
     ImGui.setNextItemWidth(pair.sliderWidth());
-    double[] slider = {value};
-    if (ImGui.sliderScalar(
-        sliderKey,
-        slider,
-        minimum,
-        maximum,
-        integer ? "%.0f" : "%.5f",
-        ImGuiSliderFlags.NoInput | ImGuiSliderFlags.NoRoundToFormat)) {
+    boolean finite = Double.isFinite(value);
+    double[] slider = {finite ? value : minimum};
+    ImGui.beginDisabled(!finite);
+    boolean edited;
+    try {
+      edited =
+          ImGui.sliderScalar(
+              sliderKey,
+              slider,
+              minimum,
+              maximum,
+              finite ? integer ? "%.0f" : "%.5f" : "Invalid",
+              ImGuiSliderFlags.NoInput | ImGuiSliderFlags.NoRoundToFormat);
+    } finally {
+      ImGui.endDisabled();
+    }
+    if (finite && edited) {
       double next = integer ? StrictMath.rint(slider[0]) : slider[0];
       if (Double.isFinite(next)
           && Double.doubleToRawLongBits(next) != Double.doubleToRawLongBits(value)) {
@@ -108,7 +155,7 @@ public final class UiFields {
     if (pair.inline()) ImGui.sameLine();
     ImGui.setNextItemWidth(pair.inputWidth());
     double exact = value;
-    input.accept(() -> number(inputKey, exact, set));
+    input.accept(() -> edit.accept(inputKey, exact));
     return new NumericRow(
         sliderBounds, PopupLayout.itemBounds(), sliderId, inputId, pair.inline(), minimum, maximum);
   }
