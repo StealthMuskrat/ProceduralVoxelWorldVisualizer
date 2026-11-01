@@ -106,4 +106,29 @@ class PropertyFocusTest {
     assertNull(focus.acknowledged());
     assertTrue(focus.submit());
   }
+
+  @Test
+  void clippedInputCanReceiveFocusAfterScrollingWithoutRearmingAnAcknowledgedInput() {
+    request("parameters/value");
+    assertTrue(focus.submit());
+    focus.retryAfterClipping(control, "parameters/value");
+    assertTrue(focus.submit());
+    focus.acknowledge("exact-text");
+    focus.retryAfterClipping(control, "parameters/value");
+    assertEquals("exact-text", focus.acknowledged());
+    assertFalse(focus.submit());
+  }
+
+  @Test
+  void unrelatedClippingAndRetiredRequestsCannotStealOrRestoreFocus() {
+    request("parameters/value");
+    assertTrue(focus.submit());
+    focus.retryAfterClipping(UUID.randomUUID(), "parameters/value");
+    focus.retryAfterClipping(control, "parameters/other");
+    assertFalse(focus.submit());
+    focus.cancel();
+    focus.retryAfterClipping(control, "parameters/value");
+    assertFalse(focus.submit());
+    assertNull(focus.acknowledged());
+  }
 }

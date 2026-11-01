@@ -18,3 +18,5 @@ The [acceptance matrix](REQUIREMENTS_AND_TESTS.md) remains authoritative for obs
 Implementation audit follow-up: [initial noise algorithm choice](NOISE_CREATION_CHOICES.md) closes the missing optional creation selector in 5.2.2, using the existing registry/profile/compiler path. Source implementation and deferred coverage do not advance acceptance status.
 
 Numeric-control audit follow-up: the [viewport numeric controls](VIEWPORT_CONTROL_PANES.md) now pair all existing view numeric inputs with contextual sliders and preserve exact text entry. The broader Properties/shared numeric-control audit and five-place display versus exact editing presentation remain outstanding; this scoped implementation does not certify universal Tree 4 conformance.
+
+The subsequent [noise authoring numeric controls](NOISE_NUMERIC_CONTROLS.md) unify source/warp/remapping rows and add paired processing, transform, shared-parameter and literal controls with exact input focus. World/curve/remaining shared numeric callers and universal five-place presentation remain in the implementation audit; these source changes and deferred definitions do not advance acceptance evidence.

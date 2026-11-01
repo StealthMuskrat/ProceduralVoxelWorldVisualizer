@@ -43,6 +43,10 @@ final class PropertyFocus {
     return true;
   }
 
+  void retryAfterClipping(UUID control, String parameter) {
+    if (matches(control, parameter)) submitted = false;
+  }
+
   void acknowledge(String key) {
     if (target != null && submitted) acknowledged = Objects.requireNonNull(key);
   }

@@ -232,6 +232,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.SourceAlgorithmProbe build/algorithm-reference
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.AlgorithmReferenceConsumer fixtures/algorithm-cpp-vectors.tsv fixtures/algorithm-analytic-vectors.json build/algorithm-reference build/algorithm-reference/source-algorithm-project.json
           python scripts/verify_algorithm_references.py build/algorithm-reference
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PropertyNumericProbe build/property-numeric
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PropertyNumericConsumer build/property-numeric
+          python scripts/verify_property_numeric.py build/property-numeric
       - uses: actions/upload-artifact@v4
         with:
           name: Linux-algorithm-bits
@@ -549,6 +552,7 @@ jobs:
             build/navigation-eligibility/
             build/dialog-owner-scale/
             build/algorithm-reference/
+            build/property-numeric/
             build/scalar-remapping/
             build/warp-controls/
             build/placement-drivers/
@@ -1022,6 +1026,12 @@ jobs:
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.AlgorithmReferenceConsumer fixtures/algorithm-cpp-vectors.tsv fixtures/algorithm-analytic-vectors.json build/algorithm-reference build/algorithm-reference/source-algorithm-project.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_algorithm_references.py build/algorithm-reference
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PropertyNumericProbe build/property-numeric
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.PropertyNumericConsumer build/property-numeric
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_property_numeric.py build/property-numeric
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
@@ -1559,6 +1569,7 @@ jobs:
             build/navigation-eligibility/
             build/dialog-owner-scale/
             build/algorithm-reference/
+            build/property-numeric/
             build/scalar-remapping/
             build/warp-controls/
             build/placement-drivers/

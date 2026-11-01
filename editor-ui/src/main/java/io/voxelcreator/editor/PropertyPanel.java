@@ -23,6 +23,7 @@ public final class PropertyPanel {
   private int bodySelectionCount = -1;
 
   private final UiFields f = new UiFields(this::noiseChanged);
+  private final Map<Integer, UiFields.NumericRow> numericRows = new LinkedHashMap<>();
   private long noiseVersion;
   private final NoiseDraftIndex.Cache noiseIndex = new NoiseDraftIndex.Cache();
   private final NoiseItemBrowser noiseBrowser = new NoiseItemBrowser();
@@ -417,7 +418,10 @@ public final class PropertyPanel {
     if (submittedNow) ImGui.setKeyboardFocusHere();
     draw.run();
     if (targeted) {
-      if (acknowledged.getAsBoolean()) {
+      boolean focused = acknowledged.getAsBoolean();
+      if (submittedNow && !focused && !ImGui.isItemVisible())
+        propertyFocus.retryAfterClipping(control, parameter);
+      if (focused) {
         ImGui.setScrollHereY(.25f);
         propertyFocus.acknowledge(control + ":" + parameter);
         searchScroll = false;
@@ -511,6 +515,7 @@ public final class PropertyPanel {
   }
 
   public void draw() {
+    numericRows.clear();
     footerEditable = false;
     seedCenters.clear();
     worldControlCenters.clear();
@@ -1961,27 +1966,15 @@ public final class PropertyPanel {
           draftChoices::focused);
     } else {
       ImGui.pushID(id);
-      double[] slider = {current};
-      if (ImGui.sliderScalar(
-          "##source-slider",
-          slider,
+      numeric(
+          f,
+          state.metadata.label(id, control.label()),
+          current,
           control.presetMinimum(),
           control.presetMaximum(),
-          control.integer() ? "%.0f" : "%.5f")) {
-        noise.algorithm.parameters.put(
-            key, control.integer() ? StrictMath.rint(slider[0]) : slider[0]);
-        noiseChanged();
-        current = noise.algorithm.parameters.get(key);
-      }
-      double inputValue = current;
-      propertyControl(
-          null,
-          "algorithm/parameters/" + key,
-          () ->
-              f.number(
-                  state.metadata.label(id, control.label()),
-                  inputValue,
-                  value -> noise.algorithm.parameters.put(key, value)));
+          control.integer(),
+          value -> noise.algorithm.parameters.put(key, value),
+          draw -> propertyControl(null, "algorithm/parameters/" + key, draw));
       ImGui.popID();
     }
     var lo = ImGui.getItemRectMin();
@@ -2007,41 +2000,50 @@ public final class PropertyPanel {
     return catalogue(noise, "processing", OPERATIONS);
   }
 
+  Map<Integer, UiFields.NumericRow> probeNumericRows() {
+    return Map.copyOf(numericRows);
+  }
+
+  private void numeric(
+      UiFields widgets,
+      String label,
+      double value,
+      double minimum,
+      double maximum,
+      boolean integer,
+      DoubleConsumer set,
+      Consumer<Runnable> input) {
+    var row = widgets.number(label, value, minimum, maximum, integer, set, input);
+    numericRows.put(row.inputId(), row);
+  }
+
   private void parameter(Item item, String key, double def) {
-    if (ProcessingExtensions.REMAPPING.contains(item.kind)) {
-      var control = CreationRegistry.get("processing." + item.kind + ".parameter." + key);
-      double[] slider = {
-        item.parameters.containsKey(key) ? item.parameters.get(key).asDouble() : def
-      };
-      if (ImGui.sliderScalar(
-          "##slider-" + key,
-          slider,
-          control.minimum(),
-          control.maximum(),
-          control.kind() == CreationRegistry.Kind.INTEGER ? "%.0f" : "%.5f")) {
-        item.parameters.put(
-            key,
-            ProjectIO.JSON.valueToTree(
-                control.kind() == CreationRegistry.Kind.INTEGER
-                    ? StrictMath.rint(slider[0])
-                    : slider[0]));
-        noiseChanged();
-      }
-    }
-    propertyControl(
-        item.uuid,
-        "parameters/" + key,
-        () ->
-            f.number(
-                state.metadata.label("processing." + item.kind + ".parameter." + key, key),
-                item.parameters.containsKey(key) ? item.parameters.get(key).asDouble() : def,
-                v -> item.parameters.put(key, ProjectIO.JSON.valueToTree(v))));
+    var noise = (Noise) state.draft;
+    boolean coordinate = noise.coordinateTransforms.contains(item);
+    String id =
+        coordinate
+            ? "transform" + noise.dimension + "D." + item.kind + "." + key
+            : "processing." + item.kind + ".parameter." + key;
+    var spec = CreationRegistry.CONTROLS.get(id);
+    // Creation metadata contains finite authoring domains, including effectively unbounded
+    // engine controls. Sliders suggest a usable neighborhood; exact text retains that full domain.
+    double minimum = spec == null ? -1 : Math.max(-1024, spec.minimum());
+    double maximum = spec == null ? 1 : Math.min(1024, spec.maximum());
+    numeric(
+        f,
+        state.metadata.label(id, key),
+        item.parameters.containsKey(key) ? item.parameters.get(key).asDouble() : def,
+        minimum,
+        maximum,
+        spec != null && spec.kind() == CreationRegistry.Kind.INTEGER,
+        v -> item.parameters.put(key, ProjectIO.JSON.valueToTree(v)),
+        draw -> propertyControl(item.uuid, "parameters/" + key, draw));
     var lo = ImGui.getItemRectMin();
     var hi = ImGui.getItemRectMax();
     parameterCenters.put(
         item.uuid + ":" + key,
         new float[] {lo.x + Math.min(80, (hi.x - lo.x) * .25f), (lo.y + hi.y) / 2});
-    metadataTooltip("processing." + item.kind + ".parameter." + key);
+    metadataTooltip(id);
     revealSearchField(item.uuid, "parameters/" + key);
   }
 
@@ -2326,29 +2328,15 @@ public final class PropertyPanel {
             draftChoices::focused);
         parameterCenters.put(item.uuid + ":" + key, draftChoices.buttonCenter());
       } else {
-        double[] slider = {current.asDouble()};
-        if (ImGui.sliderScalar(
-            "##warp-slider",
-            slider,
+        numeric(
+            f,
+            label,
+            current.asDouble(),
             control.presetMinimum(),
             control.presetMaximum(),
-            control.integer() ? "%.0f" : "%.5f")) {
-          item.parameters.put(
-              key,
-              ProjectIO.JSON.valueToTree(
-                  control.integer() ? StrictMath.rint(slider[0]) : slider[0]));
-          noiseChanged();
-        }
-        propertyControl(
-            item.uuid,
-            "parameters/" + key,
-            () ->
-                f.number(
-                    label,
-                    item.parameters
-                        .getOrDefault(key, ProjectIO.JSON.valueToTree(control.defaultValue()))
-                        .asDouble(),
-                    value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value))));
+            control.integer(),
+            value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value)),
+            draw -> propertyControl(item.uuid, "parameters/" + key, draw));
         var lo = ImGui.getItemRectMin();
         var hi = ImGui.getItemRectMax();
         parameterCenters.put(
@@ -2448,8 +2436,15 @@ public final class PropertyPanel {
           () ->
               f.choice(
                   "Projection", b.projection, List.of("XZ", "XY", "YZ"), v -> b.projection = v));
-      bindingField(
-          item, b, "slice", () -> f.number("Inserted slice coordinate", b.slice, v -> b.slice = v));
+      numeric(
+          f,
+          "Inserted slice coordinate",
+          b.slice,
+          -1024,
+          1024,
+          false,
+          v -> b.slice = v,
+          draw -> bindingField(item, b, "slice", draw));
       referenceLinks(b.noiseGeneratorUuid);
     }
   }
@@ -2501,7 +2496,7 @@ public final class PropertyPanel {
         focusedBinding = key;
         searchScroll = false;
         bindingFocusSubmitted = false;
-      }
+      } else if (!ImGui.isItemVisible()) bindingFocusSubmitted = false;
     }
   }
 
@@ -2605,8 +2600,15 @@ public final class PropertyPanel {
             () ->
                 f.choice(
                     "Projection", b.projection, List.of("XZ", "XY", "YZ"), v -> b.projection = v));
-        bindingField(
-            item, b, "slice", () -> f.number("Slice coordinate", b.slice, v -> b.slice = v));
+        numeric(
+            f,
+            "Slice coordinate",
+            b.slice,
+            -1024,
+            1024,
+            false,
+            v -> b.slice = v,
+            draw -> bindingField(item, b, "slice", draw));
         referenceLinks(b.noiseGeneratorUuid);
       }
       default -> {}
@@ -2637,13 +2639,15 @@ public final class PropertyPanel {
                   value != null && value.asBoolean(),
                   v -> set.accept(ProjectIO.JSON.valueToTree(v))));
     else if (type.equals("Scalar"))
-      field.accept(
-          "value",
-          () ->
-              widgets.number(
-                  "Value",
-                  value == null ? 0 : value.asDouble(),
-                  v -> set.accept(ProjectIO.JSON.valueToTree(v))));
+      numeric(
+          widgets,
+          "Value",
+          value == null ? 0 : value.asDouble(),
+          -1,
+          1,
+          false,
+          v -> set.accept(ProjectIO.JSON.valueToTree(v)),
+          draw -> field.accept("value", draw));
     else {
       int count = type.endsWith("2") || type.endsWith("2D") ? 2 : 3;
       double[] vec = new double[count];
@@ -2651,16 +2655,18 @@ public final class PropertyPanel {
         vec[i] = value != null && value.isArray() && value.size() > i ? value.get(i).asDouble() : 0;
       for (int i = 0; i < count; i++) {
         final int k = i;
-        field.accept(
-            "value/" + i,
-            () ->
-                widgets.number(
-                    count == 2 ? (k == 0 ? "X" : "Z") : List.of("X", "Y", "Z").get(k),
-                    vec[k],
-                    v -> {
-                      vec[k] = v;
-                      set.accept(ProjectIO.JSON.valueToTree(vec));
-                    }));
+        numeric(
+            widgets,
+            count == 2 ? (k == 0 ? "X" : "Z") : List.of("X", "Y", "Z").get(k),
+            vec[k],
+            -1,
+            1,
+            false,
+            v -> {
+              vec[k] = v;
+              set.accept(ProjectIO.JSON.valueToTree(vec));
+            },
+            draw -> field.accept("value/" + k, draw));
       }
     }
   }
