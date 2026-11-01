@@ -49,6 +49,10 @@ public final class ResourceExportPanel {
     return edit != null && edit.current();
   }
 
+  boolean busy() {
+    return edit != null && edit.busy();
+  }
+
   boolean canReload() {
     return edit != null && !edit.current() && edit.canReload();
   }
@@ -79,6 +83,7 @@ public final class ResourceExportPanel {
   }
 
   public void reset() {
+    if (busy()) return;
     if (edit != null) edit.cancel();
     edit = null;
     filter.set("");

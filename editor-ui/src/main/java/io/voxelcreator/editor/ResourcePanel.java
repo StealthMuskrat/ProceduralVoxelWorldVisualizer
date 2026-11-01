@@ -92,6 +92,7 @@ public final class ResourcePanel {
   }
 
   public void reset() {
+    if (exportPanel.busy()) return;
     closeCreate();
     closePlacement();
     closeDelete();
@@ -836,7 +837,8 @@ public final class ResourcePanel {
   }
 
   boolean blocksProjectTransition() {
-    return renameId != null
+    return exportPanel.busy()
+        || renameId != null
         || deleteId != null
         || createOpen
         || placementOpen
@@ -988,11 +990,13 @@ public final class ResourcePanel {
   }
 
   void cancelExport() {
+    if (exportPanel.busy()) return;
     exportPanel.reset();
     exportSelection.clear();
   }
 
   public void beginExport() {
+    if (exportPanel.busy()) return;
     exportSelection.clear();
     exportPanel.reset();
     exportSelection.addAll(state.multiSelection);

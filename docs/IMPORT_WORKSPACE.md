@@ -2,15 +2,15 @@
 
 Status: **implemented, awaiting validation** on `codex/development-phase`. No compilation, regression/native execution or independent replay was performed. The owner's pause on GitHub testing remains in force, and no passing count or acceptance status advances.
 
-The production COPY/REUSE/SKIP dialog now has a dedicated editor session and panel. Incoming definitions and preview candidates remain owned by the existing `ResourceImport.Session` model. The wrapper adds exact destination object/revision ownership and explicit review/reload boundaries. No portable-package, project, registry or engine API format changes.
+The production COPY/REUSE/SKIP dialog now has a dedicated editor session and panel. Incoming definitions and preview candidates remain owned by the existing `ResourceImport.Session` model. The wrapper adds exact document-session, logical project UUID and destination object/revision ownership and explicit review/reload boundaries. No portable-package, project, registry or engine API format changes.
 
 ## Review and reload
 
 Changing a resolution invalidates the displayed preview token. Apply becomes available only after the panel displays the current exact plan. An unchanged choice retains that token and its stable COPY identities. The panel acknowledges the plan backing its current filtered/clipped view; it does not require every row to fit on screen or force the user to visit every row.
 
-A committed destination change keeps the old preview visible and disables resolution edits and Apply. **Reload Preview** explicitly rebuilds against the current destination, retaining choices and requiring a subsequent displayed plan. COPY UUIDs can change on this explicit rebuild, which the banner explains. REUSE compatibility and dependency exclusions are recomputed. A retained REUSE choice that is now incompatible produces a blocking preview diagnostic until corrected. A different project UUID requires Cancel and reopening Import.
+A committed destination change keeps the old preview visible and disables resolution edits and Apply. **Reload Preview** explicitly rebuilds against the current destination, retaining choices and requiring a subsequent displayed plan. COPY UUIDs can change on this explicit rebuild, which the banner explains. REUSE compatibility and dependency exclusions are recomputed. A retained REUSE choice that is now incompatible produces a blocking preview diagnostic until corrected. Replacing the document, including reopening the same project UUID, requires Cancel and reopening Import.
 
-Current-frame checks use the project object and editor revision rather than serializing the destination every frame. The model's full-value destination check still runs at publication. Unsupported in-place destination changes detected there mark the workspace stale and require reload. Even a revision-only committed edit requires explicit reload in this editor wrapper. Save alone changes no model revision and does not invalidate the import preview.
+Current-frame checks use the document token, project UUID/object and editor revision rather than serializing the destination every frame. The model's full-value destination check still runs at publication. Unsupported in-place destination changes detected there mark the workspace stale and require reload. Even a revision-only committed edit requires explicit reload in this editor wrapper. Save alone changes no model revision and does not invalidate the import preview.
 
 ## Publication and private drafts
 
@@ -39,3 +39,5 @@ Full physical chooser/package-file interaction, all type/folder/layer combinatio
 [Attempt-owned transaction feedback](PROJECT_CHANGE_FEEDBACK.md) subsequently replaces shared diagnostic-list identity inference for Import retries, including validators that reuse a rejection list. Its implementation and deferred definitions remain uncompiled/untested.
 
 The subsequent unvalidated [resource review layout follow-up](RESOURCE_REVIEW_LAYOUT.md) replaces the fixed issue/list budgets above with Resources/Filters/Issues and persistent actions. Only a visible Resources list acknowledges a changed plan; unchanged reviewed plans remain usable on other pages. It adds existing/target UUID filtering, measured whole-pixel rows and Cancel-before-Apply handling. The earlier layout description records the previous composition; no new passing evidence is implied.
+
+The unvalidated [resource review lifetime follow-up](RESOURCE_REVIEW_LIFETIME.md) retires earlier reviews across same-UUID document replacement and keeps accepted publication busy through validation. Nested Apply and normal Cancel/replacement cannot drop the publishing workspace. Same-document Save, failed Open, explicit Reload and private-input preservation remain. Its eleven regression definitions and native/independent replay are deferred.

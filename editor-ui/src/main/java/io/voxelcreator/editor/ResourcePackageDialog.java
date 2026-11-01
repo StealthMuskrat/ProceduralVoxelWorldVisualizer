@@ -49,7 +49,7 @@ final class ResourcePackageDialog {
   boolean open(String requested) {
     if (!Set.of("Import", "Export").contains(requested))
       throw new IllegalArgumentException("Unknown package action");
-    if (pending || imports.pending() || blocked.getAsBoolean()) {
+    if (pending || imports.pending() || resources.exportView().busy() || blocked.getAsBoolean()) {
       state.status =
           "Finish the private editor or pending project action before opening a resource package";
       return false;
@@ -95,10 +95,8 @@ final class ResourcePackageDialog {
   }
 
   void cancel() {
-    if (pending && action.equals("Export")) {
-      if (resources.exportView().session() == exportOwner) resources.cancelExport();
-      else if (exportOwner != null) exportOwner.cancel();
-    }
+    if (exportOwner != null && exportOwner.busy()) return;
+    if (pending && action.equals("Export")) cancelOwnedExport();
     exportOwner = null;
     pending = prompt = false;
   }
@@ -186,7 +184,7 @@ final class ResourcePackageDialog {
         var destination = ResourcePackageFiles.location(path.get());
         if (export) {
           resources.writeExport(destination, files);
-          resources.cancelExport();
+          cancelOwnedExport();
           state.notify("Information", "Resource package exported");
         } else if (!imports.open(files.read(destination)))
           throw new IOException("Import is blocked or the package was rejected");
@@ -210,6 +208,11 @@ final class ResourcePackageDialog {
         EditorEvents.Subsystem.IMPORT_EXPORT,
         error);
     show("Path");
+  }
+
+  private void cancelOwnedExport() {
+    if (resources.exportView().session() == exportOwner) resources.cancelExport();
+    else if (exportOwner != null) exportOwner.cancel();
   }
 
   private void show(String value) {

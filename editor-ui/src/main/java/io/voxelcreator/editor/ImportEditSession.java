@@ -10,18 +10,20 @@ final class ImportEditSession {
     REJECTED,
     STALE,
     NOT_REVIEWED,
+    BUSY,
     CLOSED
   }
 
   private final EditorState state;
   private final ProjectData incoming;
   private final UUID projectId;
+  private final Object document;
   private ProjectData destination;
   private long revision;
   private ResourceImport.Session model;
   private ResourceImport.Plan shown;
   private Map<UUID, ResourceImport.Choice> choices = Map.of();
-  private boolean closed, forcedStale;
+  private boolean closed, forcedStale, applying;
   private List<Diagnostic> applyIssues = List.of();
   private int issueCount;
 
@@ -29,15 +31,29 @@ final class ImportEditSession {
     this.state = Objects.requireNonNull(state);
     this.incoming = ProjectIO.copy(Objects.requireNonNull(incoming));
     projectId = state.project().project.uuid;
+    document = state.document.sessionToken();
     reload();
   }
 
   boolean current() {
-    return !closed && !forcedStale && state.project() == destination && state.revision == revision;
+    return !closed
+        && !applying
+        && !forcedStale
+        && document == state.document.sessionToken()
+        && Objects.equals(projectId, state.project().project.uuid)
+        && state.project() == destination
+        && state.revision == revision;
   }
 
   boolean canReload() {
-    return !closed && Objects.equals(projectId, state.project().project.uuid);
+    return !closed
+        && !applying
+        && document == state.document.sessionToken()
+        && Objects.equals(projectId, state.project().project.uuid);
+  }
+
+  boolean busy() {
+    return applying;
   }
 
   boolean closed() {
@@ -102,6 +118,7 @@ final class ImportEditSession {
 
   Result apply() {
     if (closed) return Result.CLOSED;
+    if (applying) return Result.BUSY;
     if (!current() || !model.current(state.project())) {
       forcedStale = true;
       return Result.STALE;
@@ -109,18 +126,24 @@ final class ImportEditSession {
     if (shown != model.preview()) return Result.NOT_REVIEWED;
     if (!shown.valid()) return Result.REJECTED;
     // Import only appends/reuses resources. Preserve the exact separate Properties draft/selection.
-    var result = state.changeResult(model::applyTo);
-    if (!result.applied()) {
-      issueCount = result.issueCount();
-      applyIssues = result.issues();
-      return Result.REJECTED;
+    applying = true;
+    try {
+      var result = state.changeResult(model::applyTo);
+      if (!result.applied()) {
+        issueCount = result.issueCount();
+        applyIssues = result.issues();
+        return Result.REJECTED;
+      }
+      closed = true;
+      shown = null;
+      return Result.APPLIED;
+    } finally {
+      applying = false;
     }
-    closed = true;
-    shown = null;
-    return Result.APPLIED;
   }
 
   void cancel() {
+    if (applying) return;
     closed = true;
     shown = null;
     applyIssues = List.of();

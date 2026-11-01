@@ -10,6 +10,7 @@ import java.util.*;
 final class ExportEditSession {
   private final EditorState state;
   private final UUID projectId;
+  private final Object document;
   private ProjectData source, frozen;
   private long revision, preparations;
   private JsonNode sourceValue;
@@ -17,17 +18,20 @@ final class ExportEditSession {
   private ResourceExportSession model;
   private ResourceExportSession.Preview preview, shown;
   private Set<UUID> selected = Set.of();
-  private boolean closed, forcedStale;
+  private boolean closed, forcedStale, writing;
   private int unavailable;
 
   ExportEditSession(EditorState state, Set<UUID> selected) {
     this.state = Objects.requireNonNull(state);
     projectId = state.project().project.uuid;
+    document = state.document.sessionToken();
     reload(selected);
   }
 
   boolean current() {
     return !closed
+        && !writing
+        && document == state.document.sessionToken()
         && !forcedStale
         && source == state.project()
         && revision == state.revision
@@ -35,7 +39,14 @@ final class ExportEditSession {
   }
 
   boolean canReload() {
-    return !closed && Objects.equals(projectId, state.project().project.uuid);
+    return !closed
+        && !writing
+        && document == state.document.sessionToken()
+        && Objects.equals(projectId, state.project().project.uuid);
+  }
+
+  boolean busy() {
+    return writing;
   }
 
   boolean closed() {
@@ -123,6 +134,7 @@ final class ExportEditSession {
   }
 
   void write(Path destination, ResourcePackageFiles files) throws IOException {
+    if (writing) throw new IllegalStateException("Export publication is already in progress");
     if (!current() || !sourceValue.equals(ProjectIO.JSON.valueToTree(state.project()))) {
       if (!closed) forcedStale = true;
       throw new IllegalStateException("Export source changed; Reload Preview before exporting");
@@ -130,12 +142,18 @@ final class ExportEditSession {
     if (selected.isEmpty()) throw new IllegalStateException("Select resources to export");
     if (preview == null || shown != preview)
       throw new IllegalStateException("Display the current export preview before exporting");
-    files.write(destination, preview.resources(), state.document.path());
-    closed = true;
-    shown = null;
+    writing = true;
+    try {
+      files.writeGuarded(destination, preview.resources(), state.document::path);
+      closed = true;
+      shown = null;
+    } finally {
+      writing = false;
+    }
   }
 
   void cancel() {
+    if (writing) return;
     closed = true;
     shown = null;
   }

@@ -9,6 +9,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
+import java.util.function.Supplier;
 
 /** Explicit portable-package I/O; the active project is never an export destination. */
 final class ResourcePackageFiles {
@@ -114,6 +115,12 @@ final class ResourcePackageFiles {
   }
 
   void write(Path destination, ProjectData resources, Path activeProject) throws IOException {
+    writeGuarded(destination, resources, () -> activeProject);
+  }
+
+  void writeGuarded(Path destination, ProjectData resources, Supplier<Path> activeProject)
+      throws IOException {
+    Objects.requireNonNull(activeProject);
     // Own and validate the whole payload before creating directories or touching the destination.
     var snapshot = ProjectIO.copy(Objects.requireNonNull(resources));
     var issues = NoiseCompiler.validate(snapshot);
@@ -122,18 +129,18 @@ final class ResourcePackageFiles {
     pack.resources = snapshot;
     byte[] bytes = ProjectIO.JSON.writeValueAsString(pack).getBytes(StandardCharsets.UTF_8);
     Path target = Objects.requireNonNull(destination).toAbsolutePath();
-    ExportPaths.rejectProjectTarget(target, activeProject, "resource package");
+    ExportPaths.rejectProjectTarget(target, activeProject.get(), "resource package");
     Path parent = target.getParent();
     if (parent == null || target.getFileName() == null)
       throw new IOException("Choose a package file path");
     Files.createDirectories(parent);
     // Resolve real parent paths as well, including aliases when the project file is absent.
-    ExportPaths.rejectProjectTarget(target, activeProject, "resource package");
+    ExportPaths.rejectProjectTarget(target, activeProject.get(), "resource package");
     Path temporary = Files.createTempFile(parent, ".voxel-package-", ".tmp");
     Throwable failure = null;
     try {
       storage.write(temporary, bytes);
-      ExportPaths.rejectProjectTarget(target, activeProject, "resource package");
+      ExportPaths.rejectProjectTarget(target, activeProject.get(), "resource package");
       storage.replace(temporary, target);
     } catch (IOException | RuntimeException | Error rejected) {
       failure = rejected;

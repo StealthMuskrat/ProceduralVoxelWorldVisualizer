@@ -69,6 +69,7 @@ final class ResourceImportPanel {
   }
 
   void cancel() {
+    if (session != null && session.busy()) return;
     if (session != null) session.cancel();
     session = null;
     prompt = false;
