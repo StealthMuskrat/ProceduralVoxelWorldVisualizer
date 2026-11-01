@@ -43,6 +43,8 @@ final class ProjectFileWorkflow {
   private Intent pending;
   private String error = "";
   private long requestVersion;
+  private long generation;
+  private boolean working;
 
   ProjectFileWorkflow(EditorState state, Runnable replaced, Runnable exit) {
     this(state, replaced, exit, () -> false);
@@ -64,6 +66,10 @@ final class ProjectFileWorkflow {
     return phase;
   }
 
+  boolean busy() {
+    return working || phase != Phase.IDLE;
+  }
+
   String error() {
     return error;
   }
@@ -79,19 +85,34 @@ final class ProjectFileWorkflow {
   }
 
   void request(Intent intent) {
-    if (phase != Phase.IDLE) return;
-    if (blocked.getAsBoolean()) {
-      error = "Finish or cancel the open editor or resource dialog before continuing.";
-      state.error("PROJECT_TRANSITION_BLOCKED", EditorEvents.Subsystem.PROJECT, error);
-      return;
+    if (busy()) return;
+    Objects.requireNonNull(intent);
+    long attempt = generation;
+    try {
+      var opening = new ProjectFileOwner(state);
+      boolean denied = blocked.getAsBoolean();
+      if (generation != attempt || busy()) return;
+      if (denied) {
+        error = "Finish or cancel the open editor or resource dialog before continuing.";
+        state.error("PROJECT_TRANSITION_BLOCKED", EditorEvents.Subsystem.PROJECT, error);
+        return;
+      }
+      if (!opening.current(state)) {
+        stale(attempt, "");
+        return;
+      }
+      boolean draft = modifiedDraft();
+      error = "";
+      pending = intent;
+      requestVersion++;
+      generation++;
+      transition = true;
+      owner = opening;
+      if (draft) phase = Phase.DRAFT;
+      else afterDraft();
+    } catch (RuntimeException failure) {
+      report("PROJECT_FILE_GUARD_FAILED", "Project file request failed: ", failure, attempt);
     }
-    error = "";
-    pending = Objects.requireNonNull(intent);
-    requestVersion++;
-    transition = true;
-    owner = new ProjectFileOwner(state);
-    if (modifiedDraft()) phase = Phase.DRAFT;
-    else afterDraft();
   }
 
   private boolean modifiedDraft() {
@@ -105,18 +126,34 @@ final class ProjectFileWorkflow {
   }
 
   void decideDraft(DraftDecision decision) {
-    if (phase != Phase.DRAFT) return;
+    if (working || phase != Phase.DRAFT) return;
     if (decision == DraftDecision.CANCEL) {
       cancel();
       return;
     }
     if (!current()) return;
     if (decision == DraftDecision.APPLY) {
-      if (!state.applyDraft()) {
-        error = "Properties Apply failed. Cancel to correct the draft, or choose Discard Draft.";
+      long attempt = generation;
+      working = true;
+      try {
+        if (!state.applyDraft()) {
+          error = "Properties Apply failed. Cancel to correct the draft, or choose Discard Draft.";
+          return;
+        }
+        owner = new ProjectFileOwner(state);
+        generation++;
+      } catch (RuntimeException failure) {
+        if (generation == attempt) {
+          retire();
+          attempt = generation;
+        }
+        report(
+            "PROJECT_DRAFT_APPLY_FAILED", "Properties Apply completion failed: ", failure, attempt);
         return;
+      } finally {
+        working = false;
       }
-      owner = new ProjectFileOwner(state);
+      if (!current("Properties applied. ")) return;
     }
     error = "";
     // Discard grants permission for the transition; preserve raw text until it actually succeeds.
@@ -124,22 +161,25 @@ final class ProjectFileWorkflow {
   }
 
   private void afterDraft() {
-    if (state.document.dirty()) phase = Phase.GUARD;
-    else complete();
+    if (state.document.dirty()) {
+      phase = Phase.GUARD;
+      generation++;
+    } else complete();
   }
 
   void save(boolean as) {
-    if (phase != Phase.IDLE) return;
+    if (busy()) return;
     error = "";
     pending = null;
     transition = false;
     requestVersion++;
+    generation++;
     owner = new ProjectFileOwner(state);
     beginSave(as);
   }
 
   void decide(Decision decision) {
-    if (phase != Phase.GUARD) return;
+    if (working || phase != Phase.GUARD) return;
     if (decision == Decision.CANCEL) {
       cancel();
       return;
@@ -153,17 +193,21 @@ final class ProjectFileWorkflow {
   }
 
   private void beginSave(boolean as) {
-    if (as || state.document.path() == null) phase = Phase.SAVE;
-    else {
+    if (as || state.document.path() == null) {
+      phase = Phase.SAVE;
+      generation++;
+    } else {
       phase = Phase.IDLE;
       write(state.document.path().toString());
     }
   }
 
   void submit(String location) {
+    if (working) return;
     if (phase == Phase.SAVE) write(location);
     else if (phase == Phase.OPEN) {
       if (!current()) return;
+      working = true;
       try {
         var issues = state.document.open(path(location));
         if (!issues.isEmpty()) throw new IOException(issues.toString());
@@ -175,15 +219,21 @@ final class ProjectFileWorkflow {
         state.multiSelection.clear();
         state.issues = java.util.List.of();
         state.validationScope = "Committed project";
-        phase = Phase.IDLE;
-        error = "";
-        owner = null;
-        transition = false;
-        replaced.run();
-        state.notify("Information", "Project opened");
       } catch (Exception failure) {
         fail("OPEN", failure);
+        return;
+      } finally {
+        working = false;
       }
+      retire();
+      error = "";
+      long completed = generation;
+      state.notify("Information", "Project opened");
+      deliver(
+          replaced,
+          "PROJECT_REPLACEMENT_REFRESH_FAILED",
+          "Project opened; UI refresh failed: ",
+          completed);
     }
   }
 
@@ -194,15 +244,19 @@ final class ProjectFileWorkflow {
 
   private void write(String location) {
     if (!current()) return;
+    working = true;
     try {
       state.document.save(path(location));
     } catch (Exception failure) {
       // A retry is a standalone save. Never perform an action whose required save failed.
       pending = null;
       transition = false;
+      generation++;
       owner = phase == Phase.IDLE ? null : new ProjectFileOwner(state);
       fail("SAVE", failure);
       return;
+    } finally {
+      working = false;
     }
     state.notify("Information", "Project saved");
     error = "";
@@ -211,55 +265,112 @@ final class ProjectFileWorkflow {
   }
 
   private boolean current() {
-    if (owner != null && owner.current(state) && (!transition || !blocked.getAsBoolean()))
-      return true;
-    pending = null;
-    phase = Phase.IDLE;
-    owner = null;
-    transition = false;
-    error = "The project, draft or open editor changed. Request the file action again.";
-    state.error("STALE_PROJECT_FILE_ACTION", EditorEvents.Subsystem.PROJECT, error);
+    return current("");
+  }
+
+  private boolean current(String completed) {
+    long attempt = generation;
+    var opening = owner;
+    var openingPhase = phase;
+    try {
+      if (opening == null || !opening.current(state)) {
+        stale(attempt, completed);
+        return false;
+      }
+      boolean denied = transition && blocked.getAsBoolean();
+      if (generation != attempt || owner != opening || phase != openingPhase) return false;
+      if (!denied && opening.current(state)) return true;
+      stale(attempt, completed);
+    } catch (RuntimeException failure) {
+      if (generation == attempt) {
+        retire();
+        attempt = generation;
+      }
+      report(
+          "PROJECT_FILE_GUARD_FAILED",
+          completed + "Project file decision failed: ",
+          failure,
+          attempt);
+    }
     return false;
   }
 
+  private void stale(long attempt, String completed) {
+    if (generation != attempt) return;
+    retire();
+    error = completed + "The project, draft or open editor changed. Request the file action again.";
+    state.error("STALE_PROJECT_FILE_ACTION", EditorEvents.Subsystem.PROJECT, error);
+  }
+
   private void fail(String operation, Exception failure) {
-    error =
-        operation
-            + " failed: "
-            + Objects.requireNonNullElse(failure.getMessage(), failure.toString());
-    state.error("PROJECT_" + operation + "_FAILED", EditorEvents.Subsystem.PROJECT, error);
+    report("PROJECT_" + operation + "_FAILED", operation + " failed: ", failure, generation, 8192);
   }
 
   private void complete() {
     var intent = pending;
-    pending = null;
-    phase = Phase.IDLE;
-    if (intent == null) {
-      owner = null;
-      transition = false;
-      return;
-    }
+    var opening = owner;
+    // Terminal callbacks may admit another action; leave no predecessor cleanup after delivery.
+    retire();
+    if (intent == null) return;
     switch (intent) {
       case NEW -> {
-        state.newSession();
-        replaced.run();
-        owner = null;
-        transition = false;
+        working = true;
+        try {
+          state.newSession();
+        } catch (RuntimeException failure) {
+          fail("NEW", failure);
+          return;
+        } finally {
+          working = false;
+        }
+        deliver(
+            replaced,
+            "PROJECT_REPLACEMENT_REFRESH_FAILED",
+            "New project created; UI refresh failed: ",
+            generation);
       }
-      case OPEN -> phase = Phase.OPEN;
+      case OPEN -> {
+        phase = Phase.OPEN;
+        owner = opening;
+        transition = true;
+      }
       case EXIT -> {
-        owner = null;
-        transition = false;
-        exit.run();
+        deliver(exit, "PROJECT_EXIT_CALLBACK_FAILED", "Exit request callback failed: ", generation);
       }
     }
   }
 
   void cancel() {
+    if (working) return;
+    retire();
+    error = "";
+  }
+
+  private void retire() {
+    generation++;
     pending = null;
     phase = Phase.IDLE;
-    error = "";
     owner = null;
     transition = false;
+  }
+
+  private void deliver(Runnable callback, String code, String prefix, long completed) {
+    try {
+      callback.run();
+    } catch (RuntimeException failure) {
+      report(code, prefix, failure, completed);
+    }
+  }
+
+  private void report(String code, String prefix, Exception failure, long attempt) {
+    report(code, prefix, failure, attempt, 1024);
+  }
+
+  private void report(String code, String prefix, Exception failure, long attempt, int limit) {
+    String detail = failure.getMessage();
+    if (detail == null || detail.isBlank()) detail = failure.getClass().getSimpleName();
+    String message = StatusBarText.clip(prefix + detail, limit);
+    if (generation == attempt) error = message;
+    state.error(code, EditorEvents.Subsystem.PROJECT, message);
   }
 }

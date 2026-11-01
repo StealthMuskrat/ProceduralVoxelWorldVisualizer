@@ -218,3 +218,5 @@ The unvalidated [Find/reference private-editor eligibility follow-up](docs/NAVIG
 The unvalidated [named dialog scaling follow-up](docs/DIALOG_OWNER_SCALING.md) keeps modal body/control text tied to its configured owner when another window draws it, including hidden owners and DPI composition. Eight regression definitions, thirty native font/geometry cases and independent persistence/trace replay remain deferred.
 
 The unvalidated [project history completion follow-up](docs/PROJECT_HISTORY_COMPLETION.md) delivers Undo/Redo confirmations after popup unwind, preserves successor requests and keeps accepted moves busy through validation/refresh. Eight regression definitions, twelve native modal receipts, ten completion routes and independent persistence/engine replay remain deferred.
+
+The unvalidated [project file completion follow-up](docs/PROJECT_FILE_COMPLETION.md) separates successful publication from callback failures, preserves successor file actions and delivers decisions/I/O after popup unwind. Ten regression definitions, twenty-four native modal receipts, eleven routes and independent persistence/engine replay remain deferred.

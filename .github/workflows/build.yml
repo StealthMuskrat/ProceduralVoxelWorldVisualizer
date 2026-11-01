@@ -334,6 +334,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectDraftTransitionProbe build/project-drafts
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectDraftConsumer build/project-drafts
           python scripts/verify_project_drafts.py build/project-drafts
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectFileCompletionProbe build/project-file-completion
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectFileCompletionConsumer build/project-file-completion
+          python scripts/verify_project_file_completion.py build/project-file-completion
       - name: Guarded browser mutations and atomic Properties workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceEditProbe build/browser-edits
@@ -547,6 +550,7 @@ jobs:
             build/browser-selection/
             build/browser-edits/
             build/project-drafts/
+            build/project-file-completion/
             build/project-history/
             build/project-history-completion/
             build/project-decision-layout/
@@ -1189,6 +1193,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_project_drafts.py build/project-drafts
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProjectFileCompletionProbe build/project-file-completion
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ProjectFileCompletionConsumer build/project-file-completion
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_project_file_completion.py build/project-file-completion
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows guarded browser mutations and atomic Properties workflow
         shell: pwsh
         run: |
@@ -1529,6 +1539,7 @@ jobs:
             build/browser-selection/
             build/browser-edits/
             build/project-drafts/
+            build/project-file-completion/
             build/project-history/
             build/project-history-completion/
             build/project-decision-layout/

@@ -20,6 +20,8 @@ final class ProjectFileDialog {
   private boolean focusPath, revealError;
   private String shownError = "";
   private int pathId;
+  private final NavigationDecisionScope delivery = new NavigationDecisionScope();
+  private int drawnFrame = Integer.MIN_VALUE;
   private final Map<String, float[]> controls = new HashMap<>();
 
   ProjectFileDialog(EditorState state, Runnable replaced, Runnable exit) {
@@ -42,16 +44,17 @@ final class ProjectFileDialog {
   }
 
   void draw() {
+    int frame = ImGui.getFrameCount();
+    if (drawnFrame == frame) return;
+    drawnFrame = frame;
     controls.clear();
     pathId = 0;
     var phase = workflow.phase();
     long request = workflow.requestVersion();
     boolean changed = shown != phase || shownRequest != request;
-    if (changed && shown != ProjectFileWorkflow.Phase.IDLE && layout.begin(title(shown))) {
-      ImGui.closeCurrentPopup();
-      ImGui.endPopup();
-    }
+    if (changed && shown != ProjectFileWorkflow.Phase.IDLE) closePopup(title(shown));
     if (changed && phase != ProjectFileWorkflow.Phase.IDLE) {
+      delivery.open();
       if (phase == ProjectFileWorkflow.Phase.OPEN || phase == ProjectFileWorkflow.Phase.SAVE) {
         path.set(
             state.document.path() == null
@@ -65,7 +68,12 @@ final class ProjectFileDialog {
     }
     shown = phase;
     shownRequest = request;
-    if (phase == ProjectFileWorkflow.Phase.IDLE || !layout.begin(title(phase))) return;
+    if (phase == ProjectFileWorkflow.Phase.IDLE) {
+      delivery.close();
+      return;
+    }
+    if (!layout.begin(title(phase))) return;
+    var ticket = delivery.capture(frame);
     boolean pathPhase =
         phase == ProjectFileWorkflow.Phase.SAVE || phase == ProjectFileWorkflow.Phase.OPEN;
     chrome = pathPhase ? paths : decisions;
@@ -75,75 +83,110 @@ final class ProjectFileDialog {
     shownError = error;
     // Own native press/release identity across external cancellation and same-phase reopening.
     String scope = "project-file:" + request + ":" + phase.name();
-    chrome.begin("project-file-body");
-    if (changed) ImGui.setScrollY(0);
-    ImGui.pushID(scope);
-    if (phase == ProjectFileWorkflow.Phase.DRAFT) {
-      ImGui.textWrapped("Continue with: " + workflow.action());
-      ImGui.textWrapped(
-          "Properties has unapplied input. Apply it before continuing, discard it only if the"
-              + " transition succeeds, or cancel.");
-      ImGui.textWrapped(
-          "Save writes the committed project. Applying here creates one ordinary undoable edit"
-              + " before any save decision.");
-    } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
-      ImGui.textWrapped("Continue with: " + workflow.action());
-      ImGui.textWrapped("Save changes before continuing?");
-    } else {
-      ImGui.textWrapped(
-          (phase == ProjectFileWorkflow.Phase.SAVE ? "Save" : "Open") + " project file");
-      ImGui.textWrapped("Path");
-      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
-      if (focusPath) ImGui.setKeyboardFocusHere();
-      ImGui.inputText("##project-path", path);
-      pathId = ImGui.getID("##project-path");
-      control("Path");
-      if (focusPath) {
-        ImGui.setScrollHereY(.25f);
-        if (ImGui.isItemActive() || ImGui.isItemFocused()) focusPath = false;
+    boolean primary = false, secondary = false, cancel = false;
+    String location = null;
+    try {
+      chrome.begin("project-file-body");
+      try {
+        if (changed) ImGui.setScrollY(0);
+        ImGui.pushID(scope);
+        try {
+          if (phase == ProjectFileWorkflow.Phase.DRAFT) {
+            ImGui.textWrapped("Continue with: " + workflow.action());
+            ImGui.textWrapped(
+                "Properties has unapplied input. Apply it before continuing, discard it only if the"
+                    + " transition succeeds, or cancel.");
+            ImGui.textWrapped(
+                "Save writes the committed project. Applying here creates one ordinary undoable"
+                    + " edit before any save decision.");
+          } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
+            ImGui.textWrapped("Continue with: " + workflow.action());
+            ImGui.textWrapped("Save changes before continuing?");
+          } else {
+            ImGui.textWrapped(
+                (phase == ProjectFileWorkflow.Phase.SAVE ? "Save" : "Open") + " project file");
+            ImGui.textWrapped("Path");
+            ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+            if (focusPath) ImGui.setKeyboardFocusHere();
+            ImGui.inputText("##project-path", path);
+            pathId = ImGui.getID("##project-path");
+            control("Path");
+            if (focusPath) {
+              ImGui.setScrollHereY(.25f);
+              if (ImGui.isItemActive() || ImGui.isItemFocused()) focusPath = false;
+            }
+          }
+          if (!error.isEmpty()) {
+            ImGui.textWrapped(StatusBarText.clip(error, 4096));
+            if (revealError) {
+              ImGui.setScrollHereY(.75f);
+              revealError = false;
+            }
+          }
+        } finally {
+          ImGui.popID();
+        }
+      } finally {
+        chrome.end();
       }
-    }
-    if (!error.isEmpty()) {
-      ImGui.textWrapped(StatusBarText.clip(error, 4096));
-      if (revealError) {
-        ImGui.setScrollHereY(.75f);
-        revealError = false;
+      ImGui.pushID(scope);
+      try {
+        if (phase == ProjectFileWorkflow.Phase.DRAFT) {
+          primary = button("primary", "Apply Draft");
+          secondary = button("secondary", "Discard Draft");
+          cancel = button("cancel", "Cancel");
+        } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
+          primary = button("primary", "Save");
+          secondary = button("secondary", "Don't Save");
+          cancel = button("cancel", "Cancel");
+        } else {
+          primary = button("primary", phase == ProjectFileWorkflow.Phase.SAVE ? "Save" : "Open");
+          cancel = button("cancel", "Cancel");
+        }
+      } finally {
+        ImGui.popID();
       }
+      cancel |= ImGui.isKeyPressed(ImGuiKey.Escape, false);
+      location = path.get();
+    } finally {
+      ImGui.endPopup();
     }
-    ImGui.popID();
-    chrome.end();
-    ImGui.pushID(scope);
-    boolean primary, secondary = false, cancel;
-    if (phase == ProjectFileWorkflow.Phase.DRAFT) {
-      primary = button("primary", "Apply Draft");
-      secondary = button("secondary", "Discard Draft");
-      cancel = button("cancel", "Cancel");
-    } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
-      primary = button("primary", "Save");
-      secondary = button("secondary", "Don't Save");
-      cancel = button("cancel", "Cancel");
-    } else {
-      primary = button("primary", phase == ProjectFileWorkflow.Phase.SAVE ? "Save" : "Open");
-      cancel = button("cancel", "Cancel");
-    }
-    ImGui.popID();
-    if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) workflow.cancel();
+    if (!(cancel || primary || secondary)
+        || !delivery.consume(ticket, frame)
+        || workflow.phase() != phase
+        || workflow.requestVersion() != request) return;
+    if (cancel) workflow.cancel();
     else if (phase == ProjectFileWorkflow.Phase.DRAFT) {
       if (secondary) workflow.decideDraft(ProjectFileWorkflow.DraftDecision.DISCARD);
       else if (primary) workflow.decideDraft(ProjectFileWorkflow.DraftDecision.APPLY);
     } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
       if (secondary) workflow.decide(ProjectFileWorkflow.Decision.DISCARD);
       else if (primary) workflow.decide(ProjectFileWorkflow.Decision.SAVE);
-    } else if (primary) workflow.submit(path.get());
-    if (primary && workflow.phase() == phase && !workflow.error().isEmpty()) {
+    } else if (primary) workflow.submit(location);
+    if (primary
+        && workflow.phase() == phase
+        && workflow.requestVersion() == request
+        && !workflow.error().isEmpty()) {
       if (pathPhase) focusPath = true;
       else revealError = true;
     }
     if (workflow.phase() != phase || workflow.requestVersion() != request) {
-      ImGui.closeCurrentPopup();
+      closePopup(title(phase));
+      delivery.close();
+      controls.clear();
+      pathId = 0;
       shown = ProjectFileWorkflow.Phase.IDLE;
     }
-    ImGui.endPopup();
+  }
+
+  private void closePopup(String title) {
+    if (layout.begin(title)) {
+      try {
+        ImGui.closeCurrentPopup();
+      } finally {
+        ImGui.endPopup();
+      }
+    }
   }
 
   private static String title(ProjectFileWorkflow.Phase phase) {

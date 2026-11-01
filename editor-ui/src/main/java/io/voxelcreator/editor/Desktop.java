@@ -310,10 +310,7 @@ public final class Desktop extends Application {
                     || (projectHistory != null && projectHistory.session.busy()));
     projectHistory =
         new ProjectHistoryPanel(
-            state,
-            () ->
-                privateProjectInteraction()
-                    || projectFiles.workflow.phase() != ProjectFileWorkflow.Phase.IDLE);
+            state, () -> privateProjectInteraction() || projectFiles.workflow.busy());
     imports =
         new ResourceImportPanel(state, this::packageInteractionBlocked, () -> validation.set(true));
     packageDialog =
@@ -1042,7 +1039,7 @@ public final class Desktop extends Application {
   private boolean packageInteractionBlocked() {
     return sourceProjectInteraction()
         || projectHistory.session.busy()
-        || projectFiles.workflow.phase() != ProjectFileWorkflow.Phase.IDLE;
+        || projectFiles.workflow.busy();
   }
 
   private boolean privateProjectInteraction() {
