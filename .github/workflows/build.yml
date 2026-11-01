@@ -1,8 +1,7 @@
 name: Build and native smoke
 on:
-  push:
-    branches: [main]
-  pull_request:
+  # Owner testing pause: main is authoritative; no automatic push/PR execution.
+  # Resume validation explicitly only after the development condition is met.
   workflow_dispatch:
 permissions:
   contents: read

@@ -4,7 +4,8 @@ The authoritative assignment is `docs/SPECIFICATION.md`. This repository is curr
 
 - Java 25; pinned CI toolchain Temurin 25.0.4+7; Gradle wrapper 9.2.1.
 - Implement substantial, coherent batches. The owner development-phase override below defers GitHub execution; preserve explicit validation status.
-- Owner development-phase instruction (2026-10-28): stop all GitHub testing until the program is fully developed. Keep implementation on a development branch; do not open PRs or update main while those events trigger CI. Maintain test definitions for later validation, and label new work unvalidated.
+- Owner testing pause: stop all GitHub testing until the program is fully developed. Maintain test definitions for later validation, label new work unvalidated, and do not dispatch workflows during the pause. The workflow is manual-only so main updates do not trigger testing.
+- Owner branch policy: keep the complete current project on `main`. Temporary branches may be used for development stages; integrate their work into main and delete them after integration. Do not accumulate completed stage branches or keep the latest implementation only on a development branch. Earlier branch-isolation notes are historical and superseded by this instruction; the testing pause still applies.
 - When validation resumes, run `./gradlew clean test build dependencyNotices releaseJars` (Windows: `gradlew.bat`).
 - Keep engine/model/storage independent of editor, native, ImGui and OpenGL dependencies.
 - Preserve deterministic results across chunks, contexts, worker order and visual settings.

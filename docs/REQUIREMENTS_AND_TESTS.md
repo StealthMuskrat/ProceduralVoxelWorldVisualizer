@@ -1,5 +1,7 @@
 # Requirements and test evidence
 
+Repository consolidation does not add validation evidence: `main` now receives the complete development history, completed stage branches are deleted after integration, and the owner's testing pause remains active. The workflow is manual-only to prevent main updates from running GitHub tests. Earlier branch names in batch notes are historical; their uncompiled/untested qualifications and the 922-test / 120-suite validated baseline remain unchanged.
+
 Status vocabulary: **PASS** means the stated automated scope passed; **PARTIAL** means some implementation/evidence exists but the entire acceptance item is not certified; **PENDING** means the required environment or scenario has not been verified. This development build is not a final acceptance release.
 
 The [preference form layout batch](PREFERENCE_FORMS_LAYOUT.md), seven additional pure regression definitions and eighteen production limits/trust/Workspace layout/input/retry cases are **uncompiled and untested** under the owner pause. User-scale fixtures, callback routing and future replay/platform wiring do not certify physical centering, native multiline font metrics or full GUI acceptance; the validated 922-test/120-suite baseline is unchanged.

@@ -6,6 +6,8 @@ A native Java 25 procedural-noise and voxel-world editor, with a separately usab
 
 This is a **development implementation** of the supplied specification, not a completed A01–A36 release. See [acceptance status](docs/REQUIREMENTS_AND_TESTS.md) for verified behavior and outstanding work.
 
+`main` contains the complete current project. Development-stage branches are temporary and are deleted after integration into main. GitHub testing remains paused until development is complete; the workflow is manual-only. Earlier development-branch references in batch notes describe where those changes were originally authored.
+
 ## Build and run
 
 Install Eclipse Temurin **25.0.4+7** (x64). Gradle 9.2.1 is pinned by the wrapper.

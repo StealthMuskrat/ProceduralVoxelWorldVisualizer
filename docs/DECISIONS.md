@@ -1,5 +1,7 @@
 # Engineering decisions and current limitations
 
+Current owner branch policy: keep the complete current project on `main`; integrate and delete temporary development-stage branches after their work is included. This supersedes earlier development-branch isolation instructions. The testing pause remains in effect until the program is fully developed. The workflow is manual-only and no execution is authorized by branch consolidation. Historical batch notes and their uncompiled/untested status remain unchanged.
+
 ## Fixed implementation contracts
 
 - Project format 2 is explicit. Model objects serialize ordered arrays, stable UUID references, and exactly one World Generator. Noncanonical visible IDs are rejected, with case-sensitive NFC comparisons. Unknown JSON fields, duplicate object keys, malformed UUIDs and unsupported versions are rejected. Enabled noise definitions receive compiler validation before the editor or public ProjectLoader accepts them.
