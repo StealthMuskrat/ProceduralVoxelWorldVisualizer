@@ -152,6 +152,9 @@ jobs:
           python scripts/verify_selector_decisions.py build/selector-decisions
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveLayoutProbe build/curve-layout
           python scripts/verify_curve_layout.py build/curve-layout
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveNumericProbe build/curve-numeric
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveNumericConsumer build/curve-numeric
+          python scripts/verify_curve_numeric.py build/curve-numeric
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StatusBarProbe build/status-bar
           python scripts/verify_status_bar.py build/status-bar
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CoreWindowLayoutProbe build/core-window-layout
@@ -532,6 +535,7 @@ jobs:
             build/draft-popup-layout/
             build/selector-decisions/
             build/curve-layout/
+            build/curve-numeric/
             build/status-bar/
             build/core-window-layout/
             build/popup-monitor/
@@ -880,6 +884,12 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveLayoutProbe build/curve-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_curve_layout.py build/curve-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveNumericProbe build/curve-numeric
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurveNumericConsumer build/curve-numeric
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_curve_numeric.py build/curve-numeric
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StatusBarProbe build/status-bar
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -1556,6 +1566,7 @@ jobs:
             build/draft-popup-layout/
             build/selector-decisions/
             build/curve-layout/
+            build/curve-numeric/
             build/status-bar/
             build/core-window-layout/
             build/popup-monitor/

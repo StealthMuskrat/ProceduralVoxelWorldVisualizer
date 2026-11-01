@@ -195,7 +195,9 @@ public final class CurveLayoutProbe {
             "globalScale",
             global,
             "windowScale",
-            window));
+            window,
+            "numericRows",
+            dialog().probeNumericRows()));
     click(dialog().probeControl("cancel"));
     require(properties.probeCurveDialog() == null, "Persistent Cancel did not close");
   }

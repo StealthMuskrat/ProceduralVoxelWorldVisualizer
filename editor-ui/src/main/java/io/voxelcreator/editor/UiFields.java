@@ -17,7 +17,8 @@ public final class UiFields {
       int inputId,
       boolean inline,
       double minimum,
-      double maximum) {}
+      double maximum,
+      boolean sliderActive) {}
 
   private final Map<String, ImString> texts = new HashMap<>();
   private final Runnable changed;
@@ -73,14 +74,26 @@ public final class UiFields {
       boolean integer,
       DoubleConsumer set,
       Consumer<Runnable> input) {
+    return number(label, value, minimum, maximum, integer, set, set, input);
+  }
+
+  NumericRow number(
+      String label,
+      double value,
+      double minimum,
+      double maximum,
+      boolean integer,
+      DoubleConsumer sliderSet,
+      DoubleConsumer textSet,
+      Consumer<Runnable> input) {
     return numeric(
         label,
         value,
         minimum,
         maximum,
         integer,
-        set,
-        (key, exact) -> number(key, exact, set),
+        sliderSet,
+        (key, exact) -> number(key, exact, textSet),
         input);
   }
 
@@ -142,6 +155,7 @@ public final class UiFields {
     } finally {
       ImGui.endDisabled();
     }
+    boolean sliderActive = ImGui.isItemActive();
     if (finite && edited) {
       double next = integer ? StrictMath.rint(slider[0]) : slider[0];
       if (Double.isFinite(next)
@@ -157,7 +171,14 @@ public final class UiFields {
     double exact = value;
     input.accept(() -> edit.accept(inputKey, exact));
     return new NumericRow(
-        sliderBounds, PopupLayout.itemBounds(), sliderId, inputId, pair.inline(), minimum, maximum);
+        sliderBounds,
+        PopupLayout.itemBounds(),
+        sliderId,
+        inputId,
+        pair.inline(),
+        minimum,
+        maximum,
+        sliderActive);
   }
 
   public void integer(String label, int value, IntConsumer set) {

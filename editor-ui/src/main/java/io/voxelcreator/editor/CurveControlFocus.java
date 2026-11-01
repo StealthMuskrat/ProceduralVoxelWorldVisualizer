@@ -82,6 +82,10 @@ final class CurveControlFocus {
     if (matches(key)) acknowledged = key;
   }
 
+  void retryAfterClipping(String key) {
+    if (matches(key)) submitted = null;
+  }
+
   String acknowledged() {
     return acknowledged;
   }

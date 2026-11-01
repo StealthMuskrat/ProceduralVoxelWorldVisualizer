@@ -203,6 +203,8 @@ The unvalidated [noise numeric-control follow-up](docs/NOISE_NUMERIC_CONTROLS.md
 
 The unvalidated [World numeric-control follow-up](docs/WORLD_NUMERIC_CONTROLS.md) extends paired controls to defaults, explicit overrides, drivers, gates, intervals and sampling transforms. Exact integer input, sparse inheritance and non-finite draft repair are preserved; eighteen native layout cases and independent complete-project/voxel/trace replay remain deferred.
 
+The unvalidated [Curve numeric-control follow-up](docs/CURVE_NUMERIC_CONTROLS.md) pairs curve fields with sliders, preserves exact text focus and coalesces each owned slider drag into one local Undo step. Seven regression definitions, extended layout receipts and native/independent parent-publication replay remain deferred.
+
 The unvalidated [preview document-lifetime follow-up](docs/PREVIEW_DOCUMENT_LIFETIME.md) retires accepted visuals, caches and pending Inspector work on Open/New, including same-UUID reopening without a revision change. Same-document manual preview retention remains. Six regression definitions, a production GL/worker workflow and independent project/engine replay remain deferred.
 
 The unvalidated [World palette source-order follow-up](docs/WORLD_PREVIEW_PALETTES.md) binds retained fixed/streamed geometry and removal ghosts to their source UUID order, refreshes current colors without regenerating geometry and applies late color edits at acceptance. Six regression definitions, eleven native pixel/palette phases and independent field/stage/world replay remain deferred.

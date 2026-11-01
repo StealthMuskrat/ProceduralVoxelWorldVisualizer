@@ -65,6 +65,19 @@ public final class CurveEditSession {
     }
   }
 
+  /** Preview an absolute numeric edit without splitting the active gesture's local history. */
+  boolean gestureEdit(Consumer<Curve> change) {
+    beginGesture();
+    Curve next = copy(curve);
+    try {
+      change.accept(next);
+      return preview(next);
+    } catch (RuntimeException invalid) {
+      error = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+      return false;
+    }
+  }
+
   /** Restore the exact pre-drag curve without publishing history or clearing redo. */
   public void cancelGesture() {
     if (gesture != null) {

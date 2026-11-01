@@ -33,4 +33,23 @@ for case in report['cases']:
     assert body['y'] + body['height'] <= y < bounds['y'] + bounds['height']
     assert 0 < case['plotWidth'] <= body['width']
     assert 0 < case['plotHeight'] <= body['height'] * .65 + .02
+    assert set(case['numericRows']) == {'min', 'max', 'displayMin', 'displayMax',
+                                       'stepX', 'stepY', 'x', 'y', 'inTangent', 'outTangent'}
+    identities = []
+    for row in case['numericRows'].values():
+        slider, text = row['slider'], row['input']
+        assert row['minimum'] <= row['maximum']
+        for rect in (slider, text):
+            assert all(math.isfinite(v) for v in rect.values())
+            assert rect['width'] > 0 and rect['height'] > 0
+            assert body['x'] - 1.1 <= rect['x']
+            assert rect['x'] + rect['width'] <= body['x'] + body['width'] + 1.1
+        if row['inline']:
+            assert abs(slider['y'] - text['y']) <= 1.1
+            assert slider['x'] + slider['width'] <= text['x'] + 1.1
+        else:
+            assert abs(slider['x'] - text['x']) <= 1.1
+            assert slider['y'] + slider['height'] <= text['y'] + 1.1
+        identities.extend((row['sliderId'], row['inputId']))
+    assert all(identities) and len(set(identities)) == 20
 print('Curve native bounds, persistent Cancel, plot/body wheel separation and pan/collapse receipts PASS')

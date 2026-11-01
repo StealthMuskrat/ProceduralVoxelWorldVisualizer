@@ -104,4 +104,20 @@ class CurveControlFocusTest {
     assertFalse(focus.matches("segmentInterpolation"));
     assertFalse(focus.windowRequest());
   }
+
+  @Test
+  void clippedExactInputRetriesWithoutRearmingAnAcknowledgedOrRetiredRequest() {
+    focus.request(null, "displayMax");
+    assertTrue(focus.submit("displayMax", focus.destination(curve)));
+    focus.retryAfterClipping("min");
+    assertFalse(focus.submit("displayMax", focus.destination(curve)));
+    focus.retryAfterClipping("displayMax");
+    assertTrue(focus.submit("displayMax", focus.destination(curve)));
+    focus.acknowledge("displayMax");
+    focus.retryAfterClipping("displayMax");
+    assertEquals("displayMax", focus.acknowledged());
+    focus.cancel();
+    focus.retryAfterClipping("displayMax");
+    assertFalse(focus.submit("displayMax", focus.destination(curve)));
+  }
 }
