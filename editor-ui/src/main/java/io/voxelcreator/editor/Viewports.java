@@ -1806,6 +1806,8 @@ public final class Viewports implements AutoCloseable {
         fields.number(
             "Threshold",
             v.threshold,
+            -1,
+            1,
             x -> {
               if (Double.isFinite(x)) {
                 v.threshold = x;
@@ -1820,23 +1822,33 @@ public final class Viewports implements AutoCloseable {
           fields.number(
               "Display minimum",
               v.volumeMin,
+              -1,
+              1,
               x -> {
                 if (Double.isFinite(x) && x < v.volumeMax) v.volumeMin = x;
               });
           fields.number(
               "Display maximum",
               v.volumeMax,
+              -1,
+              1,
               x -> {
                 if (Double.isFinite(x) && x > v.volumeMin) v.volumeMax = x;
               });
           fields.number(
               "Opacity per block",
               v.volumeOpacity,
+              0,
+              10,
               x -> {
                 if (Double.isFinite(x)) v.volumeOpacity = Math.max(0, Math.min(10, x));
               });
           fields.integer(
-              "Ray steps", v.volumeSteps, x -> v.volumeSteps = Math.max(16, Math.min(512, x)));
+              "Ray steps",
+              v.volumeSteps,
+              16,
+              512,
+              x -> v.volumeSteps = Math.max(16, Math.min(512, x)));
           ImGui.textDisabled(
               "Ray-marched scalar texture; display controls do not alter generation.");
           if (state.user.visualization.volumeShadows)
@@ -1864,6 +1876,8 @@ public final class Viewports implements AutoCloseable {
           fields.integer(
               "Slice " + v.slicePlane.name(),
               v.slice,
+              v.slicePlane == SlicePlane.Y ? state.project().project.minY : -1024,
+              v.slicePlane == SlicePlane.Y ? state.project().project.maxY : 1024,
               x -> {
                 v.slice = x;
                 mark(v);
@@ -1883,6 +1897,8 @@ public final class Viewports implements AutoCloseable {
       fields.integer(
           "Preview extent",
           v.size,
+          2,
+          state.user.performance.maxPreviewDimension,
           x -> {
             v.size = Math.max(2, Math.min(state.user.performance.maxPreviewDimension, x));
             mark(v);
@@ -1898,6 +1914,8 @@ public final class Viewports implements AutoCloseable {
         fields.number(
             "Center Y",
             v.panY,
+            state.project().project.minY,
+            state.project().project.maxY,
             x -> {
               v.panY = x;
               mark(v);
@@ -1905,6 +1923,8 @@ public final class Viewports implements AutoCloseable {
         fields.number(
             "Center X",
             v.panX,
+            -1024,
+            1024,
             x -> {
               v.panX = x;
               mark(v);
@@ -1912,6 +1932,8 @@ public final class Viewports implements AutoCloseable {
         fields.number(
             "Center Z",
             v.panZ,
+            -1024,
+            1024,
             x -> {
               v.panZ = x;
               mark(v);

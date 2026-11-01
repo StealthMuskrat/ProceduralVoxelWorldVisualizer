@@ -31,6 +31,7 @@ public final class ViewportControlsProbe {
   private static final Object view = new Object(), source = new Object();
   private static UUID noise;
   private static int form, width = 1200, height = 900, centerWrites, resumes, controlHost;
+  private static int minimumExtent = 2, maximumExtent = 256;
   private static float global = 1, multiplier = 1, rootScroll;
   private static DialogBounds.Rect image, histogram, status;
   private static ViewportPanelLayout.Surface surfacePlan;
@@ -103,6 +104,65 @@ public final class ViewportControlsProbe {
         require(centers[0] == 17.5, "Finite numeric edit failed");
         type(fields[0].bounds("Preview extent"), "48");
         require(extents[0] == 48, "Integer edit failed");
+        click(fraction(fields[0].sliders().get("Center X"), .371));
+        double sliderValue = centers[0];
+        require(
+            Double.isFinite(sliderValue)
+                && sliderValue >= -1024
+                && sliderValue <= 1024
+                && sliderValue != 17.5,
+            "Double slider did not edit its local view value");
+        require(
+            sliderValue != Math.rint(sliderValue * 100000) / 100000,
+            "Double slider quantized the value to its display format");
+        click(fraction(fields[0].sliders().get("Preview extent"), .66));
+        int sliderExtent = extents[0];
+        require(
+            sliderExtent >= 2 && sliderExtent <= 256 && sliderExtent != 48,
+            "Integer slider did not edit its local view value");
+        require(navigation.equals(before), "Numeric controls changed image navigation");
+        // These are fixture values, not a project or preference edit. No native control is active
+        // while observing them; drawing either widget must leave every double bit untouched.
+        var precision = new ArrayList<Map<String, Object>>();
+        for (double exact :
+            new double[] {Math.nextUp(1.0), Double.MIN_VALUE, -0.0, 1e100, Double.MAX_VALUE}) {
+          centers[0] = exact;
+          int beforeWrites = centerWrites;
+          frames(8);
+          long bits = Double.doubleToRawLongBits(exact);
+          require(
+              Double.doubleToRawLongBits(centers[0]) == bits && centerWrites == beforeWrites,
+              "Idle slider/text display changed a precise or out-of-range value");
+          precision.add(
+              Map.of(
+                  "inputBits", Long.toHexString(bits),
+                  "outputBits", Long.toHexString(Double.doubleToRawLongBits(centers[0])),
+                  "writeDelta", centerWrites - beforeWrites));
+        }
+        minimumExtent = Integer.MIN_VALUE;
+        maximumExtent = Integer.MAX_VALUE;
+        extents[0] = 0;
+        frames(4);
+        click(fraction(fields[0].sliders().get("Preview extent"), .875));
+        int positive = extents[0];
+        click(fraction(fields[0].sliders().get("Preview extent"), .125));
+        int negative = extents[0];
+        require(
+            positive > Integer.MAX_VALUE / 2 && negative < Integer.MIN_VALUE / 2,
+            "Full signed coordinate slider range was truncated or overflowed");
+        type(fields[0].bounds("Preview extent"), "-2147483648");
+        frames(8);
+        require(extents[0] == Integer.MIN_VALUE, "Exact signed coordinate endpoint was lost");
+        minimumExtent = 2;
+        maximumExtent = 256;
+        extents[0] = 48;
+        frames(4);
+        type(fields[0].bounds("Center X"), "1.0000000000000002");
+        require(
+            Double.doubleToRawLongBits(centers[0]) == Double.doubleToRawLongBits(Math.nextUp(1.0)),
+            "Exact text editing lost adjacent-double precision");
+        type(fields[0].bounds("Center X"), "1e100");
+        require(centers[0] == 1e100, "Text field clamped to the suggested slider range");
         click(center(fields[0].bounds("Fixed world bounds")));
         require(fixed[0], "Wrapped checkbox edit failed");
         form = 1;
@@ -159,6 +219,12 @@ public final class ViewportControlsProbe {
                     Map.entry("finiteInputGuarded", true),
                     Map.entry("numberEdited", true),
                     Map.entry("integerEdited", true),
+                    Map.entry("sliderDoubleValue", sliderValue),
+                    Map.entry("sliderIntegerValue", sliderExtent),
+                    Map.entry("precision", precision),
+                    Map.entry("signedRange", List.of(positive, negative, Integer.MIN_VALUE)),
+                    Map.entry("exactTextEdited", true),
+                    Map.entry("outsideSliderRangeEdited", true),
                     Map.entry("checkboxEdited", true),
                     Map.entry("resumeRevealed", true),
                     Map.entry("resumes", resumes),
@@ -234,6 +300,9 @@ public final class ViewportControlsProbe {
       row.put("histogram", histogram);
       row.put("status", status);
       row.put("ids", ids);
+      row.put("sliderIds", fields[form].sliderIds());
+      row.put("sliders", fields[form].sliders());
+      row.put("inline", fields[form].inline());
       row.put("rootScroll", rootScroll);
       var input = new LinkedHashMap<String, DialogBounds.Rect>();
       for (String name : List.of("Center X", "Preview extent", "Fixed world bounds"))
@@ -259,11 +328,18 @@ public final class ViewportControlsProbe {
     fields[form].number(
         "Center X",
         centers[form],
+        -1024,
+        1024,
         value -> {
           centers[form] = value;
           centerWrites++;
         });
-    fields[form].integer("Preview extent", extents[form], value -> extents[form] = value);
+    fields[form].integer(
+        "Preview extent",
+        extents[form],
+        minimumExtent,
+        maximumExtent,
+        value -> extents[form] = value);
     fields[form].bool("Fixed world bounds", fixed[form], value -> fixed[form] = value);
     for (int i = 0; i < (form == 0 ? 32 : form == 1 ? 24 : form == 2 ? 12 : 8); i++)
       ImGui.textWrapped("Preview control explanation " + i + " / current view settings");
@@ -332,6 +408,10 @@ public final class ViewportControlsProbe {
 
   private static float[] center(DialogBounds.Rect r) {
     return new float[] {r.x() + Math.min(r.width() / 2, 30), r.y() + r.height() / 2};
+  }
+
+  private static float[] fraction(DialogBounds.Rect r, double fraction) {
+    return new float[] {r.x() + (float) (r.width() * fraction), r.y() + r.height() / 2};
   }
 
   private static void type(DialogBounds.Rect r, String text) {
