@@ -3,6 +3,7 @@ package io.voxelcreator.editor;
 import com.fasterxml.jackson.databind.JsonNode;
 import imgui.*;
 import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiSliderFlags;
 import imgui.type.*;
 import io.voxelcreator.model.ProjectIO;
 import java.nio.file.Path;
@@ -14,12 +15,14 @@ public final class ApplicationSettingsPanel {
   final SettingsPageChrome layout = new SettingsPageChrome(4);
   private DialogBounds.Rect resultsBounds, detailBounds;
   private SettingsPageLayout.Panes panes;
+  private UiFields.NumericRow orderRow;
   private final Map<String, Integer> controlIds = new HashMap<>();
   private final UiFields fields = new UiFields();
   private final ImString filter = new ImString(256);
   private final Map<String, ImString> values = new HashMap<>();
   private final Map<String, List<ImString>> creationBuffers = new LinkedHashMap<>();
   private final Map<String, float[]> controls = new HashMap<>();
+  private final Map<String, DialogBounds.Rect> controlBounds = new HashMap<>();
   private List<Map.Entry<String, AppMetadata.Control>> ordered = List.of(), rows = List.of();
   private AppMetadata rowOwner;
   private String rowPage = "", rowQuery = "";
@@ -64,7 +67,9 @@ public final class ApplicationSettingsPanel {
     ensure();
     long request = actionScope.synchronize(state.metadata, session.draft());
     controls.clear();
+    controlBounds.clear();
     controlIds.clear();
+    orderRow = null;
     layout.begin("application-profile-body");
     submitted = 0;
     drawn = true;
@@ -273,14 +278,36 @@ public final class ApplicationSettingsPanel {
           control.group = v;
           changed();
         });
-    presentationLabel("Order");
-    fields.integer(
-        "##profile-order",
-        control.order,
-        v -> {
-          control.order = v;
-          changed();
-        });
+    ImGui.pushID("profile-order:" + actionScope.version() + ":" + selected);
+    try {
+      var row =
+          fields.integer(
+              "Order",
+              control.order,
+              -10000,
+              10000,
+              v -> {
+                control.order = v;
+                changed();
+              },
+              Runnable::run);
+      orderRow = row;
+      controlIds.put("order-slider", row.sliderId());
+      controlIds.put("order-value", row.inputId());
+      controls.put(
+          "order-slider",
+          new float[] {
+            row.slider().x() + row.slider().width() / 2,
+            row.slider().y() + row.slider().height() / 2
+          });
+      controls.put(
+          "order-value",
+          new float[] {
+            row.input().x() + row.input().width() / 2, row.input().y() + row.input().height() / 2
+          });
+    } finally {
+      ImGui.popID();
+    }
     var spec = CreationRegistry.CONTROLS.get(selected);
     if (spec != null && !spec.options().isEmpty()) {
       ImGui.textDisabled("Option keys are fixed; only their display labels can change.");
@@ -394,7 +421,7 @@ public final class ApplicationSettingsPanel {
                     .map(text -> new ImString(text, 4 * CreationValueInputs.limit(spec) + 1))
                     .toList());
     for (int i = 0; i < buffers.size(); i++) {
-      ImGui.pushID(spec.id() + ":" + i);
+      ImGui.pushID("profile-value:" + actionScope.version() + ":" + spec.id() + ":" + i);
       var buffer = buffers.get(i);
       String label = buffers.size() == 1 ? "Value" : "Component " + i;
       boolean numeric =
@@ -404,17 +431,32 @@ public final class ApplicationSettingsPanel {
       if (numeric) {
         ImGui.setNextItemWidth(pair.sliderWidth());
         controlIds.put("slider-" + i, ImGui.getID("##slider"));
-        double[] slider = {value.isArray() ? value.get(i).asDouble() : value.asDouble()};
-        ImGui.beginDisabled(
-            !input.error(spec.id()).isEmpty()
-                || !input.text(spec.id()).equals(buffers.stream().map(ImString::get).toList())
-                || !Double.isFinite(slider[0]));
-        if (ImGui.sliderScalar(
-            "##slider",
-            slider,
-            Math.max(-1e6, spec.minimum()),
-            Math.min(1e6, spec.maximum()),
-            "%.5g")) {
+        double current = value.isArray() ? value.get(i).asDouble() : value.asDouble();
+        boolean finite = Double.isFinite(current);
+        double[] slider = {finite ? current : Math.max(-1e6, spec.minimum())};
+        boolean enabled =
+            session.draft().creationDefaults.containsKey(spec.id())
+                && input.error(spec.id()).isEmpty()
+                && input.text(spec.id()).equals(buffers.stream().map(ImString::get).toList())
+                && finite;
+        ImGui.beginDisabled(!enabled);
+        boolean edited;
+        try {
+          edited =
+              ImGui.sliderScalar(
+                  "##slider",
+                  slider,
+                  Math.max(-1e6, spec.minimum()),
+                  Math.min(1e6, spec.maximum()),
+                  finite
+                      ? spec.kind() == CreationRegistry.Kind.INTEGER ? "%.0f" : "%.5f"
+                      : "Invalid",
+                  ImGuiSliderFlags.NoRoundToFormat | ImGuiSliderFlags.NoInput);
+          control("slider-" + i);
+        } finally {
+          ImGui.endDisabled();
+        }
+        if (enabled && edited && Double.isFinite(slider[0])) {
           String text =
               spec.kind() == CreationRegistry.Kind.INTEGER
                   ? Long.toString(Math.round(slider[0]))
@@ -423,8 +465,6 @@ public final class ApplicationSettingsPanel {
           buffer.set(text);
           changed();
         }
-        control("slider-" + i);
-        ImGui.endDisabled();
         if (pair.inline()) ImGui.sameLine();
       }
       ImGui.setNextItemWidth(
@@ -487,6 +527,7 @@ public final class ApplicationSettingsPanel {
   }
 
   private void control(String name) {
+    controlBounds.put(name, PopupLayout.itemBounds());
     controls.put(
         name,
         new float[] {
@@ -519,8 +560,16 @@ public final class ApplicationSettingsPanel {
     return Map.copyOf(controlIds);
   }
 
+  UiFields.NumericRow probeOrderRow() {
+    return orderRow;
+  }
+
   float[] controlAt(String name) {
     return controls.get(name);
+  }
+
+  DialogBounds.Rect probeControlBounds(String name) {
+    return controlBounds.get(name);
   }
 
   void showControl(String id, String section) {
