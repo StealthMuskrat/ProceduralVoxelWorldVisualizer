@@ -240,3 +240,5 @@ The unvalidated [resource publication completion follow-up](docs/RESOURCE_PUBLIC
 Completion remains directed by the [original-assignment roadmap](docs/DEVELOPMENT_ROADMAP.md). The unvalidated [renderer startup recovery](docs/RENDERER_RECOVERY.md) keeps healthy tabs and project editing available after a viewport shader failure and adds explicit Retry Renderer with owned GPU cleanup. Ten regression definitions and native/independent replay remain deferred.
 
 The unvalidated [initial noise algorithm choice](docs/NOISE_CREATION_CHOICES.md) adds a searchable source selector to both 2D/3D creation, preserves optional profile defaults and freezes chosen definitions before a Properties decision. Five regression definitions, twelve form receipts and independent mathematical replay remain deferred.
+
+The unvalidated [Find typing debounce follow-up](docs/FIND_TYPING_DEBOUNCE.md) coalesces large-project text searches, labels pending results and retires old row gestures while preserving explicit filtering and private edits. Native, regression and independent replay definitions remain deferred; no workflows were run.

@@ -181,6 +181,11 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UnifiedFindProbe build/find-probe
           python scripts/verify_unified_find.py build/find-probe/unified-find.json
+      - name: Find typing debounce and committed-source isolation reference
+        run: |
+          java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.FindDebounceProbe build/find-debounce
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.FindDebounceConsumer build/find-debounce
+          python scripts/verify_find_debounce.py build/find-debounce
       - name: Resource hierarchy and execution isolation reference
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.HierarchyReferenceProbe build/hierarchy-probe
@@ -503,6 +508,7 @@ jobs:
             build/smoke/
             build/creation-profile/
             build/profile-numeric/
+            build/find-debounce/
             build/settings-layout/
             build/input-probe/
             build/input-recording/
@@ -943,6 +949,15 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.UnifiedFindProbe build/find-probe
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_unified_find.py build/find-probe/unified-find.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows Find typing debounce and committed-source isolation reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.FindDebounceProbe build/find-debounce
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.FindDebounceConsumer build/find-debounce
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_find_debounce.py build/find-debounce
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows resource hierarchy and execution isolation reference
         shell: pwsh
@@ -1541,6 +1556,7 @@ jobs:
             build/smoke/
             build/creation-profile/
             build/profile-numeric/
+            build/find-debounce/
             build/settings-layout/
             build/input-probe/
             build/input-recording/

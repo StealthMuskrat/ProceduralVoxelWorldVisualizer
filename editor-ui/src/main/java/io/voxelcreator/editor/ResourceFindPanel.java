@@ -4,6 +4,7 @@ import imgui.*;
 import imgui.flag.*;
 import imgui.type.*;
 import java.util.*;
+import java.util.function.LongSupplier;
 
 /** Advanced Find keeps committed query state separate from simple selectors and property drafts. */
 public final class ResourceFindPanel {
@@ -12,6 +13,8 @@ public final class ResourceFindPanel {
   final DialogLayout layout;
   private final PropertyPanel properties;
   private final ResourceSearchSession session = new ResourceSearchSession();
+  private final LongSupplier clock;
+  private boolean immediateSearch;
   private final SearchNavigation navigation;
   private final FindSelection selection = new FindSelection();
   private final SettingsActionScope actions = new SettingsActionScope();
@@ -48,6 +51,11 @@ public final class ResourceFindPanel {
   private final Map<String, float[]> centers = new HashMap<>();
 
   public ResourceFindPanel(EditorState state, PropertyPanel properties) {
+    this(state, properties, System::nanoTime);
+  }
+
+  ResourceFindPanel(EditorState state, PropertyPanel properties, LongSupplier clock) {
+    this.clock = Objects.requireNonNull(clock);
     this.state = state;
     guardDialog = new NavigationGuardDialog(state, "Find");
     layout = guardDialog.layout;
@@ -57,6 +65,7 @@ public final class ResourceFindPanel {
   }
 
   public void references(UUID id) {
+    immediateSearch = true;
     reference = id;
     section = "Results";
     scroll = 0f;
@@ -68,6 +77,7 @@ public final class ResourceFindPanel {
   }
 
   public void clearReferences() {
+    immediateSearch = true;
     reference = null;
   }
 
@@ -92,6 +102,7 @@ public final class ResourceFindPanel {
     if (!visible || !open.get()) {
       actions.release();
       if (!open.get()) session.clear();
+      else session.cancelPending();
       submitted = 0;
       centers.clear();
       ImGui.end();
@@ -115,8 +126,17 @@ public final class ResourceFindPanel {
     var filter =
         new ResourceSearchIndex.Filter(
             query.get(), kind, status, root, directory, reference, containers, mode);
-    var results = session.search(state.project(), state.revision, filter);
+    var results =
+        immediateSearch
+            ? session.search(state.project(), state.revision, filter)
+            : session.searchDebounced(state.project(), state.revision, filter, clock.getAsLong());
+    immediateSearch = false;
     chrome.begin("find-workspace-" + section);
+    if (session.pending()) {
+      ImGui.textWrapped("Updating search...");
+      PopupLayout.clippedLabel(
+          "Previous results cannot be activated until typing pauses and the search finishes.");
+    }
     var selectedHit = selection.hit();
     if (selectedHit != null) {
       ImGui.text(
@@ -162,19 +182,24 @@ public final class ResourceFindPanel {
     guard();
   }
 
+  private ResourceSearchIndex.Filter currentFilter() {
+    return new ResourceSearchIndex.Filter(
+        query.get(), kind, status, root, directory, reference, containers, mode);
+  }
+
   private ActionContext actionContext() {
     var hit = selection.hit();
     return new ActionContext(
         hit,
-        new ResourceSearchIndex.Filter(
-            query.get(), kind, status, root, directory, reference, containers, mode),
+        currentFilter(),
         query.get(),
         section,
         hit != null
             && selection.owns(state, hit)
             && state.canNavigate(hit.target())
-            && !properties.searchBlocked(),
-        navigation.pending());
+            && !properties.searchBlocked()
+            && session.matches(currentFilter()),
+        navigation.pending() || session.pending());
   }
 
   private void choice(
@@ -230,7 +255,7 @@ public final class ResourceFindPanel {
   }
 
   private void drawResults(List<ResourceSearchIndex.Hit> results) {
-    ImGui.text(results.size() + " result(s)");
+    ImGui.text(results.size() + (session.pending() ? " previous result(s)" : " result(s)"));
     PopupLayout.clippedLabel(
         "Search covers committed resources and does not apply private Properties input.");
     var chosen = selection.hit();
@@ -251,6 +276,8 @@ public final class ResourceFindPanel {
       ImGui.setScrollY(scroll);
       scroll = null;
     }
+    ImGui.pushID("find-rows:" + actionId + ":" + session.presentationVersion());
+    ImGui.beginDisabled(session.pending() || navigation.pending());
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(results.size(), rowStride);
@@ -272,7 +299,7 @@ public final class ResourceFindPanel {
               0,
               Math.max(1, ImGui.getContentRegionAvailX()),
               ImGui.getTextLineHeight())) {
-            if (!navigation.pending()) {
+            if (!navigation.pending() && !session.pending()) {
               selection.select(state, hit, results);
               activate(hit);
             }
@@ -290,12 +317,15 @@ public final class ResourceFindPanel {
       clipper.end();
     } finally {
       clipper.destroy();
+      ImGui.endDisabled();
+      ImGui.popID();
     }
     ImGui.endChild();
   }
 
   private void activate(ResourceSearchIndex.Hit hit) {
-    if (navigation.pending() || !selection.owns(state, hit)) return;
+    if (navigation.pending() || !session.matches(currentFilter()) || !selection.owns(state, hit))
+      return;
     if (properties.searchBlocked()) {
       message = "Finish or cancel the open Curve/Membership Editor before navigating.";
       return;
@@ -404,6 +434,7 @@ public final class ResourceFindPanel {
   }
 
   void filter(ResourceSearchIndex.Filter value) {
+    immediateSearch = true;
     section = "Results";
     scroll = 0f;
     query.set(value.query());
@@ -472,6 +503,10 @@ public final class ResourceFindPanel {
 
   int submitted() {
     return submitted;
+  }
+
+  boolean searchPending() {
+    return session.pending();
   }
 
   long builds() {
