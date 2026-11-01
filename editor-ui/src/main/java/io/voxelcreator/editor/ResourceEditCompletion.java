@@ -22,7 +22,7 @@ final class ResourceEditCompletion {
       state.error(
           "RESOURCE_EDIT_REFRESH_FAILED",
           EditorEvents.Subsystem.APPLICATION,
-          StatusBarText.clip(
+          StatusBarText.bounded(
               "Resource edit committed; UI refresh failed: "
                   + Objects.requireNonNullElse(failure.getMessage(), failure.toString()),
               1024));

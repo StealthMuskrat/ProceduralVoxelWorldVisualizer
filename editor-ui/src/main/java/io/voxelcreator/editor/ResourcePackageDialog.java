@@ -346,7 +346,7 @@ final class ResourcePackageDialog {
 
   private String report(String requested, String code, Exception failure) {
     String detail =
-        StatusBarText.clip(
+        StatusBarText.bounded(
             requested
                 + " failed: "
                 + Objects.requireNonNullElse(failure.getMessage(), failure.toString()),

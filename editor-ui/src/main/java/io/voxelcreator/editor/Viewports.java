@@ -38,7 +38,7 @@ public final class Viewports implements AutoCloseable {
   private final FlightCursor flightCursor;
   private FlightCursor.Window surfaceWindow;
   private boolean closed;
-  private final View[] views = {new View(0), new View(1), new View(2)};
+  private final View[] views;
   private final ViewportFields fields = new ViewportFields();
   private final ViewportControlsPane[] controlPanes = {
     new ViewportControlsPane(), new ViewportControlsPane(), new ViewportControlsPane()
@@ -830,7 +830,8 @@ public final class Viewports implements AutoCloseable {
 
   private static final class View {
     final int kind;
-    final GlViewport gl = new GlViewport();
+    GlViewport gl;
+    final RendererStartup<GlViewport> renderer;
     final Camera camera = new Camera();
     final ViewportFlight flight = new ViewportFlight();
     final OrbitGesture orbit = new OrbitGesture();
@@ -893,8 +894,9 @@ public final class Viewports implements AutoCloseable {
     Coordinates pickedBookmark;
     boolean image = false, completed = false, failedPreview = false;
 
-    View(int k) {
+    View(int k, java.util.function.IntFunction<GlViewport> factory) {
       kind = k;
+      renderer = new RendererStartup<>(() -> factory.apply(k), GlViewport::close);
       mode = k == 0 ? "Grayscale" : "Threshold Voxels";
     }
   }
@@ -970,7 +972,7 @@ public final class Viewports implements AutoCloseable {
     synchronizeDocument();
     shadowPreferences();
     var scope = state.engine.profiler().scope(0, state.project().project.uuid, null);
-    for (var view : views) view.gl.collectGpuTimings(scope);
+    for (var view : views) if (view.gl != null) view.gl.collectGpuTimings(scope);
   }
 
   private boolean shadowsEnabled(View v) {
@@ -989,15 +991,16 @@ public final class Viewports implements AutoCloseable {
 
   private void shadowPreferences() {
     for (var v : views)
-      v.gl.shadowAppearance(
-          shadowsEnabled(v),
-          state.user.visualization.shadowResolution,
-          (long) state.user.performance.sceneGpuMiB << 20);
+      if (v.gl != null)
+        v.gl.shadowAppearance(
+            shadowsEnabled(v),
+            state.user.visualization.shadowResolution,
+            (long) state.user.performance.sceneGpuMiB << 20);
   }
 
   public void retryShadows() {
     for (var v : views) {
-      v.gl.retryShadows();
+      if (v.gl != null) v.gl.retryShadows();
       v.reportedShadowFailure = "";
     }
   }
@@ -1008,7 +1011,13 @@ public final class Viewports implements AutoCloseable {
   }
 
   public List<GlViewport.ShadowStatistics> shadowStatistics() {
-    return Arrays.stream(views).map(v -> v.gl.shadowStatistics()).toList();
+    return Arrays.stream(views)
+        .map(
+            v ->
+                v.gl == null
+                    ? new GlViewport.ShadowStatistics("UNAVAILABLE", 0, 0, 0, v.renderer.failure())
+                    : v.gl.shadowStatistics())
+        .toList();
   }
 
   public long shadowBytes() {
@@ -1016,7 +1025,23 @@ public final class Viewports implements AutoCloseable {
   }
 
   public List<GpuTimerQueries.Statistics> gpuTimingStatistics() {
-    return Arrays.stream(views).map(v -> v.gl.gpuTimingStatistics()).toList();
+    return Arrays.stream(views)
+        .map(
+            v ->
+                v.gl == null
+                    ? new GpuTimerQueries.Statistics(
+                        GpuTimerQueries.State.UNAVAILABLE,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        v.renderer.failure())
+                    : v.gl.gpuTimingStatistics())
+        .toList();
   }
 
   public StreamingStatistics streamingStatistics() {
@@ -1025,6 +1050,7 @@ public final class Viewports implements AutoCloseable {
     long capacity = 0, free = 0, largest = 0, moved = 0, remaining = 0, compactions = 0;
     boolean indirect = false;
     for (var v : views) {
+      if (v.gl == null) continue;
       var volume = v.gl.volumeStatistics();
       cpu += volume.cpuBytes() + v.volumeWindows.memory().bytes();
       var memory = v.volumeWindows.memory();
@@ -1087,7 +1113,7 @@ public final class Viewports implements AutoCloseable {
   public int compactArenas() {
     int requested = 0;
     for (var view : views) {
-      var gpu = view.gl.sceneRenderer();
+      var gpu = view.gl == null ? null : view.gl.sceneRenderer();
       if (gpu != null && gpu.requestCompaction()) requested++;
     }
     return requested;
@@ -1272,7 +1298,17 @@ public final class Viewports implements AutoCloseable {
   }
 
   public Viewports(EditorState state, PropertyPanel properties, long handle) {
+    this(state, properties, handle, kind -> new GlViewport());
+  }
+
+  Viewports(
+      EditorState state,
+      PropertyPanel properties,
+      long handle,
+      java.util.function.IntFunction<GlViewport> factory) {
     this.state = state;
+    Objects.requireNonNull(factory);
+    views = new View[] {new View(0, factory), new View(1, factory), new View(2, factory)};
     documentLifetime = new PreviewDocumentLifetime(state.document.sessionToken());
     inspectorPanel =
         new InspectorPanel(
@@ -1324,14 +1360,32 @@ public final class Viewports implements AutoCloseable {
                     coordinates.z());
               }
             });
-    for (var v : views) v.size = state.user.visualization.previewSize;
+    try {
+      for (var v : views) {
+        v.size = state.user.visualization.previewSize;
+        initializeRenderer(v, false);
+      }
+    } catch (RuntimeException | Error failure) {
+      for (var v : views)
+        try {
+          v.renderer.close();
+        } catch (RuntimeException | Error cleanup) {
+          failure.addSuppressed(cleanup);
+        }
+      try {
+        flightCursor.close();
+      } catch (RuntimeException | Error cleanup) {
+        failure.addSuppressed(cleanup);
+      }
+      throw failure;
+    }
   }
 
   public void draw() {
     if (closed) return;
     synchronizeDocument();
     shadowPreferences();
-    for (var view : views) view.gl.advanceVolume(0);
+    for (var view : views) if (view.gl != null) view.gl.advanceVolume(0);
     drawnView = -1;
     viewportFocused = false;
     flightImageVisible = false;
@@ -1543,7 +1597,64 @@ public final class Viewports implements AutoCloseable {
     else smokeTab = 2;
   }
 
+  private boolean initializeRenderer(View v, boolean retry) {
+    int before = v.renderer.attempts();
+    boolean ready = retry ? v.renderer.retry() : v.renderer.initialize();
+    v.gl = v.renderer.value();
+    if (!ready && v.renderer.attempts() != before)
+      state.error(
+          "VIEWPORT_RENDERER_FAILED",
+          EditorEvents.Subsystem.RENDERING,
+          viewName(v.kind)
+              + " renderer unavailable: "
+              + v.renderer.failure()
+              + ". Open this tab and choose Retry Renderer.");
+    return ready;
+  }
+
+  private static String viewName(int kind) {
+    return kind == 0 ? "2D Noise" : kind == 1 ? "3D Noise" : "World";
+  }
+
+  record RendererStatus(String tab, boolean ready, int attempts, String failure) {}
+
+  List<RendererStatus> rendererStatus() {
+    return Arrays.stream(views)
+        .map(
+            v ->
+                new RendererStatus(
+                    viewName(v.kind), v.gl != null, v.renderer.attempts(), v.renderer.failure()))
+        .toList();
+  }
+
   private void drawView(View v) {
+    if (v.gl == null) {
+      v.flight.pause();
+      v.orbit.reset();
+      v.imageInput.reset();
+      v.sliceInput.reset();
+      v.imageContext.reset();
+      ImGui.textWrapped(
+          viewName(v.kind)
+              + " preview is unavailable. Your project remains available in the editor.");
+      ImGui.textWrapped(v.renderer.failure());
+      ImGui.textWrapped(
+          "Retry initializes this viewport again. Other tabs and explicit project Save remain"
+              + " available.");
+      ImGui.pushID("renderer-recovery-" + v.kind);
+      try {
+        if (ImGui.button("Retry Renderer")) {
+          if (initializeRenderer(v, true)) {
+            mark(v);
+            shadowPreferences();
+          }
+        }
+        admissionControl("renderer-retry");
+      } finally {
+        ImGui.popID();
+      }
+      return;
+    }
     var pane = controlPanes[v.kind];
     pane.begin("visualizer-controls-" + v.kind);
     boolean available;
@@ -1598,7 +1709,7 @@ public final class Viewports implements AutoCloseable {
             v.volumePlan = null;
             v.volumeRejected = false;
             v.displayedVolumeWindow = null;
-            v.gl.clearPreview();
+            if (v.gl != null) v.gl.clearPreview();
             v.pressure = new RenderPressure();
             v.frameMillis = 16;
             v.gpuBudget = 0;
@@ -3025,7 +3136,7 @@ public final class Viewports implements AutoCloseable {
     v.volumeWorkingBytes = 0;
     v.volumeRejected = false;
     v.volumeRequestTag = "";
-    v.gl.cancelVolume();
+    if (v.gl != null) v.gl.cancelVolume();
     if (v.kind == 2) {
       pickViewChanged();
       v.pickedBookmark = null;
@@ -3837,7 +3948,16 @@ public final class Viewports implements AutoCloseable {
         v.volumeWindows.close();
         v.volumeSnapshot = null;
         v.pendingVolume = null;
-        v.gl.close();
+        try {
+          v.renderer.close();
+        } catch (RuntimeException failure) {
+          state.error(
+              "VIEWPORT_RENDERER_CLOSE_FAILED",
+              EditorEvents.Subsystem.RENDERING,
+              StatusBarText.bounded(
+                  viewName(v.kind) + " renderer cleanup failed: " + failure, 1024));
+        }
+        v.gl = null;
       }
     } finally {
       flightCursor.close();

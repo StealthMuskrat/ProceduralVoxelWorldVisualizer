@@ -125,7 +125,7 @@ final class ResourceEditSession {
     state.error(
         code,
         EditorEvents.Subsystem.PROJECT,
-        StatusBarText.clip(
+        StatusBarText.bounded(
             prefix + Objects.requireNonNullElse(failure.getMessage(), failure.toString()), 1024));
   }
 

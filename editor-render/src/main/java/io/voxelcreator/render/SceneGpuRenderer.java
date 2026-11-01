@@ -547,37 +547,15 @@ void main(){vec4 clip=matrix*vec4(position*positionScale+chunkOffset,1);gl_Posit
 in vec3 N;in float AO;flat in uint type;in float distanceToEye;uniform sampler2D palette;uniform int paletteWidth;uniform float unlit,fogDistance,aoEnabled;out vec4 color;
 void main(){vec3 base=texelFetch(palette,ivec2(int(type)%paletteWidth,int(type)/paletteWidth),0).rgb;float lighting=(.35+.65*max(0.0,dot(normalize(N),normalize(vec3(.4,1,.3))))*shadowVisibility(N))*mix(1.0,.5+.5*AO,aoEnabled);vec3 shaded=base*mix(lighting,1.0,unlit);float fog=fogDistance>0?clamp((distanceToEye-fogDistance*.55)/(fogDistance*.45),0.0,1.0):0.0;color=vec4(mix(shaded,vec3(.055,.075,.1),fog),1);}
 """;
-    int vs = shader(GL_VERTEX_SHADER, vertex),
-        fs = shader(GL_FRAGMENT_SHADER, fragment),
-        p = glCreateProgram();
-    glAttachShader(p, vs);
-    glAttachShader(p, fs);
-    glBindAttribLocation(p, 0, "position");
-    glBindAttribLocation(p, 1, "normal");
-    glBindAttribLocation(p, 2, "typeId");
-    glBindAttribLocation(p, 3, "occlusion");
-    glBindAttribLocation(p, 4, "chunkOffset");
-    glLinkProgram(p);
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-    if (glGetProgrami(p, GL_LINK_STATUS) == 0) {
-      String log = glGetProgramInfoLog(p);
-      glDeleteProgram(p);
-      throw new IllegalStateException("Packed GLSL link: " + log);
-    }
-    return p;
-  }
-
-  private int shader(int kind, String source) {
-    int shader = glCreateShader(kind);
-    glShaderSource(shader, source);
-    glCompileShader(shader);
-    if (glGetShaderi(shader, GL_COMPILE_STATUS) == 0) {
-      String log = glGetShaderInfoLog(shader);
-      glDeleteShader(shader);
-      throw new IllegalStateException("Packed GLSL compile: " + log);
-    }
-    return shader;
+    return GlPrograms.link(
+        "Packed scene",
+        vertex,
+        fragment,
+        "position",
+        "normal",
+        "typeId",
+        "occlusion",
+        "chunkOffset");
   }
 
   public void close() {

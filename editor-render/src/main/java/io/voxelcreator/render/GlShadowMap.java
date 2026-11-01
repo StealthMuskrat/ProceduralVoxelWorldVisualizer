@@ -181,38 +181,15 @@ float shadowVisibility(vec3 normal){
             + "in vec3 position;in vec3 chunkOffset;uniform mat4 matrix;uniform float"
             + " positionScale;void"
             + " main(){gl_Position=matrix*vec4(position*positionScale+chunkOffset,1);}";
-    int vertex = 0, fragment = 0, result = 0;
-    try {
-      vertex = shader(GL_VERTEX_SHADER, vs);
-      fragment = shader(GL_FRAGMENT_SHADER, "#version 130\nvoid main(){}");
-      result = glCreateProgram();
-      glAttachShader(result, vertex);
-      glAttachShader(result, fragment);
-      glBindAttribLocation(result, 0, "position");
-      glBindAttribLocation(result, 4, "chunkOffset");
-      glLinkProgram(result);
-      if (glGetProgrami(result, GL_LINK_STATUS) == 0)
-        throw new IllegalStateException("Shadow GLSL link: " + glGetProgramInfoLog(result));
-      int success = result;
-      result = 0;
-      return success;
-    } finally {
-      if (vertex != 0) glDeleteShader(vertex);
-      if (fragment != 0) glDeleteShader(fragment);
-      if (result != 0) glDeleteProgram(result);
-    }
-  }
-
-  private static int shader(int type, String source) {
-    int shader = glCreateShader(type);
-    glShaderSource(shader, source);
-    glCompileShader(shader);
-    if (glGetShaderi(shader, GL_COMPILE_STATUS) == 0) {
-      String message = glGetShaderInfoLog(shader);
-      glDeleteShader(shader);
-      throw new IllegalStateException("Shadow GLSL compile: " + message);
-    }
-    return shader;
+    return GlPrograms.link(
+        "Directional shadows",
+        vs,
+        "#version 130\nvoid main(){}",
+        "position",
+        null,
+        null,
+        null,
+        "chunkOffset");
   }
 
   @Override

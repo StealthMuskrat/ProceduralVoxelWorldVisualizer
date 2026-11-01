@@ -172,7 +172,7 @@ final class ResourceSelectionSession {
     state.error(
         "RESOURCE_SELECTION_FAILED",
         EditorEvents.Subsystem.PROJECT,
-        StatusBarText.clip(
+        StatusBarText.bounded(
             prefix + Objects.requireNonNullElse(failure.getMessage(), failure.toString()), 1024));
   }
 

@@ -23,3 +23,5 @@ The explicit `--smoke` application argument creates test resources, saves and re
 The `voxel.configDir` system property overrides the independent preference directory for testing. The normal directory is `.procedural-voxel-creator` under the user home. Projects save only on explicit commands; there is no autosave or recent-project history.
 
 Schema checks: install `scripts/requirements-validation.txt` and run `python scripts/verify_schemas.py`. Exact world regression hashes are checked with `scripts/verify_artifacts.py`. The CI reproducibility job compares independently built Linux and Windows JAR SHA-256 manifests.
+
+The unvalidated [renderer startup recovery](RENDERER_RECOVERY.md) contains per-viewport shader initialization failures and presents Retry Renderer in the affected tab while retaining project editing and healthy tabs. The main OpenGL 3.0/GLFW/ImGui context is still required. This is source implementation awaiting final-stage validation, not new launch/hardware evidence. See the [completion roadmap](DEVELOPMENT_ROADMAP.md) for the original release objective and current testing pause.

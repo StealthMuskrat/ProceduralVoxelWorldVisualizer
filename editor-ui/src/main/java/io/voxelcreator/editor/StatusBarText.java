@@ -17,4 +17,13 @@ final class StatusBarText {
     if (offset < text.length()) out.append('…');
     return out.toString();
   }
+
+  /** Retained diagnostic cap includes the ellipsis and never splits a surrogate pair. */
+  static String bounded(String text, int limit) {
+    String visible = clip(text, limit);
+    if (visible.length() <= limit) return visible;
+    int end = limit - 1;
+    if (end > 0 && Character.isHighSurrogate(visible.charAt(end - 1))) end--;
+    return visible.substring(0, end) + "…";
+  }
 }

@@ -7,6 +7,22 @@ import org.junit.jupiter.api.Test;
 
 /** Deferred analytical chrome partition, priority, scale and text-bound definitions. */
 class StatusBarLayoutTest {
+  @Test
+  void retainedDiagnosticsIncludeTheirEllipsisInTheCharacterCap() {
+    assertEquals("abcd…", StatusBarText.bounded("abcdef", 5));
+    assertEquals("abcde", StatusBarText.bounded("abcde", 5));
+    assertEquals("…", StatusBarText.bounded("abcdef", 1));
+    assertEquals(1024, StatusBarText.bounded("x".repeat(5000), 1024).length());
+  }
+
+  @Test
+  void retainedDiagnosticTruncationPreservesWholeCodePointsAndSingleLinePresentation() {
+    assertEquals("😀…", StatusBarText.bounded("😀😀x", 4));
+    assertEquals("😀x", StatusBarText.bounded("😀x", 3));
+    assertEquals("a b", StatusBarText.bounded("a\nb", 3));
+    assertThrows(IllegalArgumentException.class, () -> StatusBarText.bounded("x", 0));
+  }
+
   private static final StatusBarLayout.Metrics METRICS =
       new StatusBarLayout.Metrics(13, 19, 8, 80, List.of(60f, 26f), List.of(140f, 90f, 35f));
 

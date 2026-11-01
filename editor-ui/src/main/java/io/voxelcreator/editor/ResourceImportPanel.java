@@ -362,7 +362,8 @@ final class ResourceImportPanel {
 
   private String report(String code, RuntimeException failure) {
     String detail =
-        bounded(Objects.requireNonNullElse(failure.getMessage(), failure.toString()), 1024);
+        StatusBarText.bounded(
+            Objects.requireNonNullElse(failure.getMessage(), failure.toString()), 1024);
     state.error(code, EditorEvents.Subsystem.IMPORT_EXPORT, detail);
     return detail;
   }

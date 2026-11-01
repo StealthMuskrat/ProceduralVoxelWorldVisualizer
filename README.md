@@ -226,3 +226,5 @@ The unvalidated [resource review lifetime follow-up](docs/RESOURCE_REVIEW_LIFETI
 The unvalidated [resource dialog delivery follow-up](docs/RESOURCE_DIALOG_DELIVERY.md) delivers Import/package actions after popup closure, protects successor reviews from old gestures and contains callback failures. Ten regression definitions and seven additional native delivery routes remain deferred.
 
 The unvalidated [resource publication completion follow-up](docs/RESOURCE_PUBLICATION_COMPLETION.md) protects browser edits and selection Apply from nested commands/cleanup through validation and refresh, retires stale document decisions and reports completed refresh failures without replay. Ten regression definitions and extended native/independent replay remain deferred.
+
+Completion remains directed by the [original-assignment roadmap](docs/DEVELOPMENT_ROADMAP.md). The unvalidated [renderer startup recovery](docs/RENDERER_RECOVERY.md) keeps healthy tabs and project editing available after a viewport shader failure and adds explicit Retry Renderer with owned GPU cleanup. Ten regression definitions and native/independent replay remain deferred.
