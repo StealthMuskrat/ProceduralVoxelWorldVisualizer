@@ -14,3 +14,5 @@ The remaining sequence is:
 4. Build and verify reproducible desktop/engine JARs and the bundled Windows launcher outside Gradle/IDE; complete dependency/owner-notice review; produce the prescribed source/binary/examples/fixtures/reports/docs layout, SHA256SUMS and named release ZIP.
 
 The [acceptance matrix](REQUIREMENTS_AND_TESTS.md) remains authoritative for observed evidence and pending scope. The new development batches are uncompiled/untested, and the project is not being declared fully developed or release-ready here. Resume final execution only when the owner's development-phase condition is met or the owner changes it.
+
+Implementation audit follow-up: [initial noise algorithm choice](NOISE_CREATION_CHOICES.md) closes the missing optional creation selector in 5.2.2, using the existing registry/profile/compiler path. Source implementation and deferred coverage do not advance acceptance status.

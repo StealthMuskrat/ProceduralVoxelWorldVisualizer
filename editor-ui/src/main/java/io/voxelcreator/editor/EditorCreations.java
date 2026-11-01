@@ -13,8 +13,20 @@ public final class EditorCreations {
   private EditorCreations() {}
 
   public static Noise noise(AppMetadata metadata, int dimension, String id, UUID parent) {
+    return noise(metadata, dimension, id, parent, null);
+  }
+
+  /** Null uses the creation profile; an explicit source keeps that source's configured defaults. */
+  public static Noise noise(
+      AppMetadata metadata, int dimension, String id, UUID parent, String initialAlgorithm) {
     metadata.validate();
-    return noiseUnchecked(metadata, dimension, id, parent);
+    var noise = noiseUnchecked(metadata, dimension, id, parent);
+    if (initialAlgorithm != null) {
+      NoiseAlgorithmRegistry.parameters(initialAlgorithm, dimension);
+      noise.algorithm = algorithm(metadata, dimension, initialAlgorithm);
+      NoiseAlgorithmRegistry.validate(noise.algorithm, dimension);
+    }
+    return noise;
   }
 
   static Noise noiseUnchecked(AppMetadata metadata, int dimension, String id, UUID parent) {

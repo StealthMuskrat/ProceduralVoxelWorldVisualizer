@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.*;
 import imgui.*;
 import imgui.flag.*;
 import imgui.type.*;
+import io.voxelcreator.core.NoiseAlgorithmRegistry;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
 import java.util.*;
@@ -25,6 +26,8 @@ public final class ResourcePanel {
       placementChrome = new SettingsPageChrome(2),
       deleteChrome = new SettingsPageChrome(2);
   private final DraftChoicePicker deletePicker;
+  private final DraftChoicePicker createAlgorithmPicker;
+  private String createAlgorithm;
   private List<DraftChoicePicker.Choice> deleteChoices = List.of();
   private List<String> deleteDependents = List.of();
   private String deleteLabel = "", createMessage = "", placementMessage = "", deleteMessage = "";
@@ -83,6 +86,9 @@ public final class ResourcePanel {
     deletePicker =
         new DraftChoicePicker(
             s, () -> deleteOwner, () -> deleteOwner != null && deleteOwner.current(state) ? 0 : 1);
+    createAlgorithmPicker =
+        new DraftChoicePicker(
+            s, () -> createOwner, () -> createOwner != null && createOwner.current(state) ? 0 : 1);
     this.properties = properties;
     exportPanel = new ResourceExportPanel(s, exportSelection);
     selection = new ResourceSelectionSession(s);
@@ -741,7 +747,8 @@ public final class ResourcePanel {
     switch (kind) {
       case "noise2D", "noise3D" ->
           resource =
-              EditorCreations.noise(state.metadata, kind.equals("noise2D") ? 2 : 3, id, parent);
+              EditorCreations.noise(
+                  state.metadata, kind.equals("noise2D") ? 2 : 3, id, parent, createAlgorithm);
       case "layer" -> {
         var layer = new Layer();
         layer.id = id;
@@ -804,6 +811,7 @@ public final class ResourcePanel {
     createKind = kind;
     createRoot = root;
     createParent = parent;
+    createAlgorithm = null;
     name.set("");
     createMessage = "";
     createPending = createOpen = createFocus = createReveal = true;
@@ -898,6 +906,37 @@ public final class ResourcePanel {
       createFocus = false;
     }
     createInput = PopupLayout.itemBounds();
+    if (createKind.equals("noise2D") || createKind.equals("noise3D")) {
+      int dimension = createKind.equals("noise2D") ? 2 : 3;
+      String control = "noise" + dimension + "D.algorithm";
+      String defaultKey = CreationRegistry.value(state.metadata, control).textValue();
+      var choices =
+          NoiseAlgorithmRegistry.KEYS.stream()
+              .filter(key -> NoiseAlgorithmRegistry.get(key).dimensions().contains(dimension))
+              .map(
+                  key ->
+                      new DraftChoicePicker.Choice(
+                          key,
+                          state.metadata.option(control, key),
+                          NoiseAlgorithmRegistry.get(key).family() + " / " + dimension + "D"))
+              .toList();
+      createAlgorithmPicker.draw(
+          state.metadata.label("noise.algorithm", "Algorithm"),
+          createAlgorithm,
+          choices,
+          "Creation default: " + state.metadata.option(control, defaultKey),
+          value -> {
+            if (createOwner == null || !createOwner.current(state)) return;
+            if (value != null) NoiseAlgorithmRegistry.parameters(value, dimension);
+            createAlgorithm = value;
+          });
+      ImGui.textWrapped(
+          NoiseAlgorithmRegistry.get(createAlgorithm == null ? defaultKey : createAlgorithm)
+              .semantics());
+      ImGui.textWrapped(
+          "The chosen source uses its current creation defaults. You can edit its parameters in"
+              + " Properties after creation.");
+    }
     ImGui.endDisabled();
     if (!createMessage.isEmpty()) ImGui.textWrapped(createMessage);
     ImGui.popID();
@@ -929,6 +968,7 @@ public final class ResourcePanel {
   private void closeCreate() {
     if (createOwner != null) createOwner.close();
     createOwner = null;
+    createAlgorithm = null;
     createOpen = createPending = createFocus = false;
     createMessage = "";
   }
@@ -1209,6 +1249,19 @@ public final class ResourcePanel {
 
   int probeFormSubmitted(String form) {
     return form.equals("Placement") ? placementSubmitted : deleteSubmitted;
+  }
+
+  void probeOpenNoiseCreation(int dimension) {
+    if (dimension != 2 && dimension != 3) throw new IllegalArgumentException("Noise dimension");
+    create("noise" + dimension + "D", "noise" + dimension + "D", null);
+  }
+
+  DraftChoicePicker probeCreateAlgorithmPicker() {
+    return createAlgorithmPicker;
+  }
+
+  String probeCreationAlgorithm() {
+    return createAlgorithm;
   }
 
   DraftChoicePicker probeDeletePicker() {

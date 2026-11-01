@@ -358,6 +358,9 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceFormsLayoutProbe build/resource-forms-layout
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ResourceFormsConsumer build/resource-forms-layout
           python scripts/verify_resource_forms_layout.py build/resource-forms-layout
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.NoiseCreationChoiceProbe build/noise-creation-choice
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.NoiseCreationChoiceConsumer build/noise-creation-choice
+          python scripts/verify_noise_creation_choice.py build/noise-creation-choice
       - name: Private editor decision ownership and explicit handoff
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PrivateEditorDecisionProbe build/private-editor-decisions
@@ -562,6 +565,7 @@ jobs:
             build/project-decision-layout/
             build/resource-decision-layout/
             build/resource-forms-layout/
+            build/noise-creation-choice/
             build/private-editor-decisions/
             build/properties-layout/
             build/settings-decisions/
@@ -1246,6 +1250,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_resource_forms_layout.py build/resource-forms-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.NoiseCreationChoiceProbe build/noise-creation-choice
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.NoiseCreationChoiceConsumer build/noise-creation-choice
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_noise_creation_choice.py build/noise-creation-choice
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows private editor decision ownership and explicit handoff
         shell: pwsh
         run: |
@@ -1565,6 +1575,7 @@ jobs:
             build/project-decision-layout/
             build/resource-decision-layout/
             build/resource-forms-layout/
+            build/noise-creation-choice/
             build/private-editor-decisions/
             build/properties-layout/
             build/settings-decisions/
