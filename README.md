@@ -224,3 +224,5 @@ The unvalidated [project file completion follow-up](docs/PROJECT_FILE_COMPLETION
 The unvalidated [resource review lifetime follow-up](docs/RESOURCE_REVIEW_LIFETIME.md) retires Import/Export reviews after reopening a document, protects active publication from nested actions/cleanup and rechecks the latest project path before package replacement. Eleven regression definitions, twenty-four native receipts and independent persistence/engine replay remain deferred.
 
 The unvalidated [resource dialog delivery follow-up](docs/RESOURCE_DIALOG_DELIVERY.md) delivers Import/package actions after popup closure, protects successor reviews from old gestures and contains callback failures. Ten regression definitions and seven additional native delivery routes remain deferred.
+
+The unvalidated [resource publication completion follow-up](docs/RESOURCE_PUBLICATION_COMPLETION.md) protects browser edits and selection Apply from nested commands/cleanup through validation and refresh, retires stale document decisions and reports completed refresh failures without replay. Ten regression definitions and extended native/independent replay remain deferred.

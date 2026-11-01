@@ -68,4 +68,15 @@ for project in projects:
         assert noise['algorithm']['parameters'] == {'value': value}
 assert [n['id'] for n in before['noise2D']] == ['a', 'b', 'c']
 assert [n['seedOffset'] for n in before['noise2D']] == [0, 0, 0]
-print('Resource decision geometry, ownership and exact combined edit/Undo/Redo replay PASS')
+assert report['publicationBusyChecks'] == 2 and report['completionScopeChecks'] == 1
+assert report['selectionApplyOnce'] is True and report['selectedAfterApply'] == identities[1]
+selection_applied = json.loads((out / 'resource-selection-applied.json').read_text(encoding='utf-8'))
+selection_undone = json.loads((out / 'resource-selection-undone.json').read_text(encoding='utf-8'))
+selection_redone = json.loads((out / 'resource-selection-redone.json').read_text(encoding='utf-8'))
+expected_selection = copy.deepcopy(after)
+expected_selection['noise2D'][0]['algorithm']['parameters']['value'] = .875
+assert selection_applied == selection_redone == expected_selection
+assert selection_undone == after
+preferences_before = json.loads((out / 'selection-preferences-before.json').read_text(encoding='utf-8'))
+assert json.loads((out / 'selection-preferences.json').read_text(encoding='utf-8')) == preferences_before
+print('Resource decision geometry, busy publication/scope observations, exact combined edit and selection Apply/Undo/Redo replay PASS')

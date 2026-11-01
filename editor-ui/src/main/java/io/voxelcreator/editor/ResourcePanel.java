@@ -92,7 +92,7 @@ public final class ResourcePanel {
   }
 
   public void reset() {
-    if (exportPanel.busy()) return;
+    if (publishing()) return;
     closeCreate();
     closePlacement();
     closeDelete();
@@ -200,6 +200,7 @@ public final class ResourcePanel {
   }
 
   public void shortcut(String action) {
+    if (publishing()) return;
     var target = ResourceGraph.find(state.project(), state.selected);
     if (target == null) return;
     switch (action) {
@@ -559,7 +560,7 @@ public final class ResourcePanel {
   }
 
   private void select(UUID id) {
-    if (properties.searchBlocked() || edits.pending()) {
+    if (publishing() || properties.searchBlocked() || edits.pending()) {
       state.status =
           "Finish the private Properties editor or resource action before changing selection";
       return;
@@ -618,22 +619,29 @@ public final class ResourcePanel {
             ImGui.textWrapped("... and " + (destinations.size() - 4) + " more");
         },
         decision -> {
-          var result =
-              properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
-                  ? ResourceSelectionSession.Result.UNAVAILABLE
-                  : selection.decide(decision);
-          if (result == ResourceSelectionSession.Result.NEEDS_DECISION)
-            return SearchNavigation.Result.NEEDS_DECISION;
-          if (result == ResourceSelectionSession.Result.SELECTED) rangeAnchor = pendingAnchor;
-          else if (result == ResourceSelectionSession.Result.UNAVAILABLE)
-            state.status = "Selection or draft changed; choose the resource again";
-          selection.clear();
-          pendingAnchor = null;
-          return result == ResourceSelectionSession.Result.SELECTED
-              ? SearchNavigation.Result.NAVIGATED
-              : SearchNavigation.Result.UNAVAILABLE;
+          var result = decideSelection(decision);
+          return result == ResourceSelectionSession.Result.NEEDS_DECISION
+              ? SearchNavigation.Result.NEEDS_DECISION
+              : result == ResourceSelectionSession.Result.SELECTED
+                  ? SearchNavigation.Result.NAVIGATED
+                  : SearchNavigation.Result.UNAVAILABLE;
         },
         "Apply failed. Cancel to correct the draft, or choose Discard.");
+  }
+
+  ResourceSelectionSession.Result decideSelection(SearchNavigation.Decision decision) {
+    if (publishing()) return ResourceSelectionSession.Result.UNAVAILABLE;
+    var result =
+        properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
+            ? ResourceSelectionSession.Result.UNAVAILABLE
+            : selection.decide(decision);
+    if (result == ResourceSelectionSession.Result.NEEDS_DECISION) return result;
+    if (result == ResourceSelectionSession.Result.SELECTED) rangeAnchor = pendingAnchor;
+    else if (result == ResourceSelectionSession.Result.UNAVAILABLE)
+      state.status = "Selection or draft changed; choose the resource again";
+    selection.clear();
+    pendingAnchor = null;
+    return result;
   }
 
   private void rememberRow(UUID id) {
@@ -700,25 +708,31 @@ public final class ResourcePanel {
                   + " the draft only if the action succeeds, or cancel.");
         },
         decision -> {
-          var result =
-              properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
-                  ? ResourceEditSession.Result.UNAVAILABLE
-                  : edits.decide(decision);
-          if (result == ResourceEditSession.Result.REJECTED)
-            return SearchNavigation.Result.NEEDS_DECISION;
-          var completion = editCommitted;
-          editCommitted = null;
-          edits.clear();
-          if (result == ResourceEditSession.Result.APPLIED && completion != null)
-            completion.complete();
-          else if (completion != null) completion.clear();
-          if (result == ResourceEditSession.Result.UNAVAILABLE)
-            state.status = "Project, selection or draft changed; request the resource action again";
-          return result == ResourceEditSession.Result.APPLIED
-              ? SearchNavigation.Result.NAVIGATED
-              : SearchNavigation.Result.UNAVAILABLE;
+          var result = decideEdit(decision);
+          return result == ResourceEditSession.Result.REJECTED
+              ? SearchNavigation.Result.NEEDS_DECISION
+              : result == ResourceEditSession.Result.APPLIED
+                  ? SearchNavigation.Result.NAVIGATED
+                  : SearchNavigation.Result.UNAVAILABLE;
         },
         "The draft or action was rejected. Cancel to correct it; no changes were published.");
+  }
+
+  ResourceEditSession.Result decideEdit(SearchNavigation.Decision decision) {
+    if (publishing()) return ResourceEditSession.Result.UNAVAILABLE;
+    var result =
+        properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
+            ? ResourceEditSession.Result.UNAVAILABLE
+            : edits.decide(decision);
+    if (result == ResourceEditSession.Result.REJECTED) return result;
+    var completion = editCommitted;
+    editCommitted = null;
+    edits.clear();
+    if (result == ResourceEditSession.Result.APPLIED && completion != null) completion.complete();
+    else if (completion != null) completion.clear();
+    if (result == ResourceEditSession.Result.UNAVAILABLE)
+      state.status = "Project, selection or draft changed; request the resource action again";
+    return result;
   }
 
   private ResourceEditSession.Result createResource(
@@ -764,6 +778,7 @@ public final class ResourcePanel {
   }
 
   void probeRequestSelection(UUID id) {
+    if (publishing() || properties.searchBlocked() || edits.pending()) return;
     acceptSelection(selection.click(id, false), id);
   }
 
@@ -799,7 +814,8 @@ public final class ResourcePanel {
   }
 
   private boolean actionAvailable() {
-    boolean available = !properties.searchBlocked() && !selection.pending() && !edits.pending();
+    boolean available =
+        !publishing() && !properties.searchBlocked() && !selection.pending() && !edits.pending();
     if (!available) state.status = "Finish the private editor or pending resource action first";
     return available;
   }
@@ -836,8 +852,12 @@ public final class ResourcePanel {
                 .toList();
   }
 
+  boolean publishing() {
+    return exportPanel.busy() || edits.busy() || selection.busy();
+  }
+
   boolean blocksProjectTransition() {
-    return exportPanel.busy()
+    return publishing()
         || renameId != null
         || deleteId != null
         || createOpen
@@ -996,7 +1016,7 @@ public final class ResourcePanel {
   }
 
   public void beginExport() {
-    if (exportPanel.busy()) return;
+    if (publishing()) return;
     exportSelection.clear();
     exportPanel.reset();
     exportSelection.addAll(state.multiSelection);

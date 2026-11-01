@@ -17,15 +17,26 @@ final class ResourceEditSession {
   private final EditorState state;
   private ResourceBrowserEdits.Edit edit;
   private String label = "";
-  private ProjectData project;
-  private long revision, seedVersion;
+  private ResourceReviewContext context;
+  private long seedVersion;
+  private boolean executing;
+  private final Runnable afterReconcile;
   private UUID selected;
   private Object draft;
   private JsonNode draftValue;
   private List<UUID> selection;
 
   ResourceEditSession(EditorState state) {
-    this.state = state;
+    this(state, () -> {});
+  }
+
+  ResourceEditSession(EditorState state, Runnable afterReconcile) {
+    this.state = Objects.requireNonNull(state);
+    this.afterReconcile = Objects.requireNonNull(afterReconcile);
+  }
+
+  boolean busy() {
+    return executing;
   }
 
   boolean pending() {
@@ -37,12 +48,11 @@ final class ResourceEditSession {
   }
 
   Result request(String label, ResourceBrowserEdits.Edit edit) {
-    if (pending()) return Result.UNAVAILABLE;
+    if (executing || pending()) return Result.UNAVAILABLE;
     Objects.requireNonNull(label);
     this.label = label.length() > 240 ? label.substring(0, 239) + "…" : label;
     this.edit = Objects.requireNonNull(edit);
-    project = state.project();
-    revision = state.revision;
+    context = ResourceReviewContext.capture(state);
     selected = state.selected;
     draft = state.draft;
     draftValue = ProjectIO.JSON.valueToTree(draft);
@@ -63,13 +73,12 @@ final class ResourceEditSession {
   }
 
   Result decide(SearchNavigation.Decision decision) {
-    if (!pending()) return Result.UNAVAILABLE;
+    if (executing || !pending()) return Result.UNAVAILABLE;
     if (decision == SearchNavigation.Decision.CANCEL) {
       clear();
       return Result.CANCELLED;
     }
-    if (state.project() != project
-        || state.revision != revision
+    if (!context.current(state)
         || !Objects.equals(selected, state.selected)
         || state.draft != draft
         || !selection.equals(List.copyOf(state.multiSelection))
@@ -82,23 +91,42 @@ final class ResourceEditSession {
   }
 
   private Result execute(boolean applyDraft) {
-    ResourceBrowserEdits.Selection[] destination = {null};
-    java.util.function.Consumer<ProjectData> change = p -> destination[0] = edit.apply(p);
-    boolean accepted;
+    executing = true;
     try {
-      accepted = applyDraft ? state.changeWithDraft(change) : state.change(change);
-    } catch (RuntimeException failure) {
-      state.error(
-          "RESOURCE_EDIT_FAILED",
-          EditorEvents.Subsystem.PROJECT,
-          Objects.requireNonNullElse(failure.getMessage(), failure.toString()));
-      return Result.REJECTED;
+      var acceptedEdit = edit;
+      ResourceBrowserEdits.Selection[] destination = {null};
+      java.util.function.Consumer<ProjectData> change = p -> destination[0] = acceptedEdit.apply(p);
+      boolean accepted;
+      try {
+        accepted = applyDraft ? state.changeWithDraft(change) : state.change(change);
+      } catch (RuntimeException failure) {
+        report("RESOURCE_EDIT_FAILED", "Resource edit rejected: ", failure);
+        return Result.REJECTED;
+      }
+      if (!accepted) return Result.REJECTED;
+      var requested = destination[0];
+      retire();
+      try {
+        reconcile(requested);
+        afterReconcile.run();
+      } catch (RuntimeException failure) {
+        report(
+            "RESOURCE_EDIT_RECONCILE_FAILED",
+            "Resource edit committed; selection refresh failed: ",
+            failure);
+      }
+      return Result.APPLIED;
+    } finally {
+      executing = false;
     }
-    if (!accepted) return Result.REJECTED;
-    var requested = destination[0];
-    clear();
-    reconcile(requested);
-    return Result.APPLIED;
+  }
+
+  private void report(String code, String prefix, RuntimeException failure) {
+    state.error(
+        code,
+        EditorEvents.Subsystem.PROJECT,
+        StatusBarText.clip(
+            prefix + Objects.requireNonNullElse(failure.getMessage(), failure.toString()), 1024));
   }
 
   private void reconcile(ResourceBrowserEdits.Selection requested) {
@@ -108,9 +136,14 @@ final class ResourceEditSession {
   }
 
   void clear() {
+    if (executing) return;
+    retire();
+  }
+
+  private void retire() {
     edit = null;
     label = "";
-    project = null;
+    context = null;
     draft = null;
     draftValue = null;
     selection = null;

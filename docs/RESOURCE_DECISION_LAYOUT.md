@@ -17,3 +17,5 @@ scripts/verify_resource_decision_layout.py defines independent work/modal/body/f
 NoiseEditDialog and ResourcePanel Create/Placement/Delete form reflow are outside this batch. Complete private-editor/keyboard/input/focus/failure timing, physical monitor/DPI/detached/GPU behavior and full GUI/Windows 11 acceptance remain pending. This work does not certify A01–A36 or production completion.
 
 The subsequent unvalidated [resource forms follow-up](RESOURCE_FORMS_LAYOUT.md) addresses the Create/Placement/Delete and NoiseEditDialog reflow excluded above, with additional committed-form ownership, reset cleanup and deferred definitions. Full physical/GUI acceptance remains pending.
+
+The unvalidated [resource publication completion follow-up](RESOURCE_PUBLICATION_COMPLETION.md) adds exact document identity, busy publication/selection installation and completed-refresh error handling. Ten regression definitions and extended production validator/selection Apply/Undo/Redo replay remain deferred. Earlier evidence scopes and the testing pause are unchanged.

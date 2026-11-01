@@ -9,6 +9,25 @@ import org.junit.jupiter.api.Test;
 /** Deferred post-commit callback ownership; no document edit is performed by this notification. */
 class ResourceEditCompletionTest {
   @Test
+  void completedRefreshFailureIsBoundedBeforeEventPublication() {
+    try (var state = new EditorState(new UserConfig(), false)) {
+      var completion =
+          new ResourceEditCompletion(
+              state,
+              () -> {
+                throw new IllegalStateException("x".repeat(5000));
+              });
+      completion.complete();
+      completion.complete();
+      var report = state.events.snapshot().getFirst();
+      assertEquals("RESOURCE_EDIT_REFRESH_FAILED", report.code());
+      assertTrue(report.message().startsWith("Resource edit committed;"));
+      assertTrue(report.message().length() <= 1024);
+      assertEquals(1, report.count());
+    }
+  }
+
+  @Test
   void completionIsConsumedOnceWithoutChangingDocumentOrPreferences() {
     try (var state = new EditorState(new UserConfig(), false)) {
       var project = ProjectIO.JSON.valueToTree(state.project());

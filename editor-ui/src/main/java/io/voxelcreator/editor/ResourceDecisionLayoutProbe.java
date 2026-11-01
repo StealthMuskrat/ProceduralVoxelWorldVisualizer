@@ -17,6 +17,8 @@ public final class ResourceDecisionLayoutProbe {
   private static int width = 1200, height = 900, callbacks;
   private static String form = "Selection";
   private static UUID a, b;
+  private static boolean publishing, inFrame;
+  private static int root, publicationChecks, completionChecks;
   private static final AtomicBoolean fresh = new AtomicBoolean(true);
 
   public static void main(String[] args) throws Exception {
@@ -149,6 +151,45 @@ public final class ResourceDecisionLayoutProbe {
                 && before.equals(ProjectIO.JSON.valueToTree(state.project())),
             "Changed edit owner was applied");
 
+        state.document.setValidator(
+            p -> {
+              if (publishing) {
+                require(
+                    inFrame && root == ImGui.getID("resource-publication-root"),
+                    "Browser validator ran inside a popup");
+                publicationChecks++;
+                require(
+                    resources.publishing() && resources.blocksProjectTransition(),
+                    "Browser publication lost its busy fence");
+                resources.reset();
+                resources.shortcut("Delete");
+                resources.beginExport();
+                resources.probeRequestSelection(b);
+                require(
+                    resources.publishing() && resources.exportView().session() == null,
+                    "Nested cleanup/Export replaced publication");
+                require(
+                    resources.decideEdit(SearchNavigation.Decision.CANCEL)
+                        == ResourceEditSession.Result.UNAVAILABLE,
+                    "Nested edit cancellation accepted");
+                require(
+                    resources.decideSelection(SearchNavigation.Decision.CANCEL)
+                        == ResourceSelectionSession.Result.UNAVAILABLE,
+                    "Nested selection cancellation accepted");
+                require(
+                    resources.probeRequestEdit(
+                            "Nested",
+                            ResourceBrowserEdits.rename(b, "never"),
+                            () -> {
+                              throw new AssertionError("Nested completion");
+                            })
+                        == ResourceEditSession.Result.UNAVAILABLE,
+                    "Nested browser edit accepted");
+                require(pending(), "Publication lost its owned decision");
+              }
+              return io.voxelcreator.core.NoiseCompiler.validate(p);
+            });
+
         // A valid combined edit consumes its callback before a failing UI refresh.
         state.select("noise2D", a);
         ((Noise) state.draft).seedOffset = 17;
@@ -159,13 +200,19 @@ public final class ResourceDecisionLayoutProbe {
                     "Rename b after applying a",
                     ResourceBrowserEdits.rename(b, "renamed-b"),
                     () -> {
+                      require(
+                          inFrame && root == ImGui.getID("resource-publication-root"),
+                          "Completion ran inside a popup");
+                      completionChecks++;
                       callbacks++;
                       throw new IllegalStateException("Injected refresh failure");
                     })
                 == ResourceEditSession.Result.NEEDS_DECISION,
             "Combined edit request rejected");
         frames(5);
+        publishing = true;
         click(guard().button("APPLY"));
+        publishing = false;
         require(
             !pending()
                 && callbacks == 1
@@ -194,6 +241,40 @@ public final class ResourceDecisionLayoutProbe {
         require(
             after.equals(ProjectIO.JSON.valueToTree(state.project())), "One combined Redo failed");
         new ProjectIO().save(out.resolve("resource-redone.json"), state.project());
+        state.user.save(out.resolve("selection-preferences-before.json"));
+        form = "Selection";
+        state.select("noise2D", a);
+        ((Noise) state.draft).algorithm.parameters.put("value", .875);
+        resources.probeRequestSelection(b);
+        frames(5);
+        long selectionRevision = state.revision;
+        publishing = true;
+        click(guard().button("APPLY"));
+        publishing = false;
+        require(
+            !pending()
+                && !resources.publishing()
+                && state.selected.equals(b)
+                && state.revision == selectionRevision + 1
+                && publicationChecks == 2
+                && completionChecks == 1,
+            "Selection Apply was interrupted or replayed");
+        new ProjectIO().save(out.resolve("resource-selection-applied.json"), state.project());
+        var selectionAfter = ProjectIO.JSON.valueToTree(state.project());
+        state.document.undo();
+        state.revision++;
+        require(
+            after.equals(ProjectIO.JSON.valueToTree(state.project())),
+            "Selection Apply Undo changed prior edit");
+        new ProjectIO().save(out.resolve("resource-selection-undone.json"), state.project());
+        state.document.redo();
+        state.revision++;
+        require(
+            selectionAfter.equals(ProjectIO.JSON.valueToTree(state.project())),
+            "Selection Apply Redo failed");
+        new ProjectIO().save(out.resolve("resource-selection-redone.json"), state.project());
+        state.user.save(out.resolve("selection-preferences.json"));
+
         require(
             state.engine == engine && state.engine.profiler().current().isEmpty(),
             "Guard presentation changed runtime ownership");
@@ -212,6 +293,10 @@ public final class ResourceDecisionLayoutProbe {
                     Map.entry("refreshFailureConsumed", true),
                     Map.entry("oneUndoRedo", true),
                     Map.entry("callbacks", callbacks),
+                    Map.entry("publicationBusyChecks", publicationChecks),
+                    Map.entry("completionScopeChecks", completionChecks),
+                    Map.entry("selectionApplyOnce", true),
+                    Map.entry("selectedAfterApply", state.selected),
                     Map.entry("physicalDpiVerified", false),
                     Map.entry("physicalDetachedVerified", false),
                     Map.entry("gpuFontTextureVerified", false))));
@@ -336,8 +421,16 @@ public final class ResourceDecisionLayoutProbe {
     ImGui.begin("Resource decision fixture", ImGuiWindowFlags.NoSavedSettings);
     UiScale.window(state.user, form.equals("Source") ? "Properties" : "Resources");
     DialogLayout.observe(state, form.equals("Source") ? "Properties" : "Resources");
-    if (form.equals("Source")) source.draw();
-    else resources.probeDrawDecisions();
+    root = ImGui.getID("resource-publication-root");
+    inFrame = true;
+    try {
+      if (form.equals("Source")) source.draw();
+      else resources.probeDrawDecisions();
+      require(
+          root == ImGui.getID("resource-publication-root"), "Browser decision leaked native scope");
+    } finally {
+      inFrame = false;
+    }
     ImGui.end();
     ImGui.render();
   }

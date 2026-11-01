@@ -17,15 +17,26 @@ final class ResourceSelectionSession {
 
   private final EditorState state;
   private Plan pending;
-  private ProjectData project;
-  private long revision, seedVersion;
+  private ResourceReviewContext context;
+  private long seedVersion;
+  private boolean installing;
+  private final Runnable afterInstall;
   private UUID source;
   private Object draft;
   private JsonNode draftValue;
   private List<UUID> sourceSelection;
 
   ResourceSelectionSession(EditorState state) {
-    this.state = state;
+    this(state, () -> {});
+  }
+
+  ResourceSelectionSession(EditorState state, Runnable afterInstall) {
+    this.state = Objects.requireNonNull(state);
+    this.afterInstall = Objects.requireNonNull(afterInstall);
+  }
+
+  boolean busy() {
+    return installing;
   }
 
   boolean pending() {
@@ -47,15 +58,14 @@ final class ResourceSelectionSession {
   }
 
   Result request(List<UUID> ids, UUID active) {
-    if (pending()) return Result.UNAVAILABLE;
+    if (installing || pending()) return Result.UNAVAILABLE;
     var plan = resolve(ids, active);
     if (plan == null) return Result.UNAVAILABLE;
     if (Objects.equals(active, state.selected) && ids.equals(List.copyOf(state.multiSelection)))
       return Result.SELECTED;
     if (modified()) {
       pending = plan;
-      project = state.project();
-      revision = state.revision;
+      context = ResourceReviewContext.capture(state);
       source = state.selected;
       draft = state.draft;
       draftValue = ProjectIO.JSON.valueToTree(draft);
@@ -63,8 +73,12 @@ final class ResourceSelectionSession {
       seedVersion = state.seedInputs.version(state);
       return Result.NEEDS_DECISION;
     }
-    install(plan, false);
-    return Result.SELECTED;
+    installing = true;
+    try {
+      return installResult(plan, false, false);
+    } finally {
+      installing = false;
+    }
   }
 
   private boolean modified() {
@@ -94,14 +108,13 @@ final class ResourceSelectionSession {
   }
 
   Result decide(SearchNavigation.Decision decision) {
-    if (!pending()) return Result.UNAVAILABLE;
+    if (installing || !pending()) return Result.UNAVAILABLE;
     if (decision == SearchNavigation.Decision.CANCEL) {
       clear();
       return Result.CANCELLED;
     }
     var plan = pending;
-    if (state.project() != project
-        || state.revision != revision
+    if (!context.current(state)
         || !Objects.equals(state.selected, source)
         || state.draft != draft
         || !sourceSelection.equals(List.copyOf(state.multiSelection))
@@ -111,25 +124,66 @@ final class ResourceSelectionSession {
       clear();
       return Result.UNAVAILABLE;
     }
-    if (decision == SearchNavigation.Decision.APPLY && !state.applyDraft())
-      return Result.NEEDS_DECISION;
-    // Apply can change resource membership. Never install an obsolete destination afterwards.
-    if (!plan.equals(resolve(plan.ids, plan.active))) {
-      clear();
-      return Result.UNAVAILABLE;
+    installing = true;
+    boolean applied = false;
+    try {
+      if (decision == SearchNavigation.Decision.APPLY) {
+        long before = state.revision;
+        try {
+          if (!state.applyDraft()) return Result.NEEDS_DECISION;
+          applied = true;
+        } catch (RuntimeException failure) {
+          if (state.revision == before) {
+            report("Resource selection rejected: ", failure);
+            return Result.NEEDS_DECISION;
+          }
+          retire();
+          report("Properties applied; resource selection refresh failed: ", failure);
+          return Result.UNAVAILABLE;
+        }
+      }
+      retire();
+      // Apply can change resource membership. Never install an obsolete destination afterwards.
+      if (!plan.equals(resolve(plan.ids, plan.active))) {
+        return Result.UNAVAILABLE;
+      }
+      return installResult(plan, decision == SearchNavigation.Decision.DISCARD, applied);
+    } finally {
+      installing = false;
     }
-    clear();
-    install(plan, decision == SearchNavigation.Decision.DISCARD);
-    return Result.SELECTED;
   }
 
-  private void install(Plan plan, boolean discard) {
-    state.selectResources(plan.ids, plan.active, plan.scope, discard);
+  private Result installResult(Plan plan, boolean discard, boolean applied) {
+    try {
+      state.selectResources(plan.ids, plan.active, plan.scope, discard);
+      afterInstall.run();
+      return Result.SELECTED;
+    } catch (RuntimeException failure) {
+      report(
+          applied
+              ? "Properties applied; resource selection refresh failed: "
+              : "Resource selection refresh failed: ",
+          failure);
+      return Result.UNAVAILABLE;
+    }
+  }
+
+  private void report(String prefix, RuntimeException failure) {
+    state.error(
+        "RESOURCE_SELECTION_FAILED",
+        EditorEvents.Subsystem.PROJECT,
+        StatusBarText.clip(
+            prefix + Objects.requireNonNullElse(failure.getMessage(), failure.toString()), 1024));
   }
 
   void clear() {
+    if (installing) return;
+    retire();
+  }
+
+  private void retire() {
     pending = null;
-    project = null;
+    context = null;
     source = null;
     draft = null;
     draftValue = null;
