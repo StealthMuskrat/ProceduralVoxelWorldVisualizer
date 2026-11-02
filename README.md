@@ -278,3 +278,5 @@ The unvalidated [typed UUID follow-up](docs/PROJECT_UUID_SHAPES.md) reloads lega
 The unvalidated [import compatibility follow-up](docs/RESOURCE_IMPORT_COMPATIBILITY.md) retains identity-like expression bindings during Reuse comparison, preventing changed fields from being reused as identical. Eight deferred contracts and an independent rejected-Reuse/Copy/save/Undo replay remain unexecuted; no tests or workflows ran.
 
 The unvalidated [consumer-stage follow-up](docs/CONSUMER_STAGE_ACKNOWLEDGEMENT.md) supports CompletionStages without future conversion, reports acknowledgement failures consistently and cancels interrupted waits cooperatively. Nine deferred contracts and an independent stage/backpressure/retained-voxel replay remain unexecuted; no tests or workflows ran.
+
+The unvalidated [cancellation ownership follow-up](docs/CANCELLATION_CALLBACK_OWNERSHIP.md) suppresses closed unclaimed callbacks, attempts eligible listeners despite Errors and confines admitted parent-supplier faults to their subscriber. Ten deferred contracts and an independent queued/shared/exact-snapshot replay remain unexecuted; no tests or workflows ran.

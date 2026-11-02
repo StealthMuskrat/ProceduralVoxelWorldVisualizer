@@ -288,7 +288,8 @@ public final class WorldContext implements AutoCloseable {
                   waiter.future.completeExceptionally(
                       new CancellationException("Chunk request cancelled")));
       if (waiter.future.isDone()) waiter.registration.close();
-    } catch (RuntimeException failure) {
+    } catch (RuntimeException | Error failure) {
+      // Parent polling can fail after admission; retire this waiter without stranding its peers.
       waiter.future.completeExceptionally(failure);
     }
     if (leader && async) {
@@ -359,7 +360,8 @@ public final class WorldContext implements AutoCloseable {
         if (waiter.future.isDone()) continue;
         try {
           if (!waiter.token.isCancelled()) inactive = false;
-        } catch (RuntimeException failure) {
+        } catch (RuntimeException | Error failure) {
+          // A host parent-supplier fault belongs to this subscriber, not the shared generation.
           waiter.future.completeExceptionally(failure);
         }
       }
@@ -406,7 +408,8 @@ public final class WorldContext implements AutoCloseable {
                 new CancellationException("Chunk request cancelled"));
           else if (failure != null) waiter.future.completeExceptionally(failure);
           else waiter.future.complete(result);
-        } catch (RuntimeException subscriberFailure) {
+        } catch (RuntimeException | Error subscriberFailure) {
+          // Keep publishing to the remaining subscribers even if one parent's final poll fails.
           waiter.future.completeExceptionally(subscriberFailure);
         }
       }

@@ -193,3 +193,9 @@ ProjectIO UUID preflight follows model field types, lists and map values. User i
 ## Import compatibility and input names
 
 ResourceImport comparison retains user input bindings named uuid, id or parentFolderUuid. Metadata normalization requires an actual valid textual UUID declaration; object-valued input names do not declare their map identity. Local resource/item/parameter/curve identities still normalize, while existing conservative external-reference and seed-sensitive rules remain. Incompatible REUSE returns blocking diagnostics and cannot publish through Session.applyTo; choose COPY or SKIP using the existing session. Public signatures, preview ownership, stable COPY identities and project/package formats are unchanged. See [unvalidated status and deferred definitions](RESOURCE_IMPORT_COMPATIBILITY.md).
+
+## Cancellation registration ownership
+
+Registration.close suppresses an unclaimed callback even after cancel captures it. It does not stop or wait for claimed callbacks; callback order remains unspecified. Explicit cancel attempts eligible callbacks outside the registry lock. Registered RuntimeExceptions retain their ignored behavior; Errors are rethrown after fanout, with later errors suppressed without self-suppression, and the token remains cancelled. Repeated cancel does not replay. Late onCancel registration invokes inline and propagates callback failure. Parent suppliers remain polled rather than automatically draining stored registrations.
+
+After chunk-subscriber admission, a parent-supplier RuntimeException or Error completes that subscriber exceptionally at registration, generation polling or final publication, preserving healthy shared peers. Initial checks before admission may still reject synchronously. Public signatures and numeric results are unchanged; host code remains cooperative. See [unvalidated status and deferred definitions](CANCELLATION_CALLBACK_OWNERSHIP.md).
