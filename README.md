@@ -266,3 +266,5 @@ The unvalidated [region completion follow-up](docs/REGION_COMPLETION_OWNERSHIP.m
 The unvalidated [archive writer recovery follow-up](docs/ARCHIVE_WRITER_RECOVERY.md) rolls back failed preparation, retains valid prepared bytes for publication retry and blocks uncertain writers from publishing. Eleven deferred I/O-fault definitions and an independent legacy/packed replay remain unexecuted; no tests or workflows ran.
 
 The unvalidated [project save atomicity follow-up](docs/PROJECT_SAVE_ATOMICITY.md) rejects unsupported atomic replacement, preserves primary staging errors and records the exact published JSON as the saved checkpoint. Eight deferred fault/session definitions and an independent save/history/engine replay remain unexecuted; no tests or workflows ran.
+
+The unvalidated [resource move-order follow-up](docs/RESOURCE_MOVE_ORDER.md) moves selected placements and flat resources in current sibling order, including live Cut after reordering. Copies retain captured order. Eleven deferred contracts and an independent 84-field/1,176-voxel replay remain unexecuted; no tests or workflows ran.

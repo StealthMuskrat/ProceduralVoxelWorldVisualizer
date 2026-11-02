@@ -217,6 +217,7 @@ public final class ResourceGraph {
     e.resource.id = name;
   }
 
+  /** Moves a live sibling block in current source order, independently of selection input order. */
   public static void move(ProjectData p, Collection<UUID> selected, String root, UUID parent) {
     var ids = new LinkedHashSet<>(selected);
     if (ids.isEmpty()) throw new IllegalArgumentException("Empty selection");
@@ -228,8 +229,10 @@ public final class ResourceGraph {
     if (entries.stream().anyMatch(e -> !e.scope().equals(scope) || !e.root.equals(root)))
       throw new IllegalArgumentException("Move requires compatible siblings");
     UUID oldParent = entries.getFirst().parent();
-    var movingOrder =
-        children(p, root, oldParent).stream().map(Entry::uuid).filter(ids::contains).toList();
+    // Selection collections carry membership, not execution order. In particular, a cut may
+    // outlive a source reorder; resolve its live definitions and order together at paste time.
+    var moving = children(p, root, oldParent).stream().filter(e -> ids.contains(e.uuid())).toList();
+    var movingOrder = moving.stream().map(Entry::uuid).toList();
     validateParent(p, root, parent);
     if (parent != null) {
       Entry target = find(p, parent);
@@ -243,7 +246,7 @@ public final class ResourceGraph {
       if (subtree(p, ids).contains(parent))
         throw new IllegalArgumentException("Cannot move a folder into itself or a descendant");
     }
-    for (var e : entries) {
+    for (var e : moving) {
       if (e.resource instanceof Noise n) n.parentFolderUuid = parent;
       else if (e.resource instanceof Folder f) f.parentFolderUuid = parent;
       else if (e.resource instanceof Layer layer) layer.parentFolderUuid = parent;
@@ -267,7 +270,7 @@ public final class ResourceGraph {
       }
     }
     if (parent == null && !Set.of("noise2D", "noise3D", "world").contains(root))
-      for (var entry : entries)
+      for (var entry : moving)
         if (!(entry.resource instanceof Folder)) {
           var list = list(p, entry);
           list.remove(entry.resource);

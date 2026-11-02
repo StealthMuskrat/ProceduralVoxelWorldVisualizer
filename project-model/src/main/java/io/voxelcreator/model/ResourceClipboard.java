@@ -4,7 +4,8 @@ import io.voxelcreator.model.ProjectData.*;
 import java.util.*;
 
 /**
- * Project-session clipboard. Copies snapshot definitions; cuts move the live identities at paste.
+ * Project-session clipboard. Copies snapshot definitions and order; cuts move live identities in
+ * their current sibling order at paste.
  */
 public final class ResourceClipboard {
   private final UUID project;

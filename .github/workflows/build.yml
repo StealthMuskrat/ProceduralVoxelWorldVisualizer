@@ -40,6 +40,7 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.RegionCompletionConsumer build/independent/output
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ArchiveRecoveryConsumer build/independent/archive-recovery
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectSaveConsumer build/independent/project-save
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ResourceMoveConsumer build/independent/resource-move
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WorldWorkConsumer fixtures/work-profile-project.json build/independent/output
           python scripts/verify_world_work.py build/independent/output
@@ -524,6 +525,7 @@ jobs:
             build/independent/output/region-completion*.json
             build/independent/archive-recovery/
             build/independent/project-save/
+            build/independent/resource-move/
             **/build/test-results/
             **/build/reports/tests/
             build/smoke/
@@ -678,6 +680,8 @@ jobs:
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ArchiveRecoveryConsumer build/independent/archive-recovery
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ProjectSaveConsumer build/independent/project-save
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ResourceMoveConsumer build/independent/resource-move
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -1612,6 +1616,7 @@ jobs:
             build/independent/output/region-completion*.json
             build/independent/archive-recovery/
             build/independent/project-save/
+            build/independent/resource-move/
             build/packages/*.zip
             build/packages/*.sha256
             build/windows-smoke.log
