@@ -69,7 +69,42 @@ public final class PropertyPanel {
   private MembershipDialog membershipDialog;
   private final ExpressionFeedback expressionFeedback = new ExpressionFeedback();
   private final Map<String, String> conditionErrors = new HashMap<>();
-  private long conditionVersion;
+  private long worldControlVersion;
+
+  record WorldListControl(int id, DialogBounds.Rect bounds, boolean enabled) {}
+
+  private final Map<String, WorldListControl> worldListControls = new LinkedHashMap<>();
+
+  Map<String, WorldListControl> probeWorldListControls() {
+    return Map.copyOf(worldListControls);
+  }
+
+  void probeWorldListPanel(String property) {
+    if (!Set.of("samplingTransforms", "parameterDrivers", "typeIntervals").contains(property))
+      throw new IllegalArgumentException("Not an ordered World property");
+    numericRows.clear();
+    worldControlCenters.clear();
+    worldListControls.clear();
+    synchronizeWorldControls();
+    boolean previous = probingWorldNumbers;
+    probingWorldNumbers = true;
+    ImGui.pushID(property);
+    try {
+      editSetting(((Layer) state.draft).defaults, property);
+    } finally {
+      ImGui.popID();
+      probingWorldNumbers = previous;
+    }
+  }
+
+  private void synchronizeWorldControls() {
+    if (!Objects.equals(last, state.selected) || lastDraft != state.draft) {
+      last = state.selected;
+      lastDraft = state.draft;
+      worldStructureChanged();
+    }
+  }
+
   private UUID last;
   private Object lastDraft;
   private CurveDialog curve;
@@ -543,6 +578,7 @@ public final class PropertyPanel {
     footerEditable = false;
     seedCenters.clear();
     worldControlCenters.clear();
+    worldListControls.clear();
     parameterCenters.clear();
     bindingRects.clear();
     sourceControlCenters.clear();
@@ -593,13 +629,7 @@ public final class PropertyPanel {
         ImGui.setScrollY(0);
         probeSeedTop = false;
       }
-      if (!Objects.equals(last, state.selected) || lastDraft != state.draft) {
-        last = state.selected;
-        lastDraft = state.draft;
-        f.clear();
-        conditionErrors.clear();
-        conditionVersion++;
-      }
+      synchronizeWorldControls();
       if (state.multiSelection.size() > 1) {
         ImGui.text(state.multiSelection.size() + " sibling resources selected");
         ImGui.textWrapped("Select one resource to edit its properties.");
@@ -3012,9 +3042,7 @@ public final class PropertyPanel {
     try {
       if (edit.getAsBoolean()) {
         if (gate) changedGateSeeds();
-        conditionErrors.clear();
-        conditionVersion++;
-        f.clear();
+        worldStructureChanged();
       }
     } catch (IllegalArgumentException ex) {
       conditionErrors.put(
@@ -3047,7 +3075,7 @@ public final class PropertyPanel {
           "Condition exceeds the supported nesting depth; replace its parent to repair.");
       return;
     }
-    ImGui.pushID("condition-values:" + conditionVersion);
+    ImGui.pushID("condition-values:" + worldControlVersion);
     settingControl(
         "kind",
         () ->
@@ -3075,7 +3103,7 @@ public final class PropertyPanel {
         if (conditionTree("Clause " + (i + 1) + " (level " + (depth + 1) + ")", depth)) {
           var child = p.children.get(i);
           nestedSetting("children/" + i, () -> predicate(child, depth + 1));
-          ImGui.pushID("condition-actions:" + conditionVersion);
+          ImGui.pushID("condition-actions:" + worldControlVersion);
           ImGui.beginDisabled(p.children.size() <= 1);
           if (ImGui.smallButton("Remove")) remove = i;
           ImGui.endDisabled();
@@ -3088,7 +3116,7 @@ public final class PropertyPanel {
         int index = remove;
         conditionEdit(() -> WorldConditionEdits.remove(p, index), false);
       }
-      ImGui.pushID("condition-actions:" + conditionVersion);
+      ImGui.pushID("condition-actions:" + worldControlVersion);
       ImGui.beginDisabled(depth >= WorldConditionEdits.MAX_DEPTH);
       if (ImGui.button("Add Clause")) conditionEdit(() -> WorldConditionEdits.add(p, depth), false);
       ImGui.endDisabled();
@@ -3103,7 +3131,7 @@ public final class PropertyPanel {
       ImGui.textWrapped("Gate exceeds the supported nesting depth; replace its parent to repair.");
       return;
     }
-    ImGui.pushID("condition-values:" + conditionVersion);
+    ImGui.pushID("condition-values:" + worldControlVersion);
     settingControl(
         "kind",
         () ->
@@ -3151,7 +3179,7 @@ public final class PropertyPanel {
         if (conditionTree("Gate clause " + (i + 1) + " (level " + (depth + 1) + ")", depth)) {
           var child = g.children.get(i);
           nestedSetting("children/" + i, () -> gate(child, depth + 1));
-          ImGui.pushID("condition-actions:" + conditionVersion);
+          ImGui.pushID("condition-actions:" + worldControlVersion);
           ImGui.beginDisabled(g.children.size() <= 1);
           if (ImGui.smallButton("Remove")) remove = i;
           ImGui.endDisabled();
@@ -3164,7 +3192,7 @@ public final class PropertyPanel {
         int index = remove;
         conditionEdit(() -> WorldConditionEdits.remove(g, index), true);
       }
-      ImGui.pushID("condition-actions:" + conditionVersion);
+      ImGui.pushID("condition-actions:" + worldControlVersion);
       ImGui.beginDisabled(
           depth >= WorldConditionEdits.MAX_DEPTH || g.kind.equals("NOT") && !g.children.isEmpty());
       if (ImGui.button("Add Gate")) conditionEdit(() -> WorldConditionEdits.add(g, depth), true);
@@ -3245,6 +3273,80 @@ public final class PropertyPanel {
               + " parameter-only input.");
   }
 
+  private void worldStructureChanged() {
+    worldControlVersion++;
+    noiseChanged();
+    conditionErrors.clear();
+    f.clear();
+  }
+
+  private void worldListValues(int index, Runnable draw) {
+    ImGui.pushID("world-values:" + worldControlVersion);
+    try {
+      nestedSetting(Integer.toString(index), draw);
+    } finally {
+      ImGui.popID();
+    }
+  }
+
+  private boolean worldListButton(String key, String label, boolean enabled) {
+    int id = ImGui.getID(label);
+    boolean clicked;
+    ImGui.beginDisabled(!enabled);
+    try {
+      clicked = DialogLayout.button(label);
+    } finally {
+      ImGui.endDisabled();
+    }
+    worldListControls.put(
+        worldSettingPath + "/" + key, new WorldListControl(id, PopupLayout.itemBounds(), enabled));
+    return enabled && clicked;
+  }
+
+  private <T> WorldListEdits.Request<T> worldListActions(
+      List<T> rows, int index, int limit, boolean duplicate) {
+    WorldListEdits.Request<T> request = null;
+    ImGui.pushID("world-actions:" + worldControlVersion);
+    try {
+      if (worldListButton(index + "/up", "Up", index > 0))
+        request = WorldListEdits.request(rows, index, WorldListEdits.Action.UP);
+      DialogLayout.sameLine("Down");
+      if (worldListButton(index + "/down", "Down", index + 1 < rows.size()))
+        request = WorldListEdits.request(rows, index, WorldListEdits.Action.DOWN);
+      if (duplicate) {
+        DialogLayout.sameLine("Duplicate");
+        if (worldListButton(index + "/duplicate", "Duplicate", rows.size() < limit))
+          request = WorldListEdits.request(rows, index, WorldListEdits.Action.DUPLICATE);
+      }
+      DialogLayout.sameLine("Remove");
+      if (worldListButton(index + "/remove", "Remove", true))
+        request = WorldListEdits.request(rows, index, WorldListEdits.Action.REMOVE);
+      return request;
+    } finally {
+      ImGui.popID();
+    }
+  }
+
+  private <T> void finishWorldList(
+      List<T> rows,
+      WorldListEdits.Request<T> request,
+      int limit,
+      Class<T> type,
+      String addLabel,
+      Supplier<T> create) {
+    // Delivery follows the complete row loop. A successor list/structure cannot receive an old
+    // intent.
+    if (WorldListEdits.apply(rows, request, limit, type)) worldStructureChanged();
+    ImGui.pushID("world-actions:" + worldControlVersion);
+    try {
+      boolean add = worldListButton("add", addLabel, rows.size() < limit && request == null);
+      if (add && WorldListEdits.add(rows, create.get(), limit)) worldStructureChanged();
+    } finally {
+      ImGui.popID();
+    }
+    ImGui.textDisabled(rows.size() + " / " + limit + " rows");
+  }
+
   private void parameterDrivers(Settings settings) {
     var drivers = settings.parameterDrivers;
     ImGui.textWrapped(
@@ -3256,76 +3358,97 @@ public final class PropertyPanel {
             + " field, sampled at baseline placement coordinates. Interpretation rows run next;"
             + " strength/probability rows run only after interpretation and type selection pass."
             + " Each phase preserves authored row order.");
-    int remove = -1, up = -1, down = -1;
+    WorldListEdits.Request<NumericDriver> request = null;
     for (int i = 0; i < drivers.size(); i++) {
       ImGui.pushID(i);
       var d = drivers.get(i);
       if (smokeWorldSettings != null || probingParameterDrivers || probingWorldNumbers)
         ImGui.setNextItemOpen(true, ImGuiCond.Always);
-      if (ImGui.treeNode("Driver " + (i + 1) + " : " + AppMetadata.settingLabel(d.destination))) {
-        if (UiScale.beginCombo("Destination", AppMetadata.settingLabel(d.destination))) {
-          for (String destination : WorldSemantics.PARAMETER_TARGETS)
-            if (ImGui.selectable(
-                AppMetadata.settingLabel(destination), d.destination.equals(destination))) {
-              d.destination = destination;
-              d.transformIndex =
-                  WorldSemantics.parameter(destination).transform()
-                      ? Math.max(0, d.transformIndex)
-                      : -1;
-            }
-          ImGui.endCombo();
-        }
-        f.choice("Combination", d.combination, WorldSemantics.COMBINATIONS, v -> d.combination = v);
-        if (WorldSemantics.PARAMETER_TARGETS.contains(d.destination)) {
-          var target = WorldSemantics.parameter(d.destination);
-          if (target.transform()) {
-            settingInteger(
-                "transformIndex",
-                "Transform row (1-based)",
-                d.transformIndex + 1,
-                1,
-                Math.max(1, settings.samplingTransforms.size()),
-                v -> d.transformIndex = v <= 0 ? -1 : v - 1);
-            if (d.transformIndex >= 0 && d.transformIndex < settings.samplingTransforms.size()) {
-              var transform = settings.samplingTransforms.get(d.transformIndex);
-              ImGui.textWrapped(
-                  transform.kind + (transform.enabled ? "" : " (disabled; driver is skipped)"));
-            }
-            ImGui.textWrapped(
-                "Row numbers follow the ordered transform list. Reordering transforms changes the"
-                    + " target. Rotation components use degrees; pivots apply to Scale and"
-                    + " Rotate.");
-          }
-          ImGui.textWrapped(
-              "Phase: "
-                  + target.phase
-                  + (target.explicitField
-                      ? ". Explicit field required; baseline coordinates are fixed for all sampling"
-                          + " rows."
-                      : target.unitRange ? ". Every effective result must remain in [0,1]." : "."));
-        }
-        parameterDriverRow = i;
-        try {
-          fieldDriver(d, false);
-        } finally {
-          parameterDriverRow = -1;
-        }
-        if (i > 0 && ImGui.smallButton("Move Up")) up = i;
-        if (i > 0) ImGui.sameLine();
-        if (i + 1 < drivers.size() && ImGui.smallButton("Move Down")) down = i;
-        if (i + 1 < drivers.size()) ImGui.sameLine();
-        if (ImGui.smallButton("Remove")) remove = i;
+      if (ImGui.treeNode(
+          "Driver "
+              + (i + 1)
+              + " : "
+              + AppMetadata.settingLabel(d.destination)
+              + "###world-driver")) {
+        int index = i;
+        worldListValues(index, () -> parameterDriverValues(settings, d, index));
+        var rowRequest = worldListActions(drivers, i, 32, true);
+        if (rowRequest != null) request = rowRequest;
         ImGui.treePop();
       }
       ImGui.popID();
     }
-    if (remove >= 0) drivers.remove(remove);
-    else if (up >= 0) Collections.swap(drivers, up, up - 1);
-    else if (down >= 0) Collections.swap(drivers, down, down + 1);
-    if (drivers.size() < 32 && ImGui.button("Add Parameter Driver")) {
-      var d = new NumericDriver();
-      d.enabled = true;
-      drivers.add(d);
+    finishWorldList(
+        drivers,
+        request,
+        32,
+        NumericDriver.class,
+        "Add Parameter Driver",
+        () -> {
+          var d = new NumericDriver();
+          d.enabled = true;
+          return d;
+        });
+  }
+
+  private void parameterDriverValues(Settings settings, NumericDriver d, int index) {
+    settingControl(
+        "destination",
+        () -> {
+          if (UiScale.beginCombo("Destination", AppMetadata.settingLabel(d.destination))) {
+            for (String destination : WorldSemantics.PARAMETER_TARGETS) {
+              if (ImGui.selectable(
+                      AppMetadata.settingLabel(destination), d.destination.equals(destination))
+                  && !d.destination.equals(destination)) {
+                d.destination = destination;
+                d.transformIndex =
+                    WorldSemantics.parameter(destination).transform()
+                        ? Math.max(0, d.transformIndex)
+                        : -1;
+                worldStructureChanged();
+              }
+            }
+            ImGui.endCombo();
+          }
+        });
+    settingControl(
+        "combination",
+        () ->
+            f.choice(
+                "Combination", d.combination, WorldSemantics.COMBINATIONS, v -> d.combination = v));
+    if (WorldSemantics.PARAMETER_TARGETS.contains(d.destination)) {
+      var target = WorldSemantics.parameter(d.destination);
+      if (target.transform()) {
+        settingInteger(
+            "transformIndex",
+            "Transform row (1-based)",
+            d.transformIndex + 1,
+            1,
+            Math.max(1, settings.samplingTransforms.size()),
+            v -> d.transformIndex = v <= 0 ? -1 : v - 1);
+        if (d.transformIndex >= 0 && d.transformIndex < settings.samplingTransforms.size()) {
+          var transform = settings.samplingTransforms.get(d.transformIndex);
+          ImGui.textWrapped(
+              transform.kind + (transform.enabled ? "" : " (disabled; driver is skipped)"));
+        }
+        ImGui.textWrapped(
+            "Transform row numbers stay fixed when transforms are moved, duplicated or removed."
+                + " Check targets after changing that list. Rotation uses degrees; pivots apply to"
+                + " Scale and Rotate.");
+      }
+      ImGui.textWrapped(
+          "Phase: "
+              + target.phase
+              + (target.explicitField
+                  ? ". Explicit field required; baseline coordinates are fixed for all sampling"
+                        + " rows."
+                  : target.unitRange ? ". Every effective result must remain in [0,1]." : "."));
+    }
+    parameterDriverRow = index;
+    try {
+      fieldDriver(d, false);
+    } finally {
+      parameterDriverRow = -1;
     }
   }
 
@@ -3333,106 +3456,123 @@ public final class PropertyPanel {
     ImGui.textWrapped(
         "Non-overlapping scalar intervals select occupied types. No match leaves the previous voxel"
             + " unchanged. Shared endpoints may belong to at most one interval.");
-    int remove = -1, up = -1, down = -1;
+    WorldListEdits.Request<TypeInterval> request = null;
     for (int i = 0; i < intervals.size(); i++) {
       ImGui.pushID(i);
       var r = intervals.get(i);
       if (smokeWorldSettings != null || probingWorldNumbers)
         ImGui.setNextItemOpen(true, ImGuiCond.Always);
       if (ImGui.treeNode(
-          "Interval " + (i + 1) + " : " + idFor(state.project().voxelTypes, r.voxelTypeUuid))) {
-        settingNumber("min", "Minimum", r.min, -1, 1, v -> r.min = v);
-        settingNumber("max", "Maximum", r.max, -1, 1, v -> r.max = v);
-        f.bool("Include minimum", r.includeMin, v -> r.includeMin = v);
-        f.bool("Include maximum", r.includeMax, v -> r.includeMax = v);
-        typePicker("Voxel type", r.voxelTypeUuid, v -> r.voxelTypeUuid = v);
-        if (i > 0) {
-          if (ImGui.smallButton("Up")) up = i;
-          ImGui.sameLine();
-        }
-        if (i + 1 < intervals.size()) {
-          if (ImGui.smallButton("Down")) down = i;
-          ImGui.sameLine();
-        }
-        if (ImGui.smallButton("Remove")) remove = i;
+          "Interval "
+              + (i + 1)
+              + " : "
+              + idFor(state.project().voxelTypes, r.voxelTypeUuid)
+              + "###world-interval")) {
+        worldListValues(
+            i,
+            () -> {
+              settingNumber("min", "Minimum", r.min, -1, 1, v -> r.min = v);
+              settingNumber("max", "Maximum", r.max, -1, 1, v -> r.max = v);
+              settingControl(
+                  "includeMin",
+                  () -> f.bool("Include minimum", r.includeMin, v -> r.includeMin = v));
+              settingControl(
+                  "includeMax",
+                  () -> f.bool("Include maximum", r.includeMax, v -> r.includeMax = v));
+              settingControl(
+                  "voxelTypeUuid",
+                  () -> typePicker("Voxel type", r.voxelTypeUuid, v -> r.voxelTypeUuid = v),
+                  resourcePicker::focused);
+            });
+        var rowRequest = worldListActions(intervals, i, 256, false);
+        if (rowRequest != null) request = rowRequest;
         ImGui.treePop();
       }
       ImGui.popID();
     }
-    if (remove >= 0) intervals.remove(remove);
-    else if (up >= 0) Collections.swap(intervals, up, up - 1);
-    else if (down >= 0) Collections.swap(intervals, down, down + 1);
-    if (intervals.size() < 256 && ImGui.button("Add Type Interval")) {
-      var r = new TypeInterval();
-      if (!intervals.isEmpty()) {
-        r.min = intervals.getLast().max;
-        r.max = r.min + 1;
-        r.includeMin = !intervals.getLast().includeMax;
-      }
-      if (!state.project().voxelTypes.isEmpty())
-        r.voxelTypeUuid = state.project().voxelTypes.getFirst().uuid;
-      intervals.add(r);
-    }
+    finishWorldList(
+        intervals,
+        request,
+        256,
+        TypeInterval.class,
+        "Add Type Interval",
+        () -> {
+          var r = new TypeInterval();
+          if (!intervals.isEmpty()) {
+            r.min = intervals.getLast().max;
+            r.max = r.min + 1;
+            r.includeMin = !intervals.getLast().includeMax;
+          }
+          if (!state.project().voxelTypes.isEmpty())
+            r.voxelTypeUuid = state.project().voxelTypes.getFirst().uuid;
+          return r;
+        });
   }
 
   private void samplingTransforms(List<SamplingTransform> transforms) {
     ImGui.textWrapped(
         "Signed axes, then component scale/offset, then this list in order. Rotations are"
             + " right-handed degrees about the pivot. 2D fields use transformed X/Z.");
-    int remove = -1, up = -1, down = -1;
+    ImGui.textWrapped(
+        "Numeric drivers target row numbers. Moving, duplicating or removing a transform can change"
+            + " the target or make it invalid; driver rows are not renumbered automatically.");
+    WorldListEdits.Request<SamplingTransform> request = null;
     for (int i = 0; i < transforms.size(); i++) {
       ImGui.pushID(i);
       var t = transforms.get(i);
       if (smokeWorldSettings != null || probingWorldNumbers)
         ImGui.setNextItemOpen(true, ImGuiCond.Always);
-      if (ImGui.treeNode("Transform " + (i + 1) + " : " + t.kind)) {
-        f.bool("Enabled", t.enabled, v -> t.enabled = v);
-        f.choice(
-            "Kind",
-            t.kind,
-            WorldSemantics.TRANSFORMS,
-            v -> {
-              t.kind = v;
-              t.x = t.y = t.z = v.equals("SCALE") ? 1 : 0;
-            });
-        double extent = t.kind.equals("ROTATE") ? 180 : t.kind.equals("SCALE") ? 8 : 1024;
-        settingNumber("x", "X", t.x, -extent, extent, v -> t.x = v);
-        settingNumber("y", "Y", t.y, -extent, extent, v -> t.y = v);
-        settingNumber("z", "Z", t.z, -extent, extent, v -> t.z = v);
-        if (!t.kind.equals("TRANSLATE")) {
-          settingNumber("pivotX", "Pivot X", t.pivotX, -1024, 1024, v -> t.pivotX = v);
-          settingNumber("pivotY", "Pivot Y", t.pivotY, -1024, 1024, v -> t.pivotY = v);
-          settingNumber("pivotZ", "Pivot Z", t.pivotZ, -1024, 1024, v -> t.pivotZ = v);
-          if (t.kind.equals("ROTATE"))
-            f.choice(
-                "Axis order",
-                t.rotationOrder,
-                WorldSemantics.ROTATION_ORDERS,
-                v -> t.rotationOrder = v);
-        }
-        if (i > 0) {
-          if (ImGui.smallButton("Up")) up = i;
-          ImGui.sameLine();
-        }
-        if (i + 1 < transforms.size()) {
-          if (ImGui.smallButton("Down")) down = i;
-          ImGui.sameLine();
-        }
-        if (ImGui.smallButton("Duplicate") && transforms.size() < 64)
-          transforms.add(
-              i + 1,
-              ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(t), SamplingTransform.class));
-        ImGui.sameLine();
-        if (ImGui.smallButton("Remove")) remove = i;
+      if (ImGui.treeNode("Transform " + (i + 1) + " : " + t.kind + "###world-transform")) {
+        worldListValues(i, () -> samplingTransformValues(t));
+        var rowRequest = worldListActions(transforms, i, 64, true);
+        if (rowRequest != null) request = rowRequest;
         ImGui.treePop();
       }
       ImGui.popID();
     }
-    if (remove >= 0) transforms.remove(remove);
-    else if (up >= 0) Collections.swap(transforms, up, up - 1);
-    else if (down >= 0) Collections.swap(transforms, down, down + 1);
-    if (transforms.size() < 64 && ImGui.button("Add Sampling Transform"))
-      transforms.add(new SamplingTransform());
+    finishWorldList(
+        transforms,
+        request,
+        64,
+        SamplingTransform.class,
+        "Add Sampling Transform",
+        SamplingTransform::new);
+  }
+
+  private void samplingTransformValues(SamplingTransform t) {
+    settingControl("enabled", () -> f.bool("Enabled", t.enabled, v -> t.enabled = v));
+    settingControl(
+        "kind",
+        () ->
+            f.choice(
+                "Kind",
+                t.kind,
+                WorldSemantics.TRANSFORMS,
+                v -> {
+                  if (!t.kind.equals(v)) {
+                    t.kind = v;
+                    t.x = t.y = t.z = v.equals("SCALE") ? 1 : 0;
+                    worldStructureChanged();
+                  }
+                }));
+    double extent = t.kind.equals("ROTATE") ? 180 : t.kind.equals("SCALE") ? 8 : 1024;
+    settingNumber("x", "X", t.x, -extent, extent, v -> t.x = v);
+    settingNumber("y", "Y", t.y, -extent, extent, v -> t.y = v);
+    settingNumber("z", "Z", t.z, -extent, extent, v -> t.z = v);
+    if (!t.kind.equals("TRANSLATE")) {
+      settingNumber("pivotX", "Pivot X", t.pivotX, -1024, 1024, v -> t.pivotX = v);
+      settingNumber("pivotY", "Pivot Y", t.pivotY, -1024, 1024, v -> t.pivotY = v);
+      settingNumber("pivotZ", "Pivot Z", t.pivotZ, -1024, 1024, v -> t.pivotZ = v);
+      if (t.kind.equals("ROTATE"))
+        settingControl(
+            "rotationOrder",
+            () ->
+                f.choice(
+                    "Axis order",
+                    t.rotationOrder,
+                    WorldSemantics.ROTATION_ORDERS,
+                    v -> t.rotationOrder = v));
+    }
   }
 
   private static final class SeedText {

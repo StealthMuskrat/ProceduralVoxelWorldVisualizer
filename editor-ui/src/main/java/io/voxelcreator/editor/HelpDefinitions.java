@@ -91,6 +91,21 @@ final class HelpDefinitions {
                   + " independent fixed XYZ counts through scalar textures and ray-box rendering."
                   + " Camera-relative streaming retains its uniform chunk-based window control."),
           new Guide(
+              "help.world-lists",
+              "World ordered settings",
+              "Sampling transforms, numeric parameter drivers and type intervals are ordered"
+                  + " private settings lists. Up/Down move a row; Remove deletes that row."
+                  + " Transform and parameter-driver Duplicate creates an independent copy"
+                  + " immediately after it. Lists show their row count and existing limits."
+                  + " Transform order changes sampling; driver order changes value composition"
+                  + " inside each phase. Numeric transform drivers target row numbers, which stay"
+                  + " fixed after moves, copies or removal. Review their targets explicitly;"
+                  + " invalid targets block Apply. Non-overlapping type intervals retain their"
+                  + " endpoint behavior when reordered. Placement lists inherit live until Override"
+                  + " and replace one whole property. Reset removes that override. Apply commits"
+                  + " the complete private resource as one undoable project edit; saving remains"
+                  + " explicit."),
+          new Guide(
               "help.world-conditions",
               "World logical conditions",
               "Previous Voxel State predicates inspect the existing voxel; EMPTY is distinct from"
@@ -131,7 +146,13 @@ final class HelpDefinitions {
               "noise", List.of("noise.algorithm", "processing", "layers", "creation-defaults")),
           Map.entry(
               "layers",
-              List.of("noise", "processing", "archives", "help.trace", "help.world-conditions")),
+              List.of(
+                  "noise",
+                  "processing",
+                  "archives",
+                  "help.trace",
+                  "help.world-conditions",
+                  "help.world-lists")),
           Map.entry("navigation", List.of("bookmarks", "help.workspace", "shortcuts")),
           Map.entry("save", List.of("help.project-settings", "archives", "creation-defaults")),
           Map.entry("processing", List.of("noise", "layers", "help.trace")),
@@ -151,6 +172,7 @@ final class HelpDefinitions {
           Map.entry("help.appearance", List.of("themes", "help.workspace", "shortcuts")),
           Map.entry("help.voxel-identities", List.of("layers", "archives", "help.find")),
           Map.entry("help.visualization", List.of("archives", "profiler", "help.workspace")),
+          Map.entry("help.world-lists", List.of("layers", "help.world-conditions", "help.trace")),
           Map.entry(
               "help.world-conditions", List.of("layers", "help.trace", "help.project-settings")),
           Map.entry("help.trace", List.of("layers", "diagnostics", "help.find")),

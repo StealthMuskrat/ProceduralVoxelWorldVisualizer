@@ -254,3 +254,5 @@ The unvalidated [rectangular slices](docs/RECTANGULAR_SLICES.md) extend XYZ exte
 The unvalidated [rectangular fixed volumes](docs/RECTANGULAR_FIXED_VOLUMES.md) carry XYZ counts through scalar texture sampling, bounded replacement/overlap and per-axis ray/light rendering. Deferred native/independent replay remains unexecuted; no workflows ran.
 
 The unvalidated [World condition grouping](docs/WORLD_CONDITION_GROUPING.md) retains clauses through AND/OR/NOT edits, protects logical arity, supports 32 nested levels and reports precise nested diagnostics. Twelve deferred regression definitions include engine interval/EMPTY-state and transaction expectations; no compilation, tests or workflows ran.
+
+The unvalidated [World ordered-settings follow-up](docs/WORLD_ORDERED_SETTINGS.md) stages list changes after drawing, refreshes row control ownership, adds parameter-driver duplication and exposes complete indexed controls. Ten deferred contracts and nine native layout definitions remain unexecuted; main and the testing pause are unchanged.
