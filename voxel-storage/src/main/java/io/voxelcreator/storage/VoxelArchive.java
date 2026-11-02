@@ -58,22 +58,40 @@ public final class VoxelArchive {
     }
   }
 
+  /** Single-caller streaming writer. Only finish publishes; close aborts unpublished work. */
   public static final class Writer implements AutoCloseable {
+    private enum State {
+      OPEN,
+      PREPARED,
+      FINISHED,
+      FAILED,
+      CLOSED
+    }
+
     private final Path destination, temp;
-    private final RandomAccessFile file;
+    private final ArchiveOutput file;
     private final VoxelRegistry registry;
     private final Format format;
     private final Map<ChunkPos, Entry> index = new LinkedHashMap<>();
-    private boolean finished = false, closed = false;
+    private State state = State.OPEN;
+    private boolean fileClosed;
 
     Writer(Path path, VoxelRegistry registry, Format format) throws IOException {
+      this(path, registry, format, ArchiveOutput::open);
+    }
+
+    Writer(Path path, VoxelRegistry registry, Format format, ArchiveOutput.Factory factory)
+        throws IOException {
       this.format = Objects.requireNonNull(format);
       this.registry = Objects.requireNonNull(registry);
+      Objects.requireNonNull(factory);
       destination = path.toAbsolutePath();
       Files.createDirectories(destination.getParent());
       temp = Files.createTempFile(destination.getParent(), ".voxel-archive-", ".tmp");
-      file = new RandomAccessFile(temp.toFile(), "rw");
+      ArchiveOutput opened = null;
       try {
+        opened = factory.open(temp);
+        file = Objects.requireNonNull(opened);
         file.writeLong(MAGIC);
         file.writeInt(format.version);
         file.writeInt(1);
@@ -81,30 +99,34 @@ public final class VoxelArchive {
         if (registry.size() > MAX_ENTRIES) throw new IOException("Dictionary count limit");
         for (String id : registry.semanticIds()) {
           file.writeUTF(id);
-          if (file.getFilePointer() > 20L + MAX_DICTIONARY_BYTES)
+          if (file.position() > 20L + MAX_DICTIONARY_BYTES)
             throw new IOException("Dictionary byte limit");
         }
-      } catch (IOException | RuntimeException failure) {
-        try {
-          file.close();
-        } catch (IOException cleanup) {
-          failure.addSuppressed(cleanup);
+      } catch (IOException | RuntimeException | Error failure) {
+        if (opened != null) {
+          try {
+            opened.close();
+          } catch (IOException cleanup) {
+            if (cleanup != failure) failure.addSuppressed(cleanup);
+          }
         }
         try {
           Files.deleteIfExists(temp);
         } catch (IOException cleanup) {
-          failure.addSuppressed(cleanup);
+          if (cleanup != failure) failure.addSuppressed(cleanup);
         }
         throw failure;
       }
     }
 
     public void append(VoxelChunk chunk) throws IOException {
-      if (closed || finished) throw new IOException("Writer finished");
+      if (state != State.OPEN) throw new IOException("Writer is not open for appending: " + state);
+      Objects.requireNonNull(chunk);
       if (index.size() >= MAX_ENTRIES) throw new IOException("Archive index limit reached");
       if (index.containsKey(chunk.position())) throw new IOException("Duplicate chunk position");
       long offset = 0;
       int length = 0;
+      byte[] payload = null;
       if (!chunk.isEmpty()) {
         var buffer = new ByteArrayOutputStream();
         try (var out = new DataOutputStream(new DeflaterOutputStream(buffer))) {
@@ -116,61 +138,101 @@ public final class VoxelArchive {
           if (format == Format.LEGACY_V1) chunk.writeTree(out, mapping);
           else chunk.writePackedTree(out, mapping);
         }
-        byte[] payload = buffer.toByteArray();
+        payload = buffer.toByteArray();
         if (payload.length > MAX_PAYLOAD) throw new IOException("Payload limit");
-        offset = file.getFilePointer();
+        offset = file.position();
         length = payload.length;
-        try {
-          file.write(payload);
-        } catch (IOException failure) {
-          try {
-            file.setLength(offset);
-            file.seek(offset);
-          } catch (IOException cleanup) {
-            failure.addSuppressed(cleanup);
-          }
-          throw failure;
-        }
       }
-      index.put(chunk.position(), new Entry(chunk.position(), chunk.size(), offset, length));
+      // An unchecked failure during file/index mutation must never leave a publishable writer.
+      state = State.FAILED;
+      try {
+        if (payload != null) file.write(payload);
+        index.put(chunk.position(), new Entry(chunk.position(), chunk.size(), offset, length));
+      } catch (IOException failure) {
+        if (rollback(offset, failure)) state = State.OPEN;
+        throw failure;
+      }
+      state = State.OPEN;
     }
 
-    public void finish() throws IOException {
-      if (finished) return;
-      if (closed) throw new IOException("Writer closed");
-      long start = file.getFilePointer();
-      file.writeInt(index.size());
-      var entries = new ArrayList<>(index.values());
-      entries.sort(Comparator.comparing(Entry::position));
-      for (var e : entries) {
-        file.writeInt(e.position.x());
-        file.writeInt(e.position.y());
-        file.writeInt(e.position.z());
-        file.writeInt(e.size);
-        file.writeLong(e.offset);
-        file.writeInt(e.length);
+    private boolean rollback(long start, IOException failure) {
+      try {
+        file.rollback(start);
+        return true;
+      } catch (IOException cleanup) {
+        if (cleanup != failure) failure.addSuppressed(cleanup);
+        return false;
       }
-      file.writeLong(start);
-      file.writeLong(FOOTER);
-      file.getFD().sync();
-      file.close();
-      closed = true;
+    }
+
+    /**
+     * Sync and publish once. Successful preparation is retained across publication failure; retry
+     * finish to publish it. An unsuccessful rollback or file close requires close/recreate.
+     */
+    public void finish() throws IOException {
+      if (state == State.FINISHED) return;
+      if (state == State.CLOSED || state == State.FAILED)
+        throw new IOException("Writer cannot finish: " + state);
+      if (state == State.OPEN) {
+        long start = file.position();
+        state = State.FAILED;
+        try {
+          file.writeInt(index.size());
+          var entries = new ArrayList<>(index.values());
+          entries.sort(Comparator.comparing(Entry::position));
+          for (var e : entries) {
+            file.writeInt(e.position.x());
+            file.writeInt(e.position.y());
+            file.writeInt(e.position.z());
+            file.writeInt(e.size);
+            file.writeLong(e.offset);
+            file.writeInt(e.length);
+          }
+          file.writeLong(start);
+          file.writeLong(FOOTER);
+          file.sync();
+        } catch (IOException failure) {
+          if (rollback(start, failure)) state = State.OPEN;
+          throw failure;
+        }
+        try {
+          file.close();
+          fileClosed = true;
+        } catch (IOException failure) {
+          state = State.FAILED;
+          throw failure;
+        }
+        state = State.PREPARED;
+      }
       try {
         Files.move(
             temp, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-      } catch (AtomicMoveNotSupportedException e) {
+      } catch (AtomicMoveNotSupportedException unsupported) {
         Files.move(temp, destination, StandardCopyOption.REPLACE_EXISTING);
       }
-      finished = true;
+      state = State.FINISHED;
     }
 
     @Override
     public void close() throws IOException {
-      if (!closed) {
-        closed = true;
-        file.close();
+      if (state == State.FINISHED) return;
+      state = State.CLOSED;
+      IOException failure = null;
+      if (!fileClosed) {
+        try {
+          file.close();
+          fileClosed = true;
+        } catch (IOException cleanup) {
+          failure = cleanup;
+        }
       }
-      if (!finished) Files.deleteIfExists(temp);
+      try {
+        Files.deleteIfExists(temp);
+      } catch (IOException cleanup) {
+        if (failure == null) failure = cleanup;
+        else if (failure != cleanup) failure.addSuppressed(cleanup);
+      }
+      if (failure != null) throw failure;
     }
   }
 

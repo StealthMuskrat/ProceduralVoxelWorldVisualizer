@@ -262,3 +262,5 @@ The unvalidated [scalar readout follow-up](docs/SCALAR_READOUTS.md) keeps tiny v
 The unvalidated [World interval-default follow-up](docs/WORLD_INTERVAL_DEFAULTS.md) previews disjoint Add ranges independently of row order, handles finite limits and blocks unavailable additions with guidance. Signed-zero interval ordering now agrees with membership without rewriting stored bits. Thirteen new deferred contracts and extended native replay remain unexecuted.
 
 The unvalidated [region completion follow-up](docs/REGION_COMPLETION_OWNERSHIP.md) isolates stream observation futures, publishes terminal results after region-slot cleanup and withdraws undeliverable async collections even when a public completion callback blocks. Eight deferred contracts and an independent engine-only replay remain unexecuted; no workflows ran.
+
+The unvalidated [archive writer recovery follow-up](docs/ARCHIVE_WRITER_RECOVERY.md) rolls back failed preparation, retains valid prepared bytes for publication retry and blocks uncertain writers from publishing. Eleven deferred I/O-fault definitions and an independent legacy/packed replay remain unexecuted; no tests or workflows ran.

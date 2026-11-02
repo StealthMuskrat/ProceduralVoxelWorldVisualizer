@@ -38,6 +38,7 @@ jobs:
           javac -cp build/release/jars/noise-generator-engine.jar -d build/independent example-client/src/main/java/io/voxelcreator/example/*.java
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.Example build/independent/output
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.RegionCompletionConsumer build/independent/output
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ArchiveRecoveryConsumer build/independent/archive-recovery
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WorldWorkConsumer fixtures/work-profile-project.json build/independent/output
           python scripts/verify_world_work.py build/independent/output
@@ -520,6 +521,7 @@ jobs:
           name: linux-evidence
           path: |
             build/independent/output/region-completion*.json
+            build/independent/archive-recovery/
             **/build/test-results/
             **/build/reports/tests/
             build/smoke/
@@ -670,6 +672,8 @@ jobs:
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.Example build/independent/output
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.RegionCompletionConsumer build/independent/output
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ArchiveRecoveryConsumer build/independent/archive-recovery
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -1602,6 +1606,7 @@ jobs:
           name: windows-development-build
           path: |
             build/independent/output/region-completion*.json
+            build/independent/archive-recovery/
             build/packages/*.zip
             build/packages/*.sha256
             build/windows-smoke.log
