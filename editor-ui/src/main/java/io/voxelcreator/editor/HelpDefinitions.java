@@ -86,7 +86,9 @@ final class HelpDefinitions {
                   + " Navigation preserves procedural values and private resource edits. Fixed"
                   + " Threshold Voxels, Point Cloud and Isosurface analysis offers independent"
                   + " Extent X/Y/Z cell counts, bounded by each axis and the total preview budget."
-                  + " Volume and Slices retain their separate extent controls."),
+                  + " Orthogonal Slices use the same XYZ extents projected onto their active"
+                  + " plane, with separate width/height sampling and navigation. Volume retains"
+                  + " its uniform extent control."),
           new Guide(
               "help.trace",
               "Generation traces",

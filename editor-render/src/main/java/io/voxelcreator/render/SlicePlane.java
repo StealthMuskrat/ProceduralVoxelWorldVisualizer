@@ -15,6 +15,19 @@ public enum SlicePlane {
     return axes;
   }
 
+  public int width(GridExtent extent) {
+    return this == X ? extent.height() : extent.width();
+  }
+
+  public int height(GridExtent extent) {
+    return this == Z ? extent.height() : extent.depth();
+  }
+
+  /** Only the active plane is sampled: width * height cells, not a padded cube. */
+  public GridExtent imageExtent(GridExtent extent) {
+    return new GridExtent(width(extent), 1, height(extent));
+  }
+
   public double x(double u, double v, double fixed) {
     return this == X ? fixed : u;
   }

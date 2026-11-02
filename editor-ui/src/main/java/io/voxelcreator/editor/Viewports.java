@@ -437,6 +437,7 @@ public final class Viewports implements AutoCloseable {
     v.slicePlane = plane;
     v.slice = slice;
     v.size = side;
+    v.fixedExtent = null;
     v.step = step;
     v.panX = plane == SlicePlane.X ? 0 : u;
     v.panY = plane == SlicePlane.X ? u : plane == SlicePlane.Z ? vertical : 0;
@@ -445,10 +446,21 @@ public final class Viewports implements AutoCloseable {
     mark(v);
   }
 
+  void probeRectangularSlice(UUID noise, SlicePlane plane, GridExtent extent) {
+    probeSlice(noise, plane, 8, -3, 0, 0, .75);
+    var v = views[1];
+    v.fixedExtent = extent;
+    v.panX = -7.25;
+    v.panY = 12.5;
+    v.panZ = 5.75;
+    mark(v);
+  }
+
   void probeSliceRequest(SlicePlane plane, int side, int slice) {
     var v = views[1];
     v.slicePlane = plane;
     v.size = side;
+    v.fixedExtent = null;
     v.slice = slice;
     mark(v);
   }
@@ -1917,14 +1929,15 @@ public final class Viewports implements AutoCloseable {
             ImGui.textDisabled(
                 String.format(
                     Locale.ROOT,
-                    "Displayed: %s slice %d, extent %d, spacing %.5g",
+                    "Displayed: %s slice %d, %d x %d samples, spacing %.5g",
                     v.displayedSlice.plane(),
                     v.displayedSlice.slice(),
-                    v.displayedSlice.side(),
+                    v.displayedSlice.width(),
+                    v.displayedSlice.height(),
                     v.displayedSlice.step()));
         }
       }
-      if (rectangularMesh(v)) {
+      if (rectangularMesh(v) || v.kind == 1 && v.mode.equals("Slices")) {
         var extent = fixedExtent(v);
         fields.integer(
             "Extent X",
@@ -2530,7 +2543,10 @@ public final class Viewports implements AutoCloseable {
               "points",
               ready.mesh.points());
     if (ready.image != null) {
-      v.gl.setImage(ready.width, ready.width, ready.image);
+      v.gl.setImage(
+          ready.width,
+          ready.sliceView == null ? ready.width : ready.sliceView.height(),
+          ready.image);
       v.image = true;
     } else {
       if (ready.volume == null) v.gl.setMesh(ready.mesh);
@@ -3170,7 +3186,8 @@ public final class Viewports implements AutoCloseable {
         v.slicePlane == SlicePlane.X ? v.panY : v.panX,
         v.slicePlane == SlicePlane.Z ? v.panY : v.panZ,
         v.step,
-        v.size);
+        v.slicePlane.width(fixedExtent(v)),
+        v.slicePlane.height(fixedExtent(v)));
   }
 
   private static void applySliceNavigation(View v, SliceNavigation before, SliceNavigation after) {
@@ -3255,21 +3272,32 @@ public final class Viewports implements AutoCloseable {
     var before = fixedExtent(v);
     int next =
         Math.max(2, Math.min(Math.min(256, state.user.performance.maxPreviewDimension), value));
-    v.fixedExtent =
+    var after =
         new GridExtent(
             axis == 0 ? next : before.width(),
             axis == 1 ? next : before.height(),
             axis == 2 ? next : before.depth());
+    if (after.equals(before)) return;
+    v.fixedExtent = after;
+    // Changing only the unsampled normal-axis count should not restart the active slice.
+    if (v.kind == 1
+        && v.mode.equals("Slices")
+        && v.slicePlane.imageExtent(before).equals(v.slicePlane.imageExtent(after))) return;
     mark(v);
   }
 
   private void submit(View v) {
     int n = v.kind == 0 ? 256 : v.size;
-    GridExtent extent = rectangularMesh(v) ? fixedExtent(v) : GridExtent.cube(n);
+    GridExtent extent =
+        rectangularMesh(v) || v.kind == 1 && v.mode.equals("Slices")
+            ? fixedExtent(v)
+            : GridExtent.cube(n);
+    GridExtent sampledExtent =
+        v.kind == 1 && v.mode.equals("Slices") ? v.slicePlane.imageExtent(extent) : extent;
     var admission =
         v.admission.check(
             v.kind,
-            extent,
+            sampledExtent,
             v.mode,
             state.user.performance.previewCellBudget,
             state.user.performance.maxPreviewDimension,
@@ -3329,10 +3357,14 @@ public final class Viewports implements AutoCloseable {
                           Math.floor(centerY) - extent.height() / 2.,
                           panZ - extent.depth() / 2.);
                   if (kind == 1 && mode.equals("Slices"))
-                    origin.set(panX - n * step / 2., centerY - n * step / 2., panZ - n * step / 2.);
+                    origin.set(
+                        panX - extent.width() * step / 2.,
+                        centerY - extent.height() * step / 2.,
+                        panZ - extent.depth() * step / 2.);
                   if (kind == 0 || kind == 1 && mode.equals("Slices")) {
-                    int side = kind == 0 ? 256 : n;
-                    double[] raw = new double[side * side];
+                    int width = kind == 0 ? 256 : slicePlane.width(extent);
+                    int height = kind == 0 ? 256 : slicePlane.height(extent);
+                    double[] raw = new double[width * height];
                     int[] pixels = new int[raw.length];
                     float[] histogram = new float[64];
                     var compiler = new NoiseCompiler(snapshot, snapshot.project.seed);
@@ -3344,7 +3376,7 @@ public final class Viewports implements AutoCloseable {
                               PreviewIdentity.of(snapshot, 0, noise),
                               epoch,
                               sampler,
-                              side,
+                              width,
                               panX,
                               panZ,
                               step,
@@ -3354,22 +3386,20 @@ public final class Viewports implements AutoCloseable {
                       raw = sampled.copyValues();
                       imageStatistics = sampled.statistics();
                     }
-                    for (int z = 0; z < side; z++) {
+                    for (int z = 0; z < height; z++) {
                       if (Thread.currentThread().isInterrupted()) return;
-                      for (int x = 0; x < side; x++) {
-                        double wx = kind == 0 ? panX + (x - side / 2.) * step : origin.x + x,
-                            wz = kind == 0 ? panZ + (z - side / 2.) * step : origin.z + z;
+                      for (int x = 0; x < width; x++) {
                         double u = (slicePlane == SlicePlane.X ? origin.y : origin.x) + x * step,
                             vv = (slicePlane == SlicePlane.Z ? origin.y : origin.z) + z * step;
                         double value =
                             kind == 0
-                                ? raw[z * side + x]
+                                ? raw[z * width + x]
                                 : sampler.sample(
                                     slicePlane.x(u, vv, slice),
                                     slicePlane.y(u, vv, slice),
                                     slicePlane.z(u, vv, slice));
-                        raw[z * side + x] = value;
-                        pixels[z * side + x] =
+                        raw[z * width + x] = value;
+                        pixels[z * width + x] =
                             color(value, kind == 0 ? mode : "Heatmap", threshold);
                         histogram[Math.max(0, Math.min(63, (int) ((value + 1) * 32)))]++;
                       }
@@ -3381,7 +3411,7 @@ public final class Viewports implements AutoCloseable {
                             null,
                             pixels,
                             raw,
-                            side,
+                            width,
                             origin,
                             palette,
                             histogram,
@@ -3389,7 +3419,7 @@ public final class Viewports implements AutoCloseable {
                             null,
                             null,
                             imageStatistics,
-                            kind == 0 ? new NoiseImageView(panX, panZ, step, side, sampler) : null,
+                            kind == 0 ? new NoiseImageView(panX, panZ, step, width, sampler) : null,
                             kind == 1
                                 ? new SliceImageView(
                                     slicePlane,
@@ -3397,7 +3427,8 @@ public final class Viewports implements AutoCloseable {
                                     slicePlane == SlicePlane.X ? origin.y : origin.x,
                                     slicePlane == SlicePlane.Z ? origin.y : origin.z,
                                     step,
-                                    side,
+                                    width,
+                                    height,
                                     sampler)
                                 : null));
                   } else if (kind == 1 && mode.equals("Volume")) {

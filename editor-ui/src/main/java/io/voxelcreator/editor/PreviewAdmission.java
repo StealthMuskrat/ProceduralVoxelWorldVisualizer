@@ -33,11 +33,12 @@ final class PreviewAdmission {
     if (blocked()) return new Decision(false, 0, blocked);
     if (kind < 0 || kind > 2 || cellBudget < 0 || cpuBytes < 0)
       throw new IllegalArgumentException("Invalid fixed preview admission");
-    long cells = kind == 0 ? (long) extent.width() * extent.depth() : extent.cells();
+    boolean image = kind == 0 || kind == 1 && mode.equals("Slices");
+    long cells = image ? (long) extent.width() * extent.depth() : extent.cells();
     if (cells > cellBudget || kind != 0 && extent.maximum() > maxDimension)
       return reject("Preview exceeds configured budget; reduce extent");
     long bytes =
-        kind == 0
+        image
             ? 64L * cells
             : kind == 1 && mode.equals("Isosurface")
                 ? IsosurfaceMesh.workingBytes(extent)

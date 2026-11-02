@@ -483,6 +483,8 @@ jobs:
           python scripts/verify_world_picking.py build/world-picking
           python scripts/verify_camera_geometry.py build/world-picking/camera-geometry
           python scripts/verify_rectangular_preview.py build/world-picking/rectangular-preview
+          python scripts/verify_rectangular_slice.py build/world-picking/rectangular-slice
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.RectangularSliceConsumer build/world-picking/rectangular-slice
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.RectangularPreviewConsumer build/world-picking/rectangular-preview
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CameraNavigationConsumer build/world-picking/orbit-input
       - name: Native keyboard input and preference reference
@@ -1509,6 +1511,10 @@ jobs:
           python scripts/verify_camera_geometry.py build/world-picking/camera-geometry
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_rectangular_preview.py build/world-picking/rectangular-preview
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_rectangular_slice.py build/world-picking/rectangular-slice
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.RectangularSliceConsumer build/world-picking/rectangular-slice
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.RectangularPreviewConsumer build/world-picking/rectangular-preview
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

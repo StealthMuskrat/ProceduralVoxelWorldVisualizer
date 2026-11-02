@@ -11,11 +11,28 @@ record SliceImageView(
     double originU,
     double originV,
     double step,
-    int side,
+    int width,
+    int height,
     NoiseAlgorithms.Field sampler) {
   record Point(double x, double y, double z) {}
 
   record Sample(Point point, double raw) {}
+
+  SliceImageView(
+      SlicePlane plane,
+      int slice,
+      double originU,
+      double originV,
+      double step,
+      int side,
+      NoiseAlgorithms.Field sampler) {
+    this(plane, slice, originU, originV, step, side, side, sampler);
+  }
+
+  /** Legacy square callers use the horizontal sample count. */
+  int side() {
+    return width;
+  }
 
   SliceImageView {
     Objects.requireNonNull(plane);
@@ -24,14 +41,16 @@ record SliceImageView(
         || !Double.isFinite(originV)
         || !Double.isFinite(step)
         || step <= 0
-        || side < 1
-        || side > 256) throw new IllegalArgumentException("Invalid displayed slice geometry");
+        || width < 1
+        || width > 256
+        || height < 1
+        || height > 256) throw new IllegalArgumentException("Invalid displayed slice geometry");
   }
 
   Point at(double x, double y) {
     if (!Double.isFinite(x) || !Double.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1)
       throw new IllegalArgumentException("Pointer is outside the displayed slice");
-    double u = originU + x * side * step, v = originV + y * side * step;
+    double u = originU + x * width * step, v = originV + y * height * step;
     if (!Double.isFinite(u) || !Double.isFinite(v))
       throw new IllegalArgumentException("Nonfinite displayed slice coordinate");
     return new Point(plane.x(u, v, slice), plane.y(u, v, slice), plane.z(u, v, slice));
