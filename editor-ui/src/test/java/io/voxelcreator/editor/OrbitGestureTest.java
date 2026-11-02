@@ -41,10 +41,49 @@ class OrbitGestureTest {
     g.begin(c, 1, false, 10, 20, 0);
     g.move(c, 20, 30);
     assertEquals(OrbitGesture.Click.NONE, g.release(c, 30, 10, .1, true));
-    assertEquals(1.3, c.focus.x, 1e-14);
-    assertEquals(2, c.focus.y);
+    assertEquals(1, c.focus.x, 1e-14);
+    assertEquals(1.7, c.focus.y, 1e-14);
     assertEquals(3.6, c.focus.z, 1e-14);
     assertFalse(g.active());
+  }
+
+  @Test
+  void pitchedRightPanStaysInTheOriginalCameraPlane() {
+    var c = camera();
+    c.yaw = 0;
+    c.pitch = Math.PI / 6;
+    var g = new OrbitGesture();
+    g.begin(c, 1, false, 0, 0, 0);
+    g.move(c, 20, 10);
+    assertEquals(.4, c.focus.x, 1e-14);
+    assertEquals(2 + .3 * Math.sqrt(3) / 2, c.focus.y, 1e-14);
+    assertEquals(2.85, c.focus.z, 1e-14);
+    g.escape(c);
+    assertEquals(1, c.focus.x);
+    assertEquals(2, c.focus.y);
+    assertEquals(3, c.focus.z);
+  }
+
+  @Test
+  void pitchedPanUsesAbsoluteDisplacementIncludingFinalReleaseAndPreservesOffset() {
+    var a = camera();
+    var b = camera();
+    a.yaw = b.yaw = -.7;
+    a.pitch = b.pitch = .9;
+    var offset = a.eye().sub(a.focus);
+    var one = new OrbitGesture();
+    var many = new OrbitGesture();
+    one.begin(a, 1, false, 0, 0, 0);
+    many.begin(b, 1, false, 0, 0, 0);
+    many.move(b, 100, 80);
+    many.move(b, -200, -70);
+    one.release(a, 20, -10, .1, true);
+    many.release(b, 20, -10, .1, true);
+    assertEquals(a.focus, b.focus);
+    assertEquals(0, a.eye().sub(a.focus).distance(offset), 1e-14);
+    assertEquals(-.7, a.yaw);
+    assertEquals(.9, a.pitch);
+    assertEquals(20, a.distance);
   }
 
   @Test

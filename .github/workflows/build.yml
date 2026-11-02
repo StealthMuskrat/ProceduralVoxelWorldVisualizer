@@ -476,6 +476,8 @@ jobs:
         run: |
           LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldPickingProbe build/world-picking
           python scripts/verify_world_picking.py build/world-picking
+          python scripts/verify_camera_geometry.py build/world-picking/camera-geometry
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CameraNavigationConsumer build/world-picking/orbit-input
       - name: Native keyboard input and preference reference
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ShortcutInputProbe build/input-probe
@@ -1486,6 +1488,10 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldPickingProbe build/world-picking
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_world_picking.py build/world-picking
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_camera_geometry.py build/world-picking/camera-geometry
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CameraNavigationConsumer build/world-picking/orbit-input
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows keyboard input and preference reference
         shell: pwsh

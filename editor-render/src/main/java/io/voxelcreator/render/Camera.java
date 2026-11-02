@@ -2,10 +2,23 @@ package io.voxelcreator.render;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
-import org.joml.Vector3f;
 
 /** Double-precision navigation; GPU matrices are relative to the displayed mesh origin. */
 public final class Camera {
+  private static final float FOV = (float) Math.toRadians(50);
+  private static final float NEAR = .05f, FAR = 200000f;
+
+  /** Orthonormal screen basis, independent of absolute world coordinates and mesh origin. */
+  private record Axes(Vector3d forward, Vector3d right, Vector3d up) {}
+
+  private Axes axes() {
+    double sy = Math.sin(yaw), cy = Math.cos(yaw), sp = Math.sin(pitch), cp = Math.cos(pitch);
+    return new Axes(
+        new Vector3d(-sy * cp, -sp, -cy * cp),
+        new Vector3d(cy, 0, -sy),
+        new Vector3d(-sy * sp, cp, -cy * sp));
+  }
+
   public final Vector3d focus = new Vector3d(0, 16, 0), position = new Vector3d();
   public double yaw = .75, pitch = .55, distance = 100;
   public boolean flying = false;
@@ -21,8 +34,9 @@ public final class Camera {
 
   public void pan(double dx, double dy) {
     double speed = distance * .0015;
-    focus.x += (-Math.cos(yaw) * dx - Math.sin(yaw) * dy) * speed;
-    focus.z += (Math.sin(yaw) * dx - Math.cos(yaw) * dy) * speed;
+    var basis = axes();
+    // Grab-drag: the scene follows the pointer, so the pivot moves left/up in screen axes.
+    focus.fma(-dx * speed, basis.right()).fma(dy * speed, basis.up());
   }
 
   public Vector3d eye() {
@@ -73,7 +87,7 @@ public final class Camera {
                         -Math.cos(yaw) * Math.cos(pitch))
                 : new Vector3d(focus).sub(origin);
     return new Matrix4f()
-        .perspective((float) Math.toRadians(50), aspect, .05f, 200000f)
+        .perspective(FOV, aspect, NEAR, FAR)
         .lookAt(
             (float) eye.x,
             (float) eye.y,
@@ -88,10 +102,18 @@ public final class Camera {
 
   public record Ray(Vector3d origin, Vector3d direction) {}
 
+  /**
+   * Ray through normalized OpenGL screen coordinates. Start at the near plane, matching rendered
+   * clipping; compute direction in double precision without inverting the float far-plane matrix.
+   * Mesh origin affects GPU coordinates only and cannot change the absolute world ray.
+   */
   public Ray ray(float nx, float ny, float aspect, Vector3d meshOrigin) {
-    Matrix4f inv = matrix(aspect, meshOrigin).invert();
-    Vector3f near = new Vector3f(nx, ny, -1).mulProject(inv),
-        far = new Vector3f(nx, ny, 1).mulProject(inv);
-    return new Ray(new Vector3d(near).add(meshOrigin), new Vector3d(far.sub(near)).normalize());
+    var basis = axes();
+    double tangent = Math.tan(FOV / 2.);
+    var offset =
+        new Vector3d(basis.forward())
+            .fma(nx * (double) aspect * tangent, basis.right())
+            .fma(ny * tangent, basis.up());
+    return new Ray(eye().fma(NEAR, offset), new Vector3d(offset).normalize());
   }
 }

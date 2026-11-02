@@ -242,3 +242,5 @@ Completion remains directed by the [original-assignment roadmap](docs/DEVELOPMEN
 The unvalidated [initial noise algorithm choice](docs/NOISE_CREATION_CHOICES.md) adds a searchable source selector to both 2D/3D creation, preserves optional profile defaults and freezes chosen definitions before a Properties decision. Five regression definitions, twelve form receipts and independent mathematical replay remain deferred.
 
 The unvalidated [Find typing debounce follow-up](docs/FIND_TYPING_DEBOUNCE.md) coalesces large-project text searches, labels pending results and retires old row gestures while preserving explicit filtering and private edits. Native, regression and independent replay definitions remain deferred; no workflows were run.
+
+The unvalidated [camera screen-geometry follow-up](docs/CAMERA_SCREEN_GEOMETRY.md) gives right-drag true screen-plane movement and uses double-precision, near-clipped picking rays across 3D/World views. Updated native and independent replay definitions remain deferred; no workflows ran.

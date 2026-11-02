@@ -68,7 +68,10 @@ final class HelpDefinitions {
                   + " generated voxel values. Shadow resolution and volume sample choices are"
                   + " explicit. Preview limits open the separate Performance draft; saving active"
                   + " visualization choices does not apply it. Disabled shadows retain their"
-                  + " configured resolution."),
+                  + " configured resolution. In 3D Noise and World, right-drag pans the camera's"
+                  + " screen plane, including vertical movement when level. Middle-drag moves in"
+                  + " world X/Z; Ctrl+middle moves world Y. Left-drag orbits and wheel zooms."
+                  + " Navigation preserves procedural values and private resource edits."),
           new Guide(
               "help.trace",
               "Generation traces",

@@ -353,6 +353,11 @@ public final class Viewports implements AutoCloseable {
     return new double[] {c.focus.x, c.focus.y, c.focus.z, c.yaw, c.pitch, c.distance};
   }
 
+  void probeOrbitAngles(int kind, double yaw, double pitch) {
+    views[kind].camera.yaw = yaw;
+    views[kind].camera.pitch = pitch;
+  }
+
   boolean probeOrbitContextVisible() {
     return probeOrbitContextVisible;
   }

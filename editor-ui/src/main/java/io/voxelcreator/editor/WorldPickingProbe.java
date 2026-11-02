@@ -314,6 +314,7 @@ public final class WorldPickingProbe {
         FreeFlyInspectorProbe.run(out.resolve("free-fly"), window);
         CursorLeaseProbe.run(out.resolve("cursor-lease"), window);
         OrbitInputProbe.run(out.resolve("orbit-input"), window);
+        CameraGeometryProbe.run(out.resolve("camera-geometry"));
         SliceInputProbe.run(out.resolve("slice-input"), window);
         ImageGestureProbe.run(out.resolve("image-gestures"), window);
         ProjectFileProbe.run(out.resolve("project-files"), window);

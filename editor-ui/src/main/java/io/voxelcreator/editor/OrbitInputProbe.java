@@ -31,10 +31,19 @@ final class OrbitInputProbe {
       state.user.visualization.streaming = false;
       state.user.editor.opportunitiesPerSecond = 20;
       require(state.change(OrbitInputProbe::fixture), "Orbit fixture validation");
+      new ProjectIO().save(out.resolve("orbit-before.json"), state.project());
+      state.select("noise3D", state.project().noise3D.getFirst().uuid);
+      var draft = (Noise) state.draft;
+      draft.id = "private";
+      state.seedInputs.edit(state, "seedOffset", "Seed", "-");
+      var privateValues = ProjectIO.JSON.valueToTree(draft);
       var authored = ProjectIO.JSON.valueToTree(state.project());
       long revision = state.revision, history = state.document.historyBytes();
+      boolean dirty = state.document.dirty();
       views = new Viewports(state, new PropertyPanel(state), window);
       try {
+        state.user.save(out.resolve("orbit-preferences-before.json"));
+        var preferences = ProjectIO.JSON.valueToTree(state.user);
         var observations = new ArrayList<Map<String, Object>>();
         reset();
         var initial = pose();
@@ -77,12 +86,36 @@ final class OrbitInputProbe {
         dx = 5 - p[0];
         dy = outsideY - p[1];
         require(
-            Math.abs(panned[0] - (initial[0] - dy * .03)) < 1e-10
+            Math.abs(panned[0] - initial[0]) < 1e-10
+                && Math.abs(panned[1] - (initial[1] + dy * .03)) < 1e-10
                 && Math.abs(panned[2] - (initial[2] + dx * .03)) < 1e-10,
             "Owned right pan stopped outside image");
         button(1, false);
         require(!views.probeOrbitContextVisible(), "Right pan opened context menu");
         observations.add(observation("pan", initial, panned, dx, dy));
+
+        for (double[] angle : new double[][] {{-.7, .9}, {1.2, -1.1}}) {
+          reset();
+          views.probeOrbitAngles(2, angle[0], angle[1]);
+          frames(2);
+          initial = pose();
+          p = point();
+          position(p[0], p[1]);
+          button(1, true);
+          position(p[0] + 17, p[1] - 13);
+          button(1, false);
+          panned = pose();
+          double speed = initial[5] * .0015;
+          double sy = Math.sin(initial[3]), cy = Math.cos(initial[3]);
+          double sp = Math.sin(initial[4]), cp = Math.cos(initial[4]);
+          require(
+              Math.abs(panned[0] - (initial[0] + (-cy * 17 + sy * sp * 13) * speed)) < 1e-10
+                  && Math.abs(panned[1] - (initial[1] - cp * 13 * speed)) < 1e-10
+                  && Math.abs(panned[2] - (initial[2] + (sy * 17 + cy * sp * 13) * speed)) < 1e-10,
+              "Pitched right drag left the screen plane");
+          require(!views.probeOrbitContextVisible(), "Pitched pan opened a context menu");
+          observations.add(observation("pitchedPan", initial, panned, 17, -13));
+        }
 
         reset();
         p = point();
@@ -198,17 +231,25 @@ final class OrbitInputProbe {
         require(
             authored.equals(ProjectIO.JSON.valueToTree(state.project()))
                 && revision == state.revision
-                && history == state.document.historyBytes(),
-            "Orbit gestures changed project/history");
+                && history == state.document.historyBytes()
+                && dirty == state.document.dirty()
+                && state.draft == draft
+                && privateValues.equals(ProjectIO.JSON.valueToTree(draft))
+                && state.seedInputs.text("seedOffset").equals("-")
+                && preferences.equals(ProjectIO.JSON.valueToTree(state.user)),
+            "Orbit gestures changed project/history/private/raw/preferences state");
         new ProjectIO().save(out.resolve("orbit-project.json"), state.project());
+        state.user.save(out.resolve("orbit-preferences.json"));
         var report = new LinkedHashMap<String, Object>();
-        report.put("formatVersion", 1);
+        report.put("formatVersion", 2);
         report.put("observations", observations);
         report.put("hit", List.of(3, 0, 0, 1));
         for (String flag :
             List.of(
                 "outsideCaptured",
                 "panWithoutMenu",
+                "screenPlanePan",
+                "privateInputPreserved",
                 "shortContext",
                 "longPressIgnored",
                 "stickyDrag",
