@@ -7,10 +7,15 @@ import java.util.concurrent.CancellationException;
 final class SamplingBatches {
   private SamplingBatches() {}
 
+  private static double coordinate(double origin, double step, int index) {
+    // Adding positive zero would discard a caller's negative-zero origin.
+    return index == 0 || step == 0 ? origin : origin + index * step;
+  }
+
   private static void axis(double origin, double step, int count) {
     if (!Double.isFinite(origin)
         || !Double.isFinite(step)
-        || count > 0 && !Double.isFinite(origin + (count - 1) * step))
+        || count > 0 && !Double.isFinite(coordinate(origin, step, count - 1)))
       throw new IllegalArgumentException(
           "Finite sampling origin, step and final coordinate required");
   }
@@ -66,11 +71,11 @@ final class SamplingBatches {
     long index = 0;
     for (int z = 0; z < depth; z++) {
       token.throwIfCancelled();
-      double wz = oz + z * sz;
+      double wz = coordinate(oz, sz, z);
       long row = offset + z * rowStride;
       for (int x = 0; x < width; x++, index++) {
         if ((index & 255) == 0) token.throwIfCancelled();
-        double wx = ox + x * sx;
+        double wx = coordinate(ox, sx, x);
         try {
           destination[(int) (row + x)] = finite(sampler.sample(wx, wz));
         } catch (RuntimeException failure) {
@@ -110,11 +115,11 @@ final class SamplingBatches {
     for (int y = 0; y < height; y++)
       for (int z = 0; z < depth; z++) {
         token.throwIfCancelled();
-        double wy = oy + y * sy, wz = oz + z * sz;
+        double wy = coordinate(oy, sy, y), wz = coordinate(oz, sz, z);
         long row = offset + y * planeStride + z * rowStride;
         for (int x = 0; x < width; x++, index++) {
           if ((index & 255) == 0) token.throwIfCancelled();
-          double wx = ox + x * sx;
+          double wx = coordinate(ox, sx, x);
           try {
             destination[(int) (row + x)] = finite(sampler.sample(wx, wy, wz));
           } catch (RuntimeException failure) {

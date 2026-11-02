@@ -280,3 +280,5 @@ The unvalidated [import compatibility follow-up](docs/RESOURCE_IMPORT_COMPATIBIL
 The unvalidated [consumer-stage follow-up](docs/CONSUMER_STAGE_ACKNOWLEDGEMENT.md) supports CompletionStages without future conversion, reports acknowledgement failures consistently and cancels interrupted waits cooperatively. Nine deferred contracts and an independent stage/backpressure/retained-voxel replay remain unexecuted; no tests or workflows ran.
 
 The unvalidated [cancellation ownership follow-up](docs/CANCELLATION_CALLBACK_OWNERSHIP.md) suppresses closed unclaimed callbacks, attempts eligible listeners despite Errors and confines admitted parent-supplier faults to their subscriber. Ten deferred contracts and an independent queued/shared/exact-snapshot replay remain unexecuted; no tests or workflows ran.
+
+The unvalidated [grid coordinate follow-up](docs/GRID_COORDINATE_BITS.md) preserves signed-zero origins at each axis start and throughout zero-step axes. Eight deferred contracts and an independent raw-bit grid/direct/point replay remain unexecuted; no tests or workflows ran.

@@ -71,6 +71,8 @@ noise2D.sampleGrid(-2, 3, 4, 3, .5, -1, values, 2, 8, token);
 noise2D.samplePoints(xs, zs, 0, xs.length, pointValues, 0, token);
 ```
 
+Grid coordinates preserve each axis origin bit-for-bit at index zero and throughout axes whose step is either signed zero. Other coordinates use separate multiplication and addition (`origin + index * step`), preserving existing advancing-axis rounding. Point batches pass supplied coordinates unchanged. See [grid coordinate bits](GRID_COORDINATE_BITS.md) for the signed-zero contract and deferred definitions.
+
 Bounds, address products and coordinate extents preflight before writes. Coordinate/output overlap is rejected; padding and untouched tails are preserved. Cancellation checks occur at rows and at most every 256 samples. BatchSamplingException identifies the first failed traversal index and XYZ, with the original cause; a wrapped EvaluationFailure retains the underlying Expression.Problem span. Expression.BatchFailure provides analogous sample/cause detail for direct program batches. Successful prefix writes remain valid, while the failed sample and tail are untouched. Callers must keep coordinate arrays unchanged throughout the call. The authored project format and expression grammar did not change.
 
 ## Exact storage and archives

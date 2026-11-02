@@ -47,6 +47,7 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ImportCompatibilityConsumer build/independent/import-compatibility
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ConsumerStageConsumer build/independent/consumer-stages
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CancellationOwnershipConsumer build/independent/cancellation-ownership
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.GridCoordinateConsumer build/independent/grid-coordinates
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WorldWorkConsumer fixtures/work-profile-project.json build/independent/output
           python scripts/verify_world_work.py build/independent/output
@@ -538,6 +539,7 @@ jobs:
             build/independent/import-compatibility/
             build/independent/consumer-stages/
             build/independent/cancellation-ownership/
+            build/independent/grid-coordinates/
             **/build/test-results/
             **/build/reports/tests/
             build/smoke/
@@ -706,6 +708,8 @@ jobs:
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ConsumerStageConsumer build/independent/consumer-stages
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CancellationOwnershipConsumer build/independent/cancellation-ownership
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.GridCoordinateConsumer build/independent/grid-coordinates
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -1647,6 +1651,7 @@ jobs:
             build/independent/import-compatibility/
             build/independent/consumer-stages/
             build/independent/cancellation-ownership/
+            build/independent/grid-coordinates/
             build/packages/*.zip
             build/packages/*.sha256
             build/windows-smoke.log

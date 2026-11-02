@@ -12,7 +12,9 @@ public interface NoiseSampler2D {
 
   /**
    * X-fast rows of Z; padding is preserved. Counts, addresses and coordinates preflight before
-   * writes.
+   * writes. Each axis passes its origin unchanged at index zero and at every index when its step is
+   * either signed zero, preserving origin bits. Other coordinates use origin + index * step, with
+   * separate multiplication and addition.
    */
   default void sampleGrid(
       double originX,
