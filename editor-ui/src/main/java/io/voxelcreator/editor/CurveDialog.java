@@ -676,10 +676,12 @@ public final class CurveDialog {
     ImGui.textWrapped(
         String.format(
             Locale.ROOT,
-            "Input %.5f  Output %.5f  |  %d selected; Shift+click selects; Escape cancels drag",
-            mx,
-            my,
+            "Input %s  Output %s  |  %d selected; Shift+click selects; Escape cancels drag",
+            ScalarDisplay.compact(mx),
+            ScalarDisplay.compact(my),
             selected.size()));
+    if (ImGui.isItemHovered())
+      UiScale.tooltip("Input " + ScalarDisplay.exact(mx) + "\nOutput " + ScalarDisplay.exact(my));
     if (preview.firstFailure() != null)
       ImGui.textWrapped(
           "! Curve preview: "
@@ -705,8 +707,10 @@ public final class CurveDialog {
             Math.nextUp(curve.points.get(pointIndex - 1).x),
             Math.nextDown(curve.points.get(pointIndex + 1).x),
             v -> editNumber(c -> CurveEditSession.point(c, id).x = v));
-      } else
-        ImGui.textWrapped(String.format(Locale.ROOT, "Endpoint X %.5f (domain locked)", point.x));
+      } else {
+        ImGui.textWrapped("Endpoint X " + ScalarDisplay.compact(point.x) + " (domain locked)");
+        if (ImGui.isItemHovered()) UiScale.tooltip("Endpoint X " + ScalarDisplay.exact(point.x));
+      }
       number(
           id,
           "y",

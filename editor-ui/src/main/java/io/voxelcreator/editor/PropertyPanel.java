@@ -2836,6 +2836,8 @@ public final class PropertyPanel {
       } else {
         JsonNode node = ProjectIO.JSON.valueToTree(effective);
         ImGui.textWrapped(AppMetadata.settingLabel(key) + ": " + settingValue(key, node.get(key)));
+        if (node.get(key).isFloatingPointNumber() && ImGui.isItemHovered())
+          UiScale.tooltip("Value: " + ScalarDisplay.exact(node.get(key).asDouble()));
       }
       ImGui.popID();
     }
@@ -2857,7 +2859,7 @@ public final class PropertyPanel {
               ? value.path("mapping").asText() + " field mapping"
               : "Disabled (factor 1)")
           : value.path("kind").asText("Configured condition");
-    if (value.isFloatingPointNumber()) return String.format(Locale.ROOT, "%.5f", value.asDouble());
+    if (value.isFloatingPointNumber()) return ScalarDisplay.compact(value.asDouble());
     return value.asText();
   }
 
@@ -3441,7 +3443,7 @@ public final class PropertyPanel {
               + target.phase
               + (target.explicitField
                   ? ". Explicit field required; baseline coordinates are fixed for all sampling"
-                        + " rows."
+                      + " rows."
                   : target.unitRange ? ". Every effective result must remain in [0,1]." : "."));
     }
     parameterDriverRow = index;

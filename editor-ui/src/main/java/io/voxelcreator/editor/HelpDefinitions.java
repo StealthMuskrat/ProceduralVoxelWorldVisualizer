@@ -91,6 +91,18 @@ final class HelpDefinitions {
                   + " independent fixed XYZ counts through scalar textures and ray-box rendering."
                   + " Camera-relative streaming retains its uniform chunk-based window control."),
           new Guide(
+              "help.scalar-readouts",
+              "Scalar value readouts",
+              "Sliders and read-only scalar labels use up to five fractional digits. Small nonzero"
+                  + " values and large magnitudes use scientific notation; world-coordinate"
+                  + " summaries retain their whole signed coordinate digits. Hover a scalar slider,"
+                  + " inherited World value, curve readout or preview sample status for its full"
+                  + " value. Exact numeric input keeps full double precision, including scientific"
+                  + " notation. Readout rounding never changes authored, sampled or stored values."
+                  + " Slider ranges remain suggestions; exact input and existing validation"
+                  + " determine allowed values. Seed offsets and integer inputs retain their exact"
+                  + " formats."),
+          new Guide(
               "help.world-lists",
               "World ordered settings",
               "Sampling transforms, numeric parameter drivers and type intervals are ordered"
@@ -171,7 +183,11 @@ final class HelpDefinitions {
           Map.entry("help.project-settings", List.of("save", "noise.seedOffset", "layers")),
           Map.entry("help.appearance", List.of("themes", "help.workspace", "shortcuts")),
           Map.entry("help.voxel-identities", List.of("layers", "archives", "help.find")),
-          Map.entry("help.visualization", List.of("archives", "profiler", "help.workspace")),
+          Map.entry(
+              "help.visualization",
+              List.of("archives", "profiler", "help.workspace", "help.scalar-readouts")),
+          Map.entry(
+              "help.scalar-readouts", List.of("help.visualization", "layers", "creation-defaults")),
           Map.entry("help.world-lists", List.of("layers", "help.world-conditions", "help.trace")),
           Map.entry(
               "help.world-conditions", List.of("layers", "help.trace", "help.project-settings")),

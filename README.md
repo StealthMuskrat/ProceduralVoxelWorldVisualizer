@@ -256,3 +256,5 @@ The unvalidated [rectangular fixed volumes](docs/RECTANGULAR_FIXED_VOLUMES.md) c
 The unvalidated [World condition grouping](docs/WORLD_CONDITION_GROUPING.md) retains clauses through AND/OR/NOT edits, protects logical arity, supports 32 nested levels and reports precise nested diagnostics. Twelve deferred regression definitions include engine interval/EMPTY-state and transaction expectations; no compilation, tests or workflows ran.
 
 The unvalidated [World ordered-settings follow-up](docs/WORLD_ORDERED_SETTINGS.md) stages list changes after drawing, refreshes row control ownership, adds parameter-driver duplication and exposes complete indexed controls. Ten deferred contracts and nine native layout definitions remain unexecuted; main and the testing pause are unchanged.
+
+The unvalidated [scalar readout follow-up](docs/SCALAR_READOUTS.md) keeps tiny values visibly nonzero, bounds large scalar labels and retains whole signed world-coordinate digits. Full-value tooltips, exact inputs and non-rounding publication remain; six regression and six native layout definitions are deferred. No compilation, tests or workflows ran.

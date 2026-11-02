@@ -449,7 +449,9 @@ public final class ApplicationSettingsPanel {
                   Math.max(-1e6, spec.minimum()),
                   Math.min(1e6, spec.maximum()),
                   finite
-                      ? spec.kind() == CreationRegistry.Kind.INTEGER ? "%.0f" : "%.5f"
+                      ? spec.kind() == CreationRegistry.Kind.INTEGER
+                          ? "%.0f"
+                          : ScalarDisplay.sliderFormat(current)
                       : "Invalid",
                   ImGuiSliderFlags.NoRoundToFormat | ImGuiSliderFlags.NoInput);
           control("slider-" + i);
@@ -465,6 +467,12 @@ public final class ApplicationSettingsPanel {
           buffer.set(text);
           changed();
         }
+        if (ImGui.isItemHovered())
+          UiScale.tooltip(
+              "Value: "
+                  + ScalarDisplay.exact(
+                      enabled && edited && Double.isFinite(slider[0]) ? slider[0] : current)
+                  + "\nExact text keeps the full creation default.");
         if (pair.inline()) ImGui.sameLine();
       }
       ImGui.setNextItemWidth(

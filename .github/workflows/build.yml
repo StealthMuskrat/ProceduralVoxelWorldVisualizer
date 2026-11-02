@@ -317,6 +317,7 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ViewportControlsProbe build/viewport-controls
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PreviewResumeConsumer build/viewport-controls
           python scripts/verify_viewport_controls.py build/viewport-controls
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ScalarDisplayProbe build/scalar-display
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ViewportDocumentProbe build/viewport-document
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ViewportDocumentConsumer build/viewport-document
           python scripts/verify_viewport_document.py build/viewport-document
@@ -619,6 +620,7 @@ jobs:
             build/preview-resume/
             build/viewport-options/
             build/viewport-controls/
+            build/scalar-display/
             build/viewport-document/
             build/renderer-recovery/
             build/world-palette/
@@ -1211,6 +1213,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_viewport_controls.py build/viewport-controls
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ScalarDisplayProbe build/scalar-display
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ViewportDocumentProbe build/viewport-document
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ViewportDocumentConsumer build/viewport-document
@@ -1696,6 +1700,7 @@ jobs:
             build/preview-resume/
             build/viewport-options/
             build/viewport-controls/
+            build/scalar-display/
             build/viewport-document/
             build/renderer-recovery/
             build/world-palette/

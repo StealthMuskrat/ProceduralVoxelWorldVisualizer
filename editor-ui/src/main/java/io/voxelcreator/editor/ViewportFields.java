@@ -26,24 +26,31 @@ final class ViewportFields {
     ImGui.setNextItemWidth(pair.sliderWidth());
     String sliderKey = "##slider-" + label;
     sliderIds.put(label, ImGui.getID(sliderKey));
-    double[] slider = {value};
+    boolean finite = Double.isFinite(value);
+    double[] slider = {finite ? value : minimum};
     // Slider formatting is presentation only. Its native text shortcut is disabled in favor of
     // the exact double input; values outside the suggested range are never clamped by drawing.
-    if (ImGui.sliderScalar(
-        sliderKey,
-        slider,
-        minimum,
-        maximum,
-        "%.5f",
-        ImGuiSliderFlags.NoRoundToFormat | ImGuiSliderFlags.NoInput)) {
-      if (Double.isFinite(slider[0])) {
-        value = slider[0];
-        nonfinite.remove(ImGui.getID("##" + label));
-        set.accept(value);
-      }
+    boolean edited;
+    ImGui.beginDisabled(!finite);
+    try {
+      edited =
+          ImGui.sliderScalar(
+              sliderKey,
+              slider,
+              minimum,
+              maximum,
+              finite ? ScalarDisplay.sliderFormat(value) : "Invalid",
+              ImGuiSliderFlags.NoRoundToFormat | ImGuiSliderFlags.NoInput);
+    } finally {
+      ImGui.endDisabled();
+    }
+    if (finite && edited && Double.isFinite(slider[0])) {
+      value = slider[0];
+      nonfinite.remove(ImGui.getID("##" + label));
+      set.accept(value);
     }
     sliders.put(label, PopupLayout.itemBounds());
-    sliderHelp(minimum, maximum);
+    sliderHelp(value, minimum, maximum);
     if (pair.inline()) ImGui.sameLine();
     ImGui.setNextItemWidth(pair.inputWidth());
     var b = new ImDouble(value);
@@ -84,7 +91,7 @@ final class ViewportFields {
       }
     }
     sliders.put(label, PopupLayout.itemBounds());
-    sliderHelp(minimum, maximum);
+    sliderHelp(value, minimum, maximum);
     if (pair.inline()) ImGui.sameLine();
     ImGui.setNextItemWidth(pair.inputWidth());
     var b = new ImInt(value);
@@ -103,10 +110,12 @@ final class ViewportFields {
     return pair;
   }
 
-  private void sliderHelp(double minimum, double maximum) {
+  private void sliderHelp(double value, double minimum, double maximum) {
     if (ImGui.isItemHovered())
       UiScale.tooltip(
-          "Suggested slider range ["
+          "Value: "
+              + ScalarDisplay.exact(value)
+              + "\nSuggested slider range ["
               + minimum
               + ", "
               + maximum

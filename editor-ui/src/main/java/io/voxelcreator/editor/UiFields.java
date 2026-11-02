@@ -150,7 +150,7 @@ public final class UiFields {
               slider,
               minimum,
               maximum,
-              finite ? integer ? "%.0f" : "%.5f" : "Invalid",
+              finite ? integer ? "%.0f" : ScalarDisplay.sliderFormat(value) : "Invalid",
               ImGuiSliderFlags.NoInput | ImGuiSliderFlags.NoRoundToFormat);
     } finally {
       ImGui.endDisabled();
@@ -166,6 +166,15 @@ public final class UiFields {
       }
     }
     var sliderBounds = PopupLayout.itemBounds();
+    if (ImGui.isItemHovered())
+      UiScale.tooltip(
+          "Value: "
+              + ScalarDisplay.exact(value)
+              + "\nSuggested slider range ["
+              + minimum
+              + ", "
+              + maximum
+              + "]. Exact text keeps the full value.");
     if (pair.inline()) ImGui.sameLine();
     ImGui.setNextItemWidth(pair.inputWidth());
     double exact = value;

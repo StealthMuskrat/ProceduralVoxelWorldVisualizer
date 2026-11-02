@@ -928,6 +928,7 @@ public final class Viewports implements AutoCloseable {
     VolumeStreamingLimits.Plan volumePlan;
     String message = "Ready";
     String sampleStatus = "Hover preview for coordinates";
+    String sampleDetails = "";
     Vector3d origin = new Vector3d();
     double[] raw;
     NoiseAlgorithms.Field hoverSampler;
@@ -1781,6 +1782,7 @@ public final class Viewports implements AutoCloseable {
             v.origin.set(0, 0, 0);
             v.message = "Ready";
             v.sampleStatus = "Hover preview for coordinates";
+            v.sampleDetails = "";
             commands[v.kind].reset();
             resumePanels[v.kind].suspend();
             controlPanes[v.kind].reset();
@@ -1929,12 +1931,12 @@ public final class Viewports implements AutoCloseable {
             ImGui.textDisabled(
                 String.format(
                     Locale.ROOT,
-                    "Displayed: %s slice %d, %d x %d samples, spacing %.5g",
+                    "Displayed: %s slice %d, %d x %d samples, spacing %s",
                     v.displayedSlice.plane(),
                     v.displayedSlice.slice(),
                     v.displayedSlice.width(),
                     v.displayedSlice.height(),
-                    v.displayedSlice.step()));
+                    ScalarDisplay.compact(v.displayedSlice.step())));
         }
       }
       if (rectangularPreview(v) || v.kind == 1 && v.mode.equals("Slices")) {
@@ -2389,6 +2391,7 @@ public final class Viewports implements AutoCloseable {
     }
     if (hovered) {
       if (v.kind == 0) {
+        v.sampleDetails = "";
         String sample = "Waiting for a displayed preview";
         if (v.displayedImage != null) {
           try {
@@ -2399,11 +2402,20 @@ public final class Viewports implements AutoCloseable {
             sample =
                 String.format(
                     Locale.ROOT,
-                    "X %.5f  Z %.5f   Raw %.8f   Display %.5f",
-                    observation.x(),
-                    observation.z(),
-                    observation.raw(),
-                    observation.display());
+                    "X %s  Z %s   Raw %s   Display %s",
+                    ScalarDisplay.coordinate(observation.x()),
+                    ScalarDisplay.coordinate(observation.z()),
+                    ScalarDisplay.compact(observation.raw()),
+                    ScalarDisplay.compact(observation.display()));
+            v.sampleDetails =
+                "Exact X "
+                    + ScalarDisplay.exact(observation.x())
+                    + " Z "
+                    + ScalarDisplay.exact(observation.z())
+                    + "\nRaw "
+                    + ScalarDisplay.exact(observation.raw())
+                    + " Display "
+                    + ScalarDisplay.exact(observation.display());
           } catch (RuntimeException failure) {
             sample = "Sample unavailable at pointer";
           }
@@ -2411,6 +2423,7 @@ public final class Viewports implements AutoCloseable {
         v.sampleStatus = "Last hover: " + sample;
       } else if (v.kind == 1 && v.mode.equals("Slices")) {
         if (v.displayedSlice != null && v.image) {
+          v.sampleDetails = "";
           try {
             var sample =
                 v.displayedSlice.sample(
@@ -2420,11 +2433,20 @@ public final class Viewports implements AutoCloseable {
             v.sampleStatus =
                 String.format(
                     Locale.ROOT,
-                    "Last hover: X %.5f Y %.5f Z %.5f  Raw %.8f",
-                    point.x(),
-                    point.y(),
-                    point.z(),
-                    sample.raw());
+                    "Last hover: X %s Y %s Z %s  Raw %s",
+                    ScalarDisplay.coordinate(point.x()),
+                    ScalarDisplay.coordinate(point.y()),
+                    ScalarDisplay.coordinate(point.z()),
+                    ScalarDisplay.compact(sample.raw()));
+            v.sampleDetails =
+                "Exact X "
+                    + ScalarDisplay.exact(point.x())
+                    + " Y "
+                    + ScalarDisplay.exact(point.y())
+                    + " Z "
+                    + ScalarDisplay.exact(point.z())
+                    + "\nRaw "
+                    + ScalarDisplay.exact(sample.raw());
           } catch (RuntimeException failure) {
             v.sampleStatus = "Sample failed: " + failure.getMessage();
           }
@@ -2477,7 +2499,8 @@ public final class Viewports implements AutoCloseable {
     }
     if (samples && region.status() > 0) {
       ImGui.setCursorPosY(cursorY + h + region.statusGap());
-      ViewportSampleStatus.draw("preview-sample-" + v.kind, v.sampleStatus, w, region.status());
+      ViewportSampleStatus.draw(
+          "preview-sample-" + v.kind, v.sampleStatus, v.sampleDetails, w, region.status());
     }
   }
 
@@ -2586,6 +2609,7 @@ public final class Viewports implements AutoCloseable {
     }
     v.hoverSampler = ready.sampler;
     v.sampleStatus = "Hover preview for coordinates";
+    v.sampleDetails = "";
     v.histogram = ready.histogram;
     v.message = v.streamFallback ? "Ready (fixed fallback; Regenerate retries streaming)" : "Ready";
     if (ready.volumeWindowStatistics != null
