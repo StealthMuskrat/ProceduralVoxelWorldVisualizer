@@ -258,3 +258,5 @@ The unvalidated [World condition grouping](docs/WORLD_CONDITION_GROUPING.md) ret
 The unvalidated [World ordered-settings follow-up](docs/WORLD_ORDERED_SETTINGS.md) stages list changes after drawing, refreshes row control ownership, adds parameter-driver duplication and exposes complete indexed controls. Ten deferred contracts and nine native layout definitions remain unexecuted; main and the testing pause are unchanged.
 
 The unvalidated [scalar readout follow-up](docs/SCALAR_READOUTS.md) keeps tiny values visibly nonzero, bounds large scalar labels and retains whole signed world-coordinate digits. Full-value tooltips, exact inputs and non-rounding publication remain; six regression and six native layout definitions are deferred. No compilation, tests or workflows ran.
+
+The unvalidated [World interval-default follow-up](docs/WORLD_INTERVAL_DEFAULTS.md) previews disjoint Add ranges independently of row order, handles finite limits and blocks unavailable additions with guidance. Signed-zero interval ordering now agrees with membership without rewriting stored bits. Thirteen new deferred contracts and extended native replay remain unexecuted.

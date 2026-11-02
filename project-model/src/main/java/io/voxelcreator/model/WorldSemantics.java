@@ -174,6 +174,12 @@ public final class WorldSemantics {
   public static final List<String> GATES =
       List.of("ALWAYS", "COMPARE", "INTERVAL", "PROBABILITY", "NOT", "AND", "OR");
 
+  /** Numeric endpoint order agrees with contains; raw authored signed-zero bits are retained. */
+  public static int compareTypeIntervals(TypeInterval a, TypeInterval b) {
+    int start = a.min == b.min ? 0 : Double.compare(a.min, b.min);
+    return start != 0 ? start : a.max == b.max ? 0 : Double.compare(a.max, b.max);
+  }
+
   public static boolean contains(
       double value, double min, double max, boolean includeMin, boolean includeMax) {
     return (value > min || includeMin && value == min)

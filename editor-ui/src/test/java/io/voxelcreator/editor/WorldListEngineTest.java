@@ -144,4 +144,72 @@ class WorldListEngineTest {
     edit(rows, 1, WorldListEdits.Action.REMOVE, 256, TypeInterval.class);
     expect(p, x -> x, x -> x >= 0 && x <= 2 ? 2 : 0);
   }
+
+  @Test
+  void proposedIntervalsStayDisjointAfterReorderAndRemainAtomicSparseOverrides() {
+    var p = fixture();
+    var noise = p.noise3D.getFirst();
+    noise.processing.getFirst().parameters.put("expression", ProjectIO.JSON.valueToTree("x*.5"));
+    var layer = p.worldGenerator.layers.getFirst();
+    var operation = layer.operations.getFirst();
+    operation.interpretation = "TYPE_SELECTION";
+    layer.defaults.typeSource = "INTERVALS";
+    var a = new TypeInterval();
+    a.min = -2;
+    a.max = 0;
+    a.voxelTypeUuid = p.voxelTypes.getFirst().uuid;
+    var b = new TypeInterval();
+    b.min = 0;
+    b.max = 2;
+    b.includeMax = true;
+    b.voxelTypeUuid = p.voxelTypes.getLast().uuid;
+    var rows = layer.defaults.typeIntervals;
+    rows.addAll(List.of(a, b));
+    IntUnaryOperator original = x -> x < -4 || x > 4 ? 0 : x < 0 ? 1 : 2;
+    expect(p, x -> x * .5, original);
+    edit(rows, 0, WorldListEdits.Action.DOWN, 256, TypeInterval.class);
+    expect(p, x -> x * .5, original);
+    var next = WorldIntervalDefaults.suggest(rows, a.voxelTypeUuid);
+    assertTrue(next.available());
+    assertTrue(WorldListEdits.add(rows, next.interval(), 256));
+    expect(p, x -> x * .5, x -> x == 5 ? 1 : original.applyAsInt(x));
+    assertTrue(operation.overrides.isEmpty());
+    var effective = SettingsResolver.resolve(layer, operation);
+    next = WorldIntervalDefaults.suggest(effective.typeIntervals, a.voxelTypeUuid);
+    assertTrue(next.available());
+    assertTrue(WorldListEdits.add(effective.typeIntervals, next.interval(), 256));
+    operation.overrides.put("typeIntervals", ProjectIO.JSON.valueToTree(effective.typeIntervals));
+    assertEquals(Set.of("typeIntervals"), operation.overrides.keySet());
+    expect(p, x -> x * .5, x -> x >= 5 && x <= 7 ? 1 : original.applyAsInt(x));
+    assertEquals(3, rows.size());
+    operation.overrides.remove("typeIntervals");
+    expect(p, x -> x * .5, x -> x == 5 ? 1 : original.applyAsInt(x));
+  }
+
+  @Test
+  void signedZeroSingletonAndOpenIntervalSelectTheirOwnTypesThroughTheEngine() {
+    var p = fixture();
+    var layer = p.worldGenerator.layers.getFirst();
+    layer.operations.getFirst().interpretation = "TYPE_SELECTION";
+    layer.defaults.typeSource = "INTERVALS";
+    var open = new TypeInterval();
+    open.min = -0.0;
+    open.max = 2;
+    open.includeMin = false;
+    open.includeMax = true;
+    open.voxelTypeUuid = p.voxelTypes.getLast().uuid;
+    var point = new TypeInterval();
+    point.min = point.max = 0.0;
+    point.includeMin = point.includeMax = true;
+    point.voxelTypeUuid = p.voxelTypes.getFirst().uuid;
+    layer.defaults.typeIntervals.addAll(List.of(open, point));
+    expect(p, x -> x, x -> x == 0 ? 1 : x > 0 && x <= 2 ? 2 : 0);
+    p.noise3D
+        .getFirst()
+        .processing
+        .getFirst()
+        .parameters
+        .put("expression", ProjectIO.JSON.valueToTree("-x"));
+    expect(p, x -> -(double) x, x -> x == 0 ? 1 : x < 0 && x >= -2 ? 2 : 0);
+  }
 }

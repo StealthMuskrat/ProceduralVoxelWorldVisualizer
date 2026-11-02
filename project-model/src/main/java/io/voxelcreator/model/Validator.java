@@ -540,9 +540,7 @@ public final class Validator {
     }
     var order = new ArrayList<Integer>();
     for (int i = 0; i < ranges.size(); i++) order.add(i);
-    order.sort(
-        Comparator.<Integer>comparingDouble(i -> ranges.get(i).min)
-            .thenComparingDouble(i -> ranges.get(i).max));
+    order.sort((a, b) -> WorldSemantics.compareTypeIntervals(ranges.get(a), ranges.get(b)));
     for (int i = 1; i < order.size(); i++) {
       var a = ranges.get(order.get(i - 1));
       var b = ranges.get(order.get(i));

@@ -3329,21 +3329,33 @@ public final class PropertyPanel {
     }
   }
 
+  private record WorldListAddition<T>(Supplier<T> create, String explanation, String identity) {
+    WorldListAddition(Supplier<T> create, String explanation) {
+      this(create, explanation, "");
+    }
+  }
+
   private <T> void finishWorldList(
       List<T> rows,
       WorldListEdits.Request<T> request,
       int limit,
       Class<T> type,
       String addLabel,
-      Supplier<T> create) {
+      Supplier<WorldListAddition<T>> addition) {
     // Delivery follows the complete row loop. A successor list/structure cannot receive an old
     // intent.
     if (WorldListEdits.apply(rows, request, limit, type)) worldStructureChanged();
+    var next = addition.get();
+    if (!next.explanation().isEmpty()) ImGui.textWrapped(next.explanation());
     ImGui.pushID("world-actions:" + worldControlVersion);
+    ImGui.pushID("addition:" + next.identity());
     try {
-      boolean add = worldListButton("add", addLabel, rows.size() < limit && request == null);
-      if (add && WorldListEdits.add(rows, create.get(), limit)) worldStructureChanged();
+      boolean add =
+          worldListButton(
+              "add", addLabel, rows.size() < limit && request == null && next.create() != null);
+      if (add && WorldListEdits.add(rows, next.create().get(), limit)) worldStructureChanged();
     } finally {
+      ImGui.popID();
       ImGui.popID();
     }
     ImGui.textDisabled(rows.size() + " / " + limit + " rows");
@@ -3386,11 +3398,14 @@ public final class PropertyPanel {
         32,
         NumericDriver.class,
         "Add Parameter Driver",
-        () -> {
-          var d = new NumericDriver();
-          d.enabled = true;
-          return d;
-        });
+        () ->
+            new WorldListAddition<>(
+                () -> {
+                  var d = new NumericDriver();
+                  d.enabled = true;
+                  return d;
+                },
+                ""));
   }
 
   private void parameterDriverValues(Settings settings, NumericDriver d, int index) {
@@ -3499,15 +3514,18 @@ public final class PropertyPanel {
         TypeInterval.class,
         "Add Type Interval",
         () -> {
-          var r = new TypeInterval();
-          if (!intervals.isEmpty()) {
-            r.min = intervals.getLast().max;
-            r.max = r.min + 1;
-            r.includeMin = !intervals.getLast().includeMax;
-          }
-          if (!state.project().voxelTypes.isEmpty())
-            r.voxelTypeUuid = state.project().voxelTypes.getFirst().uuid;
-          return r;
+          UUID type =
+              state.project().voxelTypes.isEmpty()
+                  ? null
+                  : state.project().voxelTypes.getFirst().uuid;
+          var proposal = WorldIntervalDefaults.suggest(intervals, type);
+          String explanation = proposal.message();
+          if (proposal.available())
+            explanation += " Voxel Type: " + state.project().voxelTypes.getFirst().id;
+          return new WorldListAddition<TypeInterval>(
+              proposal.available() ? proposal::interval : null,
+              explanation,
+              proposal.message() + "/" + type);
         });
   }
 
@@ -3538,7 +3556,7 @@ public final class PropertyPanel {
         64,
         SamplingTransform.class,
         "Add Sampling Transform",
-        SamplingTransform::new);
+        () -> new WorldListAddition<>(SamplingTransform::new, ""));
   }
 
   private void samplingTransformValues(SamplingTransform t) {

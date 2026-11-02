@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import imgui.ImGui;
 import imgui.flag.*;
 import io.voxelcreator.model.*;
@@ -128,6 +129,31 @@ public final class WorldListProbe {
         click("parameterDrivers/0/duplicate");
         require(
             ((Layer) state.draft).defaults.parameterDrivers.size() == 3, "Driver duplicate failed");
+        property = "typeIntervals";
+        frames(4);
+        var intervals = ((Layer) state.draft).defaults.typeIntervals;
+        click("typeIntervals/1/up");
+        require(
+            intervals.getFirst().min == 0 && intervals.getLast().min == -1,
+            "Interval reorder failed");
+        click("typeIntervals/add");
+        require(
+            intervals.size() == 3 && intervals.getLast().min == 1 && intervals.getLast().max == 2,
+            "Reordered Add reused the last displayed bound");
+        require(
+            intervals.getLast().includeMin && !intervals.getLast().includeMax,
+            "Proposed range endpoint ownership changed");
+        int oldAdd = control("typeIntervals/add").id();
+        press("typeIntervals/add");
+        intervals.getLast().max = 2.5;
+        frames(3);
+        require(
+            control("typeIntervals/add").id() != oldAdd,
+            "Changed proposal retained an old Add identity");
+        release();
+        require(intervals.size() == 3, "Held Add published a replacement proposal");
+        intervals.getLast().max = 2;
+        frames(4);
         require(
             canonical.equals(ProjectIO.JSON.valueToTree(state.project()))
                 && state.revision == revision
@@ -137,9 +163,10 @@ public final class WorldListProbe {
         var expectedPrivate = privateBefore.deepCopy();
         var expectedDrivers = (ArrayNode) expectedPrivate.path("defaults").path("parameterDrivers");
         expectedDrivers.insert(1, expectedDrivers.get(0).deepCopy());
+        expectedIntervalEdit((ArrayNode) expectedPrivate.path("defaults").path("typeIntervals"));
         require(
             expectedPrivate.equals(ProjectIO.JSON.valueToTree(state.draft)),
-            "Unexpected private edit outside the duplicated driver");
+            "Unexpected private edit outside the proposed list changes");
         var expectedProject = canonical.deepCopy();
         var canonicalDrivers =
             (ArrayNode)
@@ -150,6 +177,14 @@ public final class WorldListProbe {
                     .path("defaults")
                     .path("parameterDrivers");
         canonicalDrivers.insert(1, canonicalDrivers.get(0).deepCopy());
+        expectedIntervalEdit(
+            (ArrayNode)
+                expectedProject
+                    .path("worldGenerator")
+                    .path("layers")
+                    .get(0)
+                    .path("defaults")
+                    .path("typeIntervals"));
         require(!state.applyDraft(), "List edit discarded an unrelated invalid seed");
         var problem = state.seedInputs.problems(state).getFirst();
         require(
@@ -181,6 +216,19 @@ public final class WorldListProbe {
     } finally {
       ImGui.destroyContext();
     }
+  }
+
+  private static void expectedIntervalEdit(ArrayNode rows) {
+    var first = rows.get(0).deepCopy();
+    var second = rows.get(1).deepCopy();
+    rows.set(0, second);
+    rows.set(1, first);
+    var added = (ObjectNode) first.deepCopy();
+    added.put("min", 1.0);
+    added.put("max", 2.0);
+    added.put("includeMin", true);
+    added.put("includeMax", false);
+    rows.add(added);
   }
 
   private static void fixture(ProjectData p) {
