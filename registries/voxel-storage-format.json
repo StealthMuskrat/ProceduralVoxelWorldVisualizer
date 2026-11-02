@@ -6,6 +6,12 @@
   "byteOrder": "BIG_ENDIAN",
   "compression": {"identifier": 1, "codec": "zlib", "scope": "one exact root"},
   "indexEntryBytes": 28,
+  "semanticIds": {
+    "shape": "nonempty NFC; no edge whitespace (String.strip) or ISO control code points",
+    "comparison": "case-sensitive; no trimming, normalization or case folding",
+    "indexZero": "EMPTY",
+    "positiveEntries": "distinct; exact EMPTY is reserved"
+  },
   "treeNodes": {
     "0": "EMPTY",
     "1": "UNIFORM: positive int32 dictionary ID",

@@ -1,5 +1,6 @@
 package io.voxelcreator.storage;
 
+import io.voxelcreator.model.ResourceIds;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
@@ -264,9 +265,12 @@ public final class VoxelArchive {
           if (file.getFilePointer() > 20L + MAX_DICTIONARY_BYTES
               || file.getFilePointer() > fileLength - 20)
             throw new IOException("Dictionary byte limit or truncated header");
-          if (id.isBlank()
-              || !java.text.Normalizer.isNormalized(id, java.text.Normalizer.Form.NFC)
-              || !unique.add(id)) throw new IOException("Invalid dictionary");
+          if (!ResourceIds.isCanonical(id))
+            throw new IOException(
+                "Invalid dictionary ID at index "
+                    + i
+                    + ": expected nonempty NFC without edge whitespace or controls");
+          if (!unique.add(id)) throw new IOException("Duplicate dictionary ID at index " + i);
           names.add(id);
           try {
             remap[i] = registry.runtimeId(id);

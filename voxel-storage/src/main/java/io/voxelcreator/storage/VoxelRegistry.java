@@ -1,6 +1,7 @@
 package io.voxelcreator.storage;
 
 import io.voxelcreator.model.ProjectData;
+import io.voxelcreator.model.ResourceIds;
 import java.util.*;
 
 /** Context-local runtime IDs; archives use semantic strings. */
@@ -16,11 +17,10 @@ public final class VoxelRegistry {
     var byUuid = new HashMap<UUID, Integer>();
     for (var t : types) {
       int id = names.size();
-      if (t.id == null
-          || t.id.isBlank()
-          || !java.text.Normalizer.isNormalized(t.id, java.text.Normalizer.Form.NFC)
-          || t.id.equals("EMPTY")
-          || byName.put(t.id, id) != null)
+      if (!ResourceIds.isCanonical(t.id))
+        throw new IllegalArgumentException(
+            "Voxel ID must be nonempty NFC without edge whitespace or controls");
+      if (t.id.equals("EMPTY") || byName.put(t.id, id) != null)
         throw new IllegalArgumentException("Duplicate/reserved voxel ID");
       if (t.uuid == null || byUuid.put(t.uuid, id) != null)
         throw new IllegalArgumentException("Missing/duplicate voxel UUID");

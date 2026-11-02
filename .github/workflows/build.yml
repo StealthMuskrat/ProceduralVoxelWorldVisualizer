@@ -41,6 +41,7 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ArchiveRecoveryConsumer build/independent/archive-recovery
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProjectSaveConsumer build/independent/project-save
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ResourceMoveConsumer build/independent/resource-move
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.SemanticIdConsumer build/independent/semantic-ids
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WorldWorkConsumer fixtures/work-profile-project.json build/independent/output
           python scripts/verify_world_work.py build/independent/output
@@ -526,6 +527,7 @@ jobs:
             build/independent/archive-recovery/
             build/independent/project-save/
             build/independent/resource-move/
+            build/independent/semantic-ids/
             **/build/test-results/
             **/build/reports/tests/
             build/smoke/
@@ -682,6 +684,8 @@ jobs:
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ProjectSaveConsumer build/independent/project-save
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ResourceMoveConsumer build/independent/resource-move
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.SemanticIdConsumer build/independent/semantic-ids
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_profile_capture.py build/independent/output/profile-capture.json build/independent/output/profile-capture.csv
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -1617,6 +1621,7 @@ jobs:
             build/independent/archive-recovery/
             build/independent/project-save/
             build/independent/resource-move/
+            build/independent/semantic-ids/
             build/packages/*.zip
             build/packages/*.sha256
             build/windows-smoke.log

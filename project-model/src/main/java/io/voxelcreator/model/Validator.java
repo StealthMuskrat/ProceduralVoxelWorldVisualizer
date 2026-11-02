@@ -1,7 +1,6 @@
 package io.voxelcreator.model;
 
 import io.voxelcreator.model.ProjectData.*;
-import java.text.Normalizer;
 import java.util.*;
 
 public final class Validator {
@@ -34,11 +33,7 @@ public final class Validator {
   }
 
   private void id(String id, Set<String> ids, String path) {
-    if (id == null
-        || id.isEmpty()
-        || !id.equals(id.strip())
-        || id.codePoints().anyMatch(Character::isISOControl)
-        || !Normalizer.isNormalized(id, Normalizer.Form.NFC))
+    if (!ResourceIds.isCanonical(id))
       error("INVALID_ID", path, "ID must be nonempty NFC without edge whitespace or controls");
     else if (!ids.add(id)) error("DUPLICATE_ID", path, "Duplicate ID " + id);
   }
