@@ -250,3 +250,5 @@ The unvalidated [voxel identity-review follow-up](docs/VOXEL_IDENTITY_REVIEW.md)
 The unvalidated [rectangular fixed mesh previews](docs/RECTANGULAR_FIXED_PREVIEWS.md) add independent X/Y/Z analysis extents with exact cell/memory admission for Threshold Voxels, Point Cloud and Isosurface. Native/independent replay remains deferred; no workflows ran.
 
 The unvalidated [rectangular slices](docs/RECTANGULAR_SLICES.md) extend XYZ extents through orthogonal image sampling, GPU upload, hover and per-axis pan/zoom, with plane-area budgets. Native/independent replay remains deferred; no workflows ran.
+
+The unvalidated [rectangular fixed volumes](docs/RECTANGULAR_FIXED_VOLUMES.md) carry XYZ counts through scalar texture sampling, bounded replacement/overlap and per-axis ray/light rendering. Deferred native/independent replay remains unexecuted; no workflows ran.

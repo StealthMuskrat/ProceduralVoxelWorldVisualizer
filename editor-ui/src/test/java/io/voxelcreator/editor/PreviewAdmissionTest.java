@@ -87,12 +87,14 @@ class PreviewAdmissionTest {
   @Test
   void rectangularAdmissionUsesExactCellsCornersAndInclusiveAxisLimits() {
     var extent = new io.voxelcreator.render.GridExtent(3, 5, 7);
-    for (String mode : new String[] {"Threshold Voxels", "Point Cloud", "Isosurface"}) {
+    for (String mode : new String[] {"Threshold Voxels", "Point Cloud", "Isosurface", "Volume"}) {
       var gate = new PreviewAdmission();
       long expected =
           mode.equals("Isosurface")
               ? 3 * 1008L * 105 + 8 * 192 + 65536
-              : (mode.equals("Point Cloud") ? 96L : 3024L) * 105;
+              : mode.equals("Volume")
+                  ? 12L * 105 + 65536
+                  : (mode.equals("Point Cloud") ? 96L : 3024L) * 105;
       assertTrue(gate.check(1, extent, mode, 105, 7, expected).allowed());
       assertEquals(expected, gate.check(1, extent, mode, 105, 7, expected).workingBytes());
       assertFalse(gate.check(1, extent, mode, 104, 7, expected).allowed());

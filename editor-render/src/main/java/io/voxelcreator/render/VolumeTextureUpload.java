@@ -11,6 +11,13 @@ public final class VolumeTextureUpload implements AutoCloseable {
   public interface Backend {
     int allocate(int size);
 
+    /** Cube-only backends remain source compatible and reject unsupported boxes explicitly. */
+    default int allocate(GridExtent shape) {
+      if (shape.width() != shape.height() || shape.width() != shape.depth())
+        throw new UnsupportedOperationException("Rectangular volume allocation unavailable");
+      return allocate(shape.width());
+    }
+
     void write(
         int texture, int x, int y, int z, int width, int height, int depth, FloatBuffer values);
 
@@ -49,15 +56,37 @@ public final class VolumeTextureUpload implements AutoCloseable {
         throw new IllegalArgumentException("Volume source identity");
     }
 
-    private void validate(int side) {
-      for (int origin : new int[] {x, y, z})
-        if ((long) origin + (long) side * sampleStep > (long) Integer.MAX_VALUE + 1)
+    private void validate(GridExtent shape) {
+      int[] origins = {x, y, z}, counts = {shape.width(), shape.height(), shape.depth()};
+      for (int axis = 0; axis < 3; axis++)
+        if ((long) origins[axis] + (long) counts[axis] * sampleStep > (long) Integer.MAX_VALUE + 1)
           throw new IllegalArgumentException("Volume region exceeds signed block coordinates");
     }
   }
 
+  /** Immutable texture metadata; size/extent retain their legacy horizontal cube meaning. */
   public record Resident(
-      int texture, int size, VolumeData.Encoding encoding, Region region, int sampleStep) {
+      int texture,
+      int size,
+      VolumeData.Encoding encoding,
+      Region region,
+      int sampleStep,
+      int height,
+      int depth) {
+    public Resident(
+        int texture, int size, VolumeData.Encoding encoding, Region region, int sampleStep) {
+      this(texture, size, encoding, region, sampleStep, size, size);
+    }
+
+    public Resident(
+        int texture,
+        GridExtent shape,
+        VolumeData.Encoding encoding,
+        Region region,
+        int sampleStep) {
+      this(texture, shape.width(), encoding, region, sampleStep, shape.height(), shape.depth());
+    }
+
     public Resident(int texture, int size, VolumeData.Encoding encoding, Region region) {
       this(texture, size, encoding, region, region == null ? 1 : region.sampleStep);
     }
@@ -67,6 +96,7 @@ public final class VolumeTextureUpload implements AutoCloseable {
     }
 
     public Resident {
+      new GridExtent(size, height, depth);
       VolumeData.validateSampleStep(sampleStep);
       if (region != null && region.sampleStep != sampleStep)
         throw new IllegalArgumentException("Volume resident spacing mismatch");
@@ -76,8 +106,28 @@ public final class VolumeTextureUpload implements AutoCloseable {
       return size * sampleStep;
     }
 
+    public GridExtent shape() {
+      return new GridExtent(size, height, depth);
+    }
+
+    public int width() {
+      return size;
+    }
+
+    public int extentX() {
+      return size * sampleStep;
+    }
+
+    public int extentY() {
+      return height * sampleStep;
+    }
+
+    public int extentZ() {
+      return depth * sampleStep;
+    }
+
     public long bytes() {
-      return 4L * size * size * size;
+      return 4L * size * height * depth;
     }
   }
 
@@ -156,24 +206,24 @@ public final class VolumeTextureUpload implements AutoCloseable {
     Objects.requireNonNull(next);
     if (gpuBudget < 0) throw new IllegalArgumentException("Negative volume GPU budget");
     if (region != null) {
-      region.validate(next.size());
+      region.validate(next.shape());
       if (region.sampleStep != next.sampleStep())
         throw new IllegalArgumentException("Volume source region spacing mismatch");
     }
-    long bytes = 4L * next.size() * next.size() * next.size();
+    long bytes = 4L * next.shape().cells();
     if (bytes > gpuBudget - (active == null ? 0 : active.bytes())) return false;
     var regions = regions(next, region);
     cancel();
-    int texture = backend.allocate(next.size());
+    int texture = backend.allocate(next.shape());
     if (texture <= 0) throw new IllegalStateException("Volume texture allocation failed");
-    candidate = new Resident(texture, next.size(), next.encoding(), region, next.sampleStep());
+    candidate = new Resident(texture, next.shape(), next.encoding(), region, next.sampleStep());
     data = next;
     plan = regions;
     return true;
   }
 
   private List<Box> regions(VolumeData next, Region region) {
-    int n = next.size();
+    int w = next.width(), h = next.height(), d = next.depth();
     if (active == null
         || region == null
         || active.region() == null
@@ -184,7 +234,7 @@ public final class VolumeTextureUpload implements AutoCloseable {
             != Double.doubleToLongBits(active.encoding.offset())
         || Double.doubleToLongBits(next.encoding().scale())
             != Double.doubleToLongBits(active.encoding.scale()))
-      return List.of(new Box(0, 0, 0, n, n, n, false));
+      return List.of(new Box(0, 0, 0, w, h, d, false));
     var prior = active.region;
     long dx = (long) prior.x - region.x,
         dy = (long) prior.y - region.y,
@@ -192,27 +242,27 @@ public final class VolumeTextureUpload implements AutoCloseable {
     int step = next.sampleStep();
     // Equal spacing alone is insufficient: centers must have the same grid phase.
     if (dx % step != 0 || dy % step != 0 || dz % step != 0)
-      return List.of(new Box(0, 0, 0, n, n, n, false));
+      return List.of(new Box(0, 0, 0, w, h, d, false));
     long px = dx / step, py = dy / step, pz = dz / step;
-    if (px >= n
+    if (px >= w
         || px + active.size <= 0
-        || py >= n
-        || py + active.size <= 0
-        || pz >= n
-        || pz + active.size <= 0) return List.of(new Box(0, 0, 0, n, n, n, false));
+        || py >= h
+        || py + active.height <= 0
+        || pz >= d
+        || pz + active.depth <= 0) return List.of(new Box(0, 0, 0, w, h, d, false));
     int x0 = (int) Math.max(0L, px), y0 = (int) Math.max(0L, py), z0 = (int) Math.max(0L, pz);
-    int x1 = (int) Math.min(n, px + active.size),
-        y1 = (int) Math.min(n, py + active.size),
-        z1 = (int) Math.min(n, pz + active.size);
+    int x1 = (int) Math.min(w, px + active.size),
+        y1 = (int) Math.min(h, py + active.height),
+        z1 = (int) Math.min(d, pz + active.depth);
     var result = new ArrayList<Box>(7);
     add(result, x0, y0, z0, x1 - x0, y1 - y0, z1 - z0, true);
     // Six disjoint slabs cover the complement; no destination texel is written twice.
-    add(result, 0, 0, 0, x0, n, n, false);
-    add(result, x1, 0, 0, n - x1, n, n, false);
-    add(result, x0, 0, 0, x1 - x0, y0, n, false);
-    add(result, x0, y1, 0, x1 - x0, n - y1, n, false);
+    add(result, 0, 0, 0, x0, h, d, false);
+    add(result, x1, 0, 0, w - x1, h, d, false);
+    add(result, x0, 0, 0, x1 - x0, y0, d, false);
+    add(result, x0, y1, 0, x1 - x0, h - y1, d, false);
     add(result, x0, y0, 0, x1 - x0, y1 - y0, z0, false);
-    add(result, x0, y0, z1, x1 - x0, y1 - y0, n - z1, false);
+    add(result, x0, y0, z1, x1 - x0, y1 - y0, d - z1, false);
     return List.copyOf(result);
   }
 

@@ -217,7 +217,11 @@ public final class GlViewport implements AutoCloseable {
           new VolumeTextureUpload(
               new VolumeTextureUpload.Backend() {
                 public int allocate(int size) {
-                  if (size > glGetInteger(GL_MAX_3D_TEXTURE_SIZE))
+                  return allocate(GridExtent.cube(size));
+                }
+
+                public int allocate(GridExtent shape) {
+                  if (shape.maximum() > glGetInteger(GL_MAX_3D_TEXTURE_SIZE))
                     throw new IllegalArgumentException("Volume exceeds device texture limit");
                   int id = glGenTextures();
                   int unpack = glGetInteger(GL_PIXEL_UNPACK_BUFFER_BINDING);
@@ -228,9 +232,9 @@ public final class GlViewport implements AutoCloseable {
                         GL_TEXTURE_3D,
                         0,
                         GL_R32F,
-                        size,
-                        size,
-                        size,
+                        shape.width(),
+                        shape.height(),
+                        shape.depth(),
                         0,
                         GL_RED,
                         GL_FLOAT,
@@ -596,7 +600,12 @@ public final class GlViewport implements AutoCloseable {
           glGetUniformLocation(volumeProgram, "inverseMatrix"),
           false,
           new Matrix4f(matrix).invert().get(new float[16]));
-      glUniform1f(glGetUniformLocation(volumeProgram, "extent"), volumeUpload.resident().extent());
+      var resident = volumeUpload.resident();
+      glUniform3f(
+          glGetUniformLocation(volumeProgram, "extent"),
+          resident.extentX(),
+          resident.extentY(),
+          resident.extentZ());
       var transfer = VolumeTransfer.of(volumeUpload.resident().encoding(), volumeSettings);
       glUniform1f(glGetUniformLocation(volumeProgram, "opacity"), transfer.opacity());
       glUniform1f(glGetUniformLocation(volumeProgram, "threshold"), transfer.threshold());
@@ -675,7 +684,7 @@ public final class GlViewport implements AutoCloseable {
         #version 130
         in vec2 screen;out vec4 color;
         uniform mat4 inverseMatrix;uniform sampler3D density;uniform sampler2D palette;
-        uniform float extent,opacity,threshold;uniform vec2 displayTransfer;uniform int steps;
+        uniform vec3 extent;uniform float opacity,threshold;uniform vec2 displayTransfer;uniform int steps;
         """
             + VolumeLight.fragment()
             + """
@@ -685,12 +694,12 @@ public final class GlViewport implements AutoCloseable {
           float enter=0.0,exit=1e30;
           for(int axis=0;axis<3;axis++){
             // Unprojection and fullscreen interpolation can move an exact boundary by a few float ULPs.
-            float boundaryTolerance=8.0*1.1920929e-7*max(1.0,extent);
+            float boundaryTolerance=8.0*1.1920929e-7*max(1.0,extent[axis]);
             if(abs(direction[axis])<8.0*1.1920929e-7){
-              if(origin[axis]<-boundaryTolerance||origin[axis]>extent+boundaryTolerance){color=vec4(background,1);return;}
-              origin[axis]=clamp(origin[axis],0.0,extent);
+              if(origin[axis]<-boundaryTolerance||origin[axis]>extent[axis]+boundaryTolerance){color=vec4(background,1);return;}
+              origin[axis]=clamp(origin[axis],0.0,extent[axis]);
             }else{
-              float a=-origin[axis]/direction[axis],b=(extent-origin[axis])/direction[axis];
+              float a=-origin[axis]/direction[axis],b=(extent[axis]-origin[axis])/direction[axis];
               enter=max(enter,min(a,b));exit=min(exit,max(a,b));
             }
           }

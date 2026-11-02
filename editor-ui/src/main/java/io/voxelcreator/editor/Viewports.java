@@ -1937,7 +1937,7 @@ public final class Viewports implements AutoCloseable {
                     v.displayedSlice.step()));
         }
       }
-      if (rectangularMesh(v) || v.kind == 1 && v.mode.equals("Slices")) {
+      if (rectangularPreview(v) || v.kind == 1 && v.mode.equals("Slices")) {
         var extent = fixedExtent(v);
         fields.integer(
             "Extent X",
@@ -2081,13 +2081,24 @@ public final class Viewports implements AutoCloseable {
       var resident = v.gl.volumeResident();
       if (resident != null
           && plan != null
-          && (resident.extent() != plan.side() || resident.sampleStep() != plan.sampleStep()))
+          && (resident.extentX() != plan.side()
+              || resident.extentY() != plan.side()
+              || resident.extentZ() != plan.side()
+              || resident.sampleStep() != plan.sampleStep()))
         ImGui.textDisabled(
             "Accepted display: "
-                + resident.extent()
+                + resident.extentX()
+                + " x "
+                + resident.extentY()
+                + " x "
+                + resident.extentZ()
                 + " world units, "
-                + resident.size()
-                + " texels per axis, spacing "
+                + resident.width()
+                + " x "
+                + resident.height()
+                + " x "
+                + resident.depth()
+                + " texels, spacing "
                 + resident.sampleStep());
     } else {
       stopVolumeStream(v);
@@ -3258,10 +3269,10 @@ public final class Viewports implements AutoCloseable {
     v.activeJob = false;
   }
 
-  private static boolean rectangularMesh(View v) {
+  private static boolean rectangularPreview(View v) {
     return v.kind == 1
         && v.fixed
-        && Set.of("Threshold Voxels", "Point Cloud", "Isosurface").contains(v.mode);
+        && Set.of("Threshold Voxels", "Point Cloud", "Isosurface", "Volume").contains(v.mode);
   }
 
   private static GridExtent fixedExtent(View v) {
@@ -3289,7 +3300,7 @@ public final class Viewports implements AutoCloseable {
   private void submit(View v) {
     int n = v.kind == 0 ? 256 : v.size;
     GridExtent extent =
-        rectangularMesh(v) || v.kind == 1 && v.mode.equals("Slices")
+        rectangularPreview(v) || v.kind == 1 && v.mode.equals("Slices")
             ? fixedExtent(v)
             : GridExtent.cube(n);
     GridExtent sampledExtent =
@@ -3309,7 +3320,7 @@ public final class Viewports implements AutoCloseable {
     }
     if (v.kind == 1
         && v.mode.equals("Volume")
-        && 4L * n * n * n + v.gl.volumeStatistics().activeBytes()
+        && 4L * extent.cells() + v.gl.volumeStatistics().activeBytes()
             > (long) state.user.performance.sceneGpuMiB << 20) {
       volumeUploadFailed(v, "Volume replacement exceeds GPU MiB; reduce extent or raise GPU MiB");
       return;
@@ -3434,7 +3445,8 @@ public final class Viewports implements AutoCloseable {
                   } else if (kind == 1 && mode.equals("Volume")) {
                     var sampler = new NoiseCompiler(snapshot, snapshot.project.seed).compile(noise);
                     var volume =
-                        VolumeData.sample(n, origin.x, origin.y, origin.z, sampler, cancellation);
+                        VolumeData.sample(
+                            extent, origin.x, origin.y, origin.z, sampler, cancellation);
                     publish(
                         v,
                         new Preview(

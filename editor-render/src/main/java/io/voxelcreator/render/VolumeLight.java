@@ -28,13 +28,13 @@ public final class VolumeLight {
         || x < 0
         || y < 0
         || z < 0
-        || x > volume.extent()
-        || y > volume.extent()
-        || z > volume.extent()) throw new IllegalArgumentException("Light sample outside volume");
+        || x > volume.extentX()
+        || y > volume.extentY()
+        || z > volume.extentZ()) throw new IllegalArgumentException("Light sample outside volume");
     double length =
         Math.min(
-            (volume.extent() - x) / LX,
-            Math.min((volume.extent() - y) / LY, (volume.extent() - z) / LZ));
+            (volume.extentX() - x) / LX,
+            Math.min((volume.extentY() - y) / LY, (volume.extentZ() - z) / LZ));
     double step = length / settings.steps, optical = 0;
     for (int i = 0; i < settings.steps; i++) {
       double d = (i + .5) * step;
@@ -50,7 +50,7 @@ uniform int volumeLightEnabled,volumeLightSteps;
 float volumeIllumination(vec3 p){
   if(volumeLightEnabled==0||opacity==0.0)return 1.0;
   vec3 light=normalize(vec3(.4,1,.3));
-  vec3 remain=max(vec3(0),vec3(extent)-p)/light;
+  vec3 remain=max(vec3(0),extent-p)/light;
   float distance=min(remain.x,min(remain.y,remain.z));
   if(distance<=0.0)return 1.0;
   float ds=distance/float(volumeLightSteps),optical=0.0;

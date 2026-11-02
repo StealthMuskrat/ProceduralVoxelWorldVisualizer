@@ -87,8 +87,9 @@ final class HelpDefinitions {
                   + " Threshold Voxels, Point Cloud and Isosurface analysis offers independent"
                   + " Extent X/Y/Z cell counts, bounded by each axis and the total preview budget."
                   + " Orthogonal Slices use the same XYZ extents projected onto their active"
-                  + " plane, with separate width/height sampling and navigation. Volume retains"
-                  + " its uniform extent control."),
+                  + " plane, with separate width/height sampling and navigation. Volume also uses"
+                  + " independent fixed XYZ counts through scalar textures and ray-box rendering."
+                  + " Camera-relative streaming retains its uniform chunk-based window control."),
           new Guide(
               "help.trace",
               "Generation traces",

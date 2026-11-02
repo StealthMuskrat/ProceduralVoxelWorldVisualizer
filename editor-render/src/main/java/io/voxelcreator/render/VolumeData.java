@@ -22,15 +22,19 @@ public final class VolumeData {
     }
   }
 
-  private final int size, sampleStep;
+  private final GridExtent shape;
+  private final int sampleStep;
   private final float[] samples;
   private final Encoding encoding;
 
   public VolumeData(int size, float[] values) {
-    size(size);
+    this(GridExtent.cube(size), values);
+  }
+
+  public VolumeData(GridExtent shape, float[] values) {
+    validateShape(shape);
     Objects.requireNonNull(values);
-    if (values.length != (long) size * size * size)
-      throw new IllegalArgumentException("Volume size/count");
+    if (values.length != shape.cells()) throw new IllegalArgumentException("Volume size/count");
     float[] owned = values.clone();
     double min = Double.POSITIVE_INFINITY, max = Double.NEGATIVE_INFINITY;
     for (float value : owned) {
@@ -39,22 +43,24 @@ public final class VolumeData {
       min = Math.min(min, value);
       max = Math.max(max, value);
     }
-    this.size = size;
+    this.shape = shape;
     sampleStep = 1;
     encoding = encoding(min, max);
     samples = owned;
     for (int i = 0; i < samples.length; i++) samples[i] = encode(samples[i], encoding);
   }
 
-  private VolumeData(int size, int sampleStep, float[] owned, Encoding encoding) {
-    this.size = size;
+  private VolumeData(GridExtent shape, int sampleStep, float[] owned, Encoding encoding) {
+    this.shape = shape;
     this.sampleStep = sampleStep;
     samples = owned;
     this.encoding = encoding;
   }
 
-  private static void size(int size) {
-    if (size < 2 || size > 256) throw new IllegalArgumentException("Volume size 2..256");
+  private static void validateShape(GridExtent shape) {
+    Objects.requireNonNull(shape);
+    if (shape.width() < 2 || shape.height() < 2 || shape.depth() < 2)
+      throw new IllegalArgumentException("Volume axes must be 2..256 texels");
   }
 
   public static void validateSampleStep(int sampleStep) {
@@ -90,6 +96,21 @@ public final class VolumeData {
     return sampleGrid(size, 1, originX, originY, originZ, field, token);
   }
 
+  public static VolumeData sample(
+      GridExtent shape,
+      double originX,
+      double originY,
+      double originZ,
+      Field field,
+      CancellationToken token) {
+    return sampleGrid(shape, 1, originX, originY, originZ, field, token);
+  }
+
+  public static VolumeData sample(
+      GridExtent shape, double originX, double originY, double originZ, Field field) {
+    return sample(shape, originX, originY, originZ, field, new CancellationToken());
+  }
+
   /** Canonical field sampled at coarse-cell centers for display only; size counts texels. */
   public static VolumeData sampleGrid(
       int size,
@@ -99,19 +120,30 @@ public final class VolumeData {
       double originZ,
       Field field,
       CancellationToken token) {
-    size(size);
+    return sampleGrid(GridExtent.cube(size), sampleStep, originX, originY, originZ, field, token);
+  }
+
+  public static VolumeData sampleGrid(
+      GridExtent shape,
+      int sampleStep,
+      double originX,
+      double originY,
+      double originZ,
+      Field field,
+      CancellationToken token) {
+    validateShape(shape);
     validateSampleStep(sampleStep);
     Objects.requireNonNull(field);
     Objects.requireNonNull(token);
     if (!Double.isFinite(originX) || !Double.isFinite(originY) || !Double.isFinite(originZ))
       throw new IllegalArgumentException("Finite volume origin required");
     token.throwIfCancelled();
-    double[] raw = new double[size * size * size];
+    double[] raw = new double[shape.cells()];
     double min = Double.POSITIVE_INFINITY, max = Double.NEGATIVE_INFINITY;
-    for (int z = 0; z < size; z++)
-      for (int y = 0; y < size; y++) {
+    for (int z = 0; z < shape.depth(); z++)
+      for (int y = 0; y < shape.height(); y++) {
         token.throwIfCancelled();
-        for (int x = 0; x < size; x++) {
+        for (int x = 0; x < shape.width(); x++) {
           double value =
               field.sample(
                   coordinate(originX, x, sampleStep),
@@ -120,12 +152,12 @@ public final class VolumeData {
           if (!Double.isFinite(value))
             throw new IllegalArgumentException(
                 "Nonfinite canonical volume sample at " + x + "," + y + "," + z);
-          raw[(z * size + y) * size + x] = value;
+          raw[(z * shape.height() + y) * shape.width() + x] = value;
           min = Math.min(min, value);
           max = Math.max(max, value);
         }
       }
-    return encodeOwned(size, sampleStep, raw, min, max, token);
+    return encodeOwned(shape, sampleStep, raw, min, max, token);
   }
 
   private static double coordinate(double origin, int index, int sampleStep) {
@@ -141,27 +173,65 @@ public final class VolumeData {
 
   static VolumeData encodeOwned(
       int size, int sampleStep, double[] raw, double min, double max, CancellationToken token) {
-    size(size);
+    return encodeOwned(GridExtent.cube(size), sampleStep, raw, min, max, token);
+  }
+
+  static VolumeData encodeOwned(
+      GridExtent shape,
+      int sampleStep,
+      double[] raw,
+      double min,
+      double max,
+      CancellationToken token) {
+    validateShape(shape);
     validateSampleStep(sampleStep);
-    if (raw.length != (long) size * size * size)
-      throw new IllegalArgumentException("Volume sample count");
+    if (raw.length != shape.cells()) throw new IllegalArgumentException("Volume sample count");
     token.throwIfCancelled();
     var encoding = encoding(min, max);
     float[] encoded = new float[raw.length];
-    for (int z = 0; z < size; z++)
-      for (int y = 0; y < size; y++) {
+    for (int z = 0; z < shape.depth(); z++)
+      for (int y = 0; y < shape.height(); y++) {
         token.throwIfCancelled();
-        for (int x = 0; x < size; x++) {
-          int i = (z * size + y) * size + x;
+        for (int x = 0; x < shape.width(); x++) {
+          int i = (z * shape.height() + y) * shape.width() + x;
           encoded[i] = encode(raw[i], encoding);
         }
       }
     token.throwIfCancelled();
-    return new VolumeData(size, sampleStep, encoded, encoding);
+    return new VolumeData(shape, sampleStep, encoded, encoding);
   }
 
+  /** Legacy cube accessor; rectangular consumers use shape()/width()/height()/depth(). */
   public int size() {
-    return size;
+    return shape.width();
+  }
+
+  public GridExtent shape() {
+    return shape;
+  }
+
+  public int width() {
+    return shape.width();
+  }
+
+  public int height() {
+    return shape.height();
+  }
+
+  public int depth() {
+    return shape.depth();
+  }
+
+  public int extentX() {
+    return width() * sampleStep;
+  }
+
+  public int extentY() {
+    return height() * sampleStep;
+  }
+
+  public int extentZ() {
+    return depth() * sampleStep;
   }
 
   /** World units between adjacent texture sample centers. */
@@ -169,8 +239,9 @@ public final class VolumeData {
     return sampleStep;
   }
 
+  /** Legacy horizontal world span; rectangular consumers use extentX/Y/Z. */
   public int extent() {
-    return size * sampleStep;
+    return extentX();
   }
 
   public Encoding encoding() {
@@ -197,20 +268,20 @@ public final class VolumeData {
     Objects.requireNonNull(target);
     if (width <= 0 || height <= 0 || depth <= 0)
       throw new IllegalArgumentException("Positive volume region required");
-    Objects.checkFromIndexSize(x, width, size);
-    Objects.checkFromIndexSize(y, height, size);
-    Objects.checkFromIndexSize(z, depth, size);
+    Objects.checkFromIndexSize(x, width, shape.width());
+    Objects.checkFromIndexSize(y, height, shape.height());
+    Objects.checkFromIndexSize(z, depth, shape.depth());
     int count = width * height * depth;
     if (target.remaining() < count) throw new java.nio.BufferOverflowException();
     for (int dz = 0; dz < depth; dz++)
       for (int dy = 0; dy < height; dy++)
-        target.put(samples, ((z + dz) * size + y + dy) * size + x, width);
+        target.put(samples, ((z + dz) * shape.height() + y + dy) * shape.width() + x, width);
   }
 
   private float encoded(int x, int y, int z) {
-    if (x < 0 || y < 0 || z < 0 || x >= size || y >= size || z >= size)
+    if (x < 0 || y < 0 || z < 0 || x >= shape.width() || y >= shape.height() || z >= shape.depth())
       throw new IndexOutOfBoundsException();
-    return samples[(z * size + y) * size + x];
+    return samples[(z * shape.height() + y) * shape.width() + x];
   }
 
   /** Canonical reconstruction in double precision from the display texture. */
@@ -225,9 +296,7 @@ public final class VolumeData {
     return (float) Math.max(-Float.MAX_VALUE, Math.min(Float.MAX_VALUE, value(x, y, z)));
   }
 
-  /**
-   * Matches encoded GL_LINEAR / CLAMP_TO_EDGE, decoded at a local world location in [0,extent]^3.
-   */
+  /** Matches encoded GL_LINEAR / CLAMP_TO_EDGE, decoded in the local per-axis world extents. */
   public double interpolate(double x, double y, double z) {
     return encoding.decode(interpolateEncoded(x, y, z));
   }
@@ -236,15 +305,15 @@ public final class VolumeData {
   double interpolateEncoded(double x, double y, double z) {
     if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z))
       throw new IllegalArgumentException("Finite location required");
-    x = Math.max(0, Math.min(size - 1, x / sampleStep - .5));
-    y = Math.max(0, Math.min(size - 1, y / sampleStep - .5));
-    z = Math.max(0, Math.min(size - 1, z / sampleStep - .5));
+    x = Math.max(0, Math.min(shape.width() - 1, x / sampleStep - .5));
+    y = Math.max(0, Math.min(shape.height() - 1, y / sampleStep - .5));
+    z = Math.max(0, Math.min(shape.depth() - 1, z / sampleStep - .5));
     int ix = (int) x,
         iy = (int) y,
         iz = (int) z,
-        jx = Math.min(size - 1, ix + 1),
-        jy = Math.min(size - 1, iy + 1),
-        jz = Math.min(size - 1, iz + 1);
+        jx = Math.min(shape.width() - 1, ix + 1),
+        jy = Math.min(shape.height() - 1, iy + 1),
+        jz = Math.min(shape.depth() - 1, iz + 1);
     double tx = x - ix, ty = y - iy, tz = z - iz;
     double lo =
         lerp(
