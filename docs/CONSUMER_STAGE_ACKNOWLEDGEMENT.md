@@ -1,0 +1,23 @@
+# Consumer stage acknowledgement — unvalidated development
+
+This main-branch source follow-up addresses specification 13.5.3/13.5.7/13.5.9 and 13.7.4, with A22–A26 coverage definitions. No compilation, JUnit, independent consumer, checker, native probe or workflow ran. The owner testing pause and last observed 922-test / 120-suite validated baseline remain.
+
+## Observe the CompletionStage contract
+
+ChunkConsumer returns a CompletionStage, but region delivery previously required toCompletableFuture conversion. A host stage declining that optional conversion was treated as a failed delivery even when it could correctly report completion. Also, failure during a timed get reached diagnostics through ExecutionException, while an already failed acknowledgement reached them through CompletionException; the same cause could produce different messages depending on timing.
+
+The package-private ConsumerAcknowledgement observer retains the existing direct future path. If conversion throws UnsupportedOperationException, it registers whenComplete and observes a private future instead. No new executor is introduced. The engine does not complete, cancel, time out or otherwise mutate the host acknowledgement, and in-flight capacity remains held while delivery is pending. Scope cancellation can withdraw that wait without changing the host stage. Normal future observation can still see completed state while an unrelated host completion callback blocks its completing thread.
+
+Timed waits still poll at 50 ms cancellation checkpoints. An ExecutionException now proceeds to join so both early and late exceptional completion reach the same existing delivery-failure cause path. Host acknowledgement cancellation remains a delivery failure under CONTINUE/FAIL_FAST unless the stream itself is cancelling. Interrupting a coordinator during its acknowledgement wait restores the interrupt flag and requests cooperative stream cancellation, rather than counting an interrupted wait as an ordinary failed delivery and continuing work.
+
+Null stages/null conversion futures and RuntimeExceptions while converting or registering observation remain one delivery failure for that chunk. Errors thrown directly by consumer/conversion/registration code retain the existing terminal failure behavior. Consumer side effects are never automatically retried. Contexts, region slots, pending requests, profiling outcomes and completed immutable snapshots retain their existing ownership boundaries. Host accept/conversion/observation methods and callbacks remain cooperative: this change does not preempt blocking host code or certify a real-time cancellation bound.
+
+Public signatures, formats, schemas, voxel arithmetic and UI/preferences are unchanged. ChunkConsumer Javadoc now states its generic-stage and host-ownership contract. Existing region observation futures and asynchronous collection reservations keep their prior separate semantics.
+
+## Deferred definitions
+
+Nine RegionAcknowledgementTest definitions use actual streams and host CompletionStage proxies that decline conversion. They specify pending backpressure in both delivery orders, CONTINUE/FAIL_FAST, identical early/timed-wait failure causes and runtime diagnostics, explicit cancellation, context closure with an independent peer, host-stage cancellation, interrupted-wait flag/count ownership, invalid conversion/observation, and a normal future with an unrelated blocked host callback. Latches arrange the relevant phases and waits are bounded in the deferred harness; these are definitions, not observed timing evidence.
+
+ConsumerStageConsumer separately compiles against only the engine JAR. Four successful root/order cases hold the first opaque acknowledgement, then drain 64 exact chunks through non-convertible stages. Two failure policies check delivery-phase counts/cause and no retry. Explicit cancellation and context closure retain pending host acknowledgements and leave independent peer contexts usable. After every context and the engine close, 66 retained snapshots must still match 1,424 independent signed-position voxel expectations, including project-Y EMPTY clipping. The coordinate field independently contributes 21 exact observations. Complete authoring JSON stays unchanged; a project and report are future artifacts.
+
+Future Linux/Windows client commands and artifact paths remain in the existing manual-only workflow without dispatch. Broader stage implementations/races, performance/stress, platform/Windows 11 and complete acceptance/release gates remain pending. Main remains authoritative; no development branch was created.

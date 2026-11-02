@@ -759,23 +759,13 @@ public final class WorldContext implements AutoCloseable {
                   engine.profiler().scope(contextId, compiled.projectUuid(), chosen.pos);
               deliveryStamp = deliveryProfile == null ? 0 : deliveryProfile.begin();
               var accepted = consumer.accept(chunk);
-              if (accepted == null)
-                throw new IllegalStateException("ChunkConsumer returned null stage");
-              // Polling permits cancellation/close even when a consumer never completes.
-              var ack = accepted.toCompletableFuture();
-              while (!ack.isDone()) {
-                token.throwIfCancelled();
-                try {
-                  ack.get(50, TimeUnit.MILLISECONDS);
-                } catch (TimeoutException ignored) {
-                }
-              }
-              ack.join();
+              ConsumerAcknowledgement.await(accepted, token);
               completed.incrementAndGet();
               deliveryOutcome = Profiler.Outcome.SUCCESS;
             } catch (CancellationException e) {
               deliveryOutcome = Profiler.Outcome.CANCELLED;
-              if (token.isCancelled() || closed.get()) token.cancel();
+              if (token.isCancelled() || closed.get() || Thread.currentThread().isInterrupted())
+                token.cancel();
               else {
                 recordFailure(chosen.pos, phase, e);
                 if (request.failurePolicy() == RegionRequest.FailurePolicy.FAIL_FAST)
