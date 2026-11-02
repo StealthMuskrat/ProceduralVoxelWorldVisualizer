@@ -68,6 +68,8 @@ public final class PropertyPanel {
   private final ResourcePicker resourcePicker;
   private MembershipDialog membershipDialog;
   private final ExpressionFeedback expressionFeedback = new ExpressionFeedback();
+  private final Map<String, String> conditionErrors = new HashMap<>();
+  private long conditionVersion;
   private UUID last;
   private Object lastDraft;
   private CurveDialog curve;
@@ -595,6 +597,8 @@ public final class PropertyPanel {
         last = state.selected;
         lastDraft = state.draft;
         f.clear();
+        conditionErrors.clear();
+        conditionVersion++;
       }
       if (state.multiSelection.size() > 1) {
         ImGui.text(state.multiSelection.size() + " sibling resources selected");
@@ -3004,56 +3008,102 @@ public final class PropertyPanel {
     resourcePicker.draw(label, "voxel", uuid, "None", set);
   }
 
+  private void conditionEdit(BooleanSupplier edit, boolean gate) {
+    try {
+      if (edit.getAsBoolean()) {
+        if (gate) changedGateSeeds();
+        conditionErrors.clear();
+        conditionVersion++;
+        f.clear();
+      }
+    } catch (IllegalArgumentException ex) {
+      conditionErrors.put(
+          worldSettingPath, "This edit would exceed the supported condition depth.");
+    }
+  }
+
+  private void conditionFeedback(boolean gate, int depth) {
+    String problem = conditionErrors.get(worldSettingPath);
+    if (problem != null) ImGui.textWrapped(problem);
+    if (depth != 0) return;
+    ImGui.textWrapped(
+        "AND/OR groups retain existing clauses. Choosing a basic condition replaces subclauses.");
+    if (gate)
+      ImGui.textWrapped(
+          "Regrouping gates can change path-based probability draws. NOT negates its child; Use"
+              + " Only Child removes that negation.");
+  }
+
+  // Keep deep valid conditions reachable without multiplying indentation by all 32 levels.
+  private boolean conditionTree(String label, int depth) {
+    if (smokeWorldSettings != null || probingWorldNumbers)
+      ImGui.setNextItemOpen(true, ImGuiCond.Always);
+    return ImGui.treeNodeEx(label, depth >= 3 ? ImGuiTreeNodeFlags.NoTreePushOnOpen : 0);
+  }
+
   private void predicate(Predicate p, int depth) {
-    if (depth > 16) {
-      ImGui.text("Maximum editor nesting reached");
+    if (depth > WorldConditionEdits.MAX_DEPTH) {
+      ImGui.textWrapped(
+          "Condition exceeds the supported nesting depth; replace its parent to repair.");
       return;
     }
+    ImGui.pushID("condition-values:" + conditionVersion);
     settingControl(
         "kind",
         () ->
             f.choice(
                 "Condition",
                 p.kind,
-                List.of(
-                    "ANY",
-                    "EMPTY",
-                    "OCCUPIED",
-                    "TYPE_IS",
-                    "TYPE_IS_NOT",
-                    "IN_SET",
-                    "NOT_IN_SET",
-                    "AND",
-                    "OR"),
-                v -> p.kind = v));
+                WorldConditionEdits.PREDICATES,
+                v -> conditionEdit(() -> WorldConditionEdits.kind(p, v, depth), false)));
     if (p.kind.startsWith("TYPE_"))
       settingControl(
           "reference",
           () -> typePicker("Voxel type", p.reference, v -> p.reference = v),
           resourcePicker::focused);
-    else if (p.kind.equals("IN_SET") || p.kind.equals("NOT_IN_SET")) {
+    else if (p.kind.equals("IN_SET") || p.kind.equals("NOT_IN_SET"))
       settingControl(
           "reference",
           () -> resourcePicker.draw("Voxel set", "set", p.reference, null, v -> p.reference = v),
           resourcePicker::focused);
-    }
-    if (p.kind.equals("AND") || p.kind.equals("OR")) {
+    ImGui.popID();
+    conditionFeedback(false, depth);
+    if (WorldConditionEdits.group(p.kind)) {
+      int remove = -1;
       for (int i = 0; i < p.children.size(); i++) {
         ImGui.pushID(i);
-        if (ImGui.treeNode("Clause " + (i + 1))) {
+        if (conditionTree("Clause " + (i + 1) + " (level " + (depth + 1) + ")", depth)) {
           var child = p.children.get(i);
-          nestedSetting("children", () -> predicate(child, depth + 1));
-          if (ImGui.smallButton("Remove")) p.children.remove(i);
-          ImGui.treePop();
+          nestedSetting("children/" + i, () -> predicate(child, depth + 1));
+          ImGui.pushID("condition-actions:" + conditionVersion);
+          ImGui.beginDisabled(p.children.size() <= 1);
+          if (ImGui.smallButton("Remove")) remove = i;
+          ImGui.endDisabled();
+          ImGui.popID();
+          if (depth < 3) ImGui.treePop();
         }
         ImGui.popID();
       }
-      if (ImGui.button("Add Clause")) p.children.add(new Predicate());
+      if (remove >= 0) {
+        int index = remove;
+        conditionEdit(() -> WorldConditionEdits.remove(p, index), false);
+      }
+      ImGui.pushID("condition-actions:" + conditionVersion);
+      ImGui.beginDisabled(depth >= WorldConditionEdits.MAX_DEPTH);
+      if (ImGui.button("Add Clause")) conditionEdit(() -> WorldConditionEdits.add(p, depth), false);
+      ImGui.endDisabled();
+      if (p.children.size() == 1 && ImGui.button("Use Only Child"))
+        conditionEdit(() -> WorldConditionEdits.unwrap(p), false);
+      ImGui.popID();
     }
   }
 
   private void gate(Gate g, int depth) {
-    if (depth > 16) return;
+    if (depth > WorldConditionEdits.MAX_DEPTH) {
+      ImGui.textWrapped("Gate exceeds the supported nesting depth; replace its parent to repair.");
+      return;
+    }
+    ImGui.pushID("condition-values:" + conditionVersion);
     settingControl(
         "kind",
         () ->
@@ -3061,13 +3111,7 @@ public final class PropertyPanel {
                 "Gate",
                 g.kind,
                 WorldSemantics.GATES,
-                v -> {
-                  g.kind = v;
-                  if (v.equals("NOT") && g.children.isEmpty()) {
-                    changedGateSeeds();
-                    g.children.add(new Gate());
-                  }
-                }));
+                v -> conditionEdit(() -> WorldConditionEdits.kind(g, v, depth), true)));
     if (g.kind.equals("COMPARE") || g.kind.equals("INTERVAL")) {
       settingControl(
           "noiseGeneratorUuid",
@@ -3098,26 +3142,36 @@ public final class PropertyPanel {
           "seedOffset", () -> longText("Gate seed offset", g.seedOffset, v -> g.seedOffset = v));
       ImGui.textWrapped("Independent deterministic XYZ draw, stable within this gate path.");
     }
-    if (g.kind.equals("AND") || g.kind.equals("OR") || g.kind.equals("NOT")) {
+    ImGui.popID();
+    conditionFeedback(true, depth);
+    if (WorldConditionEdits.gateGroup(g.kind)) {
+      int remove = -1;
       for (int i = 0; i < g.children.size(); i++) {
         ImGui.pushID(i);
-        if (smokeWorldSettings != null || probingWorldNumbers)
-          ImGui.setNextItemOpen(true, ImGuiCond.Always);
-        if (ImGui.treeNode("Gate clause " + i)) {
+        if (conditionTree("Gate clause " + (i + 1) + " (level " + (depth + 1) + ")", depth)) {
           var child = g.children.get(i);
           nestedSetting("children/" + i, () -> gate(child, depth + 1));
-          if (ImGui.smallButton("Remove")) {
-            changedGateSeeds();
-            g.children.remove(i);
-          }
-          ImGui.treePop();
+          ImGui.pushID("condition-actions:" + conditionVersion);
+          ImGui.beginDisabled(g.children.size() <= 1);
+          if (ImGui.smallButton("Remove")) remove = i;
+          ImGui.endDisabled();
+          ImGui.popID();
+          if (depth < 3) ImGui.treePop();
         }
         ImGui.popID();
       }
-      if ((!g.kind.equals("NOT") || g.children.isEmpty()) && ImGui.button("Add Gate")) {
-        changedGateSeeds();
-        g.children.add(new Gate());
+      if (remove >= 0) {
+        int index = remove;
+        conditionEdit(() -> WorldConditionEdits.remove(g, index), true);
       }
+      ImGui.pushID("condition-actions:" + conditionVersion);
+      ImGui.beginDisabled(
+          depth >= WorldConditionEdits.MAX_DEPTH || g.kind.equals("NOT") && !g.children.isEmpty());
+      if (ImGui.button("Add Gate")) conditionEdit(() -> WorldConditionEdits.add(g, depth), true);
+      ImGui.endDisabled();
+      if (g.children.size() == 1 && ImGui.button("Use Only Child"))
+        conditionEdit(() -> WorldConditionEdits.unwrap(g), true);
+      ImGui.popID();
     }
   }
 

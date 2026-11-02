@@ -252,3 +252,5 @@ The unvalidated [rectangular fixed mesh previews](docs/RECTANGULAR_FIXED_PREVIEW
 The unvalidated [rectangular slices](docs/RECTANGULAR_SLICES.md) extend XYZ extents through orthogonal image sampling, GPU upload, hover and per-axis pan/zoom, with plane-area budgets. Native/independent replay remains deferred; no workflows ran.
 
 The unvalidated [rectangular fixed volumes](docs/RECTANGULAR_FIXED_VOLUMES.md) carry XYZ counts through scalar texture sampling, bounded replacement/overlap and per-axis ray/light rendering. Deferred native/independent replay remains unexecuted; no workflows ran.
+
+The unvalidated [World condition grouping](docs/WORLD_CONDITION_GROUPING.md) retains clauses through AND/OR/NOT edits, protects logical arity, supports 32 nested levels and reports precise nested diagnostics. Twelve deferred regression definitions include engine interval/EMPTY-state and transaction expectations; no compilation, tests or workflows ran.

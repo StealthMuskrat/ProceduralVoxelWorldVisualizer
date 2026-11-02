@@ -562,10 +562,11 @@ public final class Validator {
     switch (p.kind) {
       case "AND", "OR" -> {
         if (p.children.isEmpty()) error("EMPTY_GROUP", path, "Logical group needs children");
-        for (var c : p.children) predicate(c, path + "/children", depth + 1);
+        for (int i = 0; i < p.children.size(); i++)
+          predicate(p.children.get(i), path + "/children/" + i, depth + 1);
       }
-      case "TYPE_IS", "TYPE_IS_NOT" -> reference(p.reference, types, path);
-      case "IN_SET", "NOT_IN_SET" -> reference(p.reference, sets, path);
+      case "TYPE_IS", "TYPE_IS_NOT" -> reference(p.reference, types, path + "/reference");
+      case "IN_SET", "NOT_IN_SET" -> reference(p.reference, sets, path + "/reference");
       case "ANY", "EMPTY", "OCCUPIED" -> {}
       default -> error("INVALID_PREDICATE", path, "Unknown kind");
     }
@@ -590,17 +591,18 @@ public final class Validator {
       case "PROBABILITY" -> {
         finite(g.probability, path + "/probability");
         if (g.probability < 0 || g.probability > 1)
-          error("INVALID_PROBABILITY", path, "Gate probability must be in [0,1]");
+          error("INVALID_PROBABILITY", path + "/probability", "Gate probability must be in [0,1]");
       }
       case "COMPARE", "INTERVAL" -> {
-        finite(g.threshold, path);
-        finite(g.max, path);
+        finite(g.threshold, path + "/threshold");
+        finite(g.max, path + "/max");
         if (g.kind.equals("INTERVAL")
             && (g.threshold > g.max || g.threshold == g.max && !(g.includeMin && g.includeMax)))
           error("EMPTY_INTERVAL", path, "Gate interval must contain at least one value");
-        if (g.noiseGeneratorUuid != null) reference(g.noiseGeneratorUuid, noises.keySet(), path);
+        if (g.noiseGeneratorUuid != null)
+          reference(g.noiseGeneratorUuid, noises.keySet(), path + "/noiseGeneratorUuid");
         if (!Set.of("GE", "GT", "LE", "LT", "EQ", "NE").contains(g.comparison))
-          error("INVALID_COMPARISON", path, "Unknown comparison");
+          error("INVALID_COMPARISON", path + "/comparison", "Unknown comparison");
       }
       case "ALWAYS" -> {}
       default -> error("INVALID_GATE", path, "Unknown field gate");

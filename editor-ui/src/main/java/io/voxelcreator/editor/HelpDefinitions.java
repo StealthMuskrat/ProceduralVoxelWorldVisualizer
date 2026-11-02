@@ -91,6 +91,21 @@ final class HelpDefinitions {
                   + " independent fixed XYZ counts through scalar textures and ray-box rendering."
                   + " Camera-relative streaming retains its uniform chunk-based window control."),
           new Guide(
+              "help.world-conditions",
+              "World logical conditions",
+              "Previous Voxel State predicates inspect the existing voxel; EMPTY is distinct from"
+                  + " negative type/set tests, which require an occupied cell. Field Selection"
+                  + " Gates filter the sampled field. Changing a basic condition to AND/OR retains"
+                  + " it as a clause; switching AND/OR retains all clauses. NOT retains the whole"
+                  + " existing gate as its single child. Groups cannot lose their last clause. Use"
+                  + " Only Child removes a one-child group, including NOT negation. Choosing a"
+                  + " basic condition replaces its subclauses. The editor supports the model's 32"
+                  + " nested levels. Regrouping gates can change path-based probability draws;"
+                  + " exact seed offsets remain intact. Invalid raw seed text remains detached for"
+                  + " explicit repair or restoration. Placement settings remain inherited until"
+                  + " Override; Apply publishes the private resource as one undoable transaction"
+                  + " and Save remains explicit."),
+          new Guide(
               "help.trace",
               "Generation traces",
               "Trace a coordinate to inspect the immutable recorded generation result and ordered"
@@ -114,7 +129,9 @@ final class HelpDefinitions {
           Map.entry("help.manual", List.of("noise", "help.find", "shortcuts", "help.about")),
           Map.entry(
               "noise", List.of("noise.algorithm", "processing", "layers", "creation-defaults")),
-          Map.entry("layers", List.of("noise", "processing", "archives", "help.trace")),
+          Map.entry(
+              "layers",
+              List.of("noise", "processing", "archives", "help.trace", "help.world-conditions")),
           Map.entry("navigation", List.of("bookmarks", "help.workspace", "shortcuts")),
           Map.entry("save", List.of("help.project-settings", "archives", "creation-defaults")),
           Map.entry("processing", List.of("noise", "layers", "help.trace")),
@@ -134,6 +151,8 @@ final class HelpDefinitions {
           Map.entry("help.appearance", List.of("themes", "help.workspace", "shortcuts")),
           Map.entry("help.voxel-identities", List.of("layers", "archives", "help.find")),
           Map.entry("help.visualization", List.of("archives", "profiler", "help.workspace")),
+          Map.entry(
+              "help.world-conditions", List.of("layers", "help.trace", "help.project-settings")),
           Map.entry("help.trace", List.of("layers", "diagnostics", "help.find")),
           Map.entry("help.about", List.of("help.updates", "help.manual")));
 
