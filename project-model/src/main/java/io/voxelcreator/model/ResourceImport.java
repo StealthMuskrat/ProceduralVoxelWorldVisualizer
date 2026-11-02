@@ -59,12 +59,14 @@ public final class ResourceImport {
     var source = ResourceGraph.entries(incoming);
     var existing = ResourceGraph.entries(destination);
     var selectable = new HashSet<UUID>();
-    for (var entry : source)
-      if (!entry.kind().equals("operation")) selectable.add(entry.uuid());
+    for (var entry : source) if (!entry.kind().equals("operation")) selectable.add(entry.uuid());
     for (var choice : choices.entrySet())
       if (!selectable.contains(choice.getKey()) || choice.getValue() == null)
-        issues.add(Diagnostic.error("INVALID_IMPORT_CHOICE", "/resources/" + choice.getKey(),
-            "Choose COPY, REUSE or SKIP for an incoming resource row"));
+        issues.add(
+            Diagnostic.error(
+                "INVALID_IMPORT_CHOICE",
+                "/resources/" + choice.getKey(),
+                "Choose COPY, REUSE or SKIP for an incoming resource row"));
     var skipped = new LinkedHashSet<UUID>();
     var reused = new LinkedHashMap<UUID, UUID>();
     for (var entry : source) {
@@ -100,8 +102,11 @@ public final class ResourceImport {
         if (skipped.add(dependent)) queue.addLast(dependent);
     for (var row : rows)
       if (!skipped.contains(row.uuid()) && row.resolution().equals("REUSE") && !row.compatible())
-        issues.add(Diagnostic.error("INCOMPATIBLE_REUSE", "/resources/" + row.uuid(),
-            "Reuse requires an existing semantically identical resource of the same kind"));
+        issues.add(
+            Diagnostic.error(
+                "INCOMPATIBLE_REUSE",
+                "/resources/" + row.uuid(),
+                "Reuse requires an existing semantically identical resource of the same kind"));
     var payload = ProjectIO.copy(duplicated.project());
     Set<UUID> removed = new HashSet<>();
     skipped.forEach(id -> removed.add(duplicated.identities().get(id)));
@@ -195,7 +200,8 @@ public final class ResourceImport {
       if (!current(project))
         throw new IllegalStateException("Import destination changed; refresh the preview");
       var plan = preview();
-      if (!plan.valid()) throw new IllegalStateException("Import preview contains unresolved errors");
+      if (!plan.valid())
+        throw new IllegalStateException("Import preview contains unresolved errors");
       ResourceGraph.assign(project, plan.candidate());
     }
   }
@@ -211,10 +217,11 @@ public final class ResourceImport {
         .filter(e -> e.uuid().equals(source.uuid()))
         .findFirst()
         .orElseGet(
-            () -> candidates.stream()
-                .filter(e -> e.resource().id.equals(source.resource().id))
-                .findFirst()
-                .orElse(null));
+            () ->
+                candidates.stream()
+                    .filter(e -> e.resource().id.equals(source.resource().id))
+                    .findFirst()
+                    .orElse(null));
   }
 
   public static boolean compatible(
@@ -267,7 +274,7 @@ public final class ResourceImport {
 
   private static void collect(JsonNode n, String path, Map<String, String> identities) {
     if (n.isObject()) {
-      if (n.hasNonNull("uuid")) identities.put(n.get("uuid").asText(), "@" + path);
+      if (UuidText.valid(n.get("uuid"))) identities.put(n.get("uuid").textValue(), "@" + path);
       n.fields().forEachRemaining(e -> collect(e.getValue(), path + "/" + e.getKey(), identities));
     } else if (n.isArray())
       for (int i = 0; i < n.size(); i++) collect(n.get(i), path + "/" + i, identities);
@@ -276,7 +283,8 @@ public final class ResourceImport {
   private static void normalize(
       JsonNode n, Map<String, String> local, Map<String, String> external) {
     if (n instanceof ObjectNode o) {
-      boolean identity = o.has("uuid");
+      // A user input named uuid contains a Binding, rather than declaring this map's identity.
+      boolean identity = UuidText.valid(o.get("uuid"));
       if (identity) {
         o.remove("uuid");
         o.remove("id");

@@ -274,3 +274,5 @@ The unvalidated [semantic-ID validation follow-up](docs/SEMANTIC_ID_VALIDATION.m
 The unvalidated [project parsing follow-up](docs/PROJECT_PARSE_BOUNDARY.md) rejects trailing JSON/text, checks version range before narrowing and returns escaped parser diagnostic paths. Seven new deferred contracts, extended Open workflow definitions and an independent 20-rejection/field/voxel replay remain unexecuted; no tests or workflows ran.
 
 The unvalidated [typed UUID follow-up](docs/PROJECT_UUID_SHAPES.md) reloads legal identity-like expression input names, strictly validates reference arrays and raw overrides, and retains dependencies beneath those names. Ten deferred contracts and an independent eight-rejection/field/voxel replay remain unexecuted; no tests or workflows ran.
+
+The unvalidated [import compatibility follow-up](docs/RESOURCE_IMPORT_COMPATIBILITY.md) retains identity-like expression bindings during Reuse comparison, preventing changed fields from being reused as identical. Eight deferred contracts and an independent rejected-Reuse/Copy/save/Undo replay remain unexecuted; no tests or workflows ran.

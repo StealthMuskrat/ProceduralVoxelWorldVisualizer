@@ -1,8 +1,10 @@
 # Owned import workspace
 
-Status: **implemented, awaiting validation** on `codex/development-phase`. No compilation, regression/native execution or independent replay was performed. The owner's pause on GitHub testing remains in force, and no passing count or acceptance status advances.
+Status: **implemented, awaiting validation** on `main`. No compilation, regression/native execution or independent replay was performed. The owner's pause on GitHub testing remains in force, and no passing count or acceptance status advances.
 
 The production COPY/REUSE/SKIP dialog now has a dedicated editor session and panel. Incoming definitions and preview candidates remain owned by the existing `ResourceImport.Session` model. The wrapper adds exact document-session, logical project UUID and destination object/revision ownership and explicit review/reload boundaries. No portable-package, project, registry or engine API format changes.
+
+The unvalidated [compatibility follow-up](RESOURCE_IMPORT_COMPATIBILITY.md) retains legal identity-like input bindings during Reuse comparison. A changed uuid/id/parentFolderUuid binding cannot disappear as metadata; incompatible choices remain blocked, while the existing COPY/SKIP review and publication workflow is unchanged. Deferred model and independent numerical definitions do not advance acceptance evidence.
 
 ## Review and reload
 
