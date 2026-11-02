@@ -7,6 +7,16 @@ import java.util.function.Consumer;
 
 /** Atomic, bounded structural-delta transactions; view navigation never enters this history. */
 public final class DocumentSession {
+  private final ProjectIO persistence;
+
+  public DocumentSession() {
+    this(new ProjectIO());
+  }
+
+  DocumentSession(ProjectIO persistence) {
+    this.persistence = Objects.requireNonNull(persistence);
+  }
+
   private ProjectData active = new ProjectData();
   private Path path;
   private String saved = serialize(active);
@@ -90,7 +100,7 @@ public final class DocumentSession {
   }
 
   public List<Diagnostic> open(Path file) throws IOException {
-    var load = new ProjectIO().load(file);
+    var load = persistence.load(file);
     if (!load.success()) return load.diagnostics();
     var issues = validator.apply(load.project());
     if (!issues.isEmpty()) return issues;
@@ -117,9 +127,9 @@ public final class DocumentSession {
   public void save(Path file) throws IOException {
     var issues = validator.apply(active);
     if (!issues.isEmpty()) throw new IOException(issues.toString());
-    new ProjectIO().save(file, active);
+    String nextSaved = persistence.saveAndGetCheckpoint(file, active);
     path = file;
-    saved = serialize(active);
+    saved = nextSaved;
   }
 
   private static String serialize(ProjectData p) {

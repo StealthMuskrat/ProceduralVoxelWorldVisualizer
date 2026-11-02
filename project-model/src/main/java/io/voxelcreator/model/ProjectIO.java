@@ -3,7 +3,6 @@ package io.voxelcreator.model;
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.databind.*;
 import java.io.*;
-import java.nio.channels.FileChannel;
 import java.nio.file.*;
 import java.util.*;
 
@@ -17,6 +16,16 @@ public final class ProjectIO {
           .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
           .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
           .enable(SerializationFeature.INDENT_OUTPUT);
+
+  private final ProjectSaveFiles files;
+
+  public ProjectIO() {
+    this(new ProjectSaveFiles() {});
+  }
+
+  ProjectIO(ProjectSaveFiles files) {
+    this.files = Objects.requireNonNull(files);
+  }
 
   public record LoadResult(ProjectData project, List<Diagnostic> diagnostics) {
     public boolean success() {
@@ -163,25 +172,51 @@ public final class ProjectIO {
     return JSON.convertValue(data, ProjectData.class);
   }
 
+  /**
+   * Validate and sync a temporary sibling; unsupported atomic replacement leaves the target intact.
+   */
   public void save(Path destination, ProjectData data) throws IOException {
+    saveAndGetCheckpoint(destination, data);
+  }
+
+  /** The exact serialized payload becomes the document's saved checkpoint after publication. */
+  String saveAndGetCheckpoint(Path destination, ProjectData data) throws IOException {
     var issues = Validator.validate(data);
     if (!issues.isEmpty()) throw new IOException(issues.toString());
-    Path target = destination.toAbsolutePath(), parent = target.getParent();
+    String contents = JSON.writeValueAsString(data);
+    Path target = Objects.requireNonNull(destination).toAbsolutePath(), parent = target.getParent();
+    if (parent == null || target.getFileName() == null)
+      throw new IOException("Choose a project file path");
     Files.createDirectories(parent);
-    Path temp = Files.createTempFile(parent, ".voxel-save-", ".tmp");
+    Path temp = files.temporary(parent);
+    Throwable failure = null;
+    boolean published = false;
     try {
-      Files.writeString(temp, JSON.writeValueAsString(data));
-      try (var channel = FileChannel.open(temp, StandardOpenOption.WRITE)) {
-        channel.force(true);
-      }
+      files.write(temp, contents);
+      files.force(temp);
       try {
-        Files.move(
-            temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-      } catch (AtomicMoveNotSupportedException e) {
-        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+        files.replace(temp, target);
+      } catch (AtomicMoveNotSupportedException unsupported) {
+        throw new IOException(
+            "This location does not support safe project replacement; choose another location",
+            unsupported);
       }
+      published = true;
+    } catch (IOException | RuntimeException | Error rejected) {
+      failure = rejected;
+      throw rejected;
     } finally {
-      Files.deleteIfExists(temp);
+      // Successful replacement transferred the temporary file; no later I/O may turn it into a
+      // failed save.
+      if (!published) {
+        try {
+          files.delete(temp);
+        } catch (IOException cleanup) {
+          if (failure == null) throw cleanup;
+          if (failure != cleanup) failure.addSuppressed(cleanup);
+        }
+      }
     }
+    return contents;
   }
 }

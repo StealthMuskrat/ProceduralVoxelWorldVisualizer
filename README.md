@@ -264,3 +264,5 @@ The unvalidated [World interval-default follow-up](docs/WORLD_INTERVAL_DEFAULTS.
 The unvalidated [region completion follow-up](docs/REGION_COMPLETION_OWNERSHIP.md) isolates stream observation futures, publishes terminal results after region-slot cleanup and withdraws undeliverable async collections even when a public completion callback blocks. Eight deferred contracts and an independent engine-only replay remain unexecuted; no workflows ran.
 
 The unvalidated [archive writer recovery follow-up](docs/ARCHIVE_WRITER_RECOVERY.md) rolls back failed preparation, retains valid prepared bytes for publication retry and blocks uncertain writers from publishing. Eleven deferred I/O-fault definitions and an independent legacy/packed replay remain unexecuted; no tests or workflows ran.
+
+The unvalidated [project save atomicity follow-up](docs/PROJECT_SAVE_ATOMICITY.md) rejects unsupported atomic replacement, preserves primary staging errors and records the exact published JSON as the saved checkpoint. Eight deferred fault/session definitions and an independent save/history/engine replay remain unexecuted; no tests or workflows ran.
