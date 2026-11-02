@@ -122,7 +122,7 @@ public final class ProjectIO {
     String issue =
         resourceArray(tree.path("worldGenerator").path("layers"), "/worldGenerator/layers");
     if (issue != null) return issue;
-    return uuids(tree, "");
+    return ProjectUuidShapes.invalid(tree);
   }
 
   private static String resourceArray(JsonNode list, String path) {
@@ -138,32 +138,6 @@ public final class ProjectIO {
           if (issue != null) return issue;
         }
     }
-    return null;
-  }
-
-  private static String uuids(JsonNode node, String path) {
-    if (node.isObject()) {
-      var fields = node.fields();
-      while (fields.hasNext()) {
-        var e = fields.next();
-        String key = e.getKey();
-        JsonNode value = e.getValue();
-        if ((key.equals("uuid") || key.endsWith("Uuid") || key.equals("reference"))
-            && !value.isNull()
-            && (!value.isTextual()
-                || !value
-                    .asText()
-                    .matches(
-                        "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")))
-          return child(path, key);
-        String issue = uuids(value, child(path, key));
-        if (issue != null) return issue;
-      }
-    } else if (node.isArray())
-      for (int i = 0; i < node.size(); i++) {
-        String issue = uuids(node.get(i), path + "/" + i);
-        if (issue != null) return issue;
-      }
     return null;
   }
 

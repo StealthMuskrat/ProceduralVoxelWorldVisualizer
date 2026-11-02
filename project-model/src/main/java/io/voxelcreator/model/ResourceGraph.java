@@ -54,8 +54,10 @@ public final class ResourceGraph {
       n.fields()
           .forEachRemaining(
               e -> {
-                if (!e.getKey().equals("uuid") && !e.getKey().equals("childOrder"))
-                  scan(e.getValue(), referenceKey(e.getKey()), refs);
+                // Identity/order values are metadata; an identically named input map entry
+                // contains a Binding object whose procedural references still belong to us.
+                if ((!e.getKey().equals("uuid") && !e.getKey().equals("childOrder"))
+                    || e.getValue().isObject()) scan(e.getValue(), referenceKey(e.getKey()), refs);
               });
     } else if (n.isArray()) n.forEach(c -> scan(c, reference, refs));
     else if (reference && n.isTextual())

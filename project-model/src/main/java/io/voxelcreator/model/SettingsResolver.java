@@ -50,6 +50,9 @@ public final class SettingsResolver {
             throw new IllegalArgumentException("Invalid override " + key);
           n.set(key, value.deepCopy());
         });
+    String malformedUuid = ProjectUuidShapes.invalidSettings(n);
+    if (malformedUuid != null)
+      throw new IllegalArgumentException("Malformed UUID at " + malformedUuid);
     return ProjectIO.JSON.convertValue(n, ProjectData.Settings.class);
   }
 

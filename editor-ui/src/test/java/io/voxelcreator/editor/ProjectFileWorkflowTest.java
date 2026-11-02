@@ -213,10 +213,22 @@ class ProjectFileWorkflowTest {
       }
       var candidate = new ProjectData();
       candidate.project.seed = 99;
+      var noise = new Noise();
+      noise.id = "identity-named-inputs";
+      var expression = io.voxelcreator.core.ProcessingRegistry.create("EXPRESSION", "formula", 2);
+      expression.inputs.put("uuid", ProjectData.Binding.constant(1));
+      expression.inputs.put("reference", ProjectData.Binding.constant(2));
+      expression.inputs.put("targetUuid", ProjectData.Binding.constant(3));
+      expression.parameters.put(
+          "expression", ProjectIO.JSON.valueToTree("uuid + reference + targetUuid"));
+      noise.processing.add(expression);
+      noise.outputBinding = ProjectData.Binding.earlier(expression.uuid);
+      candidate.noise2D.add(noise);
       Path valid = dir.resolve("valid.json");
       new ProjectIO().save(valid, candidate);
       f.submit(valid.toString());
       assertEquals(99, s.project().project.seed);
+      assertTrue(s.project().noise2D.getFirst().processing.getFirst().inputs.containsKey("uuid"));
       assertFalse(s.document.dirty());
       assertNull(s.draft);
       assertNull(s.selected);

@@ -237,6 +237,8 @@ public final class Validator {
           curveIdentities(item.parameters.get("curve"), q + "/parameters/curve");
         if (item.parameters.containsKey("noiseGeneratorUuid")) {
           try {
+            if (!UuidText.valid(item.parameters.get("noiseGeneratorUuid")))
+              throw new IllegalArgumentException();
             reference(
                 UUID.fromString(item.parameters.get("noiseGeneratorUuid").asText()),
                 noises.keySet(),
@@ -336,7 +338,7 @@ public final class Validator {
 
   private void rawIdentity(com.fasterxml.jackson.databind.JsonNode node, String path) {
     try {
-      if (node == null || !node.isTextual()) throw new IllegalArgumentException();
+      if (!UuidText.valid(node)) throw new IllegalArgumentException();
       uuid(UUID.fromString(node.textValue()), path);
     } catch (IllegalArgumentException invalid) {
       error("MISSING_UUID", path, "Explicit valid UUID required");

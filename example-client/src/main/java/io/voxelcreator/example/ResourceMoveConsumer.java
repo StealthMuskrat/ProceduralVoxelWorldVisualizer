@@ -1,6 +1,7 @@
 package io.voxelcreator.example;
 
 import io.voxelcreator.api.*;
+import io.voxelcreator.core.ProcessingRegistry;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
 import io.voxelcreator.storage.BlockPos;

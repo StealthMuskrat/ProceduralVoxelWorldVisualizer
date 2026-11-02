@@ -2,6 +2,7 @@ package io.voxelcreator.example;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.voxelcreator.api.*;
+import io.voxelcreator.core.ProcessingRegistry;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
 import io.voxelcreator.storage.BlockPos;
