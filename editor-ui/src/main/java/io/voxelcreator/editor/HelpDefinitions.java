@@ -83,7 +83,10 @@ final class HelpDefinitions {
                   + " configured resolution. In 3D Noise and World, right-drag pans the camera's"
                   + " screen plane, including vertical movement when level. Middle-drag moves in"
                   + " world X/Z; Ctrl+middle moves world Y. Left-drag orbits and wheel zooms."
-                  + " Navigation preserves procedural values and private resource edits."),
+                  + " Navigation preserves procedural values and private resource edits. Fixed"
+                  + " Threshold Voxels, Point Cloud and Isosurface analysis offers independent"
+                  + " Extent X/Y/Z cell counts, bounded by each axis and the total preview budget."
+                  + " Volume and Slices retain their separate extent controls."),
           new Guide(
               "help.trace",
               "Generation traces",

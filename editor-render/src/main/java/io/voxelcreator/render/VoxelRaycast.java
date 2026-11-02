@@ -22,27 +22,36 @@ public final class VoxelRaycast {
     }
 
     public static Bounds cube(Vector3d origin, int side) {
-      if (origin == null || !origin.isFinite() || side < 1 || side > 256)
+      return box(origin, GridExtent.cube(side));
+    }
+
+    public static Bounds box(Vector3d origin, GridExtent extent) {
+      if (origin == null || !origin.isFinite() || extent == null)
         throw new IllegalArgumentException("Invalid fixed picking region");
+      int[] dimensions = {extent.width(), extent.height(), extent.depth()};
       double[] a = {origin.x, origin.y, origin.z};
       int[] lo = new int[3], hi = new int[3];
       for (int i = 0; i < 3; i++) {
         if (a[i] != Math.rint(a[i])
             || a[i] < Integer.MIN_VALUE
             || a[i] > Integer.MAX_VALUE
-            || a[i] + side - 1 > Integer.MAX_VALUE)
+            || a[i] + dimensions[i] - 1 > Integer.MAX_VALUE)
           throw new IllegalArgumentException("Fixed picking region exceeds block coordinates");
         lo[i] = (int) a[i];
-        hi[i] = (int) ((long) lo[i] + side - 1);
+        hi[i] = (int) ((long) lo[i] + dimensions[i] - 1);
       }
       return new Bounds(new BlockPos(lo[0], lo[1], lo[2]), new BlockPos(hi[0], hi[1], hi[2]));
     }
 
     /** Floors the requested lower corner so fixed meshes and samplers share integer cells. */
     public static Bounds snappedCube(Vector3d origin, int side) {
+      return snappedBox(origin, GridExtent.cube(side));
+    }
+
+    public static Bounds snappedBox(Vector3d origin, GridExtent extent) {
       Objects.requireNonNull(origin);
-      return cube(
-          new Vector3d(Math.floor(origin.x), Math.floor(origin.y), Math.floor(origin.z)), side);
+      return box(
+          new Vector3d(Math.floor(origin.x), Math.floor(origin.y), Math.floor(origin.z)), extent);
     }
 
     public boolean contains(int x, int y, int z) {

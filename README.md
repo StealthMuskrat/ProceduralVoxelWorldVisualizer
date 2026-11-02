@@ -246,3 +246,5 @@ The unvalidated [Find typing debounce follow-up](docs/FIND_TYPING_DEBOUNCE.md) c
 The unvalidated [camera screen-geometry follow-up](docs/CAMERA_SCREEN_GEOMETRY.md) gives right-drag true screen-plane movement and uses double-precision, near-clipped picking rays across 3D/World views. Updated native and independent replay definitions remain deferred; no workflows ran.
 
 The unvalidated [voxel identity-review follow-up](docs/VOXEL_IDENTITY_REVIEW.md) shows type dependencies and archive-name impact before renaming, with cached scrolling reviews in Voxel Manager and Properties. Explicit UUID-preserving rename and deferred native/engine/archive replay remain on main; no workflows ran.
+
+The unvalidated [rectangular fixed mesh previews](docs/RECTANGULAR_FIXED_PREVIEWS.md) add independent X/Y/Z analysis extents with exact cell/memory admission for Threshold Voxels, Point Cloud and Isosurface. Native/independent replay remains deferred; no workflows ran.

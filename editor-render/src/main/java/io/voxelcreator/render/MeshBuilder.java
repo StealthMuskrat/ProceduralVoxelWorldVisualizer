@@ -27,38 +27,46 @@ public final class MeshBuilder {
   }
 
   public static Mesh greedy(int size, Cells cells) {
-    if (size < 1 || size > 256) throw new IllegalArgumentException("Preview size 1..256");
+    return greedy(GridExtent.cube(size), cells);
+  }
+
+  public static Mesh greedy(GridExtent extent, Cells cells) {
+    Objects.requireNonNull(extent);
+    Objects.requireNonNull(cells);
+    int[] dimensions = {extent.width(), extent.height(), extent.depth()};
     var mesh = new MeshBuilder();
-    int[] mask = new int[size * size];
+    int[] mask = new int[extent.maximum() * extent.maximum()];
     int[] pos = new int[3], du = new int[3], dv = new int[3];
     for (int d = 0; d < 3; d++) {
       int u = (d + 1) % 3, v = (d + 2) % 3;
-      for (int slice = 0; slice <= size; slice++) {
+      int columns = dimensions[u], rows = dimensions[v];
+      for (int slice = 0; slice <= dimensions[d]; slice++) {
         if (Thread.currentThread().isInterrupted())
           throw new java.util.concurrent.CancellationException();
-        for (int j = 0; j < size; j++)
-          for (int i = 0; i < size; i++) {
+        for (int j = 0; j < rows; j++)
+          for (int i = 0; i < columns; i++) {
             pos[d] = slice;
             pos[u] = i;
             pos[v] = j;
-            int b = slice == size ? 0 : cells.get(pos[0], pos[1], pos[2]);
+            int b = slice == dimensions[d] ? 0 : cells.get(pos[0], pos[1], pos[2]);
             pos[d] = slice - 1;
             int a = slice == 0 ? 0 : cells.get(pos[0], pos[1], pos[2]);
-            mask[j * size + i] = a > 0 && b == 0 ? a : b > 0 && a == 0 ? -b : 0;
+            mask[j * columns + i] = a > 0 && b == 0 ? a : b > 0 && a == 0 ? -b : 0;
           }
-        for (int j = 0; j < size; j++)
-          for (int i = 0; i < size; ) {
-            int material = mask[j * size + i];
+        for (int j = 0; j < rows; j++)
+          for (int i = 0; i < columns; ) {
+            int material = mask[j * columns + i];
             if (material == 0) {
               i++;
               continue;
             }
             int w = 1;
-            while (i + w < size && mask[j * size + i + w] == material) w++;
+            while (i + w < columns && mask[j * columns + i + w] == material) w++;
             int h = 1;
             outer:
-            while (j + h < size) {
-              for (int k = 0; k < w; k++) if (mask[(j + h) * size + i + k] != material) break outer;
+            while (j + h < rows) {
+              for (int k = 0; k < w; k++)
+                if (mask[(j + h) * columns + i + k] != material) break outer;
               h++;
             }
             Arrays.fill(pos, 0);
@@ -75,7 +83,7 @@ public final class MeshBuilder {
             int type = Math.abs(material);
             mesh.quad(pos, du, dv, nx, ny, nz, type, material < 0);
             for (int y = 0; y < h; y++)
-              Arrays.fill(mask, (j + y) * size + i, (j + y) * size + i + w, 0);
+              Arrays.fill(mask, (j + y) * columns + i, (j + y) * columns + i + w, 0);
             i += w;
           }
       }
@@ -101,13 +109,22 @@ public final class MeshBuilder {
   }
 
   public static Mesh points(int size, Cells cells) {
+    return points(GridExtent.cube(size), cells);
+  }
+
+  public static Mesh points(GridExtent extent, Cells cells) {
+    Objects.requireNonNull(extent);
+    Objects.requireNonNull(cells);
     var b = new MeshBuilder();
-    for (int y = 0; y < size; y++)
-      for (int z = 0; z < size; z++)
-        for (int x = 0; x < size; x++) {
+    for (int y = 0; y < extent.height(); y++) {
+      if (Thread.currentThread().isInterrupted())
+        throw new java.util.concurrent.CancellationException();
+      for (int z = 0; z < extent.depth(); z++)
+        for (int x = 0; x < extent.width(); x++) {
           int t = cells.get(x, y, z);
           if (t > 0) b.vertex(x + .5f, y + .5f, z + .5f, 0, 1, 0, t);
         }
+    }
     return new Mesh(Arrays.copyOf(b.vertices, b.count), true);
   }
 

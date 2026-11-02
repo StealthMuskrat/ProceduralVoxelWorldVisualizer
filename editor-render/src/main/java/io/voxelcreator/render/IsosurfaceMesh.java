@@ -17,21 +17,22 @@ public final class IsosurfaceMesh {
 
   private IsosurfaceMesh() {}
 
-  private static void size(int size) {
-    if (size < 1 || size > 256) throw new IllegalArgumentException("Isosurface size 1..256");
-  }
-
   /** Six tetrahedra, two triangles each, three vertices of seven floats per triangle. */
   public static long maximumMeshBytes(int size) {
-    size(size);
-    return 1008L * size * size * size;
+    return maximumMeshBytes(GridExtent.cube(size));
+  }
+
+  public static long maximumMeshBytes(GridExtent extent) {
+    return 1008L * extent.cells();
   }
 
   /** Includes geometric growth/final trimming, the sampled corner grid and fixed scratch. */
   public static long workingBytes(int size) {
-    size(size);
-    long side = size + 1L;
-    return 3 * maximumMeshBytes(size) + 8 * side * side * side + 65536;
+    return workingBytes(GridExtent.cube(size));
+  }
+
+  public static long workingBytes(GridExtent extent) {
+    return 3 * maximumMeshBytes(extent) + 8 * extent.corners() + 65536;
   }
 
   public static Mesh build(
@@ -40,37 +41,46 @@ public final class IsosurfaceMesh {
       double threshold,
       CancellationToken token,
       long meshBytes) {
-    size(size);
+    return build(GridExtent.cube(size), field, threshold, token, meshBytes);
+  }
+
+  public static Mesh build(
+      GridExtent extent,
+      MeshBuilder.Scalar field,
+      double threshold,
+      CancellationToken token,
+      long meshBytes) {
+    Objects.requireNonNull(extent);
     Objects.requireNonNull(field);
     Objects.requireNonNull(token);
     if (!Double.isFinite(threshold) || meshBytes < 0)
       throw new IllegalArgumentException(
           "Finite isosurface threshold and nonnegative mesh budget required");
     token.throwIfCancelled();
-    int side = size + 1;
-    double[] samples = new double[side * side * side];
-    for (int z = 0; z <= size; z++)
-      for (int y = 0; y <= size; y++) {
+    int width = extent.width() + 1, height = extent.height() + 1;
+    double[] samples = new double[(int) extent.corners()];
+    for (int z = 0; z <= extent.depth(); z++)
+      for (int y = 0; y <= extent.height(); y++) {
         token.throwIfCancelled();
-        for (int x = 0; x <= size; x++) {
+        for (int x = 0; x <= extent.width(); x++) {
           double value = field.sample(x, y, z);
           if (!Double.isFinite(value))
             throw new IllegalArgumentException(
                 "Nonfinite isosurface sample at " + x + "," + y + "," + z);
-          samples[(z * side + y) * side + x] = value;
+          samples[(z * height + y) * width + x] = value;
         }
       }
-    var output = new Output(Math.min(meshBytes, maximumMeshBytes(size)));
+    var output = new Output(Math.min(meshBytes, maximumMeshBytes(extent)));
     int[] inside = new int[4], outside = new int[4];
     double[] values = new double[8];
     float[][] points = new float[4][3];
-    for (int z = 0; z < size; z++)
-      for (int y = 0; y < size; y++) {
+    for (int z = 0; z < extent.depth(); z++)
+      for (int y = 0; y < extent.height(); y++) {
         token.throwIfCancelled();
-        for (int x = 0; x < size; x++) {
+        for (int x = 0; x < extent.width(); x++) {
           for (int i = 0; i < 8; i++) {
             var c = CORNERS[i];
-            values[i] = samples[((z + c[2]) * side + y + c[1]) * side + x + c[0]];
+            values[i] = samples[((z + c[2]) * height + y + c[1]) * width + x + c[0]];
           }
           for (var tet : TETS) {
             int ni = 0, no = 0;

@@ -1,5 +1,6 @@
 package io.voxelcreator.editor;
 
+import io.voxelcreator.render.GridExtent;
 import io.voxelcreator.render.IsosurfaceMesh;
 import io.voxelcreator.render.VolumeTextureUpload;
 
@@ -24,20 +25,23 @@ final class PreviewAdmission {
   Decision check(
       int kind, int side, String mode, long cellBudget, int maxDimension, long cpuBytes) {
     if (blocked()) return new Decision(false, 0, blocked);
-    if (kind < 0 || kind > 2 || side < 1 || side > 256 || cellBudget < 0 || cpuBytes < 0)
+    return check(kind, GridExtent.cube(side), mode, cellBudget, maxDimension, cpuBytes);
+  }
+
+  Decision check(
+      int kind, GridExtent extent, String mode, long cellBudget, int maxDimension, long cpuBytes) {
+    if (blocked()) return new Decision(false, 0, blocked);
+    if (kind < 0 || kind > 2 || cellBudget < 0 || cpuBytes < 0)
       throw new IllegalArgumentException("Invalid fixed preview admission");
-    long cells = (long) side * side * (kind == 0 ? 1 : side);
-    if (cells > cellBudget || kind != 0 && side > maxDimension)
+    long cells = kind == 0 ? (long) extent.width() * extent.depth() : extent.cells();
+    if (cells > cellBudget || kind != 0 && extent.maximum() > maxDimension)
       return reject("Preview exceeds configured budget; reduce extent");
     long bytes =
         kind == 0
-            ? 64L * side * side
+            ? 64L * cells
             : kind == 1 && mode.equals("Isosurface")
-                ? IsosurfaceMesh.workingBytes(side)
-                : (mode.equals("Volume") ? 12L : mode.equals("Point Cloud") ? 96L : 3024L)
-                    * side
-                    * side
-                    * side;
+                ? IsosurfaceMesh.workingBytes(extent)
+                : (mode.equals("Volume") ? 12L : mode.equals("Point Cloud") ? 96L : 3024L) * cells;
     if (kind != 0 && mode.equals("Volume")) bytes += VolumeTextureUpload.STAGING_BYTES;
     if (bytes > cpuBytes)
       return reject("Preview exceeds working-memory budget; reduce extent or raise CPU MiB");

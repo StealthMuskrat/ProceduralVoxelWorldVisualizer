@@ -499,6 +499,30 @@ public final class Viewports implements AutoCloseable {
     mark(views[1]);
   }
 
+  private boolean rectangularProbe;
+  private Map<String, Object> rectangularReceipt = Map.of();
+
+  void probeFixedExtent(UUID noise, String mode, GridExtent extent) {
+    var v = views[1];
+    rectangularProbe = true;
+    smokeTab = 1;
+    v.noise = noise;
+    v.mode = mode;
+    v.fixed = true;
+    v.fixedExtent = extent;
+    v.panX = 10.25;
+    v.panY = -2.75;
+    v.panZ = -7.5;
+    v.camera.focus.set(v.panX, v.panY, v.panZ);
+    v.camera.distance = 30;
+    v.threshold = 0;
+    mark(v);
+  }
+
+  Map<String, Object> probeFixedExtentReceipt() {
+    return rectangularReceipt;
+  }
+
   void probeVolumeRaySteps(int steps) {
     views[1].volumeSteps = steps;
   }
@@ -868,6 +892,7 @@ public final class Viewports implements AutoCloseable {
     String mode;
     double panX = 0, panZ = 0, panY = 16, step = 1, threshold = 0;
     int size = 32, slice = 0, volumeSteps = 192;
+    GridExtent fixedExtent;
     SlicePlane slicePlane = SlicePlane.Y;
     SliceImageView displayedSlice;
     double volumeMin = -1, volumeMax = 1, volumeOpacity = .12;
@@ -1899,15 +1924,38 @@ public final class Viewports implements AutoCloseable {
                     v.displayedSlice.step()));
         }
       }
-      fields.integer(
-          "Preview extent",
-          v.size,
-          2,
-          state.user.performance.maxPreviewDimension,
-          x -> {
-            v.size = Math.max(2, Math.min(state.user.performance.maxPreviewDimension, x));
-            mark(v);
-          });
+      if (rectangularMesh(v)) {
+        var extent = fixedExtent(v);
+        fields.integer(
+            "Extent X",
+            extent.width(),
+            2,
+            state.user.performance.maxPreviewDimension,
+            x -> setFixedExtent(v, 0, x));
+        fields.integer(
+            "Extent Y",
+            extent.height(),
+            2,
+            state.user.performance.maxPreviewDimension,
+            y -> setFixedExtent(v, 1, y));
+        fields.integer(
+            "Extent Z",
+            extent.depth(),
+            2,
+            state.user.performance.maxPreviewDimension,
+            z -> setFixedExtent(v, 2, z));
+        ImGui.textDisabled(
+            "Independent fixed-analysis cell counts; each axis and the total cell budget apply.");
+      } else
+        fields.integer(
+            "Preview extent",
+            v.size,
+            2,
+            state.user.performance.maxPreviewDimension,
+            x -> {
+              v.size = Math.max(2, Math.min(state.user.performance.maxPreviewDimension, x));
+              mark(v);
+            });
       fields.bool(
           "Fixed world bounds",
           v.fixed,
@@ -2466,6 +2514,21 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void acceptPreview(View v, Preview ready) {
+    if (rectangularProbe && v.kind == 1 && ready.mesh != null)
+      rectangularReceipt =
+          Map.of(
+              "mode",
+              v.mode,
+              "extent",
+              fixedExtent(v),
+              "epoch",
+              ready.epoch,
+              "origin",
+              List.of(ready.origin.x, ready.origin.y, ready.origin.z),
+              "vertices",
+              ready.mesh.vertices().clone(),
+              "points",
+              ready.mesh.points());
     if (ready.image != null) {
       v.gl.setImage(ready.width, ready.width, ready.image);
       v.image = true;
@@ -3178,12 +3241,35 @@ public final class Viewports implements AutoCloseable {
     v.activeJob = false;
   }
 
+  private static boolean rectangularMesh(View v) {
+    return v.kind == 1
+        && v.fixed
+        && Set.of("Threshold Voxels", "Point Cloud", "Isosurface").contains(v.mode);
+  }
+
+  private static GridExtent fixedExtent(View v) {
+    return v.fixedExtent == null ? GridExtent.cube(v.size) : v.fixedExtent;
+  }
+
+  private void setFixedExtent(View v, int axis, int value) {
+    var before = fixedExtent(v);
+    int next =
+        Math.max(2, Math.min(Math.min(256, state.user.performance.maxPreviewDimension), value));
+    v.fixedExtent =
+        new GridExtent(
+            axis == 0 ? next : before.width(),
+            axis == 1 ? next : before.height(),
+            axis == 2 ? next : before.depth());
+    mark(v);
+  }
+
   private void submit(View v) {
     int n = v.kind == 0 ? 256 : v.size;
+    GridExtent extent = rectangularMesh(v) ? fixedExtent(v) : GridExtent.cube(n);
     var admission =
         v.admission.check(
             v.kind,
-            n,
+            extent,
             v.mode,
             state.user.performance.previewCellBudget,
             state.user.performance.maxPreviewDimension,
@@ -3238,7 +3324,10 @@ public final class Viewports implements AutoCloseable {
                   var compiled = new CompiledProject(snapshot);
                   int[] palette = palette(snapshot, kind);
                   Vector3d origin =
-                      new Vector3d(panX - n / 2., Math.floor(centerY) - n / 2., panZ - n / 2.);
+                      new Vector3d(
+                          panX - extent.width() / 2.,
+                          Math.floor(centerY) - extent.height() / 2.,
+                          panZ - extent.depth() / 2.);
                   if (kind == 1 && mode.equals("Slices"))
                     origin.set(panX - n * step / 2., centerY - n * step / 2., panZ - n * step / 2.);
                   if (kind == 0 || kind == 1 && mode.equals("Slices")) {
@@ -3330,31 +3419,31 @@ public final class Viewports implements AutoCloseable {
                             null,
                             volume));
                   } else {
-                    var bounds = VoxelRaycast.Bounds.snappedCube(origin, n);
+                    var bounds = VoxelRaycast.Bounds.snappedBox(origin, extent);
                     origin.set(bounds.min().x(), bounds.min().y(), bounds.min().z());
                     int ox = (int) origin.x, oy = (int) origin.y, oz = (int) origin.z;
                     int[] cells =
-                        kind == 1 && mode.equals("Isosurface") ? null : new int[n * n * n];
+                        kind == 1 && mode.equals("Isosurface") ? null : new int[extent.cells()];
                     Mesh mesh;
                     if (kind == 1) {
                       var sampler = compiled.noise3D(noise, snapshot.project.seed);
                       if (mode.equals("Isosurface")) {
                         mesh =
                             IsosurfaceMesh.build(
-                                n,
+                                extent,
                                 (x, y, z) ->
                                     sampler.sample(
                                         (double) ox + x, (double) oy + y, (double) oz + z),
                                 threshold,
                                 cancellation,
-                                IsosurfaceMesh.maximumMeshBytes(n));
+                                IsosurfaceMesh.maximumMeshBytes(extent));
                       } else {
-                        for (int y = 0; y < n; y++) {
+                        for (int y = 0; y < extent.height(); y++) {
                           if (Thread.currentThread().isInterrupted()) return;
-                          for (int z = 0; z < n; z++)
-                            for (int x = 0; x < n; x++) {
+                          for (int z = 0; z < extent.depth(); z++)
+                            for (int x = 0; x < extent.width(); x++) {
                               double val = sampler.sample(ox + x, oy + y, oz + z);
-                              cells[(y * n + z) * n + x] =
+                              cells[(y * extent.depth() + z) * extent.width() + x] =
                                   val >= threshold
                                       ? Math.max(1, Math.min(255, (int) ((val + 1) * 127.5)))
                                       : 0;
@@ -3362,8 +3451,14 @@ public final class Viewports implements AutoCloseable {
                         }
                         mesh =
                             mode.equals("Point Cloud")
-                                ? MeshBuilder.points(n, (x, y, z) -> cells[(y * n + z) * n + x])
-                                : MeshBuilder.greedy(n, (x, y, z) -> cells[(y * n + z) * n + x]);
+                                ? MeshBuilder.points(
+                                    extent,
+                                    (x, y, z) ->
+                                        cells[(y * extent.depth() + z) * extent.width() + x])
+                                : MeshBuilder.greedy(
+                                    extent,
+                                    (x, y, z) ->
+                                        cells[(y * extent.depth() + z) * extent.width() + x]);
                       }
                     } else {
                       try (var world =
