@@ -1,0 +1,25 @@
+# Region completion ownership — unvalidated development
+
+This main-branch source follow-up addresses specification 13.5.2–13.5.9 and 13.7.4: explicit task cancellation, callback backpressure, subscriber isolation and runtime ownership cleanup. It closes a public-future exposure bug and undeliverable async-collection retention. No compilation, JUnit, independent consumer, checker or GitHub workflow ran. The owner pause remains active, and the last validated baseline stays 922 tests / 120 suites.
+
+## Stream observers and task authority
+
+StreamingTask previously returned its internal CompletableFuture directly. An observer's orTimeout/manual completion could make task.cancel() refuse to cancel while its consumer acknowledgement was still pending. Completion callbacks also ran before the finally block released the active-region slot, so a reentrant successor could be rejected at the sixteen-stream limit.
+
+Each completion() call now returns a fresh dependent observation future. Its cancellation, forced result, exception, timeout or obtrusion cannot publish the private task result or disable RegionTask.cancel(). Normal stream cancellation still returns an immutable RegionSummary with cancellation counts. Keep one observer when polling frequently; progress() remains the direct status API. Method signatures and consumer acknowledgement/backpressure semantics remain unchanged.
+
+The coordinator records its terminal summary/error, requests cancellation of remaining subscribers, clears its pending list, removes its region registration and releases active-region capacity before completing the private future. Cleanup failures produce exceptional completion after region-capacity release. This is a stream-ownership publication boundary; it does not claim that cooperative generation workers have already stopped or that shared work needed by another subscriber has disappeared. User callbacks still run on coordinators, not generation workers. No consumer is automatically retried, and an externally supplied acknowledgement stage is not cancelled or completed by cleanup.
+
+## Undeliverable collections
+
+collectRegionAsync's request future retains its existing cancellation authority. External exceptional completion, timeout or forced completion now also withdraws an actual result that can no longer be published. A terminal request is checked before collection admission and immediately after task registration. During the async wait, a bounded 50 ms poll checks terminal ownership independently of public completion callbacks; a callback blocking its completing thread cannot indefinitely retain an undeliverable collection reservation. The synchronous collectRegion join path retains its existing waiting behavior.
+
+If engine result publication loses the race, the generated RegionResult is closed through the existing lease path. A successful result remains caller-owned until explicit/idempotent close. Caller-supplied future values are not treated as engine-owned results. Queued collection subscribers are cancelled independently; another subscriber to the same chunk keeps its shared computation. Context cancellation and callback backpressure retain their established boundaries. No sampler, voxel arithmetic, project/model/schema, archive, UI or preference change is introduced.
+
+## Deferred definitions
+
+Eight RegionCompletionTest definitions specify local manual/exception/cancel/obtrusion observers, observer timeout followed by explicit cancellation, context close with a poisoned observer and independent context, and reentrant slot reuse at the sixteen-stream cap on success/cancellation/delivery failure/fatal callback failure. Further definitions specify cancellation/exception/timeout/forced-value collection withdrawal while generation workers are held, a blocked public completion callback with reservation release, successful result lease ownership/idempotent close/immutable cells and preservation of another queued subscriber. Latches hold actual acknowledgement/worker/callback phases; waits are bounded in the deferred harness. Host callbacks and worker termination remain cooperative; these are future scenarios, not measured timing guarantees.
+
+RegionCompletionConsumer is a separately compiled engine-JAR-only client. At roots 2/4 it specifies eight observer mutations, explicit owner cancellation with untouched host acknowledgements, two saturated-cap reentrant successors, two delivered collection leases, 1,024 exact signed-coordinate EMPTY observations and 72 retained cells after engine closure. It compares the complete authoring JSON before/after and emits a report beside the existing independent-client artifacts. Future Linux/Windows commands are added to the existing manual-only workflow without changing its trigger or dispatching it.
+
+All definitions remain uncompiled/untested. Broader races, callback/worker failures, all cache/order/failure-policy combinations, all root sizes, performance and the full Windows 11/GUI/release gates remain pending. Main remains authoritative; no additional branch was created.

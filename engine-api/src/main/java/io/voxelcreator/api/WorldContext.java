@@ -539,11 +539,13 @@ public final class WorldContext implements AutoCloseable {
   }
 
   public RegionResult collectRegion(RegionRequest request) {
-    return collectRegion(request, task -> {});
+    return collectRegion(request, task -> {}, null);
   }
 
   private RegionResult collectRegion(
-      RegionRequest request, java.util.function.Consumer<RegionTask> started) {
+      RegionRequest request,
+      java.util.function.Consumer<RegionTask> started,
+      java.util.function.BooleanSupplier withdrawn) {
     check();
     long count =
         request
@@ -580,7 +582,7 @@ public final class WorldContext implements AutoCloseable {
                 return CompletableFuture.completedFuture(null);
               });
       started.accept(task);
-      var summary = task.completion().join();
+      var summary = awaitCollection(task, withdrawn);
       var counter = engine.collectionBytes;
       var result = new RegionResult(List.copyOf(chunks), summary, () -> counter.addAndGet(-worst));
       transferred = true;
@@ -590,29 +592,57 @@ public final class WorldContext implements AutoCloseable {
     }
   }
 
+  private static RegionSummary awaitCollection(
+      RegionTask task, java.util.function.BooleanSupplier withdrawn) {
+    var completion = task.completion();
+    if (withdrawn == null) return completion.join();
+    // Public-future callbacks can block their completing thread. Poll terminal ownership
+    // independently so a withdrawn result still releases its collection reservation.
+    while (!completion.isDone()) {
+      if (withdrawn.getAsBoolean()) task.cancel();
+      try {
+        return completion.get(50, TimeUnit.MILLISECONDS);
+      } catch (TimeoutException ignored) {
+      } catch (ExecutionException failed) {
+        return completion.join();
+      } catch (InterruptedException interrupted) {
+        task.cancel();
+        Thread.currentThread().interrupt();
+        return completion.join();
+      }
+    }
+    return completion.join();
+  }
+
+  /**
+   * The returned future controls this collection request. Making it terminal before engine
+   * publication withdraws remaining work; a successful RegionResult owns its reservation until
+   * close. Timing out get(timeout, unit) alone does not complete or cancel the request future.
+   */
   public CompletableFuture<RegionResult> collectRegionAsync(RegionRequest request) {
     check();
     var future = new CompletableFuture<RegionResult>();
     var task = new AtomicReference<RegionTask>();
     future.whenComplete(
         (value, error) -> {
-          if (future.isCancelled()) {
-            var active = task.get();
-            if (active != null) active.cancel();
-          }
+          // External timeout/completion also withdraws an undeliverable collection result.
+          // Normal publication happens only after its stream has already released ownership.
+          var active = task.get();
+          if (active != null) active.cancel();
         });
     Thread.ofVirtual()
         .start(
             () -> {
               try {
-                if (future.isCancelled()) return;
+                if (future.isDone()) return;
                 var result =
                     collectRegion(
                         request,
                         active -> {
                           task.set(active);
-                          if (future.isCancelled()) active.cancel();
-                        });
+                          if (future.isDone()) active.cancel();
+                        },
+                        future::isDone);
                 if (!future.complete(result)) result.close();
               } catch (Throwable e) {
                 future.completeExceptionally(e);
@@ -668,7 +698,7 @@ public final class WorldContext implements AutoCloseable {
     }
 
     public CompletableFuture<RegionSummary> completion() {
-      return done;
+      return done.copy();
     }
 
     record Pending(ChunkPos pos, CompletableFuture<VoxelChunk> future) {}
@@ -676,6 +706,8 @@ public final class WorldContext implements AutoCloseable {
     void run() {
       state = "RUNNING";
       var pending = new ArrayList<Pending>();
+      RegionSummary terminalSummary = null;
+      Throwable terminalFailure = null;
       try {
         if (effective.isPresent()) {
           var r = effective.get();
@@ -767,19 +799,30 @@ public final class WorldContext implements AutoCloseable {
         cancelled = total - completed.get() - failed.get();
         state =
             cancelled > 0 ? "CANCELLED" : failed.get() > 0 ? "COMPLETED_WITH_ERRORS" : "COMPLETED";
-        done.complete(
-            new RegionSummary(request.bounds(), effective, progress(), List.copyOf(failures)));
+        terminalSummary =
+            new RegionSummary(request.bounds(), effective, progress(), List.copyOf(failures));
       } catch (Throwable e) {
-        token.cancel();
         state = "FAILED";
         cancelled = total - completed.get() - failed.get();
-        done.completeExceptionally(e);
+        terminalFailure = e;
       } finally {
-        token.cancel();
-        for (var p : pending) p.future.cancel(false);
-        regions.remove(this);
-        activeRegions.decrementAndGet();
+        try {
+          token.cancel();
+          for (var p : pending) p.future.cancel(false);
+        } catch (Throwable cleanup) {
+          if (terminalFailure == null) terminalFailure = cleanup;
+          else if (terminalFailure != cleanup) terminalFailure.addSuppressed(cleanup);
+          state = "FAILED";
+          cancelled = total - completed.get() - failed.get();
+        } finally {
+          pending.clear();
+          regions.remove(this);
+          activeRegions.decrementAndGet();
+        }
       }
+      // Region registration and slots are released before any observer callback runs.
+      if (terminalFailure == null) done.complete(terminalSummary);
+      else done.completeExceptionally(terminalFailure);
     }
 
     void recordFailure(ChunkPos pos, String phase, Throwable e) {
