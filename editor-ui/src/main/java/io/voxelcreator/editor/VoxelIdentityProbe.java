@@ -1,0 +1,313 @@
+package io.voxelcreator.editor;
+
+import imgui.ImGui;
+import imgui.flag.*;
+import imgui.type.ImBoolean;
+import io.voxelcreator.model.*;
+import io.voxelcreator.model.ProjectData.*;
+import java.nio.file.*;
+import java.util.*;
+
+/** Deferred native identity disclosure, references, private input and both rename entry points. */
+public final class VoxelIdentityProbe {
+  private static EditorState state;
+  private static PropertyPanel properties;
+  private static ResourcePanel resources;
+  private static ResourceFindPanel find;
+  private static final ImBoolean findOpen = new ImBoolean(false);
+  private static int width = 650, height = 900;
+  private static float scale = 1;
+
+  public static void main(String[] args) throws Exception {
+    var out = Path.of(args[0]).toAbsolutePath();
+    Files.createDirectories(out);
+    System.setProperty("voxel.configDir", out.toString());
+    ImGui.createContext();
+    try {
+      var io = ImGui.getIO();
+      io.setIniFilename(null);
+      io.setDeltaTime(1f / 60);
+      UiFontAtlas.install();
+      ThemeStyle.apply(ThemePalette.starting("Dark"));
+      try (var editor = new EditorState(new UserConfig(), false)) {
+        state = editor;
+        require(state.change(VoxelIdentityProbe::fixture), "Fixture rejected");
+        state.document.save(out.resolve("before.json"));
+        state.user.save(out.resolve("preferences-before.json"));
+        UUID stone = state.project().voxelTypes.getFirst().uuid;
+        state.select("voxel", stone);
+        var draft = (VoxelType) state.draft;
+        draft.id = "private-stone";
+        draft.color.r = 17;
+        var privateValues = ProjectIO.JSON.valueToTree(draft);
+        var before = ProjectIO.JSON.valueToTree(state.project());
+        long revision = state.revision, history = state.document.historyBytes();
+        properties = new PropertyPanel(state);
+        resources = new ResourcePanel(state, properties);
+        find = new ResourceFindPanel(state, properties);
+        var requests = new ArrayList<UUID>();
+        java.util.function.Consumer<UUID> references =
+            id -> {
+              requests.add(id);
+              find.references(id);
+              findOpen.set(true);
+            };
+        resources.findReferences = references;
+        properties.findReferences = references;
+        resources.showManager();
+        frames(6);
+        require(
+            resources.voxelIdentity.type().dependents().size() == 2051
+                && properties.voxelIdentity.proposed().equals("private-stone")
+                && resources.voxelIdentity.proposed().equals("stone"),
+            "Committed/private identities mixed");
+        long builds = state.voxelIdentities.builds();
+        var cases = new ArrayList<Map<String, Object>>();
+        int[][] sizes = {{650, 900}, {360, 900}, {720, 1600}};
+        float[] scales = {1, 2.5f, 6.25f};
+        for (int i = 0; i < sizes.length; i++) {
+          width = sizes[i][0];
+          height = sizes[i][1];
+          scale = scales[i];
+          resources.voxelIdentity.scroll(1000000);
+          properties.voxelIdentity.scroll(1000000);
+          frames(7);
+          for (var view : List.of(resources.voxelIdentity, properties.voxelIdentity)) {
+            require(view.submitted() > 0 && view.submitted() <= 40, "Dependent rows not clipped");
+            require(
+                DialogBounds.contains(view.bounds(), view.referenceBounds()),
+                "Reference action outside review");
+            cases.add(
+                Map.of(
+                    "scenario",
+                    i,
+                    "host",
+                    view == resources.voxelIdentity ? "manager" : "properties",
+                    "bounds",
+                    view.bounds(),
+                    "action",
+                    view.referenceBounds(),
+                    "submitted",
+                    view.submitted(),
+                    "scale",
+                    scale));
+          }
+        }
+        width = 650;
+        height = 900;
+        scale = 1;
+        frames(6);
+        require(
+            state.voxelIdentities.builds() == builds,
+            "Reflow or scrolling rebuilt identity metadata");
+        click(resources.voxelIdentity.referencesAt());
+        require(
+            requests.equals(List.of(stone)) && findOpen.get(),
+            "Manager did not open real Find References");
+        findOpen.set(false);
+        frames(3);
+        click(properties.voxelIdentity.referencesAt());
+        require(
+            requests.equals(List.of(stone, stone)) && findOpen.get(),
+            "Properties did not open real Find References");
+        findOpen.set(false);
+        frames(3);
+        require(
+            before.equals(ProjectIO.JSON.valueToTree(state.project()))
+                && state.draft == draft
+                && privateValues.equals(ProjectIO.JSON.valueToTree(draft))
+                && state.revision == revision
+                && state.document.historyBytes() == history
+                && !state.document.dirty(),
+            "Identity review changed committed/private/history state");
+        state.refreshDraft(); // Explicitly retire the fixture's private edits before the rename
+        // phase.
+        properties.probeBodyScroll(0);
+        frames(5);
+        typeAt(properties.probeIdentityInput(), "granite", false);
+        require(
+            before.equals(ProjectIO.JSON.valueToTree(state.project()))
+                && properties.voxelIdentity.proposed().equals("granite"),
+            "Proposed Properties ID published early");
+        click(properties.probeAction("apply"));
+        frames(4);
+        save(out, "properties");
+        require(
+            state.project().voxelTypes.getFirst().id.equals("granite"), "Properties rename failed");
+        var renamed = ProjectIO.JSON.valueToTree(state.project());
+        state.document.undo();
+        state.revision++;
+        state.refreshDraft();
+        save(out, "properties-undone");
+        require(
+            before.equals(ProjectIO.JSON.valueToTree(state.project())),
+            "Properties rename was not one Undo");
+        state.document.redo();
+        state.revision++;
+        state.refreshDraft();
+        save(out, "properties-redone");
+        require(
+            renamed.equals(ProjectIO.JSON.valueToTree(state.project())),
+            "Properties Redo differed");
+        frames(4);
+        resources.probeVoxelRename(stone);
+        frames(4);
+        require(resources.probeVoxelRenameInput() != null, "Inline ID input absent");
+        typeAt(resources.probeVoxelRenameInput(), "marble", true);
+        frames(4);
+        save(out, "inline");
+        require(state.project().voxelTypes.getFirst().id.equals("marble"), "Inline rename failed");
+        var inline = ProjectIO.JSON.valueToTree(state.project());
+        resources.probeVoxelRename(stone);
+        frames(4);
+        typeAt(resources.probeVoxelRenameInput(), "snow", true);
+        frames(3);
+        require(
+            inline.equals(ProjectIO.JSON.valueToTree(state.project()))
+                && resources.voxelIdentity.proposed().equals("snow"),
+            "Duplicate ID was committed or discarded");
+        key(ImGuiKey.Escape, true);
+        key(ImGuiKey.Escape, false);
+        frames(3);
+        require(resources.probeVoxelRenameInput() == null, "Manager Escape retained inline rename");
+        state.document.undo();
+        state.revision++;
+        state.refreshDraft();
+        save(out, "inline-undone");
+        require(
+            renamed.equals(ProjectIO.JSON.valueToTree(state.project())),
+            "Inline rename was not one Undo");
+        state.document.redo();
+        state.revision++;
+        state.refreshDraft();
+        save(out, "inline-redone");
+        require(inline.equals(ProjectIO.JSON.valueToTree(state.project())), "Inline Redo differed");
+        frames(4);
+        state.user.save(out.resolve("preferences.json"));
+        Files.writeString(
+            out.resolve("voxel-identity-native.json"),
+            ProjectIO.JSON.writeValueAsString(
+                Map.of(
+                    "formatVersion",
+                    1,
+                    "cases",
+                    cases,
+                    "dependents",
+                    resources.voxelIdentity.type().dependents(),
+                    "initialBuilds",
+                    builds,
+                    "referenceRequests",
+                    requests,
+                    "type",
+                    stone,
+                    "privatePreserved",
+                    true,
+                    "duplicateRejected",
+                    true,
+                    "managerEscape",
+                    true,
+                    "physicalDpiVerified",
+                    false)));
+        System.out.println(
+            "VOXEL_IDENTITY_NATIVE_PASS cached clipped review / exact reference routes / private"
+                + " preservation / Properties-inline rename / Undo / duplicate / Escape");
+      }
+    } finally {
+      ImGui.destroyContext();
+    }
+  }
+
+  private static void fixture(ProjectData p) {
+    var stone = new VoxelType();
+    stone.id = "stone";
+    var snow = new VoxelType();
+    snow.id = "snow";
+    p.voxelTypes.addAll(List.of(stone, snow));
+    for (int i = 0; i < 2048; i++) {
+      var group = new Membership();
+      group.id = "display-" + i;
+      group.voxelTypeUuids.add(stone.uuid);
+      p.voxelGroups.add(group);
+    }
+    var set = new Membership();
+    set.id = "solid-set";
+    set.voxelTypeUuids.addAll(List.of(stone.uuid, snow.uuid));
+    p.voxelSets.add(set);
+    var noise = new Noise();
+    noise.id = "constant";
+    noise.algorithm.key = "CONSTANT";
+    noise.algorithm.parameters.clear();
+    noise.algorithm.parameters.put("value", 1.);
+    p.noise2D.add(noise);
+    var layer = new Layer();
+    layer.id = "ground";
+    layer.defaults.action = "SET";
+    layer.defaults.voxelTypeUuid = stone.uuid;
+    var operation = new Operation();
+    operation.id = "fill";
+    operation.noiseGeneratorUuid = noise.uuid;
+    operation.overrides.put("voxelTypeUuid", ProjectIO.JSON.valueToTree(stone.uuid));
+    layer.operations.add(operation);
+    p.worldGenerator.layers.add(layer);
+  }
+
+  private static void save(Path out, String name) throws Exception {
+    new ProjectIO().save(out.resolve(name + ".json"), state.project());
+  }
+
+  private static void click(float[] point) {
+    require(point != null, "Native control absent");
+    var io = ImGui.getIO();
+    io.addMousePosEvent(point[0], point[1]);
+    frame();
+    io.addMouseButtonEvent(0, true);
+    frame();
+    io.addMouseButtonEvent(0, false);
+    frames(3);
+  }
+
+  private static void typeAt(float[] point, String text, boolean enter) {
+    click(point);
+    key(ImGuiKey.ModCtrl, true);
+    key(ImGuiKey.A, true);
+    key(ImGuiKey.ModCtrl, false);
+    key(ImGuiKey.A, false);
+    ImGui.getIO().addInputCharactersUTF8(text);
+    frames(3);
+    if (enter) {
+      key(ImGuiKey.Enter, true);
+      key(ImGuiKey.Enter, false);
+      frames(3);
+    }
+  }
+
+  private static void key(int key, boolean down) {
+    ImGui.getIO().addKeyEvent(key, down);
+    frame();
+  }
+
+  private static void frames(int count) {
+    for (int i = 0; i < count; i++) frame();
+  }
+
+  private static void frame() {
+    var io = ImGui.getIO();
+    io.setDisplaySize(2 * width + 64, height + 64);
+    io.setFontGlobalScale(scale);
+    ImGui.newFrame();
+    ImGui.setWindowPos("Voxel Manager", 16, 16, ImGuiCond.Always);
+    ImGui.setWindowSize("Voxel Manager", width, height, ImGuiCond.Always);
+    ImGui.setNextWindowPos(16, 16, ImGuiCond.Always);
+    ImGui.setNextWindowSize(width, height, ImGuiCond.Always);
+    resources.draw();
+    ImGui.setNextWindowPos(width + 32, 16, ImGuiCond.Always);
+    ImGui.setNextWindowSize(width, height, ImGuiCond.Always);
+    properties.draw();
+    find.draw(findOpen);
+    ImGui.render();
+  }
+
+  private static void require(boolean condition, String message) {
+    if (!condition) throw new AssertionError(message);
+  }
+}

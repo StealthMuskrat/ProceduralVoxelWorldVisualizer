@@ -61,6 +61,18 @@ final class HelpDefinitions {
                   + " actions. Save Preferences persists active preferences only and never applies"
                   + " private scale, theme or resource input."),
           new Guide(
+              "help.voxel-identities",
+              "Voxel identities and rename impact",
+              "Voxel Manager offers Voxel Types, Voxel Sets and Groups. Select a type to review"
+                  + " incoming committed UUID references; Properties also compares its committed"
+                  + " semantic ID with private ID input. Renaming keeps UUID references linked."
+                  + " Apply in Properties or Enter in inline rename commits the validated ID;"
+                  + " Properties Revert or inline Escape discards that proposal. Find All"
+                  + " References opens unified Find without applying private edits. Existing exact"
+                  + " voxel archives retain their original semantic ID strings and are not"
+                  + " rewritten; a compatible registry must still provide those names. Groups are"
+                  + " organizational, while voxel sets can participate in generation selection."),
+          new Guide(
               "help.visualization",
               "Visualization preferences",
               "User Settings > Visualization controls grid, unlit, streaming, ambient occlusion,"
@@ -114,6 +126,7 @@ final class HelpDefinitions {
           Map.entry("help.updates", List.of("help.about", "creation-defaults")),
           Map.entry("help.project-settings", List.of("save", "noise.seedOffset", "layers")),
           Map.entry("help.appearance", List.of("themes", "help.workspace", "shortcuts")),
+          Map.entry("help.voxel-identities", List.of("layers", "archives", "help.find")),
           Map.entry("help.visualization", List.of("archives", "profiler", "help.workspace")),
           Map.entry("help.trace", List.of("layers", "diagnostics", "help.find")),
           Map.entry("help.about", List.of("help.updates", "help.manual")));
@@ -140,7 +153,7 @@ final class HelpDefinitions {
       case "Validate", "Logs" -> "diagnostics";
       case "Profiler", "Debug & Profiling" -> "profiler";
       case "Settings", "User Settings" -> "help.appearance";
-      case "Voxel Manager" -> "layers";
+      case "Voxel Manager" -> "help.voxel-identities";
       case "Themes" -> "themes";
       case "Center Main Window", "Reset Dock Layout" -> "help.workspace";
       case "Project Settings" -> "help.project-settings";

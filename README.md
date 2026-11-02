@@ -244,3 +244,5 @@ The unvalidated [initial noise algorithm choice](docs/NOISE_CREATION_CHOICES.md)
 The unvalidated [Find typing debounce follow-up](docs/FIND_TYPING_DEBOUNCE.md) coalesces large-project text searches, labels pending results and retires old row gestures while preserving explicit filtering and private edits. Native, regression and independent replay definitions remain deferred; no workflows were run.
 
 The unvalidated [camera screen-geometry follow-up](docs/CAMERA_SCREEN_GEOMETRY.md) gives right-drag true screen-plane movement and uses double-precision, near-clipped picking rays across 3D/World views. Updated native and independent replay definitions remain deferred; no workflows ran.
+
+The unvalidated [voxel identity-review follow-up](docs/VOXEL_IDENTITY_REVIEW.md) shows type dependencies and archive-name impact before renaming, with cached scrolling reviews in Voxel Manager and Properties. Explicit UUID-preserving rename and deferred native/engine/archive replay remain on main; no workflows ran.

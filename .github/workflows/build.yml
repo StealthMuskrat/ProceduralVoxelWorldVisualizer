@@ -172,6 +172,11 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
           python scripts/verify_resource_browser.py build/browser-probe/resource-browser.json
+      - name: Voxel identity review and semantic rename reference
+        run: |
+          java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.VoxelIdentityProbe build/voxel-identity
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.VoxelIdentityConsumer build/voxel-identity
+          python scripts/verify_voxel_identity.py build/voxel-identity
       - name: Resource picker membership and export reference
         run: |
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceWorkflowProbe build/workflow-probe
@@ -554,6 +559,7 @@ jobs:
             build/ui-dpi/
             build/tooltips/
             build/browser-probe/
+            build/voxel-identity/
             build/workflow-probe/
             build/find-probe/
             build/hierarchy-probe/
@@ -935,6 +941,15 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ResourceBrowserProbe build/browser-probe
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_resource_browser.py build/browser-probe/resource-browser.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Windows voxel identity review and semantic rename reference
+        shell: pwsh
+        run: |
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.VoxelIdentityProbe build/voxel-identity
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.VoxelIdentityConsumer build/voxel-identity
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_voxel_identity.py build/voxel-identity
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows resource picker membership and export reference
         shell: pwsh
@@ -1606,6 +1621,7 @@ jobs:
             build/ui-dpi/
             build/tooltips/
             build/browser-probe/
+            build/voxel-identity/
             build/workflow-probe/
             build/find-probe/
             build/hierarchy-probe/

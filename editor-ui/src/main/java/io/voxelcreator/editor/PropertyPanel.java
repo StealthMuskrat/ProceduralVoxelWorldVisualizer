@@ -22,6 +22,8 @@ public final class PropertyPanel {
   private float bodyScroll;
   private int bodySelectionCount = -1;
 
+  final VoxelIdentityReview voxelIdentity = new VoxelIdentityReview();
+  private float[] identityInput;
   private final UiFields f = new UiFields(this::noiseChanged);
   private final Map<Integer, UiFields.NumericRow> numericRows = new LinkedHashMap<>();
   private long noiseVersion;
@@ -532,6 +534,9 @@ public final class PropertyPanel {
   }
 
   public void draw() {
+    if (!(state.draft instanceof VoxelType) || state.multiSelection.size() != 1)
+      voxelIdentity.clear();
+    identityInput = null;
     numericRows.clear();
     footerEditable = false;
     seedCenters.clear();
@@ -565,6 +570,7 @@ public final class PropertyPanel {
     UiScale.window(state.user, "Properties");
     windowLayout.observe();
     DialogLayout.observe(state, "Properties");
+    if (!visible) voxelIdentity.clear();
     if (visible) {
       boolean changedBody =
           !Objects.equals(last, state.selected)
@@ -632,8 +638,11 @@ public final class PropertyPanel {
             ImGui.textDisabled("More results are available in View > Validate Project.");
         }
         ImGui.separator();
-        if (state.draft instanceof Identity r)
+        if (state.draft instanceof Identity r) {
           propertyControl(null, "id", () -> f.text("ID", r.id, v -> r.id = v));
+          var rect = PopupLayout.itemBounds();
+          identityInput = new float[] {rect.x() + rect.width() / 2, rect.y() + rect.height() / 2};
+        }
         if (state.draft instanceof Noise n) noise(n);
         else if (state.draft instanceof Layer l) {
           int stage = 0;
@@ -648,6 +657,17 @@ public final class PropertyPanel {
           settings(l.defaults);
         } else if (state.draft instanceof Operation op) placement(op);
         else if (state.draft instanceof VoxelType t) {
+          if (ImGui.collapsingHeader(
+              "Voxel Identity and References", ImGuiTreeNodeFlags.DefaultOpen))
+            voxelIdentity.draw(
+                state,
+                t.uuid,
+                t.id,
+                Math.max(
+                    3 * ImGui.getFrameHeightWithSpacing(),
+                    Math.min(320, Math.max(140, 9 * ImGui.getFrameHeightWithSpacing()))),
+                findReferences);
+          else voxelIdentity.clear();
           float[] rgb = {t.color.r / 255f, t.color.g / 255f, t.color.b / 255f};
           if (UiScale.colorEdit3("Color", rgb)) {
             t.color.r = Math.round(rgb[0] * 255);
@@ -716,6 +736,10 @@ public final class PropertyPanel {
     expressionSelection.cancel();
     searchScroll = false;
     focusedControl = null;
+  }
+
+  float[] probeIdentityInput() {
+    return identityInput == null ? null : identityInput.clone();
   }
 
   float[] probeAction(String key) {

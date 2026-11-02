@@ -13,6 +13,7 @@ import java.util.function.*;
 
 public final class ResourcePanel {
   final FloatingWindowLayout windowLayout = new FloatingWindowLayout(320, 640);
+  final VoxelIdentityReview voxelIdentity = new VoxelIdentityReview();
   final FloatingWindowLayout managerLayout = new FloatingWindowLayout(650, 520);
   final PanelDockControls docking = new PanelDockControls("Resources");
   private final EditorState state;
@@ -43,6 +44,7 @@ public final class ResourcePanel {
   private UUID replacement, renameId;
   private final ImString renameText = new ImString(256);
   private boolean renameFocus;
+  private float[] renameInput;
   private String renameError = "";
   private final ResourceTreeIndex.Cache browserCache = new ResourceTreeIndex.Cache();
   private final ResourceTreeView treeView = new ResourceTreeView();
@@ -99,6 +101,7 @@ public final class ResourcePanel {
 
   public void reset() {
     if (publishing()) return;
+    voxelIdentity.clear();
     closeCreate();
     closePlacement();
     closeDelete();
@@ -548,7 +551,15 @@ public final class ResourcePanel {
     }
     boolean entered =
         ImGui.inputText("##inline-id", renameText, ImGuiInputTextFlags.EnterReturnsTrue);
-    if (entered) {
+    var rect = PopupLayout.itemBounds();
+    renameInput = new float[] {rect.x() + rect.width() / 2, rect.y() + rect.height() / 2};
+    boolean escape =
+        ImGui.isKeyPressed(ImGuiKey.Escape, false)
+            && ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
+    if (escape) {
+      renameId = null;
+      renameError = "";
+    } else if (entered) {
       UUID id = resource.uuid;
       String name = renameText.get();
       var result =
@@ -1292,7 +1303,10 @@ public final class ResourcePanel {
   }
 
   private void manager() {
-    if (!manager.get()) return;
+    if (!manager.get()) {
+      voxelIdentity.clear();
+      return;
+    }
     refreshBrowser();
     managerLayout.prepare();
     boolean visible = ImGui.begin("Voxel Manager", manager);
@@ -1300,6 +1314,7 @@ public final class ResourcePanel {
     managerLayout.observe();
     if (!visible || !manager.get()) {
       submittedManagerRows = 0;
+      voxelIdentity.clear();
       ImGui.end();
       return;
     }
@@ -1313,6 +1328,7 @@ public final class ResourcePanel {
       managerTab("Groups", "group", "Create Group");
       ImGui.endTabBar();
     }
+    focused |= ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
     smokeBrowserDrawn = true;
     ImGui.end();
   }
@@ -1328,11 +1344,26 @@ public final class ResourcePanel {
           managerRows.stream().map(n -> new ResourceTreeIndex.Row(n, 0, false)).toList();
     }
     selectionRows = managerSelectionRows;
+    var reviewType = voxelReviewType(kind);
+    float reviewHeight =
+        reviewType == null
+            ? 0
+            : Math.max(
+                3 * ImGui.getFrameHeightWithSpacing(),
+                Math.min(
+                    ImGui.getContentRegionAvailY() * .45f,
+                    Math.max(140, 9 * ImGui.getFrameHeightWithSpacing())));
+    if (reviewType == null) voxelIdentity.clear();
     ImGui.textWrapped(managerRows.size() + " matching " + label.toLowerCase(Locale.ROOT));
     UiScale.beginChild(
         "manager-rows",
         0,
-        Math.max(1, ImGui.getContentRegionAvailY() - ImGui.getFrameHeightWithSpacing()),
+        Math.max(
+            1,
+            ImGui.getContentRegionAvailY()
+                - (reviewType == null ? ImGui.getFrameHeightWithSpacing() : 0)
+                - reviewHeight
+                - ImGui.getStyle().getItemSpacingY()),
         true);
     var clipper = new ImGuiListClipper();
     try {
@@ -1354,13 +1385,35 @@ public final class ResourcePanel {
       clipper.destroy();
     }
     ImGui.endChild();
-    if (findReferences != null
+    // A row can publish a rename or change selection. Resolve the disclosure after that callback.
+    refreshBrowser();
+    reviewType = voxelReviewType(kind);
+    if (reviewType != null && reviewHeight > 0)
+      voxelIdentity.draw(
+          state,
+          reviewType.uuid,
+          reviewType.uuid.equals(renameId) ? renameText.get() : reviewType.id,
+          reviewHeight,
+          findReferences);
+    else voxelIdentity.clear();
+    if (reviewType == null
+        && findReferences != null
         && browser.get(state.selected) != null
         && browser.get(state.selected).kind().equals(kind)
         && DialogLayout.button("Find References to Selected")) {
       findReferences.accept(state.selected);
     }
     ImGui.endTabItem();
+  }
+
+  private VoxelType voxelReviewType(String kind) {
+    UUID id =
+        renameId != null && identities.get(renameId) instanceof VoxelType
+            ? renameId
+            : state.selected;
+    return kind.equals("voxel") && id != null && identities.get(id) instanceof VoxelType type
+        ? type
+        : null;
   }
 
   void smokeBrowser(boolean show) {
@@ -1424,6 +1477,14 @@ public final class ResourcePanel {
         submittedRows,
         submittedManagerRows,
         List.copyOf(submittedTreeIds));
+  }
+
+  void probeVoxelRename(UUID id) {
+    beginRename(id);
+  }
+
+  float[] probeVoxelRenameInput() {
+    return renameId == null || renameInput == null ? null : renameInput.clone();
   }
 
   void probeFilter(String tree, String voxels) {

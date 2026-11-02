@@ -40,6 +40,7 @@ public final class EditorState implements AutoCloseable {
   public final EditorEvents events = new EditorEvents();
   public final TraceHistory traces = new TraceHistory();
   final DraftSeedInputs seedInputs = new DraftSeedInputs();
+  final VoxelIdentityIndex.Cache voxelIdentities = new VoxelIdentityIndex.Cache();
 
   public long publishTrace(TraceSnapshot trace) {
     var entry =
@@ -325,6 +326,7 @@ public final class EditorState implements AutoCloseable {
   }
 
   public void newSession() {
+    voxelIdentities.clear();
     traces.clear();
     document.newProject();
     selected = null;
@@ -349,6 +351,7 @@ public final class EditorState implements AutoCloseable {
   }
 
   void close(boolean savePreferences) {
+    voxelIdentities.clear();
     traces.clear();
     background.shutdownNow();
     engine.close();
