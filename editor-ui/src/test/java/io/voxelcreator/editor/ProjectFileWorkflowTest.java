@@ -179,11 +179,30 @@ class ProjectFileWorkflowTest {
       f.decide(Decision.DISCARD);
       Path malformed = dir.resolve("bad.json");
       Files.writeString(malformed, "{broken");
+      Path trailing = dir.resolve("trailing.json");
+      Files.writeString(trailing, ProjectIO.JSON.writeValueAsString(new ProjectData()) + "\n{}");
+      Path unsupported = dir.resolve("overflow-version.json");
+      com.fasterxml.jackson.databind.node.ObjectNode version =
+          ProjectIO.JSON.valueToTree(new ProjectData());
+      version.put("formatVersion", new java.math.BigInteger("4294967298"));
+      Files.writeString(unsupported, ProjectIO.JSON.writeValueAsString(version));
       for (String path :
-          new String[] {"", "\u0000", dir.resolve("missing").toString(), malformed.toString()}) {
+          new String[] {
+            "",
+            "\u0000",
+            dir.resolve("missing").toString(),
+            malformed.toString(),
+            trailing.toString(),
+            unsupported.toString()
+          }) {
         f.submit(path);
         assertEquals(Phase.OPEN, f.phase());
         assertFalse(f.error().isEmpty());
+        if (path.equals(trailing.toString())) assertTrue(f.error().contains("INVALID_JSON"));
+        if (path.equals(unsupported.toString())) {
+          assertTrue(f.error().contains("UNSUPPORTED_VERSION"));
+          assertTrue(f.error().contains("/formatVersion"));
+        }
         assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
         assertTrue(s.document.dirty());
         assertSame(draft, s.draft);

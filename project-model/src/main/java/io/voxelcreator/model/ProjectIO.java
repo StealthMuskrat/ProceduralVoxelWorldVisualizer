@@ -39,7 +39,8 @@ public final class ProjectIO {
 
   public LoadResult parse(String text) {
     try {
-      JsonNode tree = JSON.readTree(text);
+      JsonNode tree =
+          JSON.reader().with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(text);
       if (tree == null || !tree.isObject())
         return fail("INVALID_FORMAT", "/", "Expected a project object");
       for (String key :
@@ -57,6 +58,7 @@ public final class ProjectIO {
         if (!tree.hasNonNull(key))
           return fail("MISSING_FIELD", "/" + key, "Required field is missing");
       if (!tree.path("formatVersion").isIntegralNumber()
+          || !tree.path("formatVersion").canConvertToInt()
           || tree.path("formatVersion").intValue() != 2)
         return fail("UNSUPPORTED_VERSION", "/formatVersion", "Expected project format 2");
       String malformed = shape(tree);
@@ -78,7 +80,8 @@ public final class ProjectIO {
                         r.getFieldName() != null
                             ? r.getFieldName()
                             : Integer.toString(r.getIndex()))
-                .reduce("", (a, b) -> a + "/" + b);
+                .reduce("", ProjectIO::child);
+      if (path.isEmpty()) path = "/";
       return fail("INVALID_JSON", path, e.getOriginalMessage());
     } catch (RuntimeException e) {
       return fail("INVALID_FORMAT", "/", String.valueOf(e.getMessage()));
@@ -152,8 +155,8 @@ public final class ProjectIO {
                     .asText()
                     .matches(
                         "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")))
-          return path + "/" + key;
-        String issue = uuids(value, path + "/" + key);
+          return child(path, key);
+        String issue = uuids(value, child(path, key));
         if (issue != null) return issue;
       }
     } else if (node.isArray())
@@ -162,6 +165,10 @@ public final class ProjectIO {
         if (issue != null) return issue;
       }
     return null;
+  }
+
+  private static String child(String path, String key) {
+    return path + "/" + key.replace("~", "~0").replace("/", "~1");
   }
 
   private LoadResult fail(String c, String p, String m) {
