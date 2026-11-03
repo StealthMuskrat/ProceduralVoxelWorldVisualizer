@@ -22,6 +22,15 @@ final class HelpDefinitions {
   static final List<Guide> GUIDES =
       List.of(
           new Guide(
+              "help.resource-session",
+              "Resource clipboard and project lifetime",
+              "Copy and Cut belong to the current project session. Opening or creating a project"
+                  + " retires the resource clipboard, inline rename, drag and pending resource"
+                  + " controls even when the loaded project has identical UUIDs. Save, ordinary"
+                  + " edits, Undo and Redo keep the session clipboard. Copy retains captured"
+                  + " values; Cut moves current identities and order. This does not change the"
+                  + " system text clipboard or publish private Properties input."),
+          new Guide(
               "help.project-save",
               "Saving a project",
               "Save and Save As prepare a committed snapshot in the background. Cancel Save or"
@@ -341,6 +350,8 @@ final class HelpDefinitions {
           Map.entry("help.manual", List.of("noise", "help.find", "shortcuts", "help.about")),
           Map.entry("help.project-open", List.of("save", "help.validation", "diagnostics")),
           Map.entry("help.project-save", List.of("save", "help.project-open", "diagnostics")),
+          Map.entry(
+              "help.resource-session", List.of("save", "help.project-open", "help.project-save")),
           Map.entry(
               "noise",
               List.of("noise.algorithm", "processing", "layers", "creation-defaults", "help.pins")),

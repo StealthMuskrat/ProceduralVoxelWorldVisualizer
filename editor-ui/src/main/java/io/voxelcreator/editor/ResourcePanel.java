@@ -38,6 +38,8 @@ public final class ResourcePanel {
   private DialogBounds.Rect createInput;
 
   private ResourceClipboard clipboard;
+  private Object documentLifetime;
+  private long documentOpening;
   private boolean focused;
 
   private UUID deleteId;
@@ -45,6 +47,7 @@ public final class ResourcePanel {
   private final ImString renameText = new ImString(256);
   private boolean renameFocus;
   private float[] renameInput;
+  private int renameNativeId;
   private String renameError = "";
   private final ResourceTreeIndex.Cache browserCache = new ResourceTreeIndex.Cache();
   private final ResourceTreeView treeView = new ResourceTreeView();
@@ -85,6 +88,7 @@ public final class ResourcePanel {
 
   public ResourcePanel(EditorState s, PropertyPanel properties) {
     state = s;
+    documentLifetime = s.document.sessionToken();
     deletePicker =
         new DraftChoicePicker(
             s, () -> deleteOwner, () -> deleteOwner != null && deleteOwner.current(state) ? 0 : 1);
@@ -101,6 +105,8 @@ public final class ResourcePanel {
 
   public void reset() {
     if (publishing()) return;
+    retireTransientInput();
+    documentOpening++;
     voxelIdentity.clear();
     closeCreate();
     closePlacement();
@@ -138,9 +144,38 @@ public final class ResourcePanel {
     manager.set(false);
     exportSelection.clear();
     exportPanel.reset();
+    documentLifetime = state.document.sessionToken();
+  }
+
+  private void retireTransientInput() {
+    clipboard = null;
+    renameId = null;
+    renameFocus = false;
+    renameInput = null;
+    renameNativeId = 0;
+    renameError = "";
+    dragActive = false;
+    dragProject = null;
+    dragSelection = List.of();
+    rangeAnchor = null;
+    focused = false;
+  }
+
+  /** Independent of optional replacement callbacks; ordinary edits/Save/history keep the token. */
+  private boolean synchronizeDocument() {
+    if (documentLifetime == state.document.sessionToken()) return true;
+    retireTransientInput();
+    if (publishing()) return false;
+    reset();
+    return documentLifetime == state.document.sessionToken();
+  }
+
+  private String documentScope() {
+    return "resource-document:" + documentOpening;
   }
 
   public void draw() {
+    if (!synchronizeDocument()) return;
     rowCenters.clear();
     submittedRows = 0;
     submittedTreeIds.clear();
@@ -152,37 +187,42 @@ public final class ResourcePanel {
     windowLayout.observe();
     DialogLayout.observe(state, "Resources");
     if (visible) {
-      docking.draw();
-      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
-      ImGui.inputTextWithHint("##filter", "Filter resources...", filter);
-      UiScale.beginChild(
-          "resource-tree",
-          0,
-          Math.max(
-              1,
-              ImGui.getContentRegionAvailY()
-                  - 2 * ImGui.getFrameHeightWithSpacing()
-                  - 2 * ImGui.getTextLineHeightWithSpacing()),
-          true);
-      root("2D Noise", "noise2D");
-      root("3D Noise", "noise3D");
-      root("World Generator", "world");
-      if (probeScroll != null) {
-        ImGui.setScrollY(probeScroll);
-        probeScroll = null;
-      }
-      ImGui.endChild();
-      ImGui.separator();
-      if (DialogLayout.button("Voxel Manager")) manager.set(true);
-      if (browser.get(state.selected) != null
-          && browser.get(state.selected).kind().equals("layer")
-          && DialogLayout.button("Add Noise Generator to Layer")) beginPlacement(state.selected);
-      ImGui.textWrapped("Right-click a root to create resources");
-      if (!renameError.isEmpty()) ImGui.textWrapped("! " + renameError);
-      focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
-      if (focused && ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-        renameId = null;
-        renameError = "";
+      ImGui.pushID(documentScope());
+      try {
+        docking.draw();
+        ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+        ImGui.inputTextWithHint("##filter", "Filter resources...", filter);
+        UiScale.beginChild(
+            "resource-tree",
+            0,
+            Math.max(
+                1,
+                ImGui.getContentRegionAvailY()
+                    - 2 * ImGui.getFrameHeightWithSpacing()
+                    - 2 * ImGui.getTextLineHeightWithSpacing()),
+            true);
+        root("2D Noise", "noise2D");
+        root("3D Noise", "noise3D");
+        root("World Generator", "world");
+        if (probeScroll != null) {
+          ImGui.setScrollY(probeScroll);
+          probeScroll = null;
+        }
+        ImGui.endChild();
+        ImGui.separator();
+        if (DialogLayout.button("Voxel Manager")) manager.set(true);
+        if (browser.get(state.selected) != null
+            && browser.get(state.selected).kind().equals("layer")
+            && DialogLayout.button("Add Noise Generator to Layer")) beginPlacement(state.selected);
+        ImGui.textWrapped("Right-click a root to create resources");
+        if (!renameError.isEmpty()) ImGui.textWrapped("! " + renameError);
+        focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
+        if (focused && ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+          renameId = null;
+          renameError = "";
+        }
+      } finally {
+        ImGui.popID();
       }
     } else {
       focused = false;
@@ -205,11 +245,11 @@ public final class ResourcePanel {
   }
 
   public boolean focused() {
-    return focused;
+    return synchronizeDocument() && focused;
   }
 
   public void shortcut(String action) {
-    if (publishing()) return;
+    if (!synchronizeDocument() || publishing()) return;
     var target = ResourceGraph.find(state.project(), state.selected);
     if (target == null) return;
     switch (action) {
@@ -551,6 +591,7 @@ public final class ResourcePanel {
     }
     boolean entered =
         ImGui.inputText("##inline-id", renameText, ImGuiInputTextFlags.EnterReturnsTrue);
+    renameNativeId = ImGui.getID("##inline-id");
     var rect = PopupLayout.itemBounds();
     renameInput = new float[] {rect.x() + rect.width() / 2, rect.y() + rect.height() / 2};
     boolean escape =
@@ -647,6 +688,7 @@ public final class ResourcePanel {
   }
 
   ResourceSelectionSession.Result decideSelection(SearchNavigation.Decision decision) {
+    if (!synchronizeDocument()) return ResourceSelectionSession.Result.UNAVAILABLE;
     if (publishing()) return ResourceSelectionSession.Result.UNAVAILABLE;
     var result =
         properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
@@ -736,6 +778,7 @@ public final class ResourcePanel {
   }
 
   ResourceEditSession.Result decideEdit(SearchNavigation.Decision decision) {
+    if (!synchronizeDocument()) return ResourceEditSession.Result.UNAVAILABLE;
     if (publishing()) return ResourceEditSession.Result.UNAVAILABLE;
     var result =
         properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
@@ -829,10 +872,15 @@ public final class ResourcePanel {
   }
 
   private boolean formAvailable() {
-    return !createOpen && !placementOpen && deleteId == null && actionAvailable();
+    return synchronizeDocument()
+        && !createOpen
+        && !placementOpen
+        && deleteId == null
+        && actionAvailable();
   }
 
   private boolean actionAvailable() {
+    if (!synchronizeDocument()) return false;
     boolean available =
         !publishing() && !properties.searchBlocked() && !selection.pending() && !edits.pending();
     if (!available) state.status = "Finish the private editor or pending resource action first";
@@ -876,6 +924,7 @@ public final class ResourcePanel {
   }
 
   boolean blocksProjectTransition() {
+    if (!synchronizeDocument()) return true;
     return publishing()
         || renameId != null
         || deleteId != null
@@ -1067,7 +1116,7 @@ public final class ResourcePanel {
   }
 
   public void beginExport() {
-    if (publishing()) return;
+    if (!synchronizeDocument() || publishing()) return;
     exportSelection.clear();
     exportPanel.reset();
     exportSelection.addAll(state.multiSelection);
@@ -1083,7 +1132,7 @@ public final class ResourcePanel {
   }
 
   public void drawExportSelection() {
-    exportPanel.draw();
+    if (synchronizeDocument()) exportPanel.draw();
   }
 
   private void copy(UUID id, String root, boolean cut) {
@@ -1299,7 +1348,7 @@ public final class ResourcePanel {
   private final ImBoolean manager = new ImBoolean(false);
 
   public void showManager() {
-    manager.set(true);
+    if (synchronizeDocument()) manager.set(true);
   }
 
   private void manager() {
@@ -1318,18 +1367,23 @@ public final class ResourcePanel {
       ImGui.end();
       return;
     }
-    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
-    ImGui.inputTextWithHint(
-        "##voxel-filter", "Filter voxel type, set or group IDs...", managerFilter);
-    submittedManagerRows = 0;
-    if (ImGui.beginTabBar("voxel-tabs")) {
-      managerTab("Voxel Types", "voxel", "Create Voxel Type");
-      managerTab("Voxel Sets", "set", "Create Set");
-      managerTab("Groups", "group", "Create Group");
-      ImGui.endTabBar();
+    ImGui.pushID(documentScope());
+    try {
+      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+      ImGui.inputTextWithHint(
+          "##voxel-filter", "Filter voxel type, set or group IDs...", managerFilter);
+      submittedManagerRows = 0;
+      if (ImGui.beginTabBar("voxel-tabs")) {
+        managerTab("Voxel Types", "voxel", "Create Voxel Type");
+        managerTab("Voxel Sets", "set", "Create Set");
+        managerTab("Groups", "group", "Create Group");
+        ImGui.endTabBar();
+      }
+      focused |= ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
+      smokeBrowserDrawn = true;
+    } finally {
+      ImGui.popID();
     }
-    focused |= ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
-    smokeBrowserDrawn = true;
     ImGui.end();
   }
 
@@ -1477,6 +1531,19 @@ public final class ResourcePanel {
         submittedRows,
         submittedManagerRows,
         List.copyOf(submittedTreeIds));
+  }
+
+  record LifetimeState(
+      long opening, boolean clipboard, UUID rename, boolean manager, boolean drag) {}
+
+  LifetimeState lifetimeState() {
+    synchronizeDocument();
+    return new LifetimeState(
+        documentOpening, clipboard != null, renameId, manager.get(), dragActive);
+  }
+
+  int probeRenameNativeId() {
+    return renameId == null ? 0 : renameNativeId;
   }
 
   void probeVoxelRename(UUID id) {

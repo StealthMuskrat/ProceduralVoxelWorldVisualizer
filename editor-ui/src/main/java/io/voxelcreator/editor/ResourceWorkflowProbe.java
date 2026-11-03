@@ -225,6 +225,7 @@ public final class ResourceWorkflowProbe {
                 + " / modal Escape Cancel / membership-only Apply / one Undo and Redo / pending ID"
                 + " preservation / cached export closure");
       }
+      ResourcePaneLifetimeProbe.run(output.resolve("pane-lifetime"));
     } finally {
       ImGui.destroyContext();
     }
