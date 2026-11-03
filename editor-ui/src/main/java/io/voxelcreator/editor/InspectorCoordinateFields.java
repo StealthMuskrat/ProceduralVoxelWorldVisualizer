@@ -11,6 +11,8 @@ import java.util.function.*;
 final class InspectorCoordinateFields {
   private final Map<String, DialogBounds.Rect> bounds = new LinkedHashMap<>();
   private final Map<String, Integer> ids = new LinkedHashMap<>();
+  private final Map<String, CoordinateInput> inputs = new LinkedHashMap<>();
+  private final Map<String, CoordinateInput.Row> rows = new LinkedHashMap<>();
   private CoordinateFieldLayout.Plan plan;
   private String focus;
 
@@ -26,16 +28,15 @@ final class InspectorCoordinateFields {
 
   void draw(
       Function<String, ImString> buffers,
+      Function<String, String> accepted,
       BiConsumer<String, String> edit,
       Consumer<String> record) {
     Objects.requireNonNull(buffers);
+    Objects.requireNonNull(accepted);
     Objects.requireNonNull(edit);
     Objects.requireNonNull(record);
     ImGui.text("XYZ");
-    float digit = 0;
-    for (int i = 0; i <= 9; i++) digit = Math.max(digit, ImGui.calcTextSize(Integer.toString(i)).x);
-    float minimum =
-        digit * 10 + ImGui.calcTextSize("-").x + ImGui.getStyle().getFramePaddingX() * 2;
+    float minimum = CoordinateInput.minimumTextWidth();
     float labelWidth = 0;
     for (var axis : List.of("X", "Y", "Z"))
       labelWidth = Math.max(labelWidth, ImGui.calcTextSize(axis).x);
@@ -48,23 +49,37 @@ final class InspectorCoordinateFields {
             ImGui.getStyle().getItemSpacingX());
     bounds.clear();
     ids.clear();
+    rows.clear();
     int index = 0;
     for (var axis : List.of("X", "Y", "Z")) {
       if (index++ % plan.columns() != 0) ImGui.sameLine();
+      ImGui.beginGroup();
       if (plan.stackedLabels()) ImGui.textWrapped(axis);
       String label = (plan.stackedLabels() ? "" : axis) + "###inspector-coordinate-" + axis;
-      ImGui.setNextItemWidth(plan.inputWidth());
       var input = buffers.apply(axis);
       boolean reveal = axis.equals(focus);
-      if (reveal) ImGui.setKeyboardFocusHere();
-      if (ImGui.inputText(label, input)) edit.accept(axis, input.get());
+      var row =
+          inputs
+              .computeIfAbsent(axis, ignored -> new CoordinateInput())
+              .draw(
+                  axis,
+                  label,
+                  plan.inputWidth(),
+                  input,
+                  accepted.apply(axis),
+                  text -> edit.accept(axis, text),
+                  () -> {
+                    if (reveal) ImGui.setKeyboardFocusHere();
+                  });
       if (reveal) {
         ImGui.setScrollHereY(.5f);
         if (ImGui.isItemActive() || ImGui.isItemFocused()) focus = null;
       }
-      bounds.put(axis, PopupLayout.itemBounds());
-      ids.put(axis, ImGui.getID(label));
+      bounds.put(axis, row.input());
+      ids.put(axis, row.inputId());
+      rows.put(axis, row);
       record.accept(axis);
+      ImGui.endGroup();
     }
   }
 
@@ -78,5 +93,9 @@ final class InspectorCoordinateFields {
 
   CoordinateFieldLayout.Plan plan() {
     return plan;
+  }
+
+  Map<String, CoordinateInput.Row> rows() {
+    return Map.copyOf(rows);
   }
 }

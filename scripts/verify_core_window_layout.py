@@ -6,7 +6,7 @@ import sys
 
 report = json.loads((Path(sys.argv[1]) / 'core-window-layout-native.json').read_text(encoding='utf-8'))
 assert report['formatVersion'] == 1
-for flag in ('callerSizesPreserved', 'rawInputAndIdsPreserved', 'signedInputCorrected', 'projectPreserved'):
+for flag in ('callerSizesPreserved', 'rawInputAndIdsPreserved', 'signedInputCorrected', 'projectPreserved', 'coordinateSliders'):
     assert report[flag] is True
 assert not report['physicalDetachedVerified'] and not report['physicalDpiVerified']
 
@@ -45,6 +45,18 @@ for case in report['coordinateCases']:
     assert 0 < case['plan']['inputWidth'] <= case['bounds']['width']
     fitted(case['workArea'], case['bounds'])
     axes = case['axes']
+    pairs = case['pairs']
+    assert set(pairs) == {'X', 'Y', 'Z'}
+    pair_ids=[]
+    for axis,pair in pairs.items():
+        pair_ids.extend([pair['sliderId'],pair['inputId']])
+        assert pair['range']['minimum'] < pair['range']['maximum']
+        assert pair['input'] == axes[axis]
+        slider=pair['slider']
+        assert slider['width'] > 0 and slider['height'] > 0
+        assert slider['x'] >= case['bounds']['x']
+        assert slider['x'] + slider['width'] <= case['bounds']['x'] + case['bounds']['width'] + .02
+    assert len(set(pair_ids)) == 6
     assert set(axes) == {'X', 'Y', 'Z'}
     for bounds in axes.values():
         assert all(math.isfinite(v) for v in bounds.values())

@@ -116,6 +116,37 @@ public final class CoreWindowLayoutProbe {
                 .coordinate()
                 .equals(new BlockPos(Integer.MIN_VALUE, Integer.MAX_VALUE, -17)),
             "Stacked input lost full signed text");
+        width = 1280;
+        height = 900;
+        globalScale = windowScale = 1;
+        resizeWidth = 1000;
+        resizeHeight = 800;
+        frames(6);
+        var slider = fields.rows().get("Z");
+        require(
+            slider.enabled() && slider.sliderId() != slider.inputId(),
+            "Coordinate pair IDs aliased");
+        long oldVersion = coordinates.version();
+        clickSlider(slider.slider(), .75f);
+        int moved = coordinates.coordinate().z();
+        require(
+            moved != -17
+                && moved >= -273
+                && moved <= 239
+                && coordinates.version() > oldVersion
+                && coordinates.coordinate().x() == Integer.MIN_VALUE
+                && coordinates.coordinate().y() == Integer.MAX_VALUE,
+            "Coordinate slider narrowed another axis or failed to edit raw input");
+        type("Z", "-17");
+        type("X", "-");
+        frames(3);
+        long invalidVersion = coordinates.version();
+        require(!fields.rows().get("X").enabled(), "Malformed coordinate slider remained enabled");
+        clickSlider(fields.rows().get("X").slider(), .75f);
+        require(
+            coordinates.text("X").equals("-") && coordinates.version() == invalidVersion,
+            "Disabled slider repaired invalid raw text");
+        type("X", "-2147483648");
         require(
             project.equals(ProjectIO.JSON.valueToTree(state.project()))
                 && privateValues.equals(ProjectIO.JSON.valueToTree(draft))
@@ -144,6 +175,8 @@ public final class CoreWindowLayoutProbe {
                     "signedInputCorrected",
                     true,
                     "projectPreserved",
+                    true,
+                    "coordinateSliders",
                     true,
                     "physicalDetachedVerified",
                     false,
@@ -223,7 +256,9 @@ public final class CoreWindowLayoutProbe {
             "plan",
             fields.plan(),
             "axes",
-            axes));
+            axes,
+            "pairs",
+            fields.rows()));
   }
 
   private static void type(String axis, String value) {
@@ -246,6 +281,16 @@ public final class CoreWindowLayoutProbe {
     io.addInputCharactersUTF8(value);
     frames(3);
     require(value.equals(coordinates.text(axis)), "Native raw text mismatch: " + axis);
+  }
+
+  private static void clickSlider(DialogBounds.Rect at, float fraction) {
+    var io = ImGui.getIO();
+    io.addMousePosEvent(at.x() + at.width() * fraction, at.y() + at.height() / 2);
+    frame();
+    io.addMouseButtonEvent(0, true);
+    frame();
+    io.addMouseButtonEvent(0, false);
+    frames(3);
   }
 
   private static void reveal(String axis) {
@@ -297,6 +342,7 @@ public final class CoreWindowLayoutProbe {
           ImGui.getWindowPosY() + ImGui.getWindowSizeY() - ImGui.getStyle().getWindowPaddingY();
       fields.draw(
           CoreWindowLayoutProbe::buffer,
+          coordinates::text,
           (axis, raw) -> {
             coordinates.edit(axis, raw);
             edits++;

@@ -125,7 +125,11 @@ final class InspectorPanel {
     }
     if (!tracePage) {
       ImGui.text("Coordinates");
-      fields.draw(buffers, edit, axis -> recordControl("trace-" + axis.toLowerCase(Locale.ROOT)));
+      fields.draw(
+          buffers,
+          coordinates::text,
+          edit,
+          axis -> recordControl("trace-" + axis.toLowerCase(Locale.ROOT)));
       String problem = coordinates.problem();
       if (!problem.isEmpty()) ImGui.textWrapped("! " + problem);
       if (!status.error().isEmpty()) ImGui.textWrapped("! " + status.error());

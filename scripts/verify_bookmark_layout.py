@@ -11,7 +11,7 @@ report = json.loads((out / 'bookmark-layout-native.json').read_text(encoding='ut
 assert report['formatVersion'] == 1 and report['fontSource'] == 'user-scale-fixture'
 for key in ('escapeCancelled', 'heldSuccessorsBlocked', 'boundedFeedback', 'navigationRetry',
             'callbackSuccessorsPreserved', 'unrelatedEditsMergeable', 'staleTargetBlocked',
-            'nativeCorrection', 'oneUndoRedoPerEdit', 'projectPrivatePreserved'):
+            'nativeCorrection', 'oneUndoRedoPerEdit', 'projectPrivatePreserved', 'coordinateSliders'):
     assert report[key] is True, key
 assert report['navigations'] == 2
 for key in ('physicalDpiVerified', 'physicalDetachedVerified', 'gpuFontTextureVerified'):

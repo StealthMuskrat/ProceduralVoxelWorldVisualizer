@@ -4,6 +4,12 @@ import java.util.*;
 
 /** Central help-only guidance and semantic links; authored AppMetadata supplies control text. */
 final class HelpDefinitions {
+  static final String COORDINATE_TOOLTIP =
+      "Text accepts the complete signed 32-bit coordinate range. Moving the slider edits input"
+          + " only.";
+  static final String COORDINATE_INVALID_TOOLTIP =
+      "Correct the complete coordinate text before using its slider.";
+
   record Guide(String id, String name, String guidance) {}
 
   static final List<Guide> GUIDES =
@@ -122,6 +128,23 @@ final class HelpDefinitions {
                   + " determine allowed values. Seed offsets and integer inputs retain their exact"
                   + " formats."),
           new Guide(
+              "help.coordinates",
+              "Coordinate sliders and exact input",
+              "Inspector XYZ and Add Bookmark/Teleport coordinates pair a slider with exact"
+                  + " signed decimal text. "
+                  + COORDINATE_TOOLTIP
+                  + " Suggested sliders span up to 256 blocks on each side of the current value,"
+                  + " bounded at the signed integer limits. The range stays fixed during a drag"
+                  + " and follows the new coordinate after release. Whole-number proposals use"
+                  + " nearest-integer ties-to-even rounding. Text accepts leading signs/zeros"
+                  + " and both integer endpoints without rewriting them on redraw. Invalid or"
+                  + " disagreeing text disables the slider until corrected. "
+                  + COORDINATE_INVALID_TOOLTIP
+                  + " Narrow layouts stack the slider and input while keeping the exact field"
+                  + " available. Slider movement never starts Trace, Teleport or Apply: choose"
+                  + " that action explicitly. Bookmark edits remain private until Apply; Inspector"
+                  + " input remains local navigation/inspection state."),
+          new Guide(
               "help.world-lists",
               "World ordered settings",
               "Sampling transforms, numeric parameter drivers and type intervals are ordered"
@@ -192,7 +215,7 @@ final class HelpDefinitions {
           Map.entry("save", List.of("help.project-settings", "archives", "creation-defaults")),
           Map.entry("processing", List.of("noise", "layers", "help.trace", "help.pins")),
           Map.entry("archives", List.of("save", "layers", "help.visualization")),
-          Map.entry("bookmarks", List.of("navigation", "save")),
+          Map.entry("bookmarks", List.of("navigation", "save", "help.coordinates")),
           Map.entry("diagnostics", List.of("help.find", "help.trace", "profiler")),
           Map.entry("profiler", List.of("diagnostics", "help.visualization")),
           Map.entry("shortcuts", List.of("navigation", "help.manual")),
@@ -213,11 +236,16 @@ final class HelpDefinitions {
               "help.visualization",
               List.of("archives", "profiler", "help.workspace", "help.scalar-readouts")),
           Map.entry(
-              "help.scalar-readouts", List.of("help.visualization", "layers", "creation-defaults")),
+              "help.scalar-readouts",
+              List.of("help.visualization", "layers", "creation-defaults", "help.coordinates")),
+          Map.entry(
+              "help.coordinates",
+              List.of("bookmarks", "navigation", "help.trace", "help.scalar-readouts")),
           Map.entry("help.world-lists", List.of("layers", "help.world-conditions", "help.trace")),
           Map.entry(
               "help.world-conditions", List.of("layers", "help.trace", "help.project-settings")),
-          Map.entry("help.trace", List.of("layers", "diagnostics", "help.find")),
+          Map.entry(
+              "help.trace", List.of("layers", "diagnostics", "help.find", "help.coordinates")),
           Map.entry("help.about", List.of("help.updates", "help.manual")));
 
   static List<String> related(String id) {

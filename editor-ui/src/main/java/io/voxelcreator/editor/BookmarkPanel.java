@@ -37,6 +37,8 @@ public final class BookmarkPanel {
   private BookmarkEditSession session;
   private Object observedDocument;
   private final Map<String, ImString> coordinateBuffers = new LinkedHashMap<>();
+  private final Map<String, CoordinateInput> coordinateInputs = new LinkedHashMap<>();
+  private final Map<String, CoordinateInput.Row> coordinateRows = new LinkedHashMap<>();
   private String error = "";
   private boolean pending;
   private boolean closing;
@@ -377,6 +379,8 @@ public final class BookmarkPanel {
     closing = false;
     coordinateBuffers.clear();
     coordinateBuffers.putAll(buffers);
+    coordinateInputs.clear();
+    coordinateRows.clear();
     error = "";
     pending = true;
   }
@@ -429,19 +433,31 @@ public final class BookmarkPanel {
       for (var axis : owner.axes()) {
         var buffer = coordinateBuffers.get(axis);
         ImGui.textWrapped(axis);
-        if (axis.equals(revealField)
-            || !owner.named() && ImGui.isWindowAppearing() && axis.equals("X"))
-          ImGui.setKeyboardFocusHere();
-        ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
-        fieldIds.put(axis, ImGui.getID("##" + axis));
-        if (ImGui.inputText("##" + axis, buffer)) {
-          try {
-            owner.edit(axis, buffer.get());
-            error = "";
-          } catch (RuntimeException failure) {
-            error = message(failure);
-          }
-        }
+        boolean focus =
+            axis.equals(revealField)
+                || !owner.named() && ImGui.isWindowAppearing() && axis.equals("X");
+        var row =
+            coordinateInputs
+                .computeIfAbsent(axis, ignored -> new CoordinateInput())
+                .draw(
+                    axis,
+                    "##" + axis,
+                    Math.max(1, ImGui.getContentRegionAvailX()),
+                    buffer,
+                    owner.text(axis),
+                    text -> {
+                      try {
+                        owner.edit(axis, text);
+                        error = "";
+                      } catch (RuntimeException failure) {
+                        error = message(failure);
+                      }
+                    },
+                    () -> {
+                      if (focus) ImGui.setKeyboardFocusHere();
+                    });
+        fieldIds.put(axis, row.inputId());
+        coordinateRows.put(axis, row);
         record(axis);
         reveal(axis);
       }
@@ -551,6 +567,8 @@ public final class BookmarkPanel {
     fieldIds.clear();
     pending = false;
     coordinateBuffers.clear();
+    coordinateInputs.clear();
+    coordinateRows.clear();
     name = new ImString(4 * BookmarkEditSession.MAX_NAME_CHARACTERS + 1);
     error = "";
   }
@@ -558,6 +576,10 @@ public final class BookmarkPanel {
   private static String message(RuntimeException failure) {
     var text = failure.getMessage();
     return text == null || text.isBlank() ? failure.toString() : text;
+  }
+
+  Map<String, CoordinateInput.Row> coordinateRows() {
+    return Map.copyOf(coordinateRows);
   }
 
   private static String bounded(String value) {

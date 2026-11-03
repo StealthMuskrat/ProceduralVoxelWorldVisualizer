@@ -48,7 +48,10 @@ final class CoordinateText {
   }
 
   private int parseAxis(String axis) {
-    String raw = text.get(axis);
+    return parseAxis(axis, text.get(axis));
+  }
+
+  static int parseAxis(String axis, String raw) {
     try {
       if (!raw.matches("[+-]?[0-9]+")) throw new NumberFormatException();
       return Integer.parseInt(raw);

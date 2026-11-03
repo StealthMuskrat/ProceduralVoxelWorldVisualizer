@@ -115,6 +115,41 @@ public final class BookmarkLayoutProbe {
             require(!panel.pending(), "Cancel retained bookmark owner");
           }
         }
+        // Coordinate slider proposals remain private and never perform Teleport on their own.
+        tab = Tab.WORLD;
+        form = "Teleport";
+        dimensions(1200, 900, 1, 1);
+        open(false);
+        frames(6);
+        var coordinateRow = panel.coordinateRows().get("X");
+        require(
+            coordinateRow.enabled() && coordinateRow.sliderId() != coordinateRow.inputId(),
+            "Bookmark coordinate pair IDs aliased");
+        int originalX = Integer.parseInt(panel.rawText("X"));
+        var at = coordinateRow.slider();
+        press(new float[] {at.x() + at.width() * .75f, at.y() + at.height() / 2});
+        release();
+        frames(3);
+        int editedX = Integer.parseInt(panel.rawText("X"));
+        require(
+            editedX != originalX
+                && editedX >= originalX - 256
+                && editedX <= originalX + 256
+                && navigations == 0
+                && before.equals(ProjectIO.JSON.valueToTree(state.project())),
+            "Bookmark slider navigated, published or failed to edit its private coordinate");
+        panel.probeEdit("X", "-");
+        frames(3);
+        require(
+            !panel.coordinateRows().get("X").enabled(), "Invalid bookmark slider remained enabled");
+        at = panel.coordinateRows().get("X").slider();
+        press(new float[] {at.x() + at.width() * .75f, at.y() + at.height() / 2});
+        release();
+        frames(3);
+        require(
+            panel.rawText("X").equals("-") && navigations == 0,
+            "Disabled bookmark slider repaired or navigated invalid input");
+        click("Cancel");
         // Long diagnostics remain bounded and reachable independently of coordinate fields.
         tab = Tab.WORLD;
         form = "Add";
@@ -315,6 +350,7 @@ public final class BookmarkLayoutProbe {
                     Map.entry("nativeCorrection", true),
                     Map.entry("oneUndoRedoPerEdit", true),
                     Map.entry("projectPrivatePreserved", true),
+                    Map.entry("coordinateSliders", true),
                     Map.entry("navigations", navigations),
                     Map.entry("physicalDpiVerified", false),
                     Map.entry("physicalDetachedVerified", false),
