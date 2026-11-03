@@ -1,10 +1,24 @@
 package io.voxelcreator.api;
 
+import io.voxelcreator.storage.VoxelChunk;
 import java.util.concurrent.*;
 
 /** Observes host-owned delivery stages without completing or cancelling them. */
 final class ConsumerAcknowledgement {
   private ConsumerAcknowledgement() {}
+
+  /** Give synchronous host faults the same delivery-policy path as failed stages. */
+  static void deliver(ChunkConsumer consumer, VoxelChunk chunk, CancellationToken token) {
+    try {
+      await(consumer.accept(chunk), token);
+    } catch (Throwable failure) {
+      // Keep cancellation/runtime control flow intact. Errors (or sneaky checked host faults)
+      // otherwise bypass the per-chunk Exception handler, unlike the same failed stage's join.
+      throw failure instanceof RuntimeException runtime
+          ? runtime
+          : new CompletionException(failure);
+    }
+  }
 
   static void await(CompletionStage<Void> stage, CancellationToken token) {
     var acknowledgement = observe(stage);

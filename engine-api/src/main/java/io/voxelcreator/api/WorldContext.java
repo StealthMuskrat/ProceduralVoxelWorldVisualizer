@@ -771,8 +771,7 @@ public final class WorldContext implements AutoCloseable {
               deliveryProfile =
                   engine.profiler().scope(contextId, compiled.projectUuid(), chosen.pos);
               deliveryStamp = deliveryProfile == null ? 0 : deliveryProfile.begin();
-              var accepted = consumer.accept(chunk);
-              ConsumerAcknowledgement.await(accepted, token);
+              ConsumerAcknowledgement.deliver(consumer, chunk, token);
               completed++;
               progress = counts("RUNNING", 0);
               deliveryOutcome = Profiler.Outcome.SUCCESS;

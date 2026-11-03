@@ -188,6 +188,7 @@ public final class ConsumerStageConsumer {
                 2,
                 "roots",
                 List.of(2, 4))));
+    DeliveryErrorConsumer.run(out.resolve("delivery-errors"));
     System.out.println("CONSUMER_STAGE_CONSUMER_PASS");
   }
 

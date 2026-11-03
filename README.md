@@ -308,3 +308,5 @@ The unvalidated [World metadata follow-up](docs/WORLD_METADATA_GUIDANCE.md) adds
 The unvalidated [chunk subscriber retirement follow-up](docs/CHUNK_SUBSCRIBER_RETIREMENT.md) releases admission, cancellation registration and abandoned queued ownership before future callbacks, including asynchronous/timeout completion and late registration. Eighteen deferred contracts and a full-limit independent replay remain unexecuted; no tests or workflows ran.
 
 The unvalidated [curve metadata follow-up](docs/CURVE_METADATA_GUIDANCE.md) adds 23 dialog-specific App Config guides and context Help for curve numeric pairs, modes, local controls, actions and readouts, separately from curve creation defaults. Ten deferred regression definitions and thirteen production Help routes remain unexecuted; no tests or workflows ran.
+
+The unvalidated [region delivery Error follow-up](docs/REGION_DELIVERY_ERROR_POLICY.md) makes directly thrown consumer/stage Errors follow the same CONTINUE/FAIL_FAST delivery policy as failed acknowledgements, without retries or host-stage mutation. Ten deferred contracts and 32 independent replay cases remain unexecuted; no tests or workflows ran.
