@@ -44,6 +44,10 @@ public final class ScalarRemappingConsumer {
           Path.of(args[3]).resolve("remapping-engine-reference.json"),
           ProjectIO.JSON.writeValueAsString(
               Map.of("formatVersion", 1, "vectors", count, "fixtureValue", expected)));
+    if (args.length > 3)
+      FalloffDistanceConsumer.run(
+          Path.of(args[2]).resolveSibling("falloff-distance-vectors.json"),
+          Path.of(args[3]).resolve("falloff-distance"));
     System.out.println(
         "SCALAR_REMAPPING_ENGINE_ONLY_PASS "
             + count

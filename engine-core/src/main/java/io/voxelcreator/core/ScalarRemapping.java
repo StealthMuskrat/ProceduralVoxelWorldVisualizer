@@ -68,6 +68,53 @@ public final class ScalarRemapping {
       return output(w == 1 ? target : a + (target - a) * w);
     }
 
+    private static double normalizedDifference(double value, double center, double extent) {
+      double difference = value - center;
+      // Subtract first whenever representable, including nearby large coordinates. Only an
+      // overflowing subtraction is distributed over the positive finite extent.
+      return Double.isFinite(difference) ? difference / extent : value / extent - center / extent;
+    }
+
+    private double distance(double dx, double dy, double dz) {
+      return switch (s("metric")) {
+        case "EUCLIDEAN" -> {
+          double squares = StrictMath.pow(dx, 2) + StrictMath.pow(dy, 2) + StrictMath.pow(dz, 2);
+          if (Double.isNaN(squares)) yield squares;
+          if (Double.isFinite(squares)
+              && (squares >= Double.MIN_NORMAL || dx == 0 && dy == 0 && dz == 0))
+            yield StrictMath.sqrt(squares);
+          // Keep ordinary operation order, recovering underflowed/subnormal squares or overflow
+          // with a scaled norm. The norm itself may overflow; normalization below can still fit.
+          yield StrictMath.hypot(StrictMath.hypot(dx, dy), dz);
+        }
+        case "CHEBYSHEV" ->
+            StrictMath.max(
+                StrictMath.abs(dx), StrictMath.max(StrictMath.abs(dy), StrictMath.abs(dz)));
+        case "MANHATTAN" -> StrictMath.abs(dx) + StrictMath.abs(dy) + StrictMath.abs(dz);
+        case "AXIS" -> StrictMath.abs(s("axis").equals("x") ? dx : s("axis").equals("y") ? dy : dz);
+        default -> throw new AssertionError(s("metric"));
+      };
+    }
+
+    private double falloffRatio(double a, double x, double y, double z) {
+      double extent = n("extent");
+      if (s("domain").equals("INPUT")) {
+        double distance = StrictMath.abs(a - n("centerX"));
+        return Double.isFinite(distance)
+            ? distance / extent
+            : StrictMath.abs(normalizedDifference(a, n("centerX"), extent));
+      }
+      double dx = x - n("centerX"),
+          dy = dimension == 2 ? 0 : y - n("centerY"),
+          dz = z - n("centerZ");
+      double distance = distance(dx, dy, dz);
+      if (Double.isFinite(distance)) return distance / extent;
+      return distance(
+          normalizedDifference(x, n("centerX"), extent),
+          dimension == 2 ? 0 : normalizedDifference(y, n("centerY"), extent),
+          normalizedDifference(z, n("centerZ"), extent));
+    }
+
     public double sample(double a, double x, double y, double z) {
       return switch (kind) {
         case "REMAP" -> {
@@ -94,28 +141,7 @@ public final class ScalarRemapping {
           yield (cell + blend) / n("levels");
         }
         case "FALLOFF" -> {
-          double dx = x - n("centerX"),
-              dy = dimension == 2 ? 0 : y - n("centerY"),
-              dz = z - n("centerZ");
-          double distance =
-              s("domain").equals("INPUT")
-                  ? StrictMath.abs(a - n("centerX"))
-                  : switch (s("metric")) {
-                    case "EUCLIDEAN" ->
-                        StrictMath.sqrt(
-                            StrictMath.pow(dx, 2) + StrictMath.pow(dy, 2) + StrictMath.pow(dz, 2));
-                    case "CHEBYSHEV" ->
-                        StrictMath.max(
-                            StrictMath.abs(dx),
-                            StrictMath.max(StrictMath.abs(dy), StrictMath.abs(dz)));
-                    case "MANHATTAN" ->
-                        StrictMath.abs(dx) + StrictMath.abs(dy) + StrictMath.abs(dz);
-                    case "AXIS" ->
-                        StrictMath.abs(
-                            s("axis").equals("x") ? dx : s("axis").equals("y") ? dy : dz);
-                    default -> throw new AssertionError(s("metric"));
-                  };
-          double t = distance / n("extent");
+          double t = falloffRatio(a, x, y, z);
           if (s("outside").equals("CLAMP")) t = Expression.clamp(t, 0, 1);
           double shaped =
               switch (s("shape")) {

@@ -269,7 +269,8 @@ public final class ProcessingExtensions {
         "Multiply the signed input by 1 - shape(distance / extent). Coordinates use transformed"
             + " space or an explicit typed position. INPUT uses abs(input - centerX). CLAMP holds"
             + " distance ratio in [0,1]; EXTEND extrapolates the selected shape. No output"
-            + " normalization.");
+            + " normalization. Ordinary finite distance arithmetic is preserved; scaled fallback"
+            + " guards tiny Euclidean squares and overflowing distance ratios.");
     put(
         m,
         "BLEND",
