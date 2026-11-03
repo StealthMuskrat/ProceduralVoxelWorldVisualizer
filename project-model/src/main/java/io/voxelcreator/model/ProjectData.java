@@ -84,6 +84,10 @@ public final class ProjectData {
 
   public static final class Pin {
     public UUID targetUuid;
+
+    /** Empty retains the legacy whole-item/shared-parameter target. */
+    public String control = "";
+
     public String label = "", group = "";
   }
 

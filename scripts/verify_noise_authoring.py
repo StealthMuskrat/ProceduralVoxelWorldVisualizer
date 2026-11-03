@@ -26,7 +26,7 @@ assert add['inputs']['b']['sourceKind']=='Constant' and add['inputs']['b']['valu
 assert add['inputs']['b'].get('parameterUuid') is None
 assert multiply['inputs']['a']['itemUuid']==add['uuid'] and multiply['inputs']['b']['value']==4
 assert n['outputBinding']['itemUuid']==multiply['uuid']
-assert n['pinnedControls']==[{'targetUuid':add['uuid'],'label':'Add settings','group':'Common'}]
+assert n['pinnedControls']==[{'targetUuid':add['uuid'],'control':'','label':'Add settings','group':'Common'}]
 assert (n['algorithm']['parameters']['value']+add['inputs']['b']['value'])*multiply['inputs']['b']['value']==12
 assert project['worldGenerator']['layers']==[]
 print('Noise authoring schema, six types, bounded native widgets, canonical pin cleanup, disabled preservation and independent (1+2)*4 expectation PASS')

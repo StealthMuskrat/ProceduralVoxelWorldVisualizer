@@ -91,6 +91,38 @@ public final class PinWorkflowProbe {
         require(
             noise.pinnedControls.size() == 2 && !noise.pinnedControls.contains(unusedPin),
             "Unpin changed another entry");
+        var unused = noise.processing.getLast();
+        reveal(unused.uuid, "parameters/value");
+        click(panel.probePinCreation(unused.uuid));
+        frames(2);
+        click(panel.probePinOption("parameters/value"));
+        frames(3);
+        showPins();
+        choose("unused / value");
+        click(panel.probePinControl("value"));
+        type("0.125");
+        require(
+            unused.parameters.get("value").doubleValue() == .125
+                && sample(noise, state.project()) == 5,
+            "Individual literal pin did not edit the original unused item");
+        reveal(add.uuid, "inputs/a");
+        click(panel.probePinCreation(add.uuid));
+        frames(2);
+        click(panel.probePinOption("inputs/a"));
+        frames(3);
+        showPins();
+        choose("sum / a");
+        require(
+            panel.probePinControl("value") == null,
+            "Bound individual input exposed a misleading editable constant");
+        click(panel.probePinControl("source"));
+        for (int i = 0; i < 20; i++) {
+          frame();
+          if ((add.uuid + ":a:parameterUuid").equals(panel.probeFocusedBinding())) break;
+        }
+        require(
+            (add.uuid + ":a:parameterUuid").equals(panel.probeFocusedBinding()),
+            "Individual pin did not follow its exact named input");
         require(
             committed.equals(ProjectIO.JSON.valueToTree(state.project()))
                 && revision == state.revision
@@ -129,6 +161,8 @@ public final class PinWorkflowProbe {
                     "privateDraft",
                     true,
                     "oneUndoRedo",
+                    true,
+                    "individualControls",
                     true)));
         System.out.println(
             "PIN_BROWSER_NATIVE_PASS exact pin / groups / canonical value / source links / reorder"
@@ -188,6 +222,16 @@ public final class PinWorkflowProbe {
         "Pin route unavailable");
     focus = true;
     until(control + ":" + parameter);
+  }
+
+  private static void showPins() {
+    require(
+        panel.goToProblem(
+            new EditorEvents.Target(
+                state.project().project.uuid, state.selected, null, "pinnedControls", "", false)),
+        "Pin picker route unavailable");
+    focus = true;
+    until("null:pins");
   }
 
   private static void until(String field) {

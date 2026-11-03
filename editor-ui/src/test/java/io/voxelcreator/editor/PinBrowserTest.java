@@ -8,6 +8,38 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 
 class PinBrowserTest {
+  @Test
+  void individualControlsShareAnItemWithoutSharingPickerIdentityOrRawSelection() {
+    var first = pin("Value", "Common");
+    first.control = "inputs/a";
+    var second = pin("Value", "Common");
+    second.targetUuid = first.targetUuid;
+    second.control = "inputs/b";
+    browser.synchronize(noise, 0);
+    var firstRow = browser.rows().getFirst();
+    var secondRow = browser.rows().getLast();
+    assertNotEquals(firstRow.key(), secondRow.key());
+    assertTrue(firstRow.detail().contains("Input: a"));
+    assertTrue(secondRow.detail().contains("Input: b"));
+    assertTrue(browser.choose(secondRow.key()));
+    assertFalse(browser.selectTarget(first.targetUuid));
+    assertSame(second, browser.selected());
+    assertTrue(browser.move(-1));
+    browser.synchronize(noise, 1);
+    assertSame(second, browser.selected());
+    assertEquals(secondRow.key(), browser.token());
+    assertEquals(
+        "pins",
+        PinBrowser.navigation(
+            new EditorEvents.Target(
+                UUID.randomUUID(),
+                noise.uuid,
+                null,
+                "control",
+                "/noise2D/0/pinnedControls/1/control",
+                false)));
+  }
+
   private final Noise noise = new Noise();
   private final PinBrowser browser = new PinBrowser();
 

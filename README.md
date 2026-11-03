@@ -284,3 +284,5 @@ The unvalidated [cancellation ownership follow-up](docs/CANCELLATION_CALLBACK_OW
 The unvalidated [grid coordinate follow-up](docs/GRID_COORDINATE_BITS.md) preserves signed-zero origins at each axis start and throughout zero-step axes. Eight deferred contracts and an independent raw-bit grid/direct/point replay remain unexecuted; no tests or workflows ran.
 
 The unvalidated [export completion follow-up](docs/EXPORT_COMPLETION_OWNERSHIP.md) makes configuration, resource-package and profiler publication terminal at successful atomic replacement, preserving primary failures when prepublication cleanup also fails. Eleven deferred contracts remain unexecuted; no tests or workflows ran.
+
+The unvalidated [individual pin controls follow-up](docs/INDIVIDUAL_PIN_CONTROLS.md) adds parameter/input pins that reference original item controls, edit canonical literals and follow live binding sources. Legacy whole-item pins remain supported. Eleven deferred contracts and extended native/schema/engine-only replay definitions remain unexecuted; no tests or workflows ran.

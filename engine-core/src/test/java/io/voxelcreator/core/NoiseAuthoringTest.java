@@ -9,6 +9,47 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 
 class NoiseAuthoringTest {
+  @Test
+  void replacementKeepsAnIndividualPinOnTheCorrespondingCanonicalInput() {
+    var project = project();
+    var noise = project.noise2D.getFirst();
+    var original = noise.processing.getFirst();
+    var replacement = ProcessingRegistry.create("ADD", "replacement");
+    replacement.inputs.put("b", Binding.constant(2));
+    noise.processing.addFirst(replacement);
+    PinControls.add(noise, original.uuid, "inputs/b", "Gain input");
+    var transaction =
+        plan(project, noise, Action.DELETE, original.uuid, Resolution.REPLACE, replacement.uuid);
+    assertTrue(transaction.valid(), transaction.diagnostics().toString());
+    transaction.applyTo(noise);
+    var pin = noise.pinnedControls.getLast();
+    assertEquals(replacement.uuid, pin.targetUuid);
+    assertEquals("inputs/b", pin.control);
+    assertSame(noise.processing.getFirst(), PinControls.item(noise, pin.targetUuid));
+    assertEquals(12, sample(project, noise));
+  }
+
+  @Test
+  void incompatibleReplacementCannotSilentlyRetargetAControlPinOrMutateTheDraft() {
+    var project = project();
+    var noise = project.noise2D.getFirst();
+    var original = noise.processing.getFirst();
+    var replacement = ProcessingRegistry.create("CONSTANT", "replacement");
+    replacement.parameters.put("value", ProjectIO.JSON.valueToTree(3));
+    noise.processing.addFirst(replacement);
+    PinControls.add(noise, original.uuid, "inputs/b", "Gain input");
+    var before = ProjectIO.JSON.valueToTree(noise);
+    var transaction =
+        plan(project, noise, Action.DELETE, original.uuid, Resolution.REPLACE, replacement.uuid);
+    assertFalse(transaction.valid());
+    assertTrue(
+        transaction.diagnostics().stream()
+            .anyMatch(d -> d.jsonPointer().endsWith("/pinnedControls/1/control")));
+    assertThrows(IllegalStateException.class, () -> transaction.applyTo(noise));
+    assertEquals(before, ProjectIO.JSON.valueToTree(noise));
+    assertEquals(12, sample(project, noise));
+  }
+
   static ProjectData project() {
     var p = new ProjectData();
     var n = new Noise();

@@ -77,7 +77,8 @@ final class PinBrowser {
                   + " / "
                   + (pin.targetUuid == null
                       ? "Missing control"
-                      : types.getOrDefault(pin.targetUuid, "Missing control"))));
+                      : types.getOrDefault(pin.targetUuid, "Missing control"))
+                  + detail(pin.control)));
     }
     visible = Collections.unmodifiableMap(byKey);
     rows = List.copyOf(choices);
@@ -85,6 +86,13 @@ final class PinBrowser {
 
   List<DraftChoicePicker.Choice> groups() {
     return groups;
+  }
+
+  private static String detail(String control) {
+    if (control == null || control.isEmpty()) return "";
+    if (control.startsWith("inputs/")) return " / Input: " + control.substring(7);
+    if (control.startsWith("parameters/")) return " / Parameter: " + control.substring(11);
+    return " / Value";
   }
 
   List<DraftChoicePicker.Choice> rows() {
@@ -172,7 +180,7 @@ final class PinBrowser {
         && path.length >= 4
         && Set.of("noise2D", "noise3D", "noise").contains(path[1])
         && path[3].equals("pinnedControls")
-        && Set.of("", "label", "group", "targetUuid").contains(key)) return "pins";
+        && Set.of("", "label", "group", "targetUuid", "control").contains(key)) return "pins";
     return null;
   }
 }

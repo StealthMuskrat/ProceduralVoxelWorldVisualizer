@@ -2955,6 +2955,10 @@
           "format" : "uuid",
           "type" : [ "string", "null" ]
         },
+        "control" : {
+          "type" : "string",
+          "pattern" : "^(?:|value|(?:inputs|parameters)/[\\s\\S]+)$"
+        },
         "label" : {
           "type" : "string"
         },

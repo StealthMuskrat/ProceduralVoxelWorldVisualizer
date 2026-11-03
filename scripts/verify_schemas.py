@@ -8,6 +8,17 @@ for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fie
  validator=jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker())
  for fixture in fixtures:validator.validate(json.loads((root/'fixtures'/fixture).read_text()))
  if name=='project':
+  # Deferred additive control-path contract: legacy pins omit control entirely.
+  pin_validator=jsonschema.Draft202012Validator({'$ref':'#/$defs/Pin','$defs':schema['$defs']},format_checker=jsonschema.FormatChecker())
+  pin={'targetUuid':'00000000-0000-0000-0000-000000000001','label':'Gain','group':'Common'}
+  pin_validator.validate(pin)
+  for control in ['', 'value', 'inputs/a', 'parameters/value']:
+   pin_validator.validate(dict(pin,control=control))
+  for control in [None,23,[],{},'inputs/','parameters/','wrong/a']:
+   try:pin_validator.validate(dict(pin,control=control))
+   except jsonschema.ValidationError:pass
+   else:raise AssertionError('Invalid pin control shape was accepted: '+repr(control))
+ if name=='project':
   curve_schema={'$ref':'#/$defs/Curve','$defs':schema['$defs']}
   jsonschema.Draft202012Validator(curve_schema,format_checker=jsonschema.FormatChecker()).validate(json.loads((root/'fixtures/curve.json').read_text()))
   try:validator.validate(json.loads((root/'fixtures/invalid-format-version.json').read_text()))

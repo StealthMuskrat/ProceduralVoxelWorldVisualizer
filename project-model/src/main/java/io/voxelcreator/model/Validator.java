@@ -222,12 +222,12 @@ public final class Validator {
     }
     var itemNames = new HashSet<String>();
     var earlier = new HashMap<UUID, Item>();
-    var allItems = new HashSet<UUID>();
+    var allItems = new HashMap<UUID, Item>();
     for (var list : List.of(n.coordinateTransforms, n.processing)) {
       earlier.clear();
       for (int i = 0; i < list.size(); i++) {
         var item = list.get(i);
-        allItems.add(item.uuid);
+        allItems.put(item.uuid, item);
         String q = path + (list == n.processing ? "/processing/" : "/coordinateTransforms/") + i;
         uuid(item.uuid, q + "/uuid");
         id(item.id, itemNames, q + "/id");
@@ -279,9 +279,18 @@ public final class Validator {
           "Select raw source or an enabled Scalar processing result");
     if (n.outputBinding != null && !"Scalar".equals(n.outputBinding.type))
       error("INVALID_OUTPUT", path + "/outputBinding", "Noise output must be Scalar");
-    for (var pin : n.pinnedControls)
-      if (!params.contains(pin.targetUuid) && !allItems.contains(pin.targetUuid))
-        error("INVALID_REFERENCE", path + "/pinnedControls", "Unknown pinned control");
+    for (int i = 0; i < n.pinnedControls.size(); i++) {
+      var pin = n.pinnedControls.get(i);
+      boolean parameter = pin != null && params.contains(pin.targetUuid);
+      Item item = pin == null ? null : allItems.get(pin.targetUuid);
+      String problem = PinControls.problem(pin, parameter, item);
+      boolean targetExists = parameter || item != null;
+      if (problem != null)
+        error(
+            "INVALID_REFERENCE",
+            path + "/pinnedControls/" + i + (targetExists ? "/control" : "/targetUuid"),
+            problem);
+    }
   }
 
   public static final Set<String> TYPES =

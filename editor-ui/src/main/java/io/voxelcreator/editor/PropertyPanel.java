@@ -202,6 +202,11 @@ public final class PropertyPanel {
   private Pin pinFocusPin;
   private String pinFocusKey, pinMessage = "";
   private final Map<String, float[]> pinCenters = new HashMap<>();
+  private final Map<UUID, float[]> pinCreationCenters = new HashMap<>();
+
+  float[] probePinCreation(UUID item) {
+    return pinCreationCenters.get(item);
+  }
 
   float[] probePinControl(String key) {
     return pinCenters.get(key);
@@ -580,6 +585,7 @@ public final class PropertyPanel {
     worldControlCenters.clear();
     worldListControls.clear();
     parameterCenters.clear();
+    pinCreationCenters.clear();
     bindingRects.clear();
     sourceControlCenters.clear();
     sourceControlKeys.clear();
@@ -1277,12 +1283,7 @@ public final class PropertyPanel {
             v -> p.value = v,
             (key, draw) -> propertyControl(p.uuid, "parameters/" + key, draw));
         if (ImGui.smallButton("Pin Control")) {
-          var pin = new Pin();
-          pin.targetUuid = p.uuid;
-          pin.label = p.id;
-          if (n.pinnedControls.stream().noneMatch(existing -> existing.targetUuid.equals(p.uuid)))
-            n.pinnedControls.add(pin);
-          noiseChanged();
+          if (PinControls.add(n, p.uuid, "", p.id)) noiseChanged();
         }
         ImGui.sameLine();
         if (ImGui.smallButton("Duplicate Parameter"))
@@ -1561,6 +1562,8 @@ public final class PropertyPanel {
               draw.run();
               pinRect(key);
             });
+      } else if (pin.control != null && !pin.control.isEmpty()) {
+        pinnedItemControl(noise, item, pin);
       } else {
         ImGui.textWrapped(
             "This pin references the original item. Its input sources are shown below.");
@@ -1580,8 +1583,27 @@ public final class PropertyPanel {
             ImGui.textWrapped("More inputs are available in the original control.");
         }
       }
-      if (ImGui.smallButton("Go To Control"))
-        focusLocal(noise, pin.targetUuid, PinSources.control(row, item));
+      String destination =
+          row.section() == NoiseDraftIndex.Section.PARAMETERS
+                  || pin.control == null
+                  || pin.control.isEmpty()
+              ? PinSources.control(row, item)
+              : PinControls.resolvedPath(item, pin.control);
+      ImGui.beginDisabled(destination == null);
+      if (ImGui.smallButton("Go To Control")) {
+        if ("parameters/curve".equals(destination)) {
+          try {
+            openCurve(item, null);
+          } catch (RuntimeException invalid) {
+            state.notify(
+                "Error",
+                "Curve cannot open: "
+                    + invalid.getMessage()
+                    + ". Correct the definition or reset the curve.");
+          }
+        } else focusLocal(noise, pin.targetUuid, destination);
+      }
+      ImGui.endDisabled();
       pinRect("source");
     } else
       ImGui.textWrapped(
@@ -1604,6 +1626,71 @@ public final class PropertyPanel {
     }
     pinRect("remove");
     ImGui.popID();
+  }
+
+  private void pinnedItemControl(Noise noise, Item item, Pin pin) {
+    String path = PinControls.resolvedPath(item, pin.control);
+    if (path == null) {
+      ImGui.textWrapped("This control is missing. Unpin it or repair the original item.");
+      return;
+    }
+    String key = path.substring(path.indexOf('/') + 1);
+    if (path.startsWith("inputs/")) {
+      var binding = item.inputs.get(key);
+      ImGui.textWrapped(key + ": " + PinSources.input(noise, state.project(), binding));
+      if (binding != null
+          && "Constant".equals(binding.sourceKind)
+          && binding.type != null
+          && Validator.TYPES.contains(binding.type))
+        constantEditor(
+            pinFields,
+            binding.type,
+            binding.value,
+            value -> binding.value = value,
+            (component, draw) -> {
+              draw.run();
+              pinRect(component);
+            });
+      return;
+    }
+    var value = item.parameters.get(key);
+    if (item.kind.equals("CONSTANT") && key.equals("value")) {
+      constantEditor(
+          pinFields,
+          item.resultType,
+          value,
+          next -> item.parameters.put(key, next),
+          (component, draw) -> {
+            draw.run();
+            pinRect(component);
+          });
+    } else if (value != null && value.isBoolean()) {
+      pinFields.bool(
+          key,
+          value.booleanValue(),
+          next -> item.parameters.put(key, ProjectIO.JSON.valueToTree(next)));
+      pinRect("value");
+    } else if (value != null && value.isNumber()) {
+      String id =
+          noise.coordinateTransforms.contains(item)
+              ? "transform" + noise.dimension + "D." + item.kind + "." + key
+              : "processing." + item.kind + ".parameter." + key;
+      var spec = CreationRegistry.CONTROLS.get(id);
+      numeric(
+          pinFields,
+          state.metadata.label(id, key),
+          value.doubleValue(),
+          spec == null ? -1 : Math.max(-1024, spec.minimum()),
+          spec == null ? 1 : Math.min(1024, spec.maximum()),
+          spec != null && spec.kind() == CreationRegistry.Kind.INTEGER,
+          next -> item.parameters.put(key, ProjectIO.JSON.valueToTree(next)),
+          draw -> {
+            draw.run();
+            pinRect("value");
+          });
+    } else {
+      ImGui.textWrapped("Edit " + key + " at the original control.");
+    }
   }
 
   void probeOpenCurve() {
@@ -2285,13 +2372,31 @@ public final class PropertyPanel {
       requestNoiseEdit(noise, NoiseAuthoring.Request.simple(NoiseAuthoring.Action.DELETE, uuid));
     ImGui.sameLine();
     if (ImGui.smallButton("Pin Item")) {
-      if (noise.pinnedControls.stream().noneMatch(pin -> pin.targetUuid.equals(uuid))) {
-        var pin = new Pin();
-        pin.targetUuid = uuid;
-        pin.label = list.get(i).id;
-        noise.pinnedControls.add(pin);
-        noiseChanged();
-      }
+      if (PinControls.add(noise, uuid, "", list.get(i).id)) noiseChanged();
+    }
+    var item = list.get(i);
+    var pinChoices =
+        PinControls.paths(item).stream()
+            .map(
+                path ->
+                    new DraftChoicePicker.Choice(
+                        path,
+                        (path.startsWith("inputs/") ? "Input: " : "Parameter: ")
+                            + path.substring(path.indexOf('/') + 1),
+                        item.id))
+            .toList();
+    if (!pinChoices.isEmpty()) {
+      draftChoices.draw(
+          "Pin Control",
+          null,
+          pinChoices,
+          null,
+          path -> {
+            if (PinControls.add(
+                noise, uuid, path, item.id + " / " + path.substring(path.indexOf('/') + 1)))
+              noiseChanged();
+          });
+      pinCreationCenters.put(uuid, draftChoices.buttonCenter());
     }
     dependencies(noise, uuid);
   }

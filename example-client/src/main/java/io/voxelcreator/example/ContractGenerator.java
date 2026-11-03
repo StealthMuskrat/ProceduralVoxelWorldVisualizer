@@ -157,6 +157,12 @@ public final class ContractGenerator {
                 + " not replayed"));
     ((ObjectNode) defs.path("Item").path("properties").path("parameters"))
         .set("properties", obj().set("curve", obj().put("$ref", "#/$defs/Curve")));
+    // Additive format-2 pin paths: omitted controls keep legacy whole-item semantics.
+    ((ObjectNode) defs.path("Pin").path("properties").path("control"))
+        .put("pattern", PinControls.PATH_PATTERN);
+    var pinRequired = (ArrayNode) defs.path("Pin").path("required");
+    for (int i = pinRequired.size() - 1; i >= 0; i--)
+      if (pinRequired.get(i).asText().equals("control")) pinRequired.remove(i);
     ((ArrayNode) defs.path("Curve").path("required")).removeAll();
     for (String field : List.of("uuid", "min", "max", "outsideDomain", "points"))
       ((ArrayNode) defs.path("Curve").path("required")).add(field);

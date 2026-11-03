@@ -11,7 +11,7 @@ report = json.loads((out / 'pin-browser-native.json').read_text())
 schema = json.loads((repo / 'schema/project.schema.json').read_text())
 jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()).validate(project)
 assert report['formatVersion'] == 1 and report['before'] == 2 and report['after'] == 5
-assert all(report[k] is True for k in ['identitySelection', 'readOnlyFilter', 'namedInputNavigation', 'canonicalValue', 'privateDraft', 'oneUndoRedo'])
+assert all(report[k] is True for k in ['identitySelection', 'readOnlyFilter', 'namedInputNavigation', 'canonicalValue', 'privateDraft', 'oneUndoRedo', 'individualControls'])
 noise, = project['noise2D']
 parameter, = noise['sharedParameters']
 add, unused = noise['processing']
@@ -21,7 +21,10 @@ assert add['inputs']['a']['parameterUuid'] == parameter['uuid']
 assert add['inputs']['b']['sourceKind'] == 'Ambient Value' and add['inputs']['b']['ambientKey'] == 'x'
 assert noise['outputBinding']['itemUuid'] == add['uuid'] and unused['kind'] == 'CONSTANT'
 assert noise['pinnedControls'] == [
-    {'targetUuid': add['uuid'], 'label': 'Sum', 'group': 'Detailed'},
-    {'targetUuid': parameter['uuid'], 'label': 'Editable gain', 'group': 'Common edited'}]
+    {'targetUuid': add['uuid'], 'control': '', 'label': 'Sum', 'group': 'Detailed'},
+    {'targetUuid': parameter['uuid'], 'control': '', 'label': 'Editable gain', 'group': 'Common edited'},
+    {'targetUuid': unused['uuid'], 'control': 'parameters/value', 'label': 'unused / value', 'group': ''},
+    {'targetUuid': add['uuid'], 'control': 'inputs/a', 'label': 'sum / a', 'group': ''}]
+assert unused['parameters']['value'] == .125
 assert all('value' not in pin for pin in noise['pinnedControls'])
 print('PIN_BROWSER_INDEPENDENT_PASS exact authored order / canonical shared input / presentation-only pins / x+5')

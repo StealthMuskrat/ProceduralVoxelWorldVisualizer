@@ -12,6 +12,18 @@ public final class PinBrowserConsumer {
     var project = result.project();
     if (project.noise2D.getFirst().sharedParameters.getFirst().value.doubleValue() != 5)
       throw new AssertionError("Canonical shared parameter");
+    var noise = project.noise2D.getFirst();
+    var unused = noise.processing.getLast();
+    if (unused.parameters.get("value").doubleValue() != .125
+        || noise.pinnedControls.stream()
+            .noneMatch(
+                pin -> pin.targetUuid.equals(unused.uuid) && pin.control.equals("parameters/value"))
+        || noise.pinnedControls.stream()
+            .noneMatch(
+                pin ->
+                    pin.targetUuid.equals(noise.processing.getFirst().uuid)
+                        && pin.control.equals("inputs/a")))
+      throw new AssertionError("Specific pins lost their canonical paths or literal edit");
     var withoutPins = ProjectIO.copy(project);
     withoutPins.noise2D.getFirst().pinnedControls.clear();
     var a = new CompiledProject(project).noise2D("pinned", project.project.seed);
