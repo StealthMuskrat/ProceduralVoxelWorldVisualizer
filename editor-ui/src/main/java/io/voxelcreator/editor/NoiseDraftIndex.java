@@ -63,7 +63,7 @@ public final class NoiseDraftIndex {
     for (var pin : noise.pinnedControls)
       if (pin.targetUuid != null)
         uses.computeIfAbsent(pin.targetUuid, ignored -> new ArrayList<>())
-            .add(new Use(pin.targetUuid, "Pin: " + pin.label, "pin"));
+            .add(new Use(pin.targetUuid, "Pin: " + pin.label, PinBrowser.parameter(pin)));
     var frozen = new HashMap<UUID, List<Use>>();
     uses.forEach((id, values) -> frozen.put(id, List.copyOf(values)));
     users = Map.copyOf(frozen);

@@ -26,6 +26,25 @@ final class HelpDefinitions {
                   + " exact request. Find References limits results to references to the selected"
                   + " UUID."),
           new Guide(
+              "help.pins",
+              "Pinned controls and live sources",
+              "In a Noise item's Properties, use Pin Control to choose one parameter or named"
+                  + " input, or Pin Item for a link to the whole item. Shared parameters also offer"
+                  + " Pin Control. Pinned Controls lets you search pins, filter groups, edit"
+                  + " labels, reorder and unpin. A literal pin edits its original value in the"
+                  + " private Properties draft; it does not create a second value. Bound inputs"
+                  + " show their current source and Go To Control instead of a misleading constant."
+                  + " A parameter pin follows Bind and returns to its literal when that binding is"
+                  + " removed. Go To Control opens the original exact field. View > Find includes a"
+                  + " pinned control kind and searches committed labels, groups and control names."
+                  + " Find References shows each pin referring to a shared parameter or item. A"
+                  + " unique control link reveals that pin even after reorder; duplicate identical"
+                  + " references or removed pins reveal the picker without guessing. Used By links"
+                  + " in a private draft follow its current pin identities. Apply publishes the"
+                  + " complete resource in one Undo transaction; Save persists it. Filtering,"
+                  + " navigation and Help do not apply or save edits. Right-click the Pinned"
+                  + " Controls header or an item's Pin Control picker for this guidance."),
+          new Guide(
               "help.workspace",
               "Workspace and window placement",
               "View > Reset Dock Layout restores the three-panel default arrangement. User Settings"
@@ -158,7 +177,8 @@ final class HelpDefinitions {
       Map.ofEntries(
           Map.entry("help.manual", List.of("noise", "help.find", "shortcuts", "help.about")),
           Map.entry(
-              "noise", List.of("noise.algorithm", "processing", "layers", "creation-defaults")),
+              "noise",
+              List.of("noise.algorithm", "processing", "layers", "creation-defaults", "help.pins")),
           Map.entry(
               "layers",
               List.of(
@@ -170,7 +190,7 @@ final class HelpDefinitions {
                   "help.world-lists")),
           Map.entry("navigation", List.of("bookmarks", "help.workspace", "shortcuts")),
           Map.entry("save", List.of("help.project-settings", "archives", "creation-defaults")),
-          Map.entry("processing", List.of("noise", "layers", "help.trace")),
+          Map.entry("processing", List.of("noise", "layers", "help.trace", "help.pins")),
           Map.entry("archives", List.of("save", "layers", "help.visualization")),
           Map.entry("bookmarks", List.of("navigation", "save")),
           Map.entry("diagnostics", List.of("help.find", "help.trace", "profiler")),
@@ -180,7 +200,10 @@ final class HelpDefinitions {
           Map.entry("themes", List.of("help.appearance", "creation-defaults")),
           Map.entry("noise.algorithm", List.of("noise", "creation-defaults")),
           Map.entry("noise.seedOffset", List.of("noise", "help.project-settings")),
-          Map.entry("help.find", List.of("diagnostics", "noise", "help.trace")),
+          Map.entry("help.find", List.of("diagnostics", "noise", "help.trace", "help.pins")),
+          Map.entry(
+              "help.pins",
+              List.of("noise", "processing", "help.find", "save", "help.scalar-readouts")),
           Map.entry("help.workspace", List.of("navigation", "help.appearance")),
           Map.entry("help.updates", List.of("help.about", "creation-defaults")),
           Map.entry("help.project-settings", List.of("save", "noise.seedOffset", "layers")),

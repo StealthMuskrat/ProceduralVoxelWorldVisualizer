@@ -131,6 +131,19 @@ public final class PinWorkflowProbe {
         require(
             user.equals(ProjectIO.JSON.valueToTree(state.user)),
             "Pin filtering changed preferences");
+        var filter =
+            new ResourceSearchIndex.Filter(
+                "sum / a",
+                "pinned control",
+                "All",
+                "All",
+                null,
+                null,
+                false,
+                ResourceSearchIndex.Mode.ID);
+        require(
+            new ResourceSearchIndex(state.project()).search(filter).isEmpty(),
+            "Committed Find exposed a private pin before Apply");
         require(state.applyDraft(), "Pin Apply rejected");
         var applied = ProjectIO.JSON.valueToTree(state.project());
         state.document.undo();
@@ -139,31 +152,78 @@ public final class PinWorkflowProbe {
         state.document.redo();
         state.revision++;
         require(applied.equals(ProjectIO.JSON.valueToTree(state.project())), "One pin Redo");
-        state.document.save(out.resolve("pin-browser-project.json"));
+        var hit = new ResourceSearchIndex(state.project()).search(filter).getFirst();
+        require(
+            new SearchNavigation(state).request(hit.target()) == SearchNavigation.Result.NAVIGATED
+                && panel.revealSearch(hit.target()),
+            "Committed pin route unavailable");
+        focus = true;
+        until(add.uuid + ":pin/label");
+        var selected = panel.probeSelectedPin();
+        require(
+            selected.control.equals("inputs/a") && selected.targetUuid.equals(add.uuid),
+            "Find chose the whole-item pin instead of its control");
+        click(panel.probePinControl("up"));
+        frames(3);
+        require(panel.revealSearch(hit.target()), "Reordered pin route unavailable");
+        until(add.uuid + ":pin/label");
+        require(
+            panel.probeSelectedPin() == selected, "Historical array position selected another pin");
+        var use =
+            new NoiseDraftIndex((Noise) state.draft)
+                .users(add.uuid).stream()
+                    .filter(value -> value.label().equals("Pin: sum / a"))
+                    .findFirst()
+                    .orElseThrow();
+        require(
+            panel.goToProblem(
+                new EditorEvents.Target(
+                    state.project().project.uuid,
+                    state.selected,
+                    use.owner(),
+                    use.path(),
+                    "",
+                    false)),
+            "Used By pin route unavailable");
+        until(add.uuid + ":pin/label");
+        require(panel.probeSelectedPin() == selected, "Used By chose another pin on the same item");
+        click(panel.probePinControl("down"));
+        frames(3);
+        var draftBeforeHelp = ProjectIO.JSON.valueToTree(state.draft);
+        state.helpRequests.take();
+        click(panel.probePinControl("header"), 1);
+        frames(3);
+        var help = panel.contextHelp();
+        require(help.actionCenter() != null, "Pinned Controls context Help did not open");
+        click(help.actionCenter());
+        require(
+            state.helpRequests.take().orElseThrow().equals("help.pins"),
+            "Context Help opened another topic");
+        require(
+            draftBeforeHelp.equals(ProjectIO.JSON.valueToTree(state.draft))
+                && applied.equals(ProjectIO.JSON.valueToTree(state.project()))
+                && user.equals(ProjectIO.JSON.valueToTree(state.user)),
+            "Pin discovery or Help published a private edit");
+        var helpCatalog = new HelpCatalog(state.metadata);
         Files.writeString(
-            out.resolve("pin-browser-native.json"),
-            ProjectIO.JSON.writeValueAsString(
-                Map.of(
-                    "formatVersion",
-                    1,
-                    "before",
-                    2,
-                    "after",
-                    5,
-                    "identitySelection",
-                    true,
-                    "readOnlyFilter",
-                    true,
-                    "namedInputNavigation",
-                    true,
-                    "canonicalValue",
-                    true,
-                    "privateDraft",
-                    true,
-                    "oneUndoRedo",
-                    true,
-                    "individualControls",
-                    true)));
+            out.resolve("pin-help.txt"), helpCatalog.topic("help.pins").copyText(helpCatalog));
+        state.document.save(out.resolve("pin-browser-project.json"));
+        var report = new LinkedHashMap<String, Object>();
+        report.put("formatVersion", 1);
+        report.put("before", 2);
+        report.put("after", 5);
+        report.put("identitySelection", true);
+        report.put("readOnlyFilter", true);
+        report.put("namedInputNavigation", true);
+        report.put("canonicalValue", true);
+        report.put("privateDraft", true);
+        report.put("oneUndoRedo", true);
+        report.put("individualControls", true);
+        report.put("findPinNavigation", true);
+        report.put("logicalUsedBy", true);
+        report.put("pinContextHelp", true);
+        Files.writeString(
+            out.resolve("pin-browser-native.json"), ProjectIO.JSON.writeValueAsString(report));
         System.out.println(
             "PIN_BROWSER_NATIVE_PASS exact pin / groups / canonical value / source links / reorder"
                 + " / unpin / Apply-Undo-Redo");
@@ -280,13 +340,17 @@ public final class PinWorkflowProbe {
   }
 
   private static void click(float[] at) {
+    click(at, 0);
+  }
+
+  private static void click(float[] at, int button) {
     require(at != null, "Control missing");
     var io = ImGui.getIO();
     io.addMousePosEvent(at[0], at[1]);
     frame();
-    io.addMouseButtonEvent(0, true);
+    io.addMouseButtonEvent(button, true);
     frame();
-    io.addMouseButtonEvent(0, false);
+    io.addMouseButtonEvent(button, false);
     frame();
   }
 

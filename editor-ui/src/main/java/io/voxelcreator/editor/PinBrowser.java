@@ -7,6 +7,7 @@ import java.util.*;
  * One draft's exact pin objects own selection; transient picker keys never encode array indices.
  */
 final class PinBrowser {
+  private static final String CONTROL_ROUTE = "pin/control/";
   private Noise owner;
   private long version = Long.MIN_VALUE, nextToken;
   private Pin selected;
@@ -147,6 +148,33 @@ final class PinBrowser {
     return true;
   }
 
+  boolean selectTarget(UUID target, String control) {
+    var matches =
+        snapshot.stream()
+            .filter(
+                pin ->
+                    Objects.equals(pin.targetUuid, target) && Objects.equals(pin.control, control))
+            .toList();
+    if (target == null || control == null || matches.size() != 1) {
+      showGroup("all");
+      return false;
+    }
+    selected = matches.getFirst();
+    showGroup(groupKey(selected));
+    return true;
+  }
+
+  static String parameter(Pin pin) {
+    return CONTROL_ROUTE + Objects.requireNonNullElse(pin.control, "");
+  }
+
+  static String controlPath(EditorEvents.Target target) {
+    String parameter = target == null ? null : target.parameter();
+    return parameter != null && parameter.startsWith(CONTROL_ROUTE)
+        ? parameter.substring(CONTROL_ROUTE.length())
+        : null;
+  }
+
   boolean move(int direction) {
     if (direction != -1 && direction != 1) throw new IllegalArgumentException("Pin move direction");
     int index = owner == null ? -1 : owner.pinnedControls.indexOf(selected);
@@ -171,6 +199,7 @@ final class PinBrowser {
 
   static String navigation(EditorEvents.Target target) {
     if (target == null) return null;
+    if (controlPath(target) != null) return "pin/label";
     String key = Objects.requireNonNullElse(target.parameter(), "");
     if (Set.of("pin", "pin/label", "pin/group").contains(key))
       return key.equals("pin/group") ? "pin/group" : "pin/label";

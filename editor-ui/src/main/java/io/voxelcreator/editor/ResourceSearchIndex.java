@@ -26,7 +26,8 @@ public final class ResourceSearchIndex {
           "item parameter",
           "input binding",
           "output binding",
-          "curve point");
+          "curve point",
+          "pinned control");
   public static final List<String> ROOTS =
       List.of("All", "noise2D", "noise3D", "world", "voxel", "group", "set");
 
@@ -128,6 +129,7 @@ public final class ResourceSearchIndex {
                 "coordinateTransforms",
                 "processing",
                 "sharedParameters",
+                "pinnedControls",
                 "outputBinding",
                 "operations"));
       add(
@@ -207,6 +209,7 @@ public final class ResourceSearchIndex {
         }
         items(hits, n, n.coordinateTransforms, "transform", root);
         items(hits, n, n.processing, "processing", root);
+        pins(hits, n, root);
         add(
             hits,
             n.uuid,
@@ -229,6 +232,56 @@ public final class ResourceSearchIndex {
   private static void locate(
       Map<UUID, String> locations, String root, List<? extends Identity> values) {
     for (int i = 0; i < values.size(); i++) locations.put(values.get(i).uuid, root + "/" + i);
+  }
+
+  private void pins(List<Hit> hits, Noise noise, String root) {
+    var targets = new HashMap<UUID, Item>();
+    noise.coordinateTransforms.forEach(item -> targets.put(item.uuid, item));
+    noise.processing.forEach(item -> targets.put(item.uuid, item));
+    var parameters = new HashSet<UUID>();
+    noise.sharedParameters.forEach(parameter -> parameters.add(parameter.uuid));
+    var occurrences = new HashMap<String, Integer>();
+    for (int i = 0; i < noise.pinnedControls.size(); i++) {
+      var pin = noise.pinnedControls.get(i);
+      UUID id = pin.targetUuid == null ? noise.uuid : pin.targetUuid;
+      var item = targets.get(pin.targetUuid);
+      boolean enabled = parameters.contains(pin.targetUuid) || item != null && item.enabled;
+      String label = Objects.requireNonNullElse(pin.label, "");
+      String control = PinBrowser.parameter(pin);
+      String breadcrumb = paths.get(noise.uuid) + " / Pinned Controls / " + label;
+      var value = ProjectIO.JSON.valueToTree(pin);
+      var references = pin.targetUuid == null ? Set.<UUID>of() : Set.of(pin.targetUuid);
+      String base =
+          noise.uuid
+              + ":pin:"
+              + id
+              + ":"
+              + control
+                  .chars()
+                  .mapToObj(Integer::toHexString)
+                  .collect(java.util.stream.Collectors.joining("-"));
+      int occurrence = occurrences.merge(base, 1, Integer::sum);
+      hits.add(
+          new Hit(
+              id,
+              noise.uuid,
+              "pinned control",
+              label,
+              enabled,
+              text(label, "pinned control", id, breadcrumb, value),
+              references,
+              root,
+              breadcrumb,
+              new EditorEvents.Target(
+                  project,
+                  noise.uuid,
+                  pin.targetUuid,
+                  control,
+                  locations.get(noise.uuid) + "/pinnedControls/" + i,
+                  false),
+              references,
+              base + ":" + occurrence));
+    }
   }
 
   private static String escape(String key) {
@@ -377,10 +430,6 @@ public final class ResourceSearchIndex {
       String pointer,
       JsonNode direct,
       JsonNode container) {
-    String value = direct.toString();
-    if (value.length() > 32768) value = value.substring(0, 32768);
-    String text =
-        (label + " " + kind + " " + id + " " + breadcrumb + " " + value).toLowerCase(Locale.ROOT);
     var directRefs = ResourceGraph.references(direct);
     hits.add(
         new Hit(
@@ -389,7 +438,7 @@ public final class ResourceSearchIndex {
             kind,
             label,
             enabled,
-            text,
+            text(label, kind, id, breadcrumb, direct),
             container == null ? directRefs : ResourceGraph.references(container),
             root,
             breadcrumb,
@@ -404,6 +453,14 @@ public final class ResourceSearchIndex {
                     .chars()
                     .mapToObj(Integer::toHexString)
                     .collect(java.util.stream.Collectors.joining("-"))));
+  }
+
+  private static String text(
+      String label, String kind, UUID id, String breadcrumb, JsonNode direct) {
+    String value = direct.toString();
+    if (value.length() > 32768) value = value.substring(0, 32768);
+    return (label + " " + kind + " " + id + " " + breadcrumb + " " + value)
+        .toLowerCase(Locale.ROOT);
   }
 
   private boolean within(UUID resource, UUID directory, Map<UUID, Boolean> cache) {

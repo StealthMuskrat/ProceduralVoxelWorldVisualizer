@@ -361,7 +361,12 @@ public final class PropertyPanel {
       if (pinKey != null) {
         var previousPin = pinBrowser.selected();
         if (pinBrowser.synchronize(noise, noiseVersion)) pinFields.clear();
-        boolean precise = target.control() != null && pinBrowser.selectTarget(target.control());
+        String pinPath = PinBrowser.controlPath(target);
+        boolean precise =
+            target.control() != null
+                && (pinPath == null
+                    ? pinBrowser.selectTarget(target.control())
+                    : pinBrowser.selectTarget(target.control(), pinPath));
         if (pinBrowser.selected() != previousPin) pinFields.clear();
         pinFocusControl = precise ? target.control() : null;
         pinFocusPin = precise ? pinBrowser.selected() : null;
@@ -1285,6 +1290,7 @@ public final class PropertyPanel {
         if (ImGui.smallButton("Pin Control")) {
           if (PinControls.add(n, p.uuid, "", p.id)) noiseChanged();
         }
+        contextHelp.item("help.pins", "pin-shared-parameter");
         ImGui.sameLine();
         if (ImGui.smallButton("Duplicate Parameter"))
           requestNoiseEdit(
@@ -1471,7 +1477,10 @@ public final class PropertyPanel {
     if (pinBrowser.synchronize(noise, noiseVersion)) pinFields.clear();
     if (pinFocusPin != null
         && (pinBrowser.selected() != pinFocusPin
-            || !Objects.equals(pinFocusControl, pinFocusPin.targetUuid))) {
+            || !Objects.equals(pinFocusControl, pinFocusPin.targetUuid)
+            || PinBrowser.controlPath(navigationTarget) != null
+                && !Objects.equals(
+                    PinBrowser.controlPath(navigationTarget), pinFocusPin.control))) {
       propertyFocus.cancel();
       pinFocusPin = null;
       pinFocusKey = null;
@@ -1488,7 +1497,10 @@ public final class PropertyPanel {
       }
       return;
     }
-    if (!ImGui.collapsingHeader("Pinned Controls")) return;
+    boolean expanded = ImGui.collapsingHeader("Pinned Controls");
+    pinRect("header");
+    contextHelp.item("help.pins", "pinned-controls");
+    if (!expanded) return;
     draftChoices.draw(
         "Show group",
         pinBrowser.group(),
@@ -2374,6 +2386,7 @@ public final class PropertyPanel {
     if (ImGui.smallButton("Pin Item")) {
       if (PinControls.add(noise, uuid, "", list.get(i).id)) noiseChanged();
     }
+    contextHelp.item("help.pins", "pin-item");
     var item = list.get(i);
     var pinChoices =
         PinControls.paths(item).stream()
@@ -2397,6 +2410,7 @@ public final class PropertyPanel {
               noiseChanged();
           });
       pinCreationCenters.put(uuid, draftChoices.buttonCenter());
+      contextHelp.item("help.pins", "pin-control-picker");
     }
     dependencies(noise, uuid);
   }

@@ -11,7 +11,10 @@ report = json.loads((out / 'pin-browser-native.json').read_text())
 schema = json.loads((repo / 'schema/project.schema.json').read_text())
 jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()).validate(project)
 assert report['formatVersion'] == 1 and report['before'] == 2 and report['after'] == 5
-assert all(report[k] is True for k in ['identitySelection', 'readOnlyFilter', 'namedInputNavigation', 'canonicalValue', 'privateDraft', 'oneUndoRedo', 'individualControls'])
+assert all(report[k] is True for k in ['identitySelection', 'readOnlyFilter', 'namedInputNavigation', 'canonicalValue', 'privateDraft', 'oneUndoRedo', 'individualControls', 'findPinNavigation', 'logicalUsedBy', 'pinContextHelp'])
+help_text=(out / 'pin-help.txt').read_text(encoding='utf-8')
+assert 'Topic: help.pins' in help_text and 'Find References' in help_text
+assert 'Apply' in help_text and 'Bound inputs' in help_text
 noise, = project['noise2D']
 parameter, = noise['sharedParameters']
 add, unused = noise['processing']
