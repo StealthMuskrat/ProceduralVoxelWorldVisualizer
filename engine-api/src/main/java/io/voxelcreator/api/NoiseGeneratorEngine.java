@@ -33,7 +33,7 @@ public final class NoiseGeneratorEngine implements AutoCloseable {
       nanos = new AtomicLong(),
       completed = new AtomicLong();
   private final Set<WorldContext> contexts = new LinkedHashSet<>();
-  private final List<Consumer<Diagnostic>> listeners = new CopyOnWriteArrayList<>();
+  private final DiagnosticListeners listeners = new DiagnosticListeners();
   private final AtomicBoolean closed = new AtomicBoolean();
 
   public NoiseGeneratorEngine() {
@@ -76,17 +76,29 @@ public final class NoiseGeneratorEngine implements AutoCloseable {
     return openWorld(compiled, WorldOptions.defaults());
   }
 
+  /**
+   * Registers an observation callback in insertion order. Runtime exceptions and Errors from a
+   * callback are contained and do not change generation, region failure policy or later listeners.
+   * Callbacks run on the reporting thread, outside engine locks; hosts must keep them nonblocking.
+   * Repeated registration of the same instance produces repeated observations. Registration after
+   * listener shutdown rejects with IllegalStateException.
+   */
   public void addDiagnosticListener(Consumer<Diagnostic> listener) {
-    listeners.add(Objects.requireNonNull(listener));
+    listeners.add(listener);
+  }
+
+  /**
+   * Removes every registration of this exact callback instance, without calling host equals.
+   * Returns whether any were removed. Captured, unclaimed callbacks are skipped; a callback already
+   * claimed by a reporter may finish. Removal never waits for host code and remains valid after
+   * engine closure. Null is invalid.
+   */
+  public boolean removeDiagnosticListener(Consumer<Diagnostic> listener) {
+    return listeners.remove(listener);
   }
 
   void report(String code, String message) {
-    var d = Diagnostic.error(code, "/runtime", message);
-    for (var listener : listeners)
-      try {
-        listener.accept(d);
-      } catch (RuntimeException ignored) {
-      }
+    listeners.report(Diagnostic.error(code, "/runtime", message));
   }
 
   private enum Reservation {
@@ -174,6 +186,7 @@ public final class NoiseGeneratorEngine implements AutoCloseable {
   @Override
   public void close() {
     if (closed.compareAndSet(false, true)) {
+      listeners.close();
       List<WorldContext> snapshot;
       synchronized (contextGate) {
         snapshot = List.copyOf(contexts);
