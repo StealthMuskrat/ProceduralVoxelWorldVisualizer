@@ -11,6 +11,11 @@ import java.util.*;
 /** Deferred exact displayed-entry/result footer decisions; no OS clipboard or renderer is used. */
 public final class DiagnosticDecisionProbe {
   private static EditorState state;
+  private static ProjectValidationSession checks;
+  private static final ArrayDeque<Runnable> validationWork = new ArrayDeque<>(),
+      validationUi = new ArrayDeque<>();
+  private static final List<String> validationErrors = new ArrayList<>();
+  private static boolean failValidation;
   private static DiagnosticsPanel panel;
   private static final ImBoolean open = new ImBoolean(true), hidden = new ImBoolean(false);
   private static String form = "Logs";
@@ -78,6 +83,16 @@ public final class DiagnosticDecisionProbe {
         var other = Diagnostic.error("OTHER_ROW", "/project/maxY", "another exact target");
         state.issues = new ArrayList<>(List.of(shared, shared, other));
         state.validationScope = "Rejected diagnostic fixture";
+        checks =
+            new ProjectValidationSession(
+                state,
+                validationWork::add,
+                validationUi::add,
+                snapshot -> {
+                  if (failValidation) throw new AssertionError("controlled-validation-failure");
+                  return io.voxelcreator.core.NoiseCompiler.validate(snapshot);
+                },
+                validationErrors::add);
         panel =
             new DiagnosticsPanel(
                 state,
@@ -88,7 +103,8 @@ public final class DiagnosticDecisionProbe {
                 text -> {
                   if (failCopy) throw new IllegalStateException("copy boundary");
                   copied.add(text);
-                });
+                },
+                checks);
         panel.probeControls();
         panel.reveal(alpha.id());
         panel.probeSelectIssue(0);
@@ -269,7 +285,7 @@ public final class DiagnosticDecisionProbe {
                 && navigated.getFirst().settings()
                 && navigated.getFirst().pointer().equals("/project/maxY"),
             "Explicit validation selection routed wrong target");
-        click("validate");
+        backgroundValidationReplay();
         require(
             state.issues.isEmpty()
                 && state.validationScope.equals("Committed project")
@@ -347,6 +363,10 @@ public final class DiagnosticDecisionProbe {
         form = "Validation";
         frames(4);
         click("validate");
+        validationWork.remove().run();
+        validationUi.remove().run();
+        frames(3);
+        checks.close();
         require(
             project.equals(ProjectIO.JSON.valueToTree(state.project()))
                 && state.draft == draft
@@ -377,6 +397,8 @@ public final class DiagnosticDecisionProbe {
                     Map.entry("heldBulkViewBlocked", true),
                     Map.entry("heldOccurrencesBlocked", true),
                     Map.entry("validationOwnersScoped", true),
+                    Map.entry("backgroundValidationCases", 8),
+                    Map.entry("backgroundValidationFailures", validationErrors.size()),
                     Map.entry("callbackFailuresContained", true),
                     Map.entry("hiddenContextsReleased", true),
                     Map.entry("documentLifetimeScoped", true),
@@ -397,6 +419,72 @@ public final class DiagnosticDecisionProbe {
     } finally {
       ImGui.destroyContext();
     }
+  }
+
+  private static void backgroundValidationReplay() {
+    var previous = state.issues;
+    click("validate");
+    require(
+        checks.view().phase() == ProjectValidationSession.Phase.RUNNING && state.issues == previous,
+        "Starting validation replaced previous results");
+    click("validate");
+    require(
+        checks.view().phase() == ProjectValidationSession.Phase.CANCELLED,
+        "Production cancellation failed");
+    validationWork.remove().run();
+    require(validationUi.isEmpty(), "Cancelled queued worker executed validation");
+    click("validate");
+    validationWork.remove().run();
+    require(
+        checks.view().phase() == ProjectValidationSession.Phase.RUNNING && state.issues == previous,
+        "Worker bypassed queued UI publication");
+    press(control("validate"));
+    validationUi.remove().run();
+    frame();
+    release();
+    frames(3);
+    require(
+        checks.view().phase() == ProjectValidationSession.Phase.READY
+            && validationWork.isEmpty()
+            && panel.selectedIssue() == -1,
+        "Held Cancel started a successor after completion");
+    click("validate");
+    validationWork.remove().run();
+    var newer = List.of(Diagnostic.error("PRIVATE_NEWER", "/project/seed", "private correction"));
+    state.issues = newer;
+    state.validationScope = "Rejected Apply";
+    validationUi.remove().run();
+    frames(3);
+    require(
+        checks.view().phase() == ProjectValidationSession.Phase.STALE && state.issues == newer,
+        "Older validation replaced newer private diagnostics");
+    click("validate");
+    validationWork.remove().run();
+    open.set(false);
+    frame();
+    validationUi.remove().run();
+    open.set(true);
+    frames(3);
+    require(
+        checks.view().phase() == ProjectValidationSession.Phase.READY,
+        "Hidden validation workspace lost explicit background result");
+    failValidation = true;
+    click("validate");
+    validationWork.remove().run();
+    validationUi.remove().run();
+    frames(3);
+    require(
+        checks.view().phase() == ProjectValidationSession.Phase.FAILED
+            && validationErrors.size() == 1,
+        "Validation failure escaped explicit recovery");
+    failValidation = false;
+    click("validate");
+    validationWork.remove().run();
+    validationUi.remove().run();
+    frames(3);
+    require(
+        checks.view().phase() == ProjectValidationSession.Phase.READY && state.issues.isEmpty(),
+        "Explicit validation retry failed");
   }
 
   private static boolean code(String value) {

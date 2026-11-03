@@ -30,6 +30,19 @@ final class HelpDefinitions {
                   + " choose Open Help. Help reads active application metadata; private Application"
                   + " Settings text appears only after Apply. Help never applies authoring input."),
           new Guide(
+              "help.validation",
+              "Validate committed project in the background",
+              "View > Validate Project checks an owned snapshot of committed data in the"
+                  + " background. Previous diagnostic results remain available while Running;"
+                  + " Cancel Validation retires the request without changing the project or private"
+                  + " Properties input. Closing only the results window leaves the requested check"
+                  + " running. A result publishes on the UI thread only if its document and"
+                  + " diagnostic publication still match. A project edit, New/Open or newer"
+                  + " rejected-edit result makes an older check stale. Choose Validate Committed"
+                  + " Project again to retry cancelled, stale or failed checks. Copy Details and Go"
+                  + " To Problem retain their exact displayed-result ownership. Validation does not"
+                  + " Apply drafts, save projects or change preferences."),
+          new Guide(
               "help.find",
               "Find resources and references",
               "View > Find searches committed resources by ID, UUID, authored value or breadcrumb."
@@ -313,7 +326,9 @@ final class HelpDefinitions {
           Map.entry("processing", List.of("noise", "layers", "help.trace", "help.pins")),
           Map.entry("archives", List.of("save", "layers", "help.visualization")),
           Map.entry("bookmarks", List.of("navigation", "save", "help.coordinates")),
-          Map.entry("diagnostics", List.of("help.find", "help.trace", "profiler")),
+          Map.entry(
+              "diagnostics", List.of("help.validation", "help.find", "help.trace", "profiler")),
+          Map.entry("help.validation", List.of("diagnostics", "help.find")),
           Map.entry(
               "profiler", List.of("diagnostics", "help.visualization", "help.runtime-limits")),
           Map.entry(
@@ -407,7 +422,8 @@ final class HelpDefinitions {
       case "New", "Open", "Save", "SaveAs", "Exit", "Undo", "Redo" -> "save";
       case "Import", "Export" -> "archives";
       case "Find", "FindReferences" -> "help.find";
-      case "Validate", "Logs" -> "diagnostics";
+      case "Validate" -> "help.validation";
+      case "Logs" -> "diagnostics";
       case "Profiler", "Debug & Profiling" -> "profiler";
       case "Settings", "User Settings" -> "help.appearance";
       case "Voxel Manager" -> "help.voxel-identities";

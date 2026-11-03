@@ -27,6 +27,7 @@ public final class EditorState implements AutoCloseable {
           Thread.ofPlatform().daemon(true).name("editor-preview-", 0).factory(),
           new ThreadPoolExecutor.AbortPolicy());
   public final ConcurrentLinkedQueue<Runnable> uiQueue = new ConcurrentLinkedQueue<>();
+  final ProjectValidationSession committedValidation;
   public long revision = 0;
   public UUID selected;
   public String selectedKind = "", status = "Ready";
@@ -67,6 +68,7 @@ public final class EditorState implements AutoCloseable {
     engine =
         new NoiseGeneratorEngine(
             user.performance.workers, 128, (long) user.performance.engineMiB << 20);
+    committedValidation = new ProjectValidationSession(this);
     engine.addDiagnosticListener(
         d ->
             post(
@@ -296,7 +298,13 @@ public final class EditorState implements AutoCloseable {
   }
 
   public List<Diagnostic> validateProject() {
-    issues = NoiseCompiler.validate(project());
+    committedValidation.cancel();
+    publishValidation(NoiseCompiler.validate(project()));
+    return issues;
+  }
+
+  void publishValidation(List<Diagnostic> result) {
+    issues = List.copyOf(result);
     validationScope = "Committed project";
     if (issues.isEmpty())
       post(
@@ -307,7 +315,6 @@ public final class EditorState implements AutoCloseable {
           null,
           false);
     else for (var issue : issues) reportDiagnostic(issue, EditorEvents.Subsystem.PROJECT, true);
-    return issues;
   }
 
   public boolean canNavigate(EditorEvents.Target target) {
@@ -341,6 +348,7 @@ public final class EditorState implements AutoCloseable {
 
   public void drain() {
     for (Runnable r; (r = uiQueue.poll()) != null; ) r.run();
+    committedValidation.refresh();
     String latest = eventStatus.getAndSet(null);
     if (latest != null) status = latest;
   }
@@ -353,6 +361,7 @@ public final class EditorState implements AutoCloseable {
   void close(boolean savePreferences) {
     voxelIdentities.clear();
     traces.clear();
+    committedValidation.close();
     background.shutdownNow();
     engine.close();
     if (persistPreferences && savePreferences) user.save();

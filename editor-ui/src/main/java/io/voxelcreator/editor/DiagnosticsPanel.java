@@ -18,9 +18,11 @@ public final class DiagnosticsPanel {
   final SettingsActionScope logsActions = new SettingsActionScope(),
       noticesActions = new SettingsActionScope(),
       bulkReadActions = new SettingsActionScope(),
-      validationActions = new SettingsActionScope();
+      validationActions = new SettingsActionScope(),
+      validationRunActions = new SettingsActionScope();
   private final String actionId = UUID.randomUUID().toString();
   private final EditorState state;
+  private final ProjectValidationSession committedValidation;
   private final Consumer<EditorEvents.Target> navigate;
   private final Consumer<String> copy;
   private TracePanel tracePanel;
@@ -47,7 +49,16 @@ public final class DiagnosticsPanel {
 
   DiagnosticsPanel(
       EditorState state, Consumer<EditorEvents.Target> navigate, Consumer<String> copy) {
+    this(state, navigate, copy, state.committedValidation);
+  }
+
+  DiagnosticsPanel(
+      EditorState state,
+      Consumer<EditorEvents.Target> navigate,
+      Consumer<String> copy,
+      ProjectValidationSession committedValidation) {
     this.state = Objects.requireNonNull(state);
+    this.committedValidation = Objects.requireNonNull(committedValidation);
     this.navigate = Objects.requireNonNull(navigate);
     this.copy = Objects.requireNonNull(copy);
   }
@@ -405,16 +416,33 @@ public final class DiagnosticsPanel {
   }
 
   public void drawValidation(ImBoolean open) {
-    if (!begin(open, "Validation Results", "Validation", validationLayout, validationActions))
-      return;
+    if (!begin(
+        open,
+        "Validation Results",
+        "Validation",
+        validationLayout,
+        validationActions,
+        validationRunActions)) return;
     validationDrawn = true;
+    var check = committedValidation.view();
+    boolean running = check.phase() == ProjectValidationSession.Phase.RUNNING;
+    var runToken = committedValidation.requestToken();
+    var lifetime = state.document.sessionToken();
+    long revision = state.revision;
     validationSelection.synchronize(state);
+    var runPublication = validationSelection.publicationToken();
+    long runRequest = validationRunActions.synchronize(runPublication, runToken, revision);
     validationChrome.begin("validation-workspace-body");
+    ImGui.textWrapped(check.message());
     ImGui.textWrapped(
         "Scope: " + validationSelection.scope() + ". Validation does not modify the project.");
     var rows = validationSelection.rows();
     ImGui.textWrapped(
-        rows.isEmpty() ? "OK: No validation issues in this result." : rows.size() + " issue(s)");
+        rows.isEmpty()
+            ? (running
+                ? "Previous result: no validation issues."
+                : "No validation issues in this result.")
+            : rows.size() + " issue(s)");
     preparePanes();
     UiScale.beginChild("validation-list", panes.resultsWidth(), panes.resultsHeight(), true);
     resultsBounds = bounds();
@@ -466,9 +494,15 @@ public final class DiagnosticsPanel {
     var publication = validationSelection.publicationToken();
     var selection = validationSelection.selectionToken();
     long request = validationActions.synchronize(publication, selection, available ? 1 : 0);
-    ImGui.pushID("validation-actions:" + actionId + ":" + request);
-    boolean validate = validationChrome.identifiedAction("validate", "Validate Committed Project");
+    ImGui.pushID("validation-run:" + actionId + ":" + runRequest);
+    ImGui.beginDisabled(check.phase() == ProjectValidationSession.Phase.CLOSED);
+    boolean validate =
+        validationChrome.identifiedAction(
+            "validate", running ? "Cancel Validation" : "Validate Committed Project");
     control("validate");
+    ImGui.endDisabled();
+    ImGui.popID();
+    ImGui.pushID("validation-actions:" + actionId + ":" + request);
     ImGui.beginDisabled(diagnostic == null || !validationSelection.current(state));
     boolean copied = validationChrome.identifiedAction("copy", "Copy Details");
     control("copy");
@@ -483,16 +517,24 @@ public final class DiagnosticsPanel {
     ImGui.popID();
     var currentTarget = validationSelection.target(state);
     boolean currentAvailable = currentTarget != null && state.canNavigate(currentTarget);
-    if (!ImGui.isKeyPressed(ImGuiKey.Escape, false)
+    boolean escaped = ImGui.isKeyPressed(ImGuiKey.Escape, false);
+    if (!escaped
+        && validate
+        && validationRunActions.current(runPublication, runToken, revision)
+        && validationSelection.current(state)
+        && runPublication == validationSelection.publicationToken()
+        && lifetime == state.document.sessionToken()
+        && revision == state.revision
+        && runToken == committedValidation.requestToken()) {
+      if (running) committedValidation.cancel();
+      else committedValidation.start();
+    } else if (!escaped
         && validationSelection.current(state)
         && validationActions.current(
             validationSelection.publicationToken(),
             validationSelection.selectionToken(),
             currentAvailable ? 1 : 0)) {
-      if (validate) {
-        state.validateProject();
-        validationSelection.synchronize(state);
-      } else if (copied && diagnostic != null && validationSelection.selected() == diagnostic)
+      if (copied && diagnostic != null && validationSelection.selected() == diagnostic)
         external("DIAGNOSTIC_COPY_FAILED", () -> copy.accept(diagnosticDetails(diagnostic)));
       else if (navigated && target != null && state.canNavigate(target))
         external("DIAGNOSTIC_NAVIGATION_FAILED", () -> navigate.accept(target));

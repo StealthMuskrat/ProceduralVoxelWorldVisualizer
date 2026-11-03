@@ -114,6 +114,11 @@ class HelpCatalogTest {
             "Check for Updates"))
       assertNotNull(catalog.topic(HelpDefinitions.menuTopic(action)), action);
     assertEquals("help.find", HelpDefinitions.menuTopic("FindReferences"));
+    assertEquals("help.validation", HelpDefinitions.menuTopic("Validate"));
+    assertTrue(
+        catalog.search("validation background").stream()
+            .anyMatch(topic -> topic.id().equals("help.validation")));
+    assertTrue(catalog.topic("help.validation").copyText(catalog).contains("Cancel Validation"));
     assertEquals("help.updates", HelpDefinitions.menuTopic("Check for Updates"));
     assertThrows(IllegalArgumentException.class, () -> HelpDefinitions.menuTopic("made-up"));
   }

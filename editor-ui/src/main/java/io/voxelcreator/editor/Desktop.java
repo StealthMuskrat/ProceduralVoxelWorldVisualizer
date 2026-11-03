@@ -1014,7 +1014,7 @@ public final class Desktop extends Application {
         }
       }
       case "Validate" -> {
-        state.validateProject();
+        state.committedValidation.start();
         validation.set(true);
       }
       case "Settings" -> openSettings("User Settings");

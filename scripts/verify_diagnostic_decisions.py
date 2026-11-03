@@ -13,6 +13,7 @@ def read(name):
 
 report = read('diagnostic-decisions-native.json')
 assert report['formatVersion'] == 1 and report['fontSource'] == 'synthetic-global-window-fixture'
+assert report['backgroundValidationCases'] == 8 and report['backgroundValidationFailures'] == 1
 for key in ('escapePreserved', 'heldSelectionsBlocked', 'unrelatedPublicationsIndependent',
             'heldBulkViewBlocked', 'heldOccurrencesBlocked', 'validationOwnersScoped',
             'callbackFailuresContained', 'hiddenContextsReleased', 'documentLifetimeScoped',
@@ -87,7 +88,7 @@ for code, detail in (('DIAGNOSTIC_COPY_FAILED', 'copy boundary'),
     assert e['message'] == detail and not e['read'] and not e['dismissed'] and e['actionRequired']
     assert e['target'] is None
 valid = by_code['PROJECT_VALID']
-assert valid['count'] == 2 and not valid['read'] and not valid['dismissed'] and not valid['actionRequired']
+assert valid['count'] == 4 and not valid['read'] and not valid['dismissed'] and not valid['actionRequired']
 assert len(report['copied']) == 4 and report['copied'][0] == report['copied'][1]
 for text in report['copied'][:2]:
     assert alpha['message'] in text and 'Occurrences: 1' in text and 'Read: false / Action required: true' in text
