@@ -14,7 +14,7 @@ assert report['formatVersion'] == 1 and report['focused'] == ['seed', 'minY', 'm
 assert all(report[k] is True for k in [
     'invalidTextRetained', 'staleApplyRejected', 'explicitReload', 'cancel',
     'resourceDraftPreserved', 'oneUndoRedo', 'sameListRetryDetails', 'throwDetailsCleared',
-    'collapsedInputPreserved', 'rawSeedPreserved'])
+    'collapsedInputPreserved', 'rawSeedPreserved', 'exactLongSliders'])
 assert report['candidateDiagnostics'] == 300 and report['visibleDiagnostics'] == 8
 assert report['rejectedAttempts'] == 3
 settings = project['project']

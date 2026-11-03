@@ -38,6 +38,31 @@ public final class ProjectSettingsProbe {
         var user = ProjectIO.JSON.valueToTree(state.user);
         panel = new ProjectSettingsPanel(state);
         open("seed");
+        type(Long.toString(Long.MAX_VALUE - 1));
+        var seedPair = panel.seedRow();
+        require(
+            seedPair.enabled() && seedPair.sliderId() != seedPair.inputId(),
+            "Seed pair IDs aliased");
+        var at = seedPair.slider();
+        click(new float[] {at.x() + at.width() * .75f, at.y() + at.height() / 2});
+        require(
+            Long.parseLong(panel.text("seed")) >= Long.MAX_VALUE - 257
+                && !panel.text("seed").equals(Long.toString(Long.MAX_VALUE - 1))
+                && initial.equals(ProjectIO.JSON.valueToTree(state.project())),
+            "Project seed slider published or narrowed input");
+        open("minY");
+        type(Integer.toString(Integer.MIN_VALUE));
+        var bound = panel.boundRows().get("minY");
+        require(bound.enabled(), "Project bound slider unavailable");
+        at = bound.slider();
+        click(new float[] {at.x() + at.width() * .75f, at.y() + at.height() / 2});
+        require(
+            Integer.parseInt(panel.text("minY")) > Integer.MIN_VALUE
+                && initial.equals(ProjectIO.JSON.valueToTree(state.project())),
+            "Bound slider narrowed or published input");
+        open("minY");
+        type(Integer.toString(state.project().project.minY));
+        open("seed");
         type("-");
         click(panel.controlAt("apply"));
         frames(3);
@@ -191,6 +216,7 @@ public final class ProjectSettingsProbe {
                     Map.entry("throwDetailsCleared", true),
                     Map.entry("collapsedInputPreserved", true),
                     Map.entry("rawSeedPreserved", true),
+                    Map.entry("exactLongSliders", true),
                     Map.entry("candidateDiagnostics", 300),
                     Map.entry("visibleDiagnostics", 8),
                     Map.entry("rejectedAttempts", attempts[0]))));

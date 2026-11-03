@@ -35,3 +35,5 @@ The subsequent [resource selection guard](RESOURCE_SELECTION_GUARDS.md) extends 
 The subsequent [resource browser transactions](RESOURCE_BROWSER_TRANSACTIONS.md) also prevent structural actions from silently refreshing invalid seed text. Explicit Discard disposes of it only after the requested action succeeds; explicit Apply remains blocked by it. This source is unvalidated.
 
 [Project draft transitions](PROJECT_DRAFT_TRANSITIONS.md) subsequently extend raw-seed protection to New/Open/Exit and shared native-close routing, including clean committed documents. Discard is deferred through failed/canceled paths, and standalone Save remains committed-only. This implementation is also unvalidated.
+
+The unvalidated [exact seed numeric follow-up](EXACT_LONG_NUMERIC_CONTROLS.md) routes Properties sliders through this same invalid-text ledger and canonical long setters. Only small offsets use native double storage; anchors and resulting seeds remain exact longs. Labels wrap, logical input IDs remain stable on reflow, and diagnostic focus targets the text after the slider. Existing sparse overrides/restoration/Apply rules remain; definitions have not run.

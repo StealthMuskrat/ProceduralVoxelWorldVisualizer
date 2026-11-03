@@ -15,7 +15,7 @@ def read(name):
 
 report = read('profile-numeric-native.json')
 assert report['formatVersion'] == 1 and report['physicalDpiVerified'] is False
-assert all(report[k] is True for k in ('invalidRawGuarded', 'integerStored', 'ownerIdsReplaced'))
+assert all(report[k] is True for k in ('invalidRawGuarded', 'integerStored', 'ownerIdsReplaced', 'exactLongSliders'))
 for value in (report['scalar'], report['vectorSlider']):
     assert math.isfinite(value) and -1e6 <= value <= 1e6
     assert value != round(value * 100000) / 100000

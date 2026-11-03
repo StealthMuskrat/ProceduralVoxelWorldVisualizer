@@ -587,6 +587,7 @@ public final class PropertyPanel {
     numericRows.clear();
     footerEditable = false;
     seedCenters.clear();
+    seedRows.clear();
     worldControlCenters.clear();
     worldListControls.clear();
     parameterCenters.clear();
@@ -3716,6 +3717,7 @@ public final class PropertyPanel {
 
   private static final class SeedText {
     final ImString buffer;
+    final ExactLongInput input = new ExactLongInput();
     long model;
     boolean invalid;
 
@@ -3728,6 +3730,7 @@ public final class PropertyPanel {
   private final LinkedHashMap<String, SeedText> seedTexts = new LinkedHashMap<>(16, .75f, true);
   private Object seedOwner;
   private final Map<String, float[]> seedCenters = new HashMap<>();
+  private final Map<String, ExactLongInput.Row> seedRows = new HashMap<>();
   private boolean probeSeedTop;
 
   void probeSeedProblems() {
@@ -3736,6 +3739,10 @@ public final class PropertyPanel {
 
   float[] probeSeedControl(String key) {
     return seedCenters.get(key);
+  }
+
+  ExactLongInput.Row probeSeedRow(String key) {
+    return seedRows.get(key);
   }
 
   private void synchronizeSeeds() {
@@ -3843,22 +3850,37 @@ public final class PropertyPanel {
       input.model = value;
       input.invalid = false;
     }
-    if (ImGui.inputText(label, input.buffer)) {
-      try {
-        var parsed = state.seedInputs.edit(state, key, label, input.buffer.get());
-        input.invalid = parsed.isEmpty();
-        if (parsed.isPresent()) {
-          set.accept(parsed.getAsLong());
-          input.model = parsed.getAsLong();
-        }
-        noiseChanged();
-      } catch (RuntimeException invalid) {
-        input.buffer.set(
-            Objects.requireNonNullElse(state.seedInputs.text(key), Long.toString(value)));
-        input.invalid = state.seedInputs.text(key) != null;
-        state.status = invalid.getMessage();
-      }
-    }
+    SeedText owned = input;
+    ImGui.textWrapped(label);
+    var row =
+        owned.input.draw(
+            "###seed-text-" + key,
+            Math.max(1, ImGui.getContentRegionAvailX()),
+            owned.buffer,
+            owned.buffer.get(),
+            value,
+            !owned.invalid,
+            text -> {
+              try {
+                var parsed = state.seedInputs.edit(state, key, label, text);
+                owned.invalid = parsed.isEmpty();
+                if (parsed.isPresent()) {
+                  set.accept(parsed.getAsLong());
+                  owned.model = parsed.getAsLong();
+                }
+                noiseChanged();
+              } catch (RuntimeException invalid) {
+                owned.buffer.set(
+                    Objects.requireNonNullElse(state.seedInputs.text(key), Long.toString(value)));
+                owned.invalid = state.seedInputs.text(key) != null;
+                state.status = invalid.getMessage();
+              }
+            },
+            () -> {
+              if (!searchBlocked() && propertyFocus.matches(null, key))
+                ImGui.setKeyboardFocusHere();
+            });
+    seedRows.put(key, row);
     var a = ImGui.getItemRectMin();
     var b = ImGui.getItemRectMax();
     seedCenters.put(key, new float[] {a.x + Math.min(80, (b.x - a.x) * .25f), (a.y + b.y) / 2});

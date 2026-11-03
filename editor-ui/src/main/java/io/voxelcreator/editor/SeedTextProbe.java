@@ -41,7 +41,27 @@ public final class SeedTextProbe {
         var before = ProjectIO.JSON.valueToTree(state.project());
         long revision = state.revision, history = state.document.historyBytes();
         reveal("seedOffset", "seedOffset");
+        type(Long.toString(Long.MAX_VALUE - 1));
+        var seedSlider = panel.probeSeedRow("seedOffset");
+        require(seedSlider.enabled(), "Exact long slider unavailable");
+        var at = seedSlider.slider();
+        click(new float[] {at.x() + at.width() * .75f, at.y() + at.height() / 2});
+        require(
+            source.seedOffset != Long.MAX_VALUE - 1
+                && source.seedOffset >= Long.MAX_VALUE - 257
+                && before.equals(ProjectIO.JSON.valueToTree(state.project())),
+            "Seed slider narrowed its exact anchor or published the private draft");
+        reveal("seedOffset", "seedOffset");
+        type("0");
+        reveal("seedOffset", "seedOffset");
         type("-");
+        seedSlider = panel.probeSeedRow("seedOffset");
+        require(!seedSlider.enabled(), "Invalid seed slider remained enabled");
+        at = seedSlider.slider();
+        click(new float[] {at.x() + at.width() * .75f, at.y() + at.height() / 2});
+        require(
+            source.seedOffset == 0 && state.seedInputs.text("seedOffset").equals("-"),
+            "Disabled seed slider used the old model as fallback");
         require(
             !state.applyDraft() && source.seedOffset == 0 && state.draft == source,
             "Invalid source seed applied old value");
@@ -126,6 +146,10 @@ public final class SeedTextProbe {
             user.equals(ProjectIO.JSON.valueToTree(state.user)),
             "Seed editing changed preferences");
         state.document.save(out.resolve("seed-text-project.json"));
+        Files.writeString(
+            out.resolve("seed-slider-native.json"),
+            ProjectIO.JSON.writeValueAsString(
+                Map.of("formatVersion", 1, "exactLongSliders", true)));
         Files.writeString(
             out.resolve("seed-text-native.json"),
             ProjectIO.JSON.writeValueAsString(

@@ -4,6 +4,9 @@ import java.util.*;
 
 /** Central help-only guidance and semantic links; authored AppMetadata supplies control text. */
 final class HelpDefinitions {
+  static final String LONG_SLIDER_TOOLTIP =
+      "Adjust by up to 256 exact integer steps from the current seed. Exact text keeps every digit"
+          + " of a signed 64-bit seed. Slider edits stay private until the existing Apply action.";
   static final String COORDINATE_TOOLTIP =
       "Text accepts the complete signed 32-bit coordinate range. Moving the slider edits input"
           + " only.";
@@ -145,6 +148,22 @@ final class HelpDefinitions {
                   + " that action explicitly. Bookmark edits remain private until Apply; Inspector"
                   + " input remains local navigation/inspection state."),
           new Guide(
+              "help.long-inputs",
+              "Exact seed sliders and project bounds",
+              "Project Settings, Properties seed offsets and Application Settings creation seeds"
+                  + " pair a suggested slider with exact signed decimal input. "
+                  + LONG_SLIDER_TOOLTIP
+                  + " Suggested adjustments preserve every seed digit, including adjacent large"
+                  + " seeds and both signed limits. The range stays anchored during a drag."
+                  + " Invalid, stale or disagreeing text disables the slider and remains available"
+                  + " for correction or restoration. Native temporary slider text is disabled; use"
+                  + " the adjacent exact field. Project Y bounds use signed 32-bit coordinate"
+                  + " pairs; crossing the bounds is reported at Apply instead of silently changing"
+                  + " the other field. Properties and Project Settings Apply are explicit project"
+                  + " transactions. Creation defaults affect future resources only after"
+                  + " Application Settings Apply; existing resources and user preferences are"
+                  + " unchanged by private input."),
+          new Guide(
               "help.world-lists",
               "World ordered settings",
               "Sampling transforms, numeric parameter drivers and type intervals are ordered"
@@ -229,7 +248,16 @@ final class HelpDefinitions {
               List.of("noise", "processing", "help.find", "save", "help.scalar-readouts")),
           Map.entry("help.workspace", List.of("navigation", "help.appearance")),
           Map.entry("help.updates", List.of("help.about", "creation-defaults")),
-          Map.entry("help.project-settings", List.of("save", "noise.seedOffset", "layers")),
+          Map.entry(
+              "help.project-settings",
+              List.of("save", "noise.seedOffset", "layers", "help.long-inputs")),
+          Map.entry(
+              "help.long-inputs",
+              List.of(
+                  "help.project-settings",
+                  "noise.seedOffset",
+                  "creation-defaults",
+                  "help.coordinates")),
           Map.entry("help.appearance", List.of("themes", "help.workspace", "shortcuts")),
           Map.entry("help.voxel-identities", List.of("layers", "archives", "help.find")),
           Map.entry(

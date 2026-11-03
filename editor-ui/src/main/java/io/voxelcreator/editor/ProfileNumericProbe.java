@@ -130,6 +130,23 @@ public final class ProfileNumericProbe {
             panel.defaultValue(INTEGER).isIntegralNumber(),
             "Integer slider stored a fractional node");
         typeAt(panel.controlAt("value-0"), "7");
+        show("noise.seedOffset", "Creation Defaults");
+        click(panel.controlAt("override"));
+        typeAt(panel.controlAt("value-0"), Long.toString(Long.MAX_VALUE - 1));
+        click(fraction("slider-0", .75));
+        long seed = panel.defaultValue("noise.seedOffset").longValue();
+        require(
+            seed != Long.MAX_VALUE - 1
+                && seed >= Long.MAX_VALUE - 257
+                && Long.parseLong(panel.rawText("noise.seedOffset").getFirst()) == seed,
+            "Creation seed slider rounded its long anchor");
+        typeAt(panel.controlAt("value-0"), "-");
+        click(fraction("slider-0", .75));
+        require(
+            panel.rawText("noise.seedOffset").getFirst().equals("-")
+                && panel.defaultValue("noise.seedOffset").longValue() == seed,
+            "Invalid creation seed slider used a previous valid value");
+        click(panel.controlAt("override"));
         require(state.metadata == original, "Private profile edits published before Apply");
         click(panel.controlAt("apply"));
         frames(4);
@@ -193,6 +210,8 @@ public final class ProfileNumericProbe {
                     "integerStored",
                     true,
                     "ownerIdsReplaced",
+                    true,
+                    "exactLongSliders",
                     true,
                     "physicalDpiVerified",
                     false)));

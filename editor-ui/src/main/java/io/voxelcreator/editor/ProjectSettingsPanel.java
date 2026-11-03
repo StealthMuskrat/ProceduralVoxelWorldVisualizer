@@ -13,6 +13,10 @@ public final class ProjectSettingsPanel {
   final SettingsActionScope actionScope = new SettingsActionScope();
   private boolean revealFeedback;
   private final Map<String, ImString> buffers = new LinkedHashMap<>();
+  private final Map<String, CoordinateInput> boundInputs = new LinkedHashMap<>();
+  private final Map<String, CoordinateInput.Row> boundRows = new LinkedHashMap<>();
+  private ExactLongInput seedInput = new ExactLongInput();
+  private ExactLongInput.Row seedRow;
   private final Map<String, float[]> controls = new HashMap<>();
   private final PropertyFocus focus = new PropertyFocus();
   final SettingsPageChrome layout = new SettingsPageChrome(4);
@@ -48,6 +52,10 @@ public final class ProjectSettingsPanel {
     if (session != null) session.cancel();
     session = new ProjectSettingsSession(state);
     buffers.clear();
+    boundInputs.clear();
+    boundRows.clear();
+    seedInput = new ExactLongInput();
+    seedRow = null;
     for (var field : ProjectSettingsSession.FIELDS)
       buffers.put(
           field, new ImString(session.text(field), ProjectSettingsSession.MAX_CHARACTERS + 1));
@@ -63,6 +71,9 @@ public final class ProjectSettingsPanel {
     session = null;
     buffers.clear();
     focus.cancel();
+    boundInputs.clear();
+    boundRows.clear();
+    seedRow = null;
     message = "";
     focusWindow = false;
     diagnosticRows = 0;
@@ -109,20 +120,38 @@ public final class ProjectSettingsPanel {
             default -> "Maximum Y (inclusive)";
           };
       ImGui.textWrapped(label);
-      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
       String id = "###project-setting-" + field;
       fieldIds.put(field, ImGui.getID(id));
-      if (submitted) ImGui.setKeyboardFocusHere();
-      if (ImGui.inputText(id, buffers.get(field))) {
-        String value = buffers.get(field).get();
-        if (value.length() > ProjectSettingsSession.MAX_CHARACTERS) {
-          buffers.get(field).set(session.text(field));
-          message = "Project setting text limit " + ProjectSettingsSession.MAX_CHARACTERS;
-        } else {
-          session.edit(field, value);
-          message = "";
-        }
-      }
+      Runnable activate =
+          () -> {
+            if (submitted) ImGui.setKeyboardFocusHere();
+          };
+      float width = Math.max(1, ImGui.getContentRegionAvailX());
+      if (field.equals("seed"))
+        seedRow =
+            seedInput.draw(
+                id,
+                width,
+                buffers.get(field),
+                session.text(field),
+                null,
+                current,
+                value -> edit(field, value),
+                activate);
+      else
+        boundRows.put(
+            field,
+            boundInputs
+                .computeIfAbsent(field, ignored -> new CoordinateInput())
+                .draw(
+                    field,
+                    id,
+                    width,
+                    buffers.get(field),
+                    session.text(field),
+                    current,
+                    value -> edit(field, value),
+                    activate));
       control(field);
       inputBounds.put(field, PopupLayout.itemBounds());
       if (targeted) {
@@ -204,6 +233,24 @@ public final class ProjectSettingsPanel {
     }
     if (done) cancel();
     return done;
+  }
+
+  private void edit(String field, String value) {
+    if (value.length() > ProjectSettingsSession.MAX_CHARACTERS) {
+      buffers.get(field).set(session.text(field));
+      message = "Project setting text limit " + ProjectSettingsSession.MAX_CHARACTERS;
+    } else {
+      session.edit(field, value);
+      message = "";
+    }
+  }
+
+  ExactLongInput.Row seedRow() {
+    return seedRow;
+  }
+
+  Map<String, CoordinateInput.Row> boundRows() {
+    return Map.copyOf(boundRows);
   }
 
   private Map<String, String> displayed() {

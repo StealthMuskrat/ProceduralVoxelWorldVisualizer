@@ -11,6 +11,8 @@ out = Path(sys.argv[1])
 repo = Path(__file__).resolve().parent.parent
 project = json.loads((out / 'seed-text-project.json').read_text())
 native = json.loads((out / 'seed-text-native.json').read_text())
+slider = json.loads((out / 'seed-slider-native.json').read_text())
+assert slider == {'formatVersion': 1, 'exactLongSliders': True}
 engine = json.loads((out / 'seed-text-engine.json').read_text())
 schema = json.loads((repo / 'schema/project.schema.json').read_text())
 jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()).validate(project)

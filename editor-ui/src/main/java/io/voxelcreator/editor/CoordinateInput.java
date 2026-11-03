@@ -33,15 +33,28 @@ final class CoordinateInput {
       String accepted,
       Consumer<String> edit,
       Runnable beforeInput) {
+    return draw(axis, label, width, buffer, accepted, true, edit, beforeInput);
+  }
+
+  Row draw(
+      String axis,
+      String label,
+      float width,
+      ImString buffer,
+      String accepted,
+      boolean allowed,
+      Consumer<String> edit,
+      Runnable beforeInput) {
     var pair =
         SettingsPageLayout.pair(width, minimumTextWidth(), ImGui.getStyle().getItemSpacingX());
     String sliderLabel = "##coordinate-slider-" + axis;
     int sliderId = ImGui.getID(sliderLabel);
     var view = slider.prepare(sliderId, ImGui.getFrameCount(), accepted, buffer.get());
+    boolean enabled = allowed && view.enabled();
     double[] value = {view.value()};
     ImGui.setNextItemWidth(pair.sliderWidth());
     boolean edited;
-    ImGui.beginDisabled(!view.enabled());
+    ImGui.beginDisabled(!enabled);
     try {
       edited =
           ImGui.sliderScalar(
@@ -49,12 +62,12 @@ final class CoordinateInput {
               value,
               view.range().minimum(),
               view.range().maximum(),
-              view.enabled() ? "%.0f" : "Invalid",
+              enabled ? "%.0f" : view.enabled() ? "Unavailable" : "Invalid",
               ImGuiSliderFlags.NoInput | ImGuiSliderFlags.NoRoundToFormat);
     } finally {
       ImGui.endDisabled();
     }
-    var proposal = slider.finish(ImGui.isItemActive(), edited, value[0]);
+    var proposal = slider.finish(ImGui.isItemActive(), enabled && edited, value[0]);
     if (proposal.isPresent()) {
       buffer.set(proposal.get());
       edit.accept(proposal.get());
@@ -62,7 +75,7 @@ final class CoordinateInput {
     var bounds = PopupLayout.itemBounds();
     if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
       UiScale.tooltip(
-          view.enabled()
+          enabled
               ? axis
                   + " suggested range ["
                   + view.range().minimum()
@@ -81,7 +94,7 @@ final class CoordinateInput {
         sliderId,
         ImGui.getID(label),
         pair.inline(),
-        view.enabled(),
+        enabled,
         view.range());
   }
 }

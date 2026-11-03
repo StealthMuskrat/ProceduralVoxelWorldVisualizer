@@ -21,6 +21,7 @@ public final class ApplicationSettingsPanel {
   private final ImString filter = new ImString(256);
   private final Map<String, ImString> values = new HashMap<>();
   private final Map<String, List<ImString>> creationBuffers = new LinkedHashMap<>();
+  private final Map<String, ExactLongInput> longInputs = new LinkedHashMap<>();
   private final Map<String, float[]> controls = new HashMap<>();
   private final Map<String, DialogBounds.Rect> controlBounds = new HashMap<>();
   private List<Map.Entry<String, AppMetadata.Control>> ordered = List.of(), rows = List.of();
@@ -235,6 +236,7 @@ public final class ApplicationSettingsPanel {
     fields.clear();
     values.clear();
     creationBuffers.clear();
+    longInputs.clear();
     invalidated = true;
     rowsChanged = true;
     detailReset = true;
@@ -335,7 +337,7 @@ public final class ApplicationSettingsPanel {
     boolean overridden = draft.creationDefaults.containsKey(spec.id());
     ImGui.textWrapped("Immutable type: " + spec.kind() + " / built-in: " + spec.builtIn());
     if (spec.kind() == CreationRegistry.Kind.LONG)
-      ImGui.textWrapped("Signed 64-bit integer; use exact integer text.");
+      ImGui.textWrapped("Signed 64-bit integer; nearby slider or exact full-range text.");
     else if (spec.options().isEmpty()
         && spec.kind() != CreationRegistry.Kind.TEXT
         && spec.kind() != CreationRegistry.Kind.BOOLEAN)
@@ -427,6 +429,42 @@ public final class ApplicationSettingsPanel {
       boolean numeric =
           spec.kind() != CreationRegistry.Kind.LONG && spec.kind() != CreationRegistry.Kind.TEXT;
       ImGui.textWrapped(label);
+      if (spec.kind() == CreationRegistry.Kind.LONG) {
+        var row =
+            longInputs
+                .computeIfAbsent(spec.id(), ignored -> new ExactLongInput())
+                .draw(
+                    "##raw-value",
+                    Math.max(1, ImGui.getContentRegionAvailX()),
+                    buffer,
+                    raw.get(i),
+                    value.longValue(),
+                    input.error(spec.id()).isEmpty()
+                        && session.draft().creationDefaults.containsKey(spec.id()),
+                    text -> {
+                      message = "";
+                      try {
+                        input.editAll(spec.id(), buffers.stream().map(ImString::get).toList());
+                      } catch (RuntimeException invalid) {
+                        message =
+                            Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+                      }
+                      changed();
+                    },
+                    () -> {});
+        controlIds.put("slider-" + i, row.sliderId());
+        controlIds.put("value-" + i, row.inputId());
+        controlBounds.put("slider-" + i, row.slider());
+        controls.put(
+            "slider-" + i,
+            new float[] {
+              row.slider().x() + row.slider().width() / 2,
+              row.slider().y() + row.slider().height() / 2
+            });
+        control("value-" + i);
+        ImGui.popID();
+        continue;
+      }
       var pair = SettingsPageChrome.pair();
       if (numeric) {
         ImGui.setNextItemWidth(pair.sliderWidth());
