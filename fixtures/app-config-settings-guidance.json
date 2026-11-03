@@ -1,0 +1,18 @@
+{
+  "formatVersion": 1,
+  "controls": {
+    "settings.project.seed": {
+      "label": "Configured project seed guide",
+      "tooltip": "Configured exact seed 100% ### snow 雪"
+    },
+    "settings.performance.previewCellBudget": {
+      "tooltip": "Configured exact preview budget guide"
+    },
+    "settings.capture.duration": {
+      "description": "Configured next-capture duration guide"
+    },
+    "settings.capture.work": {
+      "tooltip": "Configured work totals guide"
+    }
+  }
+}

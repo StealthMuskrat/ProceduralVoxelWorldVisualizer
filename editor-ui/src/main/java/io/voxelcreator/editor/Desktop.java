@@ -230,7 +230,7 @@ public final class Desktop extends Application {
         });
     performanceSettings =
         new PerformancePanel(
-            state.user,
+            state,
             UserConfig.directory().resolve("user-config.json"),
             message ->
                 state.error(

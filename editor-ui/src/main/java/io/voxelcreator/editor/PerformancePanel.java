@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 /** Production explicit performance preferences, including exact 64-bit cell-budget input. */
 final class PerformancePanel {
   private final UserConfig user;
+  private final SettingsGuidance guidance;
   final PreferenceActionScope actionScope = new PreferenceActionScope();
   private final PreferenceSaveAction saveActions = new PreferenceSaveAction();
   private int saveId;
@@ -31,7 +32,16 @@ final class PerformancePanel {
   private boolean probing, applyEnabled;
 
   PerformancePanel(UserConfig user, Path file, Consumer<String> errors) {
+    this(user, file, errors, null);
+  }
+
+  PerformancePanel(EditorState state, Path file, Consumer<String> errors) {
+    this(state.user, file, errors, state);
+  }
+
+  private PerformancePanel(UserConfig user, Path file, Consumer<String> errors, EditorState state) {
     this.user = Objects.requireNonNull(user);
+    guidance = new SettingsGuidance(state);
     this.file = Objects.requireNonNull(file);
     this.errors = Objects.requireNonNull(errors);
     launched = PerformancePreferences.from(user);
@@ -100,15 +110,21 @@ final class PerformancePanel {
                           }),
                   () -> {
                     if (focus) ImGui.setKeyboardFocusHere();
-                  });
+                  },
+                  nativeId ->
+                      guidance.integer(
+                          SettingsControlMetadata.performance(field),
+                          nativeId,
+                          inputs.get(field).get(),
+                          field.minimum(),
+                          field.maximum(),
+                          current && inputs.get(field).get().equals(session.text().get(field))));
       numericRows.put(field, row);
-      control(field.key());
+      control(field.key(), row.input());
       if (focus) {
         ImGui.setScrollHereY(.3f);
         reveal = null;
       }
-      if (ImGui.isItemHovered())
-        UiScale.tooltip("Whole decimal integer: " + field.minimum() + ".." + field.maximum());
     }
     var feedback = session.feedback();
     feedback
@@ -252,14 +268,18 @@ final class PerformancePanel {
     }
   }
 
+  ContextHelp contextHelp() {
+    return guidance.contextHelp();
+  }
+
   private void control(String key) {
+    control(key, PopupLayout.itemBounds());
+  }
+
+  private void control(String key, DialogBounds.Rect bounds) {
     if (probing)
       controls.put(
-          key,
-          new float[] {
-            (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
-            (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
-          });
+          key, new float[] {bounds.x() + bounds.width() / 2, bounds.y() + bounds.height() / 2});
   }
 
   boolean restartRequired() {

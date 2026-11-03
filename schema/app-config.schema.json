@@ -13,7 +13,7 @@
         "controls" : {
           "type" : "object",
           "additionalProperties" : false,
-          "maxProperties" : 515,
+          "maxProperties" : 537,
           "properties" : {
             "themes" : {
               "allOf" : [ {
@@ -8026,6 +8026,292 @@
               } ]
             },
             "curve.editor.plot" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.project.seed" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.project.minY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.project.maxY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.workers" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.maxPreviewDimension" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.previewSize" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.previewCellBudget" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.cacheMiB" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.engineMiB" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.sceneCpuMiB" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.sceneGpuMiB" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.uploadKiB" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.renderDistance" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.verticalDistance" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.lodStart" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.lodQuality" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.performance.streamChunks" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.capture.duration" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.capture.samples" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.capture.series" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.capture.stride" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.capture.work" : {
               "allOf" : [ {
                 "$ref" : "#/$defs/Control"
               }, {

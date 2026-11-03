@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 public final class ProfilePanel {
   final FloatingWindowLayout windowLayout = new FloatingWindowLayout(1050, 800);
   private final EditorState state;
+  private final SettingsGuidance guidance;
   private final Consumer<EditorEvents.Target> navigate;
   private final UiFields fields = new UiFields();
   private final ImString filter = new ImString(512),
@@ -66,6 +67,7 @@ public final class ProfilePanel {
 
   public ProfilePanel(EditorState state, Consumer<EditorEvents.Target> navigate) {
     this.state = state;
+    guidance = new SettingsGuidance(state);
     this.navigate = navigate;
     captureInputs
         .text()
@@ -114,15 +116,19 @@ public final class ProfilePanel {
     return Map.copyOf(captureRows);
   }
 
+  ContextHelp contextHelp() {
+    return guidance.contextHelp();
+  }
+
   private void workControl(String key) {
+    workControl(key, PopupLayout.itemBounds());
+  }
+
+  private void workControl(String key, DialogBounds.Rect bounds) {
     if (workProbe) {
       workControls.put(
-          key,
-          new float[] {
-            (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2,
-            (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2
-          });
-      if (fieldIds.containsKey(key)) inputBounds.put(key, PopupLayout.itemBounds());
+          key, new float[] {bounds.x() + bounds.width() / 2, bounds.y() + bounds.height() / 2});
+      if (fieldIds.containsKey(key)) inputBounds.put(key, bounds);
     }
   }
 
@@ -388,9 +394,17 @@ public final class ProfilePanel {
                   },
                   () -> {
                     if (reveal) ImGui.setKeyboardFocusHere();
-                  });
+                  },
+                  nativeId ->
+                      guidance.integer(
+                          SettingsControlMetadata.capture(field),
+                          nativeId,
+                          captureText.get(field).get(),
+                          field.minimum,
+                          field.maximum,
+                          captureText.get(field).get().equals(captureInputs.text().get(field))));
       captureRows.put(field, row);
-      workControl(field.name());
+      workControl(field.name(), row.input());
       if (reveal) {
         ImGui.setScrollHereY(.25f);
         revealLimit = null;
@@ -399,8 +413,16 @@ public final class ProfilePanel {
     var work = new ImBoolean(captureInputs.work());
     if (ImGui.checkbox("##profile-work-totals", work)) captureInputs.work(work.get());
     workControl("enabled");
+    guidance.item(
+        "settings.capture.work",
+        ImGui.getID("##profile-work-totals"),
+        "Next capture enabled: " + captureInputs.work());
     DialogLayout.sameLine("Layer/operation work totals");
     ImGui.textWrapped("Layer/operation work totals");
+    guidance.item(
+        "settings.capture.work",
+        ImGui.getID("profile-work-label"),
+        "Next capture enabled: " + captureInputs.work());
     ImGui.textWrapped(
         "Work totals time every visited placement and include column prefetch. They add capture"
             + " overhead; operation stride still applies only to individual OPERATION samples.");

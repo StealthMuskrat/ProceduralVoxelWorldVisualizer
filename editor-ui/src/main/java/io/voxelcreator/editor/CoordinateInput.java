@@ -5,6 +5,7 @@ import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiSliderFlags;
 import imgui.type.ImString;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /** One coordinate slider/text pair; caller owns raw text, focus and explicit actions. */
 final class CoordinateInput {
@@ -45,6 +46,19 @@ final class CoordinateInput {
       boolean allowed,
       Consumer<String> edit,
       Runnable beforeInput) {
+    return draw(axis, label, width, buffer, accepted, allowed, edit, beforeInput, null);
+  }
+
+  Row draw(
+      String axis,
+      String label,
+      float width,
+      ImString buffer,
+      String accepted,
+      boolean allowed,
+      Consumer<String> edit,
+      Runnable beforeInput,
+      IntConsumer guidance) {
     var pair =
         SettingsPageLayout.pair(width, minimumTextWidth(), ImGui.getStyle().getItemSpacingX());
     String sliderLabel = "##coordinate-slider-" + axis;
@@ -73,7 +87,8 @@ final class CoordinateInput {
       edit.accept(proposal.get());
     }
     var bounds = PopupLayout.itemBounds();
-    if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+    if (guidance != null) guidance.accept(sliderId);
+    else if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
       UiScale.tooltip(
           enabled
               ? axis
@@ -88,13 +103,9 @@ final class CoordinateInput {
     ImGui.setNextItemWidth(pair.inputWidth());
     beforeInput.run();
     if (ImGui.inputText(label, buffer)) edit.accept(buffer.get());
-    return new Row(
-        bounds,
-        PopupLayout.itemBounds(),
-        sliderId,
-        ImGui.getID(label),
-        pair.inline(),
-        enabled,
-        view.range());
+    var inputBounds = PopupLayout.itemBounds();
+    int inputId = ImGui.getID(label);
+    if (guidance != null) guidance.accept(inputId);
+    return new Row(bounds, inputBounds, sliderId, inputId, pair.inline(), enabled, view.range());
   }
 }

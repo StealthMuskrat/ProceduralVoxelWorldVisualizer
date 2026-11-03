@@ -9,6 +9,7 @@ import java.util.*;
 /** Private Project Settings buffer shared by the menu and diagnostic entry points. */
 public final class ProjectSettingsPanel {
   private final EditorState state;
+  private final SettingsGuidance guidance;
   private ProjectSettingsSession session;
   final SettingsActionScope actionScope = new SettingsActionScope();
   private boolean revealFeedback;
@@ -28,6 +29,7 @@ public final class ProjectSettingsPanel {
 
   public ProjectSettingsPanel(EditorState state) {
     this.state = state;
+    guidance = new SettingsGuidance(state);
   }
 
   public boolean open(EditorEvents.Target target) {
@@ -127,6 +129,19 @@ public final class ProjectSettingsPanel {
             if (submitted) ImGui.setKeyboardFocusHere();
           };
       float width = Math.max(1, ImGui.getContentRegionAvailX());
+      boolean[] inputFocused = {false};
+      java.util.function.IntConsumer describe =
+          nativeId -> {
+            if (nativeId == fieldIds.get(field))
+              inputFocused[0] = ImGui.isItemActive() || ImGui.isItemFocused();
+            guidance.integer(
+                SettingsControlMetadata.project(field),
+                nativeId,
+                buffers.get(field).get(),
+                field.equals("seed") ? Long.MIN_VALUE : Integer.MIN_VALUE,
+                field.equals("seed") ? Long.MAX_VALUE : Integer.MAX_VALUE,
+                current && buffers.get(field).get().equals(session.text(field)));
+          };
       if (field.equals("seed"))
         seedRow =
             seedInput.draw(
@@ -137,7 +152,8 @@ public final class ProjectSettingsPanel {
                 null,
                 current,
                 value -> edit(field, value),
-                activate);
+                activate,
+                describe);
       else
         boundRows.put(
             field,
@@ -151,12 +167,14 @@ public final class ProjectSettingsPanel {
                     session.text(field),
                     current,
                     value -> edit(field, value),
-                    activate));
-      control(field);
-      inputBounds.put(field, PopupLayout.itemBounds());
+                    activate,
+                    describe));
+      var bounds = field.equals("seed") ? seedRow.input() : boundRows.get(field).input();
+      control(field, bounds);
+      inputBounds.put(field, bounds);
       if (targeted) {
         ImGui.setScrollHereY(.25f);
-        if (ImGui.isItemActive() || ImGui.isItemFocused()) focus.acknowledge(field);
+        if (inputFocused[0]) focus.acknowledge(field);
         else if (!submitted && ImGui.isMouseClicked(0)
             || ImGui.isKeyPressed(ImGuiKey.Escape, false)) focus.cancel();
       }
@@ -275,10 +293,20 @@ public final class ProjectSettingsPanel {
     return StatusBarText.clip(Objects.requireNonNullElse(text, ""), limit);
   }
 
+  ContextHelp contextHelp() {
+    return guidance.contextHelp();
+  }
+
   private void control(String key) {
-    var lo = ImGui.getItemRectMin();
-    var hi = ImGui.getItemRectMax();
-    controls.put(key, new float[] {lo.x + Math.min(80, (hi.x - lo.x) * .25f), (lo.y + hi.y) / 2});
+    control(key, PopupLayout.itemBounds());
+  }
+
+  private void control(String key, DialogBounds.Rect bounds) {
+    controls.put(
+        key,
+        new float[] {
+          bounds.x() + Math.min(80, bounds.width() * .25f), bounds.y() + bounds.height() / 2
+        });
   }
 
   float[] controlAt(String key) {

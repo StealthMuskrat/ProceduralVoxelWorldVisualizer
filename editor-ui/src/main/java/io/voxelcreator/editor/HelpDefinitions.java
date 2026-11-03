@@ -176,6 +176,21 @@ final class HelpDefinitions {
                   + " Application Settings Apply; existing resources and user preferences are"
                   + " unchanged by private input."),
           new Guide(
+              "help.settings-guidance",
+              "Project, performance and capture input guidance",
+              "Project Settings, Performance and Profiler next-capture inputs share configured"
+                  + " guidance on both slider and exact-text parts. Right-click either part for the"
+                  + " same topic, including rejected input and disabled sliders. Hover preserves"
+                  + " every typed integer digit; suggested adjustments do not replace exact input."
+                  + " Project Apply validates one project transaction and explicit Save persists"
+                  + " it. Apply Performance publishes only its validated user preferences; private"
+                  + " performance fields stay out of Save Preferences. Next-capture fields and work"
+                  + " totals configure only the next explicit Start Capture, leaving active"
+                  + " captures and export reviews unchanged. Application Settings customizes these"
+                  + " Help names, tooltips and descriptions through settings.* entries. Fixed form"
+                  + " labels, ranges and publication actions remain authoritative; these subjects"
+                  + " do not supply creation defaults or edit computation."),
+          new Guide(
               "help.runtime-limits",
               "Performance and capture numeric limits",
               "Performance settings and Profiler next-capture limits pair suggested sliders with"
@@ -334,6 +349,10 @@ final class HelpDefinitions {
               "help.coordinates",
               List.of("bookmarks", "navigation", "help.trace", "help.scalar-readouts")),
           Map.entry(
+              "help.settings-guidance",
+              List.of(
+                  "help.project-settings", "help.runtime-limits", "help.long-inputs", "profiler")),
+          Map.entry(
               "help.curve-guidance",
               List.of(
                   "processing.CURVE",
@@ -358,6 +377,10 @@ final class HelpDefinitions {
 
   static List<String> related(String id) {
     if (LINKS.containsKey(id)) return LINKS.get(id);
+    if (id.startsWith("settings.project."))
+      return List.of("help.settings-guidance", "help.project-settings", "help.long-inputs");
+    if (id.startsWith("settings.performance.") || id.startsWith("settings.capture."))
+      return List.of("help.settings-guidance", "help.runtime-limits", "profiler");
     if (id.startsWith("curve.editor."))
       return List.of("help.curve-guidance", "processing.CURVE", "help.scalar-readouts", "noise");
     if (id.startsWith("world."))

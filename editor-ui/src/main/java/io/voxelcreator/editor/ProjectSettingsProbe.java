@@ -37,6 +37,7 @@ public final class ProjectSettingsProbe {
         var initial = ProjectIO.JSON.valueToTree(state.project());
         var user = ProjectIO.JSON.valueToTree(state.user);
         panel = new ProjectSettingsPanel(state);
+        SettingsGuidanceReplay.run(out.resolve("guidance"), state);
         open("seed");
         type(Long.toString(Long.MAX_VALUE - 1));
         var seedPair = panel.seedRow();
