@@ -1700,7 +1700,8 @@ public final class PropertyPanel {
           draw -> {
             draw.run();
             pinRect("value");
-          });
+          },
+          id);
     } else {
       ImGui.textWrapped("Edit " + key + " at the original control.");
     }
@@ -2149,7 +2150,8 @@ public final class PropertyPanel {
           control.presetMaximum(),
           control.integer(),
           value -> noise.algorithm.parameters.put(key, value),
-          draw -> propertyControl(null, "algorithm/parameters/" + key, draw));
+          draw -> propertyControl(null, "algorithm/parameters/" + key, draw),
+          id);
       ImGui.popID();
     }
     var lo = ImGui.getItemRectMin();
@@ -2159,9 +2161,7 @@ public final class PropertyPanel {
         control.choices().isEmpty()
             ? new float[] {lo.x + Math.min(80, (hi.x - lo.x) * .25f), (lo.y + hi.y) / 2}
             : draftChoices.buttonCenter());
-    f.tooltip(
-        control.help() + " Engine range [" + control.minimum() + ", " + control.maximum() + "].");
-    metadataTooltip(id);
+    if (!control.choices().isEmpty()) metadataTooltip(id);
     revealSearchField(null, "algorithm/parameters/" + key);
   }
 
@@ -2192,6 +2192,43 @@ public final class PropertyPanel {
     numericRows.put(row.inputId(), row);
   }
 
+  private void numeric(
+      UiFields widgets,
+      String label,
+      double value,
+      double minimum,
+      double maximum,
+      boolean integer,
+      DoubleConsumer set,
+      Consumer<Runnable> input,
+      String metadataId) {
+    double[] displayed = {value};
+    DoubleConsumer publish =
+        next -> {
+          set.accept(next);
+          displayed[0] = next;
+        };
+    var row =
+        widgets.number(
+            label,
+            value,
+            minimum,
+            maximum,
+            integer,
+            publish,
+            publish,
+            input,
+            nativeId -> {
+              if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                UiScale.tooltip(
+                    NumericGuidance.from(state.metadata, metadataId, displayed[0], minimum, maximum)
+                        .text());
+              if (state.metadata.control(metadataId) != null)
+                contextHelp.item(metadataId, NumericGuidance.identity(metadataId, nativeId), true);
+            });
+    numericRows.put(row.inputId(), row);
+  }
+
   private void parameter(Item item, String key, double def) {
     var noise = (Noise) state.draft;
     boolean coordinate = noise.coordinateTransforms.contains(item);
@@ -2212,13 +2249,13 @@ public final class PropertyPanel {
         maximum,
         spec != null && spec.kind() == CreationRegistry.Kind.INTEGER,
         v -> item.parameters.put(key, ProjectIO.JSON.valueToTree(v)),
-        draw -> propertyControl(item.uuid, "parameters/" + key, draw));
+        draw -> propertyControl(item.uuid, "parameters/" + key, draw),
+        id);
     var lo = ImGui.getItemRectMin();
     var hi = ImGui.getItemRectMax();
     parameterCenters.put(
         item.uuid + ":" + key,
         new float[] {lo.x + Math.min(80, (hi.x - lo.x) * .25f), (lo.y + hi.y) / 2});
-    metadataTooltip(id);
     revealSearchField(item.uuid, "parameters/" + key);
   }
 
@@ -2531,14 +2568,15 @@ public final class PropertyPanel {
             control.presetMaximum(),
             control.integer(),
             value -> item.parameters.put(key, ProjectIO.JSON.valueToTree(value)),
-            draw -> propertyControl(item.uuid, "parameters/" + key, draw));
+            draw -> propertyControl(item.uuid, "parameters/" + key, draw),
+            id);
         var lo = ImGui.getItemRectMin();
         var hi = ImGui.getItemRectMax();
         parameterCenters.put(
             item.uuid + ":" + key,
             new float[] {lo.x + Math.min(80, (hi.x - lo.x) * .25f), (lo.y + hi.y) / 2});
       }
-      metadataTooltip(id);
+      if (!control.options().isEmpty()) metadataTooltip(id);
       revealSearchField(item.uuid, "parameters/" + key);
       ImGui.popID();
     }

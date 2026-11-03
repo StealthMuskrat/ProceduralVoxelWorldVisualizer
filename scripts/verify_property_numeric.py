@@ -18,6 +18,25 @@ assert report['fontSource'] == 'synthetic-global-font-fixture'
 assert report['physicalDpiVerified'] is False
 for flag in ('exactFocusEdited', 'outsideSuggestionEdited', 'privateUntilApply', 'oneUndoRedo'):
     assert report[flag] is True, flag
+guidance = report['numericGuidance']
+expected_topics = {
+    'source': 'noise2D.algorithm.CONSTANT.value',
+    'transform': 'transform2D.TRANSLATE.x',
+    'warp': 'processing.WARP_SAMPLE.parameter.amplitude',
+    'remap': 'processing.REMAP.parameter.inputMin',
+}
+assert len(guidance) == 8
+assert {(g['role'], g['part']) for g in guidance} == {
+    (role, part) for role in expected_topics for part in ('slider', 'text')}
+for role, topic in expected_topics.items():
+    pair = [g for g in guidance if g['role'] == role]
+    assert len({g['nativeId'] for g in pair}) == 2
+    for g in pair:
+        assert g['topic'] == topic
+        assert g['configuredTooltip'] == 'Numeric fixture 100% ### snow 雪 / ' + role
+    help_text = (out / ('numeric-help-' + role + '.txt')).read_text(encoding='utf-8')
+    assert 'Topic: ' + topic in help_text
+    assert pair[0]['configuredTooltip'] in help_text
 value = report['sliderValue']
 assert math.isfinite(value) and -1 <= value <= 1
 assert value != round(value * 100000) / 100000

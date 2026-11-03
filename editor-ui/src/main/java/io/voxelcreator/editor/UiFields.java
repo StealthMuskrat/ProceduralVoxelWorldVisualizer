@@ -86,6 +86,19 @@ public final class UiFields {
       DoubleConsumer sliderSet,
       DoubleConsumer textSet,
       Consumer<Runnable> input) {
+    return number(label, value, minimum, maximum, integer, sliderSet, textSet, input, null);
+  }
+
+  NumericRow number(
+      String label,
+      double value,
+      double minimum,
+      double maximum,
+      boolean integer,
+      DoubleConsumer sliderSet,
+      DoubleConsumer textSet,
+      Consumer<Runnable> input,
+      IntConsumer guidance) {
     return numeric(
         label,
         value,
@@ -94,7 +107,8 @@ public final class UiFields {
         integer,
         sliderSet,
         (key, exact) -> number(key, exact, textSet),
-        input);
+        input,
+        guidance);
   }
 
   NumericRow integer(
@@ -112,7 +126,8 @@ public final class UiFields {
         true,
         v -> set.accept((int) v),
         (key, exact) -> integer(key, exact.intValue(), set),
-        input);
+        input,
+        null);
   }
 
   private NumericRow numeric(
@@ -123,7 +138,8 @@ public final class UiFields {
       boolean integer,
       DoubleConsumer set,
       BiConsumer<String, Double> edit,
-      Consumer<Runnable> input) {
+      Consumer<Runnable> input,
+      IntConsumer guidance) {
     if (!Double.isFinite(minimum)
         || !Double.isFinite(maximum)
         || minimum > maximum
@@ -166,7 +182,8 @@ public final class UiFields {
       }
     }
     var sliderBounds = PopupLayout.itemBounds();
-    if (ImGui.isItemHovered())
+    if (guidance != null) guidance.accept(sliderId);
+    else if (ImGui.isItemHovered())
       UiScale.tooltip(
           "Value: "
               + ScalarDisplay.exact(value)
@@ -179,9 +196,11 @@ public final class UiFields {
     ImGui.setNextItemWidth(pair.inputWidth());
     double exact = value;
     input.accept(() -> edit.accept(inputKey, exact));
+    var inputBounds = PopupLayout.itemBounds();
+    if (guidance != null) guidance.accept(inputId);
     return new NumericRow(
         sliderBounds,
-        PopupLayout.itemBounds(),
+        inputBounds,
         sliderId,
         inputId,
         pair.inline(),

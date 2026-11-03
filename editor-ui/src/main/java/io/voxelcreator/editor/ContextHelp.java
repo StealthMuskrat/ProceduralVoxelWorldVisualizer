@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiKey;
 import java.util.Objects;
 import java.util.UUID;
@@ -27,11 +28,17 @@ final class ContextHelp {
   }
 
   void item(String topic, String identity) {
+    item(topic, identity, false);
+  }
+
+  void item(String topic, String identity, boolean allowDisabled) {
     var anchor = PopupLayout.itemBounds();
     String id = "context-help-" + identity;
     int host = ImGui.getID(id);
     boolean escape = ImGui.isKeyPressed(ImGuiKey.Escape, false);
-    if (!escape && ImGui.isItemHovered() && ImGui.isMouseReleased(1)) {
+    if (!escape
+        && ImGui.isItemHovered(allowDisabled ? ImGuiHoveredFlags.AllowWhenDisabled : 0)
+        && ImGui.isMouseReleased(1)) {
       openedIdentity = id;
       openedTopic = topic;
       openedHost = host;

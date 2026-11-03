@@ -100,6 +100,7 @@ public final class PropertyNumericProbe {
         click(point(sourceRow().input(), .25));
         type("0.625");
         require(source() == .625, "Source exact input failed");
+        var numericGuidance = guidanceReplay((Noise) state.draft, out);
         focus((Noise) state.draft, "parameter");
         frames(8);
         type("1e100");
@@ -152,7 +153,9 @@ public final class PropertyNumericProbe {
                     "oneUndoRedo",
                     true,
                     "physicalDpiVerified",
-                    false)));
+                    false,
+                    "numericGuidance",
+                    numericGuidance)));
         System.out.println(
             "PROPERTY_NUMERIC_NATIVE_PASS production noise rows / exact focus / private Apply and"
                 + " Undo");
@@ -160,6 +163,96 @@ public final class PropertyNumericProbe {
     } finally {
       ImGui.destroyContext();
     }
+  }
+
+  private static List<Map<String, Object>> guidanceReplay(Noise noise, Path out) throws Exception {
+    var before = ProjectIO.JSON.valueToTree(noise);
+    var committed = ProjectIO.JSON.valueToTree(state.project());
+    var receipts = new ArrayList<UiTooltip.Receipt>();
+    var result = new ArrayList<Map<String, Object>>();
+    UiTooltip.observe(receipts::add);
+    try {
+      for (String role : List.of("source", "transform", "warp", "remap")) {
+        focus(noise, role);
+        frames(8);
+        String topic;
+        UiFields.NumericRow row;
+        if (role.equals("source")) {
+          topic = "noise2D.algorithm.CONSTANT.value";
+          row = sourceRow();
+        } else {
+          var item =
+              role.equals("transform")
+                  ? noise.coordinateTransforms.getFirst()
+                  : noise.processing.stream()
+                      .filter(i -> i.id.equals(role))
+                      .findFirst()
+                      .orElseThrow();
+          String key =
+              role.equals("transform") ? "x" : role.equals("warp") ? "amplitude" : "inputMin";
+          topic =
+              role.equals("transform")
+                  ? "transform2D.TRANSLATE.x"
+                  : "processing." + item.kind + ".parameter." + key;
+          row = numericRow(properties.probeParameter(item.uuid, key));
+        }
+        var control = state.metadata.controls.get(topic);
+        String original = control.tooltip;
+        String configured = "Numeric fixture 100% ### snow 雪 / " + role;
+        control.tooltip = configured;
+        try {
+          for (boolean slider : new boolean[] {true, false}) {
+            var bounds = slider ? row.slider() : row.input();
+            var at = point(bounds, .5);
+            receipts.clear();
+            ImGui.getIO().addMousePosEvent(at[0], at[1]);
+            frames(5);
+            require(
+                receipts.stream()
+                    .anyMatch(
+                        r ->
+                            r.preview().contains(configured)
+                                && r.preview().contains("Value:")
+                                && r.preview().contains("Suggested slider range")),
+                "Configured metadata did not reach " + role + (slider ? " slider" : " text"));
+            state.helpRequests.take();
+            click(at, 1);
+            var help = properties.contextHelp();
+            require(
+                help.actionId() != 0 && help.actionCenter() != null,
+                "Numeric context Help did not open");
+            click(help.actionCenter());
+            require(
+                state.helpRequests.take().orElseThrow().equals(topic),
+                "Numeric context Help routed another metadata topic");
+            result.add(
+                Map.of(
+                    "role",
+                    role,
+                    "part",
+                    slider ? "slider" : "text",
+                    "topic",
+                    topic,
+                    "nativeId",
+                    slider ? row.sliderId() : row.inputId(),
+                    "configuredTooltip",
+                    configured));
+          }
+          var catalog = new HelpCatalog(state.metadata);
+          Files.writeString(
+              out.resolve("numeric-help-" + role + ".txt"), catalog.topic(topic).copyText(catalog));
+        } finally {
+          control.tooltip = original;
+        }
+      }
+    } finally {
+      UiTooltip.observe(null);
+    }
+    require(
+        before.equals(ProjectIO.JSON.valueToTree(noise))
+            && committed.equals(ProjectIO.JSON.valueToTree(state.project())),
+        "Numeric tooltip/Help changed private or committed values");
+    return List.copyOf(result);
   }
 
   private static void fixture(ProjectData project) {
@@ -223,7 +316,11 @@ public final class PropertyNumericProbe {
   }
 
   private static UiFields.NumericRow sourceRow() {
-    var p = properties.probeSourceControl("value");
+    return numericRow(properties.probeSourceControl("value"));
+  }
+
+  private static UiFields.NumericRow numericRow(float[] p) {
+    require(p != null, "Missing numeric control center");
     return properties.probeNumericRows().values().stream()
         .filter(
             r ->
@@ -256,12 +353,16 @@ public final class PropertyNumericProbe {
   }
 
   private static void click(float[] p) {
+    click(p, 0);
+  }
+
+  private static void click(float[] p, int button) {
     var io = ImGui.getIO();
     io.addMousePosEvent(p[0], p[1]);
     frame();
-    io.addMouseButtonEvent(0, true);
+    io.addMouseButtonEvent(button, true);
     frame();
-    io.addMouseButtonEvent(0, false);
+    io.addMouseButtonEvent(button, false);
     frames(3);
   }
 

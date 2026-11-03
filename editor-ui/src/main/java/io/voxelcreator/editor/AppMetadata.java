@@ -207,6 +207,19 @@ public final class AppMetadata {
       control.group = spec.group();
       m.controls.put(spec.id(), control);
     }
+    for (int dimension : new int[] {2, 3})
+      for (String algorithm : NoiseAlgorithms.KEYS)
+        for (var parameter : NoiseAlgorithmRegistry.parameters(algorithm, dimension)) {
+          String id = "noise" + dimension + "D.algorithm." + algorithm + "." + parameter.key();
+          var control = m.controls.get(id);
+          control.tooltip =
+              parameter.help()
+                  + " Engine range ["
+                  + parameter.minimum()
+                  + ", "
+                  + parameter.maximum()
+                  + "].";
+        }
     return m;
   }
 

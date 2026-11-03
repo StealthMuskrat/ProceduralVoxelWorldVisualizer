@@ -135,7 +135,10 @@ final class HelpDefinitions {
                   + " notation. Readout rounding never changes authored, sampled or stored values."
                   + " Slider ranges remain suggestions; exact input and existing validation"
                   + " determine allowed values. Seed offsets and integer inputs retain their exact"
-                  + " formats."),
+                  + " formats. Registry-backed source, transform, processing and warp parameters"
+                  + " share their configured tooltip on both slider and text; right-click either"
+                  + " part for the same Help topic. Metadata changes guidance without changing"
+                  + " computation or existing parameter values."),
           new Guide(
               "help.coordinates",
               "Coordinate sliders and exact input",
