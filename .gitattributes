@@ -1,2 +1,4 @@
+# Keep tracked text bytes consistent across Linux and Windows checkouts.
+* text=auto eol=lf
 reference/fastnoiselite/* text eol=lf
 fixtures/algorithm-cpp-vectors.tsv text eol=lf
