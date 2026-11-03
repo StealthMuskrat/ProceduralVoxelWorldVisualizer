@@ -46,13 +46,13 @@ final class UpdateCheckPanel implements AutoCloseable {
 
   void draw(ImBoolean open) {
     if (probing) controls.clear();
-    var view = session.view();
     if (!open.get()) {
       session.cancel();
       clearFeedback();
       actionScope.release();
       return;
     }
+    var view = session.view();
     windowLayout.prepare();
     boolean visible = ImGui.begin("Check for Updates", open);
     UiScale.window(session.preferences(), "Check for Updates");
@@ -115,7 +115,7 @@ final class UpdateCheckPanel implements AutoCloseable {
       if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
         if (running) cancel();
       } else if (cancel && running) cancel();
-      else if (settings && !closed) configure.run();
+      else if (settings && !closed) action(configure::run, "Update settings action");
       else if (check && !running && !closed) start();
       else if (browse && reviewed != null) action(() -> session.open(reviewed, opener));
       else if (copy && reviewed != null) action(() -> session.copy(reviewed, clipboard));
@@ -151,15 +151,18 @@ final class UpdateCheckPanel implements AutoCloseable {
   }
 
   private void action(Action action) {
+    action(action, "Release link action");
+  }
+
+  private void action(Action action, String label) {
     var reviewed = session.view().result();
     var token = session.requestToken();
     try {
       action.run();
-      feedback(token, reviewed, "Release link action completed");
-    } catch (Exception failure) {
-      String detail = "Release link action failed: " + UpdateCheckSession.describe(failure);
-      errors.accept(detail);
-      feedback(token, reviewed, detail);
+      feedback(token, reviewed, label + " completed");
+    } catch (Throwable failure) {
+      String detail = label + " failed: " + UpdateCheckSession.describe(failure);
+      feedback(token, reviewed, UpdateCheckSession.report(errors, detail));
     }
   }
 

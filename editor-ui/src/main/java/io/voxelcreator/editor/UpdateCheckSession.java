@@ -112,10 +112,10 @@ final class UpdateCheckSession implements AutoCloseable {
         new FutureTask<>(
             () -> {
               UpdateChecker.Release release = null;
-              Exception failure = null;
+              Throwable failure = null;
               try {
                 release = fetcher.check(configuration.endpoint(), configuration.origins());
-              } catch (Exception rejected) {
+              } catch (Throwable rejected) {
                 failure = rejected;
               }
               var value = release;
@@ -125,9 +125,11 @@ final class UpdateCheckSession implements AutoCloseable {
             });
     try {
       executor.execute(task);
-    } catch (RuntimeException rejected) {
-      invalidate();
-      failure(rejected);
+    } catch (Throwable rejected) {
+      if (request == token && phase == Phase.RUNNING) {
+        invalidate();
+        failure(rejected);
+      }
       return false;
     }
     return true;
@@ -137,7 +139,7 @@ final class UpdateCheckSession implements AutoCloseable {
       Object request,
       UpdateTrust.Values configuration,
       UpdateChecker.Release release,
-      Exception rejected) {
+      Throwable rejected) {
     if (request != token || phase != Phase.RUNNING) return;
     refresh();
     if (request != token || phase != Phase.RUNNING) return;
@@ -179,6 +181,25 @@ final class UpdateCheckSession implements AutoCloseable {
       invalidate();
       phase = Phase.STALE;
       message = "Applied update settings changed. Check again to use the new settings.";
+    } else if (phase == Phase.RUNNING) observeTaskFailure();
+  }
+
+  private void observeTaskFailure() {
+    var observed = task;
+    if (observed == null || !observed.isDone()) return;
+    try {
+      // A normal task still waits for its queued UI publication. Only exceptional task exit
+      // (for example a rejected UI handoff) is recovered here, on the UI thread.
+      observed.get();
+    } catch (CancellationException cancelled) {
+      cancel();
+    } catch (ExecutionException failed) {
+      invalidate();
+      failure(failed.getCause() == null ? failed : failed.getCause());
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      invalidate();
+      failure(interrupted);
     }
   }
 
@@ -218,16 +239,35 @@ final class UpdateCheckSession implements AutoCloseable {
     task = null;
   }
 
-  private void failure(Exception error) {
+  private void failure(Throwable error) {
     result = null;
     phase = Phase.FAILED;
-    message = "Update check failed: " + describe(error);
-    errors.accept(message);
+    String primary = "Update check failed: " + describe(error);
+    message = primary;
+    Object request = token;
+    String reported = report(errors, primary);
+    if (request == token && phase == Phase.FAILED && message.equals(primary)) message = reported;
+  }
+
+  static String report(Consumer<String> errors, String primary) {
+    try {
+      errors.accept(primary);
+      return primary;
+    } catch (Throwable reporting) {
+      // The local result must remain readable even when the Error Center callback fails.
+      return primary + "\nError notification failed: " + describe(reporting);
+    }
   }
 
   static String describe(Throwable error) {
-    String text = error.getMessage();
+    String text;
+    try {
+      text = error.getMessage();
+    } catch (Throwable unavailable) {
+      text = null;
+    }
     if (text == null || text.isBlank()) text = error.getClass().getSimpleName();
+    if (text.isBlank()) text = error.getClass().getName();
     return text.length() > 1024 ? text.substring(0, 1023) + "…" : text;
   }
 

@@ -74,4 +74,29 @@ assert project['noise2D'][0]['id'] == 'existing' and project['noise2D'][0]['seed
 assert project['noise2D'][0]['algorithm']['parameters'] == {'value': .125}
 assert not project['worldGenerator']['layers'] and not project['noise3D']
 assert all(not values for values in project['bookmarks'].values())
-print('Update result geometry, scoped activation, exact link routing and unchanged project replay PASS')
+
+# Deferred finite-fault production recovery under the same preserved project/preferences fixture.
+recovery = json.loads((out / 'recovery/update-recovery-native.json').read_text(encoding='utf-8'))
+assert recovery['formatVersion'] == 1
+expected_modes = {'SCHEDULER', 'FETCH', 'HANDOFF', 'ENQUEUE', 'FETCH_REPORT', 'OPEN', 'COPY_REPORT', 'CONFIGURE', 'REPLACE', 'HIDDEN'}
+assert len(recovery['cases']) == 10
+assert {case['mode'] for case in recovery['cases']} == expected_modes
+for case in recovery['cases']:
+    mode = case['mode']
+    if mode in {'SCHEDULER', 'FETCH', 'HANDOFF', 'ENQUEUE', 'FETCH_REPORT'}:
+        assert case['phase'] == 'FAILED' and 'Update check failed:' in case['status']
+    elif mode == 'HIDDEN':
+        assert case['phase'] == 'CANCELLED' and case['feedback'] == ''
+    elif mode == 'REPLACE':
+        assert case['phase'] == 'RUNNING' and case['feedback'] == ''
+    else:
+        assert case['phase'] == 'READY' and 'failed:' in case['feedback']
+    if mode in {'FETCH_REPORT', 'COPY_REPORT'}:
+        assert 'Error notification failed: reporter-error' in case['status'] + case['feedback']
+assert recovery['fetchCalls'] == 12 and recovery['errorReports'] == 9 and recovery['reporterFaults'] == 2
+assert recovery['configured'] == 1 and recovery['projectPreserved'] is True
+assert recovery['openedTargets'] == recovery['copiedTargets'] == ['https://releases.example.test/recovery']
+assert recovery['networkRequests'] == recovery['externalBrowserLaunches'] == 0
+assert recovery['physicalInputVerified'] is False
+
+print('Update result geometry, fault recovery, scoped activation and unchanged project replay PASS')

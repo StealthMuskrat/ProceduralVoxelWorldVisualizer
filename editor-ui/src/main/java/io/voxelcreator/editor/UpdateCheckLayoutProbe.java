@@ -273,6 +273,7 @@ public final class UpdateCheckLayoutProbe {
         panel.close();
         capture(cases, UpdateCheckSession.Phase.CLOSED);
         normal();
+        UpdateRecoveryReplay.run(out.resolve("recovery"), state);
         require(
             workers.isEmpty()
                 && preferences.equals(ProjectIO.JSON.valueToTree(state.user))
