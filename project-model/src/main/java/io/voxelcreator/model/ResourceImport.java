@@ -58,6 +58,7 @@ public final class ResourceImport {
     var issues = new ArrayList<Diagnostic>();
     var source = ResourceGraph.entries(incoming);
     var existing = ResourceGraph.entries(destination);
+    var compatibility = new Compatibility(incoming, destination);
     var selectable = new HashSet<UUID>();
     for (var entry : source) if (!entry.kind().equals("operation")) selectable.add(entry.uuid());
     for (var choice : choices.entrySet())
@@ -74,7 +75,7 @@ public final class ResourceImport {
       Choice choice = choices.getOrDefault(entry.uuid(), Choice.COPY);
       if (choice == null) choice = Choice.COPY;
       var match = match(entry, existing);
-      boolean compatible = match != null && compatible(entry, incoming, match, destination);
+      boolean compatible = match != null && compatibility.compatible(entry, match);
       if (choice == Choice.SKIP) skipped.add(entry.uuid());
       if (choice == Choice.REUSE && compatible) reused.put(entry.uuid(), match.uuid());
       rows.add(
@@ -226,19 +227,105 @@ public final class ResourceImport {
 
   public static boolean compatible(
       ResourceGraph.Entry a, ProjectData ap, ResourceGraph.Entry b, ProjectData bp) {
+    return new Compatibility(ap, bp).compatible(a, b);
+  }
+
+  /** Per-preview graph: compare every reachable definition once, without recursive Java calls. */
+  private static final class Compatibility {
+    private record Pair(ResourceGraph.Entry source, ResourceGraph.Entry target) {}
+
+    private static final class Comparison {
+      final Pair pair;
+      final List<Comparison> dependencies = new ArrayList<>(), dependents = new ArrayList<>();
+      boolean inspected, same;
+      Boolean result;
+
+      Comparison(Pair pair) {
+        this.pair = pair;
+      }
+    }
+
+    private final Map<UUID, ResourceGraph.Entry> source = new HashMap<>(), target = new HashMap<>();
+    private final Map<ResourceGraph.Entry, JsonNode> definitions = new HashMap<>();
+    private final Map<Pair, Comparison> comparisons = new HashMap<>();
+
+    Compatibility(ProjectData incoming, ProjectData destination) {
+      ResourceGraph.entries(incoming).forEach(e -> source.put(e.uuid(), e));
+      ResourceGraph.entries(destination).forEach(e -> target.put(e.uuid(), e));
+    }
+
+    private Comparison comparison(ResourceGraph.Entry a, ResourceGraph.Entry b) {
+      return comparisons.computeIfAbsent(new Pair(a, b), Comparison::new);
+    }
+
+    boolean compatible(ResourceGraph.Entry a, ResourceGraph.Entry b) {
+      var root = comparison(a, b);
+      var visited = new LinkedHashSet<Comparison>();
+      var queue = new ArrayDeque<Comparison>();
+      queue.add(root);
+      while (!queue.isEmpty()) {
+        var current = queue.removeFirst();
+        if (current.result != null || !visited.add(current)) continue;
+        inspect(current);
+        queue.addAll(current.dependencies);
+      }
+      // A mismatch invalidates all its already discovered ancestors, including cycles. A cycle
+      // with identical definitions terminates here; the candidate validator still rejects it.
+      for (var current : visited)
+        if (!current.same
+            || current.dependencies.stream().anyMatch(d -> Boolean.FALSE.equals(d.result)))
+          queue.add(current);
+      while (!queue.isEmpty()) {
+        var failed = queue.removeFirst();
+        if (Boolean.FALSE.equals(failed.result)) continue;
+        failed.result = false;
+        queue.addAll(failed.dependents);
+      }
+      for (var current : visited) if (current.result == null) current.result = true;
+      return Boolean.TRUE.equals(root.result);
+    }
+
+    private void inspect(Comparison comparison) {
+      if (comparison.inspected) return;
+      comparison.inspected = true;
+      var a = comparison.pair.source();
+      var b = comparison.pair.target();
+      if (!directlyCompatible(a, b)) return;
+      var definition = definitions.computeIfAbsent(a, e -> canonical(e.resource()));
+      if (!definition.equals(definitions.computeIfAbsent(b, e -> canonical(e.resource())))) return;
+      comparison.same = true;
+      // Local references have already become @paths, and organizational parent identities have
+      // been removed. Only UUIDs retaining external procedural meaning are traversed here.
+      for (UUID id : ResourceGraph.references(definition)) {
+        var existing = target.get(id);
+        if (existing == null) {
+          comparison.same = false;
+          continue;
+        }
+        var incoming = source.get(id);
+        // A package may intentionally retain an external destination UUID without shipping its
+        // definition. When it does ship that definition, identity alone cannot establish equality.
+        if (incoming == null) continue;
+        var dependency = comparison(incoming, existing);
+        comparison.dependencies.add(dependency);
+        dependency.dependents.add(comparison);
+      }
+    }
+  }
+
+  private static boolean directlyCompatible(ResourceGraph.Entry a, ResourceGraph.Entry b) {
     if (!a.kind().equals(b.kind()) || !a.root().equals(b.root())) return false;
     if (a.resource() instanceof ProjectData.VoxelType && !a.resource().id.equals(b.resource().id))
       return false;
     if (a.resource() instanceof ProjectData.Noise noise
         && !a.uuid().equals(b.uuid())
         && seedSensitive(noise)) return false;
-    if (a.resource() instanceof ProjectData.Layer layer
+    return !(a.resource() instanceof ProjectData.Layer layer
         && b.resource() instanceof ProjectData.Layer target
         && !layer.operations.stream()
             .map(op -> op.uuid)
             .toList()
-            .equals(target.operations.stream().map(op -> op.uuid).toList())) return false;
-    return canonical(a.resource(), ap).equals(canonical(b.resource(), bp));
+            .equals(target.operations.stream().map(op -> op.uuid).toList()));
   }
 
   private static boolean seedSensitive(ProjectData.Noise n) {
@@ -261,14 +348,11 @@ public final class ResourceImport {
     return false;
   }
 
-  private static JsonNode canonical(Object resource, ProjectData project) {
+  private static JsonNode canonical(Object resource) {
     JsonNode tree = ProjectIO.JSON.valueToTree(resource);
     var identities = new HashMap<String, String>();
     collect(tree, "", identities);
-    var external = new HashMap<String, String>();
-    ResourceGraph.entries(project)
-        .forEach(e -> external.put(e.uuid().toString(), e.uuid().toString()));
-    normalize(tree, identities, external);
+    normalize(tree, identities);
     return tree;
   }
 
@@ -280,8 +364,7 @@ public final class ResourceImport {
       for (int i = 0; i < n.size(); i++) collect(n.get(i), path + "/" + i, identities);
   }
 
-  private static void normalize(
-      JsonNode n, Map<String, String> local, Map<String, String> external) {
+  private static void normalize(JsonNode n, Map<String, String> local) {
     if (n instanceof ObjectNode o) {
       // A user input named uuid contains a Binding, rather than declaring this map's identity.
       boolean identity = UuidText.valid(o.get("uuid"));
@@ -296,15 +379,14 @@ public final class ResourceImport {
         JsonNode value = o.get(key);
         if (value.isTextual() && (key.endsWith("Uuid") || key.equals("reference"))) {
           String text = value.asText();
-          o.put(key, local.getOrDefault(text, external.getOrDefault(text, text)));
+          o.put(key, local.getOrDefault(text, text));
         } else if (key.endsWith("Uuids") && value instanceof ArrayNode array) {
           for (int i = 0; i < array.size(); i++) {
             String text = array.get(i).asText();
-            array.set(
-                i, TextNode.valueOf(local.getOrDefault(text, external.getOrDefault(text, text))));
+            array.set(i, TextNode.valueOf(local.getOrDefault(text, text)));
           }
-        } else normalize(value, local, external);
+        } else normalize(value, local);
       }
-    } else if (n.isArray()) n.forEach(c -> normalize(c, local, external));
+    } else if (n.isArray()) n.forEach(c -> normalize(c, local));
   }
 }

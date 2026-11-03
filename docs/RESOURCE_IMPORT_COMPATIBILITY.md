@@ -19,3 +19,5 @@ ImportCompatibilityConsumer compiles separately against only the engine JAR. A c
 Independent expectations require 63 exact scalar observations and 588 exact signed-position voxels at roots 2/4 across the before/after snapshots. The original NO_CHANGE world is EMPTY; the imported SET layer selects X>=1 within inclusive project-Y bounds. Wrongly reusing x+15 with the incoming threshold would instead leave the sampled region EMPTY. Original/incoming definitions and saved bytes must stay unchanged. Project JSON and a report are future artifacts.
 
 Future Linux/Windows commands and artifact paths are added to the existing manual-only workflow without dispatch. Broad semantic compatibility, full import gestures/private-draft/native/platform/Windows 11 and final acceptance/release gates remain pending. Main remains authoritative; no development branch was created.
+
+The subsequent [dependency compatibility follow-up](RESOURCE_IMPORT_DEPENDENCIES.md) extends this direct-definition comparison through supplied external dependency definitions. Its separate deferred replay leaves this binding-name replay intact.
