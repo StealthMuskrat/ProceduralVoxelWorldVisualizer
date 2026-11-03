@@ -13,7 +13,7 @@
         "controls" : {
           "type" : "object",
           "additionalProperties" : false,
-          "maxProperties" : 492,
+          "maxProperties" : 515,
           "properties" : {
             "themes" : {
               "allOf" : [ {
@@ -7727,6 +7727,305 @@
               } ]
             },
             "world.setting.fieldGates" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.min" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.max" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.displayMin" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.displayMax" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.stepX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.stepY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.x" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.y" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.inTangent" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.outTangent" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.outsideDomain" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.segmentInterpolation" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.handleMode" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.grid" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.snapX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.snapY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.undo" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.redo" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.fit" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.delete" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.apply" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.cancel" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "curve.editor.plot" : {
               "allOf" : [ {
                 "$ref" : "#/$defs/Control"
               }, {

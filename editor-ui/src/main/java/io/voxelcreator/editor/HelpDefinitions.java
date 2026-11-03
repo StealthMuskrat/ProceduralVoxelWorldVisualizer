@@ -194,6 +194,24 @@ final class HelpDefinitions {
                   + " immutable options and samples. Editing limits never starts/stops a capture"
                   + " or publishes preferences automatically."),
           new Guide(
+              "help.curve-guidance",
+              "Curve editor controls and private edits",
+              "Curve numeric slider/text pairs share configured guidance and context Help,"
+                  + " including domain, display range, snap increments, point coordinates and"
+                  + " explicit Bezier slopes. Right-click either part for the same subject. Mode"
+                  + " selectors retain canonical CurveModes semantics; their tooltip combines the"
+                  + " configured guide with the selected mode's rules. Endpoint X is domain-locked;"
+                  + " its readout explains which domain field to edit. Grid, snap toggles,"
+                  + " increments and Fit are local controls; the display range itself is stored"
+                  + " curve data. Right-click dialog actions for Help without invoking them. The"
+                  + " plot keeps its existing right-click actions; the coordinate readout offers"
+                  + " Help and exact values. Curve Apply validates into the original Properties"
+                  + " draft, Properties Apply commits one project transaction, and explicit project"
+                  + " Save persists it. Cancel discards only this dialog's edits. Application"
+                  + " Settings > curve.editor entries customize Help names and guidance, separately"
+                  + " from future-curve creation defaults. Fixed dialog labels, mode IDs and"
+                  + " evaluation remain authoritative."),
+          new Guide(
               "help.world-guidance",
               "World controls and live inheritance",
               "World Properties offers configured guidance on layer defaults, placement controls,"
@@ -316,6 +334,14 @@ final class HelpDefinitions {
               "help.coordinates",
               List.of("bookmarks", "navigation", "help.trace", "help.scalar-readouts")),
           Map.entry(
+              "help.curve-guidance",
+              List.of(
+                  "processing.CURVE",
+                  "curve.editor.outsideDomain",
+                  "curve.editor.x",
+                  "help.scalar-readouts",
+                  "noise")),
+          Map.entry(
               "help.world-guidance",
               List.of(
                   "layers",
@@ -332,6 +358,8 @@ final class HelpDefinitions {
 
   static List<String> related(String id) {
     if (LINKS.containsKey(id)) return LINKS.get(id);
+    if (id.startsWith("curve.editor."))
+      return List.of("help.curve-guidance", "processing.CURVE", "help.scalar-readouts", "noise");
     if (id.startsWith("world."))
       return List.of("layers", "help.world-guidance", "world.inheritance", "help.scalar-readouts")
           .stream()

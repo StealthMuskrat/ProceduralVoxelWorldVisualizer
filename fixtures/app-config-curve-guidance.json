@@ -1,0 +1,15 @@
+{
+  "formatVersion": 1,
+  "controls": {
+    "curve.editor.y": {
+      "label": "Configured curve output guide",
+      "tooltip": "Configured curve 100% ### snow 雪"
+    },
+    "curve.editor.outsideDomain": {
+      "tooltip": "Configured outside-domain guide"
+    },
+    "curve.editor.apply": {
+      "description": "Configured private curve staging guidance"
+    }
+  }
+}

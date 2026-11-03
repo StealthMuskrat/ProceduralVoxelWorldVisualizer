@@ -39,6 +39,7 @@ public final class CurveNumericProbe {
         properties.probeOpenCurve();
         frames(5);
         middle = dialog().probeCurve().points.get(1).uuid;
+        var guidance = guidanceReplay(out, state);
         focus();
         saveCurve(out, "local-before");
         press(.25);
@@ -135,7 +136,7 @@ public final class CurveNumericProbe {
             ProjectIO.JSON.writeValueAsString(
                 Map.of(
                     "formatVersion",
-                    1,
+                    2,
                     "sliderValue",
                     slider,
                     "exactTextBits",
@@ -151,7 +152,9 @@ public final class CurveNumericProbe {
                     "oneProjectUndo",
                     true,
                     "physicalInputVerified",
-                    false)));
+                    false,
+                    "guidance",
+                    guidance)));
         System.out.println(
             "CURVE_NUMERIC_NATIVE_PASS one slider history / Escape and collapse / exact text /"
                 + " parent Apply");
@@ -159,6 +162,112 @@ public final class CurveNumericProbe {
     } finally {
       ImGui.destroyContext();
     }
+  }
+
+  private static List<Map<String, Object>> guidanceReplay(Path out, EditorState state)
+      throws Exception {
+    var curve = ProjectIO.JSON.valueToTree(dialog().probeCurve());
+    var draft = ProjectIO.JSON.valueToTree(state.draft);
+    var project = ProjectIO.JSON.valueToTree(state.project());
+    var user = ProjectIO.JSON.valueToTree(state.user);
+    var metadata = ProjectIO.JSON.valueToTree(state.metadata);
+    long revision = state.revision, history = state.document.historyBytes();
+    var result = new ArrayList<Map<String, Object>>();
+    var receipts = new ArrayList<UiTooltip.Receipt>();
+    UiTooltip.observe(receipts::add);
+    try {
+      for (String key : List.of("min", "displayMin", "x", "y")) {
+        reveal(key);
+        String topic = CurveControlMetadata.topic(key);
+        var control = state.metadata.controls.get(topic);
+        String old = control.tooltip;
+        String configured = "Curve fixture 100% ### snow 雪 / " + key;
+        control.tooltip = configured;
+        try {
+          for (boolean slider : new boolean[] {true, false}) {
+            var row = dialog().probeNumeric(key);
+            require(row != null, "Curve numeric guidance row missing: " + key);
+            var bounds = slider ? row.slider() : row.input();
+            float[] at = {bounds.x() + bounds.width() / 2, bounds.y() + bounds.height() / 2};
+            receipts.clear();
+            ImGui.getIO().addMousePosEvent(at[0], at[1]);
+            frames(4);
+            require(
+                receipts.stream().anyMatch(r -> r.preview().contains(configured)),
+                "Configured curve guidance missing from a numeric part");
+            openHelp(state, at, topic);
+            result.add(Map.of("key", key, "part", slider ? "slider" : "text", "topic", topic));
+          }
+          var catalog = new HelpCatalog(state.metadata);
+          Files.writeString(
+              out.resolve("curve-help-" + key + ".txt"), catalog.topic(topic).copyText(catalog));
+        } finally {
+          control.tooltip = old;
+        }
+      }
+      for (String key :
+          List.of("outsideDomain", "segmentInterpolation", "fit", "apply", "cancel")) {
+        reveal(key.equals("segmentInterpolation") ? key : "outsideDomain");
+        String topic = CurveControlMetadata.topic(key);
+        var control = state.metadata.controls.get(topic);
+        String old = control.tooltip;
+        String configured = "Configured curve control / " + key;
+        control.tooltip = configured;
+        try {
+          var at = dialog().probeControl(key);
+          require(at != null, "Curve guidance control missing: " + key);
+          receipts.clear();
+          ImGui.getIO().addMousePosEvent(at[0], at[1]);
+          frames(4);
+          require(
+              receipts.stream().anyMatch(r -> r.preview().contains(configured)),
+              "Configured curve control guidance missing");
+          openHelp(state, at, topic);
+          result.add(Map.of("key", key, "part", "control", "topic", topic));
+        } finally {
+          control.tooltip = old;
+        }
+      }
+    } finally {
+      UiTooltip.observe(null);
+    }
+    require(
+        curve.equals(ProjectIO.JSON.valueToTree(dialog().probeCurve()))
+            && draft.equals(ProjectIO.JSON.valueToTree(state.draft))
+            && project.equals(ProjectIO.JSON.valueToTree(state.project()))
+            && user.equals(ProjectIO.JSON.valueToTree(state.user))
+            && metadata.equals(ProjectIO.JSON.valueToTree(state.metadata))
+            && revision == state.revision
+            && history == state.document.historyBytes()
+            && !dialog().probeCanUndo(),
+        "Curve guidance changed authoring, preferences or local history");
+    return result;
+  }
+
+  private static void reveal(String key) {
+    UUID point = Set.of("x", "y", "segmentInterpolation").contains(key) ? middle : null;
+    require(dialog().focusControl(point, key), "Curve guidance focus rejected");
+    for (int i = 0; i < 30; i++) {
+      frame();
+      if (key.equals(dialog().probeFocusedControl())) break;
+    }
+    require(
+        key.equals(dialog().probeFocusedControl()),
+        "Curve guidance control was not revealed: " + key);
+    frames(3);
+  }
+
+  private static void openHelp(EditorState state, float[] at, String topic) {
+    state.helpRequests.take();
+    click(at, 1);
+    var help = dialog().contextHelp();
+    require(
+        help != null && help.actionId() != 0 && help.actionCenter() != null,
+        "Curve context Help did not open");
+    click(help.actionCenter());
+    require(
+        state.helpRequests.take().orElseThrow().equals(topic),
+        "Curve context Help routed another topic");
   }
 
   private static void fixture(ProjectData p) {
@@ -214,12 +323,16 @@ public final class CurveNumericProbe {
   }
 
   private static void click(float[] p) {
+    click(p, 0);
+  }
+
+  private static void click(float[] p, int button) {
     var io = ImGui.getIO();
     io.addMousePosEvent(p[0], p[1]);
     frame();
-    io.addMouseButtonEvent(0, true);
+    io.addMouseButtonEvent(button, true);
     frame();
-    io.addMouseButtonEvent(0, false);
+    io.addMouseButtonEvent(button, false);
     frames(3);
   }
 

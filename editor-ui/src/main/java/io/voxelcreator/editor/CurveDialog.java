@@ -19,6 +19,8 @@ public final class CurveDialog {
   final SettingsPageChrome chrome = new SettingsPageChrome(1, 1);
   private final CurveApplySession publication;
   private final EditorState ownerState;
+  private final AppMetadata standaloneMetadata;
+  private final ContextHelp contextHelp;
   private final CurveDraftEdit owner;
   private final UiFields fields = new UiFields();
   final FloatingWindowLayout layout = new FloatingWindowLayout(840, 760);
@@ -193,6 +195,8 @@ public final class CurveDialog {
     ImGui.pushID(actionScope + ":" + nativeKey);
     ImGui.beginDisabled(numericGesture.blocked(nativeKey));
     UiFields.NumericRow row;
+    double[] displayed = {value};
+    final double sliderLow = low, sliderHigh = high;
     try {
       row =
           fields.number(
@@ -207,6 +211,7 @@ public final class CurveDialog {
                     || ShortcutKeys.popup()
                     || ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
                 pointer.end();
+                displayed[0] = v;
                 numericEditKey = nativeKey;
                 try {
                   set.accept(v);
@@ -221,7 +226,8 @@ public final class CurveDialog {
               draw -> {
                 if (key.equals("stepX") || key.equals("stepY")) draw.run();
                 else focusField(key, draw);
-              });
+              },
+              nativeId -> numericGuidance(key, nativeId, displayed[0], sliderLow, sliderHigh));
     } finally {
       ImGui.endDisabled();
       ImGui.popID();
@@ -230,7 +236,42 @@ public final class CurveDialog {
     numericGesture.observe(nativeKey, row.slider(), row.sliderActive(), ImGui.isMouseDown(0));
   }
 
-  private void modeChoice(String label, String value, List<String> options, Consumer<String> set) {
+  ContextHelp contextHelp() {
+    return contextHelp;
+  }
+
+  private AppMetadata metadata() {
+    return ownerState == null ? standaloneMetadata : ownerState.metadata;
+  }
+
+  private void numericGuidance(String key, int nativeId, double value, double low, double high) {
+    var id = CurveControlMetadata.topic(key);
+    if (id == null) return;
+    if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+      String text = NumericGuidance.from(metadata(), id, value, low, high).text();
+      if (contextHelp == null) text = text.replace("\nRight-click for Help.", "");
+      UiScale.tooltip(text);
+    }
+    if (contextHelp != null) contextHelp.item(id, NumericGuidance.identity(id, nativeId), true);
+  }
+
+  private void guidance(String key, String detail) {
+    var id = CurveControlMetadata.topic(key);
+    if (id == null) return;
+    if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+      String text = CurveControlMetadata.tooltip(metadata(), key, detail);
+      if (contextHelp == null) text = text.replace("\nRight-click for Help.", "");
+      UiScale.tooltip(text);
+    }
+    if (contextHelp != null)
+      contextHelp.item(
+          id,
+          actionScope + ":" + id + ":" + Integer.toUnsignedString(ImGui.getID("guide-" + key)),
+          true);
+  }
+
+  private void modeChoice(
+      String key, String label, String value, List<String> options, Consumer<String> set) {
     if (UiScale.beginCombo(fieldLabel(label), value)) {
       UiScale.window(ownerState == null ? null : ownerState.user, "Curve Editor");
       for (String option : options) {
@@ -240,7 +281,8 @@ public final class CurveDialog {
       ImGui.endCombo();
     }
     controlRect(label);
-    fields.tooltip(CurveModes.help(value));
+    controlRect(key);
+    guidance(key, CurveModes.help(value));
   }
 
   private void stopDrag() {
@@ -268,6 +310,8 @@ public final class CurveDialog {
     view.synchronize(curve.min, curve.max, curve.displayMin, curve.displayMax);
     publication = new CurveApplySession(stage, accepted);
     ownerState = state;
+    standaloneMetadata = state == null ? AppMetadata.defaults() : null;
+    contextHelp = state == null ? null : new ContextHelp(state.helpRequests);
     this.owner = owner;
   }
 
@@ -405,16 +449,22 @@ public final class CurveDialog {
         "outsideDomain",
         () ->
             modeChoice(
+                "outsideDomain",
                 "Outside domain",
                 initial.outsideDomain,
                 CurveModes.OUTSIDE,
                 v -> session.edit(c -> c.outsideDomain = v)));
     fields.bool("Grid", grid, v -> grid = v);
+    controlRect("grid");
+    guidance("grid", null);
     toggleSameLine("Snap X");
     fields.bool("Snap X", snapX, v -> snapX = v);
+    controlRect("snapX");
+    guidance("snapX", null);
     toggleSameLine("Snap Y");
     fields.bool("Snap Y", snapY, v -> snapY = v);
     controlRect("snapY");
+    guidance("snapY", null);
     number(
         "stepX",
         "X increment",
@@ -439,6 +489,7 @@ public final class CurveDialog {
       session.undo();
     }
     controlRect("undo");
+    guidance("undo", null);
     DialogLayout.sameLine("Redo");
     if (DialogLayout.button("Redo") && session.canRedo()) {
       controlFocus.cancel();
@@ -446,6 +497,7 @@ public final class CurveDialog {
       session.redo();
     }
     controlRect("redo");
+    guidance("redo", null);
     DialogLayout.sameLine("Fit");
     if (DialogLayout.button("Fit")) {
       stopDrag();
@@ -453,6 +505,7 @@ public final class CurveDialog {
       view.fit();
     }
     controlRect("fit");
+    guidance("fit", null);
     curve = session.curve();
     var compiled = new ScalarCurve(curve);
     var plotSize =
@@ -680,8 +733,8 @@ public final class CurveDialog {
             ScalarDisplay.compact(mx),
             ScalarDisplay.compact(my),
             selected.size()));
-    if (ImGui.isItemHovered())
-      UiScale.tooltip("Input " + ScalarDisplay.exact(mx) + "\nOutput " + ScalarDisplay.exact(my));
+    controlRect("readout");
+    guidance("plot", "Input " + ScalarDisplay.exact(mx) + "\nOutput " + ScalarDisplay.exact(my));
     if (preview.firstFailure() != null)
       ImGui.textWrapped(
           "! Curve preview: "
@@ -709,7 +762,8 @@ public final class CurveDialog {
             v -> editNumber(c -> CurveEditSession.point(c, id).x = v));
       } else {
         ImGui.textWrapped("Endpoint X " + ScalarDisplay.compact(point.x) + " (domain locked)");
-        if (ImGui.isItemHovered()) UiScale.tooltip("Endpoint X " + ScalarDisplay.exact(point.x));
+        controlRect("endpointX");
+        guidance("x", "Endpoint X " + ScalarDisplay.exact(point.x) + " (domain locked)");
       }
       number(
           id,
@@ -724,6 +778,7 @@ public final class CurveDialog {
           "segmentInterpolation",
           () ->
               modeChoice(
+                  "segmentInterpolation",
                   "Next segment",
                   point.segmentInterpolation,
                   CurveModes.INTERPOLATIONS,
@@ -735,6 +790,7 @@ public final class CurveDialog {
             "handleMode",
             () ->
                 modeChoice(
+                    "handleMode",
                     "Handle mode",
                     point.handleMode,
                     CurveModes.HANDLES,
@@ -791,6 +847,7 @@ public final class CurveDialog {
           "Drag any selected point to move the group. Endpoint X values stay locked.");
     if (DialogLayout.button("Delete Selected Interior Points")) deleteSelected();
     controlRect("delete");
+    guidance("delete", null);
     if (!session.error().isEmpty()) ImGui.textWrapped("! " + session.error());
     boolean current = owner == null || owner.current(ownerState);
     if (!current)
@@ -817,8 +874,10 @@ public final class CurveDialog {
     boolean apply = chrome.identifiedAction("apply", "Apply");
     controlRect("apply");
     ImGui.endDisabled();
+    guidance("apply", null);
     boolean cancel = chrome.identifiedAction("cancel", "Cancel");
     controlRect("cancel");
+    guidance("cancel", null);
     ImGui.popID();
     // Escape rolls back an owned plot gesture above and never authorizes a same-frame Apply.
     if (cancel) cancel();

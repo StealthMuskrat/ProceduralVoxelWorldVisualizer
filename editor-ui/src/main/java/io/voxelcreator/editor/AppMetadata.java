@@ -221,6 +221,7 @@ public final class AppMetadata {
                   + "].";
         }
     WorldControlMetadata.contribute(m.controls);
+    CurveControlMetadata.contribute(m.controls);
     return m;
   }
 

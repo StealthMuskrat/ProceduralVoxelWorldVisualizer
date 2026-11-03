@@ -2,7 +2,7 @@
 from pathlib import Path
 import json,jsonschema
 root=Path(__file__).resolve().parent.parent
-for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json','creation-defaults-project.json','hierarchy.json','bookmarks.json','noise-authoring.json','field-operations.json','trace-workflow.json','scalar-remapping.json','warp-fields.json','placement-driver-phases.json','transform-drivers.json','work-profile-project.json','semantic-sharing.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json','user-theme-custom.json','user-shadow-settings.json','user-volume-light.json','user-workspace.json','user-performance.json','user-window-placement.json','user-ui-scales.json']),('app-config',['app-config-defaults.json','app-config-legacy.json','app-config-creation.json','app-config-world-guidance.json']),('profile-capture',['profile-capture.json','profile-capture-gpu.json','profile-capture-work.json']),('release-metadata',['release-metadata.json'])]:
+for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fields.json','world-use.json','compiled-expressions.json','parameter-drivers.json','creation-defaults-project.json','hierarchy.json','bookmarks.json','noise-authoring.json','field-operations.json','trace-workflow.json','scalar-remapping.json','warp-fields.json','placement-driver-phases.json','transform-drivers.json','work-profile-project.json','semantic-sharing.json']),('user-config',['user-config-defaults.json','user-input-modern.json','user-input-legacy.json','user-theme-custom.json','user-shadow-settings.json','user-volume-light.json','user-workspace.json','user-performance.json','user-window-placement.json','user-ui-scales.json']),('app-config',['app-config-defaults.json','app-config-legacy.json','app-config-creation.json','app-config-world-guidance.json','app-config-curve-guidance.json']),('profile-capture',['profile-capture.json','profile-capture-gpu.json','profile-capture-work.json']),('release-metadata',['release-metadata.json'])]:
  schema=json.loads((root/'schema'/f'{name}.schema.json').read_text())
  jsonschema.Draft202012Validator.check_schema(schema)
  validator=jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker())
@@ -20,6 +20,19 @@ for name,fixtures in [('project',['valid-empty.json','terrain.json','sampled-fie
    try:validator.validate(bad)
    except jsonschema.ValidationError:pass
    else:raise AssertionError('World guidance acquired unsupported schema authority')
+ if name=='app-config':
+  curve_keys={key for key in schema['$defs']['AppMetadata']['properties']['controls']['properties'] if key.startswith('curve.editor.')}
+  assert len(curve_keys)==23
+  for key in curve_keys:
+   validator.validate({'formatVersion':1,'controls':{key:{'tooltip':'Configured curve guidance','options':{}}}})
+  for bad in [
+   {'formatVersion':1,'controls':{'curve.editor.unknown':{'tooltip':'unknown'}}},
+   {'formatVersion':1,'controls':{'curve.editor.outsideDomain':{'options':{'CLAMP':'Stop'}}}},
+   {'formatVersion':1,'creationDefaults':{'curve.editor.y':.5}},
+  ]:
+   try:validator.validate(bad)
+   except jsonschema.ValidationError:pass
+   else:raise AssertionError('Curve guidance acquired unsupported schema authority')
  if name=='project':
   # Deferred additive control-path contract: legacy pins omit control entirely.
   pin_validator=jsonschema.Draft202012Validator({'$ref':'#/$defs/Pin','$defs':schema['$defs']},format_checker=jsonschema.FormatChecker())

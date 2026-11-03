@@ -247,11 +247,17 @@ public final class ApplicationSettingsPanel {
 
   private void presentation(AppMetadata.Control control) {
     boolean world = selected != null && selected.startsWith("world.");
+    boolean curve = selected != null && selected.startsWith("curve.editor.");
     if (world)
       ImGui.textWrapped(
           "World entries name Help topics and customize Properties guidance. The World form keeps"
               + " its fixed labels and layout.");
-    presentationLabel(world ? "Help name" : "Label");
+    if (curve)
+      ImGui.textWrapped(
+          "Curve editor entries name Help topics and customize dialog guidance. The dialog keeps"
+              + " its fixed labels, mode lists and layout; curve creation defaults are separate"
+              + " entries.");
+    presentationLabel(world || curve ? "Help name" : "Label");
     fields.text(
         "##profile-label",
         control.label,
