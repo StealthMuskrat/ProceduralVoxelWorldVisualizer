@@ -107,13 +107,13 @@ public final class VoxelArchive {
         if (opened != null) {
           try {
             opened.close();
-          } catch (IOException cleanup) {
+          } catch (Throwable cleanup) {
             if (cleanup != failure) failure.addSuppressed(cleanup);
           }
         }
         try {
           Files.deleteIfExists(temp);
-        } catch (IOException cleanup) {
+        } catch (Throwable cleanup) {
           if (cleanup != failure) failure.addSuppressed(cleanup);
         }
         throw failure;
@@ -160,7 +160,7 @@ public final class VoxelArchive {
       try {
         file.rollback(start);
         return true;
-      } catch (IOException cleanup) {
+      } catch (Throwable cleanup) {
         if (cleanup != failure) failure.addSuppressed(cleanup);
         return false;
       }
@@ -214,26 +214,33 @@ public final class VoxelArchive {
       state = State.FINISHED;
     }
 
+    /**
+     * Aborts unpublished work. Handle-close failure never skips temporary-file removal; cleanup
+     * faults retain their original checked/unchecked type and can be retried with another close.
+     */
     @Override
     public void close() throws IOException {
       if (state == State.FINISHED) return;
       state = State.CLOSED;
-      IOException failure = null;
+      Throwable failure = null;
       if (!fileClosed) {
         try {
           file.close();
           fileClosed = true;
-        } catch (IOException cleanup) {
+        } catch (Throwable cleanup) {
           failure = cleanup;
         }
       }
       try {
         Files.deleteIfExists(temp);
-      } catch (IOException cleanup) {
+      } catch (Throwable cleanup) {
         if (failure == null) failure = cleanup;
         else if (failure != cleanup) failure.addSuppressed(cleanup);
       }
-      if (failure != null) throw failure;
+      if (failure instanceof IOException checked) throw checked;
+      if (failure instanceof RuntimeException unchecked) throw unchecked;
+      if (failure instanceof Error error) throw error;
+      if (failure != null) throw new IOException("Archive cleanup failed", failure);
     }
   }
 
@@ -243,10 +250,15 @@ public final class VoxelArchive {
     private final List<String> dictionary;
     private final int[] remap;
     private final int version;
-    private boolean closed = false;
+    private boolean closed, fileClosed;
 
     Reader(Path path, VoxelRegistry registry) throws IOException {
-      file = new RandomAccessFile(path.toFile(), "r");
+      this(new RandomAccessFile(path.toFile(), "r"), registry);
+    }
+
+    /** Package-private transferred handle ownership; production still opens read-only files. */
+    Reader(RandomAccessFile file, VoxelRegistry registry) throws IOException {
+      this.file = Objects.requireNonNull(file);
       try {
         long fileLength = file.length();
         if (fileLength < 40 || file.readLong() != MAGIC)
@@ -322,10 +334,21 @@ public final class VoxelArchive {
         }
         if (expected != indexStart) throw new IOException("Unindexed archive payload bytes");
         index = Collections.unmodifiableMap(map);
-      } catch (Throwable e) {
-        file.close();
-        if (e instanceof IOException io) throw io;
-        throw new IOException("Malformed archive", e);
+      } catch (Throwable failure) {
+        Throwable cleanupFailure = null;
+        try {
+          file.close();
+        } catch (Throwable cleanup) {
+          cleanupFailure = cleanup;
+        }
+        IOException primary =
+            failure instanceof IOException checked
+                ? checked
+                : new IOException("Malformed archive", failure);
+        // Do not replace the parse failure or duplicate a cause as its own cleanup detail.
+        if (cleanupFailure != null && cleanupFailure != failure && cleanupFailure != primary)
+          primary.addSuppressed(cleanupFailure);
+        throw primary;
       }
     }
 
@@ -394,11 +417,16 @@ public final class VoxelArchive {
       }
     }
 
+    /**
+     * Retires reads immediately. A failed handle close may be retried; metadata and completed
+     * snapshots remain available, and successful close is idempotent.
+     */
     @Override
     public synchronized void close() throws IOException {
-      if (!closed) {
-        closed = true;
+      closed = true;
+      if (!fileClosed) {
         file.close();
+        fileClosed = true;
       }
     }
   }
