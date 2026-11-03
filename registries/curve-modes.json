@@ -1,4 +1,6 @@
 {
+  "arithmeticPolicy" : "guarded-harmonic-and-coefficients-v1",
+  "arithmeticDescription" : "Preserve ordinary finite arithmetic order. Use a scaled same-sign harmonic mean when slope products are subnormal or intermediate arithmetic overflows, bounded by the larger finite secant. Factor only nonfinite cubic coefficient intermediates. Nonrepresentable coefficients remain invalid; callers retain their existing finite-result evaluation policy.",
   "knotPolicy" : "Numeric equality, including signed zero; exact knots return stored values",
   "interpolation" : [ {
     "key" : "STEP",

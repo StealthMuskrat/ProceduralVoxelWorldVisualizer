@@ -1,5 +1,6 @@
 package io.voxelcreator.editor;
 
+import io.voxelcreator.model.CurveModes;
 import java.util.*;
 
 /** Central help-only guidance and semantic links; authored AppMetadata supplies control text. */
@@ -225,7 +226,8 @@ final class HelpDefinitions {
                   + " Save persists it. Cancel discards only this dialog's edits. Application"
                   + " Settings > curve.editor entries customize Help names and guidance, separately"
                   + " from future-curve creation defaults. Fixed dialog labels, mode IDs and"
-                  + " evaluation remain authoritative."),
+                  + " evaluation remain authoritative. "
+                  + CurveModes.ARITHMETIC_DESCRIPTION),
           new Guide(
               "help.world-guidance",
               "World controls and live inheritance",

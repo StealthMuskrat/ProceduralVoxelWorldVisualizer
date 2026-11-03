@@ -49,6 +49,10 @@ public final class CurveWrappingConsumer {
                   fallback,
                   "savedSamples",
                   savedSamples)));
+    if (args.length > 2)
+      CurveArithmeticConsumer.run(
+          Path.of(args[0]).resolveSibling("curve-arithmetic-vectors.json"),
+          Path.of(args[2]).resolve("arithmetic"));
     System.out.println(
         "CURVE_WRAPPING_ENGINE_ONLY_PASS "
             + samples

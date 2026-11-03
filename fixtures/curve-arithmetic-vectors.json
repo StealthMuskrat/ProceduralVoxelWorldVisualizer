@@ -1,0 +1,332 @@
+{
+  "formatVersion": 1,
+  "arithmeticPolicy": "guarded-harmonic-and-coefficients-v1",
+  "reference": "Exact affine curves at dyadic coordinates; y=scale*x inside the domain, CLAMP at its endpoints. Zero endpoint is stored positive zero.",
+  "cases": [
+    {
+      "id": "large-rise",
+      "scaleHex": "0x1p600",
+      "knots": 3,
+      "samples": [
+        {
+          "inputHex": "-0x1p-2",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x0p0",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x1p-2",
+          "factorHex": "0x1p-2"
+        },
+        {
+          "inputHex": "0x1p-1",
+          "factorHex": "0x1p-1"
+        },
+        {
+          "inputHex": "0x1.8p-1",
+          "factorHex": "0x1.8p-1"
+        },
+        {
+          "inputHex": "0x1p0",
+          "factorHex": "0x1p0"
+        },
+        {
+          "inputHex": "0x1.4p0",
+          "factorHex": "0x1.4p0"
+        },
+        {
+          "inputHex": "0x1.8p0",
+          "factorHex": "0x1.8p0"
+        },
+        {
+          "inputHex": "0x1.cp0",
+          "factorHex": "0x1.cp0"
+        },
+        {
+          "inputHex": "0x1p1",
+          "factorHex": "0x1p1"
+        },
+        {
+          "inputHex": "0x1.2p1",
+          "factorHex": "0x1p1"
+        }
+      ]
+    },
+    {
+      "id": "large-fall",
+      "scaleHex": "-0x1p600",
+      "knots": 3,
+      "samples": [
+        {
+          "inputHex": "-0x1p-2",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x0p0",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x1p-2",
+          "factorHex": "0x1p-2"
+        },
+        {
+          "inputHex": "0x1p-1",
+          "factorHex": "0x1p-1"
+        },
+        {
+          "inputHex": "0x1.8p-1",
+          "factorHex": "0x1.8p-1"
+        },
+        {
+          "inputHex": "0x1p0",
+          "factorHex": "0x1p0"
+        },
+        {
+          "inputHex": "0x1.4p0",
+          "factorHex": "0x1.4p0"
+        },
+        {
+          "inputHex": "0x1.8p0",
+          "factorHex": "0x1.8p0"
+        },
+        {
+          "inputHex": "0x1.cp0",
+          "factorHex": "0x1.cp0"
+        },
+        {
+          "inputHex": "0x1p1",
+          "factorHex": "0x1p1"
+        },
+        {
+          "inputHex": "0x1.2p1",
+          "factorHex": "0x1p1"
+        }
+      ]
+    },
+    {
+      "id": "tiny-rise",
+      "scaleHex": "0x1p-600",
+      "knots": 3,
+      "samples": [
+        {
+          "inputHex": "-0x1p-2",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x0p0",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x1p-2",
+          "factorHex": "0x1p-2"
+        },
+        {
+          "inputHex": "0x1p-1",
+          "factorHex": "0x1p-1"
+        },
+        {
+          "inputHex": "0x1.8p-1",
+          "factorHex": "0x1.8p-1"
+        },
+        {
+          "inputHex": "0x1p0",
+          "factorHex": "0x1p0"
+        },
+        {
+          "inputHex": "0x1.4p0",
+          "factorHex": "0x1.4p0"
+        },
+        {
+          "inputHex": "0x1.8p0",
+          "factorHex": "0x1.8p0"
+        },
+        {
+          "inputHex": "0x1.cp0",
+          "factorHex": "0x1.cp0"
+        },
+        {
+          "inputHex": "0x1p1",
+          "factorHex": "0x1p1"
+        },
+        {
+          "inputHex": "0x1.2p1",
+          "factorHex": "0x1p1"
+        }
+      ]
+    },
+    {
+      "id": "tiny-fall",
+      "scaleHex": "-0x1p-600",
+      "knots": 3,
+      "samples": [
+        {
+          "inputHex": "-0x1p-2",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x0p0",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x1p-2",
+          "factorHex": "0x1p-2"
+        },
+        {
+          "inputHex": "0x1p-1",
+          "factorHex": "0x1p-1"
+        },
+        {
+          "inputHex": "0x1.8p-1",
+          "factorHex": "0x1.8p-1"
+        },
+        {
+          "inputHex": "0x1p0",
+          "factorHex": "0x1p0"
+        },
+        {
+          "inputHex": "0x1.4p0",
+          "factorHex": "0x1.4p0"
+        },
+        {
+          "inputHex": "0x1.8p0",
+          "factorHex": "0x1.8p0"
+        },
+        {
+          "inputHex": "0x1.cp0",
+          "factorHex": "0x1.cp0"
+        },
+        {
+          "inputHex": "0x1p1",
+          "factorHex": "0x1p1"
+        },
+        {
+          "inputHex": "0x1.2p1",
+          "factorHex": "0x1p1"
+        }
+      ]
+    },
+    {
+      "id": "ordinary",
+      "scaleHex": "0x1p0",
+      "knots": 3,
+      "samples": [
+        {
+          "inputHex": "-0x1p-2",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x0p0",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x1p-2",
+          "factorHex": "0x1p-2"
+        },
+        {
+          "inputHex": "0x1p-1",
+          "factorHex": "0x1p-1"
+        },
+        {
+          "inputHex": "0x1.8p-1",
+          "factorHex": "0x1.8p-1"
+        },
+        {
+          "inputHex": "0x1p0",
+          "factorHex": "0x1p0"
+        },
+        {
+          "inputHex": "0x1.4p0",
+          "factorHex": "0x1.4p0"
+        },
+        {
+          "inputHex": "0x1.8p0",
+          "factorHex": "0x1.8p0"
+        },
+        {
+          "inputHex": "0x1.cp0",
+          "factorHex": "0x1.cp0"
+        },
+        {
+          "inputHex": "0x1p1",
+          "factorHex": "0x1p1"
+        },
+        {
+          "inputHex": "0x1.2p1",
+          "factorHex": "0x1p1"
+        }
+      ]
+    },
+    {
+      "id": "wide-rise",
+      "scaleHex": "0x1.8p1023",
+      "knots": 2,
+      "samples": [
+        {
+          "inputHex": "-0x1p-2",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x0p0",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x1p-2",
+          "factorHex": "0x1p-2"
+        },
+        {
+          "inputHex": "0x1p-1",
+          "factorHex": "0x1p-1"
+        },
+        {
+          "inputHex": "0x1.8p-1",
+          "factorHex": "0x1.8p-1"
+        },
+        {
+          "inputHex": "0x1p0",
+          "factorHex": "0x1p0"
+        },
+        {
+          "inputHex": "0x1.4p0",
+          "factorHex": "0x1p0"
+        }
+      ]
+    },
+    {
+      "id": "wide-fall",
+      "scaleHex": "-0x1.8p1023",
+      "knots": 2,
+      "samples": [
+        {
+          "inputHex": "-0x1p-2",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x0p0",
+          "factorHex": "0x0p0"
+        },
+        {
+          "inputHex": "0x1p-2",
+          "factorHex": "0x1p-2"
+        },
+        {
+          "inputHex": "0x1p-1",
+          "factorHex": "0x1p-1"
+        },
+        {
+          "inputHex": "0x1.8p-1",
+          "factorHex": "0x1.8p-1"
+        },
+        {
+          "inputHex": "0x1p0",
+          "factorHex": "0x1p0"
+        },
+        {
+          "inputHex": "0x1.4p0",
+          "factorHex": "0x1p0"
+        }
+      ]
+    }
+  ]
+}

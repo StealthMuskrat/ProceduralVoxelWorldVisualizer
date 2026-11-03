@@ -5,7 +5,8 @@ import io.voxelcreator.model.ProjectData.Curve;
 
 /**
  * Immutable piecewise curve. Bezier uses endpoint slopes with X handles at one third of each
- * segment.
+ * segment. Guarded compilation arithmetic is identified by {@link CurveModes#ARITHMETIC_POLICY};
+ * ordinary finite operations keep their original evaluation order.
  */
 public final class ScalarCurve {
   private final double[] x, y, in, out, slope;
@@ -65,8 +66,7 @@ public final class ScalarCurve {
     for (int i = 0; i < n - 1; i++) d[i] = (y[i + 1] - y[i]) / (x[i + 1] - x[i]);
     slope[0] = d[0];
     slope[n - 1] = d[n - 2];
-    for (int i = 1; i < n - 1; i++)
-      slope[i] = d[i - 1] * d[i] <= 0 ? 0 : 2 * d[i - 1] * d[i] / (d[i - 1] + d[i]);
+    for (int i = 1; i < n - 1; i++) slope[i] = monotoneSlope(d[i - 1], d[i]);
     for (int i = 0; i < n - 1; i++) {
       if (d[i] == 0) {
         slope[i] = 0;
@@ -98,6 +98,12 @@ public final class ScalarCurve {
             m1 = (interpolation[i].equals("SMOOTH") ? slope[i + 1] : in[i + 1]) * h;
         a[i] = m0 + m1 - 2 * delta;
         b[i] = 3 * delta - 2 * m0 - m1;
+        if (Double.isFinite(m0) && Double.isFinite(m1) && Double.isFinite(delta)) {
+          // Preserve historical finite coefficients. Factoring only failed intermediates avoids
+          // overflow for representable results, including a large exactly linear cubic.
+          if (!Double.isFinite(a[i])) a[i] = (m0 - delta) + (m1 - delta);
+          if (!Double.isFinite(b[i]) && Double.isFinite(a[i])) b[i] = (delta - m0) - a[i];
+        }
         this.c[i] = m0;
       }
       if (!Double.isFinite(a[i])
@@ -106,6 +112,23 @@ public final class ScalarCurve {
           || !Double.isFinite(this.d[i]))
         throw new IllegalArgumentException("Nonfinite curve coefficients");
     }
+  }
+
+  private static double monotoneSlope(double left, double right) {
+    double product = left * right;
+    double numerator = 2 * left * right;
+    double denominator = left + right;
+    // Nonrepresentable secants retain the existing rejection path when used by a cubic.
+    if (!Double.isFinite(left) || !Double.isFinite(right))
+      return product <= 0 ? 0 : numerator / denominator;
+    if (left == 0 || right == 0 || (left < 0) != (right < 0)) return 0;
+    if (product >= Double.MIN_NORMAL && Double.isFinite(numerator) && Double.isFinite(denominator))
+      return numerator / denominator;
+    // Same-sign harmonic mean, without a tiny product or doubled large operand. Its magnitude
+    // is bounded by the larger finite secant; a subnormal product must not introduce a flat knot.
+    double small = Math.min(Math.abs(left), Math.abs(right));
+    double large = Math.max(Math.abs(left), Math.abs(right));
+    return Math.copySign(Math.min(large, small * (2 / (1 + small / large))), left);
   }
 
   public double incomingSlope(int point) {

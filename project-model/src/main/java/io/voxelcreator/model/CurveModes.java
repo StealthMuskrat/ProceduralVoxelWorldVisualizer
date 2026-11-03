@@ -6,6 +6,14 @@ import java.util.*;
 public final class CurveModes {
   private CurveModes() {}
 
+  public static final String ARITHMETIC_POLICY = "guarded-harmonic-and-coefficients-v1";
+  public static final String ARITHMETIC_DESCRIPTION =
+      "Preserve ordinary finite arithmetic order. Use a scaled same-sign harmonic mean when slope"
+          + " products are subnormal or intermediate arithmetic overflows, bounded by the larger"
+          + " finite secant. Factor only nonfinite cubic coefficient intermediates."
+          + " Nonrepresentable coefficients remain invalid; callers retain their existing"
+          + " finite-result evaluation policy.";
+
   public static final List<String> INTERPOLATIONS = List.of("STEP", "LINEAR", "SMOOTH", "BEZIER");
   public static final List<String> OUTSIDE = List.of("CLAMP", "EXTEND", "REPEAT", "MIRROR");
   public static final List<String> HANDLES = List.of("AUTO", "ALIGNED", "FREE");
@@ -49,6 +57,10 @@ public final class CurveModes {
         "handles",
         choices(HANDLES),
         "knotPolicy",
-        "Numeric equality, including signed zero; exact knots return stored values");
+        "Numeric equality, including signed zero; exact knots return stored values",
+        "arithmeticPolicy",
+        ARITHMETIC_POLICY,
+        "arithmeticDescription",
+        ARITHMETIC_DESCRIPTION);
   }
 }
