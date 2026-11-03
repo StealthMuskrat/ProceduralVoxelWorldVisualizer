@@ -22,6 +22,16 @@ final class HelpDefinitions {
   static final List<Guide> GUIDES =
       List.of(
           new Guide(
+              "help.project-save",
+              "Saving a project",
+              "Save and Save As prepare a committed snapshot in the background. Cancel Save or"
+                  + " Escape discards the unpublished temporary file and aborts pending New, Open"
+                  + " or Exit. The destination is replaced atomically only after the request is"
+                  + " checked again. Failed saves keep the entered path for explicit retry; retry"
+                  + " saves only and does not resume an aborted transition. Saving preserves"
+                  + " private draft input, selection, generated values and Undo history. No"
+                  + " autosave is enabled."),
+          new Guide(
               "help.project-open",
               "Opening a project",
               "Open Project reads and validates a separate candidate in the background. Cancel Open"
@@ -329,6 +339,7 @@ final class HelpDefinitions {
       Map.ofEntries(
           Map.entry("help.manual", List.of("noise", "help.find", "shortcuts", "help.about")),
           Map.entry("help.project-open", List.of("save", "help.validation", "diagnostics")),
+          Map.entry("help.project-save", List.of("save", "help.project-open", "diagnostics")),
           Map.entry(
               "noise",
               List.of("noise.algorithm", "processing", "layers", "creation-defaults", "help.pins")),
@@ -440,7 +451,8 @@ final class HelpDefinitions {
   static String menuTopic(String action) {
     return switch (action) {
       case "Open" -> "help.project-open";
-      case "New", "Save", "SaveAs", "Exit", "Undo", "Redo" -> "save";
+      case "Save", "SaveAs" -> "help.project-save";
+      case "New", "Exit", "Undo", "Redo" -> "save";
       case "Import", "Export" -> "archives";
       case "Find", "FindReferences" -> "help.find";
       case "Validate" -> "help.validation";

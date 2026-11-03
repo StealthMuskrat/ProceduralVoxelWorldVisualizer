@@ -22,6 +22,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
     GUARD,
     OPEN,
     LOADING,
+    SAVING,
     SAVE
   }
 
@@ -42,7 +43,30 @@ final class ProjectFileWorkflow implements AutoCloseable {
   private final BooleanSupplier blocked;
   private final Executor executor;
   private final Consumer<Runnable> ui;
-  private FutureTask<Void> openTask;
+  private FutureTask<Void> openTask, saveTask;
+  private final OwnedPreviewMailbox<SavePayload> saveHandoff = new OwnedPreviewMailbox<>();
+
+  private final class SavePayload implements AutoCloseable {
+    final DocumentSession.PreparedSave prepared;
+
+    SavePayload(DocumentSession.PreparedSave prepared) {
+      this.prepared = prepared;
+    }
+
+    @Override
+    public void close() {
+      try {
+        prepared.close();
+      } catch (Throwable failure) {
+        // May run on the worker after cancellation; post only to the thread-safe event service.
+        state.error(
+            "PROJECT_SAVE_CLEANUP_FAILED",
+            EditorEvents.Subsystem.PROJECT,
+            "Unpublished Save cleanup failed: " + BackgroundFailure.describe(failure));
+      }
+    }
+  }
+
   private boolean closed;
   private ProjectFileOwner owner;
   private boolean transition;
@@ -84,6 +108,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
 
   Phase phase() {
     refreshOpen();
+    refreshSave();
     return phase;
   }
 
@@ -381,6 +406,10 @@ final class ProjectFileWorkflow implements AutoCloseable {
 
   private void write(String location) {
     if (!current()) return;
+    if (executor != null) {
+      startSave(location);
+      return;
+    }
     working = true;
     try {
       state.document.save(path(location));
@@ -399,6 +428,126 @@ final class ProjectFileWorkflow implements AutoCloseable {
     error = "";
     owner = new ProjectFileOwner(state);
     complete();
+  }
+
+  private void startSave(String location) {
+    long attempt = ++generation;
+    try {
+      var request = state.document.requestSave(path(location));
+      long handoff = saveHandoff.begin();
+      phase = Phase.SAVING;
+      error = "";
+      saveTask =
+          new FutureTask<>(
+              () -> {
+                Throwable failure = null;
+                try {
+                  var prepared = request.prepare();
+                  if (!saveHandoff.publish(handoff, new SavePayload(prepared))) return null;
+                } catch (Throwable rejected) {
+                  failure = rejected;
+                }
+                var rejected = failure;
+                ui.accept(() -> publishSave(attempt, handoff, rejected));
+                return null;
+              });
+      executor.execute(saveTask);
+    } catch (Throwable failure) {
+      failedSave(attempt, failure);
+    }
+  }
+
+  private void refreshSave() {
+    if (phase != Phase.SAVING || closed) return;
+    long attempt = generation;
+    try {
+      if (owner == null || !owner.current(state)) {
+        stale(attempt, "");
+        return;
+      }
+      var completion = BackgroundFailure.completed(saveTask);
+      if (completion != null && completion.failure() != null)
+        failedSave(attempt, completion.failure());
+    } catch (Throwable failure) {
+      failedSave(attempt, failure);
+    }
+  }
+
+  private void publishSave(long attempt, long handoff, Throwable failure) {
+    if (closed || generation != attempt || phase != Phase.SAVING || !saveHandoff.current(handoff))
+      return;
+    saveTask = null;
+    var payload = saveHandoff.take();
+    var authority = owner;
+    try {
+      if (!current()) return;
+      if (!authority.valuesCurrent(state)) {
+        stale(attempt, "");
+        return;
+      }
+      if (failure != null) {
+        failedSave(attempt, failure);
+        return;
+      }
+      if (payload == null) throw new IllegalStateException("Save preparation was not delivered");
+      working = true;
+      state.document.applySave(payload.prepared);
+    } catch (Throwable rejected) {
+      failedSave(attempt, rejected);
+      return;
+    } finally {
+      working = false;
+      if (payload != null) payload.close();
+    }
+    // Replacement is complete. Only errors in remaining UI/continuation work can follow it.
+    try {
+      if (state.document.dirty() || !authority.savedContentCurrent(state)) {
+        stale(attempt, "Project saved. ");
+        return;
+      }
+      owner = new ProjectFileOwner(state);
+      error = "";
+      state.notify("Information", "Project saved");
+      if (generation != attempt || phase != Phase.SAVING) return;
+      if (!current("Project saved. ")) return;
+      if (!owner.valuesCurrent(state)) {
+        stale(attempt, "Project saved. ");
+        return;
+      }
+      complete();
+    } catch (Throwable completionFailure) {
+      long reported = attempt;
+      if (generation == attempt) {
+        retire();
+        reported = generation;
+      }
+      report(
+          "PROJECT_SAVE_COMPLETION_FAILED",
+          "Project saved; completion failed: ",
+          completionFailure,
+          reported);
+    }
+  }
+
+  private void failedSave(long attempt, Throwable failure) {
+    if (closed || generation != attempt) return;
+    releaseSave();
+    generation++;
+    pending = null;
+    transition = false;
+    phase = Phase.SAVE;
+    owner = new ProjectFileOwner(state);
+    report("PROJECT_SAVE_FAILED", "SAVE failed: ", failure, generation, 8192);
+  }
+
+  private void releaseSave() {
+    var old = saveTask;
+    saveTask = null;
+    saveHandoff.invalidate();
+    if (old != null) {
+      old.cancel(true);
+      if (executor instanceof ThreadPoolExecutor pool) pool.remove(old);
+    }
   }
 
   private boolean current() {
@@ -485,6 +634,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
 
   private void retire() {
     releaseOpen();
+    releaseSave();
     generation++;
     pending = null;
     phase = Phase.IDLE;
@@ -495,7 +645,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
   private void deliver(Runnable callback, String code, String prefix, long completed) {
     try {
       callback.run();
-    } catch (RuntimeException failure) {
+    } catch (Throwable failure) {
       report(code, prefix, failure, completed);
     }
   }
@@ -515,6 +665,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
   public void close() {
     closed = true;
     retire();
+    saveHandoff.close();
     error = "";
   }
 }

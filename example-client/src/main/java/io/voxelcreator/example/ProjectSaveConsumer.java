@@ -9,6 +9,7 @@ import io.voxelcreator.storage.*;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 /** Deferred public model/engine-JAR save, failed Save As, history and immutable-snapshot replay. */
 public final class ProjectSaveConsumer {
@@ -133,7 +134,116 @@ public final class ProjectSaveConsumer {
                 1,
                 "roots",
                 List.of(2, 4))));
+    preparedReplay(out.resolve("prepared-save"));
     System.out.println("PROJECT_SAVE_CONSUMER_PASS");
+  }
+
+  private static void preparedReplay(Path out) throws Exception {
+    Files.createDirectories(out);
+    var document = new DocumentSession();
+    document.setValidator(io.voxelcreator.core.NoiseCompiler::validate);
+    require(document.edit(ProjectSaveConsumer::fixture).isEmpty(), "Prepared fixture rejected");
+    var baseline = ProjectIO.copy(document.data());
+    require(
+        document
+            .edit(
+                p -> {
+                  p.project.seed = 29;
+                  p.worldGenerator.layers.getFirst().defaults.threshold = 1.25;
+                })
+            .isEmpty(),
+        "Prepared edit rejected");
+    var token = document.sessionToken();
+    var active = document.data();
+    long history = document.historyBytes();
+    String expected = ProjectIO.JSON.writeValueAsString(active);
+    var path = out.resolve("saved.json");
+    Files.writeString(path, "previous destination");
+    var cancelled = document.requestSave(path).prepare();
+    cancelled.close();
+    require(
+        Files.readString(path).equals("previous destination")
+            && document.path() == null
+            && document.dirty(),
+        "Cancelled preparation published a file or checkpoint");
+    var request = document.requestSave(path);
+    var future = new FutureTask<>(request::prepare);
+    Thread.ofPlatform().start(future);
+    try (var prepared = future.get(10, TimeUnit.SECONDS)) {
+      require(
+          Files.readString(path).equals("previous destination")
+              && document.data() == active
+              && document.sessionToken() == token
+              && document.historyBytes() == history
+              && document.path() == null
+              && document.dirty(),
+          "Save worker published before Apply");
+      document.applySave(prepared);
+    }
+    require(
+        Files.readString(path).equals(expected)
+            && !document.dirty()
+            && document.path().equals(path)
+            && document.data() == active
+            && document.sessionToken() == token
+            && document.historyBytes() == history,
+        "Prepared Save changed identity/history/checkpoint");
+    document.undo();
+    require(document.dirty() && document.data().project.seed == 17, "Prepared Save lost Undo");
+    document.redo();
+    require(
+        !document.dirty() && expected.equals(ProjectIO.JSON.writeValueAsString(document.data())),
+        "Prepared Save lost Redo checkpoint");
+    var saved = load(path);
+    long fields = 0, cells = 0;
+    try (var engine = new NoiseGeneratorEngine(2, 32, 16L << 20)) {
+      for (int state = 0; state < 2; state++) {
+        var compiled = new CompiledProject(state == 0 ? baseline : saved);
+        var sampler = compiled.noise2D("coordinate", compiled.defaultSeed());
+        for (int z = -1; z <= 1; z++)
+          for (int x = -3; x <= 3; x++) {
+            require(
+                Double.doubleToRawLongBits(sampler.sample(x, z))
+                    == Double.doubleToRawLongBits(x + OFFSET),
+                "Prepared Save changed scalar precision");
+            fields++;
+          }
+        for (int root : new int[] {2, 4})
+          try (var world =
+              engine.openWorld(
+                  compiled, new WorldOptions(null, root, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+            for (int z = -1; z <= 1; z++)
+              for (int y = -3; y <= 3; y++)
+                for (int x = -3; x <= 3; x++) {
+                  int value = y >= -2 && y <= 2 && x >= (state == 0 ? 1 : 2) ? 1 : 0;
+                  require(
+                      world.getVoxelTypeId(new BlockPos(x, y, z)) == value,
+                      "Prepared Save changed exact signed/root threshold output");
+                  cells++;
+                }
+          }
+      }
+    }
+    require(
+        fields == 42 && cells == 588 && expected.equals(Files.readString(path)),
+        "Prepared Save replay dimensions or bytes changed");
+    try (var files = Files.list(out)) {
+      require(
+          files.noneMatch(f -> f.getFileName().toString().startsWith(".voxel-save-")),
+          "Prepared Save left an owned temporary sibling");
+    }
+    Files.writeString(
+        out.resolve("prepared-save.json"),
+        ProjectIO.JSON.writeValueAsString(
+            Map.of(
+                "fields",
+                fields,
+                "cells",
+                cells,
+                "cancelledPreparations",
+                1,
+                "roots",
+                List.of(2, 4))));
   }
 
   private static ProjectData load(Path path) throws IOException {

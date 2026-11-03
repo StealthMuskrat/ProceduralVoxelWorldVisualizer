@@ -33,6 +33,12 @@ final class ProjectFileOwner {
   }
 
   boolean current(EditorState state) {
+    return contentCurrent(state)
+        && Objects.equals(path, state.document.path())
+        && dirty == state.document.dirty();
+  }
+
+  private boolean contentCurrent(EditorState state) {
     return lifetime == state.document.sessionToken()
         && project == state.project()
         && revision == state.revision
@@ -40,9 +46,11 @@ final class ProjectFileOwner {
         && draft == state.draft
         && selection.equals(List.copyOf(state.multiSelection))
         && value.equals(ProjectIO.JSON.valueToTree(state.draft))
-        && seedVersion == state.seedInputs.version(state)
-        && Objects.equals(path, state.document.path())
-        && dirty == state.document.dirty();
+        && seedVersion == state.seedInputs.version(state);
+  }
+
+  boolean savedContentCurrent(EditorState state) {
+    return contentCurrent(state) && committed.equals(ProjectIO.JSON.valueToTree(state.project()));
   }
 
   boolean valuesCurrent(EditorState state) {

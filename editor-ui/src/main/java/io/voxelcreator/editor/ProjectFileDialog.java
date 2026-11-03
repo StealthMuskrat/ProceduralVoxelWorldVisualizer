@@ -127,6 +127,14 @@ final class ProjectFileDialog {
           } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
             ImGui.textWrapped("Continue with: " + workflow.action());
             ImGui.textWrapped("Save changes before continuing?");
+          } else if (phase == ProjectFileWorkflow.Phase.SAVING) {
+            ImGui.textWrapped("Preparing the committed project Save in the background.");
+            ImGui.textWrapped(
+                "Cancel Save preserves the current destination and aborts any pending New, Open or"
+                    + " Exit.");
+            ImGui.textWrapped(
+                "The validated temporary file replaces the destination only after this request is"
+                    + " checked again.");
           } else if (phase == ProjectFileWorkflow.Phase.LOADING) {
             ImGui.textWrapped("Reading and validating the selected project in the background.");
             ImGui.textWrapped(
@@ -170,6 +178,8 @@ final class ProjectFileDialog {
           primary = button("primary", "Save");
           secondary = button("secondary", "Don't Save");
           cancel = button("cancel", "Cancel");
+        } else if (phase == ProjectFileWorkflow.Phase.SAVING) {
+          cancel = button("cancel", "Cancel Save");
         } else if (phase == ProjectFileWorkflow.Phase.LOADING) {
           cancel = button("cancel", "Cancel Open");
         } else {
@@ -227,6 +237,7 @@ final class ProjectFileDialog {
       case DRAFT -> "Unapplied Properties";
       case GUARD -> "Unsaved Project";
       case LOADING -> "Opening Project";
+      case SAVING -> "Saving Project";
       default -> "Project File Location";
     };
   }

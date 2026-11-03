@@ -21,3 +21,5 @@ ProjectSaveConsumer uses only the separately built engine JAR and public APIs. I
 Future Linux/Windows client commands and artifact paths are wired into the existing manual-only workflow without dispatching it. Existing document/file-dialog tests and native transition probes remain deferred. Actual permissions/locking/provider faults, full GUI transitions, Windows 11 hardware and final acceptance/release gates remain pending. Main remains authoritative; no development branch was created.
 
 The unvalidated [export completion follow-up](EXPORT_COMPLETION_OWNERSHIP.md) also retains the original project-save failure across unchecked cleanup faults. Two additional ProjectSaveRecoveryTest definitions cover runtime/Error cleanup and identical throwable reuse; terminal publication and saved-checkpoint behavior remain. These definitions have not run.
+
+The subsequent [background Save follow-up](BACKGROUND_PROJECT_SAVE.md) adds an owned staged-save API and production worker preparation while retaining these synchronous persistence contracts. Atomic replacement remains owner-thread guarded and unpublished cancellation cleanup is separate from publication.

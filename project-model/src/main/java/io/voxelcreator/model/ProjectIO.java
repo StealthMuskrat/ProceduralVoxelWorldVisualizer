@@ -160,6 +160,63 @@ public final class ProjectIO {
     saveAndGetCheckpoint(destination, data);
   }
 
+  /** Owned unpublished sibling; preparation never replaces the destination. */
+  final class StagedSave implements AutoCloseable {
+    private final Path target, temporary;
+    private final String checkpoint;
+    private boolean published, closed;
+
+    private StagedSave(Path target, Path temporary, String checkpoint) {
+      this.target = target;
+      this.temporary = temporary;
+      this.checkpoint = checkpoint;
+    }
+
+    synchronized String publish() throws IOException {
+      if (closed || published) throw new IllegalStateException("Save preparation already consumed");
+      try {
+        files.replace(temporary, target);
+      } catch (AtomicMoveNotSupportedException unsupported) {
+        throw new IOException(
+            "This location does not support safe project replacement; choose another location",
+            unsupported);
+      }
+      published = true;
+      return checkpoint;
+    }
+
+    @Override
+    public synchronized void close() throws IOException {
+      if (closed || published) return;
+      files.delete(temporary);
+      // A failed deletion retains ownership so a caller may explicitly retry cleanup.
+      closed = true;
+    }
+  }
+
+  StagedSave prepareSave(Path destination, ProjectData data) throws IOException {
+    var issues = Validator.validate(data);
+    if (!issues.isEmpty()) throw new IOException(issues.toString());
+    String contents = JSON.writeValueAsString(data);
+    Path target = Objects.requireNonNull(destination).toAbsolutePath(), parent = target.getParent();
+    if (parent == null || target.getFileName() == null)
+      throw new IOException("Choose a project file path");
+    Files.createDirectories(parent);
+    Path temporary = files.temporary(parent);
+    try {
+      files.write(temporary, contents);
+      files.force(temporary);
+      return new StagedSave(target, temporary, contents);
+    } catch (IOException | RuntimeException | Error failure) {
+      try {
+        files.delete(temporary);
+      } catch (IOException | RuntimeException | Error cleanup) {
+        if (cleanup != failure) failure.addSuppressed(cleanup);
+      }
+      throw failure;
+    }
+  }
+
   /** The exact serialized payload becomes the document's saved checkpoint after publication. */
   String saveAndGetCheckpoint(Path destination, ProjectData data) throws IOException {
     var issues = Validator.validate(data);

@@ -201,6 +201,71 @@ public final class DocumentSession {
     historyBytes = 0;
   }
 
+  /** Captures an owned committed snapshot; only preparation may run on a worker. */
+  public SaveRequest requestSave(Path file) {
+    return new SaveRequest(Objects.requireNonNull(file));
+  }
+
+  public final class SaveRequest {
+    private final Path file;
+    private final ProjectData source = active;
+    private final Object lifetime = sessionToken;
+    private final Path sourcePath = path;
+    private final String sourceSaved = saved;
+    private final java.util.function.Function<ProjectData, List<Diagnostic>> validation = validator;
+    private final com.fasterxml.jackson.databind.JsonNode values =
+        ProjectIO.JSON.valueToTree(active);
+    private final ProjectData snapshot = ProjectIO.JSON.convertValue(values, ProjectData.class);
+
+    private SaveRequest(Path file) {
+      this.file = file;
+    }
+
+    private DocumentSession owner() {
+      return DocumentSession.this;
+    }
+
+    public PreparedSave prepare() throws IOException {
+      var candidate = ProjectIO.copy(snapshot);
+      var issues = List.copyOf(validation.apply(candidate));
+      if (!issues.isEmpty()) throw new IOException(issues.toString());
+      return new PreparedSave(this, persistence.prepareSave(file, candidate));
+    }
+  }
+
+  /** Close every unpublished preparation, including cancelled and stale results. */
+  public static final class PreparedSave implements AutoCloseable {
+    private final SaveRequest request;
+    private final ProjectIO.StagedSave staged;
+
+    private PreparedSave(SaveRequest request, ProjectIO.StagedSave staged) {
+      this.request = request;
+      this.staged = staged;
+    }
+
+    @Override
+    public void close() throws IOException {
+      staged.close();
+    }
+  }
+
+  /** Checks precede atomic replacement; after replacement the exact written checkpoint is final. */
+  public void applySave(PreparedSave prepared) throws IOException {
+    Objects.requireNonNull(prepared);
+    var request = prepared.request;
+    if (request.owner() != this
+        || request.validation != validator
+        || request.source != active
+        || request.lifetime != sessionToken
+        || !Objects.equals(request.sourcePath, path)
+        || !Objects.equals(request.sourceSaved, saved)
+        || !request.values.equals(ProjectIO.JSON.valueToTree(active)))
+      throw new IllegalStateException("Prepared Save owner, document or validation policy changed");
+    String checkpoint = prepared.staged.publish();
+    path = request.file;
+    saved = checkpoint;
+  }
+
   public void save(Path file) throws IOException {
     var issues = validator.apply(active);
     if (!issues.isEmpty()) throw new IOException(issues.toString());

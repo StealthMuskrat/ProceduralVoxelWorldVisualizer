@@ -81,7 +81,6 @@ for phase in ('opened-project', 'new-project'):
 assert read('preferences-before.json') == read('preferences.json')
 assert not (out / 'escape-must-not-write.json').exists()
 assert not (out / 'held-must-not-write.json').exists()
-print('File post-popup completion, eleven routes, exact publications, successor ownership, native paths, committed-only Save and immutable source/preferences PASS')
 
 # Deferred production background Open sub-replay, invoked by the same native command.
 background_root = out / 'background-open'
@@ -105,3 +104,31 @@ for mode, row in background_cases.items():
     assert noise['algorithm']['key'] == 'CONSTANT'
     assert noise['algorithm']['parameters'] == {'value': .75 if mode == 'SUCCESS' else .25}
     assert not project['worldGenerator']['layers']
+
+# Deferred staged Save sub-replay: completed files contain committed values only.
+save_root = out / 'background-save'
+saves = json.loads((save_root / 'project-save-native.json').read_text(encoding='utf-8'))
+assert saves['formatVersion'] == 1
+save_cases = {row['mode']: row for row in saves['cases']}
+assert len(save_cases) == len(saves['cases']) == 7
+assert set(save_cases) == {'SAVE', 'CANCEL_READY', 'ESCAPE', 'COMMITTED', 'COMPILER', 'RETRY_EXIT', 'NEW'}
+for mode, row in save_cases.items():
+    published = mode in ('SAVE', 'RETRY_EXIT', 'NEW')
+    assert row['published'] == published
+    assert row['workerOffUi'] and row['preferencesPreserved'] and row['responsiveFrames'] == 12
+    assert row['replacements'] == (1 if mode == 'NEW' else 0) and row['exits'] == 0
+    assert row['seed'] == (0 if mode == 'NEW' else 42 if mode == 'COMMITTED' else 41)
+    assert row['phase'] == ('SAVE' if mode == 'COMPILER' else 'IDLE')
+    target = save_root / f'{mode}-saved.json'
+    if published:
+        saved = json.loads(target.read_text(encoding='utf-8'))
+        assert saved['project']['seed'] == 41 and len(saved['noise2D']) == 1
+        assert saved['noise2D'][0]['id'] == 'owned'
+        assert saved['noise2D'][0]['algorithm']['parameters'] == {'value': .25}
+    else:
+        assert target.read_bytes() == b'previous destination'
+    active = json.loads((save_root / f'{mode}-active.json').read_text(encoding='utf-8'))
+    assert active['project']['seed'] == row['seed']
+    assert len(active['noise2D']) == (0 if mode == 'NEW' else 1)
+assert not list(save_root.glob('.voxel-save-*'))
+print('File completion plus background Open/Save, guarded publications, cancellation, exact destinations and source/preferences PASS')

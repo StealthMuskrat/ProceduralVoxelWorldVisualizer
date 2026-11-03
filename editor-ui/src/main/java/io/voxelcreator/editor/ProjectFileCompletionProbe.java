@@ -231,6 +231,7 @@ public final class ProjectFileCompletionProbe {
                 + " paths");
       }
       ProjectOpenProbe.run(out.resolve("background-open"));
+      ProjectSaveProbe.run(out.resolve("background-save"));
     } finally {
       ImGui.destroyContext();
     }
