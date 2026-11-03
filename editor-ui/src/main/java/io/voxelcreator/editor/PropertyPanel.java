@@ -264,11 +264,30 @@ public final class PropertyPanel {
   }
 
   private void worldControl(String key, Runnable draw, BooleanSupplier focused) {
+    worldControl(key, draw, focused, true);
+  }
+
+  private void worldControl(String key, Runnable draw, BooleanSupplier focused, boolean guidance) {
     propertyControl(null, key, draw, focused);
-    var lo = ImGui.getItemRectMin();
-    var hi = ImGui.getItemRectMax();
+    var seed = seedRows.get(key);
+    var bounds = seed == null ? PopupLayout.itemBounds() : seed.input();
     worldControlCenters.put(
-        key, new float[] {lo.x + Math.min(80, (hi.x - lo.x) * .25f), (lo.y + hi.y) / 2});
+        key,
+        new float[] {
+          bounds.x() + Math.min(80, bounds.width() * .25f), bounds.y() + bounds.height() / 2
+        });
+    if (guidance) worldMetadataTooltip(key, "");
+  }
+
+  private void worldMetadataTooltip(String key, String detail) {
+    String id = WorldControlMetadata.topic(key);
+    if (id == null) return;
+    var control = state.metadata.control(id);
+    if (control == null) return;
+    if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+      UiScale.tooltip(
+          control.tooltip + (detail.isEmpty() ? "" : "\n" + detail) + "\nRight-click for Help.");
+    contextHelp.item(id, id + ":world:" + key, true);
   }
 
   private void settingControl(String leaf, Runnable draw) {
@@ -276,22 +295,65 @@ public final class PropertyPanel {
   }
 
   private void settingControl(String leaf, Runnable draw, BooleanSupplier focused) {
+    settingControl(leaf, draw, focused, true);
+  }
+
+  private void settingNumericControl(String leaf, Runnable draw) {
+    settingControl(leaf, draw, () -> ImGui.isItemActive() || ImGui.isItemFocused(), false);
+  }
+
+  private void settingControl(
+      String leaf, Runnable draw, BooleanSupplier focused, boolean guidance) {
     if (worldSettingPath == null) {
       draw.run();
       return;
     }
     worldControl(
-        "settings/" + worldSettingPath + (leaf.isEmpty() ? "" : "/" + leaf), draw, focused);
+        "settings/" + worldSettingPath + (leaf.isEmpty() ? "" : "/" + leaf),
+        draw,
+        focused,
+        guidance);
   }
 
   private void settingNumber(
       String leaf, String label, double value, double minimum, double maximum, DoubleConsumer set) {
-    numeric(f, label, value, minimum, maximum, false, set, draw -> settingControl(leaf, draw));
+    String id = WorldControlMetadata.setting(worldSettingPath, leaf);
+    if (id == null)
+      numeric(
+          f, label, value, minimum, maximum, false, set, draw -> settingNumericControl(leaf, draw));
+    else
+      numeric(
+          f,
+          label,
+          value,
+          minimum,
+          maximum,
+          false,
+          set,
+          draw -> settingNumericControl(leaf, draw),
+          id);
   }
 
   private void settingInteger(
       String leaf, String label, int value, int minimum, int maximum, IntConsumer set) {
-    var row = f.integer(label, value, minimum, maximum, set, draw -> settingControl(leaf, draw));
+    String id = WorldControlMetadata.setting(worldSettingPath, leaf);
+    int[] displayed = {value};
+    IntConsumer publish =
+        next -> {
+          set.accept(next);
+          displayed[0] = next;
+        };
+    var row =
+        f.integer(
+            label,
+            value,
+            minimum,
+            maximum,
+            publish,
+            draw -> settingNumericControl(leaf, draw),
+            id == null
+                ? null
+                : nativeId -> numericGuidance(id, nativeId, displayed[0], minimum, maximum));
     numericRows.put(row.inputId(), row);
   }
 
@@ -2218,15 +2280,17 @@ public final class PropertyPanel {
             publish,
             publish,
             input,
-            nativeId -> {
-              if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                UiScale.tooltip(
-                    NumericGuidance.from(state.metadata, metadataId, displayed[0], minimum, maximum)
-                        .text());
-              if (state.metadata.control(metadataId) != null)
-                contextHelp.item(metadataId, NumericGuidance.identity(metadataId, nativeId), true);
-            });
+            nativeId -> numericGuidance(metadataId, nativeId, displayed[0], minimum, maximum));
     numericRows.put(row.inputId(), row);
+  }
+
+  private void numericGuidance(
+      String metadataId, int nativeId, double value, double minimum, double maximum) {
+    if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+      UiScale.tooltip(
+          NumericGuidance.from(state.metadata, metadataId, value, minimum, maximum).text());
+    if (state.metadata.control(metadataId) != null)
+      contextHelp.item(metadataId, NumericGuidance.identity(metadataId, nativeId), true);
   }
 
   private void parameter(Item item, String key, double def) {
@@ -2987,6 +3051,7 @@ public final class PropertyPanel {
             new float[] {
               resetBounds.x() + resetBounds.width() / 2, resetBounds.y() + resetBounds.height() / 2
             });
+        worldMetadataTooltip("reset/" + key, "");
         if (reset) {
           seedPrefix("settings/" + key, false);
           op.overrides.remove(key);
@@ -2994,8 +3059,21 @@ public final class PropertyPanel {
       } else {
         JsonNode node = ProjectIO.JSON.valueToTree(effective);
         ImGui.textWrapped(AppMetadata.settingLabel(key) + ": " + settingValue(key, node.get(key)));
-        if (node.get(key).isFloatingPointNumber() && ImGui.isItemHovered())
-          UiScale.tooltip("Value: " + ScalarDisplay.exact(node.get(key).asDouble()));
+        var inheritedBounds = PopupLayout.itemBounds();
+        worldControlCenters.put(
+            "inherited/" + key,
+            new float[] {
+              inheritedBounds.x() + inheritedBounds.width() / 2,
+              inheritedBounds.y() + inheritedBounds.height() / 2
+            });
+        worldMetadataTooltip(
+            "settings/" + key,
+            node.get(key).isNumber()
+                ? "Value: "
+                    + (node.get(key).isFloatingPointNumber()
+                        ? ScalarDisplay.exact(node.get(key).asDouble())
+                        : node.get(key).asText())
+                : "");
       }
       ImGui.popID();
     }
@@ -3104,7 +3182,7 @@ public final class PropertyPanel {
               }
             });
       } else if (key.equals("seedOffset"))
-        settingControl(
+        settingNumericControl(
             "", () -> longText(AppMetadata.settingLabel(key), s.seedOffset, v -> s.seedOffset = v));
       else if (key.equals("action"))
         settingControl(
@@ -3326,7 +3404,7 @@ public final class PropertyPanel {
     if (g.kind.equals("PROBABILITY")) {
       settingNumber(
           "probability", "Gate probability [0,1]", g.probability, 0, 1, v -> g.probability = v);
-      settingControl(
+      settingNumericControl(
           "seedOffset", () -> longText("Gate seed offset", g.seedOffset, v -> g.seedOffset = v));
       ImGui.textWrapped("Independent deterministic XYZ draw, stable within this gate path.");
     }
@@ -3889,6 +3967,11 @@ public final class PropertyPanel {
       input.invalid = false;
     }
     SeedText owned = input;
+    String metadataId =
+        worldSettingPath == null
+            ? null
+            : WorldControlMetadata.setting(
+                worldSettingPath, worldSettingPath.equals("seedOffset") ? "" : "seedOffset");
     ImGui.textWrapped(label);
     var row =
         owned.input.draw(
@@ -3917,10 +4000,26 @@ public final class PropertyPanel {
             () -> {
               if (!searchBlocked() && propertyFocus.matches(null, key))
                 ImGui.setKeyboardFocusHere();
-            });
+            },
+            metadataId == null
+                ? null
+                : nativeId -> {
+                  var control = state.metadata.control(metadataId);
+                  if (control != null) {
+                    if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                      UiScale.tooltip(
+                          WorldControlMetadata.integerTooltip(
+                              control.tooltip, owned.buffer.get(), owned.invalid));
+                    contextHelp.item(
+                        metadataId, NumericGuidance.identity(metadataId, nativeId), true);
+                  }
+                });
     seedRows.put(key, row);
-    var a = ImGui.getItemRectMin();
-    var b = ImGui.getItemRectMax();
-    seedCenters.put(key, new float[] {a.x + Math.min(80, (b.x - a.x) * .25f), (a.y + b.y) / 2});
+    seedCenters.put(
+        key,
+        new float[] {
+          row.input().x() + Math.min(80, row.input().width() * .25f),
+          row.input().y() + row.input().height() / 2
+        });
   }
 }

@@ -1,0 +1,18 @@
+{
+  "formatVersion": 1,
+  "controls": {
+    "world.setting.threshold": {
+      "label": "Configured World threshold guide",
+      "tooltip": "Configured World threshold 100% ### snow 雪"
+    },
+    "world.setting.parameterDrivers": {
+      "tooltip": "Configured numeric driver guidance"
+    },
+    "world.setting.fieldGates": {
+      "tooltip": "Configured field-gate guidance"
+    },
+    "world.inheritance": {
+      "tooltip": "Configured live inheritance guidance"
+    }
+  }
+}

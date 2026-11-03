@@ -38,6 +38,7 @@ public final class WorldNumericProbe {
         panel.probeWorldNumericRows(true);
         var cases = new ArrayList<Map<String, Object>>();
         capture("Layer", cases);
+        var guidance = guidanceReplay(out);
         var draft = (Layer) state.draft;
         require(
             draft.defaults.minY == Integer.MIN_VALUE && draft.defaults.maxY == Integer.MAX_VALUE,
@@ -67,6 +68,9 @@ public final class WorldNumericProbe {
         var layerApplied = ProjectIO.JSON.valueToTree(state.project());
         state.select("operation", operationId);
         capture("Inherited", cases);
+        reveal("settings/threshold");
+        guidance.add(contextReplay("inherited/threshold", "world.setting.threshold"));
+        guidance.add(contextReplay("override/threshold", "world.inheritance"));
         require(
             ((Operation) state.draft).overrides.isEmpty(), "Inherited layout materialized values");
         reveal("settings/threshold");
@@ -110,6 +114,7 @@ public final class WorldNumericProbe {
             "Override Redo changed data");
         state.refreshDraft();
         reveal("settings/threshold");
+        guidance.add(contextReplay("reset/threshold", "world.inheritance"));
         click(panel.probeWorldControl("reset/threshold"));
         frames(4);
         require(
@@ -172,7 +177,9 @@ public final class WorldNumericProbe {
                     "resetUndoRedo",
                     true,
                     "physicalDpiVerified",
-                    false)));
+                    false,
+                    "guidance",
+                    guidance)));
         System.out.println(
             "WORLD_NUMERIC_NATIVE_PASS paired controls / exact integers / private overrides / reset"
                 + " and live inheritance");
@@ -180,6 +187,120 @@ public final class WorldNumericProbe {
     } finally {
       ImGui.destroyContext();
     }
+  }
+
+  private static List<Map<String, Object>> guidanceReplay(Path out) throws Exception {
+    var opening = ProjectIO.JSON.valueToTree(state.draft);
+    reveal("settings/seedOffset");
+    type("9007199254740993");
+    require(
+        ((Layer) state.draft).defaults.seedOffset == 9007199254740993L,
+        "World seed fixture lost precision");
+    var privateBefore = ProjectIO.JSON.valueToTree(state.draft);
+    var committed = ProjectIO.JSON.valueToTree(state.project());
+    var metadata = ProjectIO.JSON.valueToTree(state.metadata);
+    long revision = state.revision, history = state.document.historyBytes();
+    var result = new ArrayList<Map<String, Object>>();
+    var receipts = new ArrayList<UiTooltip.Receipt>();
+    UiTooltip.observe(receipts::add);
+    try {
+      for (String path :
+          List.of(
+              "settings/threshold",
+              "settings/minY",
+              "settings/samplingTransforms/0/x",
+              "settings/parameterDrivers/0/inputMin",
+              "settings/parameterDrivers/0/transformIndex",
+              "settings/typeIntervals/0/min",
+              "settings/fieldGates/threshold",
+              "settings/seedOffset")) {
+        reveal(path);
+        String topic = "world.setting." + path.substring("settings/".length()).split("/")[0];
+        boolean seed = path.equals("settings/seedOffset");
+        DialogBounds.Rect slider, input;
+        if (seed) {
+          var row = panel.probeSeedRow(path);
+          slider = row.slider();
+          input = row.input();
+        } else {
+          var row = row(path);
+          slider = row.slider();
+          input = row.input();
+        }
+        var control = state.metadata.controls.get(topic);
+        String old = control.tooltip;
+        String configured = "World fixture 100% ### snow 雪 / " + path;
+        control.tooltip = configured;
+        try {
+          for (boolean sliderPart : new boolean[] {true, false}) {
+            var at = point(sliderPart ? slider : input, .5);
+            receipts.clear();
+            ImGui.getIO().addMousePosEvent(at[0], at[1]);
+            frames(4);
+            require(
+                receipts.stream()
+                    .anyMatch(
+                        r ->
+                            r.preview().contains(configured)
+                                && (!seed || r.preview().contains("9007199254740993"))),
+                "Configured World tooltip missing or seed digits lost");
+            openHelp(at, topic);
+            result.add(
+                Map.of("path", path, "part", sliderPart ? "slider" : "text", "topic", topic));
+          }
+          var catalog = new HelpCatalog(state.metadata);
+          Files.writeString(
+              out.resolve("world-help-" + path.substring(9).replace('/', '-') + ".txt"),
+              catalog.topic(topic).copyText(catalog));
+        } finally {
+          control.tooltip = old;
+        }
+      }
+    } finally {
+      UiTooltip.observe(null);
+    }
+    require(
+        privateBefore.equals(ProjectIO.JSON.valueToTree(state.draft))
+            && committed.equals(ProjectIO.JSON.valueToTree(state.project()))
+            && metadata.equals(ProjectIO.JSON.valueToTree(state.metadata))
+            && revision == state.revision
+            && history == state.document.historyBytes(),
+        "World guidance changed private/committed/metadata ownership");
+    reveal("settings/seedOffset");
+    type("0");
+    require(
+        opening.equals(ProjectIO.JSON.valueToTree(state.draft)),
+        "World guidance replay did not restore seed fixture");
+    return result;
+  }
+
+  private static Map<String, Object> contextReplay(String key, String topic) {
+    var privateBefore = ProjectIO.JSON.valueToTree(state.draft);
+    var committed = ProjectIO.JSON.valueToTree(state.project());
+    var user = ProjectIO.JSON.valueToTree(state.user);
+    long revision = state.revision, history = state.document.historyBytes();
+    var at = panel.probeWorldControl(key);
+    require(at != null, "World context target missing: " + key);
+    openHelp(at, topic);
+    require(
+        privateBefore.equals(ProjectIO.JSON.valueToTree(state.draft))
+            && committed.equals(ProjectIO.JSON.valueToTree(state.project()))
+            && user.equals(ProjectIO.JSON.valueToTree(state.user))
+            && revision == state.revision
+            && history == state.document.historyBytes(),
+        "Inherited/Override/Reset Help changed World state");
+    return Map.of("path", key, "part", "control", "topic", topic);
+  }
+
+  private static void openHelp(float[] at, String topic) {
+    state.helpRequests.take();
+    click(at, 1);
+    var help = panel.contextHelp();
+    require(help.actionId() != 0 && help.actionCenter() != null, "World context Help did not open");
+    click(help.actionCenter());
+    require(
+        state.helpRequests.take().orElseThrow().equals(topic),
+        "World context Help routed another topic");
   }
 
   private static void fixture(ProjectData p) {
@@ -311,12 +432,16 @@ public final class WorldNumericProbe {
   }
 
   private static void click(float[] p) {
+    click(p, 0);
+  }
+
+  private static void click(float[] p, int button) {
     var io = ImGui.getIO();
     io.addMousePosEvent(p[0], p[1]);
     frame();
-    io.addMouseButtonEvent(0, true);
+    io.addMouseButtonEvent(button, true);
     frame();
-    io.addMouseButtonEvent(0, false);
+    io.addMouseButtonEvent(button, false);
     frames(3);
   }
 

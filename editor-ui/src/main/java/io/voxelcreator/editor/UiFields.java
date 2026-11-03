@@ -124,6 +124,17 @@ public final class UiFields {
       int maximum,
       IntConsumer set,
       Consumer<Runnable> input) {
+    return integer(label, value, minimum, maximum, set, input, null);
+  }
+
+  NumericRow integer(
+      String label,
+      int value,
+      int minimum,
+      int maximum,
+      IntConsumer set,
+      Consumer<Runnable> input,
+      IntConsumer guidance) {
     return numeric(
         label,
         value,
@@ -133,7 +144,7 @@ public final class UiFields {
         v -> set.accept((int) v),
         (key, exact) -> integer(key, exact.intValue(), set),
         input,
-        null);
+        guidance);
   }
 
   private NumericRow numeric(

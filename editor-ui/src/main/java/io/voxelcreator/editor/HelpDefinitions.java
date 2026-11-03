@@ -194,6 +194,19 @@ final class HelpDefinitions {
                   + " immutable options and samples. Editing limits never starts/stops a capture"
                   + " or publishes preferences automatically."),
           new Guide(
+              "help.world-guidance",
+              "World controls and live inheritance",
+              "World Properties offers configured guidance on layer defaults, placement controls,"
+                  + " nested transforms, drivers, type intervals and condition trees. Right-click"
+                  + " either part of a numeric pair, a supported control/header, an inherited value"
+                  + " or Override/Reset for Help. Nested rows use their setting family's guide."
+                  + " Application Settings can edit these World Help names, tooltips and guidance;"
+                  + " its Apply publishes presentation only. World field labels and ordered"
+                  + " controls keep their existing layout. Unchecked placement settings inherit"
+                  + " live layer defaults; an explicit override, including zero, remains private"
+                  + " until Properties Apply. Reset removes an override. Reading Help does not"
+                  + " enable, reset, apply or save any World setting."),
+          new Guide(
               "help.world-lists",
               "World ordered settings",
               "Sampling transforms, numeric parameter drivers and type intervals are ordered"
@@ -302,6 +315,14 @@ final class HelpDefinitions {
           Map.entry(
               "help.coordinates",
               List.of("bookmarks", "navigation", "help.trace", "help.scalar-readouts")),
+          Map.entry(
+              "help.world-guidance",
+              List.of(
+                  "layers",
+                  "world.inheritance",
+                  "world.interpretation",
+                  "help.world-lists",
+                  "help.world-conditions")),
           Map.entry("help.world-lists", List.of("layers", "help.world-conditions", "help.trace")),
           Map.entry(
               "help.world-conditions", List.of("layers", "help.trace", "help.project-settings")),
@@ -311,6 +332,11 @@ final class HelpDefinitions {
 
   static List<String> related(String id) {
     if (LINKS.containsKey(id)) return LINKS.get(id);
+    if (id.startsWith("world."))
+      return List.of("layers", "help.world-guidance", "world.inheritance", "help.scalar-readouts")
+          .stream()
+          .filter(link -> !link.equals(id))
+          .toList();
     if (id.startsWith("algorithm.")) return List.of("noise.algorithm", "noise");
     if (id.startsWith("processing.") || id.startsWith("transform."))
       return List.of("processing", "noise");

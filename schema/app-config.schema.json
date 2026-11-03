@@ -13,7 +13,7 @@
         "controls" : {
           "type" : "object",
           "additionalProperties" : false,
-          "maxProperties" : 460,
+          "maxProperties" : 492,
           "properties" : {
             "themes" : {
               "allOf" : [ {
@@ -7319,6 +7319,422 @@
                         "maxLength" : 160
                       }
                     }
+                  }
+                }
+              } ]
+            },
+            "world.enabled" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.source" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.interpretation" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.inheritance" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.baseHeight" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.heightScale" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.threshold" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.strength" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.probability" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.minY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.maxY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.axisX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.axisY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.axisZ" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.scaleX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.scaleY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.scaleZ" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.offsetX" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.offsetY" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.offsetZ" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.samplingTransforms" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.seedOffset" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.action" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.rounding" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.typeSource" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.voxelTypeUuid" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.typeIntervals" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.probabilityDriver" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.strengthDriver" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.parameterDrivers" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.voxelStatePredicate" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "world.setting.fieldGates" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
                   }
                 }
               } ]

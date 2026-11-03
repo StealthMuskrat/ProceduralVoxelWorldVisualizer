@@ -220,6 +220,7 @@ public final class AppMetadata {
                   + parameter.maximum()
                   + "].";
         }
+    WorldControlMetadata.contribute(m.controls);
     return m;
   }
 

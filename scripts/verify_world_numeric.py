@@ -17,6 +17,25 @@ assert report['formatVersion'] == 1 and report['fontSource'] == 'synthetic-globa
 assert report['physicalDpiVerified'] is False
 for key in ('integerTextRestored', 'sparseInheritance', 'resetUndoRedo'):
     assert report[key] is True
+guidance = report['guidance']
+paths = ('settings/threshold', 'settings/minY', 'settings/samplingTransforms/0/x',
+         'settings/parameterDrivers/0/inputMin', 'settings/parameterDrivers/0/transformIndex',
+         'settings/typeIntervals/0/min', 'settings/fieldGates/threshold', 'settings/seedOffset')
+assert len(guidance) == 19
+assert {(g['path'], g['part']) for g in guidance} == (
+    {(path, part) for path in paths for part in ('slider', 'text')} |
+    {(path, 'control') for path in ('inherited/threshold', 'override/threshold', 'reset/threshold')})
+for g in guidance:
+    if g['path'].startswith('settings/'):
+        assert g['topic'] == 'world.setting.' + g['path'].split('/')[1]
+    elif g['path'].startswith('inherited/'):
+        assert g['topic'] == 'world.setting.threshold'
+    else:
+        assert g['topic'] == 'world.inheritance'
+for path in paths:
+    text = (out / ('world-help-' + path[9:].replace('/', '-') + '.txt')).read_text(encoding='utf-8')
+    assert 'World fixture 100% ### snow 雪 / ' + path in text
+    assert 'Topic: world.setting.' + path.split('/')[1] in text
 v = report['layerSlider']
 assert math.isfinite(v) and -1 <= v <= 1 and v != round(v * 100000) / 100000
 assert -1 <= report['overrideSlider'] <= 1

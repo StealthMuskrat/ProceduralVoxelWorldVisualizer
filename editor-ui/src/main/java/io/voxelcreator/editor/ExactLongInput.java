@@ -4,6 +4,7 @@ import imgui.ImGui;
 import imgui.flag.*;
 import imgui.type.ImString;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /** Relative long slider beside the original raw text widget; never publishes on redraw. */
 final class ExactLongInput {
@@ -27,6 +28,19 @@ final class ExactLongInput {
       boolean allowed,
       Consumer<String> edit,
       Runnable beforeInput) {
+    return draw(inputLabel, width, buffer, accepted, model, allowed, edit, beforeInput, null);
+  }
+
+  Row draw(
+      String inputLabel,
+      float width,
+      ImString buffer,
+      String accepted,
+      Long model,
+      boolean allowed,
+      Consumer<String> edit,
+      Runnable beforeInput,
+      IntConsumer partGuidance) {
     return draw(
         inputLabel,
         width,
@@ -39,7 +53,8 @@ final class ExactLongInput {
         256,
         HelpDefinitions.LONG_SLIDER_TOOLTIP,
         edit,
-        beforeInput);
+        beforeInput,
+        partGuidance);
   }
 
   Row draw(
@@ -55,6 +70,36 @@ final class ExactLongInput {
       String guidance,
       Consumer<String> edit,
       Runnable beforeInput) {
+    return draw(
+        inputLabel,
+        width,
+        buffer,
+        accepted,
+        model,
+        allowed,
+        minimumValue,
+        maximumValue,
+        radius,
+        guidance,
+        edit,
+        beforeInput,
+        null);
+  }
+
+  Row draw(
+      String inputLabel,
+      float width,
+      ImString buffer,
+      String accepted,
+      Long model,
+      boolean allowed,
+      long minimumValue,
+      long maximumValue,
+      int radius,
+      String guidance,
+      Consumer<String> edit,
+      Runnable beforeInput,
+      IntConsumer partGuidance) {
     int hidden = inputLabel.indexOf("##");
     String visible = hidden < 0 ? inputLabel : inputLabel.substring(0, hidden);
     float labelWidth =
@@ -110,7 +155,8 @@ final class ExactLongInput {
       edit.accept(proposal.get());
     }
     var bounds = PopupLayout.itemBounds();
-    if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+    if (partGuidance != null) partGuidance.accept(sliderId);
+    else if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
       UiScale.tooltip(
           enabled
               ? guidance
@@ -124,7 +170,8 @@ final class ExactLongInput {
     ImGui.setNextItemWidth(pair.inputWidth());
     beforeInput.run();
     if (ImGui.inputText(inputLabel, buffer)) edit.accept(buffer.get());
-    return new Row(
-        bounds, PopupLayout.itemBounds(), sliderId, inputId, pair.inline(), enabled, view.range());
+    var inputBounds = PopupLayout.itemBounds();
+    if (partGuidance != null) partGuidance.accept(inputId);
+    return new Row(bounds, inputBounds, sliderId, inputId, pair.inline(), enabled, view.range());
   }
 }

@@ -246,7 +246,12 @@ public final class ApplicationSettingsPanel {
   }
 
   private void presentation(AppMetadata.Control control) {
-    presentationLabel("Label");
+    boolean world = selected != null && selected.startsWith("world.");
+    if (world)
+      ImGui.textWrapped(
+          "World entries name Help topics and customize Properties guidance. The World form keeps"
+              + " its fixed labels and layout.");
+    presentationLabel(world ? "Help name" : "Label");
     fields.text(
         "##profile-label",
         control.label,
