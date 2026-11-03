@@ -22,6 +22,16 @@ final class HelpDefinitions {
   static final List<Guide> GUIDES =
       List.of(
           new Guide(
+              "help.project-open",
+              "Opening a project",
+              "Open Project reads and validates a separate candidate in the background. Cancel Open"
+                  + " or Escape retires that request and preserves the current project and private"
+                  + " draft. A changed project, draft or validation policy prevents late"
+                  + " replacement. Failed reads or validation retain the entered path for explicit"
+                  + " retry. Successful Open replaces the document once, resets history and starts"
+                  + " a clean saved checkpoint. Save and Save As remain explicit committed-project"
+                  + " writes."),
+          new Guide(
               "help.manual",
               "Using Help",
               "Search names, guidance, canonical options and related topics. Search words all need"
@@ -318,6 +328,7 @@ final class HelpDefinitions {
   private static final Map<String, List<String>> LINKS =
       Map.ofEntries(
           Map.entry("help.manual", List.of("noise", "help.find", "shortcuts", "help.about")),
+          Map.entry("help.project-open", List.of("save", "help.validation", "diagnostics")),
           Map.entry(
               "noise",
               List.of("noise.algorithm", "processing", "layers", "creation-defaults", "help.pins")),
@@ -428,7 +439,8 @@ final class HelpDefinitions {
 
   static String menuTopic(String action) {
     return switch (action) {
-      case "New", "Open", "Save", "SaveAs", "Exit", "Undo", "Redo" -> "save";
+      case "Open" -> "help.project-open";
+      case "New", "Save", "SaveAs", "Exit", "Undo", "Redo" -> "save";
       case "Import", "Export" -> "archives";
       case "Find", "FindReferences" -> "help.find";
       case "Validate" -> "help.validation";

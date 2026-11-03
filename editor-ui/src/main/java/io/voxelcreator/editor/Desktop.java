@@ -296,7 +296,7 @@ public final class Desktop extends Application {
               if (state.canNavigate(target)) sourceNavigation.request(target);
             });
     projectFiles =
-        new ProjectFileDialog(
+        ProjectFileDialog.background(
             state,
             () -> {
               resources.reset();
@@ -308,6 +308,7 @@ public final class Desktop extends Application {
             () ->
                 privateProjectInteraction()
                     || (projectHistory != null && projectHistory.session.busy()));
+    lifecycle.own(projectFiles.workflow::close);
     projectHistory =
         new ProjectHistoryPanel(
             state, () -> privateProjectInteraction() || projectFiles.workflow.busy());

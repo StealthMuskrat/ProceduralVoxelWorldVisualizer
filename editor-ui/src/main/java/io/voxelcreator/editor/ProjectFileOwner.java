@@ -8,6 +8,8 @@ import java.util.*;
 /** Exact UI/document ownership for a pending project decision or file path. */
 final class ProjectFileOwner {
   private final ProjectData project;
+  private final Object lifetime;
+  private final JsonNode committed;
   private final long revision, seedVersion;
   private final UUID selected;
   private final Object draft;
@@ -18,6 +20,8 @@ final class ProjectFileOwner {
 
   ProjectFileOwner(EditorState state) {
     project = state.project();
+    lifetime = state.document.sessionToken();
+    committed = ProjectIO.JSON.valueToTree(project);
     revision = state.revision;
     selected = state.selected;
     draft = state.draft;
@@ -29,7 +33,8 @@ final class ProjectFileOwner {
   }
 
   boolean current(EditorState state) {
-    return project == state.project()
+    return lifetime == state.document.sessionToken()
+        && project == state.project()
         && revision == state.revision
         && Objects.equals(selected, state.selected)
         && draft == state.draft
@@ -38,5 +43,9 @@ final class ProjectFileOwner {
         && seedVersion == state.seedInputs.version(state)
         && Objects.equals(path, state.document.path())
         && dirty == state.document.dirty();
+  }
+
+  boolean valuesCurrent(EditorState state) {
+    return current(state) && committed.equals(ProjectIO.JSON.valueToTree(state.project()));
   }
 }

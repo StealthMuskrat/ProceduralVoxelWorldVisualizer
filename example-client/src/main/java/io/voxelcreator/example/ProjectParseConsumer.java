@@ -8,6 +8,7 @@ import io.voxelcreator.model.ProjectData.*;
 import io.voxelcreator.storage.BlockPos;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 /** Deferred public engine-JAR replay of whole-document loading and rejected-open ownership. */
 public final class ProjectParseConsumer {
@@ -157,6 +158,7 @@ public final class ProjectParseConsumer {
         ProjectIO.JSON.writeValueAsString(
             Map.of(
                 "rejected", rejected, "fields", fields, "cells", cells, "roots", List.of(2, 4))));
+    preparedReplay(out.resolve("prepared-open"));
     System.out.println("PROJECT_PARSE_CONSUMER_PASS");
   }
 
@@ -166,6 +168,98 @@ public final class ProjectParseConsumer {
             && issues.getFirst().code().equals(expected.code())
             && issues.getFirst().jsonPointer().equals(expected.pointer()),
         "Unexpected rejection diagnostic: " + issues);
+  }
+
+  private static void preparedReplay(Path out) throws Exception {
+    Files.createDirectories(out);
+    var document = new DocumentSession();
+    document.setValidator(io.voxelcreator.core.NoiseCompiler::validate);
+    require(document.edit(ProjectParseConsumer::fixture).isEmpty(), "Prepared fixture rejected");
+    var baseline = ProjectIO.copy(document.data());
+    var candidate = ProjectIO.copy(baseline);
+    candidate.project.seed = 99;
+    candidate
+        .noise2D
+        .getFirst()
+        .processing
+        .getFirst()
+        .parameters
+        .put("expression", ProjectIO.JSON.valueToTree("x + 0.625"));
+    var file = out.resolve("incoming.json");
+    new ProjectIO().save(file, candidate);
+    String bytes = Files.readString(file);
+    var active = document.data();
+    var token = document.sessionToken();
+    var before = ProjectIO.JSON.valueToTree(active);
+    long history = document.historyBytes();
+    var request = document.requestOpen(file);
+    var future = new FutureTask<>(request::prepare);
+    Thread.ofPlatform().start(future);
+    var prepared = future.get(10, TimeUnit.SECONDS);
+    require(
+        prepared.success()
+            && active == document.data()
+            && token == document.sessionToken()
+            && history == document.historyBytes()
+            && before.equals(ProjectIO.JSON.valueToTree(active)),
+        "Worker preparation mutated active document");
+    document.applyOpen(prepared);
+    require(
+        document.data().project.seed == 99
+            && !document.dirty()
+            && !document.canUndo()
+            && document.path().equals(file)
+            && token != document.sessionToken(),
+        "Prepared publication lost checkpoint or history ownership");
+    try {
+      document.applyOpen(prepared);
+      throw new AssertionError("Consumed candidate installed again");
+    } catch (IllegalStateException expected) {
+    }
+    long fields = 0, cells = 0;
+    try (var engine = new NoiseGeneratorEngine(2, 32, 16L << 20)) {
+      for (int state = 0; state < 2; state++) {
+        var compiled = new CompiledProject(state == 0 ? baseline : document.data());
+        var sampler = compiled.noise2D("coordinate", compiled.defaultSeed());
+        for (int z = -1; z <= 1; z++)
+          for (int x = -3; x <= 3; x++) {
+            require(
+                Double.doubleToRawLongBits(sampler.sample(x, z))
+                    == Double.doubleToRawLongBits(x + (state == 0 ? .125 : .625)),
+                "Prepared Open changed analytical sampler output");
+            fields++;
+          }
+        for (int root : new int[] {2, 4})
+          try (var world =
+              engine.openWorld(
+                  compiled, new WorldOptions(null, root, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+            for (int z = -1; z <= 1; z++)
+              for (int y = -3; y <= 3; y++)
+                for (int x = -3; x <= 3; x++) {
+                  int value = y >= -2 && y <= 2 && x >= (state == 0 ? 1 : 0) ? 1 : 0;
+                  require(
+                      world.getVoxelTypeId(new BlockPos(x, y, z)) == value,
+                      "Prepared Open changed exact threshold semantics");
+                  cells++;
+                }
+          }
+      }
+    }
+    require(
+        fields == 42 && cells == 588 && bytes.equals(Files.readString(file)),
+        "Prepared replay dimensions or saved bytes changed");
+    Files.writeString(
+        out.resolve("prepared-open.json"),
+        ProjectIO.JSON.writeValueAsString(
+            Map.of(
+                "fields",
+                fields,
+                "cells",
+                cells,
+                "singlePublication",
+                true,
+                "roots",
+                List.of(2, 4))));
   }
 
   private static void fixture(ProjectData p) {

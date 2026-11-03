@@ -13,7 +13,7 @@ final class ProjectFileDialog {
   final ProjectFileWorkflow workflow;
   private final ImString path = new ImString(4096);
   private ProjectFileWorkflow.Phase shown = ProjectFileWorkflow.Phase.IDLE;
-  private long shownRequest = -1;
+  private long shownRequest = -1, pathRequest = -1;
   private final SettingsPageChrome decisions = new SettingsPageChrome(3);
   private final SettingsPageChrome paths = new SettingsPageChrome(2);
   private SettingsPageChrome chrome = paths;
@@ -38,9 +38,31 @@ final class ProjectFileDialog {
       Runnable exit,
       BooleanSupplier blocked,
       PopupWorkAreaResolver workAreas) {
+    this(state, replaced, exit, blocked, workAreas, false);
+  }
+
+  /**
+   * Desktop uses real background preparation; immediate constructors retain isolated fixture use.
+   */
+  static ProjectFileDialog background(
+      EditorState state, Runnable replaced, Runnable exit, BooleanSupplier blocked) {
+    return new ProjectFileDialog(state, replaced, exit, blocked, new PopupWorkAreaResolver(), true);
+  }
+
+  private ProjectFileDialog(
+      EditorState state,
+      Runnable replaced,
+      Runnable exit,
+      BooleanSupplier blocked,
+      PopupWorkAreaResolver workAreas,
+      boolean background) {
     this.state = state;
     layout = new DialogLayout(state, null, 640, 300, workAreas);
-    workflow = new ProjectFileWorkflow(state, replaced, exit, blocked);
+    workflow =
+        background
+            ? new ProjectFileWorkflow(
+                state, replaced, exit, blocked, state.background, state.uiQueue::offer)
+            : new ProjectFileWorkflow(state, replaced, exit, blocked);
   }
 
   void draw() {
@@ -56,10 +78,13 @@ final class ProjectFileDialog {
     if (changed && phase != ProjectFileWorkflow.Phase.IDLE) {
       delivery.open();
       if (phase == ProjectFileWorkflow.Phase.OPEN || phase == ProjectFileWorkflow.Phase.SAVE) {
-        path.set(
-            state.document.path() == null
-                ? "project.pvproj.json"
-                : state.document.path().toString());
+        if (pathRequest != request) {
+          pathRequest = request;
+          path.set(
+              state.document.path() == null
+                  ? "project.pvproj.json"
+                  : state.document.path().toString());
+        }
         focusPath = true;
       }
       shownError = "";
@@ -102,6 +127,12 @@ final class ProjectFileDialog {
           } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
             ImGui.textWrapped("Continue with: " + workflow.action());
             ImGui.textWrapped("Save changes before continuing?");
+          } else if (phase == ProjectFileWorkflow.Phase.LOADING) {
+            ImGui.textWrapped("Reading and validating the selected project in the background.");
+            ImGui.textWrapped(
+                "The current project and unapplied draft remain available until Open succeeds.");
+            ImGui.textWrapped(
+                "Cancel Open discards this request; it does not change the active project.");
           } else {
             ImGui.textWrapped(
                 (phase == ProjectFileWorkflow.Phase.SAVE ? "Save" : "Open") + " project file");
@@ -139,6 +170,8 @@ final class ProjectFileDialog {
           primary = button("primary", "Save");
           secondary = button("secondary", "Don't Save");
           cancel = button("cancel", "Cancel");
+        } else if (phase == ProjectFileWorkflow.Phase.LOADING) {
+          cancel = button("cancel", "Cancel Open");
         } else {
           primary = button("primary", phase == ProjectFileWorkflow.Phase.SAVE ? "Save" : "Open");
           cancel = button("cancel", "Cancel");
@@ -193,6 +226,7 @@ final class ProjectFileDialog {
     return switch (phase) {
       case DRAFT -> "Unapplied Properties";
       case GUARD -> "Unsaved Project";
+      case LOADING -> "Opening Project";
       default -> "Project File Location";
     };
   }

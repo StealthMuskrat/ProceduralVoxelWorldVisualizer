@@ -113,6 +113,7 @@ class HelpCatalogTest {
             "About",
             "Check for Updates"))
       assertNotNull(catalog.topic(HelpDefinitions.menuTopic(action)), action);
+    assertEquals("help.project-open", HelpDefinitions.menuTopic("Open"));
     assertEquals("help.find", HelpDefinitions.menuTopic("FindReferences"));
     assertEquals("help.validation", HelpDefinitions.menuTopic("Validate"));
     assertTrue(

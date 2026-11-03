@@ -99,12 +99,87 @@ public final class DocumentSession {
     return !redo.isEmpty();
   }
 
+  /** Captures the current validation policy without reading a file or changing this document. */
+  public OpenRequest requestOpen(Path file) {
+    return new OpenRequest(Objects.requireNonNull(file), validator);
+  }
+
+  /** Preparation may run on a worker; installation remains an explicit owner-thread action. */
+  public final class OpenRequest {
+    private final Path file;
+    private final ProjectData source = active;
+    private final Object lifetime = sessionToken;
+    private final Path sourcePath = path;
+    private final String sourceSaved = saved;
+    private final java.util.function.Function<ProjectData, List<Diagnostic>> validation;
+
+    private OpenRequest(
+        Path file, java.util.function.Function<ProjectData, List<Diagnostic>> validation) {
+      this.file = file;
+      this.validation = validation;
+    }
+
+    private DocumentSession owner() {
+      return DocumentSession.this;
+    }
+
+    public PreparedOpen prepare() throws IOException {
+      var load = persistence.load(file);
+      if (!load.success()) return new PreparedOpen(this, null, null, load.diagnostics());
+      var issues = List.copyOf(validation.apply(load.project()));
+      if (!issues.isEmpty()) return new PreparedOpen(this, null, null, issues);
+      return new PreparedOpen(this, load.project(), serialize(load.project()), List.of());
+    }
+  }
+
+  /** Owned validated candidate with no mutable project accessor; publication is single-use. */
+  public static final class PreparedOpen {
+    private final OpenRequest request;
+    private final ProjectData project;
+    private final String checkpoint;
+    private final List<Diagnostic> diagnostics;
+    private boolean consumed;
+
+    private PreparedOpen(
+        OpenRequest request, ProjectData project, String checkpoint, List<Diagnostic> diagnostics) {
+      this.request = request;
+      this.project = project;
+      this.checkpoint = checkpoint;
+      this.diagnostics = List.copyOf(diagnostics);
+    }
+
+    public List<Diagnostic> diagnostics() {
+      return diagnostics;
+    }
+
+    public boolean success() {
+      return project != null && diagnostics.isEmpty();
+    }
+  }
+
+  /** Caller must first establish that its pending Open decision still owns the active document. */
+  public void applyOpen(PreparedOpen prepared) {
+    Objects.requireNonNull(prepared);
+    var request = prepared.request;
+    if (request.owner() != this
+        || request.validation != validator
+        || request.source != active
+        || request.lifetime != sessionToken
+        || !Objects.equals(request.sourcePath, path)
+        || !Objects.equals(request.sourceSaved, saved))
+      throw new IllegalStateException("Prepared Open owner, document or validation policy changed");
+    if (prepared.consumed || !prepared.success())
+      throw new IllegalStateException("Prepared Open is rejected or already consumed");
+    // All checks and fallible serialization precede replacing any document state.
+    Object nextToken = new Object();
+    prepared.consumed = true;
+    replace(prepared.project, prepared.request.file, prepared.checkpoint, nextToken);
+  }
+
   public List<Diagnostic> open(Path file) throws IOException {
-    var load = persistence.load(file);
-    if (!load.success()) return load.diagnostics();
-    var issues = validator.apply(load.project());
-    if (!issues.isEmpty()) return issues;
-    replace(load.project(), file);
+    var prepared = requestOpen(file).prepare();
+    if (!prepared.success()) return prepared.diagnostics();
+    applyOpen(prepared);
     return List.of();
   }
 
@@ -113,8 +188,10 @@ public final class DocumentSession {
   }
 
   private void replace(ProjectData p, Path f) {
-    String nextSaved = serialize(p);
-    Object nextToken = new Object();
+    replace(p, f, serialize(p), new Object());
+  }
+
+  private void replace(ProjectData p, Path f, String nextSaved, Object nextToken) {
     active = p;
     path = f;
     saved = nextSaved;

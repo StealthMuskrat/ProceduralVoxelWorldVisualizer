@@ -4,10 +4,12 @@ import io.voxelcreator.model.*;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.Objects;
+import java.util.concurrent.*;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /** One owned project transition; a failed or canceled save cannot retain a destructive action. */
-final class ProjectFileWorkflow {
+final class ProjectFileWorkflow implements AutoCloseable {
   enum Intent {
     NEW,
     OPEN,
@@ -19,6 +21,7 @@ final class ProjectFileWorkflow {
     DRAFT,
     GUARD,
     OPEN,
+    LOADING,
     SAVE
   }
 
@@ -37,6 +40,10 @@ final class ProjectFileWorkflow {
   private final EditorState state;
   private final Runnable replaced, exit;
   private final BooleanSupplier blocked;
+  private final Executor executor;
+  private final Consumer<Runnable> ui;
+  private FutureTask<Void> openTask;
+  private boolean closed;
   private ProjectFileOwner owner;
   private boolean transition;
   private Phase phase = Phase.IDLE;
@@ -52,10 +59,23 @@ final class ProjectFileWorkflow {
 
   ProjectFileWorkflow(
       EditorState state, Runnable replaced, Runnable exit, BooleanSupplier blocked) {
+    this(state, replaced, exit, blocked, null, null);
+  }
+
+  ProjectFileWorkflow(
+      EditorState state,
+      Runnable replaced,
+      Runnable exit,
+      BooleanSupplier blocked,
+      Executor executor,
+      Consumer<Runnable> ui) {
     this.state = Objects.requireNonNull(state);
     this.replaced = Objects.requireNonNull(replaced);
     this.exit = Objects.requireNonNull(exit);
     this.blocked = Objects.requireNonNull(blocked);
+    this.executor = executor;
+    this.ui = ui;
+    if (executor != null) Objects.requireNonNull(ui);
   }
 
   long requestVersion() {
@@ -63,6 +83,7 @@ final class ProjectFileWorkflow {
   }
 
   Phase phase() {
+    refreshOpen();
     return phase;
   }
 
@@ -85,7 +106,7 @@ final class ProjectFileWorkflow {
   }
 
   void request(Intent intent) {
-    if (busy()) return;
+    if (closed || busy()) return;
     Objects.requireNonNull(intent);
     long attempt = generation;
     try {
@@ -168,7 +189,7 @@ final class ProjectFileWorkflow {
   }
 
   void save(boolean as) {
-    if (busy()) return;
+    if (closed || busy()) return;
     error = "";
     pending = null;
     transition = false;
@@ -207,6 +228,10 @@ final class ProjectFileWorkflow {
     if (phase == Phase.SAVE) write(location);
     else if (phase == Phase.OPEN) {
       if (!current()) return;
+      if (executor != null) {
+        startOpen(location);
+        return;
+      }
       working = true;
       try {
         var issues = state.document.open(path(location));
@@ -234,6 +259,118 @@ final class ProjectFileWorkflow {
           "PROJECT_REPLACEMENT_REFRESH_FAILED",
           "Project opened; UI refresh failed: ",
           completed);
+    }
+  }
+
+  private void startOpen(String location) {
+    long attempt = ++generation;
+    try {
+      var request = state.document.requestOpen(path(location));
+      phase = Phase.LOADING;
+      error = "";
+      openTask =
+          new FutureTask<>(
+              () -> {
+                DocumentSession.PreparedOpen prepared = null;
+                Throwable failure = null;
+                try {
+                  prepared = request.prepare();
+                } catch (Throwable rejected) {
+                  failure = rejected;
+                }
+                var result = prepared;
+                var rejected = failure;
+                ui.accept(() -> publishOpen(attempt, result, rejected));
+                return null;
+              });
+      executor.execute(openTask);
+    } catch (Throwable failure) {
+      failedOpen(attempt, failure);
+    }
+  }
+
+  private void refreshOpen() {
+    if (phase != Phase.LOADING || closed) return;
+    long attempt = generation;
+    try {
+      if (owner == null || !owner.current(state)) {
+        stale(attempt, "");
+        return;
+      }
+      var completed = BackgroundFailure.completed(openTask);
+      if (completed != null && completed.failure() != null)
+        failedOpen(attempt, completed.failure());
+    } catch (Throwable failure) {
+      failedOpen(attempt, failure);
+    }
+  }
+
+  private void publishOpen(long attempt, DocumentSession.PreparedOpen prepared, Throwable failure) {
+    if (closed || generation != attempt || phase != Phase.LOADING) return;
+    // The preparation is complete; queued publication must not interrupt a successful worker.
+    openTask = null;
+    try {
+      if (!current()) return;
+      if (!owner.valuesCurrent(state)) {
+        stale(attempt, "");
+        return;
+      }
+      if (failure != null) {
+        failedOpen(attempt, failure);
+        return;
+      }
+      if (!prepared.success()) {
+        failedOpen(attempt, new IOException(prepared.diagnostics().toString()));
+        return;
+      }
+      state.document.applyOpen(prepared);
+    } catch (Throwable rejected) {
+      failedOpen(attempt, rejected);
+      return;
+    }
+    retire();
+    error = "";
+    long completed = generation;
+    try {
+      state.revision++;
+      state.selected = null;
+      state.selectedKind = "";
+      state.draft = null;
+      state.multiSelection.clear();
+      state.issues = java.util.List.of();
+      state.validationScope = "Committed project";
+      state.seedInputs.synchronize(state);
+      state.notify("Information", "Project opened");
+    } catch (Throwable completionFailure) {
+      report(
+          "PROJECT_REPLACEMENT_REFRESH_FAILED",
+          "Project opened; UI refresh failed: ",
+          completionFailure,
+          completed);
+    }
+    deliver(
+        replaced,
+        "PROJECT_REPLACEMENT_REFRESH_FAILED",
+        "Project opened; UI refresh failed: ",
+        completed);
+  }
+
+  private void failedOpen(long attempt, Throwable failure) {
+    if (closed || generation != attempt) return;
+    releaseOpen();
+    generation++;
+    // Retry remains an explicit path decision; no predecessor transition can survive failure.
+    pending = null;
+    phase = Phase.OPEN;
+    report("PROJECT_OPEN_FAILED", "OPEN failed: ", failure, generation, 8192);
+  }
+
+  private void releaseOpen() {
+    var old = openTask;
+    openTask = null;
+    if (old != null) {
+      old.cancel(true);
+      if (executor instanceof ThreadPoolExecutor pool) pool.remove(old);
     }
   }
 
@@ -347,6 +484,7 @@ final class ProjectFileWorkflow {
   }
 
   private void retire() {
+    releaseOpen();
     generation++;
     pending = null;
     phase = Phase.IDLE;
@@ -362,15 +500,21 @@ final class ProjectFileWorkflow {
     }
   }
 
-  private void report(String code, String prefix, Exception failure, long attempt) {
+  private void report(String code, String prefix, Throwable failure, long attempt) {
     report(code, prefix, failure, attempt, 1024);
   }
 
-  private void report(String code, String prefix, Exception failure, long attempt, int limit) {
-    String detail = failure.getMessage();
-    if (detail == null || detail.isBlank()) detail = failure.getClass().getSimpleName();
+  private void report(String code, String prefix, Throwable failure, long attempt, int limit) {
+    String detail = BackgroundFailure.describe(failure);
     String message = StatusBarText.clip(prefix + detail, limit);
     if (generation == attempt) error = message;
     state.error(code, EditorEvents.Subsystem.PROJECT, message);
+  }
+
+  @Override
+  public void close() {
+    closed = true;
+    retire();
+    error = "";
   }
 }

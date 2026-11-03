@@ -230,6 +230,7 @@ public final class ProjectFileCompletionProbe {
                 + " errors / successor requests / one callback / busy validation / exact native"
                 + " paths");
       }
+      ProjectOpenProbe.run(out.resolve("background-open"));
     } finally {
       ImGui.destroyContext();
     }

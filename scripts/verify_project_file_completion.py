@@ -82,3 +82,26 @@ assert read('preferences-before.json') == read('preferences.json')
 assert not (out / 'escape-must-not-write.json').exists()
 assert not (out / 'held-must-not-write.json').exists()
 print('File post-popup completion, eleven routes, exact publications, successor ownership, native paths, committed-only Save and immutable source/preferences PASS')
+
+# Deferred production background Open sub-replay, invoked by the same native command.
+background_root = out / 'background-open'
+background = json.loads((background_root / 'project-open-native.json').read_text(encoding='utf-8'))
+assert background['formatVersion'] == 1
+background_cases = {row['mode']: row for row in background['cases']}
+assert len(background_cases) == len(background['cases']) == 8
+assert set(background_cases) == {'SUCCESS', 'CANCEL', 'ESCAPE', 'COMMITTED', 'PRIVATE',
+                                 'COMPILER', 'MALFORMED', 'POLICY'}
+for mode, row in background_cases.items():
+    assert row['workerOffUi'] and row['preferencesPreserved']
+    assert row['responsiveFrames'] == (0 if mode == 'MALFORMED' else 12)
+    assert row['replacements'] == (1 if mode == 'SUCCESS' else 0)
+    assert row['seed'] == (99 if mode == 'SUCCESS' else 42 if mode == 'COMMITTED' else 41)
+    assert row['phase'] == ('OPEN' if mode in ('COMPILER', 'MALFORMED', 'POLICY') else 'IDLE')
+    project = json.loads((background_root / f'{mode}-after.json').read_text(encoding='utf-8'))
+    assert project['project']['seed'] == row['seed']
+    assert len(project['noise2D']) == 1 and not project['noise3D']
+    noise = project['noise2D'][0]
+    assert noise['id'] == ('incoming' if mode == 'SUCCESS' else 'owned')
+    assert noise['algorithm']['key'] == 'CONSTANT'
+    assert noise['algorithm']['parameters'] == {'value': .75 if mode == 'SUCCESS' else .25}
+    assert not project['worldGenerator']['layers']
