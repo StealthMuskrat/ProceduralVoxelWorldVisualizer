@@ -86,6 +86,7 @@ public final class RegionCompletionConsumer {
             retainedObservations++;
           }
     require(observations == 1024 && retainedObservations == 72, "Unexpected replay dimensions");
+    RegionProgressConsumer.replay(compiled, out);
     require(
         original.equals(ProjectIO.JSON.writeValueAsString(project)),
         "Runtime ownership mutated authoring data");

@@ -298,3 +298,5 @@ The unvalidated [runtime-limit numeric follow-up](docs/RUNTIME_LIMIT_NUMERIC_CON
 The unvalidated [theme numeric follow-up](docs/THEME_NUMERIC_CONTROLS.md) adds separate RGBA slider/text pairs, retains rejected color text and pending sibling corrections, and removes UI-scale slider format rounding. Ten new deferred regression definitions and expanded production replay remain unexecuted; no tests or workflows ran.
 
 The unvalidated [numeric metadata follow-up](docs/NUMERIC_METADATA_GUIDANCE.md) connects both parts of registry-backed Properties pairs to configured tooltips and canonical right-click Help, including individual numeric parameter pins. Source defaults now use canonical parameter semantics and engine bounds. Eight deferred regression definitions and extended production replay remain unexecuted; no tests or workflows ran.
+
+The unvalidated [region progress follow-up](docs/REGION_PROGRESS_SNAPSHOTS.md) publishes coherent immutable count/state snapshots and detaches public summary failure lists from caller mutation. Eleven deferred regression definitions and a twelve-case independent engine-client extension remain unexecuted; no tests or workflows ran.

@@ -675,9 +675,9 @@ public final class WorldContext implements AutoCloseable {
     final CompletableFuture<RegionSummary> done = new CompletableFuture<>();
     final Optional<RegionBounds> effective;
     final long total;
-    final AtomicLong completed = new AtomicLong(), failed = new AtomicLong();
-    volatile String state = "PENDING";
-    volatile long cancelled = 0;
+    // Only the coordinator updates counts; readers observe one immutable publication.
+    private long completed, failed;
+    private volatile TaskProgress progress;
     final List<RegionSummary.ChunkFailure> failures = new ArrayList<>();
 
     StreamingTask(RegionRequest r, ChunkConsumer c) {
@@ -685,6 +685,12 @@ public final class WorldContext implements AutoCloseable {
       consumer = c;
       effective = r.bounds().clipY(compiled.minY(), compiled.maxY());
       total = effective.map(b -> b.chunkCount(chunkSize())).orElse(0L);
+      progress = counts("PENDING", 0);
+    }
+
+    private TaskProgress counts(String state, long cancelled) {
+      return new TaskProgress(
+          state, total - completed - failed - cancelled, completed, failed, cancelled);
     }
 
     public boolean cancel() {
@@ -692,12 +698,7 @@ public final class WorldContext implements AutoCloseable {
     }
 
     public TaskProgress progress() {
-      return new TaskProgress(
-          state,
-          Math.max(0, total - completed.get() - failed.get() - cancelled),
-          completed.get(),
-          failed.get(),
-          cancelled);
+      return progress;
     }
 
     public CompletableFuture<RegionSummary> completion() {
@@ -707,7 +708,7 @@ public final class WorldContext implements AutoCloseable {
     record Pending(ChunkPos pos, CompletableFuture<VoxelChunk> future) {}
 
     void run() {
-      state = "RUNNING";
+      progress = counts("RUNNING", 0);
       var pending = new ArrayList<Pending>();
       RegionSummary terminalSummary = null;
       Throwable terminalFailure = null;
@@ -763,7 +764,8 @@ public final class WorldContext implements AutoCloseable {
               deliveryStamp = deliveryProfile == null ? 0 : deliveryProfile.begin();
               var accepted = consumer.accept(chunk);
               ConsumerAcknowledgement.await(accepted, token);
-              completed.incrementAndGet();
+              completed++;
+              progress = counts("RUNNING", 0);
               deliveryOutcome = Profiler.Outcome.SUCCESS;
             } catch (CancellationException e) {
               deliveryOutcome = Profiler.Outcome.CANCELLED;
@@ -789,14 +791,14 @@ public final class WorldContext implements AutoCloseable {
             pending.remove(chosen);
           }
         }
-        cancelled = total - completed.get() - failed.get();
-        state =
-            cancelled > 0 ? "CANCELLED" : failed.get() > 0 ? "COMPLETED_WITH_ERRORS" : "COMPLETED";
-        terminalSummary =
-            new RegionSummary(request.bounds(), effective, progress(), List.copyOf(failures));
+        long cancelled = total - completed - failed;
+        progress =
+            counts(
+                cancelled > 0 ? "CANCELLED" : failed > 0 ? "COMPLETED_WITH_ERRORS" : "COMPLETED",
+                cancelled);
+        terminalSummary = new RegionSummary(request.bounds(), effective, progress(), failures);
       } catch (Throwable e) {
-        state = "FAILED";
-        cancelled = total - completed.get() - failed.get();
+        progress = counts("FAILED", total - completed - failed);
         terminalFailure = e;
       } finally {
         try {
@@ -805,8 +807,7 @@ public final class WorldContext implements AutoCloseable {
         } catch (Throwable cleanup) {
           if (terminalFailure == null) terminalFailure = cleanup;
           else if (terminalFailure != cleanup) terminalFailure.addSuppressed(cleanup);
-          state = "FAILED";
-          cancelled = total - completed.get() - failed.get();
+          progress = counts("FAILED", total - completed - failed);
         } finally {
           pending.clear();
           regions.remove(this);
@@ -819,7 +820,8 @@ public final class WorldContext implements AutoCloseable {
     }
 
     void recordFailure(ChunkPos pos, String phase, Throwable e) {
-      failed.incrementAndGet();
+      failed++;
+      progress = counts("RUNNING", 0);
       Throwable cause = e instanceof CompletionException && e.getCause() != null ? e.getCause() : e;
       if (failures.size() < 1024)
         failures.add(

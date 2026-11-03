@@ -6,6 +6,11 @@ public interface RegionTask {
   /** Request cooperative stream cancellation independently of any completion observer. */
   boolean cancel();
 
+  /**
+   * One coherent immutable count snapshot. Counts partition the effective chunk total, including
+   * during delivery and cancellation; retaining a snapshot never follows later task changes.
+   * Cancellation is reflected when the coordinator observes it. Poll again for newer progress.
+   */
   TaskProgress progress();
 
   /**
