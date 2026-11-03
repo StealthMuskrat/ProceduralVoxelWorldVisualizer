@@ -93,8 +93,41 @@ public final class ThemeLayoutProbe {
             ThemePalette.from(UserConfig.read(out.resolve("ordinary-preferences.json")).appearance)
                 .equals(ThemePalette.starting("Dark")),
             "Ordinary save published preview");
+        type("channel-text:" + ROW + ":R", "+.123456789");
+        int exactChannelBits = Float.floatToRawIntBits(panel.probeDraft().status("Warning").r());
+        require(
+            exactChannelBits == Float.floatToRawIntBits(.12345679f)
+                && "+.123456789".equals(panel.probeChannelText(ROW, 0)),
+            "Theme text was rounded to its slider readout");
+        type("channel-text:" + ROW + ":R", "-");
+        type("channel-text:" + ROW + ":G", "+.7654321");
+        require(
+            !panel.probeApplyEnabled() && panel.probeDraft().status("Warning").g() == .2f,
+            "Incomplete color published a valid sibling or enabled Save Theme");
+        typeFilter("Error");
+        typeFilter("Warning");
+        click("channel:" + ROW + ":R");
+        require(
+            "-".equals(panel.probeChannelText(ROW, 0))
+                && "+.7654321".equals(panel.probeChannelText(ROW, 1))
+                && !panel.probeApplyEnabled(),
+            "Filter or disabled slider repaired rejected channel text");
+        type("channel-text:" + ROW + ":R", ".125");
+        require(
+            panel.probeApplyEnabled()
+                && panel
+                    .probeDraft()
+                    .status("Warning")
+                    .equals(new ThemePalette.Rgba(.125f, .7654321f, .3f, 1)),
+            "Correction lost the pending sibling channel");
+        type("channel-text:" + ROW + ":R", Float.toString(warning.r()));
+        type("channel-text:" + ROW + ":G", "0.2");
+        require(
+            panel.probeDraft().equals(authored), "Channel replay did not restore authored palette");
         var ids = panel.channelIds();
-        require(ids.size() == 4, "Missing RGBA IDs");
+        require(
+            ids.size() == 8 && new HashSet<>(ids.values()).size() == 8,
+            "Missing or aliased RGBA slider/text IDs");
         var cases = new ArrayList<Map<String, Object>>();
         int[][] sizes = {{1400, 1000}, {700, 640}, {320, 640}, {260, 640}, {720, 640}, {1000, 300}};
         float[] global = {1, 1, 1.5f, 2.5f, 2.5f, 1};
@@ -137,6 +170,7 @@ public final class ThemeLayoutProbe {
                   && ThemeStyle.snapshot().equals(panel.probeColors()),
               "Reflow/view change altered private palette, identity, cache or safe/native style");
           var channels = new LinkedHashMap<String, DialogBounds.Rect>();
+          var inputs = new LinkedHashMap<String, DialogBounds.Rect>();
           for (String axis : List.of("R", "G", "B", "A")) {
             var bounds = panel.controlBounds().get("channel:" + ROW + ":" + axis);
             require(
@@ -146,6 +180,14 @@ public final class ThemeLayoutProbe {
                         <= panel.colorRowsBounds().x() + panel.colorRowsBounds().width() + .1,
                 "RGBA channel needs horizontal scrolling");
             channels.put(axis, bounds);
+            var input = panel.controlBounds().get("channel-text:" + ROW + ":" + axis);
+            require(
+                input != null
+                    && input.x() >= panel.colorRowsBounds().x() - .1
+                    && input.x() + input.width()
+                        <= panel.colorRowsBounds().x() + panel.colorRowsBounds().width() + .1,
+                "RGBA exact text needs horizontal scrolling");
+            inputs.put(axis, input);
           }
           for (var entry : panel.rowSteps().entrySet())
             require(
@@ -164,6 +206,7 @@ public final class ThemeLayoutProbe {
           receipt.put("palette", panel.paletteBounds());
           receipt.put("rows", panel.colorRowsBounds());
           receipt.put("channels", channels);
+          receipt.put("inputs", inputs);
           receipt.put("plan", panel.channelLayout());
           receipt.put("ids", ids);
           receipt.put("steps", panel.rowSteps());
@@ -259,6 +302,10 @@ public final class ThemeLayoutProbe {
                     Map.entry("unfiltered", unfiltered),
                     Map.entry("warning", warning.array()),
                     Map.entry("safeInspector", true),
+                    Map.entry("separateChannelPairs", true),
+                    Map.entry("rawCorrectionRetained", true),
+                    Map.entry("exactChannelText", "+.123456789"),
+                    Map.entry("exactChannelBits", exactChannelBits),
                     Map.entry("ordinarySaveExcludedDraft", true),
                     Map.entry("externalPauseResume", true),
                     Map.entry("writeRetry", true),
@@ -277,7 +324,11 @@ public final class ThemeLayoutProbe {
   }
 
   private static void typeFilter(String text) {
-    click("filter");
+    type("filter", text);
+  }
+
+  private static void type(String key, String text) {
+    click(key);
     var io = ImGui.getIO();
     io.addKeyEvent(ImGuiKey.ModCtrl, true);
     io.addKeyEvent(ImGuiKey.A, true);

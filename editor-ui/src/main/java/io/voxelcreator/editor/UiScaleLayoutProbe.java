@@ -70,6 +70,19 @@ public final class UiScaleLayoutProbe {
                   }
                 });
         frames(5);
+        type("Global", "+1.23456789");
+        require(
+            "+1.23456789".equals(scales.probeText().global())
+                && state.user.appearance.globalScale == 1,
+            "Exact scale text changed spelling or active preferences");
+        var sliderAt = scales.probeControl("Global-slider").clone();
+        sliderAt[0] += .113f * scales.probeRows().get("Global").sliderWidth();
+        click(sliderAt);
+        float draggedScale = UiScaleEditSession.parse(scales.probeText().global());
+        require(
+            Math.abs(draggedScale * 100.0 - Math.rint(draggedScale * 100.0)) > .0001
+                && state.user.appearance.globalScale == 1,
+            "Scale dragging quantized to the old two-place readout or published preferences");
         type("Global", "+1.25");
         select("Help");
         click(scales.probeControl("override"));
@@ -200,6 +213,8 @@ public final class UiScaleLayoutProbe {
                     Map.entry("fontSource", "synthetic"),
                     Map.entry("cases", cases),
                     Map.entry("ordinarySaveExcludedDraft", true),
+                    Map.entry("scaleSliderPrecision", true),
+                    Map.entry("draggedScale", draggedScale),
                     Map.entry("problemNavigationPreserved", true),
                     Map.entry("cachedFeedback", true),
                     Map.entry("writeRetry", true),

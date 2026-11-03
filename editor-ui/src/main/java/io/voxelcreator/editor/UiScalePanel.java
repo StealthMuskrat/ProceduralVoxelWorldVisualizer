@@ -238,7 +238,13 @@ final class UiScalePanel {
     ImGui.setNextItemWidth(plan.sliderWidth());
     if (probing) controlIds.put(key + "-slider", ImGui.getID("##scale-slider-" + key));
     float[] slider = {value};
-    if (ImGui.sliderFloat("##scale-slider-" + key, slider, .5f, 2.5f, "%.2fx")) {
+    if (ImGui.sliderFloat(
+        "##scale-slider-" + key,
+        slider,
+        .5f,
+        2.5f,
+        ScalarDisplay.sliderFormat(value) + "x",
+        imgui.flag.ImGuiSliderFlags.NoInput | imgui.flag.ImGuiSliderFlags.NoRoundToFormat)) {
       String raw = Float.toString(slider[0]);
       text.set(raw);
       act(

@@ -1,6 +1,7 @@
 """Deferred independent Themes geometry, RGBA/stride and private save/recovery receipt replay."""
 import json
 import math
+import struct
 from pathlib import Path
 import sys
 
@@ -9,7 +10,7 @@ root = Path(__file__).resolve().parent.parent
 report = json.loads((out / 'theme-layout-native.json').read_text(encoding='utf-8'))
 assert report['formatVersion'] == 1 and report['fontSource'] == 'user-scale-fixture'
 for key in ('safeInspector', 'ordinarySaveExcludedDraft', 'externalPauseResume', 'writeRetry',
-            'projectPreserved', 'closeRestoredSavedStyle'):
+            'projectPreserved', 'closeRestoredSavedStyle', 'separateChannelPairs', 'rawCorrectionRetained'):
     assert report[key] is True, key
 for key in ('physicalDpiVerified', 'physicalDetachedVerified', 'gpuFontTextureVerified'):
     assert report[key] is False, key
@@ -20,6 +21,8 @@ assert {case['scenario'] for case in report['cases']} == set(range(6))
 sizes = ((1400, 1000), (700, 640), (320, 640), (260, 640), (720, 640), (1000, 300))
 globals_ = (1, 1, 1.5, 2.5, 2.5, 1)
 windows = (1, 1, 1, 1, 2.5, 1)
+assert report['exactChannelText'] == '+.123456789'
+assert report['exactChannelBits'] == struct.unpack('!I', struct.pack('!f', .123456789))[0]
 ids = None
 columns = set()
 pane_modes = set()
@@ -39,7 +42,10 @@ def strides(receipt):
     assert receipt['steps'] and set(receipt['steps']) == set(receipt['strides'])
     for key, step in receipt['steps'].items():
         assert 0 < step <= height + .1
-        assert 0 <= height - step + .1 < 12
+        plan = receipt['plan']
+        advances = 2 + plan['rows'] * (1 if plan['pair']['inline'] else 2)
+        advances += plan['rows'] if plan['stackedLabels'] else 0
+        assert 0 <= height - step + .1 < advances + 1.1
         assert abs(receipt['strides'][key] - height) <= .1
 
 
@@ -75,18 +81,28 @@ for case in report['cases']:
     assert case['rows']['height'] <= .65 * case['palette']['height'] + 1.1
     if ids is None:
         ids = case['ids']
-        assert set(ids) == {f'status:Warning:{axis}' for axis in 'RGBA'}
-        assert len(set(ids.values())) == 4
+        assert set(ids) == {f'status:Warning:{axis}{suffix}' for axis in 'RGBA' for suffix in ('', ':text')}
+        assert len(set(ids.values())) == 8
     assert case['ids'] == ids
     plan = case['plan']
     columns.add(plan['columns'])
     assert plan['rows'] == 4 // plan['columns']
-    assert set(case['channels']) == set('RGBA')
-    for rect in case['channels'].values():
+    assert set(case['channels']) == set(case['inputs']) == set('RGBA')
+    pair = plan['pair']
+    for axis in 'RGBA':
+        slider, text = case['channels'][axis], case['inputs'][axis]
+        if pair['inline']:
+            assert abs(slider['y'] - text['y']) <= .1
+            assert slider['x'] + slider['width'] <= text['x'] + .1
+        else:
+            assert abs(slider['x'] - text['x']) <= .1
+            assert slider['y'] + slider['height'] <= text['y'] + .1
+        assert abs(slider['width'] - pair['sliderWidth']) <= 1.1
+        assert abs(text['width'] - pair['inputWidth']) <= 1.1
+    for rect in (*case['channels'].values(), *case['inputs'].values()):
         assert rect['width'] > 0 and rect['height'] > 0
         assert rect['x'] >= case['rows']['x'] - .1
         assert rect['x'] + rect['width'] <= case['rows']['x'] + case['rows']['width'] + .1
-        assert abs(rect['width'] - plan['fieldWidth']) <= 1.1
     strides(case)
 assert columns == {1, 2, 4} and pane_modes == {True, False}
 warning = report['warning']

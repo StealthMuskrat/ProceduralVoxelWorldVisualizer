@@ -26,6 +26,8 @@ public final class ThemePanel {
   private ThemeFeedback feedback;
   private final ThemeRows rows = new ThemeRows();
   private final ThemeColorIssues colorIssues = new ThemeColorIssues();
+  private final Map<String, ThemeChannelDraft> channelDrafts = new HashMap<>();
+  private final Map<String, ImString[]> channelTexts = new HashMap<>();
   private final UiFields fields = new UiFields();
   private final ImString filter = new ImString(256);
   private String group = "All", message = "";
@@ -157,6 +159,8 @@ public final class ThemePanel {
         v -> {
           session.edit(ThemePalette.starting(v));
           colorIssues.clearAll();
+          channelDrafts.clear();
+          channelTexts.clear();
           message = "Starting appearance selected; overrides cleared in preview";
         });
     feedback.update(session.draft());
@@ -168,7 +172,9 @@ public final class ThemePanel {
               : "Active theme changed. This private palette is retained; Revert Theme reloads the"
                   + " active values.");
     ImGui.textWrapped(
-        session.changed() ? "Unsaved theme preview" : "Theme matches opening preferences");
+        session.changed() || colorIssues.any()
+            ? "Unsaved theme preview"
+            : "Theme matches opening preferences");
     long attention = feedback.checks().stream().filter(ThemeContrast.Check::attention).count();
     ImGui.textWrapped("Contrast: " + attention + " need attention");
     colorIssues
@@ -221,6 +227,8 @@ public final class ThemePanel {
             session.revert(user);
             actionScope.resetDraft();
             colorIssues.clearAll();
+            channelDrafts.clear();
+            channelTexts.clear();
             resumeRequested = true;
             message = "Theme reverted";
           });
@@ -228,6 +236,8 @@ public final class ThemePanel {
       session.edit(ThemePalette.starting("Dark"));
       actionScope.resetDraft();
       colorIssues.clearAll();
+      channelDrafts.clear();
+      channelTexts.clear();
       message = "Default Dark staged for Save Theme";
     } else if (save && applyEnabled)
       act(
@@ -269,7 +279,7 @@ public final class ThemePanel {
     channelLayout =
         ThemeLayout.channels(
             ImGui.getContentRegionAvailX(),
-            ImGui.calcTextSize("0.000").x + 2 * ImGui.getStyle().getFramePaddingX(),
+            ImGui.calcTextSize("0.00000").x + 2 * ImGui.getStyle().getFramePaddingX(),
             Math.max(ImGui.calcTextSize("R").x, ImGui.calcTextSize("A").x),
             ImGui.getStyle().getItemSpacingX(),
             ImGui.getTextLineHeightWithSpacing(),
@@ -287,6 +297,20 @@ public final class ThemePanel {
               row.role() == null
                   ? feedback.colors().get(row.color())
                   : session.draft().status(row.role());
+          var raw = channelDrafts.computeIfAbsent(row.key(), key -> new ThemeChannelDraft(color));
+          raw.synchronize(color);
+          var buffers =
+              channelTexts.computeIfAbsent(
+                  row.key(),
+                  key ->
+                      new ImString[] {
+                        new ImString(ThemeChannelDraft.MAX_TEXT + 1),
+                            new ImString(ThemeChannelDraft.MAX_TEXT + 1),
+                        new ImString(ThemeChannelDraft.MAX_TEXT + 1),
+                            new ImString(ThemeChannelDraft.MAX_TEXT + 1)
+                      });
+          for (int axis = 0; axis < 4; axis++)
+            if (!buffers[axis].get().equals(raw.text(axis))) buffers[axis].set(raw.text(axis));
           float[] components = color.array();
           ImGui.setNextItemWidth(ImGui.getFrameHeight());
           ImGui.beginDisabled(colorIssues.blocked(row.key()));
@@ -304,6 +328,12 @@ public final class ThemePanel {
               if (Float.floatToIntBits(before[axis]) != Float.floatToIntBits(components[axis]))
                 edited |= 1 << axis;
           }
+          if (changed) {
+            for (int axis = 0; axis < 4; axis++) {
+              if ((edited & (1 << axis)) != 0) raw.edit(axis, Float.toString(components[axis]));
+              buffers[axis].set(raw.text(axis));
+            }
+          }
           ImGui.sameLine();
           ImGui.text(StatusBarText.clip(row.label(), 160));
           if (ImGui.isItemHovered()) UiScale.tooltip(row.group() + " / " + row.label());
@@ -313,39 +343,59 @@ public final class ThemePanel {
             ImGui.beginGroup();
             ImGui.text(axes[axis]);
             if (!channelLayout.stackedLabels()) ImGui.sameLine();
-            ImGui.setNextItemWidth(channelLayout.fieldWidth());
+            var pair = channelLayout.pair();
+            ImGui.setNextItemWidth(pair.sliderWidth());
             String id = "##theme-channel-" + axes[axis];
             if (probing) channelIds.put(row.key() + ":" + axes[axis], ImGui.getID(id));
             float[] value = {components[axis]};
-            ImGui.beginDisabled(
-                colorIssues.blocked(row.key()) && !colorIssues.bad(row.key(), axis));
+            boolean enabled = !colorIssues.blocked(row.key());
+            ImGui.beginDisabled(!enabled);
             if (ImGui.sliderFloat(
                 id,
                 value,
                 0,
                 1,
-                "%.3f",
-                ImGuiSliderFlags.AlwaysClamp | ImGuiSliderFlags.NoRoundToFormat)) {
-              components[axis] = value[0];
+                enabled ? "%.5f" : "Invalid",
+                ImGuiSliderFlags.NoInput | ImGuiSliderFlags.NoRoundToFormat)) {
+              String proposed = Float.toString(value[0]);
+              raw.edit(axis, proposed);
+              buffers[axis].set(proposed);
               changed = true;
               edited |= 1 << axis;
             }
             control("channel:" + row.key() + ":" + axes[axis]);
             ImGui.endDisabled();
+            if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+              UiScale.tooltip(HelpDefinitions.THEME_CHANNEL_TOOLTIP);
+            if (pair.inline()) ImGui.sameLine();
+            ImGui.setNextItemWidth(pair.inputWidth());
+            String textId = "##theme-text-" + axes[axis];
+            if (probing)
+              channelIds.put(row.key() + ":" + axes[axis] + ":text", ImGui.getID(textId));
+            if (ImGui.inputText(textId, buffers[axis])) {
+              raw.edit(axis, buffers[axis].get());
+              changed = true;
+              edited |= 1 << axis;
+            }
+            control("channel-text:" + row.key() + ":" + axes[axis]);
+            if (ImGui.isItemHovered()) UiScale.tooltip(HelpDefinitions.THEME_CHANNEL_TOOLTIP);
             ImGui.endGroup();
           }
-          if (changed && colorIssues.observe(row.key(), components, edited))
+          if (changed && colorIssues.observe(row.key(), raw.candidate(), edited))
             act(
                 () -> {
-                  var value = ThemePalette.Rgba.of(components);
+                  var value = ThemePalette.Rgba.of(raw.candidate());
                   session.edit(
                       row.role() == null
                           ? session.draft().color(row.color(), value)
                           : session.draft().status(row.role(), value));
+                  raw.accepted(value);
                   feedback.update(session.draft());
                 });
           if (DialogLayout.button("Use starting color")) {
             colorIssues.clear(row.key());
+            channelDrafts.remove(row.key());
+            channelTexts.remove(row.key());
             session.edit(
                 row.role() == null
                     ? session.draft().color(row.color(), null)
@@ -439,6 +489,8 @@ public final class ThemePanel {
     message = "";
     resumeRequested = false;
     colorIssues.clearAll();
+    channelDrafts.clear();
+    channelTexts.clear();
   }
 
   void smokeDraft() {
@@ -538,7 +590,14 @@ public final class ThemePanel {
   void probeEdit(ThemePalette value) {
     ensure();
     colorIssues.clearAll();
+    channelDrafts.clear();
+    channelTexts.clear();
     session.edit(value);
+  }
+
+  String probeChannelText(String row, int axis) {
+    var raw = channelDrafts.get(row);
+    return raw == null ? null : raw.text(axis);
   }
 
   boolean probePaused() {

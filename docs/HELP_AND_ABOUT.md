@@ -45,3 +45,5 @@ The unvalidated [coordinate numeric controls follow-up](COORDINATE_NUMERIC_CONTR
 The unvalidated [exact seed numeric follow-up](EXACT_LONG_NUMERIC_CONTROLS.md) adds Exact seed sliders and project bounds, linked with Project Settings, source seeds, creation defaults and coordinate controls. Guidance explains precision, nearby offsets and explicit publication. New catalogue and native replay definitions remain unexecuted.
 
 The unvalidated [runtime-limit numeric follow-up](RUNTIME_LIMIT_NUMERIC_CONTROLS.md) adds Performance and capture numeric limits, linked from Profiler and related private-setting guidance. It explains exact budgets, bounded suggestions, coupled repair and explicit Apply/Start Capture. New catalogue and production replay definitions have not run.
+
+The unvalidated [theme numeric follow-up](THEME_NUMERIC_CONTROLS.md) extends Appearance Help and shared channel tooltips with separate RGBA text, sticky invalid correction, private preview and explicit Save Theme. Scale guidance describes preserving entered precision until an intentional edit. Deferred native and regression definitions remain unexecuted.

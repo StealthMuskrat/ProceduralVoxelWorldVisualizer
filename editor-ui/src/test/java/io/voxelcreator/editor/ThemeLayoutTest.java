@@ -50,30 +50,35 @@ class ThemeLayoutTest {
 
   @Test
   void fourChannelsShareOneRowWithIndividualAxisLabels() {
-    var p = channels(500);
+    var p = channels(700);
     assertEquals(4, p.columns());
     assertEquals(1, p.rows());
     assertFalse(p.stackedLabels());
-    assertEquals(101, p.fieldWidth());
+    assertEquals(151, p.fieldWidth());
+    assertTrue(p.pair().inline());
+    assertEquals(74.36, p.pair().sliderWidth(), .001);
+    assertEquals(68.64, p.pair().inputWidth(), .001);
     assertEquals(69, p.rowHeight());
   }
 
   @Test
   void twoColumnsBudgetTwoChannelRows() {
-    var p = channels(250);
+    var p = channels(500);
     assertEquals(2, p.columns());
     assertEquals(2, p.rows());
-    assertEquals(103, p.fieldWidth());
+    assertEquals(228, p.fieldWidth());
+    assertTrue(p.pair().inline());
     assertEquals(92, p.rowHeight());
   }
 
   @Test
   void oneColumnRetainsAnInlineAxisAndFullRemainingInputWidth() {
-    var p = channels(120);
+    var p = channels(250);
     assertEquals(1, p.columns());
     assertEquals(4, p.rows());
     assertFalse(p.stackedLabels());
-    assertEquals(102, p.fieldWidth());
+    assertEquals(232, p.fieldWidth());
+    assertTrue(p.pair().inline());
     assertEquals(138, p.rowHeight());
   }
 
@@ -83,13 +88,38 @@ class ThemeLayoutTest {
     assertEquals(1, p.columns());
     assertTrue(p.stackedLabels());
     assertEquals(70, p.fieldWidth());
-    assertEquals(206, p.rowHeight());
+    assertEquals(298, p.rowHeight());
+    assertFalse(p.pair().inline());
+    assertEquals(70, p.pair().sliderWidth());
+    assertEquals(70, p.pair().inputWidth());
   }
 
   @Test
   void fractionalMetricsReserveWholePixelNativeStrides() {
-    assertEquals(90, ThemeLayout.channels(500, 60, 10, 8, 23.5f, 29.5f).rowHeight());
-    assertEquals(276, ThemeLayout.channels(70, 60, 10, 8, 23.5f, 29.5f).rowHeight());
+    assertEquals(90, ThemeLayout.channels(700, 60, 10, 8, 23.5f, 29.5f).rowHeight());
+    assertEquals(396, ThemeLayout.channels(70, 60, 10, 8, 23.5f, 29.5f).rowHeight());
+  }
+
+  @Test
+  void narrowPairsStackBeforeTheLabelNeedsItsOwnLine() {
+    var p = channels(120);
+    assertEquals(1, p.columns());
+    assertFalse(p.stackedLabels());
+    assertFalse(p.pair().inline());
+    assertEquals(102, p.pair().sliderWidth());
+    assertEquals(102, p.pair().inputWidth());
+    assertEquals(230, p.rowHeight());
+  }
+
+  @Test
+  void pairThresholdIsMeasuredIndependentlyOfColumnCount() {
+    var exact = channels(146);
+    assertTrue(exact.pair().inline());
+    assertEquals(60, exact.pair().sliderWidth());
+    assertEquals(60, exact.pair().inputWidth());
+    var below = channels(145);
+    assertFalse(below.pair().inline());
+    assertEquals(230, below.rowHeight());
   }
 
   @Test

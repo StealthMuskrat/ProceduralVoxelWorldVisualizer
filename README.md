@@ -294,3 +294,5 @@ The unvalidated [coordinate numeric controls follow-up](docs/COORDINATE_NUMERIC_
 The unvalidated [exact seed numeric follow-up](docs/EXACT_LONG_NUMERIC_CONTROLS.md) pairs Project Settings, Properties and creation-default seeds with exact long-offset sliders, and adds project Y-bound pairs. Twelve deferred contracts and extended production input/replay definitions remain unexecuted; no tests or workflows ran.
 
 The unvalidated [runtime-limit numeric follow-up](docs/RUNTIME_LIMIT_NUMERIC_CONTROLS.md) adds bounded slider/text pairs to Performance settings and Profiler next-capture limits, preserving exact budgets and explicit Apply/Start Capture. Twelve deferred contracts and expanded production input/layout replay remain unexecuted; no tests or workflows ran.
+
+The unvalidated [theme numeric follow-up](docs/THEME_NUMERIC_CONTROLS.md) adds separate RGBA slider/text pairs, retains rejected color text and pending sibling corrections, and removes UI-scale slider format rounding. Ten new deferred regression definitions and expanded production replay remain unexecuted; no tests or workflows ran.

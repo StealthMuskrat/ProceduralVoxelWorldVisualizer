@@ -9,11 +9,13 @@ root = Path(__file__).resolve().parent.parent
 report = json.loads((out / 'ui-scale-layout-native.json').read_text(encoding='utf-8'))
 assert report['formatVersion'] == 1 and report['fontSource'] == 'synthetic'
 for key in ('ordinarySaveExcludedDraft', 'problemNavigationPreserved', 'cachedFeedback',
-            'writeRetry', 'projectPreserved'):
+            'writeRetry', 'projectPreserved', 'scaleSliderPrecision'):
     assert report[key] is True, key
 for key in ('physicalDpiVerified', 'physicalDetachedVerified', 'gpuFontTextureVerified'):
     assert report[key] is False, key
 assert report['saveCallbacks'] == report['themeCallbacks'] == 1
+assert .5 <= report['draggedScale'] <= 2.5
+assert abs(report['draggedScale'] * 100 - round(report['draggedScale'] * 100)) > .0001
 registry = json.loads((root / 'registries/ui-scale-targets.json').read_text(encoding='utf-8'))
 sizes = ((1400, 1000), (360, 640), (360, 640), (360, 640), (720, 640), (1000, 300))
 globals_ = (1, .5, 1, 2.5, 2.5, 1)

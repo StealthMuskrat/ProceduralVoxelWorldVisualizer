@@ -5,7 +5,12 @@ final class ThemeLayout {
   record Panes(boolean columns, float paletteWidth, float contrastWidth, float height) {}
 
   record Channels(
-      int columns, int rows, boolean stackedLabels, float fieldWidth, float rowHeight) {}
+      int columns,
+      int rows,
+      boolean stackedLabels,
+      float fieldWidth,
+      float rowHeight,
+      SettingsPageLayout.Pair pair) {}
 
   private ThemeLayout() {}
 
@@ -53,19 +58,22 @@ final class ThemeLayout {
     positive(frameHeight);
     double w = Math.max(1, width), label = labelWidth + (double) gap;
     int columns = 4;
-    while (columns > 1 && columns * (minimumField + label) + (columns - 1.0) * gap > w)
-      columns /= 2;
+    double minimumPair = 2.0 * minimumField + gap;
+    while (columns > 1 && columns * (minimumPair + label) + (columns - 1.0) * gap > w) columns /= 2;
     boolean stacked = w < minimumField + label;
     double field = (w - (columns - 1.0) * gap) / columns - (stacked ? 0 : label);
     int rows = 4 / columns;
+    var pair = SettingsPageLayout.pair((float) Math.max(1, field), minimumField, gap);
     double stride =
-        (2.0 + rows) * Math.ceil(frameHeight) + (stacked ? rows * Math.ceil(lineHeight) : 0);
+        (2.0 + rows * (pair.inline() ? 1 : 2)) * Math.ceil(frameHeight)
+            + (stacked ? rows * Math.ceil(lineHeight) : 0);
     return new Channels(
         columns,
         rows,
         stacked,
         (float) Math.max(1, field),
-        (float) Math.min(Float.MAX_VALUE, stride));
+        (float) Math.min(Float.MAX_VALUE, stride),
+        pair);
   }
 
   private static void finite(float value) {

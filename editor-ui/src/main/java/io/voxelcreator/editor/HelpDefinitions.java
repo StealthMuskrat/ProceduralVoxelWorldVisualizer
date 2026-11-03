@@ -89,7 +89,10 @@ final class HelpDefinitions {
               "User Settings > Appearance composes global and per-window scale. Scale fields retain"
                   + " private text until their own Apply; invalid text can be revealed without"
                   + " repair. Theme editing has its own preview and Save Theme / Revert / Reset"
-                  + " actions. Save Preferences persists active preferences only and never applies"
+                  + " actions. Each RGBA channel pairs a 0–1 slider with exact decimal text;"
+                  + " invalid text stays visible and blocks Save Theme until corrected or reset."
+                  + " Scale sliders retain the entered precision until an intentional edit."
+                  + " Save Preferences persists active preferences only and never applies"
                   + " private scale, theme or resource input."),
           new Guide(
               "help.voxel-identities",
@@ -333,6 +336,12 @@ final class HelpDefinitions {
       default -> throw new IllegalArgumentException("No context Help route for " + action);
     };
   }
+
+  static final String THEME_CHANNEL_TOOLTIP =
+      "Each RGBA channel has a 0–1 slider and exact decimal text. Invalid text remains visible"
+          + " and blocks this color's preview and Save Theme until corrected or reset. Other"
+          + " valid edits in the same color are kept for that correction. Save Theme publishes"
+          + " the private palette; closing discards it.";
 
   private HelpDefinitions() {}
 }
