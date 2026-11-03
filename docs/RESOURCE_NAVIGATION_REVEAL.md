@@ -1,0 +1,27 @@
+# Revealing accepted resource navigation — unvalidated development
+
+This batch supports specification 6.12.3, 18.2.1–18.2.3 and 21.8.5, with A11/A14/A33 coverage definitions. No compilation, JUnit, native probe, independent consumer, packaging command or workflow ran. The owner testing pause and last observed validated baseline of 922 tests / 120 suites remain unchanged.
+
+## Accepted navigation reaches the browser
+
+Find, reference and diagnostic navigation previously selected the correct UUID and Properties target, but the resource could remain hidden in a collapsed folder/root, excluded by the Resources filter or clipped far outside the current scroll position. The Select Resource in Tree reference action used that same route without revealing the row. Voxel definitions could likewise remain in a closed Voxel Manager, a different tab or a filtered list.
+
+EditorState.navigate now publishes one pending resource reveal only after target availability and selection succeed. Existing SearchNavigation and Properties Apply/Discard/Cancel decisions remain authoritative; waiting, rejected and cancelled navigation does not publish a reveal. Ordinary Resources selection does not request one. Same-owner navigation retains the exact Properties draft. Project values, history, dirty checkpoints, preference data, procedural values and public headless APIs are unchanged.
+
+Each reveal owns an exact ticket, document lifetime and resource UUID. New accepted navigation supersedes the previous ticket, including repeated requests for the same UUID. A late completion cannot consume or retire a successor. Document replacement, even with identical UUIDs, or an intervening ordinary selection retires an unrendered request. The pane resolves the current browser index again after a committed revision change; removed/unavailable targets are retired.
+
+## Folder route, clipping and manager tabs
+
+ResourceTreeView.reveal resolves and validates the complete ancestor route iteratively before changing expansion. It opens only ancestors, preserving unrelated expansion and authored array/execution order. Invalid missing, cyclic, wrong-root or noncontainer parents reject without partial expansion. The Resources pane opens the protected root, clears the browser filter and requests the resource row's scroll position before native clipping. World placements reveal their carrier layer and World-folder ancestors. The selected container itself need not be expanded merely to reveal its row.
+
+Voxel types, sets and groups instead open Voxel Manager, clear its filter, select the corresponding tab and scroll the same clipped list. Window focus/uncollapse is requested when navigation is admitted; it is not repeated as a permanent follow-selection behavior. The ticket completes only when the target row is actually submitted and visible within its native clipping rectangle. New content/scroll bounds may require subsequent frames, so an off-screen target is not prematurely marked complete. Per-frame UUID-list construction for scrolling runs only for a pending reveal in the relevant scope; ordinary frames retain the existing cached projections and virtualized lists.
+
+Later user filter input, root/ancestor collapse, manager close/collapse or Resources collapse retires the applicable pending reveal. Completed navigation does not clear subsequent filters, reopen later closures or continually recenter a selected row. Existing source/parameter control focus routing remains separate. Central Find Help explains the visible behavior. Actual docking-tab focus, physical monitor visibility and every input timing/DPI case remain final native acceptance work; clipped-row visibility is not hardware certification.
+
+## Deferred definitions
+
+Twelve ResourceRevealTest definitions cover exact one-shot tickets; same-UUID lifetime replacement; intervening selection; same/different-target supersession with late completion; absent/null requests; minimal ancestor expansion and cache reuse; World placement/layer routes without execution changes; a 4,097-folder reverse-authored route; invalid route rejection without expansion mutation; missing/voxel targets in the tree projection; accepted same-owner navigation with unchanged committed/history/preference values; and rejected/cancelled draft-guard navigation without reveal publication.
+
+The existing HierarchyReferenceProbe command additionally invokes ResourceRevealProbe in the already-created isolated ImGui context. Eight production rendering cases use 400 fields/types/sets/groups/placements and cover hidden filtered noise, World placement, voxel, set and group targets, reference Cancel/Discard, same-UUID document reopening and superseding navigation. Accepted rows must become visible through the actual clipped Resources/Manager controls, then retire the request; applying a later excluding filter must keep the row hidden. Complete project/preference equality and unchanged history/revision define navigation ownership. Future output is resource-reveal/resource-reveal.json, plus the same-UUID source project. Existing hierarchy generation/order/reference expectations remain intact; existing manual-only Linux/Windows commands already invoke the expanded source. No trigger or dispatch changes were made.
+
+All twelve contracts and eight native cases remain uncompiled/unexecuted. Physical docking/scroll/keyboard/DPI, held-input races, larger measured workloads, Windows 11 hardware and final release acceptance remain pending. Main remains authoritative; no development branch was created.

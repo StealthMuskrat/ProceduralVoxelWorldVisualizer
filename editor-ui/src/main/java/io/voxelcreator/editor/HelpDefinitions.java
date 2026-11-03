@@ -101,8 +101,12 @@ final class HelpDefinitions {
                   + " Results and Filters are separate pages. Go To Selected retains the selected"
                   + " committed hit even outside filters. When source navigation would replace"
                   + " private Properties edits, Apply / Discard / Cancel retains ownership of that"
-                  + " exact request. Find References limits results to references to the selected"
-                  + " UUID."),
+                  + " exact request. Accepted navigation also reveals the owning resource: it"
+                  + " opens its folder/layer ancestors, clears an obstructing browser filter and"
+                  + " scrolls to the row. Voxel types, sets and groups open in the corresponding"
+                  + " Voxel Manager tab. Later filtering, collapsing or closing takes precedence"
+                  + " over a pending reveal. Find References limits results to references to the"
+                  + " selected UUID."),
           new Guide(
               "help.pins",
               "Pinned controls and live sources",

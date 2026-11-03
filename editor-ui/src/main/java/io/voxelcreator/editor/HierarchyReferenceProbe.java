@@ -149,6 +149,7 @@ public final class HierarchyReferenceProbe {
         report.put("field", field);
         Files.writeString(
             output.resolve("hierarchy-reference.json"), ProjectIO.JSON.writeValueAsString(report));
+        ResourceRevealProbe.run(output.resolve("resource-reveal"));
         System.out.println(
             "HIERARCHY_REFERENCE_NATIVE_PASS mixed root order / world folders / visible stages /"
                 + " one Undo-Redo / immutable export / unchanged computation identity / SET-CLEAR"

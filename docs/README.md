@@ -6,6 +6,7 @@ Start with [Build and run](BUILD_AND_RUN.md) for the pinned Java toolchain, Wind
 
 - [Indexed folder validation](FOLDER_VALIDATION_GRAPH.md) describes hierarchy checks, exact errors and deferred coverage.
 - [Indexed resource transfer](INDEXED_RESOURCE_TRANSFER.md) describes dependency selection, conflict lookup and deferred coverage.
+- [Resource navigation reveal](RESOURCE_NAVIGATION_REVEAL.md) describes browser reveal after accepted navigation.
 - [Application Help](HELP_AND_ABOUT.md) describes editor workflows and controls.
 - [API](API.md) describes the independent headless engine.
 - [Specification](SPECIFICATION.md) defines the complete assignment.

@@ -16,6 +16,7 @@ public final class EditorState implements AutoCloseable {
   private final boolean persistPreferences;
   public AppMetadata metadata = AppMetadata.load();
   final HelpRequests helpRequests = new HelpRequests();
+  final ResourceReveal resourceReveal = new ResourceReveal();
   public final NoiseGeneratorEngine engine;
   public final ThreadPoolExecutor background =
       new ThreadPoolExecutor(
@@ -329,6 +330,7 @@ public final class EditorState implements AutoCloseable {
     }
     multiSelection.clear();
     multiSelection.add(target.resource());
+    resourceReveal.request(document.sessionToken(), target.resource());
     return true;
   }
 

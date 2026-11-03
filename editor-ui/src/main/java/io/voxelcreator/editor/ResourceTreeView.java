@@ -23,6 +23,32 @@ public final class ResourceTreeView {
     if (!Objects.equals(expansion.put(id, open), open)) rows.clear();
   }
 
+  /** Open only the target's ancestors; resolve the entire route before changing expansion. */
+  public String reveal(UUID id) {
+    var node = index.get(id);
+    if (node == null) return null;
+    String root = node.root().equals("operation") ? "world" : node.root();
+    if (!io.voxelcreator.model.ResourceGraph.ORGANIZATIONAL_ROOTS.contains(root)) return null;
+    var ancestors = new ArrayList<UUID>();
+    var seen = new HashSet<UUID>();
+    seen.add(id);
+    while (node.parent() != null) {
+      var parent = index.get(node.parent());
+      if (parent == null
+          || !parent.container()
+          || !seen.add(parent.uuid())
+          || !parent.root().equals(root)
+          || node.root().equals("operation") != parent.kind().equals("layer")) return null;
+      ancestors.add(parent.uuid());
+      node = parent;
+    }
+    boolean changed = false;
+    for (UUID ancestor : ancestors)
+      if (!Boolean.TRUE.equals(expansion.put(ancestor, true))) changed = true;
+    if (changed) rows.clear();
+    return root;
+  }
+
   public List<ResourceTreeIndex.Row> rows(String root, String filter) {
     String text = filter.strip().toLowerCase(Locale.ROOT);
     if (!text.equals(query)) {

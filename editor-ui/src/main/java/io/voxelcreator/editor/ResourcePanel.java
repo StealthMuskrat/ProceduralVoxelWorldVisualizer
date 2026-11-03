@@ -67,6 +67,12 @@ public final class ResourcePanel {
   private Float probeScroll;
   private final List<UUID> submittedTreeIds = new ArrayList<>();
 
+  private ResourceReveal.Ticket revealTicket;
+  private ResourceTreeIndex revealIndex;
+  private String revealRoot;
+  private UUID revealed;
+  private boolean managerRevealFocus;
+
   private UUID rangeAnchor;
   private String dragRoot = "";
   private List<UUID> dragSelection = List.of();
@@ -126,6 +132,11 @@ public final class ResourcePanel {
     browserCache.clear();
     treeView.clear();
     rootExpansion.clear();
+    revealTicket = null;
+    revealIndex = null;
+    revealRoot = null;
+    revealed = null;
+    managerRevealFocus = false;
     browser = null;
     managerFilter.set("");
     placementFilter.set("");
@@ -180,8 +191,13 @@ public final class ResourcePanel {
     submittedRows = 0;
     submittedTreeIds.clear();
     refreshBrowser();
+    boolean newReveal = prepareReveal();
     windowLayout.prepareExisting();
     docking.prepare();
+    if (newReveal && ResourceGraph.ORGANIZATIONAL_ROOTS.contains(revealRoot)) {
+      ImGui.setNextWindowCollapsed(false, ImGuiCond.Always);
+      ImGui.setNextWindowFocus();
+    }
     boolean visible = ImGui.begin("Resources");
     UiScale.window(state.user, "Resources");
     windowLayout.observe();
@@ -191,7 +207,9 @@ public final class ResourcePanel {
       try {
         docking.draw();
         ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
-        ImGui.inputTextWithHint("##filter", "Filter resources...", filter);
+        if (ImGui.inputTextWithHint("##filter", "Filter resources...", filter)
+            && revealTicket != null
+            && ResourceGraph.ORGANIZATIONAL_ROOTS.contains(revealRoot)) cancelReveal();
         UiScale.beginChild(
             "resource-tree",
             0,
@@ -225,6 +243,9 @@ public final class ResourcePanel {
         ImGui.popID();
       }
     } else {
+      if (ImGui.isWindowCollapsed()
+          && revealTicket != null
+          && ResourceGraph.ORGANIZATIONAL_ROOTS.contains(revealRoot)) cancelReveal();
       focused = false;
       dragActive = false;
       dragProject = null;
@@ -285,17 +306,72 @@ public final class ResourcePanel {
     managerKey = placementKey = null;
   }
 
+  private ResourceReveal.Ticket currentReveal() {
+    return state.resourceReveal.current(state.document.sessionToken(), state.selected);
+  }
+
+  private boolean prepareReveal() {
+    var ticket = currentReveal();
+    if (ticket == null) {
+      revealTicket = null;
+      revealIndex = null;
+      revealRoot = null;
+      return false;
+    }
+    boolean fresh = ticket != revealTicket;
+    if (!fresh && browser == revealIndex) return false;
+    revealTicket = ticket;
+    revealIndex = browser;
+    var node = browser.get(ticket.resource());
+    revealRoot = node == null ? null : treeView.reveal(node.uuid());
+    if (revealRoot != null) {
+      filter.set("");
+      rootExpansion.put(revealRoot, true);
+    } else if (node != null && Set.of("voxel", "group", "set").contains(node.kind())) {
+      revealRoot = node.kind();
+      managerFilter.set("");
+      managerKey = null;
+      manager.set(true);
+      managerRevealFocus = fresh;
+    } else {
+      state.resourceReveal.consume(ticket, state.document.sessionToken(), state.selected);
+      revealTicket = null;
+      return false;
+    }
+    return fresh;
+  }
+
+  private boolean revealFor(String root) {
+    return revealTicket != null && currentReveal() == revealTicket && root.equals(revealRoot);
+  }
+
+  private void scrollReveal(String root, List<UUID> rows, float height) {
+    var ticket = currentReveal();
+    if (ticket == null || ticket != revealTicket || !root.equals(revealRoot)) return;
+    int index = rows.indexOf(ticket.resource());
+    if (index < 0) return;
+    float target = ImGui.getCursorPosY() + index * height;
+    ImGui.setScrollY(Math.max(0, target - ImGui.getWindowHeight() * .4f));
+  }
+
+  private void cancelReveal() {
+    state.resourceReveal.consume(revealTicket, state.document.sessionToken(), state.selected);
+  }
+
   private void root(String label, String kind) {
     ImGui.setNextItemOpen(
         !filter.get().isBlank() || rootExpansion.getOrDefault(kind, true), ImGuiCond.Always);
     boolean open = ImGui.treeNodeEx(label, ImGuiTreeNodeFlags.DefaultOpen);
     if (filter.get().isBlank()) rootExpansion.put(kind, open);
+    if (!open && revealFor(kind)) cancelReveal();
     rootMenu(kind, null);
     dropTarget(kind, null);
     if (open) {
       var rows = treeView.rows(kind, filter.get());
       selectionRows = rows;
       float height = ImGui.getFrameHeightWithSpacing();
+      if (revealFor(kind))
+        scrollReveal(kind, rows.stream().map(r -> r.node().uuid()).toList(), height);
       var clipper = new ImGuiListClipper();
       try {
         clipper.begin(rows.size(), height);
@@ -332,7 +408,10 @@ public final class ResourcePanel {
                   | ImGuiTreeNodeFlags.NoTreePushOnOpen
                   | ImGuiTreeNodeFlags.FramePadding
                   | (state.multiSelection.contains(node.uuid()) ? ImGuiTreeNodeFlags.Selected : 0));
-      if (expanded != row.open() && filter.get().isBlank()) treeView.open(node.uuid(), expanded);
+      if (expanded != row.open() && filter.get().isBlank()) {
+        treeView.open(node.uuid(), expanded);
+        if (revealFor(node.root())) cancelReveal();
+      }
       if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen()) select(node.uuid());
     } else if (ImGui.selectable(
         (node.enabled() ? "" : "[off] ") + AppMetadata.uiText(node.id()) + "###leaf",
@@ -704,6 +783,13 @@ public final class ResourcePanel {
   }
 
   private void rememberRow(UUID id) {
+    var ticket = currentReveal();
+    if (ticket != null
+        && ticket == revealTicket
+        && ticket.resource().equals(id)
+        && ImGui.isItemVisible()
+        && state.resourceReveal.consume(ticket, state.document.sessionToken(), state.selected))
+      revealed = id;
     var a = ImGui.getItemRectMin();
     var b = ImGui.getItemRectMax();
     rowCenters.put(id, new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
@@ -1358,10 +1444,21 @@ public final class ResourcePanel {
     }
     refreshBrowser();
     managerLayout.prepare();
+    if (managerRevealFocus
+        && currentReveal() == revealTicket
+        && revealTicket != null
+        && Set.of("voxel", "group", "set").contains(revealRoot)) {
+      ImGui.setNextWindowCollapsed(false, ImGuiCond.Always);
+      ImGui.setNextWindowFocus();
+    }
     boolean visible = ImGui.begin("Voxel Manager", manager);
+    managerRevealFocus = false;
     UiScale.window(state.user, "Voxel Manager");
     managerLayout.observe();
     if (!visible || !manager.get()) {
+      if ((!manager.get() || ImGui.isWindowCollapsed())
+          && revealTicket != null
+          && Set.of("voxel", "group", "set").contains(revealRoot)) cancelReveal();
       submittedManagerRows = 0;
       voxelIdentity.clear();
       ImGui.end();
@@ -1370,8 +1467,10 @@ public final class ResourcePanel {
     ImGui.pushID(documentScope());
     try {
       ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
-      ImGui.inputTextWithHint(
-          "##voxel-filter", "Filter voxel type, set or group IDs...", managerFilter);
+      if (ImGui.inputTextWithHint(
+              "##voxel-filter", "Filter voxel type, set or group IDs...", managerFilter)
+          && revealTicket != null
+          && Set.of("voxel", "group", "set").contains(revealRoot)) cancelReveal();
       submittedManagerRows = 0;
       if (ImGui.beginTabBar("voxel-tabs")) {
         managerTab("Voxel Types", "voxel", "Create Voxel Type");
@@ -1388,7 +1487,9 @@ public final class ResourcePanel {
   }
 
   private void managerTab(String label, String kind, String createLabel) {
-    if (!ImGui.beginTabItem(label)) return;
+    boolean reveal =
+        currentReveal() == revealTicket && revealTicket != null && kind.equals(revealRoot);
+    if (!ImGui.beginTabItem(label, reveal ? ImGuiTabItemFlags.SetSelected : 0)) return;
     if (DialogLayout.button(createLabel)) create(kind, kind, null);
     String key = kind + ":" + managerFilter.get();
     if (!key.equals(managerKey)) {
@@ -1419,6 +1520,11 @@ public final class ResourcePanel {
                 - reviewHeight
                 - ImGui.getStyle().getItemSpacingY()),
         true);
+    if (revealFor(kind))
+      scrollReveal(
+          kind,
+          managerRows.stream().map(ResourceTreeIndex.Node::uuid).toList(),
+          ImGui.getFrameHeightWithSpacing());
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(managerRows.size(), ImGui.getFrameHeightWithSpacing());
@@ -1561,6 +1667,18 @@ public final class ResourcePanel {
 
   void probeScroll(float value) {
     probeScroll = value;
+  }
+
+  UUID probeRevealed() {
+    return revealed;
+  }
+
+  boolean probeRevealPending() {
+    return currentReveal() != null;
+  }
+
+  void probeCloseRoot(String root) {
+    rootExpansion.put(root, false);
   }
 
   void probeOpenFolder(UUID id) {
