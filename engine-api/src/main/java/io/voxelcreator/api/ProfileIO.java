@@ -96,6 +96,10 @@ public final class ProfileIO {
   @FunctionalInterface
   interface Replacement {
     void move(Path temporary, Path destination) throws IOException;
+
+    default void delete(Path temporary) throws IOException {
+      Files.deleteIfExists(temporary);
+    }
   }
 
   private static final Replacement ATOMIC_REPLACE =
@@ -121,6 +125,7 @@ public final class ProfileIO {
     Files.createDirectories(destination.getParent());
     Path temp = Files.createTempFile(destination.getParent(), ".profile-", ".tmp");
     Throwable failure = null;
+    boolean published = false;
     try {
       try (var writer = Files.newBufferedWriter(temp, StandardCharsets.UTF_8)) {
         output.write(writer);
@@ -129,15 +134,19 @@ public final class ProfileIO {
         channel.force(true);
       }
       replacement.move(temp, destination);
+      published = true;
     } catch (IOException | RuntimeException | Error rejected) {
       failure = rejected;
       throw rejected;
     } finally {
-      try {
-        Files.deleteIfExists(temp);
-      } catch (IOException cleanup) {
-        if (failure != null) failure.addSuppressed(cleanup);
-        else throw cleanup;
+      // Replacement transferred ownership; later I/O must not turn publication into failure.
+      if (!published) {
+        try {
+          replacement.delete(temp);
+        } catch (IOException | RuntimeException | Error cleanup) {
+          if (failure == null) throw cleanup;
+          if (failure != cleanup) failure.addSuppressed(cleanup);
+        }
       }
     }
   }

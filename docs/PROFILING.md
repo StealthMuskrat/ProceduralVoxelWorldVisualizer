@@ -36,3 +36,5 @@ Validation covers deterministic fake-clock durations/percentiles, bounds, stride
 The export-review implementation and thirteen additional regression definitions, native production-panel scenario and independent replay definition remain uncompiled/untested under the owner testing pause. No current acceptance gate is advanced. See [profiler export ownership](PROFILER_EXPORT_OWNERSHIP.md).
 
 The unvalidated [Profiler workspace follow-up](PROFILER_LAYOUT.md) adds exact next-capture input and retained sections with persistent action rows. Its new regression/native/replay definitions remain deferred and do not advance the evidence recorded here.
+
+The unvalidated [export completion follow-up](EXPORT_COMPLETION_OWNERSHIP.md) ends JSON/CSV temporary cleanup at successful replacement and preserves primary failures across checked/unchecked cleanup faults. Three additional ProfileIOTest definitions cover both formats and remain deferred. Frozen review ownership, capture state, schemas and atomic-only replacement remain.

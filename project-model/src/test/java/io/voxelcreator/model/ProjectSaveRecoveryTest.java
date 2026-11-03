@@ -15,7 +15,7 @@ class ProjectSaveRecoveryTest {
   private static final class FilesWithFaults implements ProjectSaveFiles {
     final List<String> calls = new ArrayList<>();
     String phase = "";
-    Throwable writeFailure;
+    Throwable writeFailure, deleteFailure;
     boolean failDelete, rejectDeleteAfterPublication;
     Runnable afterReplacement;
     Path temporary;
@@ -55,6 +55,9 @@ class ProjectSaveRecoveryTest {
 
     public void delete(Path path) throws IOException {
       calls.add("delete");
+      if (deleteFailure instanceof IOException io) throw io;
+      if (deleteFailure instanceof RuntimeException runtime) throw runtime;
+      if (deleteFailure instanceof Error error) throw error;
       if (rejectDeleteAfterPublication)
         throw new AssertionError("Cleanup after successful publication");
       if (failDelete) throw new IOException("cleanup fault");
@@ -66,6 +69,63 @@ class ProjectSaveRecoveryTest {
     var p = new ProjectData();
     p.project.seed = seed;
     return p;
+  }
+
+  @Test
+  void uncheckedCleanupFaultsRetainTheOriginalWriteFailure() throws Exception {
+    var path = directory.resolve("unchecked-cleanup.json");
+    Files.writeString(path, "previous destination");
+    for (String kind : List.of("IO", "RUNTIME", "ERROR"))
+      for (boolean errorCleanup : new boolean[] {false, true}) {
+        Throwable primary =
+            switch (kind) {
+              case "IO" -> new IOException("write original");
+              case "RUNTIME" -> new IllegalStateException("write original");
+              default -> new AssertionError("write original");
+            };
+        Throwable cleanup =
+            errorCleanup
+                ? new AssertionError("cleanup Error")
+                : new IllegalStateException("cleanup runtime");
+        var files = new FilesWithFaults();
+        files.writeFailure = primary;
+        files.deleteFailure = cleanup;
+        try {
+          var observed =
+              assertThrows(Throwable.class, () -> new ProjectIO(files).save(path, data(3)));
+          assertSame(primary, observed);
+          assertArrayEquals(new Throwable[] {cleanup}, observed.getSuppressed());
+          assertEquals("previous destination", Files.readString(path));
+          assertEquals(List.of("temporary", "write", "delete"), files.calls);
+        } finally {
+          Files.deleteIfExists(files.temporary);
+        }
+      }
+  }
+
+  @Test
+  void identicalPrimaryAndCleanupFailuresCannotMaskTheOriginalProjectSaveFailure()
+      throws Exception {
+    var path = directory.resolve("same-cleanup.json");
+    Files.writeString(path, "previous destination");
+    for (Throwable primary :
+        List.of(
+            new IOException("same IO"),
+            new IllegalStateException("same runtime"),
+            new AssertionError("same Error"))) {
+      var files = new FilesWithFaults();
+      files.writeFailure = files.deleteFailure = primary;
+      try {
+        var observed =
+            assertThrows(Throwable.class, () -> new ProjectIO(files).save(path, data(3)));
+        assertSame(primary, observed);
+        assertEquals(0, observed.getSuppressed().length);
+        assertEquals("previous destination", Files.readString(path));
+        assertEquals(List.of("temporary", "write", "delete"), files.calls);
+      } finally {
+        Files.deleteIfExists(files.temporary);
+      }
+    }
   }
 
   @Test

@@ -14,6 +14,121 @@ import org.junit.jupiter.api.io.TempDir;
 class PreferenceFilesTest {
   @TempDir Path directory;
 
+  private static void raise(Throwable failure) throws IOException {
+    if (failure instanceof IOException io) throw io;
+    if (failure instanceof RuntimeException runtime) throw runtime;
+    throw (Error) failure;
+  }
+
+  @Test
+  void successfulReplacementDoesNotDeleteAReusedTemporaryPathOrReportCleanupFailure()
+      throws Exception {
+    var target = directory.resolve("published-config.json");
+    var temporary = new java.util.concurrent.atomic.AtomicReference<Path>();
+    var deletions = new AtomicInteger();
+    var writer =
+        new PreferenceFiles(
+            new PreferenceFiles.Storage() {
+              public void write(Path temp, byte[] bytes) throws IOException {
+                Files.write(temp, bytes);
+              }
+
+              public void replace(Path temp, Path destination) throws IOException {
+                Files.move(temp, destination, StandardCopyOption.REPLACE_EXISTING);
+                Files.writeString(temp, "new owner of old path");
+                temporary.set(temp);
+              }
+
+              public void delete(Path temp) throws IOException {
+                deletions.incrementAndGet();
+                throw new IOException("cleanup after publication must not run");
+              }
+            });
+    var config = new UserConfig();
+    config.workspace.width = 1234;
+    writer.write(target, config, ".user-config-");
+    assertEquals(1234, UserConfig.read(target).workspace.width);
+    assertEquals("new owner of old path", Files.readString(temporary.get()));
+    assertEquals(0, deletions.get());
+  }
+
+  @Test
+  void prepublicationFailuresKeepTheirIdentityAndAttachCheckedOrUncheckedCleanupFaults()
+      throws Exception {
+    for (boolean writeFault : new boolean[] {false, true})
+      for (Throwable cleanup :
+          List.of(
+              new IOException("cleanup IO"),
+              new IllegalStateException("cleanup runtime"),
+              new AssertionError("cleanup Error"))) {
+        var target = directory.resolve("retained-config.json");
+        Files.writeString(target, "prior complete configuration");
+        var primary = new IOException("original publication failure");
+        var deletions = new AtomicInteger();
+        var writer =
+            new PreferenceFiles(
+                new PreferenceFiles.Storage() {
+                  public void write(Path temp, byte[] bytes) throws IOException {
+                    Files.write(temp, bytes);
+                    if (writeFault) throw primary;
+                  }
+
+                  public void replace(Path temp, Path destination) throws IOException {
+                    throw primary;
+                  }
+
+                  public void delete(Path temp) throws IOException {
+                    deletions.incrementAndGet();
+                    Files.delete(temp);
+                    raise(cleanup);
+                  }
+                });
+        var caught =
+            assertThrows(
+                IOException.class, () -> writer.write(target, new UserConfig(), ".user-config-"));
+        assertSame(primary, caught);
+        assertArrayEquals(new Throwable[] {cleanup}, caught.getSuppressed());
+        assertEquals(1, deletions.get());
+        assertEquals("prior complete configuration", Files.readString(target));
+        noTemporaryFiles();
+      }
+  }
+
+  @Test
+  void identicalWriteAndCleanupFaultsNeverAttemptSelfSuppression() throws Exception {
+    for (Throwable primary :
+        List.of(
+            new IOException("same IO"),
+            new IllegalStateException("same runtime"),
+            new AssertionError("same Error"))) {
+      var target = directory.resolve("same-config.json");
+      Files.writeString(target, "retained");
+      var writer =
+          new PreferenceFiles(
+              new PreferenceFiles.Storage() {
+                public void write(Path temp, byte[] bytes) throws IOException {
+                  raise(primary);
+                }
+
+                public void replace(Path temp, Path destination) {
+                  fail("Replacement after write fault");
+                }
+
+                public void delete(Path temp) throws IOException {
+                  Files.delete(temp);
+                  raise(primary);
+                }
+              });
+      var caught =
+          assertThrows(
+              Throwable.class, () -> writer.write(target, new UserConfig(), ".user-config-"));
+      assertSame(primary, caught);
+      assertEquals(0, caught.getSuppressed().length);
+      assertEquals("retained", Files.readString(target));
+      noTemporaryFiles();
+    }
+  }
+
   private void noTemporaryFiles() throws IOException {
     try (var files = Files.walk(directory)) {
       assertTrue(

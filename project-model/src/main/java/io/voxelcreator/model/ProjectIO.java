@@ -192,7 +192,7 @@ public final class ProjectIO {
       if (!published) {
         try {
           files.delete(temp);
-        } catch (IOException cleanup) {
+        } catch (IOException | RuntimeException | Error cleanup) {
           if (failure == null) throw cleanup;
           if (failure != cleanup) failure.addSuppressed(cleanup);
         }

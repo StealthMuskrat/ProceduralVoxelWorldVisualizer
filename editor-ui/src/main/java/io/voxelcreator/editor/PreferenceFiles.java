@@ -79,18 +79,23 @@ final class PreferenceFiles {
     Files.createDirectories(target.getParent());
     Path temporary = Files.createTempFile(target.getParent(), prefix, ".tmp");
     Throwable failure = null;
+    boolean published = false;
     try {
       storage.write(temporary, bytes);
       storage.replace(temporary, target);
+      published = true;
     } catch (IOException | RuntimeException | Error rejected) {
       failure = rejected;
       throw rejected;
     } finally {
-      try {
-        storage.delete(temporary);
-      } catch (IOException cleanup) {
-        if (failure != null) failure.addSuppressed(cleanup);
-        else throw cleanup;
+      // Replacement transferred ownership; later I/O must not turn publication into failure.
+      if (!published) {
+        try {
+          storage.delete(temporary);
+        } catch (IOException | RuntimeException | Error cleanup) {
+          if (failure == null) throw cleanup;
+          if (failure != cleanup) failure.addSuppressed(cleanup);
+        }
       }
     }
   }

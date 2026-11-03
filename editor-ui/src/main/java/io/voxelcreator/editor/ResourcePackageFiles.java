@@ -19,6 +19,10 @@ final class ResourcePackageFiles {
     void write(Path temporary, byte[] content) throws IOException;
 
     void replace(Path temporary, Path destination) throws IOException;
+
+    default void delete(Path temporary) throws IOException {
+      Files.deleteIfExists(temporary);
+    }
   }
 
   private final Storage storage;
@@ -138,19 +142,24 @@ final class ResourcePackageFiles {
     ExportPaths.rejectProjectTarget(target, activeProject.get(), "resource package");
     Path temporary = Files.createTempFile(parent, ".voxel-package-", ".tmp");
     Throwable failure = null;
+    boolean published = false;
     try {
       storage.write(temporary, bytes);
       ExportPaths.rejectProjectTarget(target, activeProject.get(), "resource package");
       storage.replace(temporary, target);
+      published = true;
     } catch (IOException | RuntimeException | Error rejected) {
       failure = rejected;
       throw rejected;
     } finally {
-      try {
-        Files.deleteIfExists(temporary);
-      } catch (IOException cleanup) {
-        if (failure != null) failure.addSuppressed(cleanup);
-        else throw cleanup;
+      // Replacement transferred ownership; later I/O must not turn publication into failure.
+      if (!published) {
+        try {
+          storage.delete(temporary);
+        } catch (IOException | RuntimeException | Error cleanup) {
+          if (failure == null) throw cleanup;
+          if (failure != cleanup) failure.addSuppressed(cleanup);
+        }
       }
     }
   }

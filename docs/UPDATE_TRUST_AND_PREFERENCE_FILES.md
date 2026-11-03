@@ -35,3 +35,5 @@ The later unvalidated [manual update-results batch](MANUAL_UPDATE_CHECKS.md) add
 The separate unvalidated [preference form layout follow-up](PREFERENCE_FORMS_LAYOUT.md) adds retained limits/trust sections and persistent form/Workspace actions without changing this ownership contract. Seven additional regression definitions and eighteen native form/layout/retry cases remain uncompiled/untested; physical centering and full GUI/DPI acceptance remain separate.
 
 The unvalidated [manual update layout follow-up](UPDATE_CHECK_LAYOUT.md) keeps result-window actions persistent and exact-request scoped. It preserves applied trust and private preference ownership, including late-result rejection; all new regression/native/replay definitions remain deferred.
+
+The unvalidated [export completion follow-up](EXPORT_COMPLETION_OWNERSHIP.md) ends configuration cleanup at successful replacement and retains original rejection failures across checked/unchecked cleanup faults. Three additional PreferenceFilesTest definitions remain deferred; bounded serialization, private Apply and retry semantics remain.

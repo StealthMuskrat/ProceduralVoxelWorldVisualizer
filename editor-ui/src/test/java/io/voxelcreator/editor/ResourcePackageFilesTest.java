@@ -16,6 +16,116 @@ import org.junit.jupiter.api.io.TempDir;
 class ResourcePackageFilesTest {
   @TempDir Path directory;
 
+  private static void raise(Throwable failure) throws IOException {
+    if (failure instanceof IOException io) throw io;
+    if (failure instanceof RuntimeException runtime) throw runtime;
+    throw (Error) failure;
+  }
+
+  @Test
+  void publishedPackageRetainsItsPayloadAndAReusedTemporaryPathWithoutCleanup() throws Exception {
+    var target = directory.resolve("published.pvresources.json");
+    var temporary = new java.util.concurrent.atomic.AtomicReference<Path>();
+    var deletions = new java.util.concurrent.atomic.AtomicInteger();
+    var io =
+        new ResourcePackageFiles(
+            new ResourcePackageFiles.Storage() {
+              public void write(Path temp, byte[] bytes) throws IOException {
+                Files.write(temp, bytes);
+              }
+
+              public void replace(Path temp, Path destination) throws IOException {
+                Files.move(temp, destination, StandardCopyOption.REPLACE_EXISTING);
+                Files.writeString(temp, "new owner of old package path");
+                temporary.set(temp);
+              }
+
+              public void delete(Path temp) throws IOException {
+                deletions.incrementAndGet();
+                throw new IOException("cleanup after publication must not run");
+              }
+            });
+    var source = resources();
+    String before = ProjectIO.JSON.writeValueAsString(source);
+    io.write(target, source, null);
+    assertEquals(before, ProjectIO.JSON.writeValueAsString(io.read(target)));
+    assertEquals(before, ProjectIO.JSON.writeValueAsString(source));
+    assertEquals("new owner of old package path", Files.readString(temporary.get()));
+    assertEquals(0, deletions.get());
+  }
+
+  @Test
+  void rejectedPackageWriteOrReplacementKeepsPrimaryFailureAcrossCleanupKinds() throws Exception {
+    for (boolean writeFault : new boolean[] {false, true})
+      for (Throwable cleanup :
+          List.of(
+              new IOException("cleanup IO"),
+              new IllegalStateException("cleanup runtime"),
+              new AssertionError("cleanup Error"))) {
+        var target = directory.resolve("retained.pvresources.json");
+        Files.writeString(target, "prior complete package");
+        var primary = new IOException("original package failure");
+        var deletions = new java.util.concurrent.atomic.AtomicInteger();
+        var io =
+            new ResourcePackageFiles(
+                new ResourcePackageFiles.Storage() {
+                  public void write(Path temp, byte[] bytes) throws IOException {
+                    Files.write(temp, bytes);
+                    if (writeFault) throw primary;
+                  }
+
+                  public void replace(Path temp, Path destination) throws IOException {
+                    throw primary;
+                  }
+
+                  public void delete(Path temp) throws IOException {
+                    deletions.incrementAndGet();
+                    Files.delete(temp);
+                    raise(cleanup);
+                  }
+                });
+        var caught = assertThrows(IOException.class, () -> io.write(target, resources(), null));
+        assertSame(primary, caught);
+        assertArrayEquals(new Throwable[] {cleanup}, caught.getSuppressed());
+        assertEquals(1, deletions.get());
+        assertEquals("prior complete package", Files.readString(target));
+        noTemporaryFiles();
+      }
+  }
+
+  @Test
+  void identicalPackageAndCleanupFaultsRemainTheOriginalFailure() throws Exception {
+    for (Throwable primary :
+        List.of(
+            new IOException("same IO"),
+            new IllegalStateException("same runtime"),
+            new AssertionError("same Error"))) {
+      var target = directory.resolve("same.pvresources.json");
+      Files.writeString(target, "retained");
+      var io =
+          new ResourcePackageFiles(
+              new ResourcePackageFiles.Storage() {
+                public void write(Path temp, byte[] bytes) throws IOException {
+                  raise(primary);
+                }
+
+                public void replace(Path temp, Path destination) {
+                  fail("Replacement after write fault");
+                }
+
+                public void delete(Path temp) throws IOException {
+                  Files.delete(temp);
+                  raise(primary);
+                }
+              });
+      var caught = assertThrows(Throwable.class, () -> io.write(target, resources(), null));
+      assertSame(primary, caught);
+      assertEquals(0, caught.getSuppressed().length);
+      assertEquals("retained", Files.readString(target));
+      noTemporaryFiles();
+    }
+  }
+
   private ProjectData resources() {
     var project = new ProjectData();
     var noise = new Noise();

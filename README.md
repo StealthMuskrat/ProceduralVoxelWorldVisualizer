@@ -282,3 +282,5 @@ The unvalidated [consumer-stage follow-up](docs/CONSUMER_STAGE_ACKNOWLEDGEMENT.m
 The unvalidated [cancellation ownership follow-up](docs/CANCELLATION_CALLBACK_OWNERSHIP.md) suppresses closed unclaimed callbacks, attempts eligible listeners despite Errors and confines admitted parent-supplier faults to their subscriber. Ten deferred contracts and an independent queued/shared/exact-snapshot replay remain unexecuted; no tests or workflows ran.
 
 The unvalidated [grid coordinate follow-up](docs/GRID_COORDINATE_BITS.md) preserves signed-zero origins at each axis start and throughout zero-step axes. Eight deferred contracts and an independent raw-bit grid/direct/point replay remain unexecuted; no tests or workflows ran.
+
+The unvalidated [export completion follow-up](docs/EXPORT_COMPLETION_OWNERSHIP.md) makes configuration, resource-package and profiler publication terminal at successful atomic replacement, preserving primary failures when prepublication cleanup also fails. Eleven deferred contracts remain unexecuted; no tests or workflows ran.

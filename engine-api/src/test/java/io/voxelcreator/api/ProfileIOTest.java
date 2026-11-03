@@ -13,6 +13,116 @@ import org.junit.jupiter.api.io.TempDir;
 class ProfileIOTest {
   @TempDir Path directory;
 
+  private static void raise(Throwable failure) throws java.io.IOException {
+    if (failure instanceof java.io.IOException io) throw io;
+    if (failure instanceof RuntimeException runtime) throw runtime;
+    throw (Error) failure;
+  }
+
+  private void export(
+      boolean csv, Path target, Profiler.Snapshot snapshot, ProfileIO.Replacement replacement)
+      throws java.io.IOException {
+    if (csv) ProfileIO.writeCSV(target, snapshot, replacement);
+    else ProfileIO.writeJSON(target, snapshot, replacement);
+  }
+
+  @Test
+  void publishedJsonAndCsvDoNotCleanAReusedTemporaryPathOrReportLateFailure() throws Exception {
+    var snapshot = capture();
+    for (boolean csv : new boolean[] {false, true}) {
+      var target = directory.resolve(csv ? "published.csv" : "published.json");
+      var temporary = new java.util.concurrent.atomic.AtomicReference<Path>();
+      var deletions = new java.util.concurrent.atomic.AtomicInteger();
+      var replacement =
+          new ProfileIO.Replacement() {
+            public void move(Path temp, Path destination) throws java.io.IOException {
+              Files.move(temp, destination, StandardCopyOption.REPLACE_EXISTING);
+              Files.writeString(temp, "new owner of old capture path");
+              temporary.set(temp);
+            }
+
+            public void delete(Path temp) throws java.io.IOException {
+              deletions.incrementAndGet();
+              throw new java.io.IOException("cleanup after publication must not run");
+            }
+          };
+      export(csv, target, snapshot, replacement);
+      if (csv) assertTrue(Files.readString(target).contains(snapshot.captureId().toString()));
+      else
+        assertEquals(
+            snapshot.captureId().toString(),
+            ProjectIO.JSON.readTree(target.toFile()).path("captureId").textValue());
+      assertEquals("new owner of old capture path", Files.readString(temporary.get()));
+      assertEquals(0, deletions.get());
+    }
+  }
+
+  @Test
+  void rejectedJsonAndCsvKeepPublicationFailureAndAttachAllCleanupKinds() throws Exception {
+    for (boolean csv : new boolean[] {false, true})
+      for (Throwable cleanup :
+          List.of(
+              new java.io.IOException("cleanup IO"),
+              new IllegalStateException("cleanup runtime"),
+              new AssertionError("cleanup Error"))) {
+        var target = directory.resolve(csv ? "retained.csv" : "retained.json");
+        Files.writeString(target, "prior complete capture");
+        var primary = new java.io.IOException("original capture failure");
+        var deletions = new java.util.concurrent.atomic.AtomicInteger();
+        var replacement =
+            new ProfileIO.Replacement() {
+              public void move(Path temp, Path destination) throws java.io.IOException {
+                throw primary;
+              }
+
+              public void delete(Path temp) throws java.io.IOException {
+                deletions.incrementAndGet();
+                Files.delete(temp);
+                raise(cleanup);
+              }
+            };
+        var caught =
+            assertThrows(
+                java.io.IOException.class, () -> export(csv, target, capture(), replacement));
+        assertSame(primary, caught);
+        assertArrayEquals(new Throwable[] {cleanup}, caught.getSuppressed());
+        assertEquals(1, deletions.get());
+        assertEquals("prior complete capture", Files.readString(target));
+      }
+    try (var files = Files.list(directory)) {
+      assertTrue(files.noneMatch(p -> p.getFileName().toString().startsWith(".profile-")));
+    }
+  }
+
+  @Test
+  void identicalCaptureAndCleanupFaultsDoNotMaskTheOriginalWithSelfSuppression() throws Exception {
+    for (boolean csv : new boolean[] {false, true})
+      for (Throwable primary :
+          List.of(
+              new java.io.IOException("same IO"),
+              new IllegalStateException("same runtime"),
+              new AssertionError("same Error"))) {
+        var target = directory.resolve(csv ? "same.csv" : "same.json");
+        Files.writeString(target, "retained");
+        var replacement =
+            new ProfileIO.Replacement() {
+              public void move(Path temp, Path destination) throws java.io.IOException {
+                raise(primary);
+              }
+
+              public void delete(Path temp) throws java.io.IOException {
+                Files.delete(temp);
+                raise(primary);
+              }
+            };
+        var caught =
+            assertThrows(Throwable.class, () -> export(csv, target, capture(), replacement));
+        assertSame(primary, caught);
+        assertEquals(0, caught.getSuppressed().length);
+        assertEquals("retained", Files.readString(target));
+      }
+  }
+
   private static Profiler.Snapshot capture() {
     try (var p = new Profiler()) {
       var c = p.start(Profiler.Options.defaults());
