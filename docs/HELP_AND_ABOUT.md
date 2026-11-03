@@ -43,3 +43,5 @@ The unvalidated [pin discovery follow-up](PIN_DISCOVERY_AND_HELP.md) adds a sear
 The unvalidated [coordinate numeric controls follow-up](COORDINATE_NUMERIC_CONTROLS.md) adds the central Coordinate sliders and exact input guide, shared tooltip text and related Bookmarks/Navigation/Trace/readout topics. It documents signed limits, suggested held ranges, invalid raw text and explicit actions. New guidance and replay definitions have not run.
 
 The unvalidated [exact seed numeric follow-up](EXACT_LONG_NUMERIC_CONTROLS.md) adds Exact seed sliders and project bounds, linked with Project Settings, source seeds, creation defaults and coordinate controls. Guidance explains precision, nearby offsets and explicit publication. New catalogue and native replay definitions remain unexecuted.
+
+The unvalidated [runtime-limit numeric follow-up](RUNTIME_LIMIT_NUMERIC_CONTROLS.md) adds Performance and capture numeric limits, linked from Profiler and related private-setting guidance. It explains exact budgets, bounded suggestions, coupled repair and explicit Apply/Start Capture. New catalogue and production replay definitions have not run.

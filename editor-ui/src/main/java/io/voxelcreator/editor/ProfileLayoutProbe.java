@@ -88,10 +88,31 @@ public final class ProfileLayoutProbe {
         click("export-path");
         type(target.toString());
         show("Capture & runtime");
+        var durationPair = panel.captureRows().get(Field.DURATION);
+        require(
+            durationPair.enabled() && durationPair.sliderId() != durationPair.inputId(),
+            "Capture limit pair IDs aliased");
+        slider(durationPair.slider(), .75f);
+        int duration = Integer.parseInt(panel.captureText().get(Field.DURATION));
+        require(
+            duration != 10000
+                && duration >= 100
+                && duration <= 60000
+                && state.engine.profiler().current().orElseThrow() == original
+                && panel.exportReview() == review
+                && review.snapshot() == frozen,
+            "Limit slider started/replaced a capture or changed its reviewed export");
         limit(Field.DURATION, "+0060000");
         limit(Field.SAMPLES, "+0002048");
         limit(Field.SERIES, "512");
         limit(Field.STRIDE, "-");
+        require(
+            !panel.captureRows().get(Field.STRIDE).enabled(),
+            "Invalid capture slider stayed enabled");
+        slider(panel.captureRows().get(Field.STRIDE).slider(), .75f);
+        require(
+            panel.captureText().get(Field.STRIDE).equals("-"),
+            "Capture slider repaired invalid raw limits");
         var raw = panel.captureText();
         var feedback = panel.captureFeedback();
         // The same entry point used by Debug must reject invalid hidden limits without replacement.
@@ -144,6 +165,7 @@ public final class ProfileLayoutProbe {
             receipt.put("actions", panel.layout.actions());
             receipt.put("ids", panel.fieldIds());
             receipt.put("inputs", panel.inputBounds());
+            receipt.put("pairs", panel.captureRows());
             receipt.put("raw", panel.captureText());
             receipt.put("rows", panel.submittedRows());
             receipt.put("rowIds", panel.rowIds());
@@ -240,6 +262,7 @@ public final class ProfileLayoutProbe {
                     Map.entry("acceptedConsumed", true),
                     Map.entry("projectPreserved", true),
                     Map.entry("cachedRows", true),
+                    Map.entry("boundedNumericPairs", true),
                     Map.entry("physicalDpiVerified", false),
                     Map.entry("physicalDetachedVerified", false),
                     Map.entry("gpuFontTextureVerified", false))));
@@ -260,6 +283,16 @@ public final class ProfileLayoutProbe {
   private static void limit(Field field, String text) {
     click(field.name());
     type(text);
+  }
+
+  private static void slider(DialogBounds.Rect at, float fraction) {
+    var io = ImGui.getIO();
+    io.addMousePosEvent(at.x() + at.width() * fraction, at.y() + at.height() / 2);
+    frame();
+    io.addMouseButtonEvent(0, true);
+    frame();
+    io.addMouseButtonEvent(0, false);
+    frames(3);
   }
 
   private static void click(String key) {

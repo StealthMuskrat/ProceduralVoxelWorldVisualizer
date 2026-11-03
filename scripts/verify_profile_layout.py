@@ -8,7 +8,7 @@ out = Path(sys.argv[1])
 report = json.loads((out / 'profile-layout-native.json').read_text(encoding='utf-8'))
 assert report['formatVersion'] == 1 and report['fontSource'] == 'user-scale-fixture'
 for key in ('invalidStartPreservedCapture', 'correctedStart', 'reviewSurvivedClear', 'protectedProject',
-            'failedExportRetry', 'acceptedConsumed', 'projectPreserved', 'cachedRows'):
+            'failedExportRetry', 'acceptedConsumed', 'projectPreserved', 'cachedRows', 'boundedNumericPairs'):
     assert report[key] is True, key
 for key in ('physicalDpiVerified', 'physicalDetachedVerified', 'gpuFontTextureVerified'):
     assert report[key] is False, key
@@ -79,3 +79,23 @@ assert capture['options']['maxSeries'] == 512 and capture['options']['operationS
 project = json.loads((out / 'protected-project.json').read_text(encoding='utf-8'))
 assert project['noise2D'][0]['id'] == 'committed'
 print('Profiler geometry, exact next-capture input, stable series, clipped rows and frozen export replay PASS')
+
+# Deferred bounded slider/input identity and original-domain receipts.
+domains={'DURATION':(100,60000),'SAMPLES':(64,65536),'SERIES':(1,1024),'STRIDE':(1,65536)}
+for case in report['cases']:
+    pairs=case['pairs']
+    if case['section']=='Capture & runtime':
+        assert set(pairs)==set(domains)
+        ids=[]
+        for field,pair in pairs.items():
+            ids.extend([pair['sliderId'],pair['inputId']])
+            assert pair['inputId']==case['ids'][field]
+            r=pair['range']
+            assert (r['anchor']+r['minimumOffset'],r['anchor']+r['maximumOffset'])==domains[field]
+            slider=pair['slider']
+            assert slider['width']>0 and slider['height']>0
+            assert slider['x']>=case['window']['x']
+            assert slider['x']+slider['width']<=case['window']['x']+case['window']['width']+.02
+        assert len(set(ids))==8
+    else:
+        assert not pairs

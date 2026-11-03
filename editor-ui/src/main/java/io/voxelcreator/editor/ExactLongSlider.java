@@ -13,14 +13,38 @@ final class ExactLongSlider {
   private boolean held, blocked;
   private int id, frame = -2;
   private View view;
+  private long minimum, maximum;
+  private int radius;
 
   static Range neighborhood(long value) {
-    int minimum = value < Long.MIN_VALUE + 256 ? (int) (Long.MIN_VALUE - value) : -256;
-    int maximum = value > Long.MAX_VALUE - 256 ? (int) (Long.MAX_VALUE - value) : 256;
-    return new Range(value, minimum, maximum);
+    return neighborhood(value, Long.MIN_VALUE, Long.MAX_VALUE, 256);
+  }
+
+  static Range neighborhood(long value, long minimum, long maximum, int radius) {
+    if (minimum > maximum || value < minimum || value > maximum || radius < 1)
+      throw new IllegalArgumentException("Integer slider bounds/radius");
+    int low = value < Long.MIN_VALUE + (long) radius ? (int) (Long.MIN_VALUE - value) : -radius;
+    int high = value > Long.MAX_VALUE - (long) radius ? (int) (Long.MAX_VALUE - value) : radius;
+    if (Math.addExact(value, low) < minimum) low = Math.toIntExact(minimum - value);
+    if (Math.addExact(value, high) > maximum) high = Math.toIntExact(maximum - value);
+    return new Range(value, low, high);
   }
 
   View prepare(int currentId, int currentFrame, String accepted, String displayed) {
+    return prepare(
+        currentId, currentFrame, accepted, displayed, Long.MIN_VALUE, Long.MAX_VALUE, 256);
+  }
+
+  View prepare(
+      int currentId,
+      int currentFrame,
+      String accepted,
+      String displayed,
+      long minimum,
+      long maximum,
+      int radius) {
+    if (minimum > maximum || radius < 1)
+      throw new IllegalArgumentException("Integer slider bounds/radius");
     if (id != currentId || currentFrame != frame && currentFrame != frame + 1) {
       held = blocked = false;
       range = null;
@@ -29,15 +53,21 @@ final class ExactLongSlider {
     frame = currentFrame;
     if (held && (!Objects.equals(expected, accepted) || !Objects.equals(expected, displayed)))
       blocked = true;
+    if (held && (this.minimum != minimum || this.maximum != maximum || this.radius != radius))
+      blocked = true;
+    this.minimum = minimum;
+    this.maximum = maximum;
+    this.radius = radius;
     long value = 0;
     boolean valid = Objects.equals(accepted, displayed);
     try {
       if (displayed == null || !displayed.matches("[+-]?[0-9]+")) throw new NumberFormatException();
       value = Long.parseLong(displayed);
+      if (value < minimum || value > maximum) valid = false;
     } catch (NumberFormatException invalid) {
       valid = false;
     }
-    if (!held) range = neighborhood(value);
+    if (!held) range = neighborhood(valid ? value : minimum, minimum, maximum, radius);
     expected = accepted;
     boolean enabled = valid && !blocked;
     int offset = enabled ? Math.toIntExact(Math.subtractExact(value, range.anchor())) : 0;

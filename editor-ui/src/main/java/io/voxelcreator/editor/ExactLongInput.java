@@ -27,6 +27,34 @@ final class ExactLongInput {
       boolean allowed,
       Consumer<String> edit,
       Runnable beforeInput) {
+    return draw(
+        inputLabel,
+        width,
+        buffer,
+        accepted,
+        model,
+        allowed,
+        Long.MIN_VALUE,
+        Long.MAX_VALUE,
+        256,
+        HelpDefinitions.LONG_SLIDER_TOOLTIP,
+        edit,
+        beforeInput);
+  }
+
+  Row draw(
+      String inputLabel,
+      float width,
+      ImString buffer,
+      String accepted,
+      Long model,
+      boolean allowed,
+      long minimumValue,
+      long maximumValue,
+      int radius,
+      String guidance,
+      Consumer<String> edit,
+      Runnable beforeInput) {
     int hidden = inputLabel.indexOf("##");
     String visible = hidden < 0 ? inputLabel : inputLabel.substring(0, hidden);
     float labelWidth =
@@ -35,10 +63,12 @@ final class ExactLongInput {
             : ImGui.calcTextSize(visible).x + ImGui.getStyle().getItemInnerSpacingX();
     float digit = 0;
     for (int i = 0; i < 10; i++) digit = Math.max(digit, ImGui.calcTextSize(Integer.toString(i)).x);
-    float minimum =
-        digit * 19
-            + Math.max(ImGui.calcTextSize("-").x, ImGui.calcTextSize("+").x)
-            + ImGui.getStyle().getFramePaddingX() * 2;
+    int characters =
+        Math.max(Long.toString(minimumValue).length(), Long.toString(maximumValue).length());
+    if (maximumValue >= 0)
+      characters = Math.max(characters, Long.toString(maximumValue).length() + 1);
+    float glyph = Math.max(digit, Math.max(ImGui.calcTextSize("-").x, ImGui.calcTextSize("+").x));
+    float minimum = glyph * characters + ImGui.getStyle().getFramePaddingX() * 2;
     var pair =
         SettingsPageLayout.pair(
             Math.max(1, width - labelWidth), minimum, ImGui.getStyle().getItemSpacingX());
@@ -46,7 +76,15 @@ final class ExactLongInput {
     int inputId = ImGui.getID(inputLabel);
     String sliderLabel = "##long-slider-" + Integer.toUnsignedString(inputId);
     int sliderId = ImGui.getID(sliderLabel);
-    var view = slider.prepare(sliderId, ImGui.getFrameCount(), accepted, buffer.get());
+    var view =
+        slider.prepare(
+            sliderId,
+            ImGui.getFrameCount(),
+            accepted,
+            buffer.get(),
+            minimumValue,
+            maximumValue,
+            radius);
     boolean enabled =
         allowed && view.enabled() && (model == null || model.longValue() == view.value());
     boolean valid = view.enabled() && (model == null || model.longValue() == view.value());
@@ -75,13 +113,13 @@ final class ExactLongInput {
     if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
       UiScale.tooltip(
           enabled
-              ? HelpDefinitions.LONG_SLIDER_TOOLTIP
+              ? guidance
                   + "\nSuggested range ["
                   + Math.addExact(view.range().anchor(), view.range().minimumOffset())
                   + ", "
                   + Math.addExact(view.range().anchor(), view.range().maximumOffset())
                   + "]."
-              : "Correct or restore the complete seed text before using its slider.");
+              : "Correct or restore the complete integer text before using its slider.");
     if (pair.inline()) ImGui.sameLine();
     ImGui.setNextItemWidth(pair.inputWidth());
     beforeInput.run();

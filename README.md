@@ -292,3 +292,5 @@ The unvalidated [pin discovery follow-up](docs/PIN_DISCOVERY_AND_HELP.md) adds i
 The unvalidated [coordinate numeric controls follow-up](docs/COORDINATE_NUMERIC_CONTROLS.md) adds exact slider/text pairs to Inspector XYZ and bookmark/teleport inputs while keeping invalid raw text and explicit actions intact. Ten deferred contracts and extended production layout/input replay definitions remain unexecuted; no tests or workflows ran.
 
 The unvalidated [exact seed numeric follow-up](docs/EXACT_LONG_NUMERIC_CONTROLS.md) pairs Project Settings, Properties and creation-default seeds with exact long-offset sliders, and adds project Y-bound pairs. Twelve deferred contracts and extended production input/replay definitions remain unexecuted; no tests or workflows ran.
+
+The unvalidated [runtime-limit numeric follow-up](docs/RUNTIME_LIMIT_NUMERIC_CONTROLS.md) adds bounded slider/text pairs to Performance settings and Profiler next-capture limits, preserving exact budgets and explicit Apply/Start Capture. Twelve deferred contracts and expanded production input/layout replay remain unexecuted; no tests or workflows ran.

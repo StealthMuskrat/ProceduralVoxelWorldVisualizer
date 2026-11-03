@@ -21,6 +21,10 @@ public final class ProfilePanel {
   private final ProfileCaptureInputs captureInputs = new ProfileCaptureInputs();
   private final Map<ProfileCaptureInputs.Field, ImString> captureText =
       new EnumMap<>(ProfileCaptureInputs.Field.class);
+  private final Map<ProfileCaptureInputs.Field, ExactLongInput> captureNumeric =
+      new EnumMap<>(ProfileCaptureInputs.Field.class);
+  private final Map<ProfileCaptureInputs.Field, ExactLongInput.Row> captureRows =
+      new EnumMap<>(ProfileCaptureInputs.Field.class);
   final SettingsPageChrome layout = new SettingsPageChrome(4, 4);
   final PreferenceActionScope captureActions = new PreferenceActionScope();
   final SettingsActionScope prepareActions = new SettingsActionScope(),
@@ -104,6 +108,10 @@ public final class ProfilePanel {
 
   float[] probeWorkControl(String key) {
     return workControls.get(key);
+  }
+
+  Map<ProfileCaptureInputs.Field, ExactLongInput.Row> captureRows() {
+    return Map.copyOf(captureRows);
   }
 
   private void workControl(String key) {
@@ -224,6 +232,7 @@ public final class ProfilePanel {
     if (workProbe) workControls.clear();
     fieldIds.clear();
     inputBounds.clear();
+    captureRows.clear();
     rowIds.clear();
     submittedRows = 0;
     seriesBounds = null;
@@ -348,21 +357,39 @@ public final class ProfilePanel {
     ImGui.textWrapped(
         "Limits configure the next capture. Current measurements and an export review keep their"
             + " own immutable options.");
+    var accepted = captureInputs.text();
     for (var field : ProfileCaptureInputs.Field.values()) {
       ImGui.textWrapped(field.label);
-      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
       String id = "##profile-limit-" + field.name();
       fieldIds.put(field.name(), ImGui.getID(id));
       boolean reveal = field == revealLimit;
-      if (reveal) ImGui.setKeyboardFocusHere();
-      if (ImGui.inputText(id, captureText.get(field))) {
-        try {
-          captureInputs.edit(field, captureText.get(field).get());
-          message = "";
-        } catch (RuntimeException invalid) {
-          message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
-        }
-      }
+      var row =
+          captureNumeric
+              .computeIfAbsent(field, ignored -> new ExactLongInput())
+              .draw(
+                  id,
+                  Math.max(1, ImGui.getContentRegionAvailX()),
+                  captureText.get(field),
+                  accepted.get(field),
+                  null,
+                  true,
+                  field.minimum,
+                  field.maximum,
+                  field.maximum - field.minimum,
+                  HelpDefinitions.BOUNDED_INTEGER_TOOLTIP,
+                  text -> {
+                    try {
+                      captureInputs.edit(field, text);
+                      message = "";
+                    } catch (RuntimeException invalid) {
+                      message =
+                          Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+                    }
+                  },
+                  () -> {
+                    if (reveal) ImGui.setKeyboardFocusHere();
+                  });
+      captureRows.put(field, row);
       workControl(field.name());
       if (reveal) {
         ImGui.setScrollHereY(.25f);

@@ -11,7 +11,7 @@ assert report['formatVersion'] == 1
 for field in ('invalidCouplingBlocked', 'rawBudgetRetained', 'periodicSaveExcludedDraft',
               'cachedFeedback', 'hiddenDraftRetained', 'staleBaseRevert', 'failedWriteRetry',
               'exactLongRoundTrip', 'canonicalAfterSave', 'restartNotice', 'projectPreserved',
-              'engineRetained'):
+              'engineRetained', 'boundedNumericPairs'):
     assert report[field] is True, field
 subprocess.run([sys.executable, str(root / 'scripts/verify_input_preferences.py'),
                 str(out / 'user-config.json')], check=True)

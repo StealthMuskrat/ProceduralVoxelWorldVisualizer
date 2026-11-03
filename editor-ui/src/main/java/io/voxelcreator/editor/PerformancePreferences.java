@@ -51,6 +51,17 @@ public final class PerformancePreferences {
       return maximum;
     }
 
+    /** Presentation neighborhood only; exact text and validation retain the complete domain. */
+    int sliderRadius() {
+      return switch (this) {
+        case PREVIEW_CELLS -> 1_048_576;
+        case ENGINE_MIB, SCENE_CPU_MIB -> 4096;
+        case UPLOAD_KIB -> 16384;
+        case STREAM_CHUNKS -> 2048;
+        default -> 256;
+      };
+    }
+
     void validate(long value) {
       if (value < minimum || value > maximum)
         throw new IllegalArgumentException(label + " must be " + minimum + ".." + maximum);

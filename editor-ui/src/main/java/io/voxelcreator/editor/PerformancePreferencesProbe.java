@@ -63,6 +63,28 @@ public final class PerformancePreferencesProbe {
                         "PERFORMANCE_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
         panel.probeControls();
         frames(3);
+        long activeBudget = user.performance.previewCellBudget;
+        long largeBudget = 9_007_199_254_740_993L;
+        type("previewCellBudget", Long.toString(largeBudget));
+        slider(Field.PREVIEW_CELLS, .75f);
+        long proposedBudget = Long.parseLong(panel.probeText().get(Field.PREVIEW_CELLS));
+        require(
+            proposedBudget != largeBudget
+                && proposedBudget >= largeBudget - 1_048_576
+                && proposedBudget <= largeBudget + 1_048_576
+                && user.performance.previewCellBudget == activeBudget
+                && Arrays.equals(initial, Files.readAllBytes(file)),
+            "Budget slider rounded or published its private long");
+        type("previewCellBudget", "-");
+        require(
+            !panel.numericRows().get(Field.PREVIEW_CELLS).enabled(),
+            "Invalid budget slider stayed enabled");
+        slider(Field.PREVIEW_CELLS, .75f);
+        require(
+            panel.probeText().get(Field.PREVIEW_CELLS).equals("-")
+                && user.performance.previewCellBudget == activeBudget,
+            "Disabled slider used an old valid budget");
+        type("previewCellBudget", Long.toString(activeBudget));
         type("maxPreviewDimension", "16");
         require(!panel.probeApplyEnabled(), "Mismatched default extent enabled Apply");
         click("apply");
@@ -200,7 +222,8 @@ public final class PerformancePreferencesProbe {
                     Map.entry("canonicalAfterSave", true),
                     Map.entry("restartNotice", true),
                     Map.entry("projectPreserved", true),
-                    Map.entry("engineRetained", true))));
+                    Map.entry("engineRetained", true),
+                    Map.entry("boundedNumericPairs", true))));
         System.out.println(
             "PERFORMANCE_PREFERENCES_NATIVE_PASS private limits / coupled extent / exact long /"
                 + " failed-save retry / restart notice");
@@ -238,6 +261,19 @@ public final class PerformancePreferencesProbe {
     io.addMouseButtonEvent(0, false);
     frame();
     frame();
+  }
+
+  private static void slider(Field field, float fraction) {
+    var row = panel.numericRows().get(field);
+    require(row != null && row.sliderId() != row.inputId(), "Missing/distinct budget pair");
+    var at = row.slider();
+    var io = ImGui.getIO();
+    io.addMousePosEvent(at.x() + at.width() * fraction, at.y() + at.height() / 2);
+    frame();
+    io.addMouseButtonEvent(0, true);
+    frame();
+    io.addMouseButtonEvent(0, false);
+    frames(3);
   }
 
   private static void type(String key, String value) {

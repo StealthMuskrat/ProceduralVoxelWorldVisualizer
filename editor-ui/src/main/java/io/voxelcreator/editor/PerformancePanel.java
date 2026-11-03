@@ -24,6 +24,8 @@ final class PerformancePanel {
   private final Values launched;
   private PerformanceEditSession session;
   private final Map<Field, ImString> inputs = new EnumMap<>(Field.class);
+  private final Map<Field, ExactLongInput> numeric = new EnumMap<>(Field.class);
+  private final Map<Field, ExactLongInput.Row> numericRows = new EnumMap<>(Field.class);
   private final Map<String, float[]> controls = new HashMap<>();
   private String message = "";
   private boolean probing, applyEnabled;
@@ -44,6 +46,8 @@ final class PerformancePanel {
 
   private void sync() {
     actionScope.resetDraft();
+    numeric.clear();
+    numericRows.clear();
     for (var field : Field.values())
       inputs.put(
           field, new ImString(session.text().get(field), 4 * PerformanceEditSession.MAX_TEXT + 1));
@@ -67,19 +71,37 @@ final class PerformancePanel {
     ImGui.textWrapped(
         "Performance fields are private until Apply Performance. Revert reloads active values.");
     control("blur");
+    numericRows.clear();
+    boolean current = session.current(user);
     for (var field : Field.values()) {
       ImGui.textWrapped(field.label());
-      ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
       String id = "###performance-" + field.key();
       if (probing) fieldIds.put(field, ImGui.getID(id));
       boolean focus = field == reveal;
-      if (focus) ImGui.setKeyboardFocusHere();
-      if (ImGui.inputText(id, inputs.get(field)))
-        act(
-            () -> {
-              session.edit(field, inputs.get(field).get());
-              message = "";
-            });
+      var row =
+          numeric
+              .computeIfAbsent(field, ignored -> new ExactLongInput())
+              .draw(
+                  id,
+                  Math.max(1, ImGui.getContentRegionAvailX()),
+                  inputs.get(field),
+                  session.text().get(field),
+                  null,
+                  current,
+                  field.minimum(),
+                  field.maximum(),
+                  field.sliderRadius(),
+                  HelpDefinitions.BOUNDED_INTEGER_TOOLTIP,
+                  text ->
+                      act(
+                          () -> {
+                            session.edit(field, text);
+                            message = "";
+                          }),
+                  () -> {
+                    if (focus) ImGui.setKeyboardFocusHere();
+                  });
+      numericRows.put(field, row);
       control(field.key());
       if (focus) {
         ImGui.setScrollHereY(.3f);
@@ -100,7 +122,6 @@ final class PerformancePanel {
       displayedProblem = Objects.requireNonNullElse(mismatch.getMessage(), mismatch.toString());
     }
     if (!displayedProblem.isEmpty()) ImGui.textWrapped("! " + displayedProblem);
-    boolean current = session.current(user);
     if (!current)
       ImGui.textWrapped(
           "Active performance settings changed. Revert reloads them; private input is retained.");
@@ -266,5 +287,9 @@ final class PerformancePanel {
 
   long validations() {
     return session.validations();
+  }
+
+  Map<Field, ExactLongInput.Row> numericRows() {
+    return Map.copyOf(numericRows);
   }
 }

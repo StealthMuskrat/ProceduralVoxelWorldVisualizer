@@ -4,6 +4,9 @@ import java.util.*;
 
 /** Central help-only guidance and semantic links; authored AppMetadata supplies control text. */
 final class HelpDefinitions {
+  static final String BOUNDED_INTEGER_TOOLTIP =
+      "Adjust this private integer input. Exact text accepts the complete documented range; the"
+          + " existing Apply or Start Capture action remains explicit.";
   static final String LONG_SLIDER_TOOLTIP =
       "Adjust by up to 256 exact integer steps from the current seed. Exact text keeps every digit"
           + " of a signed 64-bit seed. Slider edits stay private until the existing Apply action.";
@@ -164,6 +167,24 @@ final class HelpDefinitions {
                   + " Application Settings Apply; existing resources and user preferences are"
                   + " unchanged by private input."),
           new Guide(
+              "help.runtime-limits",
+              "Performance and capture numeric limits",
+              "Performance settings and Profiler next-capture limits pair suggested sliders with"
+                  + " exact whole-decimal input. "
+                  + BOUNDED_INTEGER_TOOLTIP
+                  + " Small fields expose their complete allowed slider range. Larger budgets"
+                  + " use a nearby range; exact text still accepts every documented integer,"
+                  + " including long cell budgets. A held range stays fixed until the interaction"
+                  + " ends. Invalid, out-of-range or disagreeing text disables that slider and"
+                  + " stays available for correction. Default preview extent must not exceed"
+                  + " Maximum preview dimension; adjust either field, then Apply Performance."
+                  + " Private performance input is excluded from Save Preferences. Active changes"
+                  + " elsewhere require Revert before Apply. Worker, engine-memory and default"
+                  + " extent changes retain their restart notices. Capture fields configure only"
+                  + " the next Start Capture; current captures and prepared exports retain their"
+                  + " immutable options and samples. Editing limits never starts/stops a capture"
+                  + " or publishes preferences automatically."),
+          new Guide(
               "help.world-lists",
               "World ordered settings",
               "Sampling transforms, numeric parameter drivers and type intervals are ordered"
@@ -236,7 +257,10 @@ final class HelpDefinitions {
           Map.entry("archives", List.of("save", "layers", "help.visualization")),
           Map.entry("bookmarks", List.of("navigation", "save", "help.coordinates")),
           Map.entry("diagnostics", List.of("help.find", "help.trace", "profiler")),
-          Map.entry("profiler", List.of("diagnostics", "help.visualization")),
+          Map.entry(
+              "profiler", List.of("diagnostics", "help.visualization", "help.runtime-limits")),
+          Map.entry(
+              "help.runtime-limits", List.of("profiler", "help.appearance", "help.long-inputs")),
           Map.entry("shortcuts", List.of("navigation", "help.manual")),
           Map.entry("creation-defaults", List.of("noise", "processing", "help.appearance")),
           Map.entry("themes", List.of("help.appearance", "creation-defaults")),

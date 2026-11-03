@@ -38,3 +38,5 @@ The export-review implementation and thirteen additional regression definitions,
 The unvalidated [Profiler workspace follow-up](PROFILER_LAYOUT.md) adds exact next-capture input and retained sections with persistent action rows. Its new regression/native/replay definitions remain deferred and do not advance the evidence recorded here.
 
 The unvalidated [export completion follow-up](EXPORT_COMPLETION_OWNERSHIP.md) ends JSON/CSV temporary cleanup at successful replacement and preserves primary failures across checked/unchecked cleanup faults. Three additional ProfileIOTest definitions cover both formats and remain deferred. Frozen review ownership, capture state, schemas and atomic-only replacement remain.
+
+The unvalidated [runtime-limit numeric follow-up](RUNTIME_LIMIT_NUMERIC_CONTROLS.md) adds bounded pairs to all four next-capture fields, preserving complete raw/displayed validation, immutable current Options and frozen export review. Sliders never start/replace a capture. Native receipts now include pair identities/ranges/geometry and invalid-stride refusal; definitions remain unexecuted.
