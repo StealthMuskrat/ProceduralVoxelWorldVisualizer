@@ -54,3 +54,18 @@ assert expected_replacement == replacement == after
 assert empty['noise2D'] == empty['noise3D'] == empty['voxelTypes'] == empty['worldGenerator']['layers'] == []
 assert read('preferences-before.json') == read('preferences.json')
 print('Viewport document lifetime, manual retention, exact epochs/source selections, queued request gate and persistence PASS')
+
+# Deferred production Inspector worker/future failure recovery, in a separate editor/runtime.
+recovery = read('inspector-worker/inspector-worker-native.json')
+assert recovery['formatVersion'] == 1 and recovery['traceLogs'] == 10
+assert recovery['physicalInputVerified'] is False
+assert recovery['projectPreserved'] and recovery['privatePreserved'] and recovery['preferencesPreserved']
+rows = recovery['cases']
+assert len(rows) == 8
+assert {(row['pick'], row['escaped'], row['unreadable']) for row in rows} == {
+    (pick, escaped, unreadable) for pick in (False, True) for escaped in (False, True) for unreadable in (False, True)}
+for row in rows:
+    x = 7 if row['pick'] else 2
+    assert row['target'] == dict(x=x, y=0, z=3)
+    assert row['field'] == (2 + 2*(x+1) + 3)*2 and row['finalType'] == 1
+assert read('inspector-worker/before.json') == read('inspector-worker/after.json')

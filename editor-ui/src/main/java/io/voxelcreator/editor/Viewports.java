@@ -65,7 +65,9 @@ public final class Viewports implements AutoCloseable {
   private final Map<String, ImString> inspectorInputs = new LinkedHashMap<>();
   private String inspectorInputError = "";
   private boolean inspectorReveal;
-  private InspectorTraceRetry inspectorRetry;
+  private InspectorTraceRetry inspectorRetry, inspectorPendingRetry;
+  private final AtomicReference<Error> probeInspectorCaughtFailure = new AtomicReference<>(),
+      probeInspectorEscapedFailure = new AtomicReference<>();
   private final BookmarkPanel bookmarkPanel;
 
   boolean bookmarkInteractionPending() {
@@ -125,12 +127,19 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void reconcileInspectorTask() {
-    if (inspectorTask.pending() && !inspectorTaskValid.getAsBoolean())
+    if (!inspectorTask.pending()) return;
+    var request = inspectorTask.request();
+    var current = inspectorTaskValid;
+    if (!current.getAsBoolean()) {
       cancelInspectorTask(
-          inspectorTask.request().viewBound()
+          request.viewBound()
               ? "Preview changed; pick canceled."
               : "Project changed; Trace XYZ to use the current project.",
           false);
+      return;
+    }
+    var failure = inspectorTask.failure();
+    if (failure != null) failInspectorTask(request, current, inspectorPendingRetry, failure);
   }
 
   void probeWorld(UUID stage, String mode, int side, double centerX) {
@@ -736,6 +745,20 @@ public final class Viewports implements AutoCloseable {
         Byte.toUnsignedInt(all.get(at + 1)),
         Byte.toUnsignedInt(all.get(at + 2)),
         Byte.toUnsignedInt(all.get(at + 3)));
+  }
+
+  void probeInspectorWorkerFailure(Error failure, boolean escaped) {
+    (escaped ? probeInspectorEscapedFailure : probeInspectorCaughtFailure).set(failure);
+  }
+
+  void probeWorldPick() {
+    pick(views[2], 0, 0, 1);
+  }
+
+  private void inspectorWorkerBoundary(boolean escaped) {
+    var failure =
+        (escaped ? probeInspectorEscapedFailure : probeInspectorCaughtFailure).getAndSet(null);
+    if (failure != null) throw failure;
   }
 
   void probeTraceCoordinate(BlockPos position) {
@@ -3782,23 +3805,26 @@ public final class Viewports implements AutoCloseable {
                     || v.scene == sourceScene
                         && v.gl.sceneRenderer() == sourceGpu
                         && drawn.equals(sourceGpu.pickingVersions()));
-    ProjectData p = ProjectIO.copy(state.project());
     UUID selectedStage = v.stage;
     String selectedMode = v.stageMode;
     beginInspectorTask(
         request,
         streamedHit.map(ChunkScene.Pick::position).orElse(null),
         current,
-        "Picking a voxel from the displayed preview...");
+        "Picking a voxel from the displayed preview...",
+        null);
     try {
+      ProjectData p = ProjectIO.copy(state.project());
       inspectorTask.attach(
           request,
           state.background.submit(
               () -> {
+                inspectorWorkerBoundary(true);
                 try (var world =
                     state.engine.openWorld(
                         new CompiledProject(p),
                         new WorldOptions(null, 32, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+                  inspectorWorkerBoundary(false);
                   GenerationStage boundary =
                       selectedMode.equals("Final")
                           ? null
@@ -3856,22 +3882,12 @@ public final class Viewports implements AutoCloseable {
                         showPickMiss(
                             v, "No occupied voxel hit; enter a coordinate to inspect EMPTY");
                       });
-                } catch (Exception e) {
-                  state.uiQueue.offer(
-                      () -> {
-                        if (!finishInspectorTask(request, current)) return;
-                        inspectorTaskFeedback =
-                            "Pick failed; choose a voxel or Trace XYZ to retry.";
-                        state.status = inspectorTaskFeedback;
-                        state.notify("Error", e.getMessage());
-                      });
+                } catch (Throwable failure) {
+                  state.uiQueue.offer(() -> failInspectorTask(request, current, null, failure));
                 }
               }));
-    } catch (RejectedExecutionException e) {
-      finishInspectorTask(request, current);
-      inspectorTaskFeedback = "Inspector queue is full; choose a voxel or Trace XYZ to retry.";
-      state.status = inspectorTaskFeedback;
-      state.notify("Warning", "Inspector queue is full");
+    } catch (Throwable failure) {
+      failInspectorTask(request, current, null, failure);
     }
   }
 
@@ -3902,7 +3918,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void cancelInspectorTask(String feedback, boolean invalidate) {
-    inspectorRetry = null;
+    inspectorRetry = inspectorPendingRetry = null;
     inspectorTask.cancel();
     inspectorTaskValid = null;
     state.background.purge();
@@ -3915,11 +3931,13 @@ public final class Viewports implements AutoCloseable {
       InspectorRequests.Request request,
       BlockPos target,
       java.util.function.BooleanSupplier valid,
-      String feedback) {
+      String feedback,
+      InspectorTraceRetry recovery) {
     inspectorRetry = null;
     inspectorTask.begin(request, target);
     inspectorPanel.showTrace();
     inspectorTaskValid = valid;
+    inspectorPendingRetry = recovery;
     state.background.purge();
     inspectorTaskFeedback = feedback;
     state.status = feedback;
@@ -3927,8 +3945,17 @@ public final class Viewports implements AutoCloseable {
 
   private boolean finishInspectorTask(
       InspectorRequests.Request request, java.util.function.BooleanSupplier valid) {
-    if (!inspectorTask.finish(request)) return false;
+    return finishInspectorTask(request, valid, true);
+  }
+
+  private boolean finishInspectorTask(
+      InspectorRequests.Request request,
+      java.util.function.BooleanSupplier valid,
+      boolean success) {
+    if (!(success ? inspectorTask.finishSuccessful(request) : inspectorTask.finish(request)))
+      return false;
     inspectorTaskValid = null;
+    inspectorPendingRetry = null;
     if (!valid.getAsBoolean()) {
       inspectorTaskFeedback = "Inspector request expired; choose a voxel or Trace XYZ to retry.";
       state.status = inspectorTaskFeedback;
@@ -3936,6 +3963,40 @@ public final class Viewports implements AutoCloseable {
     }
     inspectorTaskFeedback = "";
     return true;
+  }
+
+  private void failInspectorTask(
+      InspectorRequests.Request request,
+      java.util.function.BooleanSupplier current,
+      InspectorTraceRetry recovery,
+      Throwable failure) {
+    if (!finishInspectorTask(request, current, false)) return;
+    boolean pick = request.viewBound();
+    boolean queue = failure instanceof RejectedExecutionException;
+    boolean cancelled =
+        failure instanceof CancellationException || failure instanceof InterruptedException;
+    inspectorRetry = pick ? null : recovery;
+    if (pick) {
+      inspectorTaskFeedback =
+          (queue ? "Inspector queue is full" : cancelled ? "Pick cancelled" : "Pick failed")
+              + "; choose a voxel or Trace XYZ to retry.";
+    } else if (queue) {
+      inspectorTaskFeedback = "Inspector queue is full; use Retry Trace to retry this target.";
+    } else {
+      var pos = recovery.position();
+      inspectorTaskFeedback =
+          String.format(
+              Locale.ROOT,
+              "Trace %s at X %d, Y %d, Z %d. Use Retry Trace to retry this target.",
+              cancelled ? "cancelled" : "failed",
+              pos.x(),
+              pos.y(),
+              pos.z());
+    }
+    state.status = inspectorTaskFeedback;
+    state.notify(
+        queue || cancelled ? "Warning" : "Error",
+        queue ? "Inspector queue is full" : InspectorTask.describe(failure));
   }
 
   private void startCoordinateTrace() {
@@ -3966,7 +4027,6 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void startCoordinateTrace(BlockPos pos) {
-    var p = ProjectIO.copy(state.project());
     long revision = state.revision;
     var request = traceRequests.begin(state.document.sessionToken(), revision, false);
     long coordinateVersion = inspectorCoordinates.version();
@@ -3979,43 +4039,29 @@ public final class Viewports implements AutoCloseable {
         request,
         pos,
         current,
-        String.format(Locale.ROOT, "Tracing X %d, Y %d, Z %d...", pos.x(), pos.y(), pos.z()));
+        String.format(Locale.ROOT, "Tracing X %d, Y %d, Z %d...", pos.x(), pos.y(), pos.z()),
+        recovery);
     try {
+      var p = ProjectIO.copy(state.project());
       inspectorTask.attach(
           request,
           state.background.submit(
               () -> {
+                inspectorWorkerBoundary(true);
                 try (var world = state.engine.openWorld(new CompiledProject(p))) {
+                  inspectorWorkerBoundary(false);
                   var result = world.trace(pos);
                   state.uiQueue.offer(
                       () -> {
                         if (!finishInspectorTask(request, current)) return;
                         acceptTrace(result, p, revision);
                       });
-                } catch (Exception e) {
-                  state.uiQueue.offer(
-                      () -> {
-                        if (!finishInspectorTask(request, current)) return;
-                        inspectorRetry = recovery;
-                        inspectorTaskFeedback =
-                            String.format(
-                                Locale.ROOT,
-                                "Trace failed at X %d, Y %d, Z %d. Use Retry Trace to retry this"
-                                    + " target.",
-                                pos.x(),
-                                pos.y(),
-                                pos.z());
-                        state.status = inspectorTaskFeedback;
-                        state.notify("Error", e.getMessage());
-                      });
+                } catch (Throwable failure) {
+                  state.uiQueue.offer(() -> failInspectorTask(request, current, recovery, failure));
                 }
               }));
-    } catch (RejectedExecutionException full) {
-      if (!finishInspectorTask(request, current)) return;
-      inspectorRetry = recovery;
-      inspectorTaskFeedback = "Inspector queue is full; use Retry Trace to retry this target.";
-      state.status = inspectorTaskFeedback;
-      state.notify("Warning", "Inspector queue is full");
+    } catch (Throwable failure) {
+      failInspectorTask(request, current, recovery, failure);
     }
   }
 
@@ -4125,7 +4171,9 @@ public final class Viewports implements AutoCloseable {
       traceRequests.close();
       inspectorTask.close();
       inspectorTaskValid = null;
-      inspectorRetry = null;
+      inspectorRetry = inspectorPendingRetry = null;
+      probeInspectorCaughtFailure.set(null);
+      probeInspectorEscapedFailure.set(null);
       for (var v : views) {
         release(v);
         v.ready.close();

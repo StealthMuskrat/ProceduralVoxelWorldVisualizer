@@ -266,6 +266,7 @@ public final class ViewportDocumentProbe {
                     + " UI callback ownership");
           }
         }
+        InspectorWorkerRecoveryProbe.run(out.resolve("inspector-worker"), window);
       } finally {
         ImGui.destroyContext();
       }

@@ -295,7 +295,12 @@ final class HelpDefinitions {
                   + " selected complete observation, including values displayed over multiple"
                   + " pages. Source links retain the exact trace observation through any Apply /"
                   + " Discard / Cancel decision. Filters and paging do not generate new voxel"
-                  + " values."),
+                  + " values. Pick and Trace run in background workers. Cancel retires their"
+                  + " publication authority; an unexpected worker failure also releases pending"
+                  + " state and preserves the last valid trace. A failed coordinate attempt offers"
+                  + " Retry Trace for that exact target, independently of entered XYZ or an older"
+                  + " displayed result. A failed pick offers a new pick or Trace XYZ instead of"
+                  + " inventing a coordinate target. Nothing retries automatically."),
           new Guide(
               "help.about",
               "About and dependency licenses",
