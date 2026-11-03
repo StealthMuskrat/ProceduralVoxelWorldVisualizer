@@ -1,0 +1,27 @@
+# Indexed folder validation — unvalidated development
+
+This batch supports specification 3.1.5, 3.2.1–3.2.3, 19.2.1–19.2.2, 19.2.5 and 20.1.5, with A02/A03/A07/A22 coverage definitions. No compilation, JUnit, native probe, independent consumer, packaging command or workflow ran. The owner testing pause and last observed validated baseline of 922 tests / 120 suites remain unchanged.
+
+## Hierarchy and sparse-order checks
+
+The model validator previously rebuilt the complete ResourceGraph catalog for every folder's direct-child check, then walked each folder's complete ancestry independently. Deep hierarchies and branches sharing many ancestors therefore repeated catalog/parent work. Validation now captures one catalog for direct-child/root-child indexes, and folder-cycle detection shares completed ancestry across an explicit iterative traversal. Each folder's parent edge is visited once. Separate connected components remain checked in authored folder order; paths into completed ancestry finish without repeating it. Missing parents remain reference errors rather than invented graph nodes. Null/missing identities retain identity errors, and null order members retain INVALID_ORDER rather than triggering immutable-set exceptions.
+
+Folder, noise and layer parent references still require compatible protected roots. Sibling folder name scopes, global noise/layer namespaces, stable UUIDs, sparse ordering, World execution arrays, generated values and inheritance remain authoritative. Indexes exist only inside one validation call and never repair, reorder or normalize the candidate. Neither schema nor public method signatures change.
+
+Hierarchy lookup/traversal costs now scale with catalog entries, folders and listed order members, plus emitted route text. This is not a benchmark, a measured UI responsiveness claim or a complexity guarantee for complete validation, parsing, compiler work, tree rendering or resource copying. Those paths retain their own costs and limits.
+
+## Exact diagnostic authority
+
+Folder parent failures now identify /folders/index/parentFolderUuid; unknown roots identify rootKind. Noise parent failures identify the actual noise2D/noise3D array entry in authored dimension order instead of a historical UUID alias. Invalid folder/root order members identify the exact array index; an unknown rootOrder key retains its escaped key pointer. Explicit childOrder/rootOrder logical keys survive numeric pointer tails. Folder diagnostics retain source UUID authority when arrays later move, and existing layer parent diagnostics remain exact.
+
+FOLDER_CYCLE remains the stable machine code. It now reports one closing link per cyclic ancestry component, with the exact parentFolderUuid pointer, closing folder UUID and complete loop-only UUID route. Incoming branches do not repeat an already discovered cycle or appear in the loop route. This deliberately changes diagnostic multiplicity/location/message from the earlier per-starting-folder reports; rejected projects remain rejected. Central Help explains parent/root compatibility, sparse direct-child order and correction of a rejected candidate without confusing its array positions with the active project.
+
+## Deferred definitions
+
+Fourteen FolderValidationGraphTest definitions cover an 8,192-folder reverse-authored chain, shared ancestors and scoped same-name branches, a 2,048-folder cycle and complete route, prefix exclusion, disconnected World/3D cycles, self-parenting, missing and cross-root parents, unknown roots, authored 2D/3D parent errors, exact invalid child/root order entries, escaped root keys, sparse World layer orders without execution changes, null order entries, duplicate/missing identities and rejected document publication. Before/after model equality defines read-only ownership. One HelpCatalogTest definition covers searchable complete recovery guidance, related-topic resolution and metadata ownership.
+
+The existing engine-only ProjectParseConsumer command additionally defines a folder-validation replay. A 4,097-folder reverse-authored noise hierarchy plus one World folder must open through the public loader/document path. Three separately written candidates introduce a complete folder cycle, a foreign child-order member and a wrong-root root-order member. Each must reject with one exact diagnostic while retaining the current document instance/lifetime, edited dirty values, saved path/checkpoint and history. One Undo/Redo must still restore complete states, and saving/reloading the retained hierarchy must preserve authoring/order values. Independent expectations require 42 exact x + .125 field samples and 588 exact SET/EMPTY World observations across signed coordinates at roots 2/4, before and after persistence. Future outputs include valid/rejected hierarchy files, retained-hierarchy.pvproj.json and folder-validation.json. Existing parsing/Open/noise-cycle/transfer replays remain intact and existing manual-only commands already invoke the expanded source.
+
+Source review also corrects the previous indexed-transfer replay's bounds field spelling to Project.minY/maxY. That replay and its original contracts remain uncompiled/unexecuted; this correction adds no validation evidence.
+
+All fifteen definitions and the expanded consumer remain uncompiled/untested. Large-project latency/memory, broader native hierarchy gestures/navigation, JVM/platform/Windows 11 hardware and final release acceptance remain pending. Main remains authoritative; no development branch was created.

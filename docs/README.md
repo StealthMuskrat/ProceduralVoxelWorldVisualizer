@@ -4,6 +4,7 @@ This is a development implementation. The current package is named Development u
 
 Start with [Build and run](BUILD_AND_RUN.md) for the pinned Java toolchain, Windows 11 x64/OpenGL requirements, bundled launcher and independent engine example. In the distribution, the desktop entry point is `windows/launcher/ProceduralVoxelCreator.cmd` relative to the package root; the engine example is `examples/independent-engine-client/run.cmd` and requires the documented JDK.
 
+- [Indexed folder validation](FOLDER_VALIDATION_GRAPH.md) describes hierarchy checks, exact errors and deferred coverage.
 - [Indexed resource transfer](INDEXED_RESOURCE_TRANSFER.md) describes dependency selection, conflict lookup and deferred coverage.
 - [Application Help](HELP_AND_ABOUT.md) describes editor workflows and controls.
 - [API](API.md) describes the independent headless engine.

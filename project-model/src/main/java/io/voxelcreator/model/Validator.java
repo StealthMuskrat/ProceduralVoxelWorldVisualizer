@@ -108,42 +108,57 @@ public final class Validator {
           folderNames.computeIfAbsent(f.rootKind + f.parentFolderUuid, k -> new HashSet<>()),
           path + "/id");
       if (!Set.of("noise2D", "noise3D", "world").contains(f.rootKind))
-        error("INVALID_ROOT", path, "Unknown root");
+        error("INVALID_ROOT", path + "/rootKind", "Unknown root");
       folders.put(f.uuid, f);
     }
-    for (var f : p.folders) {
+    // One catalog indexes both organizational orders. Placements remain children of their layer,
+    // while only direct protected-root children are eligible for rootOrder.
+    var childrenByParent = new HashMap<UUID, Set<UUID>>();
+    var childrenByRoot = new HashMap<String, Set<UUID>>();
+    for (var entry : ResourceGraph.entries(p)) {
+      if (entry.parent() != null)
+        childrenByParent.computeIfAbsent(entry.parent(), key -> new HashSet<>()).add(entry.uuid());
+      else childrenByRoot.computeIfAbsent(entry.root(), key -> new HashSet<>()).add(entry.uuid());
+    }
+    for (int i = 0; i < p.folders.size(); i++) {
+      var f = p.folders.get(i);
+      String path = "/folders/" + i;
       if (f.parentFolderUuid != null) {
         var parent = folders.get(f.parentFolderUuid);
         if (parent == null || !parent.rootKind.equals(f.rootKind))
-          error("INVALID_REFERENCE", "/folders/" + f.uuid, "Missing or incompatible parent");
+          error("INVALID_REFERENCE", path + "/parentFolderUuid", "Missing or incompatible parent");
       }
-      var children = new HashSet<UUID>();
-      for (var e : ResourceGraph.entries(p))
-        if (Objects.equals(e.parent(), f.uuid)) children.add(e.uuid());
+      var children = childrenByParent.getOrDefault(f.uuid, Set.of());
       var ordered = new HashSet<UUID>();
-      for (UUID child : f.childOrder)
-        if (!children.contains(child) || !ordered.add(child))
-          error(
-              "INVALID_ORDER",
-              "/folders/" + f.uuid + "/childOrder",
-              "Order entries must identify distinct direct children");
-      var visited = new HashSet<UUID>();
-      Folder at = f;
-      while (at != null) {
-        if (!visited.add(at.uuid)) {
-          error("FOLDER_CYCLE", "/folders/" + f.uuid, "Folder ancestry cycle");
-          break;
-        }
-        at = folders.get(at.parentFolderUuid);
+      for (int j = 0; j < f.childOrder.size(); j++) {
+        UUID child = f.childOrder.get(j);
+        if (child == null || !children.contains(child) || !ordered.add(child))
+          errors.add(
+              new Diagnostic(
+                  "INVALID_ORDER",
+                  Diagnostic.Severity.ERROR,
+                  "Order entries must identify distinct direct children",
+                  path + "/childOrder/" + j,
+                  f.uuid,
+                  null,
+                  "childOrder"));
       }
     }
-    for (var n : noises.values())
-      if (n.parentFolderUuid != null) {
-        var f = folders.get(n.parentFolderUuid);
-        if (f == null || !f.rootKind.equals("noise" + n.dimension + "D"))
-          error(
-              "INVALID_REFERENCE", "/noise/" + n.uuid + "/parentFolderUuid", "Incompatible folder");
+    folderCycles(p);
+    for (int dim = 2; dim <= 3; dim++) {
+      var list = dim == 2 ? p.noise2D : p.noise3D;
+      for (int i = 0; i < list.size(); i++) {
+        var n = list.get(i);
+        if (n.parentFolderUuid != null) {
+          var f = folders.get(n.parentFolderUuid);
+          if (f == null || !f.rootKind.equals("noise" + dim + "D"))
+            error(
+                "INVALID_REFERENCE",
+                "/noise" + dim + "D/" + i + "/parentFolderUuid",
+                "Incompatible folder");
+        }
       }
+    }
     noiseCycles(p);
     for (var order : p.project.rootOrder.entrySet()) {
       String path = "/project/rootOrder/" + order.getKey().replace("~", "~0").replace("/", "~1");
@@ -151,14 +166,21 @@ public final class Validator {
         error("INVALID_ORDER", path, "Unknown protected root");
         continue;
       }
-      var children = new HashSet<UUID>();
-      for (var entry : ResourceGraph.entries(p))
-        if (entry.root().equals(order.getKey()) && entry.parent() == null)
-          children.add(entry.uuid());
+      var children = childrenByRoot.getOrDefault(order.getKey(), Set.of());
       var seen = new HashSet<UUID>();
-      for (UUID id : order.getValue())
-        if (!children.contains(id) || !seen.add(id))
-          error("INVALID_ORDER", path, "Root order entries must be distinct direct children");
+      for (int i = 0; i < order.getValue().size(); i++) {
+        UUID id = order.getValue().get(i);
+        if (id == null || !children.contains(id) || !seen.add(id))
+          errors.add(
+              new Diagnostic(
+                  "INVALID_ORDER",
+                  Diagnostic.Severity.ERROR,
+                  "Root order entries must be distinct direct children",
+                  path + "/" + i,
+                  null,
+                  null,
+                  "rootOrder"));
+      }
     }
     resources(p.worldGenerator.layers, "/worldGenerator/layers");
     int li = 0;
@@ -207,6 +229,44 @@ public final class Validator {
               path + "/y",
               tab.threeDimensional() ? "3D bookmark requires Y" : "2D bookmark has no Y");
       }
+    }
+  }
+
+  /** Each folder has one parent edge; completed ancestry is shared across all starting folders. */
+  private void folderCycles(ProjectData p) {
+    var positions = new HashMap<UUID, Integer>();
+    for (int i = 0; i < p.folders.size(); i++) positions.put(p.folders.get(i).uuid, i);
+    var complete = new HashSet<UUID>();
+    var active = new HashMap<UUID, Integer>();
+    var path = new ArrayList<Folder>();
+    for (var root : p.folders) {
+      if (root.uuid == null || complete.contains(root.uuid)) continue;
+      Folder at = root;
+      while (at != null && at.uuid != null && !complete.contains(at.uuid)) {
+        Integer start = active.get(at.uuid);
+        if (start != null) {
+          var closing = path.getLast();
+          var route = new StringJoiner(" -> ");
+          for (int i = start; i < path.size(); i++) route.add(path.get(i).uuid.toString());
+          route.add(at.uuid.toString());
+          errors.add(
+              new Diagnostic(
+                  "FOLDER_CYCLE",
+                  Diagnostic.Severity.ERROR,
+                  "Folder ancestry cycle " + route,
+                  "/folders/" + positions.get(closing.uuid) + "/parentFolderUuid",
+                  closing.uuid,
+                  null,
+                  "parentFolderUuid"));
+          break;
+        }
+        active.put(at.uuid, path.size());
+        path.add(at);
+        at = at.parentFolderUuid == null ? null : folders.get(at.parentFolderUuid);
+      }
+      for (var visited : path) complete.add(visited.uuid);
+      active.clear();
+      path.clear();
     }
   }
 

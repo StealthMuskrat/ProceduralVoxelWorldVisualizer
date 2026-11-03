@@ -161,6 +161,7 @@ public final class ProjectParseConsumer {
     preparedReplay(out.resolve("prepared-open"));
     dependencyReplay(out.resolve("dependency-cycles"));
     transferReplay(out.resolve("indexed-transfer"));
+    folderReplay(out.resolve("folder-validation"));
     System.out.println("PROJECT_PARSE_CONSUMER_PASS");
   }
 
@@ -334,8 +335,8 @@ public final class ProjectParseConsumer {
     var incomingBefore = ProjectIO.JSON.valueToTree(incoming);
     var destination = new ProjectData();
     destination.project.seed = 99;
-    destination.project.yMin = -2;
-    destination.project.yMax = 2;
+    destination.project.minY = -2;
+    destination.project.maxY = 2;
     var existing = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(leaf), Noise.class);
     existing.id = "retained-leaf";
     destination.noise2D.add(existing);
@@ -347,8 +348,8 @@ public final class ProjectParseConsumer {
                   ResourceGraph.assign(p, destination);
                   // Resource-only assignment intentionally retains destination-owned settings.
                   p.project.seed = 99;
-                  p.project.yMin = -2;
-                  p.project.yMax = 2;
+                  p.project.minY = -2;
+                  p.project.maxY = 2;
                 })
             .isEmpty(),
         "Transfer destination rejected");
@@ -383,8 +384,8 @@ public final class ProjectParseConsumer {
         candidate.noise2D.size() == 2049
             && candidate.noise3D.isEmpty()
             && candidate.project.seed == 99
-            && candidate.project.yMin == -2
-            && candidate.project.yMax == 2,
+            && candidate.project.minY == -2
+            && candidate.project.maxY == 2,
         "Transfer changed destination settings or introduced unrelated resources");
     for (int i = 0; i < incoming.noise2D.size(); i++) {
       var n = incoming.noise2D.get(i);
@@ -469,6 +470,159 @@ public final class ProjectParseConsumer {
                 "roots",
                 List.of(2, 4),
                 "undoRedo",
+                true)));
+  }
+
+  /** Deferred deep hierarchy acceptance, exact rejection authority and retained runtime values. */
+  private static void folderReplay(Path out) throws Exception {
+    Files.createDirectories(out);
+    var project = new ProjectData();
+    fixture(project);
+    UUID parent = null;
+    for (int i = 0; i < 4097; i++) {
+      var folder = new Folder();
+      folder.id = "folder-" + i;
+      folder.parentFolderUuid = parent;
+      if (parent != null) project.folders.getLast().childOrder.add(folder.uuid);
+      project.folders.add(folder);
+      parent = folder.uuid;
+    }
+    Collections.reverse(project.folders);
+    project.noise2D.getFirst().parentFolderUuid = project.folders.getFirst().uuid;
+    project.folders.getFirst().childOrder.add(project.noise2D.getFirst().uuid);
+    var worldFolder = new Folder();
+    worldFolder.id = "world";
+    worldFolder.rootKind = "world";
+    worldFolder.childOrder.add(project.worldGenerator.layers.getFirst().uuid);
+    project.worldGenerator.layers.getFirst().parentFolderUuid = worldFolder.uuid;
+    project.folders.add(worldFolder);
+    project.project.rootOrder.put("world", new ArrayList<>(List.of(worldFolder.uuid)));
+    var validPath = out.resolve("valid-hierarchy.json");
+    new ProjectIO().save(validPath, project);
+    String validBytes = Files.readString(validPath);
+    var document = new DocumentSession();
+    document.setValidator(io.voxelcreator.core.NoiseCompiler::validate);
+    require(document.open(validPath).isEmpty(), "Deep hierarchy failed public Open");
+    require(document.edit(p -> p.project.seed = 29).isEmpty(), "Hierarchy current edit rejected");
+    var active = document.data();
+    var token = document.sessionToken();
+    long history = document.historyBytes();
+    var before = ProjectIO.JSON.valueToTree(active);
+    var compiledBefore = new CompiledProject(active);
+    var cyclic = ProjectIO.copy(active);
+    cyclic.folders.get(4096).parentFolderUuid = cyclic.folders.getFirst().uuid;
+    var badChildOrder = ProjectIO.copy(active);
+    badChildOrder.folders.getFirst().childOrder.add(worldFolder.uuid);
+    var badRootOrder = ProjectIO.copy(active);
+    badRootOrder.project.rootOrder.get("world").add(active.noise2D.getFirst().uuid);
+    var rejected = List.of(cyclic, badChildOrder, badRootOrder);
+    var codes = List.of("FOLDER_CYCLE", "INVALID_ORDER", "INVALID_ORDER");
+    var pointers =
+        List.of(
+            "/folders/4096/parentFolderUuid",
+            "/folders/0/childOrder/1",
+            "/project/rootOrder/world/1");
+    for (int i = 0; i < rejected.size(); i++) {
+      var path = out.resolve("rejected-hierarchy-" + i + ".json");
+      String bytes = ProjectIO.JSON.writeValueAsString(rejected.get(i));
+      Files.writeString(path, bytes);
+      var load = new ProjectLoader().load(path);
+      require(
+          !load.success() && load.project() == null && load.diagnostics().size() == 1,
+          "Malformed hierarchy exposed a project or repeated a graph error");
+      var issue = load.diagnostics().getFirst();
+      require(
+          issue.code().equals(codes.get(i))
+              && issue.jsonPointer().equals(pointers.get(i))
+              && !ProjectIO.JSON
+                  .valueToTree(rejected.get(i))
+                  .at(issue.jsonPointer())
+                  .isMissingNode(),
+          "Hierarchy diagnostic does not identify the rejected value");
+      if (i < 2)
+        require(
+            issue.sourceUuid().equals(rejected.get(i).folders.get(i == 0 ? 4096 : 0).uuid),
+            "Hierarchy diagnostic lost the closing parent/order owner");
+      if (i == 0) {
+        var route = new ArrayList<String>();
+        for (int j = 0; j < 4097; j++) route.add(cyclic.folders.get(j).uuid.toString());
+        route.add(cyclic.folders.getFirst().uuid.toString());
+        require(
+            issue.message().equals("Folder ancestry cycle " + String.join(" -> ", route)),
+            "Folder cycle omitted part of the loop or included unrelated context");
+      }
+      require(
+          !document.open(path).isEmpty()
+              && document.data() == active
+              && document.sessionToken() == token
+              && document.historyBytes() == history
+              && document.path().equals(validPath)
+              && document.dirty()
+              && before.equals(ProjectIO.JSON.valueToTree(document.data()))
+              && bytes.equals(Files.readString(path)),
+          "Rejected hierarchy changed active identity/checkpoint/history or input bytes");
+    }
+    document.undo();
+    require(
+        document.data().project.seed == 17 && !document.dirty(),
+        "Rejected hierarchy lost the saved checkpoint");
+    document.redo();
+    require(
+        before.equals(ProjectIO.JSON.valueToTree(document.data())) && document.dirty(),
+        "Rejected hierarchy lost complete Redo");
+    var savedPath = out.resolve("retained-hierarchy.pvproj.json");
+    document.save(savedPath);
+    var loaded = new ProjectLoader().load(savedPath);
+    require(
+        loaded.success() && before.equals(ProjectIO.JSON.valueToTree(loaded.project())),
+        "Hierarchy save/load changed authoring values or organizational orders");
+    var compiledAfter = new CompiledProject(loaded.project());
+    long fields = 0, cells = 0;
+    try (var engine = new NoiseGeneratorEngine(2, 32, 16L << 20)) {
+      for (var compiled : List.of(compiledBefore, compiledAfter)) {
+        var sampler = compiled.noise2D("coordinate", compiled.defaultSeed());
+        for (int z = -1; z <= 1; z++)
+          for (int x = -3; x <= 3; x++) {
+            require(
+                Double.doubleToRawLongBits(sampler.sample(x, z))
+                    == Double.doubleToRawLongBits(x + .125),
+                "Folder organization changed field output");
+            fields++;
+          }
+        for (int root : new int[] {2, 4})
+          try (var world =
+              engine.openWorld(
+                  compiled, new WorldOptions(null, root, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+            for (int z = -1; z <= 1; z++)
+              for (int y = -3; y <= 3; y++)
+                for (int x = -3; x <= 3; x++) {
+                  require(
+                      world.getVoxelTypeId(new BlockPos(x, y, z))
+                          == (y >= -2 && y <= 2 && x >= 1 ? 1 : 0),
+                      "Folder organization or rejection changed exact World output");
+                  cells++;
+                }
+          }
+      }
+    }
+    require(
+        fields == 42 && cells == 588 && validBytes.equals(Files.readString(validPath)),
+        "Hierarchy replay dimensions or valid source bytes changed");
+    Files.writeString(
+        out.resolve("folder-validation.json"),
+        ProjectIO.JSON.writeValueAsString(
+            Map.of(
+                "folders",
+                4098,
+                "rejected",
+                3,
+                "fields",
+                fields,
+                "cells",
+                cells,
+                "roots",
+                List.of(2, 4),
+                "rejectedOpenPreserved",
                 true)));
   }
 

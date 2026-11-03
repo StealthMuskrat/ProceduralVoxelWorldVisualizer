@@ -7,6 +7,21 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void hierarchyRecoveryGuidanceIsSearchableAndCompleteWithoutChangingMetadata() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.folder-hierarchy");
+    assertTrue(catalog.search("folder ancestry cycle").contains(topic));
+    String text = topic.copyText(catalog);
+    assertTrue(text.contains("distinct direct child"));
+    assertTrue(text.contains("Failed Open preserves the current project"));
+    assertNotNull(catalog.topic("help.project-open"));
+    assertTrue(catalog.topic("help.project-open").related().contains(topic.id()));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void activePresentationAndCanonicalOptionsAreBothSearchableWithoutLosingRegistryIdentity() {
     var metadata = AppMetadata.defaults();
     metadata.controls.get("noise2D.algorithm").options.put("CONSTANT", "Flat snow 雪");

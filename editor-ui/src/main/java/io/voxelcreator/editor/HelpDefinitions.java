@@ -22,6 +22,18 @@ final class HelpDefinitions {
   static final List<Guide> GUIDES =
       List.of(
           new Guide(
+              "help.folder-hierarchy",
+              "Folder ancestry and resource order",
+              "Folders organize resources without changing generated fields, placement inheritance"
+                  + " or layer execution order. A parent must be a folder in the same protected"
+                  + " root. A folder ancestry cycle error identifies the closing parent link and"
+                  + " lists the loop's UUID route. Change or remove that link to break the cycle."
+                  + " Folder and root order lists may omit children, but every listed UUID must"
+                  + " identify a distinct direct child in that scope. Errors identify the exact"
+                  + " invalid entry; validation does not repair or reorder the document. Failed"
+                  + " Open preserves the current project. Correct the rejected file before retrying"
+                  + " Open; its array positions describe that candidate, not the active project."),
+          new Guide(
               "help.noise-cycles",
               "Noise generator dependency cycles",
               "Noise references must form an acyclic graph, including references kept in disabled"
@@ -361,7 +373,12 @@ final class HelpDefinitions {
           Map.entry(
               "help.noise-cycles",
               List.of("noise", "processing", "diagnostics", "help.validation")),
-          Map.entry("help.project-open", List.of("save", "help.validation", "diagnostics")),
+          Map.entry(
+              "help.folder-hierarchy",
+              List.of("help.project-open", "help.validation", "diagnostics")),
+          Map.entry(
+              "help.project-open",
+              List.of("save", "help.validation", "diagnostics", "help.folder-hierarchy")),
           Map.entry("help.project-save", List.of("save", "help.project-open", "diagnostics")),
           Map.entry(
               "help.resource-session", List.of("save", "help.project-open", "help.project-save")),
