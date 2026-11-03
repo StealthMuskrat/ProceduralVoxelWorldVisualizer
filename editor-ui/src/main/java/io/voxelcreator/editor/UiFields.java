@@ -21,6 +21,7 @@ public final class UiFields {
       boolean sliderActive) {}
 
   private final Map<String, ImString> texts = new HashMap<>();
+  private final ScalarInputs scalarInputs = new ScalarInputs();
   private final Runnable changed;
 
   public UiFields() {
@@ -33,6 +34,7 @@ public final class UiFields {
 
   public void clear() {
     texts.clear();
+    scalarInputs.clear();
   }
 
   public void text(String label, String value, Consumer<String> set) {
@@ -58,8 +60,12 @@ public final class UiFields {
   }
 
   public void number(String label, double value, DoubleConsumer set) {
+    number(label, value, set, true);
+  }
+
+  private void number(String label, double value, DoubleConsumer set, boolean compact) {
     ImDouble b = new ImDouble(value);
-    if (ImGui.inputDouble(label, b, 0, 0, "%.17g")) {
+    if (scalarInputs.number(label, b, compact)) {
       set.accept(b.get());
       changed.run();
     }
@@ -106,7 +112,7 @@ public final class UiFields {
         maximum,
         integer,
         sliderSet,
-        (key, exact) -> number(key, exact, textSet),
+        (key, exact) -> number(key, exact, textSet, !integer),
         input,
         guidance);
   }

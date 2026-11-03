@@ -127,18 +127,21 @@ final class HelpDefinitions {
           new Guide(
               "help.scalar-readouts",
               "Scalar value readouts",
-              "Sliders and read-only scalar labels use up to five fractional digits. Small nonzero"
-                  + " values and large magnitudes use scientific notation; world-coordinate"
-                  + " summaries retain their whole signed coordinate digits. Hover a scalar slider,"
-                  + " inherited World value, curve readout or preview sample status for its full"
-                  + " value. Exact numeric input keeps full double precision, including scientific"
-                  + " notation. Readout rounding never changes authored, sampled or stored values."
-                  + " Slider ranges remain suggestions; exact input and existing validation"
-                  + " determine allowed values. Seed offsets and integer inputs retain their exact"
-                  + " formats. Registry-backed source, transform, processing and warp parameters"
-                  + " share their configured tooltip on both slider and text; right-click either"
-                  + " part for the same Help topic. Metadata changes guidance without changing"
-                  + " computation or existing parameter values."),
+              "Idle scalar fields, sliders and read-only labels use up to five fractional digits."
+                  + " Small nonzero values and large magnitudes use scientific notation;"
+                  + " world-coordinate summaries retain their whole signed coordinate digits. Hover"
+                  + " a scalar slider, inherited World value, curve readout or preview sample"
+                  + " status for its full value. Focus a numeric text field to edit its"
+                  + " full-precision value, including scientific notation. Focusing or leaving a"
+                  + " field never rounds its value. Valid profile, theme and scale text keeps its"
+                  + " entered spelling for exact editing; rejected raw text stays visible. Readout"
+                  + " rounding never changes authored, sampled or stored values. Slider ranges"
+                  + " remain suggestions; exact input and existing validation determine allowed"
+                  + " values. Seed offsets and integer inputs retain their exact formats."
+                  + " Registry-backed source, transform, processing and warp parameters share their"
+                  + " configured tooltip on both slider and text; right-click either part for the"
+                  + " same Help topic. Metadata changes guidance without changing computation or"
+                  + " existing parameter values."),
           new Guide(
               "help.coordinates",
               "Coordinate sliders and exact input",
@@ -341,10 +344,10 @@ final class HelpDefinitions {
   }
 
   static final String THEME_CHANNEL_TOOLTIP =
-      "Each RGBA channel has a 0–1 slider and exact decimal text. Invalid text remains visible"
-          + " and blocks this color's preview and Save Theme until corrected or reset. Other"
-          + " valid edits in the same color are kept for that correction. Save Theme publishes"
-          + " the private palette; closing discards it.";
+      "Each RGBA channel has a 0–1 slider and decimal text. Focus text to see every entered digit."
+          + " Invalid text remains visible and blocks this color's preview and Save Theme until"
+          + " corrected or reset. Other valid edits in the same color are kept for that correction."
+          + " Save Theme publishes the private palette; closing discards it.";
 
   private HelpDefinitions() {}
 }

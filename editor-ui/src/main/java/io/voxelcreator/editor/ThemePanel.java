@@ -26,6 +26,7 @@ public final class ThemePanel {
   private ThemeFeedback feedback;
   private final ThemeRows rows = new ThemeRows();
   private final ThemeColorIssues colorIssues = new ThemeColorIssues();
+  private final ScalarInputs scalarInputs = new ScalarInputs();
   private final Map<String, ThemeChannelDraft> channelDrafts = new HashMap<>();
   private final Map<String, ImString[]> channelTexts = new HashMap<>();
   private final UiFields fields = new UiFields();
@@ -160,6 +161,7 @@ public final class ThemePanel {
           session.edit(ThemePalette.starting(v));
           colorIssues.clearAll();
           channelDrafts.clear();
+          scalarInputs.clear();
           channelTexts.clear();
           message = "Starting appearance selected; overrides cleared in preview";
         });
@@ -228,6 +230,7 @@ public final class ThemePanel {
             actionScope.resetDraft();
             colorIssues.clearAll();
             channelDrafts.clear();
+            scalarInputs.clear();
             channelTexts.clear();
             resumeRequested = true;
             message = "Theme reverted";
@@ -237,6 +240,7 @@ public final class ThemePanel {
       actionScope.resetDraft();
       colorIssues.clearAll();
       channelDrafts.clear();
+      scalarInputs.clear();
       channelTexts.clear();
       message = "Default Dark staged for Save Theme";
     } else if (save && applyEnabled)
@@ -357,6 +361,7 @@ public final class ThemePanel {
                 1,
                 enabled ? "%.5f" : "Invalid",
                 ImGuiSliderFlags.NoInput | ImGuiSliderFlags.NoRoundToFormat)) {
+              components[axis] = value[0];
               String proposed = Float.toString(value[0]);
               raw.edit(axis, proposed);
               buffers[axis].set(proposed);
@@ -372,7 +377,10 @@ public final class ThemePanel {
             String textId = "##theme-text-" + axes[axis];
             if (probing)
               channelIds.put(row.key() + ":" + axes[axis] + ":text", ImGui.getID(textId));
-            if (ImGui.inputText(textId, buffers[axis])) {
+            if (scalarInputs.text(
+                textId,
+                buffers[axis],
+                colorIssues.blocked(row.key()) ? null : (double) components[axis])) {
               raw.edit(axis, buffers[axis].get());
               changed = true;
               edited |= 1 << axis;
@@ -490,6 +498,7 @@ public final class ThemePanel {
     resumeRequested = false;
     colorIssues.clearAll();
     channelDrafts.clear();
+    scalarInputs.clear();
     channelTexts.clear();
   }
 
@@ -591,6 +600,7 @@ public final class ThemePanel {
     ensure();
     colorIssues.clearAll();
     channelDrafts.clear();
+    scalarInputs.clear();
     channelTexts.clear();
     session.edit(value);
   }

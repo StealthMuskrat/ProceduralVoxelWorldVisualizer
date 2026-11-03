@@ -1979,7 +1979,7 @@ public final class Viewports implements AutoCloseable {
             mark(v);
           });
       if (v.fixed) {
-        fields.number(
+        fields.coordinate(
             "Center Y",
             v.panY,
             state.project().project.minY,
@@ -1988,7 +1988,7 @@ public final class Viewports implements AutoCloseable {
               v.panY = x;
               mark(v);
             });
-        fields.number(
+        fields.coordinate(
             "Center X",
             v.panX,
             -1024,
@@ -1997,7 +1997,7 @@ public final class Viewports implements AutoCloseable {
               v.panX = x;
               mark(v);
             });
-        fields.number(
+        fields.coordinate(
             "Center Z",
             v.panZ,
             -1024,

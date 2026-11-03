@@ -2,6 +2,7 @@ package io.voxelcreator.editor;
 
 import imgui.ImGui;
 import imgui.flag.*;
+import imgui.type.ImString;
 import io.voxelcreator.model.ProjectIO;
 import java.nio.file.*;
 import java.util.*;
@@ -12,6 +13,11 @@ public final class ScalarDisplayProbe {
   private static final ViewportFields view = new ViewportFields();
   private static final Map<String, Double> propertyValues = initial(), viewValues = initial();
   private static final Map<String, UiFields.NumericRow> rows = new LinkedHashMap<>();
+  private static final Map<Integer, ScalarInputs.Receipt> inputReceipts = new LinkedHashMap<>();
+  private static final ScalarInputs rawDrawer = new ScalarInputs();
+  private static final Map<String, ImString> raw = new LinkedHashMap<>();
+  private static final Map<String, DialogBounds.Rect> rawRows = new LinkedHashMap<>();
+  private static String focusNext;
   private static int form, width = 1000, height = 900, writes;
   private static float scale = 1;
 
@@ -23,6 +29,7 @@ public final class ScalarDisplayProbe {
     values.put("Precise", Math.nextUp(1.0));
     values.put("Signed zero", -0.0);
     values.put("Invalid", Double.NaN);
+    values.put("Coordinate", 2_000_000_000.125);
     return values;
   }
 
@@ -35,6 +42,7 @@ public final class ScalarDisplayProbe {
       ImGui.getIO().setDeltaTime(1f / 60);
       UiFontAtlas.install();
       ThemeStyle.apply(ThemePalette.starting("Dark"));
+      ScalarInputs.observe(receipt -> inputReceipts.put(receipt.id(), receipt));
       var cases = new ArrayList<Map<String, Object>>();
       for (form = 0; form < 2; form++) {
         var before = bits(values());
@@ -55,6 +63,16 @@ public final class ScalarDisplayProbe {
                     && row.slider().x() + row.slider().width() <= width + 16,
                 "Pair exceeded horizontal bounds");
           }
+          for (var row : rows.values()) {
+            var receipt = inputReceipts.get(row.inputId());
+            require(
+                receipt != null
+                    && receipt.compact()
+                    && !receipt.active()
+                    && receipt.nativeFormat().equals("%.17g")
+                    && receipt.item().equals(row.input()),
+                "Idle native scalar presentation or identity changed");
+          }
           require(
               before.equals(bits(values())) && writes == 0, "Idle readout rewrote an exact value");
           cases.add(
@@ -68,12 +86,51 @@ public final class ScalarDisplayProbe {
                   "bits",
                   before,
                   "labels",
-                  labels(values())));
+                  labels(values()),
+                  "inputs",
+                  List.copyOf(inputReceipts.values())));
         }
       }
       width = 1000;
       height = 900;
       scale = 1;
+      var focusCases = new ArrayList<Map<String, Object>>();
+      for (form = 0; form < 2; form++) {
+        frames(4);
+        var beforeFocus = bits(values());
+        if (form == 0) {
+          focusNext = "Precise";
+          frames(4);
+        } else click(rows.get("Precise").input(), .5);
+        var exact = inputReceipts.get(rows.get("Precise").inputId());
+        require(
+            exact.active() && !exact.compact() && exact.nativeFormat().equals("%.17g"),
+            "Focused scalar did not hand presentation back to the exact native editor");
+        require(
+            beforeFocus.equals(bits(values())), "Focus parsed the rounded readout into a value");
+        // Appending an insignificant zero tests the native activation buffer itself. A buffer
+        // seeded with compact '1' would become '10' instead of the original adjacent double.
+        key(ImGuiKey.End);
+        ImGui.getIO().addInputCharactersUTF8("0");
+        frames(3);
+        sameBits(Math.nextUp(1.0), values().get("Precise"));
+        key(ImGuiKey.Enter);
+        frames(3);
+        var compact = inputReceipts.get(rows.get("Precise").inputId());
+        require(
+            !compact.active() && compact.compact() && compact.ink().equals("1"),
+            "Blur did not restore compact presentation");
+        focusCases.add(
+            Map.of(
+                "form",
+                form,
+                "exact",
+                exact,
+                "idle",
+                compact,
+                "bits",
+                Double.doubleToRawLongBits(values().get("Precise"))));
+      }
       form = 0;
       frames(5);
       enter("Small", "-1.2345678901234567e-10");
@@ -104,6 +161,7 @@ public final class ScalarDisplayProbe {
       require(
           finalBits.equals(bits(values())) && finalWrites == writes,
           "Idle redraw rounded an edited value");
+      var rawCases = rawReplay();
       Files.writeString(
           out.resolve("readouts.json"),
           ProjectIO.JSON.writeValueAsString(
@@ -115,9 +173,14 @@ public final class ScalarDisplayProbe {
                   "view",
                   labels(viewValues),
                   "writes",
-                  writes)));
+                  writes,
+                  "focusCases",
+                  focusCases,
+                  "rawCases",
+                  rawCases)));
       System.out.println("SCALAR_DISPLAY_NATIVE_PASS");
     } finally {
+      ScalarInputs.observe(null);
       ImGui.destroyContext();
     }
   }
@@ -155,6 +218,7 @@ public final class ScalarDisplayProbe {
     io.setDisplaySize(width + 32, height + 32);
     io.setFontGlobalScale(scale);
     ImGui.newFrame();
+    inputReceipts.clear();
     ImGui.setNextWindowPos(16, 16, ImGuiCond.Always);
     ImGui.setNextWindowSize(width, height, ImGuiCond.Always);
     boolean open = ImGui.begin("Shared scalar readouts", ImGuiWindowFlags.NoSavedSettings);
@@ -164,34 +228,70 @@ public final class ScalarDisplayProbe {
         try {
           rows.clear();
           view.reset();
-          for (var entry : values().entrySet()) {
-            String key = entry.getKey();
-            double value = entry.getValue();
-            double extent = key.equals("Large") ? 2e10 : key.equals("Precise") ? 2 : 2e-9;
-            java.util.function.DoubleConsumer update =
-                next -> {
-                  values().put(key, next);
-                  writes++;
-                };
-            if (form == 0)
-              rows.put(
-                  key,
-                  properties.number(key, value, -extent, extent, false, update, Runnable::run));
-            else {
-              view.number(key, value, -extent, extent, update);
-              rows.put(
-                  key,
-                  new UiFields.NumericRow(
-                      view.sliders().get(key),
-                      view.bounds(key),
-                      view.sliderIds().get(key),
-                      view.ids().get(key),
-                      view.inline().get(key),
-                      -extent,
-                      extent,
-                      false));
+          if (form == 2) {
+            rawRows.clear();
+            for (var entry : raw.entrySet()) {
+              String label = entry.getKey();
+              ImGui.text(label);
+              ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
+              Double value = null;
+              if (label.equals("Scalar") || label.equals("Disabled")) {
+                try {
+                  value = Double.valueOf(entry.getValue().get());
+                } catch (NumberFormatException invalid) {
+                }
+              }
+              ImGui.beginDisabled(label.equals("Disabled"));
+              rawDrawer.text("##raw-" + label, entry.getValue(), value);
+              ImGui.endDisabled();
+              rawRows.put(label, PopupLayout.itemBounds());
             }
-          }
+          } else
+            for (var entry : values().entrySet()) {
+              String key = entry.getKey();
+              double value = entry.getValue();
+              double extent =
+                  key.equals("Coordinate")
+                      ? 2147483648.0
+                      : key.equals("Large") ? 2e10 : key.equals("Precise") ? 2 : 2e-9;
+              java.util.function.DoubleConsumer update =
+                  next -> {
+                    values().put(key, next);
+                    writes++;
+                  };
+              if (form == 0)
+                rows.put(
+                    key,
+                    properties.number(
+                        key,
+                        value,
+                        -extent,
+                        extent,
+                        false,
+                        update,
+                        draw -> {
+                          if (key.equals(focusNext)) {
+                            ImGui.setKeyboardFocusHere();
+                            focusNext = null;
+                          }
+                          draw.run();
+                        }));
+              else {
+                if (key.equals("Coordinate")) view.coordinate(key, value, -extent, extent, update);
+                else view.number(key, value, -extent, extent, update);
+                rows.put(
+                    key,
+                    new UiFields.NumericRow(
+                        view.sliders().get(key),
+                        view.bounds(key),
+                        view.sliderIds().get(key),
+                        view.ids().get(key),
+                        view.inline().get(key),
+                        -extent,
+                        extent,
+                        false));
+              }
+            }
           ViewportSampleStatus.draw(
               "sample-status",
               "Raw " + ScalarDisplay.compact(values().get("Small")),
@@ -237,6 +337,77 @@ public final class ScalarDisplayProbe {
     frame();
     io.addKeyEvent(ImGuiKey.Enter, false);
     frames(3);
+  }
+
+  private static void key(int key) {
+    ImGui.getIO().addKeyEvent(key, true);
+    frame();
+    ImGui.getIO().addKeyEvent(key, false);
+    frame();
+  }
+
+  private static List<ScalarInputs.Receipt> rawReplay() {
+    form = 2;
+    width = 360;
+    height = 640;
+    scale = 1.5f;
+    raw.put("Scalar", new ImString("+.12345678901234567", 256));
+    raw.put("Invalid", new ImString("-", 256));
+    raw.put("Integer", new ImString("9007199254740993", 256));
+    raw.put("Disabled", new ImString(".3333333333333333", 256));
+    var style = ThemeStyle.snapshot();
+    frames(5);
+    var opening = List.copyOf(inputReceipts.values());
+    require(opening.size() == 4, "Raw scalar fixture missing");
+    var normal =
+        opening.stream()
+            .filter(r -> r.source().equals("+.12345678901234567"))
+            .findFirst()
+            .orElseThrow();
+    var disabled =
+        opening.stream()
+            .filter(r -> r.source().equals(".3333333333333333"))
+            .findFirst()
+            .orElseThrow();
+    require(
+        disabled.compact()
+            && disabled.ink().equals("0.33333")
+            && (disabled.color() >>> 24) > 0
+            && (disabled.color() >>> 24) < (normal.color() >>> 24),
+        "Disabled compact ink lost inherited text alpha");
+    require(
+        opening.stream()
+            .anyMatch(
+                r ->
+                    r.compact()
+                        && r.ink().equals("0.12346")
+                        && r.source().equals("+.12345678901234567")),
+        "Valid raw scalar was not compacted without normalization");
+    require(
+        opening.stream().anyMatch(r -> !r.compact() && r.source().equals("-")),
+        "Rejected raw text was hidden");
+    require(
+        opening.stream().anyMatch(r -> !r.compact() && r.source().equals("9007199254740993")),
+        "Integer raw text was shortened");
+    click(rawRows.get("Scalar"), .5);
+    require(
+        inputReceipts.values().stream()
+            .anyMatch(r -> r.active() && !r.compact() && r.source().equals("+.12345678901234567")),
+        "Raw scalar activation lost its exact spelling");
+    key(ImGuiKey.End);
+    ImGui.getIO().addInputCharactersUTF8("0");
+    frames(3);
+    require(
+        raw.get("Scalar").get().equals("+.123456789012345670"),
+        "Native raw buffer was seeded with compact ink");
+    key(ImGuiKey.Enter);
+    frames(4);
+    require(
+        raw.get("Invalid").get().equals("-") && raw.get("Integer").get().equals("9007199254740993"),
+        "Raw focus/edit touched another owner");
+    require(
+        style.equals(ThemeStyle.snapshot()), "Scalar text masking leaked into the native style");
+    return opening;
   }
 
   private static void sameBits(double expected, double actual) {

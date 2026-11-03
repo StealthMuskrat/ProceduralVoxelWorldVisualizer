@@ -14,8 +14,23 @@ final class ViewportFields {
   private final Map<String, Integer> sliderIds = new LinkedHashMap<>();
   private final Map<String, Boolean> inline = new LinkedHashMap<>();
   private final Set<Integer> nonfinite = new HashSet<>();
+  private final ScalarInputs scalarInputs = new ScalarInputs();
 
   void number(String label, double value, double minimum, double maximum, DoubleConsumer set) {
+    number(label, value, minimum, maximum, set, false);
+  }
+
+  void coordinate(String label, double value, double minimum, double maximum, DoubleConsumer set) {
+    number(label, value, minimum, maximum, set, true);
+  }
+
+  private void number(
+      String label,
+      double value,
+      double minimum,
+      double maximum,
+      DoubleConsumer set,
+      boolean coordinate) {
     if (!Double.isFinite(minimum)
         || !Double.isFinite(maximum)
         || minimum > maximum
@@ -56,7 +71,9 @@ final class ViewportFields {
     var b = new ImDouble(value);
     int id = ImGui.getID("##" + label);
     ids.put(label, id);
-    if (ImGui.inputDouble("##" + label, b, 0, 0, "%.17g")) {
+    if (coordinate
+        ? scalarInputs.coordinate("##" + label, b)
+        : scalarInputs.number("##" + label, b)) {
       if (Double.isFinite(b.get())) {
         nonfinite.remove(id);
         set.accept(b.get());
@@ -163,5 +180,6 @@ final class ViewportFields {
     sliderIds.clear();
     inline.clear();
     nonfinite.clear();
+    scalarInputs.clear();
   }
 }

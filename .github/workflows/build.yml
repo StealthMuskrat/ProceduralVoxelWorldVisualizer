@@ -329,6 +329,7 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.PreviewResumeConsumer build/viewport-controls
           python scripts/verify_viewport_controls.py build/viewport-controls
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ScalarDisplayProbe build/scalar-display
+          python scripts/verify_scalar_inputs.py build/scalar-display
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ViewportDocumentProbe build/viewport-document
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ViewportDocumentConsumer build/viewport-document
           python scripts/verify_viewport_document.py build/viewport-document
@@ -1258,6 +1259,8 @@ jobs:
           python scripts/verify_viewport_controls.py build/viewport-controls
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ScalarDisplayProbe build/scalar-display
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_scalar_inputs.py build/scalar-display
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ViewportDocumentProbe build/viewport-document
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

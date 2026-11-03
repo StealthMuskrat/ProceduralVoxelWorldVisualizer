@@ -20,6 +20,7 @@ final class UiScalePanel {
   private final Path file;
   private final Consumer<String> errors;
   private UiScaleEditSession session;
+  private final ScalarInputs scalarInputs = new ScalarInputs();
   private ImString global;
   private final ImString filter = new ImString(1024);
   private final Map<String, ImString> windows = new LinkedHashMap<>();
@@ -51,6 +52,7 @@ final class UiScalePanel {
             (name, raw) ->
                 windows.put(name, new ImString(raw, 4 * UiScaleEditSession.MAX_TEXT + 1)));
     enabled.clear();
+    scalarInputs.clear();
     enabled.addAll(session.text().enabled());
   }
 
@@ -260,7 +262,7 @@ final class UiScalePanel {
     if (probing) controlIds.put(key, ImGui.getID("##scale-text-" + key));
     boolean focus = key.equals(reveal);
     if (focus) ImGui.setKeyboardFocusHere();
-    if (ImGui.inputText("##scale-text-" + key, text))
+    if (scalarInputs.text("##scale-text-" + key, text, valid ? (double) value : null))
       act(
           () -> {
             edit.accept(text.get());

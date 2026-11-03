@@ -18,6 +18,7 @@ public final class ApplicationSettingsPanel {
   private UiFields.NumericRow orderRow;
   private final Map<String, Integer> controlIds = new HashMap<>();
   private final UiFields fields = new UiFields();
+  private final ScalarInputs scalarInputs = new ScalarInputs();
   private final ImString filter = new ImString(256);
   private final Map<String, ImString> values = new HashMap<>();
   private final Map<String, List<ImString>> creationBuffers = new LinkedHashMap<>();
@@ -236,6 +237,7 @@ public final class ApplicationSettingsPanel {
     fields.clear();
     values.clear();
     creationBuffers.clear();
+    scalarInputs.clear();
     longInputs.clear();
     invalidated = true;
     rowsChanged = true;
@@ -520,6 +522,15 @@ public final class ApplicationSettingsPanel {
               ? "##raw-text"
               : numeric ? "##number" : "##raw-value";
       controlIds.put("value-" + i, ImGui.getID(inputLabel));
+      Double compactValue = null;
+      if (numeric
+          && spec.kind() != CreationRegistry.Kind.INTEGER
+          && input.error(spec.id()).isEmpty()
+          && input.text(spec.id()).equals(buffers.stream().map(ImString::get).toList())) {
+        var displayed = CreationRegistry.value(session.draft(), spec.id());
+        compactValue =
+            displayed.isArray() ? displayed.get(i).doubleValue() : displayed.doubleValue();
+      }
       boolean edited =
           spec.kind() == CreationRegistry.Kind.TEXT
               ? ImGui.inputTextMultiline(
@@ -527,7 +538,7 @@ public final class ApplicationSettingsPanel {
                   buffer,
                   Math.max(1, ImGui.getContentRegionAvailX()),
                   Math.max(90, 3 * ImGui.getTextLineHeightWithSpacing()))
-              : ImGui.inputText(inputLabel, buffer);
+              : scalarInputs.text(inputLabel, buffer, compactValue);
       control("value-" + i);
       if (edited) {
         message = "";
