@@ -130,4 +130,25 @@ for case in report['cases']:
         assert case['image']['file'] == 'visible/ready-frame.png'
         ready_png(out / case['image']['file'], case['image'])
 assert not list(out.rglob('.user-config-*.tmp'))
+launch_root = out / 'project-launch'
+launch = json.loads((launch_root / 'startup-project-native.json').read_text(encoding='utf-8'))
+assert launch['formatVersion'] == 1 and launch['realDesktop'] is True
+launch_cases = {row['mode']: row for row in launch['cases']}
+assert len(launch_cases) == len(launch['cases']) == 3
+assert set(launch_cases) == {'SUCCESS', 'MALFORMED', 'SHUTDOWN'}
+for mode, row in launch_cases.items():
+    opened = mode == 'SUCCESS'
+    assert row['released'] and row['workerOffUi'] and row['sourceBytesPreserved']
+    assert row['frames'] >= (1 if mode == 'MALFORMED' else 3)
+    assert row['blockedFrames'] >= (0 if mode == 'MALFORMED' else 3)
+    assert row['phaseBeforeClose'] == ('IDLE' if opened else 'OPEN' if mode == 'MALFORMED' else 'LOADING')
+    assert row['seed'] == (99 if opened else 0)
+    active = json.loads((launch_root / mode / 'active.json').read_text(encoding='utf-8'))
+    assert active['project']['seed'] == row['seed']
+    assert not active['noise3D'] and not active['worldGenerator']['layers']
+    if opened:
+        assert len(active['noise2D']) == 1 and active['noise2D'][0]['id'] == 'launched'
+        assert active['noise2D'][0]['algorithm']['parameters'] == {'value': .75}
+    else:
+        assert not active['noise2D']
 print('Startup acquisition/presentation/cleanup order, empty project, preference ownership and ready PNG PASS')

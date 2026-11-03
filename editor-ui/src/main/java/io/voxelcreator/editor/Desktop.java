@@ -97,11 +97,16 @@ public final class Desktop extends Application {
   private boolean smokeExportDrawn;
   private int frameCount = 0;
   private long preferenceSave = 0;
-  private static String[] launchArgs = new String[0];
+  private final String[] launchArgs;
   private int smokeFrames = 0;
   private long smokePhaseWait;
 
   public Desktop() {
+    this(new String[0]);
+  }
+
+  Desktop(String[] launchArgs) {
+    this.launchArgs = Objects.requireNonNull(launchArgs).clone();
     lifecycle.own(
         () -> {
           state.close(false);
@@ -375,13 +380,7 @@ public final class Desktop extends Application {
       createSmokeProject();
       views.smokeSelections();
     } else if (launchArgs.length > 0 && !launchArgs[0].startsWith("--")) {
-      try {
-        var issues = state.document.open(Path.of(launchArgs[0]));
-        if (!issues.isEmpty()) state.notify("Error", issues.toString());
-        else state.revision++;
-      } catch (Exception e) {
-        state.notify("Error", e.getMessage());
-      }
+      projectFiles.openLocation(launchArgs[0]);
     }
     helpPanel = new HelpPanel(state, ImGui::setClipboardText);
     var runtime = new LinkedHashMap<String, String>();
@@ -1200,17 +1199,20 @@ public final class Desktop extends Application {
     return frameCount;
   }
 
+  ProjectFileWorkflow.Phase startupProjectPhase() {
+    return projectFiles == null ? ProjectFileWorkflow.Phase.IDLE : projectFiles.workflow.phase();
+  }
+
   void stopStartupProbe() {
     glfwSetWindowShouldClose(handle, true);
   }
 
   public static void main(String[] args) {
-    launchArgs = args;
     System.setProperty("joml.nounsafe", "true");
     if (java.util.Arrays.asList(args).contains("--smoke"))
       System.setProperty("java.awt.headless", "true");
     try {
-      new Desktop().startDesktop();
+      new Desktop(args).startDesktop();
     } catch (Throwable e) {
       e.printStackTrace();
       System.exit(1);

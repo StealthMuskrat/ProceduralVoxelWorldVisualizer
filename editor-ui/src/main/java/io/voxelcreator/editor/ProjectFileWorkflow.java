@@ -131,21 +131,30 @@ final class ProjectFileWorkflow implements AutoCloseable {
   }
 
   void request(Intent intent) {
-    if (closed || busy()) return;
+    requestOwned(intent);
+  }
+
+  /** Admission receipt for an explicitly supplied path; a reentrant successor is not admission. */
+  boolean requestOpenLocation() {
+    return requestOwned(Intent.OPEN);
+  }
+
+  private boolean requestOwned(Intent intent) {
+    if (closed || busy()) return false;
     Objects.requireNonNull(intent);
     long attempt = generation;
     try {
       var opening = new ProjectFileOwner(state);
       boolean denied = blocked.getAsBoolean();
-      if (generation != attempt || busy()) return;
+      if (generation != attempt || busy()) return false;
       if (denied) {
         error = "Finish or cancel the open editor or resource dialog before continuing.";
         state.error("PROJECT_TRANSITION_BLOCKED", EditorEvents.Subsystem.PROJECT, error);
-        return;
+        return false;
       }
       if (!opening.current(state)) {
         stale(attempt, "");
-        return;
+        return false;
       }
       boolean draft = modifiedDraft();
       error = "";
@@ -156,8 +165,10 @@ final class ProjectFileWorkflow implements AutoCloseable {
       owner = opening;
       if (draft) phase = Phase.DRAFT;
       else afterDraft();
+      return true;
     } catch (RuntimeException failure) {
       report("PROJECT_FILE_GUARD_FAILED", "Project file request failed: ", failure, attempt);
+      return false;
     }
   }
 

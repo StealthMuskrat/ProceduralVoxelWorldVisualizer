@@ -166,6 +166,7 @@ public final class StartupProbe {
                 Map.entry("physicalDpiVerified", false),
                 Map.entry("physicalDetachedVerified", false),
                 Map.entry("packagedWindows11Verified", false))));
+    StartupProjectProbe.run(out.resolve("project-launch"));
     System.out.println(
         "STARTUP_NATIVE_PASS hidden initialization / ready editor backbuffer / empty project /"
             + " injected cleanup / preserved preferences");

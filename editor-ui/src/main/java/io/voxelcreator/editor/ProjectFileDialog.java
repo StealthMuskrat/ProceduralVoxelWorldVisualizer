@@ -4,7 +4,9 @@ import imgui.*;
 import imgui.flag.*;
 import imgui.type.ImString;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /** Shared production presentation for project paths and the unsaved-project decision. */
 final class ProjectFileDialog {
@@ -38,7 +40,7 @@ final class ProjectFileDialog {
       Runnable exit,
       BooleanSupplier blocked,
       PopupWorkAreaResolver workAreas) {
-    this(state, replaced, exit, blocked, workAreas, false);
+    this(state, replaced, exit, blocked, workAreas, null, null);
   }
 
   /**
@@ -46,7 +48,24 @@ final class ProjectFileDialog {
    */
   static ProjectFileDialog background(
       EditorState state, Runnable replaced, Runnable exit, BooleanSupplier blocked) {
-    return new ProjectFileDialog(state, replaced, exit, blocked, new PopupWorkAreaResolver(), true);
+    return background(state, replaced, exit, blocked, state.background, state.uiQueue::offer);
+  }
+
+  static ProjectFileDialog background(
+      EditorState state,
+      Runnable replaced,
+      Runnable exit,
+      BooleanSupplier blocked,
+      Executor executor,
+      Consumer<Runnable> ui) {
+    return new ProjectFileDialog(
+        state,
+        replaced,
+        exit,
+        blocked,
+        new PopupWorkAreaResolver(),
+        Objects.requireNonNull(executor),
+        Objects.requireNonNull(ui));
   }
 
   private ProjectFileDialog(
@@ -55,14 +74,24 @@ final class ProjectFileDialog {
       Runnable exit,
       BooleanSupplier blocked,
       PopupWorkAreaResolver workAreas,
-      boolean background) {
+      Executor executor,
+      Consumer<Runnable> ui) {
     this.state = state;
     layout = new DialogLayout(state, null, 640, 300, workAreas);
     workflow =
-        background
-            ? new ProjectFileWorkflow(
-                state, replaced, exit, blocked, state.background, state.uiQueue::offer)
+        executor != null
+            ? new ProjectFileWorkflow(state, replaced, exit, blocked, executor, ui)
             : new ProjectFileWorkflow(state, replaced, exit, blocked);
+  }
+
+  /** Explicit supplied path; no native calls or automatic session reopening. */
+  boolean openLocation(String location) {
+    if (!workflow.requestOpenLocation()) return false;
+    path.set(location == null ? "" : location);
+    pathRequest = workflow.requestVersion();
+    focusPath = true;
+    if (workflow.phase() == ProjectFileWorkflow.Phase.OPEN) workflow.submit(location);
+    return true;
   }
 
   void draw() {

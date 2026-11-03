@@ -35,3 +35,5 @@ The existing engine-only ProjectParseConsumer command includes a prepared-open s
 All commands/artifact directories are reused beneath existing manual-only workflow invocations, without changing triggers or dispatching execution. Full concurrency/load, large-file responsiveness, Save/draft/other IO integration, physical/native/platform/Windows 11 and final release acceptance remain pending.
 
 The subsequent [background Save follow-up](BACKGROUND_PROJECT_SAVE.md) adds worker snapshot validation/write/force and guarded atomic publication to the same desktop dialog factory. The earlier synchronous Save/draft note describes this Open-only batch; draft Apply and remaining IO responsiveness still require audit.
+
+The subsequent [explicit launch integration](EXPLICIT_PROJECT_LAUNCH.md) also routes the command-line filename through this background path, with an admission receipt, retained retry text and per-instance argument ownership. Its gated whole-Desktop and pre-frame dialog definitions remain unexecuted.

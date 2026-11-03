@@ -131,4 +131,30 @@ for mode, row in save_cases.items():
     assert active['project']['seed'] == row['seed']
     assert len(active['noise2D']) == (0 if mode == 'NEW' else 1)
 assert not list(save_root.glob('.voxel-save-*'))
-print('File completion plus background Open/Save, guarded publications, cancellation, exact destinations and source/preferences PASS')
+
+# Deferred explicit startup path: same private candidate and UI-only publication as menu Open.
+launch_root = out / 'launch-open'
+launch = json.loads((launch_root / 'project-launch-native.json').read_text(encoding='utf-8'))
+assert launch['formatVersion'] == 1
+launch_cases = {row['mode']: row for row in launch['cases']}
+assert len(launch_cases) == len(launch['cases']) == 6
+assert set(launch_cases) == {'SUCCESS', 'MALFORMED', 'RETRY', 'CANCEL', 'CHANGED', 'SHUTDOWN'}
+for mode, row in launch_cases.items():
+    opened = mode in ('SUCCESS', 'RETRY')
+    assert row['workerOffUi'] and row['preferencesPreserved']
+    assert row['responsiveFrames'] == (0 if mode == 'MALFORMED' else 12)
+    assert row['replacements'] == (1 if opened else 0)
+    assert row['phase'] == ('OPEN' if mode == 'MALFORMED' else 'IDLE')
+    assert row['seed'] == (99 if opened else 17 if mode == 'CHANGED' else 0)
+    active = json.loads((launch_root / f'{mode}-active.json').read_text(encoding='utf-8'))
+    assert active['project']['seed'] == row['seed']
+    assert not active['noise3D'] and not active['worldGenerator']['layers']
+    assert not active['voxelTypes'] and not active['voxelGroups'] and not active['voxelSets']
+    assert not active['folders'] and all(not values for values in active['bookmarks'].values())
+    if opened:
+        assert len(active['noise2D']) == 1 and active['noise2D'][0]['id'] == 'launched'
+        assert active['noise2D'][0]['algorithm']['key'] == 'CONSTANT'
+        assert active['noise2D'][0]['algorithm']['parameters'] == {'value': .75}
+    else:
+        assert not active['noise2D']
+print('File completion, background Open/Save and explicit launch paths preserve guarded publication, destinations and source/preferences PASS')

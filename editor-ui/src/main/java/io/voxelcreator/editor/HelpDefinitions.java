@@ -39,8 +39,9 @@ final class HelpDefinitions {
                   + " draft. A changed project, draft or validation policy prevents late"
                   + " replacement. Failed reads or validation retain the entered path for explicit"
                   + " retry. Successful Open replaces the document once, resets history and starts"
-                  + " a clean saved checkpoint. Save and Save As remain explicit committed-project"
-                  + " writes."),
+                  + " a clean saved checkpoint. An explicitly supplied startup filename uses the"
+                  + " same background Open and retry path; launching without one remains empty."
+                  + " Save and Save As remain explicit committed-project writes."),
           new Guide(
               "help.manual",
               "Using Help",
