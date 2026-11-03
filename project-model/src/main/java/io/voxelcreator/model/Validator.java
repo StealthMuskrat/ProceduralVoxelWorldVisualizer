@@ -144,7 +144,7 @@ public final class Validator {
           error(
               "INVALID_REFERENCE", "/noise/" + n.uuid + "/parentFolderUuid", "Incompatible folder");
       }
-    for (var n : noises.values()) cycle(n, new LinkedHashSet<>(), new HashSet<>());
+    noiseCycles(p);
     for (var order : p.project.rootOrder.entrySet()) {
       String path = "/project/rootOrder/" + order.getKey().replace("~", "~0").replace("/", "~1");
       if (!ResourceGraph.ORGANIZATIONAL_ROOTS.contains(order.getKey())) {
@@ -403,26 +403,99 @@ public final class Validator {
     }
   }
 
-  private void cycle(Noise n, LinkedHashSet<UUID> path, Set<UUID> done) {
-    if (done.contains(n.uuid)) return;
-    if (!path.add(n.uuid)) {
-      error("NOISE_CYCLE", "/noise/" + n.uuid, "Noise reference cycle " + path + " -> " + n.uuid);
-      return;
-    }
-    for (var list : List.of(n.coordinateTransforms, n.processing))
-      for (var item : list) {
-        if (item.parameters.containsKey("noiseGeneratorUuid"))
-          try {
-            UUID ref = UUID.fromString(item.parameters.get("noiseGeneratorUuid").asText());
-            if (noises.containsKey(ref)) cycle(noises.get(ref), path, done);
-          } catch (IllegalArgumentException ignored) {
-          }
-        for (var b : item.inputs.values())
-          if (b.noiseGeneratorUuid != null && noises.containsKey(b.noiseGeneratorUuid))
-            cycle(noises.get(b.noiseGeneratorUuid), path, done);
+  private record NoiseEdge(UUID target, String pointer, UUID item, String control) {}
+
+  private record NoiseVisit(UUID source, Iterator<NoiseEdge> edges) {}
+
+  /**
+   * One deterministic traversal, including disabled structural references, without Java recursion.
+   */
+  private void noiseCycles(ProjectData project) {
+    var graph = new LinkedHashMap<UUID, List<NoiseEdge>>();
+    for (int dimension = 2; dimension <= 3; dimension++) {
+      var list = dimension == 2 ? project.noise2D : project.noise3D;
+      for (int i = 0; i < list.size(); i++) {
+        var noise = list.get(i);
+        if (noise.uuid == null) continue; // The identity validator already owns this error.
+        var edges = new ArrayList<NoiseEdge>();
+        String root = "/noise" + dimension + "D/" + i;
+        noiseEdges(noise.coordinateTransforms, root + "/coordinateTransforms", edges);
+        noiseEdges(noise.processing, root + "/processing", edges);
+        graph.put(noise.uuid, edges);
       }
-    path.remove(n.uuid);
-    done.add(n.uuid);
+    }
+    var complete = new HashSet<UUID>();
+    var active = new HashMap<UUID, Integer>();
+    var path = new ArrayList<UUID>();
+    var work = new ArrayDeque<NoiseVisit>();
+    for (UUID root : graph.keySet()) {
+      if (complete.contains(root)) continue;
+      active.put(root, path.size());
+      path.add(root);
+      work.push(new NoiseVisit(root, graph.get(root).iterator()));
+      while (!work.isEmpty()) {
+        var visit = work.peek();
+        if (!visit.edges().hasNext()) {
+          work.pop();
+          complete.add(visit.source());
+          active.remove(visit.source());
+          path.removeLast();
+          continue;
+        }
+        var edge = visit.edges().next();
+        if (!graph.containsKey(edge.target()) || complete.contains(edge.target())) continue;
+        var cycleStart = active.get(edge.target());
+        if (cycleStart != null) {
+          var cycle = new StringJoiner(" -> ");
+          for (int i = cycleStart; i < path.size(); i++) cycle.add(path.get(i).toString());
+          cycle.add(edge.target().toString());
+          errors.add(
+              new Diagnostic(
+                  "NOISE_CYCLE",
+                  Diagnostic.Severity.ERROR,
+                  "Noise reference cycle " + cycle,
+                  edge.pointer(),
+                  visit.source(),
+                  edge.item(),
+                  edge.control()));
+        } else {
+          active.put(edge.target(), path.size());
+          path.add(edge.target());
+          work.push(new NoiseVisit(edge.target(), graph.get(edge.target()).iterator()));
+        }
+      }
+    }
+  }
+
+  private static void noiseEdges(List<Item> items, String path, List<NoiseEdge> edges) {
+    for (int i = 0; i < items.size(); i++) {
+      var item = items.get(i);
+      String at = path + "/" + i;
+      var parameter = item.parameters.get("noiseGeneratorUuid");
+      if (UuidText.valid(parameter))
+        edges.add(
+            new NoiseEdge(
+                UUID.fromString(parameter.textValue()),
+                at + "/parameters/noiseGeneratorUuid",
+                item.uuid,
+                "noiseGeneratorUuid"));
+      // Input maps do not define execution order; a name order makes diagnostics repeatable.
+      var names = new ArrayList<>(item.inputs.keySet());
+      Collections.sort(names);
+      for (String name : names) {
+        var binding = item.inputs.get(name);
+        if (binding != null && binding.noiseGeneratorUuid != null)
+          edges.add(
+              new NoiseEdge(
+                  binding.noiseGeneratorUuid,
+                  at
+                      + "/inputs/"
+                      + name.replace("~", "~0").replace("/", "~1")
+                      + "/noiseGeneratorUuid",
+                  item.uuid,
+                  name));
+      }
+    }
   }
 
   private void settings(Settings s, String path) {

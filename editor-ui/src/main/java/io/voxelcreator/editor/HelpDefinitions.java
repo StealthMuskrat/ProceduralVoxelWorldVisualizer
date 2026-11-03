@@ -22,6 +22,16 @@ final class HelpDefinitions {
   static final List<Guide> GUIDES =
       List.of(
           new Guide(
+              "help.noise-cycles",
+              "Noise generator dependency cycles",
+              "Noise references must form an acyclic graph, including references kept in disabled"
+                  + " experimental items. A cycle error identifies the input or parameter that"
+                  + " closes the loop and lists the complete UUID route. Go To Problem opens that"
+                  + " exact resource/item/control. Remove or redirect a reference before applying"
+                  + " or opening the project. Long disabled reference chains are checked without"
+                  + " recursive graph traversal; runtime compilation and sampling limits still"
+                  + " apply."),
+          new Guide(
               "help.resource-session",
               "Resource clipboard and project lifetime",
               "Copy and Cut belong to the current project session. Opening or creating a project"
@@ -348,6 +358,9 @@ final class HelpDefinitions {
   private static final Map<String, List<String>> LINKS =
       Map.ofEntries(
           Map.entry("help.manual", List.of("noise", "help.find", "shortcuts", "help.about")),
+          Map.entry(
+              "help.noise-cycles",
+              List.of("noise", "processing", "diagnostics", "help.validation")),
           Map.entry("help.project-open", List.of("save", "help.validation", "diagnostics")),
           Map.entry("help.project-save", List.of("save", "help.project-open", "diagnostics")),
           Map.entry(

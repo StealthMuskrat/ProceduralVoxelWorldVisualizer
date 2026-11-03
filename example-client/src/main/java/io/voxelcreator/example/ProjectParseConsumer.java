@@ -159,6 +159,7 @@ public final class ProjectParseConsumer {
             Map.of(
                 "rejected", rejected, "fields", fields, "cells", cells, "roots", List.of(2, 4))));
     preparedReplay(out.resolve("prepared-open"));
+    dependencyReplay(out.resolve("dependency-cycles"));
     System.out.println("PROJECT_PARSE_CONSUMER_PASS");
   }
 
@@ -168,6 +169,138 @@ public final class ProjectParseConsumer {
             && issues.getFirst().code().equals(expected.code())
             && issues.getFirst().jsonPointer().equals(expected.pointer()),
         "Unexpected rejection diagnostic: " + issues);
+  }
+
+  /** A structurally valid deep disabled DAG must load; closing it must reject without mutation. */
+  private static void dependencyReplay(Path out) throws Exception {
+    Files.createDirectories(out);
+    var project = new ProjectData();
+    for (int i = 0; i < 4097; i++) {
+      var noise = new Noise();
+      noise.id = "field-" + i;
+      noise.algorithm.key = "CONSTANT";
+      noise.algorithm.parameters.clear();
+      noise.algorithm.parameters.put("value", .25);
+      project.noise2D.add(noise);
+    }
+    for (int i = 0; i < project.noise2D.size() - 1; i++)
+      disabledReference(project.noise2D.get(i), project.noise2D.get(i + 1).uuid, "uuid");
+    var validPath = out.resolve("disabled-dag.json");
+    new ProjectIO().save(validPath, project);
+    String validBytes = Files.readString(validPath);
+    var loaded = new ProjectLoader().load(validPath);
+    require(loaded.success(), "Deep disabled DAG was rejected: " + loaded.diagnostics());
+    var document = new DocumentSession();
+    document.setValidator(io.voxelcreator.core.NoiseCompiler::validate);
+    var request = document.requestOpen(validPath);
+    var future = new FutureTask<>(request::prepare);
+    Thread.ofPlatform().start(future);
+    var prepared = future.get(45, TimeUnit.SECONDS);
+    require(
+        prepared.success() && document.data().noise2D.isEmpty() && document.path() == null,
+        "Deep preparation rejected or published before Apply");
+    document.applyOpen(prepared);
+    var active = document.data();
+    var token = document.sessionToken();
+    long history = document.historyBytes();
+    var before = ProjectIO.JSON.valueToTree(active);
+    var cyclic = ProjectIO.copy(active);
+    var closing =
+        disabledReference(cyclic.noise2D.getLast(), cyclic.noise2D.getFirst().uuid, "uuid/a~b");
+    var invalidPath = out.resolve("disabled-cycle.json");
+    String invalidBytes = ProjectIO.JSON.writeValueAsString(cyclic);
+    Files.writeString(invalidPath, invalidBytes);
+    var rejected = new ProjectLoader().load(invalidPath);
+    require(!rejected.success(), "Deep disabled cycle was accepted by public loader");
+    var cycles =
+        rejected.diagnostics().stream().filter(d -> d.code().equals("NOISE_CYCLE")).toList();
+    require(cycles.size() == 1, "A cycle was repeated per starting resource");
+    var cycle = cycles.getFirst();
+    require(
+        cycle
+                .jsonPointer()
+                .equals("/noise2D/4096/processing/0/inputs/uuid~1a~0b/noiseGeneratorUuid")
+            && cycle.sourceUuid().equals(cyclic.noise2D.getLast().uuid)
+            && cycle.itemUuid().equals(closing.uuid)
+            && cycle.parameterKey().equals("uuid/a~b"),
+        "Cycle diagnostic lost its exact closing binding authority");
+    var route = new ArrayList<String>();
+    cyclic.noise2D.forEach(n -> route.add(n.uuid.toString()));
+    route.add(cyclic.noise2D.getFirst().uuid.toString());
+    require(
+        cycle.message().equals("Noise reference cycle " + String.join(" -> ", route)),
+        "Cycle diagnostic route is incomplete");
+    require(
+        !document.open(invalidPath).isEmpty()
+            && document.data() == active
+            && document.sessionToken() == token
+            && document.historyBytes() == history
+            && document.path().equals(validPath)
+            && !document.dirty()
+            && before.equals(ProjectIO.JSON.valueToTree(document.data())),
+        "Rejected deep Open changed the active checkpoint or document");
+    var compiled = new CompiledProject(document.data());
+    long fields = 0, cells = 0;
+    for (int index : new int[] {0, 2048, 4096}) {
+      var sampler = compiled.noise2D("field-" + index, compiled.defaultSeed());
+      for (int z = -1; z <= 1; z++)
+        for (int x = -3; x <= 3; x++) {
+          require(
+              Double.doubleToRawLongBits(sampler.sample(x, z)) == Double.doubleToRawLongBits(.25),
+              "Disabled dependency affected live scalar output");
+          fields++;
+        }
+    }
+    try (var engine = new NoiseGeneratorEngine(2, 32, 16L << 20)) {
+      for (int root : new int[] {2, 4})
+        try (var world =
+            engine.openWorld(
+                compiled, new WorldOptions(null, root, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+          for (int z = -1; z <= 1; z++)
+            for (int y = -3; y <= 3; y++)
+              for (int x = -3; x <= 3; x++) {
+                require(
+                    world.getVoxelTypeId(new BlockPos(x, y, z)) == 0,
+                    "Disabled structural references changed empty World output");
+                cells++;
+              }
+        }
+    }
+    require(
+        fields == 63
+            && cells == 294
+            && validBytes.equals(Files.readString(validPath))
+            && invalidBytes.equals(Files.readString(invalidPath)),
+        "Replay dimensions or input bytes changed");
+    Files.writeString(
+        out.resolve("dependency-cycles.json"),
+        ProjectIO.JSON.writeValueAsString(
+            Map.of(
+                "resources",
+                4097,
+                "fields",
+                fields,
+                "cells",
+                cells,
+                "cycleDiagnostics",
+                cycles,
+                "rejectedOpenPreserved",
+                true,
+                "roots",
+                List.of(2, 4))));
+  }
+
+  private static Item disabledReference(Noise source, UUID target, String input) {
+    var item = new Item();
+    item.id = "disabled-reference";
+    item.kind = "EXPRESSION";
+    item.enabled = false;
+    var binding = new Binding();
+    binding.sourceKind = "Noise Generator Reference";
+    binding.noiseGeneratorUuid = target;
+    item.inputs.put(input, binding);
+    source.processing.add(item);
+    return item;
   }
 
   private static void preparedReplay(Path out) throws Exception {
