@@ -326,3 +326,5 @@ Unvalidated development follow-up: [guarded falloff distances](docs/FALLOFF_DIST
 Unvalidated development follow-up: [background project validation](docs/BACKGROUND_PROJECT_VALIDATION.md) moves interactive compilation off the UI thread, retains prior results and provides Cancel/retry with guarded snapshot publication. Sixteen regression definitions and eight production native decisions remain deferred; no compiler, tests, probes or workflow ran.
 
 Unvalidated development follow-up: [Inspector worker recovery](docs/INSPECTOR_WORKER_RECOVERY.md) observes terminal task failures, contains Pick/Trace Errors and retains exact coordinate retry targets with bounded failure descriptions. Ten regression definitions and eight production native/worker cases remain deferred; no compiler, tests, probes or workflow ran.
+
+Unvalidated development follow-up: [preview worker recovery](docs/PREVIEW_WORKER_RECOVERY.md) observes current CPU/source failures, retires pending handoffs, preserves accepted displays and contains source cleanup Errors. Four new mailbox definitions and fourteen production native cases remain deferred; no compiler, tests, probes or workflow ran.

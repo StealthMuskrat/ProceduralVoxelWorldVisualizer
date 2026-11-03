@@ -41,3 +41,23 @@ assert r['visibleZoom']['inkPixels']>r['visibleOrbit']['inkPixels']
 assert len({r[k]['sha256'] for k in ['visibleBefore','visibleOrbit','visibleZoom','visiblePan']})==4
 assert all(r[k] is True for k in ['orbitZoomNoGeneration','panRebuilt','cameraViewOnly'])
 print('VISIBLE_FALLBACK_CAMERA_PASS independent RGBA digests / visible pixels / native orbit-zoom-pan')
+
+# Deferred actual CPU worker/source handoff recovery in isolated native editors.
+root=Path(sys.argv[1])/'preview-worker'
+worker=json.loads((root/'preview-worker-native.json').read_text())
+assert worker['formatVersion']==1 and worker['physicalInputVerified'] is False
+assert worker['projectPreserved'] and worker['privatePreserved'] and worker['preferencesPreserved']
+expected={(family, point) for family in ('IMAGE','MESH','WORLD','VOLUME_WINDOW','NOISE_SOURCE','WORLD_SOURCE') for point in ('START','FINISH')}
+expected|={('IMAGE','BODY'),('NOISE_SOURCE','BODY')}
+assert len(worker['cases'])==14
+assert {(row['family'],row['point']) for row in worker['cases']}==expected
+for row in worker['cases']:
+ assert row['displayRetained'] and row['retryPublished']
+ assert row['kind']==(0 if row['family']=='IMAGE' else 2 if row['family'].startswith('WORLD') else 1)
+for family in {row['family'] for row in worker['cases']}:
+ before=json.loads((root/family/'before.json').read_text())
+ after=json.loads((root/family/'after.json').read_text())
+ assert before==after
+ assert before['noise2D'][0]['algorithm']['parameters']=={'value':.25}
+ assert before['noise3D'][0]['algorithm']['parameters']=={'value':.9}
+ assert before['worldGenerator']['layers'][0]['defaults']['action']=='SET'

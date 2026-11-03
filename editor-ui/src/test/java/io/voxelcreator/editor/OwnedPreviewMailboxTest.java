@@ -151,4 +151,93 @@ class OwnedPreviewMailboxTest {
     assertFalse(box.publish(id, late));
     assertEquals(1, late.closes.get());
   }
+
+  @Test
+  void cleanupErrorsCannotTrapBeginInvalidationOrClosure() {
+    for (String action : java.util.List.of("BEGIN", "INVALIDATE", "CLOSE")) {
+      var box = new OwnedPreviewMailbox<AutoCloseable>();
+      long id = box.begin();
+      var calls = new java.util.concurrent.atomic.AtomicInteger();
+      var failure = new AssertionError("cleanup");
+      box.publish(
+          id,
+          () -> {
+            calls.incrementAndGet();
+            throw failure;
+          });
+      assertDoesNotThrow(
+          () -> {
+            switch (action) {
+              case "BEGIN" -> box.begin();
+              case "INVALIDATE" -> box.invalidate();
+              default -> box.close();
+            }
+          });
+      assertFalse(box.current(id));
+      assertNull(box.take());
+      box.close();
+      assertEquals(1, calls.get());
+      assertEquals(0, failure.getSuppressed().length);
+    }
+  }
+
+  @Test
+  void replacingACleanupErrorStillTransfersTheNewSourceExactlyOnce() {
+    var box = new OwnedPreviewMailbox<AutoCloseable>();
+    long id = box.begin();
+    box.publish(
+        id,
+        () -> {
+          throw new AssertionError("old cleanup");
+        });
+    var current = new Source();
+    assertTrue(box.publish(id, current));
+    assertSame(current, box.take());
+    box.close();
+    assertEquals(0, current.closes.get());
+    current.close();
+    assertEquals(1, current.closes.get());
+  }
+
+  @Test
+  void discardedLateSourceCleanupErrorCannotRemoveCurrentPayload() {
+    var box = new OwnedPreviewMailbox<AutoCloseable>();
+    long old = box.begin(), current = box.begin();
+    var source = new Source();
+    box.publish(current, source);
+    var calls = new java.util.concurrent.atomic.AtomicInteger();
+    assertFalse(
+        box.publish(
+            old,
+            () -> {
+              calls.incrementAndGet();
+              throw new AssertionError("late close");
+            }));
+    assertEquals(1, calls.get());
+    assertTrue(box.current(current));
+    assertSame(source, box.take());
+    source.close();
+    box.close();
+  }
+
+  @Test
+  void interruptedCleanupRetainsItsInterruptAndDoesNotLoseTheSuccessor() {
+    try {
+      var box = new OwnedPreviewMailbox<AutoCloseable>();
+      long id = box.begin();
+      box.publish(
+          id,
+          () -> {
+            throw new InterruptedException("cleanup");
+          });
+      var source = new Source();
+      assertTrue(box.publish(id, source));
+      assertTrue(Thread.currentThread().isInterrupted());
+      assertSame(source, box.take());
+      source.close();
+      box.close();
+    } finally {
+      Thread.interrupted();
+    }
+  }
 }

@@ -2,7 +2,7 @@ package io.voxelcreator.editor;
 
 import io.voxelcreator.storage.BlockPos;
 import java.util.Objects;
-import java.util.concurrent.*;
+import java.util.concurrent.Future;
 
 /** UI-owned, replaceable Inspector work. Results still use the shared publication gate. */
 final class InspectorTask implements AutoCloseable {
@@ -32,30 +32,12 @@ final class InspectorTask implements AutoCloseable {
   /** A successful worker still waits for its UI callback; only terminal failure is observed. */
   Throwable failure() {
     if (closed || request == null || future == null) return null;
-    try {
-      if (!future.isDone()) return null;
-      future.get();
-      return null;
-    } catch (ExecutionException failure) {
-      return failure.getCause() == null ? failure : failure.getCause();
-    } catch (InterruptedException interrupted) {
-      Thread.currentThread().interrupt();
-      return interrupted;
-    } catch (Throwable failure) {
-      return failure;
-    }
+    var completion = BackgroundFailure.completed(future);
+    return completion == null ? null : completion.failure();
   }
 
   static String describe(Throwable failure) {
-    String detail;
-    try {
-      detail = failure.getMessage();
-    } catch (Throwable unreadable) {
-      detail = null;
-    }
-    if (detail == null || detail.isBlank()) detail = failure.getClass().getSimpleName();
-    if (detail.isBlank()) detail = failure.getClass().getName();
-    return StatusBarText.clip(detail, 2048);
+    return BackgroundFailure.describe(failure);
   }
 
   boolean pending() {

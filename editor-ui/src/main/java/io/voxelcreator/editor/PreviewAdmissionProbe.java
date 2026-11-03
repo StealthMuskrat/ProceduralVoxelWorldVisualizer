@@ -429,6 +429,7 @@ public final class PreviewAdmissionProbe {
                     + " / retained image / context retry / toolbar retry / view-only");
           }
         }
+        PreviewWorkerRecoveryProbe.run(out.resolve("preview-worker"), window);
       } finally {
         ImGui.destroyContext();
       }

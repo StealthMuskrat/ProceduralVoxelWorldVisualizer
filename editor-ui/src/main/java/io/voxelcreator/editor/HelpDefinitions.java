@@ -134,10 +134,14 @@ final class HelpDefinitions {
                   + " Navigation preserves procedural values and private resource edits. Fixed"
                   + " Threshold Voxels, Point Cloud and Isosurface analysis offers independent"
                   + " Extent X/Y/Z cell counts, bounded by each axis and the total preview budget."
-                  + " Orthogonal Slices use the same XYZ extents projected onto their active"
-                  + " plane, with separate width/height sampling and navigation. Volume also uses"
+                  + " Orthogonal Slices use the same XYZ extents projected onto their active plane,"
+                  + " with separate width/height sampling and navigation. Volume also uses"
                   + " independent fixed XYZ counts through scalar textures and ray-box rendering."
-                  + " Camera-relative streaming retains its uniform chunk-based window control."),
+                  + " Camera-relative streaming retains its uniform chunk-based window control. A"
+                  + " failed background preview keeps the accepted display and offers Regenerate to"
+                  + " retry. Worker completion alone does not accept a result; source and request"
+                  + " ownership still apply. Numerical/source worker failures do not retry"
+                  + " automatically or apply private authoring input."),
           new Guide(
               "help.scalar-readouts",
               "Scalar value readouts",

@@ -81,7 +81,7 @@ final class OwnedPreviewMailbox<T extends AutoCloseable> implements AutoCloseabl
       value.close();
     } catch (InterruptedException failure) {
       Thread.currentThread().interrupt();
-    } catch (Exception ignored) {
+    } catch (Throwable ignored) {
       /* Cleanup failure cannot strand a newer owned source. */
     }
   }
