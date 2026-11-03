@@ -212,6 +212,13 @@ public final class WorldContext implements AutoCloseable {
     return request(pos, new CancellationToken(), true, priority);
   }
 
+  /**
+   * Requests a subscriber-owned future. A terminal mutation of an admitted future withdraws only
+   * that subscriber, releasing its registration/admission before dependent callbacks run. Copies
+   * and dependent futures are independent observers; timed reads do not withdraw the subscriber.
+   * Host callbacks retain ordinary CompletableFuture execution semantics and can block the
+   * completing thread. An already cached result has no admitted subscriber to retire.
+   */
   public CompletableFuture<VoxelChunk> generateChunkAsync(
       ChunkPos pos, CancellationToken token, GenerationPriority priority) {
     return request(pos, token, true, priority);
@@ -264,30 +271,16 @@ public final class WorldContext implements AutoCloseable {
           engine.promote(flight, priority);
         }
       }
+      waiter.owner = flight;
       flight.waiters.add(waiter);
       futures.add(waiter.future);
     }
-    SharedGeneration owner = flight;
-    waiter.future.whenComplete(
-        (v, error) -> {
-          futures.remove(waiter.future);
-          var registration = waiter.registration;
-          if (registration != null) registration.close();
-          synchronized (inFlight) {
-            owner.waiters.remove(waiter);
-            if (owner.waiters.isEmpty()) {
-              inFlight.remove(pos, owner);
-              if (!owner.started.get()) engine.workers.remove(owner);
-            }
-          }
-        });
     try {
-      waiter.registration =
+      waiter.registration.install(
           token.onCancel(
               () ->
                   waiter.future.completeExceptionally(
-                      new CancellationException("Chunk request cancelled")));
-      if (waiter.future.isDone()) waiter.registration.close();
+                      new CancellationException("Chunk request cancelled"))));
     } catch (RuntimeException | Error failure) {
       // Parent polling can fail after admission; retire this waiter without stranding its peers.
       waiter.future.completeExceptionally(failure);
@@ -311,13 +304,29 @@ public final class WorldContext implements AutoCloseable {
     return waiter.future;
   }
 
-  private static final class Waiter {
+  private final class Waiter {
     final CancellationToken token;
-    final CompletableFuture<VoxelChunk> future = new CompletableFuture<>();
-    volatile CancellationToken.Registration registration;
+    final CancellationRegistrationSlot registration = new CancellationRegistrationSlot();
+    final RequestFuture<VoxelChunk> future = new RequestFuture<>(this::retire);
+    SharedGeneration owner;
 
     Waiter(CancellationToken token) {
       this.token = token;
+    }
+
+    private void retire() {
+      futures.remove(future);
+      try {
+        registration.close();
+      } finally {
+        synchronized (inFlight) {
+          owner.waiters.remove(this);
+          if (owner.waiters.isEmpty()) {
+            inFlight.remove(owner.position, owner);
+            if (!owner.started.get()) engine.workers.remove(owner);
+          }
+        }
+      }
     }
   }
 

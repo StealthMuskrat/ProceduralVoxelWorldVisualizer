@@ -201,6 +201,7 @@ public final class CancellationOwnershipConsumer {
                 cells,
                 "roots",
                 List.of(2, 4))));
+    ChunkSubscriberOwnershipConsumer.run(out.resolve("chunk-subscribers"));
     System.out.println("CANCELLATION_OWNERSHIP_CONSUMER_PASS");
   }
 
