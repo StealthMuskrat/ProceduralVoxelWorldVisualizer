@@ -57,7 +57,7 @@ public final class ResourceImport {
     var rows = new ArrayList<Row>();
     var issues = new ArrayList<Diagnostic>();
     var source = ResourceGraph.entries(incoming);
-    var existing = ResourceGraph.entries(destination);
+    var existing = new Matches(ResourceGraph.entries(destination));
     var compatibility = new Compatibility(incoming, destination);
     var selectable = new HashSet<UUID>();
     for (var entry : source) if (!entry.kind().equals("operation")) selectable.add(entry.uuid());
@@ -74,7 +74,7 @@ public final class ResourceImport {
       if (entry.kind().equals("operation")) continue;
       Choice choice = choices.getOrDefault(entry.uuid(), Choice.COPY);
       if (choice == null) choice = Choice.COPY;
-      var match = match(entry, existing);
+      var match = existing.match(entry);
       boolean compatible = match != null && compatibility.compatible(entry, match);
       if (choice == Choice.SKIP) skipped.add(entry.uuid());
       if (choice == Choice.REUSE && compatible) reused.put(entry.uuid(), match.uuid());
@@ -124,13 +124,15 @@ public final class ResourceImport {
     var candidate = ProjectIO.copy(destination);
     ResourceGraph.append(candidate, payload);
     issues.addAll(Validator.validate(candidate));
+    var targets = new HashMap<UUID, ResourceGraph.Entry>();
+    ResourceGraph.entries(candidate).forEach(entry -> targets.putIfAbsent(entry.uuid(), entry));
     var finalRows = new ArrayList<Row>();
     for (var row : rows) {
       UUID targetId =
           skipped.contains(row.uuid)
               ? null
               : reused.getOrDefault(row.uuid, duplicated.identities().get(row.uuid));
-      var target = ResourceGraph.find(candidate, targetId);
+      var target = targets.get(targetId);
       finalRows.add(
           new Row(
               row.uuid,
@@ -207,22 +209,28 @@ public final class ResourceImport {
     }
   }
 
-  private static ResourceGraph.Entry match(
-      ResourceGraph.Entry source, List<ResourceGraph.Entry> destination) {
-    var candidates =
-        destination.stream()
-            .filter(e -> e.kind().equals(source.kind()) && e.root().equals(source.root()))
-            .toList();
-    // UUID is authoritative even when a same-name definition occurs earlier in the tree.
-    return candidates.stream()
-        .filter(e -> e.uuid().equals(source.uuid()))
-        .findFirst()
-        .orElseGet(
-            () ->
-                candidates.stream()
-                    .filter(e -> e.resource().id.equals(source.resource().id))
-                    .findFirst()
-                    .orElse(null));
+  /** Per-plan conflict indexes preserve the old first-match and UUID-before-visible-ID rules. */
+  private static final class Matches {
+    private record Identity(String kind, String root, UUID uuid) {}
+
+    private record Name(String kind, String root, String id) {}
+
+    private final Map<Identity, ResourceGraph.Entry> identities = new HashMap<>();
+    private final Map<Name, ResourceGraph.Entry> names = new HashMap<>();
+
+    Matches(List<ResourceGraph.Entry> entries) {
+      for (var entry : entries) {
+        identities.putIfAbsent(new Identity(entry.kind(), entry.root(), entry.uuid()), entry);
+        names.putIfAbsent(new Name(entry.kind(), entry.root(), entry.resource().id), entry);
+      }
+    }
+
+    ResourceGraph.Entry match(ResourceGraph.Entry source) {
+      var identity = identities.get(new Identity(source.kind(), source.root(), source.uuid()));
+      return identity != null
+          ? identity
+          : names.get(new Name(source.kind(), source.root(), source.resource().id));
+    }
   }
 
   public static boolean compatible(

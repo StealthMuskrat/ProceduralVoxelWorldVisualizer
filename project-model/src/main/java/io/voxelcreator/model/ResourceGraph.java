@@ -77,8 +77,12 @@ public final class ResourceGraph {
   }
 
   public static Set<UUID> subtree(ProjectData p, Collection<UUID> selected) {
+    return subtree(entries(p), selected);
+  }
+
+  private static Set<UUID> subtree(List<Entry> entries, Collection<UUID> selected) {
     var children = new HashMap<UUID, List<UUID>>();
-    for (var entry : entries(p))
+    for (var entry : entries)
       if (entry.parent() != null)
         children.computeIfAbsent(entry.parent(), key -> new ArrayList<>()).add(entry.uuid());
     var result = new LinkedHashSet<>(selected);
@@ -91,21 +95,25 @@ public final class ResourceGraph {
 
   public static ProjectData selection(
       ProjectData p, Collection<UUID> selected, boolean dependencies) {
-    var included = new LinkedHashSet<>(subtree(p, selected));
+    var catalog = entries(p);
+    var included = new LinkedHashSet<>(subtree(catalog, selected));
     if (dependencies) {
+      var byId = new HashMap<UUID, Entry>();
+      catalog.forEach(entry -> byId.putIfAbsent(entry.uuid(), entry));
+      // A selected placement needs carrier defaults and folder context, without selecting the
+      // whole carrier layer and thereby pulling in its unrelated placements/dependencies.
       for (var layer : p.worldGenerator.layers)
         if (layer.operations.stream().anyMatch(o -> included.contains(o.uuid))) {
-          for (UUID ref : references(layer.defaults)) if (find(p, ref) != null) included.add(ref);
+          for (UUID ref : references(layer.defaults)) if (byId.containsKey(ref)) included.add(ref);
           if (layer.parentFolderUuid != null) included.add(layer.parentFolderUuid);
         }
-      boolean changed;
-      do {
-        changed = false;
-        for (var e : entries(p))
-          if (included.contains(e.uuid()))
-            for (UUID ref : references(e.resource))
-              if (find(p, ref) != null && included.add(ref)) changed = true;
-      } while (changed);
+      var queue = new ArrayDeque<UUID>(included);
+      while (!queue.isEmpty()) {
+        var entry = byId.get(queue.removeFirst());
+        if (entry == null) continue;
+        for (UUID ref : references(entry.resource()))
+          if (byId.containsKey(ref) && included.add(ref)) queue.addLast(ref);
+      }
     }
     var result = new ProjectData();
     for (var f : p.folders) if (included.contains(f.uuid)) result.folders.add(f);

@@ -160,6 +160,7 @@ public final class ProjectParseConsumer {
                 "rejected", rejected, "fields", fields, "cells", cells, "roots", List.of(2, 4))));
     preparedReplay(out.resolve("prepared-open"));
     dependencyReplay(out.resolve("dependency-cycles"));
+    transferReplay(out.resolve("indexed-transfer"));
     System.out.println("PROJECT_PARSE_CONSUMER_PASS");
   }
 
@@ -288,6 +289,187 @@ public final class ProjectParseConsumer {
                 true,
                 "roots",
                 List.of(2, 4))));
+  }
+
+  /** Deferred reverse-order export, indexed mixed Reuse/Copy and exact engine-only replay. */
+  private static void transferReplay(Path out) throws Exception {
+    Files.createDirectories(out);
+    var source = new ProjectData();
+    for (int i = 0; i < 2049; i++) {
+      var n = new Noise();
+      n.id = "transfer-" + i;
+      n.algorithm.key = "CONSTANT";
+      n.algorithm.parameters.clear();
+      n.algorithm.parameters.put("value", .25);
+      source.noise2D.add(n);
+    }
+    for (int i = 0; i + 1 < source.noise2D.size(); i++)
+      disabledReference(source.noise2D.get(i), source.noise2D.get(i + 1).uuid, "uuid");
+    var root = source.noise2D.getFirst();
+    var leaf = source.noise2D.getLast();
+    Collections.reverse(source.noise2D);
+    var unrelated = new Noise();
+    unrelated.id = "unrelated";
+    unrelated.dimension = 3;
+    source.noise3D.add(unrelated);
+    var original = ProjectIO.JSON.valueToTree(source);
+    var payload = ResourceGraph.selection(source, List.of(root.uuid), true);
+    require(
+        payload.noise2D.stream()
+                .map(n -> n.uuid)
+                .toList()
+                .equals(source.noise2D.stream().map(n -> n.uuid).toList())
+            && payload.noise3D.isEmpty()
+            && Validator.validate(payload).isEmpty(),
+        "Reverse-order export lost closure, authored order or selection isolation");
+    var envelope = ProjectIO.JSON.createObjectNode();
+    envelope.put("packageVersion", 1);
+    envelope.set("resources", ProjectIO.JSON.valueToTree(payload));
+    var packagePath = out.resolve("selection.resources.json");
+    Files.writeString(packagePath, ProjectIO.JSON.writeValueAsString(envelope));
+    String packageBytes = Files.readString(packagePath);
+    var portable = ProjectIO.JSON.readTree(packageBytes);
+    require(portable.path("packageVersion").asInt() == 1, "Wrong portable envelope version");
+    var incoming = ProjectIO.JSON.treeToValue(portable.path("resources"), ProjectData.class);
+    var incomingBefore = ProjectIO.JSON.valueToTree(incoming);
+    var destination = new ProjectData();
+    destination.project.seed = 99;
+    destination.project.yMin = -2;
+    destination.project.yMax = 2;
+    var existing = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(leaf), Noise.class);
+    existing.id = "retained-leaf";
+    destination.noise2D.add(existing);
+    var document = new DocumentSession();
+    require(
+        document
+            .edit(
+                p -> {
+                  ResourceGraph.assign(p, destination);
+                  // Resource-only assignment intentionally retains destination-owned settings.
+                  p.project.seed = 99;
+                  p.project.yMin = -2;
+                  p.project.yMax = 2;
+                })
+            .isEmpty(),
+        "Transfer destination rejected");
+    var before = ProjectIO.JSON.valueToTree(document.data());
+    var session = new ResourceImport.Session(document.data(), incoming);
+    session.choose(leaf.uuid, ResourceImport.Choice.REUSE);
+    var preview = session.preview();
+    require(
+        preview.valid() && preview.rows().size() == 2049, "Indexed import rejected valid closure");
+    var targets = new HashMap<UUID, UUID>();
+    for (var row : preview.rows()) {
+      require(row.targetUuid() != null && row.targetId() != null, "Missing final row target");
+      targets.put(row.uuid(), row.targetUuid());
+      if (row.uuid().equals(leaf.uuid))
+        require(
+            row.compatible()
+                && row.targetUuid().equals(leaf.uuid)
+                && row.targetId().equals("retained-leaf"),
+            "Reuse lost authoritative UUID/name");
+      else require(!row.uuid().equals(row.targetUuid()), "Copy kept a source identity");
+    }
+    session.choose(root.uuid, ResourceImport.Choice.SKIP);
+    require(session.preview().valid(), "Skipping root should preserve the remaining valid chain");
+    session.choose(root.uuid, ResourceImport.Choice.COPY);
+    preview = session.preview();
+    for (var row : preview.rows())
+      require(
+          targets.get(row.uuid()).equals(row.targetUuid()),
+          "Review changed stable Copy identities");
+    var candidate = preview.candidate();
+    require(
+        candidate.noise2D.size() == 2049
+            && candidate.noise3D.isEmpty()
+            && candidate.project.seed == 99
+            && candidate.project.yMin == -2
+            && candidate.project.yMax == 2,
+        "Transfer changed destination settings or introduced unrelated resources");
+    for (int i = 0; i < incoming.noise2D.size(); i++) {
+      var n = incoming.noise2D.get(i);
+      var target = candidate.noise2D.get(i);
+      require(target.uuid.equals(targets.get(n.uuid)), "Transfer changed authored resource order");
+      if (!n.processing.isEmpty())
+        require(
+            target
+                .processing
+                .getFirst()
+                .inputs
+                .get("uuid")
+                .noiseGeneratorUuid
+                .equals(targets.get(n.processing.getFirst().inputs.get("uuid").noiseGeneratorUuid)),
+            "Copy failed to rewrite a disabled structural dependency");
+    }
+    var expected = ProjectIO.JSON.valueToTree(candidate);
+    require(document.edit(session::applyTo).isEmpty(), "Transfer publication rejected");
+    require(
+        expected.equals(ProjectIO.JSON.valueToTree(document.data())), "Apply differs from preview");
+    document.undo();
+    require(
+        before.equals(ProjectIO.JSON.valueToTree(document.data())), "Transfer Undo is incomplete");
+    document.redo();
+    require(
+        expected.equals(ProjectIO.JSON.valueToTree(document.data())),
+        "Transfer Redo changed payload");
+    var projectPath = out.resolve("imported.pvproj.json");
+    document.save(projectPath);
+    var loaded = new ProjectLoader().load(projectPath);
+    require(
+        loaded.success() && expected.equals(ProjectIO.JSON.valueToTree(loaded.project())),
+        "Transfer save/load changed definitions or destination settings");
+    var compiled = new CompiledProject(loaded.project());
+    long fields = 0, cells = 0;
+    for (int index : new int[] {0, 1024, 2048}) {
+      var sampler = compiled.noise2D(candidate.noise2D.get(index).uuid, compiled.defaultSeed());
+      for (int z = -1; z <= 1; z++)
+        for (int x = -3; x <= 3; x++) {
+          require(
+              Double.doubleToRawLongBits(sampler.sample(x, z)) == Double.doubleToRawLongBits(.25),
+              "Transferred field differs from independent constant expectation");
+          fields++;
+        }
+    }
+    try (var engine = new NoiseGeneratorEngine(2, 32, 16L << 20)) {
+      for (int rootSize : new int[] {2, 4})
+        try (var world =
+            engine.openWorld(
+                compiled, new WorldOptions(null, rootSize, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+          for (int z = -1; z <= 1; z++)
+            for (int y = -3; y <= 3; y++)
+              for (int x = -3; x <= 3; x++) {
+                require(
+                    world.getVoxelTypeId(new BlockPos(x, y, z)) == 0,
+                    "Resource transfer introduced unselected World output");
+                cells++;
+              }
+        }
+    }
+    require(
+        fields == 63
+            && cells == 294
+            && packageBytes.equals(Files.readString(packagePath))
+            && original.equals(ProjectIO.JSON.valueToTree(source))
+            && incomingBefore.equals(ProjectIO.JSON.valueToTree(incoming)),
+        "Transfer changed replay dimensions, package bytes or caller-owned inputs");
+    Files.writeString(
+        out.resolve("indexed-transfer.json"),
+        ProjectIO.JSON.writeValueAsString(
+            Map.of(
+                "resources",
+                2049,
+                "reused",
+                1,
+                "copied",
+                2048,
+                "fields",
+                fields,
+                "cells",
+                cells,
+                "roots",
+                List.of(2, 4),
+                "undoRedo",
+                true)));
   }
 
   private static Item disabledReference(Noise source, UUID target, String input) {
