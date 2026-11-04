@@ -8,10 +8,16 @@ import imgui.type.*;
 import io.voxelcreator.model.ProjectIO;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 /** Clipped searchable application metadata/default editing; only Apply affects the live profile. */
-public final class ApplicationSettingsPanel {
+public final class ApplicationSettingsPanel implements AutoCloseable {
   private final EditorState state;
+  private final Executor executor;
+  private final Consumer<Runnable> ui;
+  private MetadataApplySession applyWork;
+  private boolean closed;
   final SettingsPageChrome layout = new SettingsPageChrome(4);
   private DialogBounds.Rect resultsBounds, detailBounds;
   private SettingsPageLayout.Panes panes;
@@ -43,14 +49,30 @@ public final class ApplicationSettingsPanel {
   private boolean invalidated = true, drawn, draftChanged;
 
   public ApplicationSettingsPanel(EditorState state) {
+    this(state, null, null);
+  }
+
+  static ApplicationSettingsPanel background(EditorState state) {
+    return new ApplicationSettingsPanel(state, state.background, state.uiQueue::offer);
+  }
+
+  ApplicationSettingsPanel(EditorState state, Executor executor, Consumer<Runnable> ui) {
     this.state = state;
+    this.executor = executor;
+    this.ui = ui;
+    if (executor != null) Objects.requireNonNull(ui);
   }
 
   private void ensure() {
+    if (closed) throw new IllegalStateException("Application Settings is closed");
     if (session == null) session = new MetadataEditSession(state.metadata);
+    if (executor != null && applyWork == null)
+      applyWork =
+          new MetadataApplySession(state, executor, ui, this::displayed, new PreferenceFiles());
   }
 
   private void changed() {
+    if (applyWork != null) applyWork.cancel();
     invalidated = true;
     draftChanged = true;
     rowsChanged = true;
@@ -66,7 +88,10 @@ public final class ApplicationSettingsPanel {
   }
 
   public void draw() {
+    if (closed) return;
     ensure();
+    if (applyWork != null) applyWork.refresh();
+    long work = applyWork == null ? 0 : applyWork.version();
     long request = actionScope.synchronize(state.metadata, session.draft());
     controls.clear();
     controlBounds.clear();
@@ -168,7 +193,8 @@ public final class ApplicationSettingsPanel {
     ImGui.endChild();
     if (invalidated) {
       try {
-        draft.validate();
+        // Production performs full cross-default/compiler validation on explicit worker Apply.
+        if (executor == null) draft.validate();
         problem = "";
       } catch (RuntimeException e) {
         problem = Objects.toString(e.getMessage(), "Invalid application metadata");
@@ -198,12 +224,18 @@ public final class ApplicationSettingsPanel {
     if (!issue.isEmpty()) ImGui.textWrapped("! " + bounded(issue));
     applyEnabled = issue.isEmpty();
     if (!message.isEmpty()) ImGui.textWrapped(bounded(message));
+    if (applyWork != null && !applyWork.message().isEmpty())
+      ImGui.textWrapped(bounded(applyWork.message()));
     layout.end();
     ImGui.pushID("application-profile-request:" + request);
-    ImGui.beginDisabled(!applyEnabled);
-    boolean apply = layout.identifiedAction("apply", "Apply Application Profile");
+    boolean running = applyWork != null && applyWork.running();
+    ImGui.pushID("profile-work:" + (applyWork == null ? 0 : applyWork.version()));
+    ImGui.beginDisabled(!applyEnabled && !running);
+    boolean apply =
+        layout.identifiedAction("apply", running ? "Cancel Apply" : "Apply Application Profile");
     control("apply");
     ImGui.endDisabled();
+    ImGui.popID();
     boolean revert = layout.identifiedAction("revert", "Revert Profile");
     control("revert");
     boolean builtins = layout.identifiedAction("builtins", "Stage Built-In Profile");
@@ -214,21 +246,34 @@ public final class ApplicationSettingsPanel {
     ImGui.endDisabled();
     ImGui.popID();
     if (!actionScope.current(state.metadata, session.draft())) return;
-    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      if (applyWork != null) applyWork.cancel();
+      return;
+    }
     // Resolve this entire frame before persisting or replacing any private profile.
     if (revert) {
+      if (applyWork != null) applyWork.cancel();
       session.revert(state.metadata);
       resetEditors();
       message = "Draft reverted";
     } else if (builtins) {
+      if (applyWork != null) applyWork.cancel();
       session.stageBuiltIns();
       resetEditors();
       message = "Built-in profile staged; Apply publishes it";
-    } else if (apply && applyEnabled) apply(UserConfig.directory().resolve("app-config.json"));
-    else if (invalid && !errors.isEmpty()) {
+    } else if (apply
+        && (applyEnabled || running)
+        && (applyWork == null || work == applyWork.version())) {
+      if (running) applyWork.cancel();
+      else apply(UserConfig.directory().resolve("app-config.json"));
+    } else if (invalid && !errors.isEmpty()) {
       select(errors.keySet().iterator().next());
       page = "Creation Defaults";
       detailReset = true;
+    }
+    if (applyWork != null && applyWork.accept()) {
+      resetEditors();
+      message = "";
     }
   }
 
@@ -580,12 +625,34 @@ public final class ApplicationSettingsPanel {
   private void apply(Path path) {
     try {
       session.inputs().requireDisplayed(displayed());
+      if (applyWork != null) {
+        message = "";
+        applyWork.start(session, path);
+        return;
+      }
       state.metadata = session.apply(state.metadata, path);
       resetEditors();
       message = "Application profile saved and activated";
     } catch (Exception e) {
       message = "! " + Objects.requireNonNullElse(e.getMessage(), e.toString());
     }
+  }
+
+  void suspendActions() {
+    actionScope.release();
+    if (applyWork != null) applyWork.cancel();
+  }
+
+  @Override
+  public void close() {
+    if (closed) return;
+    suspendActions();
+    if (applyWork != null) applyWork.close();
+    closed = true;
+  }
+
+  MetadataApplySession probeApplyWork() {
+    return applyWork;
   }
 
   private Map<String, List<String>> displayed() {
@@ -667,6 +734,7 @@ public final class ApplicationSettingsPanel {
 
   void probeRevert() {
     ensure();
+    if (applyWork != null) applyWork.cancel();
     session.revert(state.metadata);
     resetEditors();
     message = "";

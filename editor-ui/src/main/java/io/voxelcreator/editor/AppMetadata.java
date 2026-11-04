@@ -140,7 +140,11 @@ public final class AppMetadata {
             "Creation defaults",
             "Future items only",
             "Application Settings edits labels, help, grouping, order and validated future-item"
-                + " defaults. Apply saves a private metadata draft atomically. New items store"
+                + " defaults. Apply saves a private metadata draft atomically. Desktop validates"
+                + " and stages the profile in the background; Cancel Apply or Escape preserves"
+                + " private corrections. Editing, Revert, closing or hiding Settings retires pending"
+                + " Apply; failures require explicit retry. Active Help/defaults change only after"
+                + " successful replacement. New items store"
                 + " concrete values in the project; existing resources, copied/imported"
                 + " definitions, loading and evaluation never consult these defaults. Immutable"
                 + " registry keys, signatures, options and creation ranges cannot be edited"

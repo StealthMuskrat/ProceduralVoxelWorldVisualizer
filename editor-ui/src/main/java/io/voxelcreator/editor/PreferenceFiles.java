@@ -69,6 +69,53 @@ final class PreferenceFiles {
     return bytes;
   }
 
+  /** Private flushed sibling; only the owner may authorize its final atomic replacement. */
+  final class Prepared implements AutoCloseable {
+    private final Path temporary, target;
+    private boolean closed;
+
+    private Prepared(Path temporary, Path target) {
+      this.temporary = temporary;
+      this.target = target;
+    }
+
+    synchronized void publish() throws IOException {
+      if (closed) throw new IllegalStateException("Configuration preparation is closed");
+      storage.replace(temporary, target);
+      closed = true;
+    }
+
+    @Override
+    public synchronized void close() throws IOException {
+      if (closed) return;
+      // Consume cleanup ownership before I/O; never retry a pathname after failure.
+      closed = true;
+      storage.delete(temporary);
+    }
+  }
+
+  Prepared prepare(Path path, Object snapshot, String prefix) throws IOException {
+    byte[] bytes = ProjectIO.JSON.writeValueAsBytes(Objects.requireNonNull(snapshot));
+    if (bytes.length > MAX_BYTES) throw new IOException("Configuration exceeds 8 MiB");
+    Path target = Objects.requireNonNull(path).toAbsolutePath();
+    if (target.getFileName() == null || target.getParent() == null)
+      throw new IOException("Choose a configuration file path");
+    Files.createDirectories(target.getParent());
+    Path temporary = Files.createTempFile(target.getParent(), prefix, ".tmp");
+    try {
+      var prepared = new Prepared(temporary, target);
+      storage.write(temporary, bytes);
+      return prepared;
+    } catch (IOException | RuntimeException | Error failure) {
+      try {
+        storage.delete(temporary);
+      } catch (IOException | RuntimeException | Error cleanup) {
+        if (failure != cleanup) failure.addSuppressed(cleanup);
+      }
+      throw failure;
+    }
+  }
+
   void write(Path path, Object snapshot, String prefix) throws IOException {
     // Serialize before creating directories or changing destination files.
     byte[] bytes = ProjectIO.JSON.writeValueAsBytes(Objects.requireNonNull(snapshot));

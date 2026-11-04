@@ -177,3 +177,7 @@ The directional-shadow extension passes 922 tests across 120 suites and pinned L
 ## Deferred background Curve Apply definitions
 
 [Background Curve Apply](../BACKGROUND_CURVE_APPLY.md) adds fourteen worker/publication regression definitions and nine production CurveDialog cases inside CurveGestureProbe. The existing manual-only curve commands define artifacts under curve-gesture/background-curve/<mode>/before.json and after.json plus curve-apply-native.json. Headless replay compares eighteen complete saved projects and 378 independent clamped-linear observations; the Python checker requires matching receipts and authored values. These definitions have not been compiled or run. No new evidence artifacts or acceptance PASS claims are supplied; the testing pause and recorded baseline remain unchanged.
+
+## Deferred background Application Profile definitions
+
+[Background Application Profile Apply](../BACKGROUND_APPLICATION_PROFILE.md) defines sixteen prepared-file/worker regressions and nine production panel cases nested inside ApplicationProfileInputsProbe. The manual-only Linux/Windows steps define creation-profile/raw-inputs/background/<mode>/app-config.json and created.json plus profile-apply-native.json. Receipt/schema replay and the engine-only MetadataApplyConsumer define nine strict profile schema checks and 378 independent existing/future constant-field observations. No new compiler/test/probe/checker/consumer/workflow execution or evidence artifacts are supplied; the owner pause and recorded acceptance baseline remain unchanged.

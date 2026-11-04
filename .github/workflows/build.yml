@@ -87,6 +87,7 @@ jobs:
           python scripts/verify_app_metadata.py build/creation-profile/app-config.json
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ApplicationProfileInputsProbe build/creation-profile/raw-inputs
           python scripts/verify_creation_inputs.py build/creation-profile/raw-inputs
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.MetadataApplyConsumer build/creation-profile/raw-inputs/background
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileNumericProbe build/profile-numeric
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProfileNumericConsumer build/profile-numeric
           python scripts/verify_profile_numeric.py build/profile-numeric
@@ -809,6 +810,8 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ApplicationProfileInputsProbe build/creation-profile/raw-inputs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_creation_inputs.py build/creation-profile/raw-inputs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.MetadataApplyConsumer build/creation-profile/raw-inputs/background
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileNumericProbe build/profile-numeric
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

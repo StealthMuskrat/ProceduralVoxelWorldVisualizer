@@ -254,7 +254,8 @@ public final class Desktop extends Application {
             this::applyTheme,
             () -> themes.set(true),
             this::savePreferences);
-    applicationSettings = new ApplicationSettingsPanel(state);
+    applicationSettings = ApplicationSettingsPanel.background(state);
+    lifecycle.own(applicationSettings::close);
     projectSettings =
         ProjectSettingsPanel.background(state, this::projectSettingsInteractionBlocked);
     lifecycle.own(projectSettings::close);
@@ -871,6 +872,8 @@ public final class Desktop extends Application {
   }
 
   private void drawSettings() {
+    if (!settings.get() || !settingsPage.equals("Application Settings"))
+      applicationSettings.suspendActions();
     if (!settings.get() || !settingsPage.equals("User Settings")) suspendUserSettingsActions(null);
     if (!settings.get() || !settingsPage.equals("Debug & Profiling"))
       debugSettings.suspendActions();
@@ -886,12 +889,14 @@ public final class Desktop extends Application {
     windowLayout.observe();
     if (!settings.get()) {
       projectSettings.cancel();
+      applicationSettings.suspendActions();
       debugSettings.suspendActions();
       suspendUserSettingsActions(null);
       ImGui.end();
       return;
     }
     if (!visible) {
+      applicationSettings.suspendActions();
       debugSettings.suspendActions();
       suspendUserSettingsActions(null);
       ImGui.end();

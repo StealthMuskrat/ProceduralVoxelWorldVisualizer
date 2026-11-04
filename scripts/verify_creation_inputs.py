@@ -25,3 +25,24 @@ assert values['noise2D.algorithm.CONSTANT.value'] == report['tiny'] == 1e-9
 assert values['processing.DOT.input.a'] == report['vector'] == [3.5, 2.25, 9]
 assert set(values) == {'noise2D.seedOffset', 'noise2D.algorithm.CONSTANT.value', 'processing.DOT.input.a'}
 print('CREATION_INPUT_INDEPENDENT_PASS exact seed / small double / complete vector / private recovery report')
+
+
+background = out / 'background'
+receipt = json.loads((background / 'profile-apply-native.json').read_text(encoding='utf-8'))
+assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
+modes = ['apply', 'cancel', 'escape-ready', 'revert-ready', 'edit', 'active', 'hidden', 'close', 'retry']
+assert [case['mode'] for case in receipt['cases']] == modes
+for case in receipt['cases']:
+    mode = case['mode']
+    applied = mode in ('apply', 'retry')
+    assert case['applied'] is applied
+    assert case['queuedFrames'] == case['heldFrames'] == 12
+    for key in ('projectPreserved', 'privatePreserved', 'preferencesPreserved', 'temporaryCleaned'):
+        assert case[key] is True, (mode, key)
+    profile = json.loads((background / mode / 'app-config.json').read_text(encoding='utf-8'))
+    jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()).validate(profile)
+    assert profile['creationDefaults']['noise2D.algorithm.CONSTANT.value'] == (.75 if applied else .25)
+    created = json.loads((background / mode / 'created.json').read_text(encoding='utf-8'))
+    assert [n['id'] for n in created['noise2D']] == ['existing', 'future']
+    assert [n['algorithm']['parameters']['value'] for n in created['noise2D']] == [.125, .75 if applied else .25]
+print('BACKGROUND_PROFILE_INDEPENDENT_PASS receipts / nine saved profiles / authored and future defaults')

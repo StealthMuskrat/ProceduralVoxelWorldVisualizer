@@ -151,6 +151,17 @@ final class CreationValueInputs {
     return false;
   }
 
+  /** Viewing another canonical field may add a buffer without changing captured raw authority. */
+  boolean retainsRaw(Map<String, List<String>> captured) {
+    if (!entries.keySet().containsAll(captured.keySet())) return false;
+    for (var entry : entries.entrySet()) {
+      var expected = captured.get(entry.getKey());
+      if (expected == null) expected = strings(entry.getValue().expected, spec(entry.getKey()));
+      if (!entry.getValue().raw.equals(expected) || !error(entry.getKey()).isEmpty()) return false;
+    }
+    return true;
+  }
+
   void requireValid() {
     var errors = errors();
     if (!errors.isEmpty()) {

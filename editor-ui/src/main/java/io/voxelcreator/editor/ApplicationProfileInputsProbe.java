@@ -135,6 +135,7 @@ public final class ApplicationProfileInputsProbe {
         require(
             new NoiseCompiler(state.project(), 0).compile(state.selected).sample(7, 0, -9) == .125,
             "Application profile changed existing evaluation");
+        BackgroundMetadataApplyProbe.run(out.resolve("background"));
         Files.writeString(
             out.resolve("creation-input-native.json"),
             ProjectIO.JSON.writeValueAsString(
