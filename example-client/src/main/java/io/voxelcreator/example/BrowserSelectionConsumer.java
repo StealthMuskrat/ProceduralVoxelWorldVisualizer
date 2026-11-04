@@ -27,6 +27,8 @@ public final class BrowserSelectionConsumer {
     }
     if (count != 243 || p.voxelTypes.size() != 1 || !p.worldGenerator.layers.isEmpty())
       throw new AssertionError("Saved fixture structure");
+    BackgroundBrowserSelectionConsumer.run(
+        Path.of(args[0]).toAbsolutePath().getParent().resolve("background-apply"));
     System.out.println(
         "BROWSER_SELECTION_ENGINE_ONLY_PASS 243 exact constant values / explicit Apply / discarded"
             + " edits absent");

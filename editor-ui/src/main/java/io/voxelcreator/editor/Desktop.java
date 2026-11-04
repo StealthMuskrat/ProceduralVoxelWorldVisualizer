@@ -272,7 +272,7 @@ public final class Desktop extends Application {
             state.background,
             state.uiQueue::offer,
             this::packageInteractionBlocked);
-    lifecycle.own(resources::cancelExport);
+    lifecycle.own(resources::close);
     resources.docking.defaults(this::resetDockLayout);
     properties.docking.defaults(this::resetDockLayout);
     workspaceSettings =

@@ -181,6 +181,19 @@ public final class EditorState implements AutoCloseable {
         || !(draft instanceof Identity identity)
         || multiSelection.size() != 1
         || !multiSelection.contains(selected)) return null;
+    return requestOwnedDraftApply(identity);
+  }
+
+  /**
+   * Browser selection applies only its active private resource, even when leaving sibling
+   * selection.
+   */
+  DocumentSession.EditRequest requestSelectionApply() {
+    if (!validSeedInputs() || !(draft instanceof Identity identity)) return null;
+    return requestOwnedDraftApply(identity);
+  }
+
+  private DocumentSession.EditRequest requestOwnedDraftApply(Identity identity) {
     if (!Objects.equals(selected, identity.uuid) || find(project(), selected) == null)
       throw new IllegalStateException("The Properties source changed; select the resource again");
     UUID id = identity.uuid;

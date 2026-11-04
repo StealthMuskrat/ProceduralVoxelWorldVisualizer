@@ -12,7 +12,7 @@ import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.function.*;
 
-public final class ResourcePanel {
+public final class ResourcePanel implements AutoCloseable {
   final FloatingWindowLayout windowLayout = new FloatingWindowLayout(320, 640);
   final VoxelIdentityReview voxelIdentity = new VoxelIdentityReview();
   final FloatingWindowLayout managerLayout = new FloatingWindowLayout(650, 520);
@@ -113,7 +113,11 @@ public final class ResourcePanel {
             s, () -> createOwner, () -> createOwner != null && createOwner.current(state) ? 0 : 1);
     this.properties = properties;
     exportPanel = new ResourceExportPanel(s, exportSelection, executor, ui, blocked);
-    selection = new ResourceSelectionSession(s);
+    selection =
+        executor == null
+            ? new ResourceSelectionSession(s)
+            : new ResourceSelectionSession(
+                s, () -> {}, executor, ui, properties::searchBlocked, this::finishSelection);
     edits = new ResourceEditSession(s);
     selectionGuard = new NavigationGuardDialog(s, "Resources", 620, 300);
     editGuard = new NavigationGuardDialog(s, "Resources", 620, 300);
@@ -750,6 +754,8 @@ public final class ResourcePanel {
         () -> {
           ImGui.textWrapped(
               "Apply the current Properties draft, discard it for this selection, or cancel.");
+          if (!selection.progress().isEmpty())
+            ImGui.textWrapped(StatusBarText.clip(selection.progress(), 4096));
           var destinations = selection.destinations();
           ImGui.textWrapped(
               destinations.isEmpty()
@@ -773,7 +779,9 @@ public final class ResourcePanel {
                   ? SearchNavigation.Result.NAVIGATED
                   : SearchNavigation.Result.UNAVAILABLE;
         },
-        "Apply failed. Cancel to correct the draft, or choose Discard.");
+        "Apply did not complete. Cancel to correct the draft, or choose Discard.",
+        selection.preparing(),
+        selection.workVersion());
   }
 
   ResourceSelectionSession.Result decideSelection(SearchNavigation.Decision decision) {
@@ -783,13 +791,30 @@ public final class ResourcePanel {
         properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
             ? ResourceSelectionSession.Result.UNAVAILABLE
             : selection.decide(decision);
-    if (result == ResourceSelectionSession.Result.NEEDS_DECISION) return result;
+    finishSelection(result);
+    return result;
+  }
+
+  private void finishSelection(ResourceSelectionSession.Result result) {
+    if (result == ResourceSelectionSession.Result.NEEDS_DECISION) return;
     if (result == ResourceSelectionSession.Result.SELECTED) rangeAnchor = pendingAnchor;
     else if (result == ResourceSelectionSession.Result.UNAVAILABLE)
-      state.status = "Selection or draft changed; choose the resource again";
+      state.status =
+          selection.progress().isEmpty()
+              ? "Selection or draft changed; choose the resource again"
+              : selection.progress();
     selection.clear();
     pendingAnchor = null;
-    return result;
+  }
+
+  @Override
+  public void close() {
+    selection.close();
+    cancelExport();
+  }
+
+  ResourceSelectionSession probeSelectionSession() {
+    return selection;
   }
 
   private void rememberRow(UUID id) {

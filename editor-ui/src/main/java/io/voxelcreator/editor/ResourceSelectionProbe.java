@@ -162,6 +162,7 @@ public final class ResourceSelectionProbe {
             "RESOURCE_SELECTION_NATIVE_PASS mouse / modifiers / modal guard / raw seed / ownership"
                 + " / one Undo-Redo");
       }
+      BackgroundBrowserSelectionProbe.run(out.resolve("background-apply"));
     } finally {
       ImGui.destroyContext();
     }

@@ -80,7 +80,15 @@ final class HelpDefinitions {
                   + " controls even when the loaded project has identical UUIDs. Save, ordinary"
                   + " edits, Undo and Redo keep the session clipboard. Copy retains captured"
                   + " values; Cut moves current identities and order. This does not change the"
-                  + " system text clipboard or publish private Properties input."),
+                  + " system text clipboard or publish private Properties input. Changing tree or"
+                  + " Voxel Manager selection with private Properties edits requires Apply, Discard"
+                  + " or Cancel. Selection Apply prepares validation and Undo history in the"
+                  + " background; Cancel or Escape keeps the current selection and draft. Range,"
+                  + " sibling and empty selections wait for successful publication. Failure keeps"
+                  + " the draft for explicit retry. Requested siblings are checked again after"
+                  + " Apply; a removed destination leaves the edit committed without installing"
+                  + " that old selection. Selection remains outside Undo history and never saves"
+                  + " the project."),
           new Guide(
               "help.project-save",
               "Saving a project",
