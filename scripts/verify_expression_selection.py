@@ -30,4 +30,29 @@ for directory, filename, expression, accent in [
     assert item['inputs']['bias']['sourceKind'] == item['inputs']['é']['sourceKind'] == 'Constant'
     assert item['inputs']['bias']['value'] == 2 and item['inputs']['é']['value'] == accent
     assert noise['outputBinding']['itemUuid'] == item['uuid']
+
+# Deferred background feedback receipt; production widgets share the expanded probe context.
+feedback = json.loads((expanded / 'background-expression-native.json').read_text())
+assert feedback['formatVersion'] == 1
+cases = {case['id']: case for case in feedback['cases']}
+assert len(feedback['cases']) == len(cases) == 6
+assert set(cases) == {'queued-and-held', 'inline-unicode-coalescing',
+                      'expanded-current-span', 'schedule-retry', 'handoff-retry', 'escape-and-close'}
+held = cases['queued-and-held']
+assert held['queuedFrames'] >= 12 and held['heldFrames'] >= 12
+assert held['launches'] == 1 and held['displayOnly'] is True
+inline_case = cases['inline-unicode-coalescing']
+assert inline_case['quietFrames'] >= 12 and inline_case['oldSpanRetired'] is True
+assert (inline_case['utf16Start'], inline_case['utf16End']) == (2, 9)
+assert (inline_case['utf8Start'], inline_case['utf8End']) == (3, 10)
+expanded_case = cases['expanded-current-span']
+assert (expanded_case['utf8Start'], expanded_case['utf8End']) == (4, 11)
+assert expanded_case['exactText'] == 'é+\nbias'
+assert expanded_case['pendingUseText'] is expanded_case['privateStage'] is True
+for key in ['schedule-retry', 'handoff-retry']:
+    assert cases[key]['busyFrames'] >= 24
+    assert cases[key]['explicitRetry'] is cases[key]['lateCancelIgnored'] is True
+assert all(cases['escape-and-close'][key] is True for key in [
+    'escapePreservedDraft', 'successorClosed', 'lateCompletionIgnored'])
 print('EXPRESSION_SELECTION_INDEPENDENT_PASS Unicode / multiline / one-shot / private buffer / saved project')
+print('BACKGROUND_EXPRESSION_REPLAY_PASS held delivery / coalescing / Unicode / private pending stage / retry / closure')

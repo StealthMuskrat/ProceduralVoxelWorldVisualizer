@@ -70,8 +70,11 @@ public final class PropertyPanel implements AutoCloseable {
   private final ResourcePicker resourcePicker;
   private MembershipDialog membershipDialog;
   private float[] membershipOpenButton;
-  private final Executor memberExecutor;
-  private final Consumer<Runnable> memberUi;
+  private final Executor privateExecutor;
+  private final Consumer<Runnable> privateUi;
+  private final LongSupplier feedbackClock;
+  private final BackgroundExpressionFeedback expressionChecking;
+  private boolean expressionSeen;
   private final ExpressionFeedback expressionFeedback = new ExpressionFeedback();
   private final Map<String, String> conditionErrors = new HashMap<>();
   private long worldControlVersion;
@@ -641,9 +644,19 @@ public final class PropertyPanel implements AutoCloseable {
   }
 
   PropertyPanel(EditorState s, Executor executor, Consumer<Runnable> ui) {
+    this(s, executor, ui, System::nanoTime);
+  }
+
+  PropertyPanel(
+      EditorState s, Executor executor, Consumer<Runnable> ui, LongSupplier feedbackClock) {
     state = s;
-    memberExecutor = executor;
-    memberUi = ui;
+    privateExecutor = executor;
+    privateUi = ui;
+    this.feedbackClock = Objects.requireNonNull(feedbackClock);
+    expressionChecking =
+        executor == null
+            ? null
+            : new BackgroundExpressionFeedback(s, executor, ui, feedbackClock, null);
     contextHelp = new ContextHelp(s.helpRequests);
     resourcePicker = new ResourcePicker(s, () -> state.draft, () -> noiseVersion);
     draftChoices = new DraftChoicePicker(s, () -> state.draft, () -> noiseVersion);
@@ -666,6 +679,8 @@ public final class PropertyPanel implements AutoCloseable {
 
   @Override
   public void close() {
+    if (expressionChecking != null) expressionChecking.close();
+    if (expressionDialog != null) expressionDialog.close();
     if (membershipDialog != null) membershipDialog.close();
     if (applySession != null) applySession.close();
     referenceNavigation.close();
@@ -692,6 +707,7 @@ public final class PropertyPanel implements AutoCloseable {
   }
 
   public void draw() {
+    expressionSeen = false;
     membershipOpenButton = null;
     if (applySession != null) applySession.view();
     if (!(state.draft instanceof VoxelType) || state.multiSelection.size() != 1)
@@ -840,7 +856,7 @@ public final class PropertyPanel implements AutoCloseable {
         } else if (state.draft instanceof Membership m) {
           ImGui.text(m.voxelTypeUuids.size() + " member reference(s)");
           if (ImGui.button("Edit Members..."))
-            membershipDialog = new MembershipDialog(state, m, memberExecutor, memberUi);
+            membershipDialog = new MembershipDialog(state, m, privateExecutor, privateUi);
           var memberBounds = PopupLayout.itemBounds();
           membershipOpenButton =
               new float[] {
@@ -869,6 +885,7 @@ public final class PropertyPanel implements AutoCloseable {
     if (noiseEdit != null && noiseEdit.draw()) noiseEdit = null;
     drawExpressionDialog();
     drawReferenceGuard();
+    if (expressionChecking != null && !expressionSeen) expressionChecking.suspend();
     drawSmokeWorldControls();
   }
 
@@ -1931,7 +1948,8 @@ public final class PropertyPanel implements AutoCloseable {
       expressionDialog =
           new ExpressionEditDialog(
               state,
-              new ExpressionEditSession(state, noise, item),
+              new ExpressionEditSession(
+                  state, noise, item, privateExecutor, privateUi, feedbackClock),
               () -> {
                 try {
                   f.clear();
@@ -1956,11 +1974,31 @@ public final class PropertyPanel implements AutoCloseable {
             && item.uuid.equals(navigationTarget.control())
             && Set.of("expression", "parameters/expression")
                 .contains(Objects.requireNonNullElse(navigationTarget.parameter(), ""));
-    expressionSelection.context(state.project(), state.draft, item, expr);
+    var feedback = inspectExpressionFeedback(n, item);
+    expressionSelection.context(state.project(), state.draft, feedbackSelectionOwner(item), expr);
     if (expressionTarget && !expressionFocusSubmitted) {
-      expressionSelection.request(expr, expressionFeedback.inspect(state.project(), n, item));
-      ImGui.setKeyboardFocusHere();
-      expressionFocusSubmitted = true;
+      boolean userMoved =
+          expressionChecking != null
+              && (ImGui.isMouseClicked(ImGuiMouseButton.Left)
+                  || ImGui.isMouseClicked(ImGuiMouseButton.Right)
+                  || ImGui.isMouseClicked(ImGuiMouseButton.Middle)
+                  || ImGui.isKeyPressed(ImGuiKey.Home, false)
+                  || ImGui.isKeyPressed(ImGuiKey.End, false)
+                  || ImGui.isKeyPressed(ImGuiKey.PageUp, false)
+                  || ImGui.isKeyPressed(ImGuiKey.PageDown, false)
+                  || ImGui.isKeyPressed(ImGuiKey.Enter, false)
+                  || ImGui.isKeyPressed(ImGuiKey.Escape, false)
+                  || ImGui.isKeyPressed(ImGuiKey.Tab, false)
+                  || ImGui.isKeyPressed(ImGuiKey.LeftArrow, false)
+                  || ImGui.isKeyPressed(ImGuiKey.RightArrow, false)
+                  || ImGui.isKeyPressed(ImGuiKey.UpArrow, false)
+                  || ImGui.isKeyPressed(ImGuiKey.DownArrow, false));
+      if (userMoved) searchScroll = false;
+      else if (feedback != null) {
+        expressionSelection.request(expr, feedback);
+        ImGui.setKeyboardFocusHere();
+        expressionFocusSubmitted = true;
+      }
     }
     f.text(
         "Expression",
@@ -1969,7 +2007,14 @@ public final class PropertyPanel implements AutoCloseable {
         expressionSelection);
     expressionRect("text");
     expressionActive = ImGui.isItemActive();
-    if (expressionTarget) {
+    String shown = ExpressionFeedback.source(item);
+    feedback = inspectExpressionFeedback(n, item);
+    expressionSelection.context(state.project(), state.draft, feedbackSelectionOwner(item), shown);
+    if (!expr.equals(shown)) {
+      searchScroll = false;
+      expressionFocusSubmitted = false;
+    }
+    if (expressionTarget && searchScroll && expressionFocusSubmitted) {
       ImGui.setScrollHereY(.25f);
       // ImGui applies focus on a later frame. Do not resubmit it while waiting:
       // repeated activation can reset a user's text selection.
@@ -1982,7 +2027,15 @@ public final class PropertyPanel implements AutoCloseable {
       openExpandedExpression(n, item);
     }
     expressionRect("expand");
-    var feedback = expressionFeedback.inspect(state.project(), n, item);
+    if (feedback == null) {
+      var checking = expressionChecking.view();
+      ImGui.textWrapped(StatusBarText.clip(checking.message(), 640));
+      if (checking.retryable()) {
+        if (ImGui.smallButton("Retry checking")) expressionChecking.retry();
+        expressionRect("retry");
+      }
+      return;
+    }
     if (!feedback.valid()) {
       ImGui.textWrapped("! " + feedback.error());
       if (feedback.input() != null) {
@@ -2040,6 +2093,25 @@ public final class PropertyPanel implements AutoCloseable {
         ImGui.treePop();
       }
     }
+  }
+
+  private ExpressionFeedback.Result inspectExpressionFeedback(Noise noise, Item item) {
+    expressionSeen = true;
+    return expressionChecking == null
+        ? expressionFeedback.inspect(state.project(), noise, item)
+        : expressionChecking.observe(noise, item).result();
+  }
+
+  private Object feedbackSelectionOwner(Item item) {
+    return expressionChecking == null ? item : expressionChecking.selectionOwner();
+  }
+
+  BackgroundExpressionFeedback probeExpressionFeedback() {
+    return expressionChecking;
+  }
+
+  ExpressionEditSession probeExpandedExpressionSession() {
+    return expressionDialog == null ? null : expressionDialog.session();
   }
 
   private List<Map.Entry<String, Binding>> selectedInputs(Item item) {

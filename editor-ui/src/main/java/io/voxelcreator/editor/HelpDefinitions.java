@@ -90,6 +90,18 @@ final class HelpDefinitions {
                   + " that old selection. Selection remains outside Undo history and never saves"
                   + " the project."),
           new Guide(
+              "help.expression-feedback",
+              "Expression feedback while typing",
+              "Inline and expanded Expression editors check parser syntax and result types in the"
+                  + " background after typing pauses. Only feedback for the current text and input"
+                  + " definitions is shown. Parser error positions use UTF-16 characters; selection"
+                  + " follows the current token, including Unicode text. Failed checking offers"
+                  + " Retry checking and does not repeatedly restart. Use Text remains available"
+                  + " while feedback is pending or unavailable: it stages the exact expanded buffer"
+                  + " in Properties. Cancel or Escape discards that buffer. Full input and resource"
+                  + " validation happens on Properties Apply; feedback never commits or saves the"
+                  + " project or preferences."),
+          new Guide(
               "help.membership-apply",
               "Applying voxel set and group members",
               "Properties > Edit Members keeps a private checkbox selection. Apply Members prepares"
@@ -577,6 +589,9 @@ final class HelpDefinitions {
           Map.entry(
               "help.voxel-identities",
               List.of("layers", "archives", "help.find", "help.membership-apply")),
+          Map.entry(
+              "help.expression-feedback",
+              List.of("processing", "noise", "help.properties-apply", "diagnostics")),
           Map.entry(
               "help.membership-apply",
               List.of(

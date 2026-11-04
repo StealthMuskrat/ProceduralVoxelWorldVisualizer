@@ -139,6 +139,7 @@ public final class ExpandedExpressionProbe {
             "EXPANDED_EXPRESSION_NATIVE_PASS multiline / Cancel / Escape / private stage / Apply /"
                 + " Undo-Redo");
       }
+      BackgroundExpressionFeedbackProbe.run(out);
     } finally {
       ImGui.destroyContext();
     }

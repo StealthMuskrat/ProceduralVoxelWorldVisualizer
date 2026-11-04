@@ -43,6 +43,59 @@ public final class ExpressionFeedback {
       Map<String, Expression.Type> types,
       Map<String, Double> constants) {}
 
+  /** Immutable semantic input: worker compilation never reads live model objects. */
+  static final class Request {
+    private final Key key;
+    private final Result definitionError;
+
+    private Request(Key key, Result definitionError) {
+      this.key = key;
+      this.definitionError = definitionError;
+    }
+
+    String source() {
+      return key.source();
+    }
+
+    long bytes() {
+      long size = 512L + 6L * key.source().length();
+      for (String name : key.types().keySet()) size += 192L + 4L * name.length();
+      for (String name : key.constants().keySet()) size += 192L + 4L * name.length();
+      if (definitionError != null) {
+        if (definitionError.error() != null) size += 2L * definitionError.error().length();
+        if (definitionError.input() != null) size += 2L * definitionError.input().length();
+      }
+      return size;
+    }
+
+    Result inspect() {
+      if (definitionError != null) return definitionError;
+      try {
+        var program = Expression.compile(key.source(), key.types(), key.constants());
+        if (!program.type().name().equals(key.result()))
+          throw new Expression.Problem(
+              "Expected " + key.result() + ", received " + program.type(),
+              0,
+              key.source().length());
+        return new Result(null, 0, 0, program.type(), program.inputs(), program.statistics());
+      } catch (Expression.Problem problem) {
+        return new Result(problem.getMessage(), problem.start, problem.end, null, List.of(), null);
+      }
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof Request r
+          && key.equals(r.key)
+          && Objects.equals(definitionError, r.definitionError);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(key, definitionError);
+    }
+  }
+
   private final LinkedHashMap<Key, Result> cache = new LinkedHashMap<>(32, .75f, true);
 
   public int cachedEntries() {
@@ -50,6 +103,35 @@ public final class ExpressionFeedback {
   }
 
   public Result inspect(ProjectData project, Noise noise, Item item) {
+    var request = capture(project, noise, item, null);
+    if (request.definitionError != null) return request.definitionError;
+    var result = cache.get(request.key);
+    if (result != null) return result;
+    try {
+      result = request.inspect();
+      cache.put(request.key, result);
+      while (cache.size() > 128) cache.remove(cache.keySet().iterator().next());
+      return result;
+    } catch (RuntimeException failure) {
+      return failure(failure, null);
+    }
+  }
+
+  static String source(Item item) {
+    return item.parameters.containsKey("expression")
+        ? item.parameters.get("expression").asText()
+        : "";
+  }
+
+  static Result inspectCaptured(Request request) {
+    try {
+      return request.inspect();
+    } catch (RuntimeException failure) {
+      return failure(failure, null);
+    }
+  }
+
+  static Request capture(ProjectData project, Noise noise, Item item, String sourceOverride) {
     String currentInput = null;
     try {
       var types = new LinkedHashMap<String, Expression.Type>();
@@ -107,37 +189,30 @@ public final class ExpressionFeedback {
           (name, value) -> {
             if (!item.inputs.containsKey(name)) constants.put(name, value);
           });
-      String source =
-          item.parameters.containsKey("expression")
-              ? item.parameters.get("expression").asText()
-              : "";
+      String source = sourceOverride != null ? sourceOverride : source(item);
       var key = new Key(source, item.resultType, Map.copyOf(types), Map.copyOf(constants));
-      Result result = cache.get(key);
-      if (result != null) return result;
-      try {
-        var program = Expression.compile(source, types, constants);
-        if (!program.type().name().equals(item.resultType))
-          throw new Expression.Problem(
-              "Expected " + item.resultType + ", received " + program.type(), 0, source.length());
-        result = new Result(null, 0, 0, program.type(), program.inputs(), program.statistics());
-      } catch (Expression.Problem problem) {
-        result =
-            new Result(problem.getMessage(), problem.start, problem.end, null, List.of(), null);
-      }
-      cache.put(key, result);
-      while (cache.size() > 128) cache.remove(cache.keySet().iterator().next());
-      return result;
+      return new Request(key, null);
     } catch (RuntimeException problem) {
-      return new Result(
-          problem.getMessage() == null
-              ? "Invalid expression input definition"
-              : problem.getMessage(),
-          0,
-          0,
-          null,
-          List.of(),
-          null,
-          currentInput);
+      String text = sourceOverride;
+      if (text == null)
+        try {
+          text = source(item);
+        } catch (RuntimeException ignored) {
+          text = "";
+        }
+      return new Request(
+          new Key(text, item.resultType, Map.of(), Map.of()), failure(problem, currentInput));
     }
+  }
+
+  private static Result failure(RuntimeException problem, String currentInput) {
+    return new Result(
+        problem.getMessage() == null ? "Invalid expression input definition" : problem.getMessage(),
+        0,
+        0,
+        null,
+        List.of(),
+        null,
+        currentInput);
   }
 }

@@ -21,6 +21,7 @@ Start with [Build and run](BUILD_AND_RUN.md) for the pinned Java toolchain, Wind
 - [Document transaction ownership](DOCUMENT_TRANSACTION_OWNERSHIP.md) describes stale callback/history publication checks.
 - [API](API.md) describes the independent headless engine.
 - [Background Properties Apply](BACKGROUND_PROPERTIES_APPLY.md) describes prepared edits, cancellation and guarded history publication.
+- [Background Expression feedback](BACKGROUND_EXPRESSION_FEEDBACK.md) describes coalesced parser work, current-source spans, explicit retry and independent private staging.
 - [Background Apply Members](BACKGROUND_MEMBERSHIP_APPLY.md) describes cancellable set/group preparation and retained private Properties input.
 - [Background resource actions](BACKGROUND_RESOURCE_ACTIONS.md) describes staged private validation, cancellable command preparation and consumed completion.
 - [Background browser selection Apply](BACKGROUND_BROWSER_SELECTION.md) describes cancellable tree/range/empty/manager preparation and owned sibling plans.

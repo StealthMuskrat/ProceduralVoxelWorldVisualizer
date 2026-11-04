@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
 import java.util.*;
+import java.util.concurrent.Executor;
+import java.util.function.*;
 
 /** Expanded text is private even from Properties until explicitly staged. */
-public final class ExpressionEditSession {
+public final class ExpressionEditSession implements AutoCloseable {
   public static final int MAX_CHARACTERS = 16384;
   public static final int MAX_BUFFER_CHARACTERS = 4 * MAX_CHARACTERS;
   private final EditorState editor;
@@ -26,8 +28,19 @@ public final class ExpressionEditSession {
   private JsonNode candidateBase;
   private String candidateText;
   private long preparations;
+  private final BackgroundExpressionFeedback background;
 
   public ExpressionEditSession(EditorState state, Noise owner, Item item) {
+    this(state, owner, item, null, null, System::nanoTime);
+  }
+
+  ExpressionEditSession(
+      EditorState state,
+      Noise owner,
+      Item item,
+      Executor executor,
+      Consumer<Runnable> ui,
+      LongSupplier clock) {
     if (state.draft != owner
         || !Objects.equals(state.selected, owner.uuid)
         || !(EditorState.find(state.project(), owner.uuid) instanceof Noise)
@@ -52,6 +65,10 @@ public final class ExpressionEditSession {
       throw new IllegalArgumentException(
           "Expression exceeds expanded editor limit " + MAX_CHARACTERS);
     projectBase = ProjectIO.JSON.valueToTree(project);
+    background =
+        executor == null
+            ? null
+            : new BackgroundExpressionFeedback(state, executor, ui, clock, () -> text);
   }
 
   public String text() {
@@ -64,10 +81,13 @@ public final class ExpressionEditSession {
     if (value.length() > MAX_BUFFER_CHARACTERS)
       throw new IllegalArgumentException(
           "Expanded expression buffer limit " + MAX_BUFFER_CHARACTERS);
+    if (text.equals(value)) return;
     text = value;
+    if (background != null) background.supersede();
   }
 
   public void cancel() {
+    if (background != null) background.close();
     closed = true;
     candidate = null;
     candidateBase = null;
@@ -108,6 +128,7 @@ public final class ExpressionEditSession {
     requireCurrent(state);
     if (text.length() > MAX_CHARACTERS)
       throw new IllegalArgumentException("Expression length limit " + MAX_CHARACTERS);
+    if (background != null) return background.observe(owner, item).result();
     var current = ProjectIO.JSON.valueToTree(item);
     if (candidate == null || !current.equals(candidateBase)) {
       candidate = ProjectIO.JSON.convertValue(current, Item.class);
@@ -123,7 +144,33 @@ public final class ExpressionEditSession {
   }
 
   long preparations() {
-    return preparations;
+    return background == null ? preparations : background.launches();
+  }
+
+  String feedbackStatus() {
+    return background == null ? "" : background.view().message();
+  }
+
+  boolean feedbackRetryable() {
+    return background != null && background.view().retryable();
+  }
+
+  void retryFeedback() {
+    requireCurrent(editor);
+    if (background != null) background.retry();
+  }
+
+  Object feedbackSelectionOwner() {
+    return background == null ? this : background.selectionOwner();
+  }
+
+  BackgroundExpressionFeedback feedbackWork() {
+    return background;
+  }
+
+  @Override
+  public void close() {
+    cancel();
   }
 
   /**

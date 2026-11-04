@@ -6,7 +6,7 @@ import imgui.type.*;
 import java.util.*;
 
 /** A bounded multiline buffer, separate from both the document and the Properties draft. */
-public final class ExpressionEditDialog {
+public final class ExpressionEditDialog implements AutoCloseable {
   private final EditorState state;
   private final String actionScope = UUID.randomUUID().toString();
   final DialogLayout layout;
@@ -79,7 +79,6 @@ public final class ExpressionEditDialog {
     ImGui.textWrapped(
         "Use Text stages only this expression in Properties. Apply in Properties validates and"
             + " commits the complete resource. Cancel discards this expanded buffer.");
-    selection.context(state.project(), state.draft, session, session.text());
     boolean current = session.current(state);
     ExpressionFeedback.Result feedback = null;
     try {
@@ -88,6 +87,8 @@ public final class ExpressionEditDialog {
       error = message(invalid);
       selection.cancel();
     }
+    selection.context(
+        state.project(), state.draft, session.feedbackSelectionOwner(), session.text());
     ImGui.textWrapped("Expression text");
     lineHeight = ImGui.getTextLineHeightWithSpacing();
     editorWidgetId = ImGui.getID("##expression-expanded");
@@ -108,7 +109,8 @@ public final class ExpressionEditDialog {
         error = message(invalid);
         feedback = null;
       }
-      selection.context(state.project(), state.draft, session, session.text());
+      selection.context(
+          state.project(), state.draft, session.feedbackSelectionOwner(), session.text());
     }
     editorBounds = PopupLayout.itemBounds();
     controlRect("text");
@@ -144,6 +146,11 @@ public final class ExpressionEditDialog {
                 + ".."
                 + feedback.end()
                 + ", zero-based UTF-16, end exclusive]");
+    }
+    if (!session.feedbackStatus().isEmpty()) ImGui.textWrapped(bounded(session.feedbackStatus()));
+    if (session.feedbackRetryable()) {
+      if (ImGui.smallButton("Retry checking")) session.retryFeedback();
+      controlRect("retry");
     }
     if (!current)
       ImGui.textWrapped(
@@ -244,5 +251,16 @@ public final class ExpressionEditDialog {
   private static String bounded(String value) {
     value = Objects.requireNonNullElse(value, "");
     return value.length() > 1024 ? value.substring(0, 1023) + "…" : value;
+  }
+
+  ExpressionEditSession session() {
+    return session;
+  }
+
+  @Override
+  public void close() {
+    session.close();
+    selection.cancel();
+    focusEditor = pending = false;
   }
 }
