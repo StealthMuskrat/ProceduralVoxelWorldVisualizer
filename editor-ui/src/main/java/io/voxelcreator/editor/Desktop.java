@@ -323,8 +323,9 @@ public final class Desktop extends Application {
                     || (projectHistory != null && projectHistory.session.busy()));
     lifecycle.own(projectFiles.workflow::close);
     projectHistory =
-        new ProjectHistoryPanel(
+        ProjectHistoryPanel.background(
             state, () -> privateProjectInteraction() || projectFiles.workflow.busy());
+    lifecycle.own(projectHistory::close);
     imports =
         new ResourceImportPanel(
             state,

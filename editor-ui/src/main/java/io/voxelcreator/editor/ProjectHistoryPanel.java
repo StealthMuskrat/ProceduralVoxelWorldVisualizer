@@ -3,10 +3,11 @@ package io.voxelcreator.editor;
 import imgui.*;
 import imgui.flag.*;
 import java.util.*;
-import java.util.function.BooleanSupplier;
+import java.util.concurrent.Executor;
+import java.util.function.*;
 
 /** One shared project-history decision for menu and configured shortcut entry points. */
-final class ProjectHistoryPanel {
+final class ProjectHistoryPanel implements AutoCloseable {
   final ProjectHistorySession session;
   final DialogLayout layout;
   private boolean prompt, revealBody;
@@ -15,18 +16,40 @@ final class ProjectHistoryPanel {
   private int drawnFrame = Integer.MIN_VALUE;
   final SettingsPageChrome chrome = new SettingsPageChrome(2);
   private final Map<String, float[]> controls = new HashMap<>();
+  private final ContextHelp help;
 
   ProjectHistoryPanel(EditorState state, BooleanSupplier blocked) {
     this(state, blocked, () -> state.reconcileSelection(state.multiSelection, state.selected));
   }
 
   ProjectHistoryPanel(EditorState state, BooleanSupplier blocked, Runnable refresh) {
-    session = new ProjectHistorySession(state, blocked, refresh);
+    this(state, blocked, refresh, null, null);
+  }
+
+  static ProjectHistoryPanel background(EditorState state, BooleanSupplier blocked) {
+    return new ProjectHistoryPanel(
+        state,
+        blocked,
+        () -> state.reconcileSelection(state.multiSelection, state.selected),
+        state.background,
+        state.uiQueue::offer);
+  }
+
+  ProjectHistoryPanel(
+      EditorState state,
+      BooleanSupplier blocked,
+      Runnable refresh,
+      Executor executor,
+      Consumer<Runnable> ui) {
+    session = new ProjectHistorySession(state, blocked, refresh, executor, ui);
+    help = new ContextHelp(state.helpRequests);
     layout = new DialogLayout(state, "Properties", 620, 280);
   }
 
   void request(ProjectHistorySession.Direction direction) {
-    if (session.request(direction) == ProjectHistorySession.Result.NEEDS_DECISION) prompt = true;
+    var result = session.request(direction);
+    if (result == ProjectHistorySession.Result.NEEDS_DECISION
+        || result == ProjectHistorySession.Result.PREPARING) prompt = true;
   }
 
   void draw() {
@@ -34,6 +57,7 @@ final class ProjectHistoryPanel {
     if (drawnFrame == frame) return;
     drawnFrame = frame;
     controls.clear();
+    boolean preparing = session.preparing();
     if (!session.pending()) {
       prompt = false;
       decisions.close();
@@ -61,16 +85,26 @@ final class ProjectHistoryPanel {
           revealBody = false;
         }
         ImGui.textWrapped("Requested project action: " + action);
-        ImGui.textWrapped(
-            "Undo and Redo affect committed project history. Discard unapplied Properties input to"
-                + " continue, or cancel to keep editing.");
+        if (preparing)
+          ImGui.textWrapped(
+              "Preparing and validating the history step in the background. Committed values and"
+                  + " private Properties input stay active until publication. Cancel or Escape"
+                  + " retires this request.");
+        else
+          ImGui.textWrapped(
+              "Undo and Redo affect committed project history. Discard unapplied Properties input"
+                  + " to continue, or cancel to keep editing.");
       } finally {
         chrome.end();
       }
       ImGui.pushID("project-history:" + request);
       try {
-        discard = button("Discard Draft and " + action, "DISCARD");
-        cancel = button("Cancel", "CANCEL");
+        discard =
+            button(
+                preparing ? "Preparing " + action + "..." : "Discard Draft and " + action,
+                "DISCARD",
+                !preparing);
+        cancel = button("Cancel", "CANCEL", true);
       } finally {
         ImGui.popID();
       }
@@ -102,12 +136,20 @@ final class ProjectHistoryPanel {
     }
   }
 
-  private boolean button(String label, String key) {
+  private boolean button(String label, String key, boolean enabled) {
+    ImGui.beginDisabled(!enabled);
     boolean clicked = chrome.identifiedAction(key, label);
+    help.item("help.project-history", "project-history:" + key, true);
+    ImGui.endDisabled();
     var a = ImGui.getItemRectMin();
     var b = ImGui.getItemRectMax();
     controls.put(key, new float[] {(a.x + b.x) / 2, (a.y + b.y) / 2});
-    return clicked;
+    return enabled && clicked;
+  }
+
+  @Override
+  public void close() {
+    session.close();
   }
 
   float[] control(String key) {

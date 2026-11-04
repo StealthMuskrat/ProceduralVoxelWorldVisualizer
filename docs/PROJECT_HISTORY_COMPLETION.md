@@ -31,3 +31,5 @@ python scripts/verify_project_history_completion.py build/project-history-comple
 ```
 
 Future Windows wiring uses the bundled runtime, semicolon classpaths and exit-code guards. Artifact lists include the new receipts. Workflow triggers remain unchanged; development-branch pushes launch no workflows. No compiler, build, test, native probe, Python checker, schema/generator or GitHub workflow ran for this batch. Every private-editor/structural-history/refresh path, large-history performance, physical input/DPI, full GUI/Windows 11 acceptance and production sign-off remain pending.
+
+Subsequent unvalidated source follow-up: [background project history](BACKGROUND_PROJECT_HISTORY.md) adds worker reconstruction/validation before the existing final movement/refresh fence. Cancel/Escape remain available during preparation, and exact document/private/model authority precedes one accepted movement. This preserves the earlier post-unwind completion and successor-isolation contracts. All new definitions remain uncompiled/untested; no workflow ran.

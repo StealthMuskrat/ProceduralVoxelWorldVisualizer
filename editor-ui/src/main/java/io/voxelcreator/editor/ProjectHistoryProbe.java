@@ -178,6 +178,7 @@ public final class ProjectHistoryProbe {
             "PROJECT_HISTORY_NATIVE_PASS production modal / explicit discard / stale input /"
                 + " selection / failure retention / saved snapshots");
       }
+      BackgroundProjectHistoryProbe.run(out.resolve("background"));
     } finally {
       ImGui.destroyContext();
     }

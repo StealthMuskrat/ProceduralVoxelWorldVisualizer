@@ -7,6 +7,21 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void historyHelpRoutesUndoRedoAndExplainsBackgroundDiscardCancellationAndRetry() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.project-history");
+    var text = topic.copyText(catalog);
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Undo"));
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Redo"));
+    assertTrue(text.contains("Discard takes effect only when"));
+    assertTrue(text.contains("Cancel or Escape"));
+    assertTrue(catalog.search("history undo background").contains(topic));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void propertiesApplyHelpExplainsBackgroundValidationCancellationAndPrivatePublication() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

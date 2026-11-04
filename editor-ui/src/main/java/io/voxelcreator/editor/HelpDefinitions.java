@@ -26,6 +26,19 @@ final class HelpDefinitions {
   static final List<Guide> GUIDES =
       List.of(
           new Guide(
+              "help.project-history",
+              "Undo and Redo with private Properties input",
+              "Edit > Undo and Redo reconstruct and validate a committed history candidate in the"
+                  + " background. With private Properties changes, first choose Discard Draft and"
+                  + " Undo/Redo or Cancel. Discard takes effect only when the history step"
+                  + " publishes successfully; private input stays active during preparation. Cancel"
+                  + " or Escape retires pending work. Changed project, selection, draft, Save"
+                  + " checkpoint, history or validation policy prevents late movement. A failed"
+                  + " step leaves the stacks and private input available; request Undo or Redo"
+                  + " again explicitly. Successful movement refreshes selection without applying"
+                  + " the discarded draft or saving the project. Curve-local and text-input history"
+                  + " keep their own scope."),
+          new Guide(
               "help.properties-apply",
               "Applying private Properties edits",
               "Properties edits stay private until Apply. Desktop prepares the candidate, compiler"
@@ -427,6 +440,9 @@ final class HelpDefinitions {
 
   private static final Map<String, List<String>> LINKS =
       Map.ofEntries(
+          Map.entry(
+              "help.project-history",
+              List.of("help.properties-apply", "help.project-save", "save", "diagnostics")),
           Map.entry("help.manual", List.of("noise", "help.find", "shortcuts", "help.about")),
           Map.entry(
               "help.noise-cycles",
@@ -572,7 +588,8 @@ final class HelpDefinitions {
     return switch (action) {
       case "Open" -> "help.project-open";
       case "Save", "SaveAs" -> "help.project-save";
-      case "New", "Exit", "Undo", "Redo" -> "save";
+      case "New", "Exit" -> "save";
+      case "Undo", "Redo" -> "help.project-history";
       case "Import" -> "help.resource-import";
       case "Export" -> "help.resource-export";
       case "Find", "FindReferences" -> "help.find";

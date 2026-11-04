@@ -2,10 +2,11 @@ package io.voxelcreator.editor;
 
 import io.voxelcreator.model.*;
 import java.util.*;
-import java.util.function.BooleanSupplier;
+import java.util.concurrent.*;
+import java.util.function.*;
 
 /** Project history never implicitly applies or disposes of an owned Properties draft. */
-final class ProjectHistorySession {
+final class ProjectHistorySession implements AutoCloseable {
   enum Direction {
     UNDO,
     REDO
@@ -21,7 +22,8 @@ final class ProjectHistorySession {
     NEEDS_DECISION,
     UNAVAILABLE,
     REJECTED,
-    CANCELLED
+    CANCELLED,
+    PREPARING
   }
 
   private final EditorState state;
@@ -32,15 +34,32 @@ final class ProjectHistorySession {
   private long requestVersion;
   private long generation;
   private boolean moving;
+  private final Executor executor;
+  private final Consumer<Runnable> ui;
+  private FutureTask<Void> task;
+  private Object workToken = new Object();
+  private boolean closed;
 
   ProjectHistorySession(EditorState state, BooleanSupplier blocked) {
     this(state, blocked, () -> state.reconcileSelection(state.multiSelection, state.selected));
   }
 
   ProjectHistorySession(EditorState state, BooleanSupplier blocked, Runnable refresh) {
+    this(state, blocked, refresh, null, null);
+  }
+
+  ProjectHistorySession(
+      EditorState state,
+      BooleanSupplier blocked,
+      Runnable refresh,
+      Executor executor,
+      Consumer<Runnable> ui) {
     this.state = state;
     this.blocked = Objects.requireNonNull(blocked);
     this.refresh = Objects.requireNonNull(refresh);
+    this.executor = executor;
+    this.ui = ui;
+    if (executor != null) Objects.requireNonNull(ui);
   }
 
   long requestVersion() {
@@ -48,6 +67,7 @@ final class ProjectHistorySession {
   }
 
   boolean pending() {
+    refreshBackground();
     return pending != null;
   }
 
@@ -59,13 +79,18 @@ final class ProjectHistorySession {
     return pending;
   }
 
+  boolean preparing() {
+    refreshBackground();
+    return task != null;
+  }
+
   private boolean available(Direction direction) {
     return direction == Direction.UNDO ? state.document.canUndo() : state.document.canRedo();
   }
 
   Result request(Direction direction) {
     Objects.requireNonNull(direction);
-    if (moving || pending() || !available(direction)) return Result.UNAVAILABLE;
+    if (closed || moving || pending() || !available(direction)) return Result.UNAVAILABLE;
     long attempt = generation;
     try {
       var opening = new ProjectFileOwner(state);
@@ -76,7 +101,8 @@ final class ProjectHistorySession {
             "Finish the private editor or pending project action before using project history";
         return Result.UNAVAILABLE;
       }
-      if (!opening.current(state) || !available(direction)) {
+      if (!(executor == null ? opening.current(state) : opening.valuesCurrent(state))
+          || !available(direction)) {
         state.status = "Project history or draft changed; request Undo or Redo again";
         return Result.UNAVAILABLE;
       }
@@ -111,6 +137,7 @@ final class ProjectHistorySession {
       clear();
       return Result.CANCELLED;
     }
+    if (preparing()) return Result.UNAVAILABLE;
     var direction = pending;
     var original = owner;
     long attempt = generation;
@@ -123,7 +150,9 @@ final class ProjectHistorySession {
       boolean denied = blocked.getAsBoolean();
       if (generation != attempt || owner != original || pending != direction)
         return Result.UNAVAILABLE;
-      if (denied || !original.current(state) || !available(direction)) {
+      if (denied
+          || !(executor == null ? original.current(state) : original.valuesCurrent(state))
+          || !available(direction)) {
         clear();
         state.status = "Project history or draft changed; request Undo or Redo again";
         return Result.UNAVAILABLE;
@@ -137,6 +166,7 @@ final class ProjectHistorySession {
   }
 
   private Result move(Direction direction) {
+    if (executor != null) return prepare(direction);
     // Retire the decision before model validation; keep other history/file work fenced until
     // refresh.
     clear();
@@ -165,6 +195,141 @@ final class ProjectHistorySession {
     }
   }
 
+  private Result prepare(Direction direction) {
+    pending = direction;
+    Object token = workToken;
+    try {
+      owner = new ProjectFileOwner(state);
+      var preparation =
+          direction == Direction.UNDO ? state.document.requestUndo() : state.document.requestRedo();
+      task =
+          new FutureTask<>(
+              () -> {
+                DocumentSession.PreparedHistory result = null;
+                Throwable failure = null;
+                try {
+                  result = preparation.prepare();
+                } catch (Throwable rejected) {
+                  failure = rejected;
+                }
+                var completed = result;
+                var rejected = failure;
+                ui.accept(() -> publish(token, direction, completed, rejected));
+                return null;
+              });
+      executor.execute(task);
+      return Result.PREPARING;
+    } catch (Throwable failure) {
+      failBackground(token, failure);
+      return Result.REJECTED;
+    }
+  }
+
+  private boolean ownsWork(Object token) {
+    return token == workToken && task != null && pending != null && !closed;
+  }
+
+  private void publish(
+      Object token,
+      Direction direction,
+      DocumentSession.PreparedHistory prepared,
+      Throwable failure) {
+    if (!ownsWork(token)) return;
+    try {
+      if (!owner.valuesCurrent(state)) {
+        staleBackground();
+        return;
+      }
+      if (failure != null) {
+        failBackground(token, failure);
+        return;
+      }
+      boolean denied = blocked.getAsBoolean();
+      if (!ownsWork(token)) return;
+      if (denied || !owner.valuesCurrent(state) || !state.document.currentHistory(prepared)) {
+        staleBackground();
+        return;
+      }
+      if (!prepared.success()) {
+        failBackground(
+            token,
+            new IllegalStateException(
+                "History candidate rejected ("
+                    + prepared.diagnostics().size()
+                    + " issues): "
+                    + prepared.diagnostics().stream().limit(8).toList()));
+        return;
+      }
+      // Retire confirmation authority before any publication/refresh callback, retaining the
+      // existing non-reentrant final movement fence until selection reconciliation completes.
+      clear();
+      moving = true;
+      try {
+        try {
+          state.document.applyHistory(prepared);
+        } catch (Throwable rejected) {
+          reportBackground("PROJECT_HISTORY_FAILED", "History publication failed: ", rejected);
+          return;
+        }
+        state.revision++;
+        try {
+          refresh.run();
+          state.status =
+              direction == Direction.UNDO ? "Project edit undone" : "Project edit redone";
+        } catch (Throwable rejected) {
+          reportBackground(
+              "PROJECT_HISTORY_REFRESH_FAILED", "History moved; UI refresh failed: ", rejected);
+        }
+      } finally {
+        moving = false;
+      }
+    } catch (Throwable rejected) {
+      failBackground(token, rejected);
+    }
+  }
+
+  private void refreshBackground() {
+    if (task == null || closed) return;
+    try {
+      if (!owner.current(state)) {
+        staleBackground();
+        return;
+      }
+      var completion = BackgroundFailure.completed(task);
+      if (completion != null && completion.failure() != null)
+        failBackground(workToken, completion.failure());
+    } catch (Throwable failure) {
+      failBackground(workToken, failure);
+    }
+  }
+
+  private void staleBackground() {
+    clear();
+    state.status =
+        "History preparation became stale. Request Undo or Redo again; current private input is"
+            + " retained.";
+  }
+
+  private void failBackground(Object token, Throwable failure) {
+    if (token != workToken || closed) return;
+    clear();
+    reportBackground(
+        "PROJECT_HISTORY_FAILED",
+        "History preparation failed; request Undo or Redo again: ",
+        failure);
+  }
+
+  private void reportBackground(String code, String prefix, Throwable failure) {
+    try {
+      state.error(
+          code,
+          EditorEvents.Subsystem.PROJECT,
+          StatusBarText.clip(prefix + BackgroundFailure.describe(failure), 2048));
+    } catch (Throwable ignored) {
+      /* Leave cancellation and a fresh request available. */
+    }
+  }
+
   private void report(String code, String prefix, RuntimeException failure) {
     String detail = failure.getMessage();
     if (detail == null || detail.isBlank()) detail = failure.getClass().getSimpleName();
@@ -172,8 +337,22 @@ final class ProjectHistorySession {
   }
 
   void clear() {
+    var previous = task;
+    workToken = new Object();
+    task = null;
     generation++;
     pending = null;
     owner = null;
+    if (previous != null) {
+      previous.cancel(true);
+      if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
+    }
+  }
+
+  @Override
+  public void close() {
+    if (closed) return;
+    clear();
+    closed = true;
   }
 }

@@ -187,6 +187,95 @@ public final class DocumentSession {
     active = candidate;
   }
 
+  /** Capture on the owner thread; rejects an empty Undo direction without preparing work. */
+  public HistoryRequest requestUndo() {
+    return new HistoryRequest(false);
+  }
+
+  /** Capture on the owner thread; rejects an empty Redo direction without preparing work. */
+  public HistoryRequest requestRedo() {
+    return new HistoryRequest(true);
+  }
+
+  /** Private captured history entry and validation policy; prepare may run on a worker. */
+  public final class HistoryRequest {
+    private final boolean forward;
+    private final TransactionOwner source;
+    private final ProjectDelta delta;
+
+    private HistoryRequest(boolean forward) {
+      this.forward = forward;
+      delta = (forward ? redo : undo).peek();
+      if (delta == null)
+        throw new IllegalStateException("No " + (forward ? "Redo" : "Undo") + " entry");
+      source = new TransactionOwner();
+    }
+
+    private DocumentSession owner() {
+      return DocumentSession.this;
+    }
+
+    public PreparedHistory prepare() {
+      var candidate = delta.applySnapshot(source.values, forward);
+      var issues = List.copyOf(source.validation.apply(candidate));
+      if (!issues.isEmpty()) return new PreparedHistory(this, null, issues);
+      // Do not retain the mutable input a validation callback may have kept.
+      return new PreparedHistory(this, ProjectIO.copy(candidate), List.of());
+    }
+  }
+
+  /** Owned reconstructed/validated history candidate; successful publication is single-use. */
+  public static final class PreparedHistory {
+    private final HistoryRequest request;
+    private final ProjectData candidate;
+    private final List<Diagnostic> diagnostics;
+    private boolean consumed;
+
+    private PreparedHistory(
+        HistoryRequest request, ProjectData candidate, List<Diagnostic> diagnostics) {
+      this.request = request;
+      this.candidate = candidate;
+      this.diagnostics = List.copyOf(diagnostics);
+    }
+
+    public boolean success() {
+      return candidate != null && diagnostics.isEmpty();
+    }
+
+    public List<Diagnostic> diagnostics() {
+      return diagnostics;
+    }
+  }
+
+  /**
+   * Owner-thread check for accepted or rejected history work, without validation or consumption.
+   */
+  public boolean currentHistory(PreparedHistory prepared) {
+    if (prepared == null || prepared.consumed || prepared.request.owner() != this) return false;
+    try {
+      prepared.request.source.requireCurrent();
+      return (prepared.request.forward ? redo : undo).peek() == prepared.request.delta;
+    } catch (IllegalStateException changed) {
+      return false;
+    }
+  }
+
+  /** Move the captured entry between stacks only after checking all live owner authority. */
+  public void applyHistory(PreparedHistory prepared) {
+    Objects.requireNonNull(prepared);
+    if (prepared.request.owner() != this)
+      throw new IllegalStateException("Prepared history belongs to another document");
+    prepared.request.source.requireCurrent();
+    var from = prepared.request.forward ? redo : undo;
+    var to = prepared.request.forward ? undo : redo;
+    if (prepared.consumed || !prepared.success() || from.peek() != prepared.request.delta)
+      throw new IllegalStateException("Prepared history is rejected, consumed or superseded");
+    prepared.consumed = true;
+    to.push(prepared.request.delta);
+    from.pop();
+    active = prepared.candidate;
+  }
+
   /** Owner-thread optimistic guard; this is not a lock or cross-thread document access policy. */
   private final class TransactionOwner {
     final ProjectData source = active;
