@@ -7,6 +7,21 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void membershipHelpExplainsBackgroundCancellationAndPrivateFieldRetention() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.membership-apply");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Cancel or Escape"));
+    assertTrue(text.contains("Changing checkboxes cancels older work"));
+    assertTrue(text.contains("its private ID and raw input stay private"));
+    assertTrue(catalog.search("membership background apply").contains(topic));
+    assertTrue(catalog.topic("help.voxel-identities").related().contains(topic.id()));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void resourceActionHelpExplainsStagedBackgroundValidationAndExplicitRetry() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

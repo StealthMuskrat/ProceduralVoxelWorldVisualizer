@@ -90,6 +90,20 @@ final class HelpDefinitions {
                   + " that old selection. Selection remains outside Undo history and never saves"
                   + " the project."),
           new Guide(
+              "help.membership-apply",
+              "Applying voxel set and group members",
+              "Properties > Edit Members keeps a private checkbox selection. Apply Members prepares"
+                  + " full-project validation and one Undo delta in the background. Committed"
+                  + " members remain active until publication. Cancel or Escape closes the"
+                  + " temporary selection without applying it. Changing checkboxes cancels older"
+                  + " work; Apply Members again explicitly uses the new choices. Failed preparation"
+                  + " retains the selection for retry. Publication updates only members in the"
+                  + " existing Properties draft; its private ID and raw input stay private."
+                  + " Unrelated catalog changes before Apply are allowed, while document,"
+                  + " checkpoint, history or policy changes during preparation reject old work."
+                  + " Voxel sets participate in World predicates; groups organize resources. Apply"
+                  + " Members does not save the project or preferences."),
+          new Guide(
               "help.resource-actions",
               "Resource actions with private Properties",
               "Create, Rename, Duplicate, Paste, Move, ordering, placement insertion and Delete"
@@ -560,7 +574,16 @@ final class HelpDefinitions {
                   "creation-defaults",
                   "help.coordinates")),
           Map.entry("help.appearance", List.of("themes", "help.workspace", "shortcuts")),
-          Map.entry("help.voxel-identities", List.of("layers", "archives", "help.find")),
+          Map.entry(
+              "help.voxel-identities",
+              List.of("layers", "archives", "help.find", "help.membership-apply")),
+          Map.entry(
+              "help.membership-apply",
+              List.of(
+                  "help.voxel-identities",
+                  "help.properties-apply",
+                  "help.project-save",
+                  "diagnostics")),
           Map.entry(
               "help.visualization",
               List.of("archives", "profiler", "help.workspace", "help.scalar-readouts")),

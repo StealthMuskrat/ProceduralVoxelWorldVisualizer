@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 import math
 import sys
+import jsonschema
 from uuid import UUID
 
 out = Path(sys.argv[1])
@@ -85,4 +86,52 @@ assert not (out / 'nested-must-not-write.pvresources.json').exists()
 
 assert not (out / 'escape-must-not-write.pvresources.json').exists()
 assert not (out / 'held-must-not-write.pvresources.json').exists()
-print('Resource review lifetime, seven delivery routes, post-popup callbacks, 24 native receipts, exact import/Undo, noise-only package and original preferences PASS')
+# Deferred worker membership Apply through the actual Properties entry and member controls.
+background = out / 'background-membership'
+receipt = json.loads((background / 'background-membership.json').read_text(encoding='utf-8'))
+assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
+routes = [(kind, mode) for kind in ('set', 'group')
+          for mode in (['success', 'cancel', 'escape', 'retry', 'edit', 'raw', 'close', 'empty']
+                       if kind == 'set' else ['success', 'empty'])]
+assert [(case['kind'], case['mode']) for case in receipt['cases']] == routes
+schema = json.loads((Path(__file__).resolve().parent.parent / 'schema/project.schema.json').read_text(encoding='utf-8'))
+validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
+snapshots = 0
+for case in receipt['cases']:
+    kind, mode = case['kind'], case['mode']
+    applied = mode in ('success', 'retry', 'edit', 'empty')
+    assert case['applied'] is applied and case['oneUndoRedo'] is applied
+    assert case['responsiveFrames'] == 12
+    assert case['members'] == (0 if mode == 'empty' else 2 if applied else 1)
+    assert all(case[key] is True for key in ('privateIdSeedRetained', 'preferencesRetained', 'originalBytesRetained'))
+    directory = background / (kind + '-' + mode)
+    baseline = json.loads((directory / 'before.json').read_text(encoding='utf-8'))
+    solid, spare, third = [item['uuid'] for item in baseline['voxelTypes']]
+    assert [item['id'] for item in baseline['voxelTypes']] == ['solid', 'spare', 'third']
+    assert baseline['project']['seed'] == 5 and baseline['project']['minY'] == -2 and baseline['project']['maxY'] == 2
+    member_set, = baseline['voxelSets']
+    group, = baseline['voxelGroups']
+    assert member_set['id'] == 'members' and group['id'] == 'group'
+    assert member_set['voxelTypeUuids'] == group['voxelTypeUuids'] == [spare]
+    noise, = baseline['noise2D']
+    assert noise['id'] == 'field' and noise['algorithm']['key'] == 'CONSTANT' and noise['algorithm']['parameters'] == {'value': .125}
+    fill, clear = baseline['worldGenerator']['layers']
+    assert fill['defaults']['action'] == 'SET' and fill['defaults']['voxelTypeUuid'] == solid
+    assert clear['defaults']['action'] == 'CLEAR'
+    assert clear['defaults']['voxelStatePredicate'] == dict(kind='IN_SET', reference=member_set['uuid'], children=[])
+    assert all(len(layer['operations']) == 1 and layer['operations'][0]['interpretation'] == 'ALL'
+               and layer['operations'][0]['noiseGeneratorUuid'] == noise['uuid'] for layer in (fill, clear))
+    assert json.loads((directory / 'preferences-before.json').read_text(encoding='utf-8')) == json.loads((directory / 'preferences.json').read_text(encoding='utf-8'))
+    for name in (['before', 'after', 'undone', 'redone'] if applied else ['before', 'after']):
+        saved = json.loads((directory / (name + '.json')).read_text(encoding='utf-8'))
+        validator.validate(saved)
+        target = applied and name in ('after', 'redone')
+        expected = deepcopy(baseline)
+        values = [spare] if not target else [] if mode == 'empty' else [spare, third if mode == 'edit' else solid]
+        expected['voxelSets' if kind == 'set' else 'voxelGroups'][0]['voxelTypeUuids'] = values
+        expected['project']['seed'] = 6 if mode == 'raw' and name == 'after' else 5
+        assert saved == expected
+        snapshots += 1
+assert snapshots == 32
+assert json.loads((background / 'engine-replay.json').read_text(encoding='utf-8')) == dict(formatVersion=1, snapshots=32, fields=672, cells=9408, solidCells=5880, roots=[2, 4])
+print('Resource review lifetime and background members-only Apply: exact saved state, set/group semantics, private input retention, native and engine replay PASS')

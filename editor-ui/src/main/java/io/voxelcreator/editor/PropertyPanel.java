@@ -69,6 +69,9 @@ public final class PropertyPanel implements AutoCloseable {
 
   private final ResourcePicker resourcePicker;
   private MembershipDialog membershipDialog;
+  private float[] membershipOpenButton;
+  private final Executor memberExecutor;
+  private final Consumer<Runnable> memberUi;
   private final ExpressionFeedback expressionFeedback = new ExpressionFeedback();
   private final Map<String, String> conditionErrors = new HashMap<>();
   private long worldControlVersion;
@@ -639,6 +642,8 @@ public final class PropertyPanel implements AutoCloseable {
 
   PropertyPanel(EditorState s, Executor executor, Consumer<Runnable> ui) {
     state = s;
+    memberExecutor = executor;
+    memberUi = ui;
     contextHelp = new ContextHelp(s.helpRequests);
     resourcePicker = new ResourcePicker(s, () -> state.draft, () -> noiseVersion);
     draftChoices = new DraftChoicePicker(s, () -> state.draft, () -> noiseVersion);
@@ -661,12 +666,21 @@ public final class PropertyPanel implements AutoCloseable {
 
   @Override
   public void close() {
+    if (membershipDialog != null) membershipDialog.close();
     if (applySession != null) applySession.close();
     referenceNavigation.close();
   }
 
   PropertiesApplySession probeApplySession() {
     return applySession;
+  }
+
+  MembershipDialog probeMembershipDialog() {
+    return membershipDialog;
+  }
+
+  float[] probeMembershipOpenButton() {
+    return membershipOpenButton;
   }
 
   ResourcePicker probeResourcePicker() {
@@ -678,6 +692,7 @@ public final class PropertyPanel implements AutoCloseable {
   }
 
   public void draw() {
+    membershipOpenButton = null;
     if (applySession != null) applySession.view();
     if (!(state.draft instanceof VoxelType) || state.multiSelection.size() != 1)
       voxelIdentity.clear();
@@ -824,7 +839,15 @@ public final class PropertyPanel implements AutoCloseable {
               "Palette edits affect appearance; semantic voxel identity remains the same.");
         } else if (state.draft instanceof Membership m) {
           ImGui.text(m.voxelTypeUuids.size() + " member reference(s)");
-          if (ImGui.button("Edit Members...")) membershipDialog = new MembershipDialog(state, m);
+          if (ImGui.button("Edit Members..."))
+            membershipDialog = new MembershipDialog(state, m, memberExecutor, memberUi);
+          var memberBounds = PopupLayout.itemBounds();
+          membershipOpenButton =
+              new float[] {
+                memberBounds.x() + memberBounds.width() / 2,
+                memberBounds.y() + memberBounds.height() / 2
+              };
+          contextHelp.item("help.membership-apply");
           ImGui.textWrapped(
               "Membership editing offers a temporary searchable selection with Apply/Cancel.");
         } else if (state.draft instanceof Folder folder) {

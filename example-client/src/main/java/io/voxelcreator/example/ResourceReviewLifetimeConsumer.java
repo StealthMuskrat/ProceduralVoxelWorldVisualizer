@@ -64,6 +64,7 @@ public final class ResourceReviewLifetimeConsumer {
     require(
         read(out, "preferences-before.json").equals(read(out, "preferences.json")),
         "Reviews changed preferences");
+    BackgroundMembershipConsumer.run(out.resolve("background-membership"));
     System.out.println(
         "Resource review engine-only PASS; original field 22 / 81 imported .75 samples / one import"
             + " Undo / exact noise-only package and EMPTY world / original preferences");

@@ -259,6 +259,7 @@ public final class ResourceReviewLifetimeProbe {
                 + " Reload / explicit fresh review / busy publication / one import Undo / one"
                 + " export");
       }
+      BackgroundMembershipProbe.run(out.resolve("background-membership"));
     } finally {
       ImGui.destroyContext();
     }

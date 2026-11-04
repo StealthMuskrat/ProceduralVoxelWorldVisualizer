@@ -5,11 +5,13 @@ import imgui.flag.*;
 import imgui.type.*;
 import io.voxelcreator.model.ProjectData.Membership;
 import java.util.*;
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 /**
  * Searchable multi-checkbox membership modal with a private selection and explicit Apply/Cancel.
  */
-public final class MembershipDialog {
+public final class MembershipDialog implements AutoCloseable {
   private final EditorState state;
   private final String actionScope = UUID.randomUUID().toString();
   final DialogLayout layout;
@@ -33,9 +35,13 @@ public final class MembershipDialog {
   private final Map<UUID, Integer> rowIds = new LinkedHashMap<>();
 
   public MembershipDialog(EditorState state, Membership draft) {
+    this(state, draft, null, null);
+  }
+
+  MembershipDialog(EditorState state, Membership draft, Executor executor, Consumer<Runnable> ui) {
     this.state = state;
     layout = new DialogLayout(state, "Properties", 620, 510);
-    session = new MembershipEditSession(state, draft);
+    session = new MembershipEditSession(state, draft, executor, ui);
   }
 
   public boolean draw() {
@@ -56,9 +62,14 @@ public final class MembershipDialog {
       pending = false;
     }
     if (!layout.begin("Edit Voxel Membership")) return false;
+    long work = session.workVersion();
     boolean appearing = ImGui.isWindowAppearing();
     boolean current = session.currentOwner(state);
     chrome.begin("membership-body");
+    if (!session.progress().isEmpty())
+      ImGui.textWrapped(StatusBarText.clip(session.progress(), 3072));
+    if (!session.applyFailure().isEmpty())
+      ImGui.textWrapped("! " + StatusBarText.clip(session.applyFailure(), 2048));
     if (revealPage) {
       ImGui.setScrollY(0);
       revealPage = false;
@@ -101,7 +112,12 @@ public final class MembershipDialog {
     }
     chrome.end();
     ImGui.pushID(actionScope);
-    boolean apply = action("apply", "Apply Members", current);
+    ImGui.pushID("membership-work:" + work);
+    boolean apply =
+        action(
+            "apply",
+            session.applying() ? "Applying Members..." : "Apply Members",
+            current && !session.applying());
     boolean cancel = action("cancel", "Cancel", true);
     boolean page = action("section", issuesPage ? "Members" : "Issues", true);
     boolean select = action("select", "Select Matching", current && !issuesPage);
@@ -109,11 +125,14 @@ public final class MembershipDialog {
     boolean mode =
         action("selected-only", selectedOnly ? "Show All" : "Selected Only", !issuesPage);
     ImGui.popID();
+    ImGui.popID();
     boolean done = false;
     if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       session.cancel();
       done = true;
       ImGui.closeCurrentPopup();
+    } else if (work != session.workVersion()) {
+      // Choice edits or work completion retire footer releases from the previous phase.
     } else if (select) session.setVisible(displayed, true);
     else if (clear) session.setVisible(displayed, false);
     else if (mode) selectedOnly = !selectedOnly;
@@ -125,6 +144,8 @@ public final class MembershipDialog {
         if (session.apply(state)) {
           done = true;
           ImGui.closeCurrentPopup();
+        } else if (session.applying()) {
+          error = "";
         } else {
           error = "Membership was not applied. Review the diagnostics or Logs, then retry.";
           showIssues();
@@ -240,5 +261,11 @@ public final class MembershipDialog {
 
   MembershipEditSession session() {
     return session;
+  }
+
+  @Override
+  public void close() {
+    session.close();
+    pending = false;
   }
 }
