@@ -12,9 +12,10 @@ public final class ResourceFindPanel implements AutoCloseable {
   private final EditorState state;
   final DialogLayout layout;
   private final PropertyPanel properties;
-  private final ResourceSearchSession session = new ResourceSearchSession();
+  private final ResourceSearchSession session;
   private final LongSupplier clock;
   private boolean immediateSearch;
+  private long selectionBuilds = -1;
   private final SearchNavigation navigation;
   private final FindSelection selection = new FindSelection();
   private final SettingsActionScope actions = new SettingsActionScope();
@@ -60,7 +61,7 @@ public final class ResourceFindPanel implements AutoCloseable {
 
   static ResourceFindPanel background(EditorState state, PropertyPanel properties) {
     return new ResourceFindPanel(
-        state, properties, System::nanoTime, state.background, state.uiQueue::offer);
+        state, properties, System::nanoTime, state.background, state.uiQueue::offer, true);
   }
 
   ResourceFindPanel(
@@ -69,8 +70,22 @@ public final class ResourceFindPanel implements AutoCloseable {
       LongSupplier clock,
       java.util.concurrent.Executor executor,
       java.util.function.Consumer<Runnable> ui) {
+    this(state, properties, clock, executor, ui, false);
+  }
+
+  ResourceFindPanel(
+      EditorState state,
+      PropertyPanel properties,
+      LongSupplier clock,
+      java.util.concurrent.Executor executor,
+      java.util.function.Consumer<Runnable> ui,
+      boolean backgroundSearch) {
     this.clock = Objects.requireNonNull(clock);
     this.state = state;
+    session =
+        backgroundSearch
+            ? new ResourceSearchSession(state, executor, ui, this::currentFilter)
+            : new ResourceSearchSession();
     guardDialog = new NavigationGuardDialog(state, "Find");
     layout = guardDialog.layout;
     this.properties = properties;
@@ -152,11 +167,21 @@ public final class ResourceFindPanel implements AutoCloseable {
             ? session.search(state.project(), state.revision, filter)
             : session.searchDebounced(state.project(), state.revision, filter, clock.getAsLong());
     immediateSearch = false;
+    if (selectionBuilds != session.builds()) {
+      // A rebuilt index cannot lend an old hit its new source authority, even at equal revision.
+      selection.clear();
+      selection.synchronize(state);
+      selectionBuilds = session.builds();
+    }
     chrome.begin("find-workspace-" + section);
     if (session.pending()) {
-      ImGui.textWrapped("Updating search...");
+      ImGui.textWrapped(session.message().isEmpty() ? "Updating search..." : session.message());
       PopupLayout.clippedLabel(
           "Previous results cannot be activated until typing pauses and the search finishes.");
+    }
+    if (session.failed()) {
+      if (DialogLayout.button("Retry Search")) session.retry();
+      control("retry");
     }
     var selectedHit = selection.hit();
     if (selectedHit != null) {
@@ -410,7 +435,7 @@ public final class ResourceFindPanel implements AutoCloseable {
   public void close() {
     navigation.close();
     actions.release();
-    session.clear();
+    session.close();
   }
 
   private void retireNavigation() {
@@ -446,6 +471,10 @@ public final class ResourceFindPanel implements AutoCloseable {
         navigation,
         this::decideNavigation);
     if (!guardDialog.buttons().isEmpty()) guardDrawn = true;
+  }
+
+  boolean smokeSearchReady() {
+    return smokeDrawn && session.matches(currentFilter()) && !session.pending();
   }
 
   void smoke(boolean show) {
@@ -541,6 +570,10 @@ public final class ResourceFindPanel implements AutoCloseable {
 
   boolean searchPending() {
     return session.pending();
+  }
+
+  boolean searchFailed() {
+    return session.failed();
   }
 
   long builds() {

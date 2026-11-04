@@ -555,11 +555,12 @@ public final class Desktop extends Application {
         views.compactArenas();
       }
       if (runtimeFrame == 478) profiler.set(false);
-      if (!views.smokePhaseReady(runtimeFrame)) {
+      if (!views.smokePhaseReady(runtimeFrame)
+          || runtimeFrame == 272 && !findPanel.smokeSearchReady()) {
         if (smokePhaseWait == 0) smokePhaseWait = System.nanoTime();
         if (System.nanoTime() - smokePhaseWait > 30_000_000_000L)
           throw new IllegalStateException(
-              "Timed out waiting for native stage preview at phase " + runtimeFrame);
+              "Timed out waiting for native stage preview or Find at phase " + runtimeFrame);
         return;
       }
       smokePhaseWait = 0;

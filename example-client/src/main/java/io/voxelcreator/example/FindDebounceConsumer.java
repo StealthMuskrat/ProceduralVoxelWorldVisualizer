@@ -41,5 +41,51 @@ public final class FindDebounceConsumer {
     if (samples != 486 || cells != 288) throw new AssertionError("Replay coverage changed");
     System.out.println(
         "Find debounce engine-only PASS; 486 scalar observations and 288 EMPTY cells");
+    background(out.resolve("background"));
   }
+
+  private static void background(Path out) throws Exception {
+    int samples = 0, cells = 0;
+    for (String mode : new String[] {
+        "ready", "coalesced", "retry", "cancel", "collapse", "revision", "live-query", "cancelled-worker", "close"
+    }) {
+      var before = new ProjectLoader().load(out.resolve(mode).resolve("before.json"));
+      var after = new ProjectLoader().load(out.resolve(mode).resolve("after.json"));
+      if (!before.success() || !after.success()) throw new AssertionError("Rejected " + mode);
+      var expected = io.voxelcreator.model.ProjectIO.JSON.valueToTree(before.project());
+      if (mode.equals("revision"))
+        ((com.fasterxml.jackson.databind.node.ObjectNode) expected.path("project")).put("seed", 1L);
+      if (!expected.equals(io.voxelcreator.model.ProjectIO.JSON.valueToTree(after.project())))
+        throw new AssertionError("Find modified unrelated committed values: " + mode);
+      for (var loaded : java.util.List.of(before, after)) {
+        var compiled = new CompiledProject(loaded.project());
+        for (String id : new String[] {"field-0", "needle"})
+          for (int x : new int[] {-17, -2, -1, 0, 1, 2, 17})
+            for (int z : new int[] {-3, 0, 7}) {
+              if (compiled.noise2D(id, 0).sample(x, z) != .125)
+                throw new AssertionError("Find changed constant field: " + mode);
+              samples++;
+            }
+        try (var engine = new NoiseGeneratorEngine(1, 8, 64L << 20)) {
+          for (int root : new int[] {2, 4})
+            try (var world = engine.openWorld(compiled,
+                new WorldOptions(null, root, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+              for (int c : new int[] {-1, 0}) {
+                var chunk = world.generateChunk(new ChunkPos(c, c, c));
+                for (int z = 0; z < root; z++)
+                  for (int y = 0; y < root; y++)
+                    for (int x = 0; x < root; x++) {
+                      if (chunk.getVoxelTypeId(x, y, z) != 0)
+                        throw new AssertionError("Find populated empty World: " + mode);
+                      cells++;
+                    }
+              }
+            }
+        }
+      }
+    }
+    if (samples != 756 || cells != 2592) throw new AssertionError("Background Find replay coverage");
+    System.out.println("BACKGROUND_FIND_ENGINE_ONLY_PASS 756 constant fields / 2592 EMPTY cells");
+  }
+
 }

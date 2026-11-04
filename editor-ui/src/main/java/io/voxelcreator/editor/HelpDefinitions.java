@@ -240,7 +240,12 @@ final class HelpDefinitions {
                   + " filter and scrolls to the row. Voxel types, sets and groups open in the"
                   + " corresponding Voxel Manager tab. Later filtering, collapsing or closing takes"
                   + " precedence over a pending reveal. Find References limits results to"
-                  + " references to the selected UUID."),
+                  + " references to the selected UUID. Desktop builds the committed index and scans"
+                  + " filters in the background. Typing in large indexes waits for a short quiet"
+                  + " interval; explicit filters and Find References bypass that wait. Previous rows"
+                  + " remain inspectable but cannot navigate while work is pending or failed. Retry"
+                  + " Search explicitly after a failure. Collapse cancels pending work; closing Find"
+                  + " releases its index. Late results cannot navigate or replace a newer query."),
           new Guide(
               "help.pins",
               "Pinned controls and live sources",

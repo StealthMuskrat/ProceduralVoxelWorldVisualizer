@@ -193,6 +193,7 @@ public final class FindDebounceProbe {
         report.put("hiddenCancelled", true);
         report.put("rawInput", state.seedInputs.text("seedOffset"));
         report.put("physicalDpiVerified", false);
+        BackgroundFindProbe.run(out.resolve("background"));
         Files.writeString(
             out.resolve("find-debounce-native.json"), ProjectIO.JSON.writeValueAsString(report));
         System.out.println(
