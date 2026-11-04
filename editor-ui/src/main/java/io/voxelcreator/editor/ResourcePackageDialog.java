@@ -6,10 +6,11 @@ import imgui.type.ImString;
 import io.voxelcreator.model.*;
 import java.io.IOException;
 import java.util.*;
-import java.util.function.BooleanSupplier;
+import java.util.concurrent.Executor;
+import java.util.function.*;
 
 /** Production package path/review modal, shared by Desktop and deferred native workflows. */
-final class ResourcePackageDialog {
+final class ResourcePackageDialog implements AutoCloseable {
   private final EditorState state;
   private final ResourcePanel resources;
   private final ResourceImportPanel imports;
@@ -26,7 +27,8 @@ final class ResourcePackageDialog {
   private final NavigationDecisionScope delivery = new NavigationDecisionScope();
   private long generation, shownOpening = -1;
   private int drawnFrame = Integer.MIN_VALUE;
-  private boolean working;
+  private boolean working, closed, importObserved;
+  private final ResourceImportLoader loader;
 
   enum Command {
     CANCEL,
@@ -47,6 +49,23 @@ final class ResourcePackageDialog {
       Set<UUID> selected,
       ResourceReviewContext context) {}
 
+  static ResourcePackageDialog background(
+      EditorState state,
+      ResourcePanel resources,
+      ResourceImportPanel imports,
+      BooleanSupplier blocked) {
+    var files = new ResourcePackageFiles();
+    return new ResourcePackageDialog(
+        state,
+        resources,
+        imports,
+        blocked,
+        files,
+        state.background,
+        state.uiQueue::offer,
+        (source, destination) -> ImportEditSession.prepare(destination, files.read(source)));
+  }
+
   ResourcePackageDialog(
       EditorState state,
       ResourcePanel resources,
@@ -61,18 +80,35 @@ final class ResourcePackageDialog {
       ResourceImportPanel imports,
       BooleanSupplier blocked,
       ResourcePackageFiles files) {
+    this(state, resources, imports, blocked, files, null, null, null);
+  }
+
+  ResourcePackageDialog(
+      EditorState state,
+      ResourcePanel resources,
+      ResourceImportPanel imports,
+      BooleanSupplier blocked,
+      ResourcePackageFiles files,
+      Executor executor,
+      Consumer<Runnable> ui,
+      ResourceImportLoader.Preparation preparation) {
     this.state = Objects.requireNonNull(state);
     this.resources = Objects.requireNonNull(resources);
     this.imports = Objects.requireNonNull(imports);
     this.blocked = Objects.requireNonNull(blocked);
     this.files = Objects.requireNonNull(files);
     layout = new DialogLayout(state, "Resources", 780, 620);
+    loader =
+        executor == null
+            ? null
+            : new ResourceImportLoader(
+                state, executor, ui, preparation, imports::openPrepared, blocked);
   }
 
   boolean open(String requested) {
     if (!Set.of("Import", "Export").contains(requested))
       throw new IllegalArgumentException("Unknown package action");
-    if (pending || working || imports.pending() || resources.exportView().busy()) {
+    if (closed || pending || working || imports.pending() || resources.exportView().busy()) {
       state.status =
           "Finish the private editor or pending project action before opening a resource package";
       return false;
@@ -82,6 +118,7 @@ final class ResourcePackageDialog {
     try {
       boolean unavailable = blocked.getAsBoolean();
       if (generation != opening
+          || closed
           || pending
           || working
           || imports.pending()
@@ -140,6 +177,8 @@ final class ResourcePackageDialog {
   void cancel() {
     if (working || exportOwner != null && exportOwner.busy()) return;
     generation++;
+    if (loader != null) loader.cancel();
+    importObserved = false;
     delivery.close();
     if (pending && action.equals("Export")) cancelOwnedExport();
     exportOwner = null;
@@ -147,6 +186,7 @@ final class ResourcePackageDialog {
   }
 
   void draw() {
+    pollImport();
     int frame = ImGui.getFrameCount();
     if (drawnFrame == frame) return;
     drawnFrame = frame;
@@ -190,12 +230,15 @@ final class ResourcePackageDialog {
             ImGui.textWrapped(action + " file path");
             ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
             if (focusPath) ImGui.setKeyboardFocusHere();
+            ImGui.beginDisabled(importRunning());
             ImGui.inputText("##package-path", path);
+            ImGui.endDisabled();
             remember("Path");
             if (focusPath) {
               ImGui.setScrollHereY(.25f);
               if (ImGui.isItemActive() || ImGui.isItemFocused()) focusPath = false;
             }
+            if (importRunning()) ImGui.textWrapped(loader.view().message());
             if (!error.isEmpty()) ImGui.textWrapped(StatusBarText.clip(error, 4096));
             if (unavailable)
               ImGui.textWrapped("Finish the other private editor or project action, or Cancel.");
@@ -220,7 +263,7 @@ final class ResourcePackageDialog {
                 chrome,
                 "submit",
                 action,
-                !unavailable && owned && (!export || resources.canExport()));
+                !importRunning() && !unavailable && owned && (!export || resources.canExport()));
         boolean cancel = button(chrome, "cancel", "Cancel", true);
         boolean reload = false, remove = false, choices = false, included = false, location = false;
         if (export) {
@@ -289,6 +332,7 @@ final class ResourcePackageDialog {
       cancel();
       return;
     }
+    if (importRunning()) return;
     if (command == Command.CHOICES) {
       show("Choices");
       return;
@@ -316,6 +360,13 @@ final class ResourcePackageDialog {
         return;
       }
       if (command != Command.SUBMIT) return;
+      if (decision.action().equals("Import") && loader != null) {
+        error = "";
+        importObserved = true;
+        loader.start(decision.location());
+        pollImport();
+        return;
+      }
       working = true;
       try {
         var destination = ResourcePackageFiles.location(decision.location());
@@ -334,6 +385,30 @@ final class ResourcePackageDialog {
     } catch (Exception failure) {
       failed(decision, "FILE_" + decision.action().toUpperCase(Locale.ROOT) + "_FAILED", failure);
     }
+  }
+
+  boolean importRunning() {
+    return loader != null && loader.view().phase() == ResourceImportLoader.Phase.RUNNING;
+  }
+
+  void pollImport() {
+    if (loader == null || !importObserved || !pending) return;
+    var view = loader.view();
+    if (view.phase() == ResourceImportLoader.Phase.RUNNING) return;
+    importObserved = false;
+    if (view.phase() == ResourceImportLoader.Phase.READY) cancel();
+    else {
+      error = view.message();
+      show("Path");
+    }
+  }
+
+  @Override
+  public void close() {
+    if (closed) return;
+    closed = true;
+    if (loader != null) loader.close();
+    cancel();
   }
 
   private void failed(Decision decision, String code, Exception failure) {

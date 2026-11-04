@@ -215,6 +215,7 @@ public final class ImportWorkspaceProbe {
             "IMPORT_WORKSPACE_NATIVE_PASS 1004 clipped rows / native choices / explicit reload /"
                 + " validation retry / private draft / one Undo-Redo");
       }
+      ResourceImportLoadingProbe.run(out.resolve("background-import"));
     } finally {
       ImGui.destroyContext();
     }

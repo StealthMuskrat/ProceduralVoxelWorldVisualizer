@@ -1,6 +1,8 @@
 package io.voxelcreator.editor;
 
+import io.voxelcreator.core.NoiseCompiler;
 import io.voxelcreator.model.*;
+import java.io.IOException;
 import java.util.*;
 
 /** Owned editor import: changed destinations require explicit reload and a displayed preview. */
@@ -12,6 +14,28 @@ final class ImportEditSession {
     NOT_REVIEWED,
     BUSY,
     CLOSED
+  }
+
+  /** Privately owned initial plan; worker construction never touches the live editor. */
+  static final class Prepared {
+    private final ProjectData incoming;
+    private final ResourceImport.Session model;
+    private boolean consumed;
+
+    private Prepared(ProjectData incoming, ResourceImport.Session model) {
+      this.incoming = incoming;
+      this.model = model;
+    }
+  }
+
+  static Prepared prepare(ProjectData destination, ProjectData incoming) throws IOException {
+    var owned = ProjectIO.copy(Objects.requireNonNull(incoming));
+    var issues = NoiseCompiler.validate(owned);
+    if (!issues.isEmpty())
+      throw new IOException("Invalid import resources: " + issues.stream().limit(8).toList());
+    var model = new ResourceImport.Session(destination, owned);
+    model.preview();
+    return new Prepared(owned, model);
   }
 
   private final EditorState state;
@@ -33,6 +57,21 @@ final class ImportEditSession {
     projectId = state.project().project.uuid;
     document = state.document.sessionToken();
     reload();
+  }
+
+  ImportEditSession(EditorState state, Prepared prepared) {
+    this.state = Objects.requireNonNull(state);
+    Objects.requireNonNull(prepared);
+    if (prepared.consumed || !prepared.model.current(state.project()))
+      throw new IllegalStateException("Import preparation was consumed or the destination changed");
+    incoming = prepared.incoming;
+    projectId = state.project().project.uuid;
+    document = state.document.sessionToken();
+    destination = state.project();
+    revision = state.revision;
+    model = prepared.model;
+    choices = model.choices();
+    prepared.consumed = true;
   }
 
   boolean current() {

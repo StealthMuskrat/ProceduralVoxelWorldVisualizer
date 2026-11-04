@@ -320,7 +320,9 @@ public final class Desktop extends Application {
     imports =
         new ResourceImportPanel(state, this::packageInteractionBlocked, () -> validation.set(true));
     packageDialog =
-        new ResourcePackageDialog(state, resources, imports, this::packageInteractionBlocked);
+        ResourcePackageDialog.background(
+            state, resources, imports, this::packageInteractionBlocked);
+    lifecycle.own(packageDialog::close);
     views = new Viewports(state, properties, handle);
     lifecycle.own(
         () -> {

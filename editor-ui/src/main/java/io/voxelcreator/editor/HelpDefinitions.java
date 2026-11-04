@@ -63,6 +63,17 @@ final class HelpDefinitions {
                   + " private draft input, selection, generated values and Undo history. No"
                   + " autosave is enabled."),
           new Guide(
+              "help.resource-import",
+              "Preparing and reviewing a resource import",
+              "File > Import reads and validates the package and prepares its initial conflict"
+                  + " preview in the background. Cancel or Escape retires the pending request."
+                  + " A changed project, selection or private input prevents a late review from"
+                  + " opening. Failures retain the entered path for correction and explicit retry."
+                  + " Preparation does not change the project. Review COPY, compatible REUSE and"
+                  + " SKIP choices in the separate import workspace, then choose Import to commit"
+                  + " one undoable transaction. Cancel discards those choices. Private Properties"
+                  + " input stays separate, and saving the project remains explicit."),
+          new Guide(
               "help.project-open",
               "Opening a project",
               "Open Project reads and validates a separate candidate in the background. Cancel Open"
@@ -401,7 +412,9 @@ final class HelpDefinitions {
           Map.entry("navigation", List.of("bookmarks", "help.workspace", "shortcuts")),
           Map.entry("save", List.of("help.project-settings", "archives", "creation-defaults")),
           Map.entry("processing", List.of("noise", "layers", "help.trace", "help.pins")),
-          Map.entry("archives", List.of("save", "layers", "help.visualization")),
+          Map.entry(
+              "archives", List.of("save", "layers", "help.visualization", "help.resource-import")),
+          Map.entry("help.resource-import", List.of("archives", "save", "diagnostics")),
           Map.entry("bookmarks", List.of("navigation", "save", "help.coordinates")),
           Map.entry(
               "diagnostics", List.of("help.validation", "help.find", "help.trace", "profiler")),
@@ -499,7 +512,8 @@ final class HelpDefinitions {
       case "Open" -> "help.project-open";
       case "Save", "SaveAs" -> "help.project-save";
       case "New", "Exit", "Undo", "Redo" -> "save";
-      case "Import", "Export" -> "archives";
+      case "Import" -> "help.resource-import";
+      case "Export" -> "archives";
       case "Find", "FindReferences" -> "help.find";
       case "Validate" -> "help.validation";
       case "Logs" -> "diagnostics";

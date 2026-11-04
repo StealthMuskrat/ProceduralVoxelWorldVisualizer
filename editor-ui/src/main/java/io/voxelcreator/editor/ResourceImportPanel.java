@@ -63,6 +63,29 @@ final class ResourceImportPanel {
   }
 
   boolean open(ProjectData incoming) {
+    if (!admit()) return false;
+    if (incoming == null) {
+      state.status = "A resource package must contain resources";
+      return false;
+    }
+    var issues = NoiseCompiler.validate(incoming);
+    if (!issues.isEmpty()) {
+      state.issues = issues;
+      state.validationScope = "Rejected import package";
+      issues.forEach(d -> state.reportDiagnostic(d, EditorEvents.Subsystem.IMPORT_EXPORT, true));
+      return false;
+    }
+    install(new ImportEditSession(state, incoming));
+    return true;
+  }
+
+  boolean openPrepared(ImportEditSession.Prepared incoming, BooleanSupplier current) {
+    if (!admit() || !current.getAsBoolean()) return false;
+    install(new ImportEditSession(state, incoming));
+    return true;
+  }
+
+  private boolean admit() {
     if (pending()) {
       state.status = "Finish the private editor or pending project action before opening Import";
       return false;
@@ -80,18 +103,11 @@ final class ResourceImportPanel {
       report("IMPORT_REVIEW_GATE_FAILED", failure);
       return false;
     }
-    if (incoming == null) {
-      state.status = "A resource package must contain resources";
-      return false;
-    }
-    var issues = NoiseCompiler.validate(incoming);
-    if (!issues.isEmpty()) {
-      state.issues = issues;
-      state.validationScope = "Rejected import package";
-      issues.forEach(d -> state.reportDiagnostic(d, EditorEvents.Subsystem.IMPORT_EXPORT, true));
-      return false;
-    }
-    session = new ImportEditSession(state, incoming);
+    return true;
+  }
+
+  private void install(ImportEditSession prepared) {
+    session = prepared;
     delivery.open();
     filter.set("");
     kind = resolution = "All";
@@ -99,7 +115,6 @@ final class ResourceImportPanel {
     section = "Resources";
     resetRows();
     prompt = true;
-    return true;
   }
 
   void cancel() {

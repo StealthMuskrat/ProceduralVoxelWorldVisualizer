@@ -38,3 +38,36 @@ assert report['formatVersion'] == 1 and report['incomingRows'] == 1004
 assert 0 < report['topRows'] <= 24 and 0 < report['scrolledRows'] <= 24
 assert all(report[key] is True for key in flags)
 print('IMPORT_WORKSPACE_INDEPENDENT_PASS exact COPY/REUSE/SKIP / preserved existing definitions / reload targets / schema / bounded native report')
+
+# Deferred background preparation report and complete saved-model checks.
+background = out / 'background-import'
+loading = json.loads((background / 'background-import.json').read_text())
+assert loading['formatVersion'] == 1 and loading['physicalInputVerified'] is False
+assert [c['mode'] for c in loading['cases']] == ['success', 'cancel', 'escape', 'raw', 'retry', 'close']
+for case in loading['cases']:
+    mode = case['mode']
+    assert case['imported'] is (mode in ['success', 'retry'])
+    assert case['responsiveFrames'] == 12
+    assert all(case[k] is True for k in ['privateRetained', 'preferencesRetained', 'originalBytesRetained'])
+    folder = background / mode
+    previous = json.loads((folder / 'before.json').read_text())
+    retained = json.loads((folder / 'after.json').read_text())
+    validator.validate(previous); validator.validate(retained)
+    assert len(previous['noise2D']) == 1 and len(retained['noise2D']) == (2 if case['imported'] else 1)
+    assert previous['noise2D'][0] == retained['noise2D'][0]
+    assert previous['project']['seed'] == 17 and retained['project']['seed'] == (18 if mode == 'raw' else 17)
+    retained['project']['seed'] = 17
+    if case['imported']:
+        assert retained['project']['rootOrder'] == {'noise2D': [n['uuid'] for n in retained['noise2D']]}
+        added = retained['noise2D'].pop()
+        incoming_package = json.loads((folder / '资源 package.pvresources.json').read_text())
+        validator.validate(incoming_package['resources'])
+        incoming = incoming_package['resources']['noise2D'][0]
+        assert added['id'] == 'incoming' and added['uuid'] != incoming['uuid']
+        added['uuid'] = incoming['uuid']
+        assert added == incoming
+        previous['project'].pop('rootOrder', None); retained['project'].pop('rootOrder', None)
+    assert previous == retained
+replay = json.loads((background / 'engine-replay.json').read_text())
+assert replay == {'formatVersion': 1, 'fields': 294, 'cells': 3528, 'roots': [2, 4]}
+print('BACKGROUND_IMPORT_INDEPENDENT_PASS owned snapshots / native cancel-retry / complete retained project / 294 fields / 3528 EMPTY cells')
