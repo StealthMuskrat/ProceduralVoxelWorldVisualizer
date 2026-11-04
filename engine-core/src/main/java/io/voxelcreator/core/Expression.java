@@ -191,7 +191,7 @@ public final class Expression {
           return length - StrictMath.abs(t - length);
         });
     m.put("clamp", new Function(3, a -> clamp(a[0], a[1], a[2])));
-    m.put("lerp", new Function(3, a -> a[0] + (a[1] - a[0]) * a[2]));
+    m.put("lerp", new Function(3, a -> FiniteInterpolation.between(a[0], a[1], a[2])));
     m.put("inverseLerp", new Function(3, a -> (a[2] - a[0]) / (a[1] - a[0])));
     m.put(
         "smoothstep",

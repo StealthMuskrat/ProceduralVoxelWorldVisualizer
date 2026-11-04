@@ -1128,7 +1128,7 @@
         "options" : [ "RAW", "CLAMP_01" ],
         "threeDimensional" : false
       } ],
-      "description" : "LERP blends a toward b. Other modes blend a toward the named combination of a and b. Optional Scalar weight binding overrides the numeric weight. RAW extrapolates and preserves signed values; explicit policies clamp weight or output. Zero/one weights select endpoints without evaluating unused branches."
+      "description" : "LERP blends a toward b. Other modes blend a toward the named combination of a and b. Optional Scalar weight binding overrides the numeric weight. RAW extrapolates and preserves signed values; explicit policies clamp weight or output. Zero/one weights select endpoints without evaluating unused branches. Ordinary finite interpolation keeps its operation order; a nonfinite intermediate with finite operands uses exact arithmetic before final double rounding. Nonfinite targets or final results still fail before output clamping."
     }
   },
   "sampleWorkLimit" : 1000000,

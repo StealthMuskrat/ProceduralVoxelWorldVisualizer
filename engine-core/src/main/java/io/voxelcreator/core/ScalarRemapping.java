@@ -65,7 +65,7 @@ public final class ScalarRemapping {
             default -> throw new AssertionError(mode());
           };
       if (!Double.isFinite(target)) throw new ArithmeticException("Nonfinite blend combination");
-      return output(w == 1 ? target : a + (target - a) * w);
+      return output(w == 1 ? target : FiniteInterpolation.between(a, target, w));
     }
 
     private static double normalizedDifference(double value, double center, double extent) {

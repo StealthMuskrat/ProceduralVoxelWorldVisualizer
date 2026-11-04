@@ -48,6 +48,10 @@ public final class ScalarRemappingConsumer {
       FalloffDistanceConsumer.run(
           Path.of(args[2]).resolveSibling("falloff-distance-vectors.json"),
           Path.of(args[3]).resolve("falloff-distance"));
+    if (args.length > 3)
+      FiniteInterpolationConsumer.run(
+          Path.of(args[2]).resolveSibling("finite-interpolation-vectors.json"),
+          Path.of(args[3]).resolve("finite-interpolation"));
     System.out.println(
         "SCALAR_REMAPPING_ENGINE_ONLY_PASS "
             + count

@@ -9,6 +9,7 @@ Start with [Build and run](BUILD_AND_RUN.md) for the pinned Java toolchain, Wind
 - [Resource navigation reveal](RESOURCE_NAVIGATION_REVEAL.md) describes browser reveal after accepted navigation.
 - [Application Help](HELP_AND_ABOUT.md) describes editor workflows and controls.
 - [Atomic archive publication](ARCHIVE_ATOMIC_PUBLICATION.md) describes replacement requirements and retry/abort ownership.
+- [Finite interpolation](FINITE_INTERPOLATION.md) describes guarded BLEND/lerp arithmetic and deferred coverage.
 - [API](API.md) describes the independent headless engine.
 - [Specification](SPECIFICATION.md) defines the complete assignment.
 - [Completion roadmap](DEVELOPMENT_ROADMAP.md) lists remaining development and final delivery work.

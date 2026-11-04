@@ -1,0 +1,118 @@
+{
+  "formatVersion": 1,
+  "reference": "Hand-specified dyadic endpoint/weight identities; hexadecimal doubles define exact binary operands and expected results. No reference evaluator was executed.",
+  "cases": [
+    {
+      "id": "opposite-mid",
+      "aHex": "-0x1p1023",
+      "bHex": "0x1p1023",
+      "weightHex": "0x1p-1",
+      "expectedHex": "0x0p0"
+    },
+    {
+      "id": "opposite-quarter",
+      "aHex": "-0x1p1023",
+      "bHex": "0x1p1023",
+      "weightHex": "0x1p-2",
+      "expectedHex": "-0x1p1022"
+    },
+    {
+      "id": "reverse-quarter",
+      "aHex": "0x1p1023",
+      "bHex": "-0x1p1023",
+      "weightHex": "0x1p-2",
+      "expectedHex": "0x1p1022"
+    },
+    {
+      "id": "opposite-three-quarter",
+      "aHex": "-0x1p1023",
+      "bHex": "0x1p1023",
+      "weightHex": "0x1.8p-1",
+      "expectedHex": "0x1p1022"
+    },
+    {
+      "id": "reverse-three-quarter",
+      "aHex": "0x1p1023",
+      "bHex": "-0x1p1023",
+      "weightHex": "0x1.8p-1",
+      "expectedHex": "-0x1p1022"
+    },
+    {
+      "id": "extend-positive",
+      "aHex": "0x1p1023",
+      "bHex": "0x0p0",
+      "weightHex": "0x1p1",
+      "expectedHex": "-0x1p1023"
+    },
+    {
+      "id": "extend-negative",
+      "aHex": "-0x1p1023",
+      "bHex": "0x0p0",
+      "weightHex": "0x1p1",
+      "expectedHex": "0x1p1023"
+    },
+    {
+      "id": "extend-five",
+      "aHex": "0x1p1023",
+      "bHex": "0x1p1022",
+      "weightHex": "0x1.4p2",
+      "expectedHex": "-0x1.8p1023"
+    },
+    {
+      "id": "extend-five-negative",
+      "aHex": "-0x1p1023",
+      "bHex": "-0x1p1022",
+      "weightHex": "0x1.4p2",
+      "expectedHex": "0x1.8p1023"
+    },
+    {
+      "id": "negative-weight",
+      "aHex": "0x1p1022",
+      "bHex": "0x1p1023",
+      "weightHex": "-0x1p2",
+      "expectedHex": "-0x1.8p1023"
+    },
+    {
+      "id": "negative-weight-reverse",
+      "aHex": "-0x1p1022",
+      "bHex": "-0x1p1023",
+      "weightHex": "-0x1p2",
+      "expectedHex": "0x1.8p1023"
+    },
+    {
+      "id": "zero-endpoint",
+      "aHex": "-0x1p1023",
+      "bHex": "0x1p1023",
+      "weightHex": "0x0p0",
+      "expectedHex": "-0x1p1023"
+    },
+    {
+      "id": "one-endpoint",
+      "aHex": "-0x1p1023",
+      "bHex": "0x1p1023",
+      "weightHex": "0x1p0",
+      "expectedHex": "0x1p1023"
+    },
+    {
+      "id": "subnormal-mid",
+      "aHex": "-0x0.0000000000001p-1022",
+      "bHex": "0x0.0000000000001p-1022",
+      "weightHex": "0x1p-1",
+      "expectedHex": "0x0p0"
+    },
+    {
+      "id": "ordinary-mid",
+      "aHex": "-0x1p1",
+      "bHex": "0x1.8p2",
+      "weightHex": "0x1p-2",
+      "expectedHex": "0x0p0"
+    },
+    {
+      "id": "ordinary-extend",
+      "aHex": "-0x1p1",
+      "bHex": "0x1.8p2",
+      "weightHex": "0x1.8p0",
+      "expectedHex": "0x1.4p3"
+    }
+  ]
+}
