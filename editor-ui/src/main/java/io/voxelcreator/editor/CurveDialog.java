@@ -6,6 +6,7 @@ import imgui.type.*;
 import io.voxelcreator.model.CurveModes;
 import io.voxelcreator.model.ProjectData.*;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 
@@ -304,11 +305,21 @@ public final class CurveDialog {
   }
 
   public CurveDialog(Curve curve, Consumer<Curve> apply) {
-    this(curve, apply, () -> {}, null, null);
+    this(curve, apply, () -> {}, null, null, null, null);
   }
 
   CurveDialog(Curve curve, EditorState state, CurveDraftEdit owner, Runnable accepted) {
-    this(curve, value -> owner.stage(state, value), accepted, state, owner);
+    this(curve, state, owner, accepted, null, null);
+  }
+
+  CurveDialog(
+      Curve curve,
+      EditorState state,
+      CurveDraftEdit owner,
+      Runnable accepted,
+      Executor executor,
+      Consumer<Runnable> ui) {
+    this(curve, value -> owner.stage(state, value), accepted, state, owner, executor, ui);
   }
 
   private CurveDialog(
@@ -316,12 +327,17 @@ public final class CurveDialog {
       Consumer<Curve> stage,
       Runnable accepted,
       EditorState state,
-      CurveDraftEdit owner) {
+      CurveDraftEdit owner,
+      Executor executor,
+      Consumer<Runnable> ui) {
     session = new CurveEditSession(curve);
     pointer = new CurvePointerGesture(session, view);
     numericGesture = new CurveNumericGesture(session);
     view.synchronize(curve.min, curve.max, curve.displayMin, curve.displayMax);
-    publication = new CurveApplySession(stage, accepted);
+    publication =
+        executor == null
+            ? new CurveApplySession(stage, accepted)
+            : new CurveApplySession(owner, state, accepted, executor, ui, session::curve);
     ownerState = state;
     standaloneMetadata = state == null ? AppMetadata.defaults() : null;
     contextHelp = state == null ? null : new ContextHelp(state.helpRequests);
@@ -384,10 +400,13 @@ public final class CurveDialog {
   }
 
   public boolean draw() {
+    publication.refresh();
+    if (open.get() && publication.closed()) finishPublication();
     if (!open.get() || publication.closed()) {
       clearDisplayWork();
       return true;
     }
+    long work = publication.version();
     numericRows.clear();
     numericGesture.beginFrame();
     layout.prepare();
@@ -412,7 +431,10 @@ public final class CurveDialog {
       pointer.cancel();
       numericGesture.cancel();
     }
-    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) numericGesture.cancel();
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      numericGesture.cancel();
+      publication.cancelApply();
+    }
     chrome.begin("curve-content", ImGuiWindowFlags.NoScrollWithMouse);
     bodyBounds = chrome.body();
     Curve curve = session.curve();
@@ -871,6 +893,8 @@ public final class CurveDialog {
       ImGui.textWrapped(
           "The source or selection changed. Private curve edits are preserved; Cancel and reopen"
               + " the source before applying.");
+    publication.refresh();
+    if (!publication.progress().isEmpty()) ImGui.textWrapped(publication.progress());
     if (!publication.error().isEmpty()) ImGui.textWrapped("! " + publication.error());
     // The plot owns wheel zoom. Other body space scrolls the inspector without also zooming it.
     if (ImGui.isWindowHovered()
@@ -887,35 +911,54 @@ public final class CurveDialog {
     bodyScroll = ImGui.getScrollY();
     chrome.end();
     ImGui.pushID(actionScope);
-    ImGui.beginDisabled(!current);
-    boolean apply = chrome.identifiedAction("apply", "Apply");
+    ImGui.pushID("curve-apply:" + publication.version());
+    boolean running = publication.running();
+    ImGui.beginDisabled(!current && !running);
+    boolean apply =
+        chrome.identifiedAction(
+            "apply", running ? "Cancel Apply" : publication.error().isEmpty() ? "Apply" : "Retry Apply");
     controlRect("apply");
     ImGui.endDisabled();
     guidance("apply", null);
+    ImGui.popID();
     boolean cancel = chrome.identifiedAction("cancel", "Cancel");
     controlRect("cancel");
     guidance("cancel", null);
     ImGui.popID();
     // Escape rolls back an owned plot gesture above and never authorizes a same-frame Apply.
     if (cancel) cancel();
-    else if (apply && !ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
-      stopDrag();
-      session.endGesture();
-      if (publication.apply(session.curve())) {
-        open.set(false);
-        focused = false;
-        clearDisplayWork();
-        var failure = publication.followUpFailure();
-        if (failure != null && ownerState != null)
-          ownerState.error(
-              "CURVE_EDIT_REFRESH_FAILED",
-              EditorEvents.Subsystem.APPLICATION,
-              "Curve staged in Properties; UI refresh failed: "
-                  + Objects.requireNonNullElse(failure.getMessage(), failure.toString()));
+    else if (apply
+        && work == publication.version()
+        && !ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      if (running) publication.cancelApply();
+      else {
+        stopDrag();
+        session.endGesture();
+        if (publication.apply(session.curve())) finishPublication();
       }
     }
+    if (open.get()
+        && !ImGui.isKeyPressed(ImGuiKey.Escape, false)
+        && publication.accept()) finishPublication();
     ImGui.end();
     return !open.get();
+  }
+
+  private void finishPublication() {
+    open.set(false);
+    focused = false;
+    clearDisplayWork();
+    var failure = publication.followUpFailure();
+    if (failure != null && ownerState != null)
+      ownerState.error(
+          "CURVE_EDIT_REFRESH_FAILED",
+          EditorEvents.Subsystem.APPLICATION,
+          "Curve staged in Properties; UI refresh failed: "
+              + Objects.requireNonNullElse(failure.getMessage(), failure.toString()));
+  }
+
+  CurveApplySession probePublication() {
+    return publication;
   }
 
   String actionScope() {

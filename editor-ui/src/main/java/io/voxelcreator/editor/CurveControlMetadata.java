@@ -162,13 +162,16 @@ final class CurveControlMetadata {
                   + " Apply commits the project change.",
               "A changed source or selection prevents stale publication. Curve Apply does not save"
                   + " the project or apply other Properties input. The parent Properties"
-                  + " transaction provides the project undo boundary."),
+                  + " transaction provides the project undo boundary. Desktop prepares Apply in"
+                  + " the background. Cancel Apply or Escape preserves the private curve; changing"
+                  + " curve data cancels pending Apply. Retry Apply is explicit after failure."),
           definition(
               "cancel",
               "Curve Cancel",
               "Discard this dialog's private edits and local history.",
               "Cancel leaves the original Properties draft and committed project unchanged. Escape"
-                  + " cancels an owned gesture; use Cancel to discard the whole dialog edit"
+                  + " cancels an owned gesture and pending background Apply; use Cancel to discard"
+                  + " the whole dialog edit"
                   + " context."),
           definition(
               "plot",

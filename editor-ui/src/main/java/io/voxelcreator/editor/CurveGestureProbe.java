@@ -149,6 +149,7 @@ public final class CurveGestureProbe {
         near(.35, sample(state.project(), n.uuid));
         state.document.save(out.resolve("curve-gesture-project.json"));
         publicationOwnership(state.project());
+        BackgroundCurveApplyProbe.run(out.resolve("background-curve"));
         Files.writeString(
             out.resolve("curve-gesture-native.json"),
             ProjectIO.JSON.writeValueAsString(

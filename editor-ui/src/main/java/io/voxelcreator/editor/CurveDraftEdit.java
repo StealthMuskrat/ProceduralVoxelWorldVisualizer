@@ -10,6 +10,7 @@ import java.util.*;
 public final class CurveDraftEdit {
   private final EditorState state;
   private final ProjectData project;
+  private final Object lifetime;
   private final long revision;
   private final UUID projectId, ownerId, itemId;
   private final String kind;
@@ -29,6 +30,7 @@ public final class CurveDraftEdit {
       throw new IllegalArgumentException("Select the curve's current Properties draft");
     this.state = state;
     project = state.project();
+    lifetime = state.document.sessionToken();
     revision = state.revision;
     projectId = project.project.uuid;
     ownerId = owner.uuid;
@@ -47,6 +49,7 @@ public final class CurveDraftEdit {
   public boolean current(EditorState state) {
     return !closed
         && state == this.state
+        && lifetime == state.document.sessionToken()
         && state.project() == project
         && state.revision == revision
         && Objects.equals(projectId, project.project.uuid)
@@ -63,16 +66,36 @@ public final class CurveDraftEdit {
   }
 
   public void stage(EditorState state, Curve curve) {
+    stagePrepared(state, prepare(ProjectIO.JSON.valueToTree(Objects.requireNonNull(curve))));
+  }
+
+  /** No mutable payload accessor: validation and freezing may run on an owned worker snapshot. */
+  static final class Prepared {
+    private final JsonNode value;
+    private final UUID id;
+
+    private Prepared(JsonNode value, UUID id) {
+      this.value = value;
+      this.id = id;
+    }
+  }
+
+  static Prepared prepare(JsonNode input) {
+    var candidate = ProjectIO.JSON.convertValue(input, Curve.class);
+    new ScalarCurve(candidate);
+    return new Prepared(ProjectIO.JSON.valueToTree(candidate), candidate.uuid);
+  }
+
+  void stagePrepared(EditorState state, Prepared prepared) {
+    Objects.requireNonNull(prepared);
     if (!current(state)
         || !Objects.equals(base, item.parameters.get("curve"))
         || !projectBase.equals(ProjectIO.JSON.valueToTree(state.project())))
       throw new IllegalStateException("Curve source changed; cancel and reopen the editor");
-    var value = ProjectIO.JSON.valueToTree(Objects.requireNonNull(curve));
-    var candidate = ProjectIO.JSON.convertValue(value, Curve.class);
-    new ScalarCurve(candidate);
-    if (base != null && !Objects.equals(base.path("uuid").asText(), candidate.uuid.toString()))
+    if (base != null && !Objects.equals(base.path("uuid").asText(), prepared.id.toString()))
       throw new IllegalArgumentException("Curve identity changed; reopen the source curve");
-    item.parameters.put("curve", value);
+    // A separate node prevents a retained preparation from sharing mutable draft storage.
+    item.parameters.put("curve", prepared.value.deepCopy());
     closed = true;
   }
 

@@ -456,7 +456,7 @@ jobs:
       - name: Curve pointer gesture and draft workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveGestureProbe build/curve-gesture
-          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveGestureConsumer build/curve-gesture/curve-gesture-project.json
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveGestureConsumer build/curve-gesture/curve-gesture-project.json build/curve-gesture/background-curve
           python scripts/verify_curve_pointer.py build/curve-gesture
       - name: Curve tangent and point editing workflow
         run: |
@@ -1499,7 +1499,7 @@ jobs:
         run: |
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveGestureProbe build/curve-gesture
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurveGestureConsumer build/curve-gesture/curve-gesture-project.json
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurveGestureConsumer build/curve-gesture/curve-gesture-project.json build/curve-gesture/background-curve
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_curve_pointer.py build/curve-gesture
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

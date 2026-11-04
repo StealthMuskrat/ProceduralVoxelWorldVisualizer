@@ -517,7 +517,9 @@ public final class PropertyPanel implements AutoCloseable {
               } finally {
                 noiseChanged();
               }
-            });
+            },
+            privateExecutor,
+            privateUi);
     if (point != null && !dialog.selectPoint(point))
       throw new IllegalArgumentException("Curve point no longer exists");
     curve = dialog;

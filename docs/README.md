@@ -22,6 +22,7 @@ Start with [Build and run](BUILD_AND_RUN.md) for the pinned Java toolchain, Wind
 - [Document transaction ownership](DOCUMENT_TRANSACTION_OWNERSHIP.md) describes stale callback/history publication checks.
 - [API](API.md) describes the independent headless engine.
 - [Background Properties Apply](BACKGROUND_PROPERTIES_APPLY.md) describes prepared edits, cancellation and guarded history publication.
+- [Background Curve Apply](BACKGROUND_CURVE_APPLY.md) describes cancellable final curve preparation and completion-ready private publication.
 - [Curve Editor reuse](CURVE_EDITOR_REUSE.md) describes bounded canonical definition reuse and exact immutable plot observations.
 - [Background structural noise edits](BACKGROUND_NOISE_EDITS.md) describes cancellable initial/choice planning, one-action completion and explicit private resolution.
 - [Background Expression feedback](BACKGROUND_EXPRESSION_FEEDBACK.md) describes coalesced parser work, current-source spans, explicit retry and independent private staging.
