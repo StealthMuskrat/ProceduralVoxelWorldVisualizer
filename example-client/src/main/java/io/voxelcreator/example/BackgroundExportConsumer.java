@@ -92,6 +92,7 @@ public final class BackgroundExportConsumer {
           "Replay changed saved bytes");
     }
     require(fields == 252 && cells == 3528, "Unexpected background export replay dimensions");
+    ExportPlanningConsumer.run(out.resolveSibling("planning"));
     Files.writeString(
         out.resolve("engine-replay.json"),
         ProjectIO.JSON.writeValueAsString(

@@ -70,7 +70,14 @@ final class HelpDefinitions {
               "help.resource-export",
               "Reviewing and exporting a resource package",
               "File > Export shows the selected resources and required dependencies. Visit Included"
-                  + " to review the current package before exporting. Validation and temporary-file"
+                  + " to review the current package before exporting. The resource catalog, changed"
+                  + " selections and Reload dependency previews prepare in the background. During a"
+                  + " rebuild, the last Included plan remains visible and Export waits for the new"
+                  + " plan to be displayed. Rapid selections supersede earlier work. A failed"
+                  + " preparation offers Retry preview on the Reload action; missing selections"
+                  + " remain until explicitly removed. Cancel and Escape retire pending preview"
+                  + " preparation as well as file staging. Visit Included again after recovery"
+                  + " before exporting. Validation and temporary-file"
                   + " writing run in the background. Cancel or Escape discards unpublished staging"
                   + " and preserves the previous destination. A changed project, selection or"
                   + " private input prevents an older request from replacing a file. Failed exports"

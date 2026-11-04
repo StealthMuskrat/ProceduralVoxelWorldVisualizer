@@ -6,11 +6,16 @@ import io.voxelcreator.model.*;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.Executor;
+import java.util.function.*;
 
 /** Owned export pages; only a visible exact Included preview acknowledges file publication. */
 public final class ResourceExportPanel {
   private final EditorState state;
   private final Set<UUID> selected;
+  private final Executor executor;
+  private final Consumer<Runnable> ui;
+  private final BooleanSupplier blocked;
   private ExportEditSession edit;
   private final ImString filter = new ImString(256);
   private final ExportTree choicesTree = new ExportTree(), includedTree = new ExportTree();
@@ -27,12 +32,25 @@ public final class ResourceExportPanel {
   private float rowStride, rowFrame, rowLine, rowGap;
 
   public ResourceExportPanel(EditorState state, Set<UUID> selected) {
+    this(state, selected, null, null, () -> false);
+  }
+
+  ResourceExportPanel(
+      EditorState state,
+      Set<UUID> selected,
+      Executor executor,
+      Consumer<Runnable> ui,
+      BooleanSupplier blocked) {
     this.state = Objects.requireNonNull(state);
     this.selected = Objects.requireNonNull(selected);
+    this.executor = executor;
+    this.ui = ui;
+    this.blocked = Objects.requireNonNull(blocked);
+    if (executor != null) Objects.requireNonNull(ui);
   }
 
   void open() {
-    if (edit == null) edit = new ExportEditSession(state, selected);
+    if (edit == null) edit = new ExportEditSession(state, selected, executor, ui, blocked);
   }
 
   public ResourceExportSession prepare() {
@@ -54,11 +72,21 @@ public final class ResourceExportPanel {
   }
 
   boolean canReload() {
-    return edit != null && !edit.current() && edit.canReload();
+    return edit != null
+        && !edit.planning()
+        && (edit.canRetryPlan() || !edit.current() && edit.canReload());
+  }
+
+  String reloadLabel() {
+    return edit != null && edit.canRetryPlan() ? "Retry preview" : "Reload";
   }
 
   int unavailable() {
     return edit == null ? 0 : edit.unavailableCount();
+  }
+
+  boolean canRemoveUnavailable() {
+    return edit != null && edit.choicesReady() && unavailable() > 0;
   }
 
   void write(Path destination, ResourcePackageFiles files) throws IOException {
@@ -69,7 +97,9 @@ public final class ResourceExportPanel {
 
   void reload() {
     open();
-    edit.reload();
+    if (edit.planning()) return;
+    if (edit.canRetryPlan()) edit.retryPlan();
+    else edit.reload();
     coveragePreview = null;
     coverage = Set.of();
     message = "";
@@ -77,7 +107,7 @@ public final class ResourceExportPanel {
   }
 
   void removeUnavailable() {
-    if (!current()) return;
+    if (edit == null || !edit.choicesReady()) return;
     selected.removeIf(id -> edit.catalog().get(id) == null);
     edit.select(selected);
   }
@@ -109,8 +139,8 @@ public final class ResourceExportPanel {
     boolean choices = action("choices", "Choices", true);
     boolean included = action("included", "Included", true);
     boolean issues = action("issues", "Issues", true);
-    boolean reload = action("reload", "Reload", canReload());
-    boolean remove = action("remove-unavailable", "Remove Missing", current() && unavailable() > 0);
+    boolean reload = action("reload", reloadLabel(), canReload());
+    boolean remove = action("remove-unavailable", "Remove Missing", canRemoveUnavailable());
     if (reload) {
       try {
         reload();
@@ -156,6 +186,14 @@ public final class ResourceExportPanel {
       ImGui.textWrapped("This export was consumed. Cancel and reopen Export.");
       return;
     }
+    String preparation = edit.planningMessage();
+    if (!preparation.isEmpty()) ImGui.textWrapped(StatusBarText.clip(preparation, 3072));
+    if (edit.catalog() == null) {
+      ImGui.textWrapped(
+          "The resource catalog is not ready. Wait for preparation, Retry preview after a failure,"
+              + " or Cancel.");
+      return;
+    }
     if (section.equals("Choices")) drawChoices();
     else if (section.equals("Included")) drawIncluded();
     else drawIssues();
@@ -178,7 +216,7 @@ public final class ResourceExportPanel {
       ImGui.textWrapped("! Missing selections: " + unavailable() + ". Remove Missing explicitly.");
     boolean visible = beginList("export-choices", true);
     rowStride = ResourceReviewLayout.membershipStride(rowFrame, rowGap);
-    ImGui.beginDisabled(!edit.current());
+    ImGui.beginDisabled(!edit.choicesReady());
     if (visible) {
       var clipper = new ImGuiListClipper();
       try {
@@ -325,8 +363,10 @@ public final class ResourceExportPanel {
               + unavailable()
               + ". Remove Missing removes only unavailable UUIDs.");
     if (!message.isEmpty()) ImGui.textWrapped("! " + bounded(message));
-    if (edit.current() && unavailable() == 0 && message.isEmpty())
-      ImGui.textWrapped("No export problems reported.");
+    if (edit.current()
+        && unavailable() == 0
+        && message.isEmpty()
+        && edit.planningMessage().isEmpty()) ImGui.textWrapped("No export problems reported.");
   }
 
   private boolean beginList(String id, boolean border) {

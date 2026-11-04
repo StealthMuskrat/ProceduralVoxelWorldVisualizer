@@ -304,6 +304,7 @@ public final class PackageLayoutProbe {
                 + " protected and failed I/O / Cancel / handoff");
       }
       ResourceExportWritingProbe.run(out.resolve("background-export"));
+      ResourceExportPlanningProbe.run(out.resolve("planning"));
     } finally {
       ImGui.destroyContext();
     }

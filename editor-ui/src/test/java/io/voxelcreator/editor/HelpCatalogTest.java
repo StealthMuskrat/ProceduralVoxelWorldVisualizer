@@ -7,6 +7,21 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void exportHelpExplainsBackgroundCatalogSelectionReloadAndExplicitPreviewRetry() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.resource-export");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("resource catalog"));
+    assertTrue(text.contains("Rapid selections supersede"));
+    assertTrue(text.contains("Retry preview on the Reload action"));
+    assertTrue(text.contains("last Included plan remains visible"));
+    assertTrue(catalog.search("export catalog preview").contains(topic));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void importHelpExplainsBackgroundChoiceRebuildAndExplicitRetryReview() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

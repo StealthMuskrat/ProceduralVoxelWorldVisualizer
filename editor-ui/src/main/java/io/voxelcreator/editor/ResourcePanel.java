@@ -9,6 +9,7 @@ import io.voxelcreator.core.NoiseAlgorithmRegistry;
 import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.*;
 
 public final class ResourcePanel {
@@ -93,6 +94,15 @@ public final class ResourcePanel {
   private final Map<UUID, float[]> rowCenters = new HashMap<>();
 
   public ResourcePanel(EditorState s, PropertyPanel properties) {
+    this(s, properties, null, null, () -> false);
+  }
+
+  ResourcePanel(
+      EditorState s,
+      PropertyPanel properties,
+      Executor executor,
+      Consumer<Runnable> ui,
+      BooleanSupplier blocked) {
     state = s;
     documentLifetime = s.document.sessionToken();
     deletePicker =
@@ -102,7 +112,7 @@ public final class ResourcePanel {
         new DraftChoicePicker(
             s, () -> createOwner, () -> createOwner != null && createOwner.current(state) ? 0 : 1);
     this.properties = properties;
-    exportPanel = new ResourceExportPanel(s, exportSelection);
+    exportPanel = new ResourceExportPanel(s, exportSelection, executor, ui, blocked);
     selection = new ResourceSelectionSession(s);
     edits = new ResourceEditSession(s);
     selectionGuard = new NavigationGuardDialog(s, "Resources", 620, 300);

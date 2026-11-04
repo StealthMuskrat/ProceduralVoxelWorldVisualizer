@@ -5,6 +5,8 @@ import io.voxelcreator.model.*;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.*;
 
 /** Editor export owns a frozen source and requires its exact displayed preview before file I/O. */
 final class ExportEditSession {
@@ -20,9 +22,37 @@ final class ExportEditSession {
   private Set<UUID> selected = Set.of();
   private boolean closed, forcedStale, writing;
   private int unavailable;
+  private final Executor executor;
+  private final Consumer<Runnable> ui;
+  private final BooleanSupplier blocked;
+  private ProjectData catalogSource;
+  private boolean planReady;
+  private Object request = new Object();
+  private ProjectFileOwner planningOwner;
+  private FutureTask<Void> task;
+  private String planningMessage = "";
+
+  private record Prepared(
+      ResourceTreeIndex catalog,
+      ResourceExportSession model,
+      ResourceExportSession.Preview preview,
+      int unavailable) {}
 
   ExportEditSession(EditorState state, Set<UUID> selected) {
+    this(state, selected, null, null, () -> false);
+  }
+
+  ExportEditSession(
+      EditorState state,
+      Set<UUID> selected,
+      Executor executor,
+      Consumer<Runnable> ui,
+      BooleanSupplier blocked) {
     this.state = Objects.requireNonNull(state);
+    this.executor = executor;
+    this.ui = ui;
+    this.blocked = Objects.requireNonNull(blocked);
+    if (executor != null) Objects.requireNonNull(ui);
     projectId = state.project().project.uuid;
     document = state.document.sessionToken();
     reload(selected);
@@ -58,10 +88,12 @@ final class ExportEditSession {
   }
 
   ResourceTreeIndex catalog() {
+    refresh();
     return catalog;
   }
 
   ResourceExportSession.Preview preview() {
+    refresh();
     return preview;
   }
 
@@ -70,6 +102,7 @@ final class ExportEditSession {
   }
 
   int unavailableCount() {
+    refresh();
     return unavailable;
   }
 
@@ -79,11 +112,14 @@ final class ExportEditSession {
     var ids = Set.copyOf(selection);
     selected = ids;
     shown = null;
-    preview = null;
-    prepare();
+    if (executor == null) {
+      preview = null;
+      prepare();
+    } else schedule();
   }
 
   private void prepare() {
+    planReady = true;
     unavailable = (int) selected.stream().filter(id -> catalog.get(id) == null).count();
     if (unavailableCount() != 0) return;
     model.prepare(frozen, 0, selected);
@@ -99,23 +135,194 @@ final class ExportEditSession {
     if (!canReload()) throw new IllegalStateException("The project was replaced; reopen Export");
     var value = ProjectIO.JSON.valueToTree(state.project());
     var snapshot = ProjectIO.JSON.convertValue(value, ProjectData.class);
-    var index = new ResourceTreeIndex(snapshot);
     var ids = Set.copyOf(selection);
     source = state.project();
     revision = state.revision;
     sourceValue = value;
     frozen = snapshot;
-    catalog = index;
-    model = new ResourceExportSession();
     selected = ids;
-    shown = preview = null;
+    shown = null;
     forcedStale = false;
-    prepare();
+    if (executor == null) {
+      catalog = new ResourceTreeIndex(snapshot);
+      catalogSource = frozen;
+      model = new ResourceExportSession();
+      preview = null;
+      prepare();
+    } else schedule();
+  }
+
+  boolean choicesReady() {
+    refresh();
+    return current() && catalog != null && catalogSource == frozen;
+  }
+
+  boolean planning() {
+    refresh();
+    return task != null;
+  }
+
+  String planningMessage() {
+    refresh();
+    return planningMessage;
+  }
+
+  boolean canRetryPlan() {
+    refresh();
+    return current() && !planReady && task == null;
+  }
+
+  void retryPlan() {
+    if (canRetryPlan()) schedule();
+  }
+
+  private void schedule() {
+    retirePlanning();
+    planReady = false;
+    shown = null;
+    Object ticket = request;
+    try {
+      planningOwner = new ProjectFileOwner(state);
+      var snapshot = frozen;
+      var ids = selected;
+      var preparedCatalog = catalogSource == snapshot ? catalog : null;
+      planningMessage =
+          "Preparing the resource catalog and dependency preview in the background. Any visible"
+              + " Included rows belong to the last completed plan; review the new plan before"
+              + " Export.";
+      task =
+          new FutureTask<>(
+              () -> {
+                Prepared result = null;
+                Throwable failure = null;
+                try {
+                  var index =
+                      preparedCatalog == null ? new ResourceTreeIndex(snapshot) : preparedCatalog;
+                  int missing = (int) ids.stream().filter(id -> index.get(id) == null).count();
+                  var next = new ResourceExportSession();
+                  ResourceExportSession.Preview preview = null;
+                  if (missing == 0) {
+                    next.prepare(snapshot, 0, ids);
+                    preview = next.preview();
+                  }
+                  result = new Prepared(index, next, preview, missing);
+                } catch (Throwable rejected) {
+                  failure = rejected;
+                }
+                var completed = result;
+                var rejected = failure;
+                ui.accept(() -> publish(ticket, completed, rejected));
+                return null;
+              });
+      executor.execute(task);
+    } catch (Throwable failure) {
+      failPlanning(ticket, failure);
+    }
+  }
+
+  private boolean ownsPlanning(Object ticket) {
+    return ticket == request && task != null && !closed;
+  }
+
+  private void publish(Object ticket, Prepared result, Throwable failure) {
+    if (!ownsPlanning(ticket)) return;
+    try {
+      if (!planningOwner.valuesCurrent(state)) {
+        stalePlanning();
+        return;
+      }
+      if (failure != null) {
+        failPlanning(ticket, failure);
+        return;
+      }
+      boolean unavailable = blocked.getAsBoolean();
+      if (!ownsPlanning(ticket)) return;
+      if (unavailable || !planningOwner.valuesCurrent(state) || !current()) {
+        stalePlanning();
+        return;
+      }
+      Objects.requireNonNull(result);
+      retirePlanning();
+      catalog = result.catalog();
+      catalogSource = frozen;
+      model = result.model();
+      preview = result.preview();
+      this.unavailable = result.unavailable();
+      planReady = true;
+      shown = null;
+      planningMessage = "";
+      if (preview != null) preparations++;
+    } catch (Throwable rejected) {
+      failPlanning(ticket, rejected);
+    }
+  }
+
+  private void refresh() {
+    if (task == null || closed) return;
+    try {
+      if (!planningOwner.current(state)) {
+        stalePlanning();
+        return;
+      }
+      var completion = BackgroundFailure.completed(task);
+      if (completion != null && completion.failure() != null)
+        failPlanning(request, completion.failure());
+    } catch (Throwable failure) {
+      failPlanning(request, failure);
+    }
+  }
+
+  private void stalePlanning() {
+    retirePlanning();
+    if (!sourceValue.equals(ProjectIO.JSON.valueToTree(state.project()))) forcedStale = true;
+    planningMessage =
+        "The source, private input or pending action changed. Reload or Retry preview before"
+            + " Export.";
+  }
+
+  private void failPlanning(Object ticket, Throwable failure) {
+    if (ticket != request || closed) return;
+    retirePlanning();
+    planningMessage =
+        "Export preview preparation failed: "
+            + BackgroundFailure.describe(failure)
+            + ". Retry preview or Cancel.";
+    try {
+      state.error("EXPORT_PREVIEW_FAILED", EditorEvents.Subsystem.IMPORT_EXPORT, planningMessage);
+    } catch (Throwable ignored) {
+      // Feedback cannot strand the workspace or acknowledge an older preview.
+    }
+  }
+
+  private void retirePlanning() {
+    var previous = task;
+    request = new Object();
+    task = null;
+    planningOwner = null;
+    if (previous != null) {
+      previous.cancel(true);
+      if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
+    }
   }
 
   ResourceExportSession preparedModel() {
-    if (!current() || preview == null)
+    refresh();
+    if (!current() || !planReady || preview == null)
       throw new IllegalStateException("Review a current export selection first");
+    if (executor != null) {
+      ResourceExportSession.Preview actual = null;
+      try {
+        actual = model.preview();
+      } catch (IllegalStateException cleared) {
+        /* Rebuild explicitly. */
+      }
+      if (actual != preview) {
+        schedule();
+        throw new IllegalStateException(
+            "The export preview changed. Review its background replacement first");
+      }
+      return model;
+    }
     model.prepare(frozen, 0, selected);
     if (model.preview() != preview) {
       preview = model.preview();
@@ -126,11 +333,18 @@ final class ExportEditSession {
   }
 
   void markShown(ResourceExportSession.Preview value) {
-    if (current() && value != null && value == preview) shown = value;
+    refresh();
+    if (current() && planReady && value != null && value == preview) shown = value;
   }
 
   boolean canExport() {
-    return current() && !selected.isEmpty() && preview != null && shown == preview;
+    refresh();
+    return current()
+        && planReady
+        && !selected.isEmpty()
+        && preview != null
+        && preview.selected().equals(selected)
+        && shown == preview;
   }
 
   ProjectData exportSnapshot(ResourceExportSession.Preview expected) {
@@ -153,13 +367,18 @@ final class ExportEditSession {
   }
 
   private void requireExportable(ResourceExportSession.Preview expected) {
+    refresh();
     if (writing) throw new IllegalStateException("Export publication is already in progress");
     if (!current() || !sourceValue.equals(ProjectIO.JSON.valueToTree(state.project()))) {
       if (!closed) forcedStale = true;
       throw new IllegalStateException("Export source changed; Reload Preview before exporting");
     }
     if (selected.isEmpty()) throw new IllegalStateException("Select resources to export");
-    if (expected == null || preview != expected || shown != expected)
+    if (!planReady
+        || expected == null
+        || preview != expected
+        || shown != expected
+        || !preview.selected().equals(selected))
       throw new IllegalStateException("Display the current export preview before exporting");
   }
 
@@ -177,6 +396,7 @@ final class ExportEditSession {
 
   void cancel() {
     if (writing) return;
+    retirePlanning();
     closed = true;
     shown = null;
   }

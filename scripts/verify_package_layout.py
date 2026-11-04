@@ -115,3 +115,48 @@ for case in loading['cases']:
 replay = json.loads((background / 'engine-replay.json').read_text())
 assert replay == {'formatVersion': 1, 'fields': 252, 'cells': 3528, 'roots': [2, 4]}
 print('BACKGROUND_EXPORT_INDEPENDENT_PASS staged publication / preserved sources and prior packages / 252 fields / 3528 EMPTY cells')
+
+# Deferred background catalog/closure preparation and actual fresh Included publication.
+planning = out / 'planning'
+plan = json.loads((planning / 'export-planning.json').read_text())
+assert plan['formatVersion'] == 1 and plan['physicalInputVerified'] is False
+modes = ['initial', 'selection', 'reload', 'cancel', 'escape', 'retry', 'close']
+assert [case['mode'] for case in plan['cases']] == modes
+for case in plan['cases']:
+    mode = case['mode']; published = mode in ['initial', 'selection', 'reload', 'retry']
+    assert case == dict(mode=mode, published=published, responsiveFrames=12, freshIncludedRequired=True,
+        privateRetained=True, preferencesRetained=True, originalBytesRetained=True)
+    directory = planning / mode
+    before = json.loads((directory / 'source.json').read_text())
+    after = json.loads((directory / 'source-after.json').read_text())
+    package = json.loads((directory / 'selection.pvresources.json').read_text())
+    prior = json.loads((directory / 'prior-package.json').read_text())
+    assert set(package) == {'packageVersion', 'resources'} and package['packageVersion'] == 1
+    for p in [before, after, package['resources'], prior['resources']]: project_validator.validate(p)
+    assert before['project']['seed'] == 17
+    if mode == 'reload':
+        before['project']['seed'] = 18
+        before['noise2D'][0]['algorithm']['parameters']['value'] = .25
+    assert before == after
+    assert [n['id'] for n in after['noise2D']] == ['base', 'derived']
+    base, derived = after['noise2D']
+    assert base['algorithm']['parameters'] == {'value': .25 if mode == 'reload' else .125}
+    addition, = derived['processing']
+    assert addition['kind'] == 'ADD'
+    assert addition['inputs']['a']['sourceKind'] == 'Noise Generator Reference'
+    assert addition['inputs']['a']['noiseGeneratorUuid'] == base['uuid']
+    assert addition['inputs']['b']['value'] == .5
+    assert derived['outputBinding']['itemUuid'] == addition['uuid']
+    payload = package['resources']
+    if published:
+        chosen = after['noise2D'][:1 if mode == 'selection' else 2]
+        assert payload['noise2D'] == chosen
+        assert payload['project']['rootOrder'] == {'noise2D': [n['uuid'] for n in chosen]}
+    else:
+        assert (directory / 'selection.pvresources.json').read_bytes() == (directory / 'prior-package.json').read_bytes()
+    assert not payload['noise3D'] and not payload['worldGenerator']['layers']
+    assert all(not payload[key] for key in ['voxelTypes', 'voxelGroups', 'voxelSets', 'folders'])
+    assert not list(directory.glob('*.tmp'))
+replay = json.loads((planning / 'engine-replay.json').read_text())
+assert replay == dict(formatVersion=1, fields=504, cells=4116, roots=[2, 4])
+print('EXPORT_PLANNING_INDEPENDENT_PASS seven preview lifetimes / exact dependency payloads / 504 fields / 4116 EMPTY cells')

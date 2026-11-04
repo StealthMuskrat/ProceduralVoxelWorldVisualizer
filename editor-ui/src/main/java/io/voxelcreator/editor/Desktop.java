@@ -262,7 +262,14 @@ public final class Desktop extends Application {
             message ->
                 state.error("THEME_EDIT_FAILED", EditorEvents.Subsystem.APPLICATION, message));
     properties = new PropertyPanel(state);
-    resources = new ResourcePanel(state, properties);
+    resources =
+        new ResourcePanel(
+            state,
+            properties,
+            state.background,
+            state.uiQueue::offer,
+            this::packageInteractionBlocked);
+    lifecycle.own(resources::cancelExport);
     resources.docking.defaults(this::resetDockLayout);
     properties.docking.defaults(this::resetDockLayout);
     workspaceSettings =

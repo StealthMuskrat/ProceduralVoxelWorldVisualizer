@@ -281,18 +281,14 @@ final class ResourcePackageDialog implements AutoCloseable {
               button(
                   chrome,
                   "reload",
-                  "Reload",
+                  view.reloadLabel(),
                   !packageRunning() && !unavailable && owned && view.canReload());
           remove =
               button(
                   chrome,
                   "remove-unavailable",
                   "Remove Missing",
-                  !packageRunning()
-                      && !unavailable
-                      && owned
-                      && view.current()
-                      && view.unavailable() > 0);
+                  !packageRunning() && !unavailable && owned && view.canRemoveUnavailable());
           choices = button(chrome, "choices", "Choices", !packageRunning());
           included = button(chrome, "included", "Included", !packageRunning());
           location = button(chrome, "location", "Path / Issues", !packageRunning());
