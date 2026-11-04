@@ -3,7 +3,6 @@ package io.voxelcreator.editor;
 import imgui.*;
 import imgui.flag.*;
 import imgui.type.*;
-import io.voxelcreator.core.ScalarCurve;
 import io.voxelcreator.model.CurveModes;
 import io.voxelcreator.model.ProjectData.*;
 import java.util.*;
@@ -85,6 +84,20 @@ public final class CurveDialog {
   private boolean focused;
   private int previewFailures;
   private String previewFailure = "";
+  private final CurvePreview.Cache previewCache = new CurvePreview.Cache();
+
+  long probeCompilationBuilds() {
+    return session.compilationBuilds();
+  }
+
+  long probePreviewCaptures() {
+    return previewCache.captures();
+  }
+
+  private void clearDisplayWork() {
+    previewCache.clear();
+    session.clearCompilation();
+  }
 
   int probePreviewFailures() {
     return previewFailures;
@@ -367,10 +380,14 @@ public final class CurveDialog {
     view.cancelPan();
     focused = false;
     open.set(false);
+    clearDisplayWork();
   }
 
   public boolean draw() {
-    if (!open.get() || publication.closed()) return true;
+    if (!open.get() || publication.closed()) {
+      clearDisplayWork();
+      return true;
+    }
     numericRows.clear();
     numericGesture.beginFrame();
     layout.prepare();
@@ -507,7 +524,7 @@ public final class CurveDialog {
     controlRect("fit");
     guidance("fit", null);
     curve = session.curve();
-    var compiled = new ScalarCurve(curve);
+    var compiled = session.compiled();
     var plotSize =
         CurveLayout.plot(
             ImGui.getContentRegionAvailX(), ImGui.getContentRegionAvailY(), bodyBounds.height());
@@ -588,7 +605,7 @@ public final class CurveDialog {
       draw.addLine(sx(0, px, w, lo, hi), py, sx(0, px, w, lo, hi), py + h, 0x88708090);
     if (ylo <= 0 && yhi >= 0)
       draw.addLine(px, sy(0, py, h, ylo, yhi), px + w, sy(0, py, h, ylo, yhi), 0x88708090);
-    var preview = CurvePreview.capture(compiled, lo, hi);
+    var preview = previewCache.capture(compiled, lo, hi);
     previewFailures = preview.failures();
     previewFailure = preview.firstFailure() == null ? "" : preview.firstFailure().message();
     boolean previousValid = false;
@@ -798,7 +815,7 @@ public final class CurveDialog {
                         session.edit(
                             c -> {
                               Point p = CurveEditSession.point(c, id);
-                              var definition = new ScalarCurve(c);
+                              var definition = session.compiled(c);
                               int pointIndex = c.points.indexOf(p);
                               double incoming = definition.incomingSlope(pointIndex),
                                   outgoing = definition.outgoingSlope(pointIndex);
@@ -887,6 +904,7 @@ public final class CurveDialog {
       if (publication.apply(session.curve())) {
         open.set(false);
         focused = false;
+        clearDisplayWork();
         var failure = publication.followUpFailure();
         if (failure != null && ownerState != null)
           ownerState.error(

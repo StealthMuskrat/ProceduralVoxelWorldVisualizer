@@ -8,6 +8,34 @@ public final class CurvePreview {
 
   public record Failure(int sample, double input, String message) {}
 
+  /** One immutable sample set; screen size, selection and vertical pan do not change its values. */
+  static final class Cache {
+    private ScalarCurve curve;
+    private long low, high, captures;
+    private CurvePreview preview;
+
+    CurvePreview capture(ScalarCurve current, double lo, double hi) {
+      long nextLow = Double.doubleToRawLongBits(lo), nextHigh = Double.doubleToRawLongBits(hi);
+      if (preview != null && curve == current && low == nextLow && high == nextHigh) return preview;
+      captures++;
+      var next = CurvePreview.capture(current, lo, hi);
+      curve = current;
+      low = nextLow;
+      high = nextHigh;
+      preview = next;
+      return next;
+    }
+
+    long captures() {
+      return captures;
+    }
+
+    void clear() {
+      curve = null;
+      preview = null;
+    }
+  }
+
   private final double[] inputs, values;
   private final int failures;
   private final Failure first;

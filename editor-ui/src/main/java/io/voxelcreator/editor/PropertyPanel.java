@@ -679,6 +679,7 @@ public final class PropertyPanel implements AutoCloseable {
 
   @Override
   public void close() {
+    if (curve != null) curve.cancel();
     if (expressionChecking != null) expressionChecking.close();
     if (expressionDialog != null) expressionDialog.close();
     if (membershipDialog != null) membershipDialog.close();

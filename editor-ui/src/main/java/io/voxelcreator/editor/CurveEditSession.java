@@ -12,6 +12,7 @@ public final class CurveEditSession {
   private final Deque<Curve> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
   private String error = "";
   private long interactionVersion;
+  private final CurveCompilationCache compilation = new CurveCompilationCache();
 
   long interactionVersion() {
     return interactionVersion;
@@ -19,11 +20,27 @@ public final class CurveEditSession {
 
   public CurveEditSession(Curve source) {
     curve = copy(source);
-    new ScalarCurve(curve);
+    compilation.get(curve);
   }
 
   public Curve curve() {
     return curve;
+  }
+
+  ScalarCurve compiled() {
+    return compilation.get(curve);
+  }
+
+  ScalarCurve compiled(Curve value) {
+    return compilation.get(value);
+  }
+
+  long compilationBuilds() {
+    return compilation.builds();
+  }
+
+  void clearCompilation() {
+    compilation.clear();
   }
 
   public String error() {
@@ -43,7 +60,7 @@ public final class CurveEditSession {
     var next = copy(curve);
     try {
       change.accept(next);
-      new ScalarCurve(next);
+      compilation.get(next);
       if (!equal(curve, next)) {
         undo.push(curve);
         trim();
@@ -151,7 +168,7 @@ public final class CurveEditSession {
       return false;
     }
     Point baseline = point(gesture, id);
-    var compiled = new ScalarCurve(gesture);
+    var compiled = compilation.get(gesture);
     int index = gesture.points.indexOf(baseline);
     double slope = side < 0 ? compiled.incomingSlope(index) : compiled.outgoingSlope(index);
     return tangent(id, side, slope + dy / handleX);
@@ -169,7 +186,7 @@ public final class CurveEditSession {
               if (!Double.isFinite(x) || x <= c.min || x >= c.max)
                 throw new IllegalArgumentException(
                     "New point X must lie strictly inside the domain");
-              double y = snap(new ScalarCurve(c).sample(x), snapY, stepY);
+              double y = snap(compilation.get(c).sample(x), snapY, stepY);
               var next = new Point(x, y);
               next.uuid = id;
               for (int i = 0; i < c.points.size() - 1; i++)
@@ -219,7 +236,7 @@ public final class CurveEditSession {
 
   private boolean preview(Curve next) {
     try {
-      new ScalarCurve(next);
+      compilation.get(next);
       curve = next;
       error = "";
       return true;

@@ -8,6 +8,74 @@ import org.junit.jupiter.api.Test;
 
 class CurvePreviewTest {
   @Test
+  void unchangedCompiledIdentityAndInputSpanReuseExactSamplesUntilExplicitClear() {
+    var c = new Curve();
+    c.points.getFirst().y = -3;
+    c.points.getLast().y = 5;
+    var compiled = new ScalarCurve(c);
+    var cache = new CurvePreview.Cache();
+    var first = cache.capture(compiled, 0, 1);
+    for (int frame = 0; frame < 20; frame++) assertSame(first, cache.capture(compiled, 0, 1));
+    assertEquals(1, cache.captures());
+    for (int i = 0; i < first.size(); i++) assertEquals(-3 + 8 * i / 512., first.value(i));
+    cache.clear();
+    assertNotSame(first, cache.capture(compiled, 0, 1));
+    assertEquals(2, cache.captures());
+    assertEquals(1, first.value(256));
+  }
+
+  @Test
+  void changedSpanSignedZeroAndCompiledIdentityCannotReuseOtherObservations() {
+    var c = new Curve();
+    var compiled = new ScalarCurve(c);
+    var cache = new CurvePreview.Cache();
+    var first = cache.capture(compiled, 0, 1);
+    assertNotSame(first, cache.capture(compiled, -0.0, 1));
+    var widened = cache.capture(compiled, -1, 1);
+    assertNotSame(first, widened);
+    assertEquals(0, widened.input(256));
+    assertEquals(0, widened.value(256));
+    c.points.getLast().y = 2;
+    var changed = cache.capture(new ScalarCurve(c), 0, 1);
+    assertEquals(1, changed.value(256));
+    assertEquals(.5, first.value(256));
+    assertEquals(4, cache.captures());
+  }
+
+  @Test
+  void invalidViewDoesNotReplaceTheLastSuccessfulObservationSet() {
+    var compiled = new ScalarCurve(new Curve());
+    var cache = new CurvePreview.Cache();
+    var good = cache.capture(compiled, 0, 1);
+    assertThrows(IllegalArgumentException.class, () -> cache.capture(compiled, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> cache.capture(compiled, Double.NaN, 1));
+    assertThrows(IllegalArgumentException.class, () -> cache.capture(null, 0, 1));
+    assertSame(good, cache.capture(compiled, 0, 1));
+    assertEquals(4, cache.captures());
+  }
+
+  @Test
+  void cachedNumericGapsRemainExplicitAndCorrectedDefinitionsRecover() {
+    var c = new Curve();
+    c.outsideDomain = "EXTEND";
+    c.points.getLast().y = 1e308;
+    var compiled = new ScalarCurve(c);
+    var cache = new CurvePreview.Cache();
+    var failed = cache.capture(compiled, -4.5, 5.5);
+    assertTrue(failed.failures() > 0 && failed.failures() < failed.size());
+    for (int frame = 0; frame < 20; frame++) assertSame(failed, cache.capture(compiled, -4.5, 5.5));
+    assertFalse(failed.valid(0));
+    assertTrue(Double.isNaN(failed.value(0)));
+    c.points.getLast().y = 1;
+    var corrected = cache.capture(new ScalarCurve(c), -4.5, 5.5);
+    assertEquals(0, corrected.failures());
+    assertNull(corrected.firstFailure());
+    assertEquals(-4.5, corrected.value(0));
+    assertEquals(2, cache.captures());
+    assertTrue(failed.firstFailure().message().contains("Nonfinite"));
+  }
+
+  @Test
   void finiteObservationsRetainCanonicalRawValuesAndEndpoints() {
     var c = new Curve();
     c.points.getFirst().y = -3;
