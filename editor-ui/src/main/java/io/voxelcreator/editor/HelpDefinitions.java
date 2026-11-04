@@ -63,6 +63,18 @@ final class HelpDefinitions {
                   + " private draft input, selection, generated values and Undo history. No"
                   + " autosave is enabled."),
           new Guide(
+              "help.resource-export",
+              "Reviewing and exporting a resource package",
+              "File > Export shows the selected resources and required dependencies. Visit Included"
+                  + " to review the current package before exporting. Validation and temporary-file"
+                  + " writing run in the background. Cancel or Escape discards unpublished staging"
+                  + " and preserves the previous destination. A changed project, selection or"
+                  + " private input prevents an older request from replacing a file. Failed exports"
+                  + " retain the path and reviewed selection for explicit retry; a changed source"
+                  + " requires Reload and another Included review. Export cannot overwrite the"
+                  + " active project file, including a new Save As path. Exporting does not apply"
+                  + " Properties drafts, save the project or change its Undo history."),
+          new Guide(
               "help.resource-import",
               "Preparing and reviewing a resource import",
               "File > Import reads and validates the package and prepares its initial conflict"
@@ -413,8 +425,15 @@ final class HelpDefinitions {
           Map.entry("save", List.of("help.project-settings", "archives", "creation-defaults")),
           Map.entry("processing", List.of("noise", "layers", "help.trace", "help.pins")),
           Map.entry(
-              "archives", List.of("save", "layers", "help.visualization", "help.resource-import")),
+              "archives",
+              List.of(
+                  "save",
+                  "layers",
+                  "help.visualization",
+                  "help.resource-import",
+                  "help.resource-export")),
           Map.entry("help.resource-import", List.of("archives", "save", "diagnostics")),
+          Map.entry("help.resource-export", List.of("archives", "save", "help.resource-import")),
           Map.entry("bookmarks", List.of("navigation", "save", "help.coordinates")),
           Map.entry(
               "diagnostics", List.of("help.validation", "help.find", "help.trace", "profiler")),
@@ -513,7 +532,7 @@ final class HelpDefinitions {
       case "Save", "SaveAs" -> "help.project-save";
       case "New", "Exit", "Undo", "Redo" -> "save";
       case "Import" -> "help.resource-import";
-      case "Export" -> "archives";
+      case "Export" -> "help.resource-export";
       case "Find", "FindReferences" -> "help.find";
       case "Validate" -> "help.validation";
       case "Logs" -> "diagnostics";

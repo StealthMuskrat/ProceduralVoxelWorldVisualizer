@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import math
 import sys
+import jsonschema
 
 out = Path(sys.argv[1])
 report = json.loads((out / 'package-layout-native.json').read_text(encoding='utf-8'))
@@ -77,3 +78,40 @@ assert protected['noise2D'][0]['id'] == 'shared-field'
 assert not (out / 'cancelled.pvresources.json').exists()
 assert not list(out.glob('*.tmp'))
 print('Package modal persistent geometry, exact dependency payload and protected project replay PASS')
+
+# Deferred background package staging, complete source models and exact final destinations.
+background = out / 'background-export'
+project_schema = json.loads((Path(__file__).resolve().parent.parent / 'schema/project.schema.json').read_text(encoding='utf-8'))
+project_validator = jsonschema.Draft202012Validator(project_schema, format_checker=jsonschema.FormatChecker())
+loading = json.loads((background / 'background-export.json').read_text())
+assert loading['formatVersion'] == 1 and loading['physicalInputVerified'] is False
+assert [c['mode'] for c in loading['cases']] == ['success', 'cancel', 'escape', 'raw', 'retry', 'close']
+for case in loading['cases']:
+    mode = case['mode']
+    published = mode in ['success', 'retry']
+    assert case['published'] is published and case['responsiveFrames'] == 12
+    assert case['privateRetained'] is True and case['originalBytesRetained'] is True
+    assert case['writes'] == (2 if mode == 'retry' else 1)
+    assert case['replacements'] == (2 if mode == 'retry' else 1 if mode == 'success' else 0)
+    assert case['deletions'] == (0 if mode == 'success' else 1)
+    folder = background / mode
+    original = json.loads((folder / 'source.json').read_text())
+    retained = json.loads((folder / 'source-after.json').read_text())
+    package = json.loads((folder / 'selection 资源.pvresources.json').read_text())
+    prior = json.loads((folder / 'prior-package.pvresources.json').read_text())
+    assert package['packageVersion'] == 1 and set(package) == {'packageVersion', 'resources'}
+    for project in [original, retained, package['resources'], prior['resources']]: project_validator.validate(project)
+    assert len(original['noise2D']) == len(retained['noise2D']) == 1
+    expected = json.loads(json.dumps(original))
+    if mode == 'raw': expected['project']['seed'] = 18
+    assert expected == retained
+    if published:
+        assert package['resources']['noise2D'] == original['noise2D']
+        assert package['resources']['noise2D'][0]['algorithm']['parameters']['value'] == .625
+    else:
+        assert package == prior
+        assert (folder / 'selection 资源.pvresources.json').read_bytes() == (folder / 'prior-package.pvresources.json').read_bytes()
+    assert not list(folder.glob('.voxel-package-*'))
+replay = json.loads((background / 'engine-replay.json').read_text())
+assert replay == {'formatVersion': 1, 'fields': 252, 'cells': 3528, 'roots': [2, 4]}
+print('BACKGROUND_EXPORT_INDEPENDENT_PASS staged publication / preserved sources and prior packages / 252 fields / 3528 EMPTY cells')

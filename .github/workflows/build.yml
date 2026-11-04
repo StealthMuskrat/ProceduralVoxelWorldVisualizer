@@ -351,6 +351,7 @@ jobs:
           python scripts/verify_resource_review_layout.py build/resource-review-layout
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PackageLayoutProbe build/package-layout
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ResourceSelectionConsumer build/package-layout/selection.pvresources.json
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.BackgroundExportConsumer build/package-layout/background-export
           python scripts/verify_package_layout.py build/package-layout
           java --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ExportHierarchyProbe build/export-hierarchy
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ExportHierarchyConsumer build/export-hierarchy/hierarchy.pvresources.json
@@ -1302,6 +1303,8 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -Xmx1g -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PackageLayoutProbe build/package-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ResourceSelectionConsumer build/package-layout/selection.pvresources.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.BackgroundExportConsumer build/package-layout/background-export
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_package_layout.py build/package-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

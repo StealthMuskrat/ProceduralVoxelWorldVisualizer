@@ -303,6 +303,7 @@ public final class PackageLayoutProbe {
             "PACKAGE_LAYOUT_NATIVE_PASS persistent path/review actions / exact owned preview /"
                 + " protected and failed I/O / Cancel / handoff");
       }
+      ResourceExportWritingProbe.run(out.resolve("background-export"));
     } finally {
       ImGui.destroyContext();
     }

@@ -27,8 +27,9 @@ final class ResourcePackageDialog implements AutoCloseable {
   private final NavigationDecisionScope delivery = new NavigationDecisionScope();
   private long generation, shownOpening = -1;
   private int drawnFrame = Integer.MIN_VALUE;
-  private boolean working, closed, importObserved;
+  private boolean working, closed, importObserved, exportObserved;
   private final ResourceImportLoader loader;
+  private final ResourceExportWriter writer;
 
   enum Command {
     CANCEL,
@@ -103,6 +104,10 @@ final class ResourcePackageDialog implements AutoCloseable {
             ? null
             : new ResourceImportLoader(
                 state, executor, ui, preparation, imports::openPrepared, blocked);
+    writer =
+        executor == null
+            ? null
+            : new ResourceExportWriter(state, executor, ui, files::prepare, blocked);
   }
 
   boolean open(String requested) {
@@ -175,10 +180,13 @@ final class ResourcePackageDialog implements AutoCloseable {
   }
 
   void cancel() {
-    if (working || exportOwner != null && exportOwner.busy()) return;
+    if (working
+        || exportOwner != null && exportOwner.busy()
+        || writer != null && writer.publishing()) return;
     generation++;
     if (loader != null) loader.cancel();
-    importObserved = false;
+    if (writer != null) writer.cancel();
+    importObserved = exportObserved = false;
     delivery.close();
     if (pending && action.equals("Export")) cancelOwnedExport();
     exportOwner = null;
@@ -187,6 +195,7 @@ final class ResourcePackageDialog implements AutoCloseable {
 
   void draw() {
     pollImport();
+    pollExport();
     int frame = ImGui.getFrameCount();
     if (drawnFrame == frame) return;
     drawnFrame = frame;
@@ -229,16 +238,17 @@ final class ResourcePackageDialog implements AutoCloseable {
           if (!export || page.equals("Path")) {
             ImGui.textWrapped(action + " file path");
             ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
-            if (focusPath) ImGui.setKeyboardFocusHere();
-            ImGui.beginDisabled(importRunning());
+            if (focusPath && !packageRunning()) ImGui.setKeyboardFocusHere();
+            ImGui.beginDisabled(packageRunning());
             ImGui.inputText("##package-path", path);
             ImGui.endDisabled();
             remember("Path");
-            if (focusPath) {
+            if (focusPath && !packageRunning()) {
               ImGui.setScrollHereY(.25f);
               if (ImGui.isItemActive() || ImGui.isItemFocused()) focusPath = false;
             }
             if (importRunning()) ImGui.textWrapped(loader.view().message());
+            if (exportRunning()) ImGui.textWrapped(writer.view().message());
             if (!error.isEmpty()) ImGui.textWrapped(StatusBarText.clip(error, 4096));
             if (unavailable)
               ImGui.textWrapped("Finish the other private editor or project action, or Cancel.");
@@ -263,20 +273,29 @@ final class ResourcePackageDialog implements AutoCloseable {
                 chrome,
                 "submit",
                 action,
-                !importRunning() && !unavailable && owned && (!export || resources.canExport()));
+                !packageRunning() && !unavailable && owned && (!export || resources.canExport()));
         boolean cancel = button(chrome, "cancel", "Cancel", true);
         boolean reload = false, remove = false, choices = false, included = false, location = false;
         if (export) {
-          reload = button(chrome, "reload", "Reload", !unavailable && owned && view.canReload());
+          reload =
+              button(
+                  chrome,
+                  "reload",
+                  "Reload",
+                  !packageRunning() && !unavailable && owned && view.canReload());
           remove =
               button(
                   chrome,
                   "remove-unavailable",
                   "Remove Missing",
-                  !unavailable && owned && view.current() && view.unavailable() > 0);
-          choices = button(chrome, "choices", "Choices", true);
-          included = button(chrome, "included", "Included", true);
-          location = button(chrome, "location", "Path / Issues", true);
+                  !packageRunning()
+                      && !unavailable
+                      && owned
+                      && view.current()
+                      && view.unavailable() > 0);
+          choices = button(chrome, "choices", "Choices", !packageRunning());
+          included = button(chrome, "included", "Included", !packageRunning());
+          location = button(chrome, "location", "Path / Issues", !packageRunning());
         }
         // Escape owns the whole decision frame even when a native release also submits.
         if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) command = Command.CANCEL;
@@ -332,7 +351,7 @@ final class ResourcePackageDialog implements AutoCloseable {
       cancel();
       return;
     }
-    if (importRunning()) return;
+    if (packageRunning()) return;
     if (command == Command.CHOICES) {
       show("Choices");
       return;
@@ -367,6 +386,15 @@ final class ResourcePackageDialog implements AutoCloseable {
         pollImport();
         return;
       }
+      if (decision.action().equals("Export") && writer != null) {
+        error = "";
+        exportObserved = true;
+        writer.start(
+            decision.location(), decision.owner(), decision.preview(), () -> current(decision));
+        show("Path");
+        pollExport();
+        return;
+      }
       working = true;
       try {
         var destination = ResourcePackageFiles.location(decision.location());
@@ -391,6 +419,28 @@ final class ResourcePackageDialog implements AutoCloseable {
     return loader != null && loader.view().phase() == ResourceImportLoader.Phase.RUNNING;
   }
 
+  boolean exportRunning() {
+    return writer != null && writer.view().phase() == ResourceExportWriter.Phase.RUNNING;
+  }
+
+  private boolean packageRunning() {
+    return importRunning() || exportRunning();
+  }
+
+  void pollExport() {
+    if (writer == null || !exportObserved || !pending) return;
+    var view = writer.view();
+    if (view.phase() == ResourceExportWriter.Phase.RUNNING) return;
+    exportObserved = false;
+    if (view.phase() == ResourceExportWriter.Phase.READY) {
+      cancel();
+      state.notify("Information", "Resource package exported");
+    } else {
+      error = view.message();
+      show("Path");
+    }
+  }
+
   void pollImport() {
     if (loader == null || !importObserved || !pending) return;
     var view = loader.view();
@@ -408,6 +458,7 @@ final class ResourcePackageDialog implements AutoCloseable {
     if (closed) return;
     closed = true;
     if (loader != null) loader.close();
+    if (writer != null) writer.close();
     cancel();
   }
 

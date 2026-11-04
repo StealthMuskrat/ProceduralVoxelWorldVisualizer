@@ -133,15 +133,38 @@ final class ExportEditSession {
     return current() && !selected.isEmpty() && preview != null && shown == preview;
   }
 
-  void write(Path destination, ResourcePackageFiles files) throws IOException {
+  ProjectData exportSnapshot(ResourceExportSession.Preview expected) {
+    requireExportable(expected);
+    return expected.resources();
+  }
+
+  void publishPrepared(
+      ResourceExportSession.Preview expected, ResourcePackageFiles.Prepared prepared)
+      throws IOException {
+    requireExportable(expected);
+    writing = true;
+    try {
+      prepared.publish(state.document::path);
+      closed = true;
+      shown = null;
+    } finally {
+      writing = false;
+    }
+  }
+
+  private void requireExportable(ResourceExportSession.Preview expected) {
     if (writing) throw new IllegalStateException("Export publication is already in progress");
     if (!current() || !sourceValue.equals(ProjectIO.JSON.valueToTree(state.project()))) {
       if (!closed) forcedStale = true;
       throw new IllegalStateException("Export source changed; Reload Preview before exporting");
     }
     if (selected.isEmpty()) throw new IllegalStateException("Select resources to export");
-    if (preview == null || shown != preview)
+    if (expected == null || preview != expected || shown != expected)
       throw new IllegalStateException("Display the current export preview before exporting");
+  }
+
+  void write(Path destination, ResourcePackageFiles files) throws IOException {
+    requireExportable(preview);
     writing = true;
     try {
       files.writeGuarded(destination, preview.resources(), state.document::path);

@@ -122,8 +122,57 @@ final class ResourcePackageFiles {
     writeGuarded(destination, resources, () -> activeProject);
   }
 
+  /** Owned unpublished package; successful publication transfers the temporary path. */
+  final class Prepared implements AutoCloseable {
+    private final Path target, temporary;
+    private boolean published, closed;
+
+    private Prepared(Path target, Path temporary) {
+      this.target = target;
+      this.temporary = temporary;
+    }
+
+    synchronized void publish(Supplier<Path> activeProject) throws IOException {
+      if (published || closed)
+        throw new IllegalStateException("Package preparation already consumed");
+      ExportPaths.rejectProjectTarget(target, activeProject.get(), "resource package");
+      storage.replace(temporary, target);
+      published = true;
+    }
+
+    @Override
+    public synchronized void close() throws IOException {
+      if (published || closed) return;
+      storage.delete(temporary);
+      closed = true;
+    }
+  }
+
+  Prepared prepare(Path destination, ProjectData resources, Path activeProject) throws IOException {
+    return prepareGuarded(destination, resources, () -> activeProject);
+  }
+
   void writeGuarded(Path destination, ProjectData resources, Supplier<Path> activeProject)
       throws IOException {
+    var prepared = prepareGuarded(destination, resources, activeProject);
+    Throwable failure = null;
+    try {
+      prepared.publish(activeProject);
+    } catch (IOException | RuntimeException | Error rejected) {
+      failure = rejected;
+      throw rejected;
+    } finally {
+      try {
+        prepared.close();
+      } catch (IOException | RuntimeException | Error cleanup) {
+        if (failure == null) throw cleanup;
+        if (failure != cleanup) failure.addSuppressed(cleanup);
+      }
+    }
+  }
+
+  private Prepared prepareGuarded(
+      Path destination, ProjectData resources, Supplier<Path> activeProject) throws IOException {
     Objects.requireNonNull(activeProject);
     // Own and validate the whole payload before creating directories or touching the destination.
     var snapshot = ProjectIO.copy(Objects.requireNonNull(resources));
@@ -141,26 +190,16 @@ final class ResourcePackageFiles {
     // Resolve real parent paths as well, including aliases when the project file is absent.
     ExportPaths.rejectProjectTarget(target, activeProject.get(), "resource package");
     Path temporary = Files.createTempFile(parent, ".voxel-package-", ".tmp");
-    Throwable failure = null;
-    boolean published = false;
     try {
       storage.write(temporary, bytes);
-      ExportPaths.rejectProjectTarget(target, activeProject.get(), "resource package");
-      storage.replace(temporary, target);
-      published = true;
-    } catch (IOException | RuntimeException | Error rejected) {
-      failure = rejected;
-      throw rejected;
-    } finally {
-      // Replacement transferred ownership; later I/O must not turn publication into failure.
-      if (!published) {
-        try {
-          storage.delete(temporary);
-        } catch (IOException | RuntimeException | Error cleanup) {
-          if (failure == null) throw cleanup;
-          if (failure != cleanup) failure.addSuppressed(cleanup);
-        }
+      return new Prepared(target, temporary);
+    } catch (IOException | RuntimeException | Error failure) {
+      try {
+        storage.delete(temporary);
+      } catch (IOException | RuntimeException | Error cleanup) {
+        if (failure != cleanup) failure.addSuppressed(cleanup);
       }
+      throw failure;
     }
   }
 

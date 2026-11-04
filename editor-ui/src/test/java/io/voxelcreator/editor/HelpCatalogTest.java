@@ -7,6 +7,22 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void resourceExportHelpExplainsReviewStagingCancelAndActiveProjectProtection() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.resource-export");
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Export"));
+    assertTrue(catalog.search("export background included").contains(topic));
+    String text = topic.copyText(catalog);
+    assertTrue(text.contains("Cancel or Escape"));
+    assertTrue(text.contains("explicit retry"));
+    assertTrue(text.contains("active project file"));
+    assertTrue(text.contains("Undo history"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void resourceImportHelpExplainsBackgroundCancelRetryAndExplicitReviewWithoutChangingMetadata() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
