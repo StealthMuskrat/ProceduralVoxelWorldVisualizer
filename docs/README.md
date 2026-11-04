@@ -10,6 +10,7 @@ Start with [Build and run](BUILD_AND_RUN.md) for the pinned Java toolchain, Wind
 - [Application Help](HELP_AND_ABOUT.md) describes editor workflows and controls.
 - [Atomic archive publication](ARCHIVE_ATOMIC_PUBLICATION.md) describes replacement requirements and retry/abort ownership.
 - [Finite affine mapping](FINITE_MAPPING.md) describes guarded Remap/expression range recovery and deferred coverage.
+- [Finite Linear curves and Extend](CURVE_LINEAR_EXTENSION.md) describes exceptional endpoint/tangent arithmetic and deferred coverage.
 - [Finite interpolation](FINITE_INTERPOLATION.md) describes guarded BLEND/lerp arithmetic and deferred coverage.
 - [Exact regeneration rate](REGENERATION_RATE_CONTROL.md) describes paired live preference input and retained invalid text.
 - [Background resource export](BACKGROUND_RESOURCE_EXPORT.md) describes cancellable reviewed staging and atomic publication.

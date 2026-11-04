@@ -1,0 +1,528 @@
+{
+  "formatVersion": 1,
+  "arithmeticPolicy": "guarded-linear-and-extension-v1",
+  "reference": "Hand-specified binary straight-line and endpoint-tangent identities. No evaluator or reference generator was executed.",
+  "cases": [
+    {
+      "id": "opposite-clamp",
+      "minHex": "0x0p0",
+      "maxHex": "0x1p0",
+      "y0Hex": "-0x1p1023",
+      "y1Hex": "0x1p1023",
+      "outside": "CLAMP",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "0x0p0",
+          "expectedHex": "-0x1p1023"
+        },
+        {
+          "xHex": "0x1p-2",
+          "expectedHex": "-0x1p1022"
+        },
+        {
+          "xHex": "0x1p-1",
+          "expectedHex": "0x0p0"
+        },
+        {
+          "xHex": "0x1.8p-1",
+          "expectedHex": "0x1p1022"
+        },
+        {
+          "xHex": "0x1p0",
+          "expectedHex": "0x1p1023"
+        },
+        {
+          "xHex": "-0x1p0",
+          "expectedHex": "-0x1p1023"
+        },
+        {
+          "xHex": "0x1p1",
+          "expectedHex": "0x1p1023"
+        }
+      ]
+    },
+    {
+      "id": "opposite-descending",
+      "minHex": "0x0p0",
+      "maxHex": "0x1p0",
+      "y0Hex": "0x1p1023",
+      "y1Hex": "-0x1p1023",
+      "outside": "CLAMP",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "0x0p0",
+          "expectedHex": "0x1p1023"
+        },
+        {
+          "xHex": "0x1p-2",
+          "expectedHex": "0x1p1022"
+        },
+        {
+          "xHex": "0x1p-1",
+          "expectedHex": "0x0p0"
+        },
+        {
+          "xHex": "0x1.8p-1",
+          "expectedHex": "-0x1p1022"
+        },
+        {
+          "xHex": "0x1p0",
+          "expectedHex": "-0x1p1023"
+        }
+      ]
+    },
+    {
+      "id": "maximum-endpoints",
+      "minHex": "0x0p0",
+      "maxHex": "0x1p0",
+      "y0Hex": "-0x1.fffffffffffffp1023",
+      "y1Hex": "0x1.fffffffffffffp1023",
+      "outside": "CLAMP",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "0x0p0",
+          "expectedHex": "-0x1.fffffffffffffp1023"
+        },
+        {
+          "xHex": "0x1p-2",
+          "expectedHex": "-0x1.fffffffffffffp1022"
+        },
+        {
+          "xHex": "0x1p-1",
+          "expectedHex": "0x0p0"
+        },
+        {
+          "xHex": "0x1.8p-1",
+          "expectedHex": "0x1.fffffffffffffp1022"
+        },
+        {
+          "xHex": "0x1p0",
+          "expectedHex": "0x1.fffffffffffffp1023"
+        }
+      ]
+    },
+    {
+      "id": "opposite-extend-near",
+      "minHex": "0x0p0",
+      "maxHex": "0x1p0",
+      "y0Hex": "-0x1p1023",
+      "y1Hex": "0x1p1023",
+      "outside": "EXTEND",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "-0x0.0000000000001p-1022",
+          "expectedHex": "-0x1p1023"
+        },
+        {
+          "xHex": "0x1.0000000000001p0",
+          "expectedHex": "0x1.0000000000002p1023"
+        },
+        {
+          "xHex": "0x1.4p0",
+          "expectedHex": "0x1.8p1023"
+        },
+        {
+          "xHex": "-0x1p-2",
+          "expectedHex": "-0x1.8p1023"
+        }
+      ]
+    },
+    {
+      "id": "wide-opposite-extend",
+      "minHex": "0x0p0",
+      "maxHex": "0x1p1",
+      "y0Hex": "-0x1p1023",
+      "y1Hex": "0x1p1023",
+      "outside": "EXTEND",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "0x1p-1",
+          "expectedHex": "-0x1p1022"
+        },
+        {
+          "xHex": "0x1p0",
+          "expectedHex": "0x0p0"
+        },
+        {
+          "xHex": "0x1.8p0",
+          "expectedHex": "0x1p1022"
+        },
+        {
+          "xHex": "-0x0.0000000000001p-1022",
+          "expectedHex": "-0x1p1023"
+        }
+      ]
+    },
+    {
+      "id": "microscopic-span",
+      "minHex": "0x0p0",
+      "maxHex": "0x0.0000000000001p-1022",
+      "y0Hex": "0x0p0",
+      "y1Hex": "0x1p0",
+      "outside": "EXTEND",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "0x0p0",
+          "expectedHex": "0x0p0"
+        },
+        {
+          "xHex": "0x0.0000000000001p-1022",
+          "expectedHex": "0x1p0"
+        },
+        {
+          "xHex": "0x0.0000000000002p-1022",
+          "expectedHex": "0x1p1"
+        },
+        {
+          "xHex": "-0x0.0000000000001p-1022",
+          "expectedHex": "-0x1p0"
+        }
+      ]
+    },
+    {
+      "id": "zeroed-slope-left",
+      "minHex": "0x0p0",
+      "maxHex": "0x1p1023",
+      "y0Hex": "0x0p0",
+      "y1Hex": "0x0.0000000000001p-1022",
+      "outside": "EXTEND",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "0x0p0",
+          "expectedHex": "0x0p0"
+        },
+        {
+          "xHex": "0x1p1023",
+          "expectedHex": "0x0.0000000000001p-1022"
+        },
+        {
+          "xHex": "-0x1p1023",
+          "expectedHex": "-0x0.0000000000001p-1022"
+        },
+        {
+          "xHex": "0x1p1022",
+          "expectedHex": "0x0p0"
+        }
+      ]
+    },
+    {
+      "id": "zeroed-slope-right",
+      "minHex": "-0x1p1023",
+      "maxHex": "0x0p0",
+      "y0Hex": "0x0p0",
+      "y1Hex": "0x0.0000000000001p-1022",
+      "outside": "EXTEND",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "-0x1p1023",
+          "expectedHex": "0x0p0"
+        },
+        {
+          "xHex": "0x0p0",
+          "expectedHex": "0x0.0000000000001p-1022"
+        },
+        {
+          "xHex": "0x1p1023",
+          "expectedHex": "0x0.0000000000002p-1022"
+        },
+        {
+          "xHex": "0x1p1022",
+          "expectedHex": "0x0.0000000000002p-1022"
+        }
+      ]
+    },
+    {
+      "id": "flat-overflow-offset",
+      "minHex": "-0x1.fffffffffffffp1023",
+      "maxHex": "-0x1p1023",
+      "y0Hex": "0x1p-2",
+      "y1Hex": "0x1p-2",
+      "outside": "EXTEND",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "-0x1.fffffffffffffp1023",
+          "expectedHex": "0x1p-2"
+        },
+        {
+          "xHex": "-0x1p1023",
+          "expectedHex": "0x1p-2"
+        },
+        {
+          "xHex": "0x1.fffffffffffffp1023",
+          "expectedHex": "0x1p-2"
+        }
+      ]
+    },
+    {
+      "id": "step-overflow-offset",
+      "minHex": "-0x1.fffffffffffffp1023",
+      "maxHex": "-0x1p1023",
+      "y0Hex": "0x1p-2",
+      "y1Hex": "0x1.8p-1",
+      "outside": "EXTEND",
+      "interpolation": "STEP",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "-0x1.fffffffffffffp1023",
+          "expectedHex": "0x1p-2"
+        },
+        {
+          "xHex": "-0x1p1023",
+          "expectedHex": "0x1.8p-1"
+        },
+        {
+          "xHex": "-0x1.8p1023",
+          "expectedHex": "0x1p-2"
+        },
+        {
+          "xHex": "0x1.fffffffffffffp1023",
+          "expectedHex": "0x1.8p-1"
+        }
+      ]
+    },
+    {
+      "id": "bezier-tangent-product",
+      "minHex": "0x0p0",
+      "maxHex": "0x1p0",
+      "y0Hex": "0x1p1023",
+      "y1Hex": "0x1p1022",
+      "outside": "EXTEND",
+      "interpolation": "BEZIER",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "-0x1p1023",
+      "samples": [
+        {
+          "xHex": "0x0p0",
+          "expectedHex": "0x1p1023"
+        },
+        {
+          "xHex": "0x1p-1",
+          "expectedHex": "0x1.cp1022"
+        },
+        {
+          "xHex": "0x1p0",
+          "expectedHex": "0x1p1022"
+        },
+        {
+          "xHex": "0x1p1",
+          "expectedHex": "-0x1p1022"
+        },
+        {
+          "xHex": "0x1.8p1",
+          "expectedHex": "-0x1.8p1023"
+        }
+      ]
+    },
+    {
+      "id": "bezier-tangent-offset",
+      "minHex": "-0x1.fffffffffffffp1023",
+      "maxHex": "-0x1p1023",
+      "y0Hex": "0x0p0",
+      "y1Hex": "0x1.ffffffffffffep-1",
+      "outside": "EXTEND",
+      "interpolation": "BEZIER",
+      "outTangentHex": "0x1p-1023",
+      "inTangentHex": "0x1p-1023",
+      "samples": [
+        {
+          "xHex": "-0x1.fffffffffffffp1023",
+          "expectedHex": "0x0p0"
+        },
+        {
+          "xHex": "-0x1p1023",
+          "expectedHex": "0x1.ffffffffffffep-1"
+        },
+        {
+          "xHex": "0x0p0",
+          "expectedHex": "0x1.fffffffffffffp0"
+        },
+        {
+          "xHex": "0x1.fffffffffffffp1023",
+          "expectedHex": "0x1.fffffffffffffp1"
+        }
+      ]
+    },
+    {
+      "id": "bezier-zero-tangent",
+      "minHex": "-0x1.fffffffffffffp1023",
+      "maxHex": "-0x1p1023",
+      "y0Hex": "0x1p-2",
+      "y1Hex": "0x1.8p-1",
+      "outside": "EXTEND",
+      "interpolation": "BEZIER",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "-0x1.fffffffffffffp1023",
+          "expectedHex": "0x1p-2"
+        },
+        {
+          "xHex": "-0x1p1023",
+          "expectedHex": "0x1.8p-1"
+        },
+        {
+          "xHex": "0x0p0",
+          "expectedHex": "0x1.8p-1"
+        },
+        {
+          "xHex": "0x1.fffffffffffffp1023",
+          "expectedHex": "0x1.8p-1"
+        }
+      ]
+    },
+    {
+      "id": "opposite-repeat",
+      "minHex": "0x0p0",
+      "maxHex": "0x1p0",
+      "y0Hex": "-0x1p1023",
+      "y1Hex": "0x1p1023",
+      "outside": "REPEAT",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "0x1.4p0",
+          "expectedHex": "-0x1p1022"
+        },
+        {
+          "xHex": "-0x1p-2",
+          "expectedHex": "0x1p1022"
+        },
+        {
+          "xHex": "0x1p1",
+          "expectedHex": "-0x1p1023"
+        },
+        {
+          "xHex": "0x1p0",
+          "expectedHex": "0x1p1023"
+        }
+      ]
+    },
+    {
+      "id": "opposite-mirror",
+      "minHex": "0x0p0",
+      "maxHex": "0x1p0",
+      "y0Hex": "-0x1p1023",
+      "y1Hex": "0x1p1023",
+      "outside": "MIRROR",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "0x1.4p0",
+          "expectedHex": "0x1p1022"
+        },
+        {
+          "xHex": "-0x1p-2",
+          "expectedHex": "-0x1p1022"
+        },
+        {
+          "xHex": "0x1p1",
+          "expectedHex": "-0x1p1023"
+        },
+        {
+          "xHex": "0x1p0",
+          "expectedHex": "0x1p1023"
+        }
+      ]
+    },
+    {
+      "id": "ordinary-extend",
+      "minHex": "0x0p0",
+      "maxHex": "0x1p0",
+      "y0Hex": "-0x1p-2",
+      "y1Hex": "0x1.cp0",
+      "outside": "EXTEND",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "-0x1p-1",
+          "expectedHex": "-0x1.4p0"
+        },
+        {
+          "xHex": "0x1p-2",
+          "expectedHex": "0x1p-2"
+        },
+        {
+          "xHex": "0x1p-1",
+          "expectedHex": "0x1.8p-1"
+        },
+        {
+          "xHex": "0x1.8p0",
+          "expectedHex": "0x1.6p1"
+        },
+        {
+          "xHex": "0x0p0",
+          "expectedHex": "-0x1p-2"
+        },
+        {
+          "xHex": "0x1p0",
+          "expectedHex": "0x1.cp0"
+        }
+      ]
+    },
+    {
+      "id": "zeroed-slope-halfway",
+      "minHex": "0x0p0",
+      "maxHex": "0x1p1023",
+      "y0Hex": "0x0.0000000000001p-1022",
+      "y1Hex": "0x0.0000000000002p-1022",
+      "outside": "EXTEND",
+      "interpolation": "LINEAR",
+      "outTangentHex": "0x0p0",
+      "inTangentHex": "0x0p0",
+      "samples": [
+        {
+          "xHex": "-0x1p1022",
+          "expectedHex": "0x0p0"
+        },
+        {
+          "xHex": "0x1.8p1023",
+          "expectedHex": "0x0.0000000000002p-1022"
+        },
+        {
+          "xHex": "0x0p0",
+          "expectedHex": "0x0.0000000000001p-1022"
+        },
+        {
+          "xHex": "0x1p1023",
+          "expectedHex": "0x0.0000000000002p-1022"
+        }
+      ]
+    }
+  ]
+}

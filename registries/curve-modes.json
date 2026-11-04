@@ -1,6 +1,8 @@
 {
   "arithmeticPolicy" : "guarded-harmonic-and-coefficients-v1",
   "arithmeticDescription" : "Preserve ordinary finite arithmetic order. Use a scaled same-sign harmonic mean when slope products are subnormal or intermediate arithmetic overflows, bounded by the larger finite secant. Factor only nonfinite cubic coefficient intermediates. Nonrepresentable coefficients remain invalid; callers retain their existing finite-result evaluation policy.",
+  "linearArithmeticPolicy" : "guarded-linear-and-extension-v1",
+  "linearArithmeticDescription" : "Preserve ordinary Linear and Extend arithmetic order. Retain finite Linear endpoints when their difference cannot form a finite coefficient. Recover failed finite Linear or endpoint-tangent extension arithmetic with an exact binary affine ratio; a nonflat Linear slope rounded to zero uses the endpoint line. Keep exact knots, explicit outside modes and cubic coefficient validation unchanged.",
   "knotPolicy" : "Numeric equality, including signed zero; exact knots return stored values",
   "interpolation" : [ {
     "key" : "STEP",

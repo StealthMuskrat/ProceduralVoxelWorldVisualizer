@@ -2,7 +2,7 @@ package io.voxelcreator.core;
 
 import java.math.BigInteger;
 
-/** Preserve ordinary arithmetic; recover overflowed finite affine mappings as exact ratios. */
+/** Preserve ordinary arithmetic; recover exceptional finite affine mappings as exact ratios. */
 final class FiniteMapping {
   private static final long FRACTION = 0x000fffffffffffffL, SIGN = Long.MIN_VALUE;
 
@@ -37,6 +37,14 @@ final class FiniteMapping {
         || !Double.isFinite(outputMin)
         || !Double.isFinite(outputMax)
         || inputMin == inputMax) return result;
+    return remapExact(value, inputMin, inputMax, outputMin, outputMax);
+  }
+
+  /**
+   * Validated finite endpoints and a distinct input span, for an already exceptional curve path.
+   */
+  static double remapExact(
+      double value, double inputMin, double inputMax, double outputMin, double outputMax) {
     var start = units(inputMin);
     var denominator = units(inputMax).subtract(start);
     var output = units(outputMin);
@@ -45,6 +53,23 @@ final class FiniteMapping {
             .multiply(denominator)
             .add(units(value).subtract(start).multiply(units(outputMax).subtract(output)));
     return ratio(numerator, denominator.shiftLeft(1074));
+  }
+
+  /** Preserve endpoint + offset*slope order; recover only failed finite tangent arithmetic. */
+  static double tangent(double endpoint, double origin, double slope, double value) {
+    double distance = value - origin, product = distance * slope;
+    double result = endpoint + product;
+    if (Double.isFinite(distance) && Double.isFinite(product) && Double.isFinite(result)
+        || !Double.isFinite(endpoint)
+        || !Double.isFinite(origin)
+        || !Double.isFinite(slope)
+        || !Double.isFinite(value)) return result;
+    if (slope == 0) return endpoint;
+    var numerator =
+        units(endpoint)
+            .shiftLeft(1074)
+            .add(units(value).subtract(units(origin)).multiply(units(slope)));
+    return ratio(numerator, BigInteger.ONE.shiftLeft(2148));
   }
 
   /** Every finite double is an integer multiple of 2^-1074, including signed subnormals. */

@@ -7,6 +7,19 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void curveGuidanceExplainsGuardedLinearExtensionWithoutChangingModeOrMetadataAuthority() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.curve-guidance");
+    String text = topic.copyText(catalog);
+    assertTrue(text.contains("Linear and Extend"));
+    assertTrue(text.contains("cubic coefficient validation unchanged"));
+    assertTrue(catalog.search("linear extension arithmetic").contains(topic));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void resourceExportHelpExplainsReviewStagingCancelAndActiveProjectProtection() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

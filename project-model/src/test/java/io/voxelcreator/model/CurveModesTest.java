@@ -27,6 +27,9 @@ class CurveModesTest {
     assertEquals(1, r.path("formatVersion").asInt());
     assertEquals(2, r.path("projectFormat").asInt());
     assertEquals("guarded-harmonic-and-coefficients-v1", r.path("arithmeticPolicy").asText());
+    assertEquals(CurveModes.LINEAR_ARITHMETIC_POLICY, r.path("linearArithmeticPolicy").asText());
+    assertEquals(
+        CurveModes.LINEAR_ARITHMETIC_DESCRIPTION, r.path("linearArithmeticDescription").asText());
     assertEquals(CurveModes.ARITHMETIC_DESCRIPTION, r.path("arithmeticDescription").asText());
     for (var entry :
         Map.of(

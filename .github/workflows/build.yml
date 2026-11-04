@@ -475,6 +475,7 @@ jobs:
           python scripts/curve_wrapping_reference.py fixtures/curve-wrapping-vectors.json --check
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveWrappingProbe build/curve-wrapping
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.CurveWrappingConsumer fixtures/curve-wrapping-vectors.json build/curve-wrapping/curve-wrapping-project.json build/curve-wrapping
+          python scripts/verify_curve_linear.py build/curve-wrapping/linear
       - name: Curve mode domain and context controls
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveControlsProbe build/curve-controls
@@ -1531,6 +1532,8 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveWrappingProbe build/curve-wrapping
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.CurveWrappingConsumer fixtures/curve-wrapping-vectors.json build/curve-wrapping/curve-wrapping-project.json build/curve-wrapping
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_curve_linear.py build/curve-wrapping/linear
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows curve mode domain and context controls
         shell: pwsh

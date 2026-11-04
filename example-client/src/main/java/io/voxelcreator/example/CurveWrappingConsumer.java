@@ -53,6 +53,10 @@ public final class CurveWrappingConsumer {
       CurveArithmeticConsumer.run(
           Path.of(args[0]).resolveSibling("curve-arithmetic-vectors.json"),
           Path.of(args[2]).resolve("arithmetic"));
+    if (args.length > 2)
+      CurveLinearConsumer.run(
+          Path.of(args[0]).resolveSibling("curve-linear-vectors.json"),
+          Path.of(args[2]).resolve("linear"));
     System.out.println(
         "CURVE_WRAPPING_ENGINE_ONLY_PASS "
             + samples

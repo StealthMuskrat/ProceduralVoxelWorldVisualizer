@@ -5,14 +5,16 @@ import io.voxelcreator.model.ProjectData.Curve;
 
 /**
  * Immutable piecewise curve. Bezier uses endpoint slopes with X handles at one third of each
- * segment. Guarded compilation arithmetic is identified by {@link CurveModes#ARITHMETIC_POLICY};
- * ordinary finite operations keep their original evaluation order.
+ * segment. Guarded arithmetic is identified by {@link CurveModes#ARITHMETIC_POLICY} and {@link
+ * CurveModes#LINEAR_ARITHMETIC_POLICY}; ordinary finite operations keep their original evaluation
+ * order.
  */
 public final class ScalarCurve {
   private final double[] x, y, in, out, slope;
   private final String[] interpolation;
   private final String outside;
   private final double[] a, b, c, d;
+  private final boolean[] linearEndpoints;
 
   public ScalarCurve(Curve c) {
     int n = c.points.size();
@@ -89,11 +91,16 @@ public final class ScalarCurve {
     b = new double[n - 1];
     this.c = new double[n - 1];
     this.d = new double[n - 1];
+    linearEndpoints = new boolean[n - 1];
     for (int i = 0; i < n - 1; i++) {
       double h = x[i + 1] - x[i], delta = y[i + 1] - y[i];
       this.d[i] = y[i];
-      if (interpolation[i].equals("LINEAR")) this.c[i] = delta;
-      else if (!interpolation[i].equals("STEP")) {
+      if (interpolation[i].equals("LINEAR")) {
+        // A finite straight line need not have a representable endpoint difference. Keep its
+        // endpoints instead of admitting an infinite polynomial coefficient.
+        linearEndpoints[i] = !Double.isFinite(delta);
+        this.c[i] = linearEndpoints[i] ? 0 : delta;
+      } else if (!interpolation[i].equals("STEP")) {
         double m0 = (interpolation[i].equals("SMOOTH") ? slope[i] : out[i]) * h,
             m1 = (interpolation[i].equals("SMOOTH") ? slope[i + 1] : in[i + 1]) * h;
         a[i] = m0 + m1 - 2 * delta;
@@ -148,9 +155,7 @@ public final class ScalarCurve {
         case "CLAMP":
           return v < lo ? y[0] : y[last];
         case "EXTEND":
-          return v < lo
-              ? y[0] + (v - lo) * endpointSlope(0)
-              : y[last] + (v - hi) * endpointSlope(last);
+          return extend(v, v < lo ? 0 : last);
         case "REPEAT":
           double repeated = lo + (v - lo) - len * StrictMath.floor((v - lo) / len);
           v = inDomain(repeated, lo, hi) ? repeated : repeatFallback(v, lo, len);
@@ -176,7 +181,35 @@ public final class ScalarCurve {
     if (insertion > 0 && v == x[insertion - 1]) return y[insertion - 1];
     i = insertion - 1;
     double h = x[i + 1] - x[i], t = (v - x[i]) / h;
-    return ((a[i] * t + b[i]) * t + c[i]) * t + d[i];
+    if (linearEndpoints[i]) return linear(v, i);
+    double result = ((a[i] * t + b[i]) * t + c[i]) * t + d[i];
+    return interpolation[i].equals("LINEAR") && !Double.isFinite(result) ? linear(v, i) : result;
+  }
+
+  private double linear(double value, int segment) {
+    // The caller already detected an exceptional coefficient or extension. Round the whole line
+    // once, including a nonflat slope rounded to zero; an ordinary remap can double-round that
+    // case.
+    return FiniteMapping.remapExact(value, x[segment], x[segment + 1], y[segment], y[segment + 1]);
+  }
+
+  private double extend(double value, int point) {
+    int segment = point == 0 ? 0 : point - 1;
+    double slope = endpointSlope(point), distance = value - x[point];
+    double product = distance * slope, result = y[point] + product;
+    // Derived Linear slopes may be infinite or zero while a finite endpoint line still exists.
+    // Cubics retain their compiled/explicit endpoint derivative and coefficient validation.
+    if (interpolation[segment].equals("LINEAR")
+        && (linearEndpoints[segment]
+            || !Double.isFinite(slope)
+            || !Double.isFinite(distance)
+            || !Double.isFinite(product)
+            || !Double.isFinite(result)
+            || slope == 0 && y[segment] != y[segment + 1]))
+      return y[segment] == y[segment + 1] ? y[point] : linear(value, segment);
+    return Double.isFinite(result)
+        ? result
+        : FiniteMapping.tangent(y[point], x[point], slope, value);
   }
 
   private static boolean inDomain(double value, double lo, double hi) {

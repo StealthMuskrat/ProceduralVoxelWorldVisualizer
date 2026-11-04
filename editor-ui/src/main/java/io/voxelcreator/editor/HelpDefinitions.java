@@ -327,7 +327,9 @@ final class HelpDefinitions {
                   + " Settings > curve.editor entries customize Help names and guidance, separately"
                   + " from future-curve creation defaults. Fixed dialog labels, mode IDs and"
                   + " evaluation remain authoritative. "
-                  + CurveModes.ARITHMETIC_DESCRIPTION),
+                  + CurveModes.ARITHMETIC_DESCRIPTION
+                  + " "
+                  + CurveModes.LINEAR_ARITHMETIC_DESCRIPTION),
           new Guide(
               "help.world-guidance",
               "World controls and live inheritance",

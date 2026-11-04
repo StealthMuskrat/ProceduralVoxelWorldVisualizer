@@ -14,6 +14,14 @@ public final class CurveModes {
           + " Nonrepresentable coefficients remain invalid; callers retain their existing"
           + " finite-result evaluation policy.";
 
+  public static final String LINEAR_ARITHMETIC_POLICY = "guarded-linear-and-extension-v1";
+  public static final String LINEAR_ARITHMETIC_DESCRIPTION =
+      "Preserve ordinary Linear and Extend arithmetic order. Retain finite Linear endpoints when"
+          + " their difference cannot form a finite coefficient. Recover failed finite Linear or"
+          + " endpoint-tangent extension arithmetic with an exact binary affine ratio; a nonflat"
+          + " Linear slope rounded to zero uses the endpoint line. Keep exact knots, explicit"
+          + " outside modes and cubic coefficient validation unchanged.";
+
   public static final List<String> INTERPOLATIONS = List.of("STEP", "LINEAR", "SMOOTH", "BEZIER");
   public static final List<String> OUTSIDE = List.of("CLAMP", "EXTEND", "REPEAT", "MIRROR");
   public static final List<String> HANDLES = List.of("AUTO", "ALIGNED", "FREE");
@@ -61,6 +69,10 @@ public final class CurveModes {
         "arithmeticPolicy",
         ARITHMETIC_POLICY,
         "arithmeticDescription",
-        ARITHMETIC_DESCRIPTION);
+        ARITHMETIC_DESCRIPTION,
+        "linearArithmeticPolicy",
+        LINEAR_ARITHMETIC_POLICY,
+        "linearArithmeticDescription",
+        LINEAR_ARITHMETIC_DESCRIPTION);
   }
 }
