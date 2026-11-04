@@ -67,7 +67,12 @@ final class ProjectDelta {
   }
 
   ProjectData apply(ProjectData project, boolean forward) {
-    JsonNode root = ProjectIO.JSON.valueToTree(project);
+    return applySnapshot(ProjectIO.JSON.valueToTree(project), forward);
+  }
+
+  /** Reconstruct from owned captured values without mutating the owner's comparison baseline. */
+  ProjectData applySnapshot(JsonNode snapshot, boolean forward) {
+    JsonNode root = snapshot.deepCopy();
     if (forward) for (var c : changes) c.apply(root, true);
     else for (int i = changes.size() - 1; i >= 0; i--) changes.get(i).apply(root, false);
     return ProjectIO.JSON.convertValue(root, ProjectData.class);

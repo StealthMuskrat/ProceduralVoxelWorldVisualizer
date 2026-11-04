@@ -93,6 +93,7 @@ public final class ProjectHistoryConsumer {
     document.redo();
     if (document.data().project.seed != 41 || samples != 486 || cells != 576)
       throw new AssertionError("History retry or observation count");
+    DocumentTransactionConsumer.run(out.resolve("transaction-ownership"));
     System.out.println(
         "PROJECT_HISTORY_ENGINE_ONLY_PASS 486 scalar values / 576 EMPTY cells / restored UUIDs /"
             + " headless history rejection and retry");

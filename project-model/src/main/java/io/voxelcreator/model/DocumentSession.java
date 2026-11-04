@@ -44,6 +44,7 @@ public final class DocumentSession {
     return path;
   }
 
+  /** Candidate-only policy; edits/history retain its identity through publication checks. */
   public void setValidator(java.util.function.Function<ProjectData, List<Diagnostic>> v) {
     validator = v;
   }
@@ -52,14 +53,16 @@ public final class DocumentSession {
     return !saved.equals(serialize(active));
   }
 
+  /** Candidate callbacks cannot publish across a changed source, checkpoint, history or policy. */
   public List<Diagnostic> edit(Consumer<ProjectData> change) {
-    var candidate = ProjectIO.copy(active);
+    var owner = new TransactionOwner();
+    var candidate = ProjectIO.JSON.convertValue(owner.values, ProjectData.class);
     change.accept(candidate);
-    var issues = validator.apply(candidate);
+    owner.requireManaged();
+    var issues = owner.validation.apply(candidate);
+    owner.requireCurrent();
     if (!issues.isEmpty()) return issues;
-    var delta =
-        ProjectDelta.between(
-            ProjectIO.JSON.valueToTree(active), ProjectIO.JSON.valueToTree(candidate));
+    var delta = ProjectDelta.between(owner.values, ProjectIO.JSON.valueToTree(candidate));
     if (!delta.empty()) {
       for (var removed : redo) historyBytes -= removed.bytes();
       redo.clear();
@@ -82,13 +85,45 @@ public final class DocumentSession {
 
   private void step(Deque<ProjectDelta> source, Deque<ProjectDelta> destination, boolean forward) {
     if (source.isEmpty()) return;
+    var owner = new TransactionOwner();
     var delta = source.peek();
-    var candidate = delta.apply(active, forward);
-    var issues = validator.apply(candidate);
+    var candidate = delta.applySnapshot(owner.values, forward);
+    var issues = owner.validation.apply(candidate);
+    owner.requireCurrent();
     if (!issues.isEmpty()) throw new IllegalStateException("History candidate rejected: " + issues);
     destination.push(delta);
     source.pop();
     active = candidate;
+  }
+
+  /** Owner-thread optimistic guard; this is not a lock or cross-thread document access policy. */
+  private final class TransactionOwner {
+    final ProjectData source = active;
+    final Object lifetime = sessionToken;
+    final Path sourcePath = path;
+    final String checkpoint = saved;
+    final java.util.function.Function<ProjectData, List<Diagnostic>> validation = validator;
+    final ProjectDelta undoHead = undo.peek(), redoHead = redo.peek();
+    final long bytes = historyBytes;
+    final com.fasterxml.jackson.databind.JsonNode values = ProjectIO.JSON.valueToTree(source);
+
+    void requireManaged() {
+      if (source != active
+          || lifetime != sessionToken
+          || validation != validator
+          || !Objects.equals(sourcePath, path)
+          || !Objects.equals(checkpoint, saved)
+          || undoHead != undo.peek()
+          || redoHead != redo.peek()
+          || bytes != historyBytes)
+        throw new IllegalStateException("Document ownership changed while preparing a transaction");
+    }
+
+    void requireCurrent() {
+      requireManaged();
+      if (!values.equals(ProjectIO.JSON.valueToTree(active)))
+        throw new IllegalStateException("Document values changed while preparing a transaction");
+    }
   }
 
   public boolean canUndo() {
