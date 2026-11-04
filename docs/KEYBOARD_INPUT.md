@@ -36,3 +36,6 @@ The subsequent [project history guard](PROJECT_HISTORY_OWNERSHIP.md) routes menu
 [Shortcut recording ownership and recovery](SHORTCUT_RECORDING_OWNERSHIP.md) subsequently binds capture to the private draft version/active map, cancels on focus/text/host interruption and preserves dispatch suppression for the completion/cancel frame. Exact displayed-map checks, cached feedback/filtering and fourteen new regression definitions accompany an expanded native/independent workflow. All remain uncompiled/untested under the owner testing pause.
 
 The unvalidated [shared configuration writer](UPDATE_TRUST_AND_PREFERENCE_FILES.md) now enforces the same 8 MiB read/write bound and preserves cleanup error context for User Config and application profiles. Its deferred definitions do not extend historical keyboard evidence.
+
+
+The later [background Theme/Binding publication follow-up](BACKGROUND_THEME_AND_BINDINGS.md) moves production preparation off the UI thread, adds Cancel Apply and exact preview/recording ownership, and retains private input for explicit retry. Implementation and deferred definitions remain uncompiled/untested under the owner testing pause.

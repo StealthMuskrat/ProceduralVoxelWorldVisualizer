@@ -109,6 +109,26 @@ public final class ShortcutEditSession {
     apply(user, path);
   }
 
+  boolean ownsInput(UserConfig user, long captured, Map<String, String> displayed) {
+    if (captured != version || !current(user)) return false;
+    try {
+      requireDisplayed(displayed);
+      return true;
+    } catch (RuntimeException changed) {
+      return false;
+    }
+  }
+
+  UserConfig.PreferenceRequest request(UserConfig user, Map<String, String> displayed) {
+    requireDisplayed(displayed);
+    if (!current(user))
+      throw new IllegalStateException("Bindings changed elsewhere; Revert before applying");
+    var problems = problems();
+    if (!problems.isEmpty())
+      throw new IllegalArgumentException(problems.getFirst().message());
+    return user.requestShortcuts(values());
+  }
+
   public void apply(UserConfig user, Path path) {
     if (!current(user))
       throw new IllegalStateException(

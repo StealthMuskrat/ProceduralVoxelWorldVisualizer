@@ -199,7 +199,12 @@ public final class Desktop extends Application {
   protected void preRun() {
     mainWindow = new MainWindowPlacement(state.user.workspace, new GlfwMainWindow(handle));
     mainWindow.restoreHidden();
-    inputSettings = new InputSettingsPanel(state.user);
+    inputSettings =
+        InputSettingsPanel.background(
+            state,
+            message ->
+                state.error("SHORTCUT_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
+    lifecycle.own(inputSettings::close);
     updateTrust =
         UpdateTrustPanel.background(
             state,
@@ -263,10 +268,11 @@ public final class Desktop extends Application {
         ProjectSettingsPanel.background(state, this::projectSettingsInteractionBlocked);
     lifecycle.own(projectSettings::close);
     themePanel =
-        new ThemePanel(
-            state.user,
+        ThemePanel.background(
+            state,
             message ->
                 state.error("THEME_EDIT_FAILED", EditorEvents.Subsystem.APPLICATION, message));
+    lifecycle.own(themePanel::dispose);
     properties = PropertyPanel.background(state);
     lifecycle.own(properties::close);
     resources =

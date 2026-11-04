@@ -5,10 +5,15 @@ import imgui.flag.*;
 import imgui.type.*;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 /** Keyboard changes remain private until Apply writes and publishes a valid preference snapshot. */
-public final class InputSettingsPanel {
+public final class InputSettingsPanel implements AutoCloseable {
   private final UserConfig user;
+  private final Path file;
+  private final PreferenceApplySession applyWork;
+  private boolean closed;
   final PreferenceActionScope actionScope = new PreferenceActionScope();
   private final PreferenceSaveAction saveActions = new PreferenceSaveAction();
   private int saveId;
@@ -36,11 +41,25 @@ public final class InputSettingsPanel {
   private Float scroll;
 
   public InputSettingsPanel(UserConfig user) {
+    this(user, UserConfig.directory().resolve("user-config.json"), ignored -> {}, null, null);
+  }
+
+  static InputSettingsPanel background(EditorState state, Consumer<String> errors) {
+    return new InputSettingsPanel(state.user, UserConfig.directory().resolve("user-config.json"),
+        errors, state.background, state.uiQueue::offer);
+  }
+
+  InputSettingsPanel(UserConfig user, Path file, Consumer<String> errors,
+      Executor executor, Consumer<Runnable> ui) {
     this.user = Objects.requireNonNull(user);
+    this.file = Objects.requireNonNull(file);
     capture = new ShortcutRecording(user);
+    applyWork = executor == null ? null
+        : new PreferenceApplySession(user, file, executor, ui, errors);
   }
 
   private void ensure() {
+    if (closed) throw new IllegalStateException("Input panel is closed");
     if (session == null) {
       session = new ShortcutEditSession(user.input.shortcuts);
       sync();
@@ -67,6 +86,7 @@ public final class InputSettingsPanel {
   }
 
   public void cancelCapture() {
+    if (applyWork != null) applyWork.cancel();
     capture.cancel();
     actionScope.resetDraft();
     saveActions.release();
@@ -77,7 +97,10 @@ public final class InputSettingsPanel {
   }
 
   void draw(Runnable savePreferences) {
+    if (closed) return;
     ensure();
+    if (applyWork != null) applyWork.refresh();
+    long work = applyWork == null ? 0 : applyWork.version();
     long request = actionScope.synchronize(activeValues());
     long saveRequest = saveActions.synchronize(actionScope, savePreferences != null);
     boolean save = false;
@@ -244,6 +267,8 @@ public final class InputSettingsPanel {
     if (!displayedProblem.isEmpty()) ImGui.textWrapped("! " + bounded(displayedProblem));
     String firstProblem = ShortcutProblemNavigation.first(session.values(), shown, problems);
     if (!message.isEmpty()) ImGui.textWrapped(bounded(message));
+    if (applyWork != null && !applyWork.message().isEmpty())
+      ImGui.textWrapped(StatusBarText.bounded(applyWork.message(), 3072));
     ImGui.textWrapped("Save Preferences saves active bindings; it does not apply this draft.");
     if (savePreferences != null) {
       ImGui.pushID("input-save:" + saveActions.nativeId() + ":" + saveRequest);
@@ -260,10 +285,13 @@ public final class InputSettingsPanel {
     applyEnabled =
         problems.isEmpty() && displayedProblem.isEmpty() && !recording() && session.current(user);
     ImGui.pushID("input-request:" + actionScope.nativeId() + ":" + request);
-    ImGui.beginDisabled(!applyEnabled);
-    boolean apply = layout.identifiedAction("apply", "Apply Bindings");
+    boolean running = applyWork != null && applyWork.running();
+    ImGui.pushID("private-preference-work:" + (applyWork == null ? 0 : applyWork.version()));
+    ImGui.beginDisabled(!applyEnabled && !running);
+    boolean apply = layout.identifiedAction("apply", running ? "Cancel Apply" : "Apply Bindings");
     control("apply");
     ImGui.endDisabled();
+    ImGui.popID();
     boolean revert = layout.identifiedAction("revert", "Revert Bindings");
     control("revert");
     boolean reset = layout.identifiedAction("reset", "Reset Binding Defaults");
@@ -277,11 +305,11 @@ public final class InputSettingsPanel {
     control("cancel-recording");
     ImGui.endDisabled();
     ImGui.popID();
-    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) capture.cancel();
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) cancelCapture();
     else if (actionScope.current(activeValues())) {
       if (cancelRecording) capture.cancel();
       else if (revert) {
-        capture.cancel();
+        cancelCapture();
         try {
           session.revert(user.input.shortcuts);
           sync();
@@ -290,12 +318,15 @@ public final class InputSettingsPanel {
           message = "! " + detail(invalid);
         }
       } else if (reset) {
-        capture.cancel();
+        cancelCapture();
         session.resetAll();
         sync();
         message = "Defaults staged; Apply publishes them";
-      } else if (apply && applyEnabled) apply(UserConfig.directory().resolve("user-config.json"));
-      else if (problem && firstProblem != null) {
+      } else if (apply && (applyEnabled || running)
+          && (applyWork == null || work == applyWork.version())) {
+        if (running) applyWork.cancel();
+        else apply();
+      } else if (problem && firstProblem != null) {
         capture.cancel();
         filter.set(firstProblem);
         scroll = 0f;
@@ -308,6 +339,29 @@ public final class InputSettingsPanel {
     }
     // Footer cancellation must precede capture polling; suppression remains owned for this frame.
     pollCapture(editingText);
+    // A captured chord or cancelled recording owns this frame before any ready Apply publishes.
+    if (applyWork != null && applyWork.accept()) {
+      try {
+        capture.cancel();
+        session.revert(user.input.shortcuts);
+        sync();
+        message = "";
+      } catch (RuntimeException invalid) {
+        message = "! " + detail(invalid);
+      }
+    }
+  }
+
+  PreferenceApplySession probeApplyWork() {
+    return applyWork;
+  }
+
+  @Override
+  public void close() {
+    if (closed) return;
+    cancelCapture();
+    if (applyWork != null) applyWork.close();
+    closed = true;
   }
 
   void probeRevealSave() {
@@ -337,7 +391,7 @@ public final class InputSettingsPanel {
 
   void probeRevert() {
     ensure();
-    capture.cancel();
+    cancelCapture();
     session.revert(user.input.shortcuts);
     sync();
   }
@@ -387,11 +441,20 @@ public final class InputSettingsPanel {
             });
   }
 
-  private void apply(Path path) {
+  private void apply() {
     try {
-      session.apply(user, path, displayed());
-      sync();
-      message = "Bindings saved and activated";
+      if (applyWork == null) {
+        session.apply(user, file, displayed());
+        sync();
+        message = "Bindings saved and activated";
+      } else {
+        var owner = session;
+        long version = owner.version(), epoch = capture.epoch();
+        var request = owner.request(user, displayed());
+        applyWork.start(request, () -> session == owner && capture.epoch() == epoch
+            && !capture.suppressed() && owner.ownsInput(user, version, displayed()));
+        message = "";
+      }
     } catch (Exception e) {
       message = "! " + detail(e);
     }

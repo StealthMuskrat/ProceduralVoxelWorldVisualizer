@@ -310,6 +310,21 @@ final class HelpDefinitions {
                   + " Save Preferences persists active preferences only and never applies"
                   + " private scale, theme or resource input."),
           new Guide(
+              "help.preference-apply",
+              "Theme save and keyboard binding Apply",
+              "Save Theme and Apply Bindings prepare their files in the background. Cancel Apply or"
+                  + " Escape keeps private input; failed writes need explicit retry. Newer active"
+                  + " preferences cancel older work: review and retry, or Revert if that form's"
+                  + " active values changed. Editing any RGBA text, even to an equal number,"
+                  + " retires a pending theme save. Another appearance taking control pauses the"
+                  + " private preview; Resume Preview is explicit. Closing Themes restores active"
+                  + " colors and retires unsaved work; after a successful save it keeps saved colors."
+                  + " Starting Record retires an older binding Apply. Captured and cancelled keys"
+                  + " remain suppressed for that frame. Hiding Input cancels pending Apply and"
+                  + " recording while retaining its private binding draft. Revert reloads active"
+                  + " values. Ordinary Save Preferences saves only active data; project values and"
+                  + " private Properties stay separate."),
+          new Guide(
               "help.voxel-identities",
               "Voxel identities and rename impact",
               "Voxel Manager offers Voxel Types, Voxel Sets and Groups. Select a type to review"
@@ -596,9 +611,10 @@ final class HelpDefinitions {
               "profiler", List.of("diagnostics", "help.visualization", "help.runtime-limits")),
           Map.entry(
               "help.runtime-limits", List.of("profiler", "help.appearance", "help.long-inputs")),
-          Map.entry("shortcuts", List.of("navigation", "help.manual")),
+          Map.entry("shortcuts", List.of("navigation", "help.manual", "help.preference-apply")),
           Map.entry("creation-defaults", List.of("noise", "processing", "help.appearance")),
-          Map.entry("themes", List.of("help.appearance", "creation-defaults")),
+          Map.entry("themes", List.of("help.appearance", "creation-defaults", "help.preference-apply")),
+          Map.entry("help.preference-apply", List.of("themes", "shortcuts", "help.appearance")),
           Map.entry("noise.algorithm", List.of("noise", "creation-defaults")),
           Map.entry("noise.seedOffset", List.of("noise", "help.project-settings")),
           Map.entry(

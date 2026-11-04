@@ -3,13 +3,18 @@ package io.voxelcreator.editor;
 import imgui.*;
 import imgui.flag.*;
 import imgui.type.*;
+import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /** Live theme preview with an independently readable inspector and explicit persistence. */
 public final class ThemePanel {
   final FloatingWindowLayout windowLayout = new FloatingWindowLayout(980, 710);
   private final UserConfig user;
+  private final Path file;
+  private final PreferenceApplySession applyWork;
+  private boolean disposed, saveRequested;
   final PreferenceActionScope actionScope = new PreferenceActionScope();
   final SettingsPageChrome layout = new SettingsPageChrome(5);
   private ThemeLayout.Panes panes;
@@ -48,11 +53,25 @@ public final class ThemePanel {
   }
 
   public ThemePanel(UserConfig user, Consumer<String> errors) {
+    this(user, UserConfig.directory().resolve("user-config.json"), errors, null, null);
+  }
+
+  static ThemePanel background(EditorState state, Consumer<String> errors) {
+    return new ThemePanel(state.user, UserConfig.directory().resolve("user-config.json"),
+        errors, state.background, state.uiQueue::offer);
+  }
+
+  ThemePanel(UserConfig user, Path file, Consumer<String> errors,
+      Executor executor, Consumer<Runnable> ui) {
     this.user = Objects.requireNonNull(user);
+    this.file = Objects.requireNonNull(file);
     this.errors = Objects.requireNonNull(errors);
+    applyWork = executor == null ? null
+        : new PreferenceApplySession(user, file, executor, ui, errors);
   }
 
   private void ensure() {
+    if (disposed) throw new IllegalStateException("Theme panel is disposed");
     if (session != null) return;
     session = new ThemeEditSession(user);
     actionScope.resetDraft();
@@ -75,6 +94,7 @@ public final class ThemePanel {
   }
 
   public void draw(ImBoolean open) {
+    if (disposed) return;
     if (probing) {
       controls.clear();
       channelIds.clear();
@@ -88,6 +108,8 @@ public final class ThemePanel {
     }
     ensure();
     preview.refresh();
+    if (applyWork != null) applyWork.refresh();
+    long work = applyWork == null ? 0 : applyWork.version();
     long request = actionScope.synchronize(ThemeActionValues.from(user, preview.paused()));
     // Push before Begin so even authored transparent/identical text remains recoverable.
     safe.forEach((key, c) -> ImGui.pushStyleColor(key, c.r(), c.g(), c.b(), c.a()));
@@ -126,10 +148,13 @@ public final class ThemePanel {
           revealPane = false;
         }
         layout.end();
-        actions(request);
+        actions(request, work);
         if (smoke && feedback.checks().stream().noneMatch(ThemeContrast.Check::attention))
           throw new AssertionError("Low-contrast draft was not detected");
-      } else actionScope.resetDraft();
+      } else {
+        cancelApply();
+        actionScope.resetDraft();
+      }
     } finally {
       ImGui.end();
       ImGui.popStyleColor(safe.size());
@@ -144,6 +169,18 @@ public final class ThemePanel {
             });
       }
       preview.refresh();
+      // Native preview installation and final publication must happen outside the safe overlay.
+      if (saveRequested) {
+        saveRequested = false;
+        act(this::startSave);
+      }
+      if (applyWork != null && applyWork.accept())
+        act(() -> {
+          session.revert(user);
+          actionScope.resetDraft();
+          message = "";
+          preview.refresh();
+        });
     } else close();
   }
 
@@ -195,16 +232,21 @@ public final class ThemePanel {
               ImGui.textWrapped("! " + name + ": correct " + letters + " or use starting color.");
             });
     if (!message.isEmpty()) ImGui.textWrapped(message);
+    if (applyWork != null && !applyWork.message().isEmpty())
+      ImGui.textWrapped(StatusBarText.bounded(applyWork.message(), 3072));
   }
 
-  private void actions(long request) {
+  private void actions(long request, long work) {
     applyEnabled = session.current(user) && !preview.paused() && !colorIssues.any();
     boolean resumeEnabled = preview.paused() && session.current(user);
     ImGui.pushID("theme-request:" + actionScope.nativeId() + ":" + request);
-    ImGui.beginDisabled(!applyEnabled);
-    boolean save = layout.identifiedAction("save", "Save Theme");
+    boolean running = applyWork != null && applyWork.running();
+    ImGui.pushID("private-preference-work:" + (applyWork == null ? 0 : applyWork.version()));
+    ImGui.beginDisabled(!applyEnabled && !running);
+    boolean save = layout.identifiedAction("save", running ? "Cancel Apply" : "Save Theme");
     control("save");
     ImGui.endDisabled();
+    ImGui.popID();
     boolean revert = layout.identifiedAction("revert", "Revert Theme");
     control("revert");
     boolean reset = layout.identifiedAction("reset", "Reset to Default");
@@ -221,11 +263,15 @@ public final class ThemePanel {
               ? "Show the palette and contrast panels"
               : showContrast ? "Show palette" : "Show contrast");
     ImGui.popID();
-    if (!actionScope.current(ThemeActionValues.from(user, preview.paused()))
-        || ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      cancelApply();
+      return;
+    }
+    if (!actionScope.current(ThemeActionValues.from(user, preview.paused()))) return;
     if (revert)
       act(
           () -> {
+            cancelApply();
             session.revert(user);
             actionScope.resetDraft();
             colorIssues.clearAll();
@@ -236,6 +282,7 @@ public final class ThemePanel {
             message = "Theme reverted";
           });
     else if (reset) {
+      cancelApply();
       session.edit(ThemePalette.starting("Dark"));
       actionScope.resetDraft();
       colorIssues.clearAll();
@@ -243,15 +290,12 @@ public final class ThemePanel {
       scalarInputs.clear();
       channelTexts.clear();
       message = "Default Dark staged for Save Theme";
-    } else if (save && applyEnabled)
-      act(
-          () -> {
-            session.apply(
-                user, UserConfig.directory().resolve("user-config.json"), feedback.palette());
-            actionScope.resetDraft();
-            message = "Theme saved";
-          });
-    else if (resume && resumeEnabled) {
+    } else if (save && (applyEnabled || running)
+        && (applyWork == null || work == applyWork.version())) {
+      if (running) cancelApply();
+      else saveRequested = true;
+    } else if (resume && resumeEnabled) {
+      cancelApply();
       resumeRequested = true;
       message = "Private preview resumed";
     } else if (view) {
@@ -389,6 +433,7 @@ public final class ThemePanel {
             if (ImGui.isItemHovered()) UiScale.tooltip(HelpDefinitions.THEME_CHANNEL_TOOLTIP);
             ImGui.endGroup();
           }
+          if (changed) cancelApply();
           if (changed && colorIssues.observe(row.key(), raw.candidate(), edited))
             act(
                 () -> {
@@ -487,6 +532,7 @@ public final class ThemePanel {
   }
 
   public void close() {
+    cancelApply();
     if (session == null) return;
     preview.close();
     actionScope.resetDraft();
@@ -500,6 +546,62 @@ public final class ThemePanel {
     channelDrafts.clear();
     scalarInputs.clear();
     channelTexts.clear();
+  }
+
+  private void cancelApply() {
+    saveRequested = false;
+    if (applyWork != null) applyWork.cancel();
+  }
+
+  private Map<String, ThemeChannelDraft.Input> rawInput() {
+    var input = new HashMap<String, ThemeChannelDraft.Input>();
+    channelDrafts.forEach((key, value) -> input.put(key, value.input()));
+    return Map.copyOf(input);
+  }
+
+  private boolean matchesRaw(Map<String, ThemeChannelDraft.Input> input) {
+    if (colorIssues.any() || !channelDrafts.keySet().containsAll(input.keySet())) return false;
+    for (var entry : channelDrafts.entrySet()) {
+      var raw = entry.getValue();
+      var before = input.get(entry.getKey());
+      if (before == null ? !raw.pristine() : !before.equals(raw.input())) return false;
+      var buffers = channelTexts.get(entry.getKey());
+      if (buffers == null || buffers.length != 4) return false;
+      for (int axis = 0; axis < 4; axis++)
+        if (!buffers[axis].get().equals(raw.text(axis))) return false;
+    }
+    return true;
+  }
+
+  private void startSave() {
+    if (applyWork == null) {
+      session.apply(user, file, feedback.palette());
+      actionScope.resetDraft();
+      message = "Theme saved";
+      return;
+    }
+    var owner = session;
+    var previewOwner = preview;
+    long version = owner.version();
+    Object style = ThemeStyle.owner();
+    var palette = feedback.palette();
+    var raw = rawInput();
+    var request = owner.request(user, palette);
+    applyWork.start(request, () -> session == owner && preview == previewOwner
+        && !previewOwner.paused() && ThemeStyle.owner() == style
+        && owner.ownsInput(user, version, feedback.palette()) && matchesRaw(raw));
+    message = "";
+  }
+
+  PreferenceApplySession probeApplyWork() {
+    return applyWork;
+  }
+
+  void dispose() {
+    if (disposed) return;
+    close();
+    if (applyWork != null) applyWork.close();
+    disposed = true;
   }
 
   void smokeDraft() {

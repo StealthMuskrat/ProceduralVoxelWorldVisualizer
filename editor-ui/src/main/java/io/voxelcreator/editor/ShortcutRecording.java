@@ -13,6 +13,7 @@ final class ShortcutRecording {
   private ShortcutEditSession owner;
   private Map<String, String> active;
   private long version;
+  private long epoch;
   private boolean consumed;
 
   ShortcutRecording(UserConfig user) {
@@ -31,6 +32,7 @@ final class ShortcutRecording {
     version = session.version();
     active = new LinkedHashMap<>(user.input.shortcuts);
     capture.start(action);
+    epoch++;
     consumed = true;
     return true;
   }
@@ -48,10 +50,15 @@ final class ShortcutRecording {
   }
 
   void cancel() {
+    if (capture.active() || owner != null) epoch++;
     consumed |= capture.active();
     capture.cancel();
     owner = null;
     active = null;
+  }
+
+  long epoch() {
+    return epoch;
   }
 
   Optional<Captured> poll(

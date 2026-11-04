@@ -134,4 +134,28 @@ class ThemeChannelDraftTest {
     session.revert(user);
     assertEquals(ThemePalette.starting("Dark"), session.draft());
   }
+  @Test
+  void inputSnapshotsRetainExactTextAndRejectChangeThenRestoration() {
+    var draft = new ThemeChannelDraft(opening);
+    var before = draft.input();
+    assertTrue(draft.pristine());
+    assertThrows(UnsupportedOperationException.class, () -> before.text().set(0, "0"));
+    draft.edit(0, "+.100");
+    assertFalse(draft.pristine());
+    assertNotEquals(before, draft.input());
+    draft.edit(0, "0.1");
+    assertEquals(before.text(), draft.input().text());
+    assertNotEquals(before, draft.input());
+    assertFalse(draft.pristine());
+  }
+
+  @Test
+  void equalValueResetAndEqualReplacementRowDoNotReviveSnapshotOwnership() {
+    var draft = new ThemeChannelDraft(opening);
+    var before = draft.input();
+    draft.replace(opening);
+    assertNotEquals(before, draft.input());
+    assertNotEquals(before, new ThemeChannelDraft(opening).input());
+    assertFalse(draft.pristine());
+  }
 }

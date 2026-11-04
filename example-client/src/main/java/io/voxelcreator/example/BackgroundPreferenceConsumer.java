@@ -9,7 +9,11 @@ public final class BackgroundPreferenceConsumer {
   public static void main(String[] args) throws Exception {
     int samples = 0, cells = 0;
     for (String mode : new String[] {
-        "limits-apply", "limits-cancel", "limits-retry", "scales-apply", "scales-escape", "scales-edit", "trust-apply", "trust-revert", "trust-hidden"
+        "limits-apply", "limits-cancel", "limits-retry", "scales-apply", "scales-escape", "scales-edit", "trust-apply", "trust-revert", "trust-hidden",
+        "appearance-input/theme-apply", "appearance-input/theme-cancel", "appearance-input/theme-raw",
+        "appearance-input/theme-owner", "appearance-input/theme-reopen", "appearance-input/theme-retry",
+        "appearance-input/bindings-apply", "appearance-input/bindings-escape", "appearance-input/bindings-record",
+        "appearance-input/bindings-revert", "appearance-input/bindings-hidden", "appearance-input/bindings-retry"
     }) {
       var before = new ProjectLoader().load(Path.of(args[0]).resolve(mode).resolve("before.json"));
       var after = new ProjectLoader().load(Path.of(args[0]).resolve(mode).resolve("after.json"));
@@ -38,7 +42,7 @@ public final class BackgroundPreferenceConsumer {
         }
       }
     }
-    if (samples != 378 || cells != 2592) throw new AssertionError("Preference replay coverage changed");
-    System.out.println("BACKGROUND_PREFERENCE_ENGINE_ONLY_PASS 378 independent fields / 2592 EMPTY cells");
+    if (samples != 882 || cells != 6048) throw new AssertionError("Preference replay coverage changed");
+    System.out.println("BACKGROUND_PREFERENCE_ENGINE_ONLY_PASS 882 independent fields / 6048 EMPTY cells");
   }
 }

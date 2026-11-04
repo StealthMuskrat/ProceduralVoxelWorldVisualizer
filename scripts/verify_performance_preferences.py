@@ -71,3 +71,38 @@ for case in receipt['cases']:
     subprocess.run([sys.executable, str(root / 'scripts/verify_input_preferences.py'),
                     str(background / mode / 'user-config.json')], check=True)
 print('BACKGROUND_PREFERENCE_INDEPENDENT_PASS nine exact preference patches / eighteen unchanged projects')
+
+
+appearance_input = background / 'appearance-input'
+receipt = json.loads((appearance_input / 'appearance-input-background-native.json').read_text(encoding='utf-8'))
+assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
+modes = ['theme-apply', 'theme-cancel', 'theme-raw', 'theme-owner', 'theme-reopen', 'theme-retry',
+         'bindings-apply', 'bindings-escape', 'bindings-record', 'bindings-revert', 'bindings-hidden', 'bindings-retry']
+assert [case['mode'] for case in receipt['cases']] == modes
+for case in receipt['cases']:
+    mode = case['mode']
+    applied = mode.endswith('apply') or mode.endswith('retry')
+    assert case['applied'] is applied
+    assert case['queuedFrames'] == case['heldFrames'] == 12
+    for key in ('projectRetained', 'privateRetained', 'engineRetained', 'temporaryCleaned'):
+        assert case[key] is True, (mode, key)
+    folder = appearance_input / mode
+    base = json.loads((folder / 'user-before.json').read_text(encoding='utf-8'))
+    current = json.loads((folder / 'user-config.json').read_text(encoding='utf-8'))
+    if applied:
+        if mode.startswith('theme'):
+            # ImGui Text is the public palette key 0; fixed exact binary fractions are independent expectations.
+            base['appearance']['theme'] = 'Light'
+            base['appearance']['colors'] = {'0': [.125, .25, .5, 1]}
+            base['appearance']['statusColors'] = {'Warning': [.5, .25, .125, .75]}
+        else:
+            base['input']['shortcuts']['Profiler'] = 'Alt+F9'
+    assert current == base, mode
+    original = json.loads((folder / 'before.json').read_text(encoding='utf-8'))
+    after = json.loads((folder / 'after.json').read_text(encoding='utf-8'))
+    assert original == after and len(after['noise2D']) == 1
+    assert after['noise2D'][0]['algorithm']['parameters'] == {'value': .125}
+    assert not list(folder.glob('*.tmp')) and not list(folder.glob('.*.tmp'))
+    subprocess.run([sys.executable, str(root / 'scripts/verify_input_preferences.py'),
+                    str(folder / 'user-config.json')], check=True)
+print('BACKGROUND_APPEARANCE_INPUT_INDEPENDENT_PASS twelve exact preference patches / twenty-four unchanged projects')

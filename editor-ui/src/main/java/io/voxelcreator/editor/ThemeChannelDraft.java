@@ -1,5 +1,7 @@
 package io.voxelcreator.editor;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 /** Four bounded raw channels; a rejected edit never replaces the last valid preview color. */
@@ -7,6 +9,21 @@ final class ThemeChannelDraft {
   static final int MAX_TEXT = 128;
   private final String[] text = new String[4];
   private ThemePalette.Rgba expected;
+  private long version;
+
+  record Input(ThemeChannelDraft owner, long version, List<String> text) {}
+
+  Input input() {
+    return new Input(this, version, List.copyOf(Arrays.asList(text)));
+  }
+
+  boolean pristine() {
+    if (version != 1) return false;
+    var values = expected.array();
+    for (int axis = 0; axis < 4; axis++)
+      if (!text[axis].equals(Float.toString(values[axis]))) return false;
+    return true;
+  }
 
   ThemeChannelDraft(ThemePalette.Rgba color) {
     replace(color);
@@ -20,6 +37,7 @@ final class ThemeChannelDraft {
     expected = Objects.requireNonNull(color);
     var components = color.array();
     for (int axis = 0; axis < 4; axis++) text[axis] = Float.toString(components[axis]);
+    version++;
   }
 
   String text(int axis) {
@@ -32,7 +50,10 @@ final class ThemeChannelDraft {
     Objects.requireNonNull(raw);
     if (raw.length() > MAX_TEXT)
       throw new IllegalArgumentException("Theme channel input exceeds 128 characters");
-    text[axis] = raw;
+    if (!raw.equals(text[axis])) {
+      text[axis] = raw;
+      version++;
+    }
   }
 
   /** NaN is a local rejection marker consumed by ThemeColorIssues, never a palette value. */

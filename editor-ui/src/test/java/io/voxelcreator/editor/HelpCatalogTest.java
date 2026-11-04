@@ -7,6 +7,23 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void themeAndBindingHelpExplainsCancellationPreviewOwnershipAndRecording() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.preference-apply");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Cancel Apply or Escape"));
+    assertTrue(text.contains("Starting Record retires an older binding Apply"));
+    assertTrue(text.contains("Resume Preview is explicit"));
+    assertTrue(text.contains("after a successful save it keeps saved colors"));
+    assertTrue(catalog.search("keyboard background").contains(topic));
+    assertTrue(catalog.topic("shortcuts").related().contains(topic.id()));
+    assertTrue(catalog.topic("themes").related().contains(topic.id()));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void structuralNoiseHelpExplainsAutomaticActionsResolutionRetryAndPrivateStaging() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

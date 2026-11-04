@@ -267,7 +267,21 @@ public final class UserConfig {
   }
 
   private enum PreferenceKind {
-    PERFORMANCE, SCALES, TRUST
+    PERFORMANCE, SCALES, TRUST, THEME, SHORTCUTS
+  }
+
+  private record ShortcutValues(Map<String, String> values) {
+    ShortcutValues {
+      values = Collections.unmodifiableMap(new LinkedHashMap<>(Objects.requireNonNull(values)));
+    }
+  }
+
+  PreferenceRequest requestTheme(ThemePalette value) {
+    return new PreferenceRequest(PreferenceKind.THEME, Objects.requireNonNull(value));
+  }
+
+  PreferenceRequest requestShortcuts(Map<String, String> value) {
+    return new PreferenceRequest(PreferenceKind.SHORTCUTS, new ShortcutValues(value));
   }
 
   PreferenceRequest requestPerformance(PerformancePreferences.Values value) {
@@ -303,6 +317,9 @@ public final class UserConfig {
       switch (kind) {
         case PERFORMANCE -> ((PerformancePreferences.Values) value).writeTo(candidate);
         case SCALES -> ((UiScalePreferences.Values) value).writeTo(candidate.appearance);
+        case THEME -> ((ThemePalette) value).writeTo(candidate.appearance);
+        case SHORTCUTS ->
+            candidate.input.shortcuts = Shortcuts.canonical(((ShortcutValues) value).values());
         case TRUST -> {
           var trust = (UpdateTrust.Values) value;
           var checked = UpdateTrust.parse(trust.endpoint(), String.join("\n", trust.origins()));
@@ -350,6 +367,12 @@ public final class UserConfig {
           performance.updateEndpoint = next.performance.updateEndpoint;
           performance.trustedOrigins = next.performance.trustedOrigins;
         }
+        case THEME -> {
+          appearance.theme = next.appearance.theme;
+          appearance.colors = next.appearance.colors;
+          appearance.statusColors = next.appearance.statusColors;
+        }
+        case SHORTCUTS -> input.shortcuts = next.input.shortcuts;
       }
     }
   }
