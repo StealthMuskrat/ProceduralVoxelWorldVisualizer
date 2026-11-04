@@ -170,8 +170,12 @@ final class HelpDefinitions {
                   + " identities within the review. A failed rebuild offers Retry preview; Cancel"
                   + " or Escape discards pending work and late completions. Reload checks the"
                   + " current destination and may allocate new COPY identities. Review the"
-                  + " resulting choices in the separate import workspace, then choose Import to"
-                  + " commit one undoable transaction. Cancel discards those choices. Private"
+                  + " resulting choices in the separate import workspace, then choose Import."
+                  + " Final validation and Undo history prepare in the background; committed"
+                  + " resources stay active until publication. Cancel or Escape retires that"
+                  + " preparation and discards the review. Failure keeps the choices for explicit"
+                  + " Import retry. Changed document, diagnostics or private input rejects old"
+                  + " work. A successful Import commits one undoable transaction. Private"
                   + " Properties input stays separate, and saving the project remains explicit."),
           new Guide(
               "help.project-open",

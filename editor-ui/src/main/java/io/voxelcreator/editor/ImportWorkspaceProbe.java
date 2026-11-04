@@ -217,6 +217,7 @@ public final class ImportWorkspaceProbe {
       }
       ResourceImportLoadingProbe.run(out.resolve("background-import"));
       ResourceImportPlanningProbe.run(out.resolve("planning"));
+      BackgroundImportApplyProbe.run(out.resolve("apply"));
     } finally {
       ImGui.destroyContext();
     }

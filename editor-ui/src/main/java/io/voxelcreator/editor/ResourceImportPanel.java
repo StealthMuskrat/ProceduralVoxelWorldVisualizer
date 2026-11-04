@@ -134,7 +134,7 @@ final class ResourceImportPanel implements AutoCloseable {
   }
 
   void cancel() {
-    if (session != null && session.busy()) return;
+    if (session != null && !session.cancellable()) return;
     generation++;
     delivery.close();
     if (session != null) session.cancel();
@@ -195,6 +195,8 @@ final class ResourceImportPanel implements AutoCloseable {
           var preview = session.preview();
           String planning = session.planningMessage();
           if (!planning.isEmpty()) ImGui.textWrapped(bounded(planning, 3072));
+          String applying = session.applyMessage();
+          if (!applying.isEmpty()) ImGui.textWrapped(bounded(applying, 3072));
           var view =
               projection.view(preview, new ImportRows.Filter(filter.get(), kind, resolution));
           if (revealPage) {
@@ -258,7 +260,7 @@ final class ResourceImportPanel implements AutoCloseable {
             ImGui.textWrapped(
                 "Import appends or reuses committed resources in one undoable edit. Unapplied"
                     + " Properties input remains private. Cancel discards these import choices.");
-            if (!session.current() && !session.planning()) {
+            if (!session.current() && !session.planning() && !session.busy()) {
               ImGui.textWrapped(
                   "The destination changed. Reload to retain choices and review a fresh"
                       + " transaction. COPY identities may change on reload.");
@@ -284,7 +286,7 @@ final class ResourceImportPanel implements AutoCloseable {
                       + " diagnostics are also available in Validation and Logs.");
           }
           if (!section.equals("Issues")) {
-            if (!session.current() && !session.planning())
+            if (!session.current() && !session.planning() && !session.busy())
               ImGui.textWrapped("! Destination changed. Reload and review before importing.");
             if (unavailable)
               ImGui.textWrapped("! Another private editor or project action blocks Import.");
@@ -338,7 +340,7 @@ final class ResourceImportPanel implements AutoCloseable {
   }
 
   void dispatch(Decision decision, Command command, int frame) {
-    if (!owns(decision) || session.busy() || !delivery.consume(decision.ticket(), frame)) return;
+    if (!owns(decision) || !delivery.consume(decision.ticket(), frame)) return;
     if (command == Command.CANCEL) {
       cancel();
       return;
@@ -365,6 +367,7 @@ final class ResourceImportPanel implements AutoCloseable {
       }
       return;
     }
+    if (session.busy()) return;
     try {
       boolean unavailable = blocked.getAsBoolean();
       if (!owns(decision)) return;
@@ -386,6 +389,8 @@ final class ResourceImportPanel implements AutoCloseable {
         if (result == ImportEditSession.Result.APPLIED) {
           cancel();
           state.notify("Information", "Previewed resource import committed");
+        } else if (result == ImportEditSession.Result.STARTED) {
+          message = "";
         } else if (owns(decision)) {
           message =
               result == ImportEditSession.Result.STALE

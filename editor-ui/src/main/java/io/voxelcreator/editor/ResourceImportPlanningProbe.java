@@ -110,6 +110,10 @@ final class ResourceImportPlanningProbe {
           frames(4);
           require(session.canApply(), "Displayed replacement did not permit Import");
           click(panel.control("apply"));
+          require(session.busy() && panel.pending(), "Import preparation was not pending");
+          finish(state, tasks);
+          ui.remove().run();
+          frames(2);
           require(
               !panel.pending() && state.project().noise2D.size() == 3,
               "Fresh review did not commit");

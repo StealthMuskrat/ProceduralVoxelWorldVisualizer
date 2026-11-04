@@ -71,6 +71,7 @@ public final class ImportWorkspaceConsumer {
     if (samples != 405 || cells != 144) throw new AssertionError("Observation count");
     BackgroundImportConsumer.run(out.resolve("background-import"));
     ImportPlanningConsumer.run(out.resolve("planning"));
+    ImportApplyConsumer.run(out.resolve("apply"));
     System.out.println(
         "IMPORT_WORKSPACE_ENGINE_ONLY_PASS 405 exact scalar values / 144 EMPTY cells / existing"
             + " definitions / preview UUIDs");

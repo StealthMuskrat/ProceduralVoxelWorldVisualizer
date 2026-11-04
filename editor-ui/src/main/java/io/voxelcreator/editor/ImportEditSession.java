@@ -11,11 +11,22 @@ import java.util.function.*;
 final class ImportEditSession {
   enum Result {
     APPLIED,
+    STARTED,
     REJECTED,
     STALE,
     NOT_REVIEWED,
     BUSY,
     CLOSED
+  }
+
+  enum ApplyPhase {
+    IDLE,
+    RUNNING,
+    APPLIED,
+    REJECTED,
+    FAILED,
+    STALE,
+    CANCELLED
   }
 
   /** Privately owned initial plan; worker construction never touches the live editor. */
@@ -60,6 +71,14 @@ final class ImportEditSession {
   private String planningMessage = "";
   private List<Diagnostic> applyIssues = List.of();
   private int issueCount;
+  private Object applyToken = new Object();
+  private FutureTask<Void> applyTask;
+  private ProjectFileOwner applyOwner;
+  private ResourceImport.Plan applyPlan;
+  private List<Diagnostic> diagnosticOwner, diagnosticValues;
+  private String diagnosticScope, selectionKind;
+  private ApplyPhase applyPhase = ApplyPhase.IDLE;
+  private String applyMessage = "";
 
   ImportEditSession(EditorState state, ProjectData incoming) {
     this(state, incoming, null, null, () -> false);
@@ -118,6 +137,8 @@ final class ImportEditSession {
     planReady = true;
     shown = null;
     planningMessage = "";
+    applyMessage = "";
+    applyPhase = ApplyPhase.IDLE;
     clearIssues();
   }
 
@@ -144,10 +165,12 @@ final class ImportEditSession {
   }
 
   boolean busy() {
+    refreshApply();
     return applying;
   }
 
   boolean closed() {
+    refreshApply();
     return closed;
   }
 
@@ -218,6 +241,8 @@ final class ImportEditSession {
     planReady = false;
     shown = null;
     clearIssues();
+    applyMessage = "";
+    applyPhase = ApplyPhase.IDLE;
     reloadRequested = reload;
     Object ticket = request;
     try {
@@ -283,6 +308,7 @@ final class ImportEditSession {
   }
 
   private void refresh() {
+    refreshApply();
     if (planningTask == null || closed) return;
     try {
       if (!planningOwner.current(state)) {
@@ -359,6 +385,7 @@ final class ImportEditSession {
     }
     if (shown != visible) return Result.NOT_REVIEWED;
     if (!shown.valid()) return Result.REJECTED;
+    if (executor != null) return startApply();
     // Import only appends/reuses resources. Preserve the exact separate Properties draft/selection.
     applying = true;
     try {
@@ -376,8 +403,198 @@ final class ImportEditSession {
     }
   }
 
+  ApplyPhase applyPhase() {
+    refreshApply();
+    return applyPhase;
+  }
+
+  String applyMessage() {
+    refreshApply();
+    return applyMessage;
+  }
+
+  boolean cancellable() {
+    return !applying || executor != null;
+  }
+
+  private Result startApply() {
+    retireApply();
+    Object ticket = applyToken;
+    try {
+      var preparation = state.document.requestEdit(model::applyTo);
+      applyOwner = new ProjectFileOwner(state);
+      applyPlan = shown;
+      diagnosticOwner = state.issues;
+      diagnosticValues = List.copyOf(state.issues);
+      diagnosticScope = state.validationScope;
+      selectionKind = state.selectedKind;
+      applying = true;
+      applyPhase = ApplyPhase.RUNNING;
+      clearIssues();
+      boolean unavailable = blocked.getAsBoolean();
+      if (!ownsApply(ticket)) return Result.CLOSED;
+      if (unavailable || !applyCurrent(true)) {
+        staleApply();
+        return Result.STALE;
+      }
+      applyMessage =
+          "Preparing Import validation and Undo history in the background. Cancel or Escape keeps"
+              + " the project unchanged.";
+      applyTask =
+          new FutureTask<>(
+              () -> {
+                DocumentSession.PreparedEdit prepared = null;
+                Throwable failure = null;
+                try {
+                  prepared = preparation.prepare();
+                } catch (Throwable rejected) {
+                  failure = rejected;
+                }
+                var value = prepared;
+                var rejected = failure;
+                ui.accept(() -> publishApply(ticket, value, rejected));
+                return null;
+              });
+      executor.execute(applyTask);
+      return Result.STARTED;
+    } catch (Throwable failure) {
+      failApply(ticket, failure);
+      return Result.REJECTED;
+    }
+  }
+
+  private boolean ownsApply(Object ticket) {
+    return ticket == applyToken && applying && !closed;
+  }
+
+  private boolean applyCurrent(boolean values) {
+    return applyOwner != null
+        && (values ? applyOwner.valuesCurrent(state) : applyOwner.current(state))
+        && applyPlan == visible
+        && shown == applyPlan
+        && diagnosticOwner == state.issues
+        && Objects.equals(diagnosticScope, state.validationScope)
+        && (!values || diagnosticValues.equals(state.issues))
+        && Objects.equals(selectionKind, state.selectedKind);
+  }
+
+  private void publishApply(
+      Object ticket, DocumentSession.PreparedEdit prepared, Throwable failure) {
+    if (!ownsApply(ticket)) return;
+    try {
+      if (!applyCurrent(true)) {
+        staleApply();
+        return;
+      }
+      if (failure != null) {
+        failApply(ticket, failure);
+        return;
+      }
+      boolean unavailable = blocked.getAsBoolean();
+      if (!ownsApply(ticket)) return;
+      if (unavailable || !applyCurrent(true) || !state.document.currentEdit(prepared)) {
+        staleApply();
+        return;
+      }
+      Objects.requireNonNull(prepared);
+      if (!prepared.success()) {
+        var diagnostics = prepared.diagnostics();
+        var rejected = ProjectChangeResult.rejected(diagnostics);
+        retireApply();
+        applyPhase = ApplyPhase.REJECTED;
+        applyMessage =
+            "Import was rejected. Review validation, then choose Import again to retry or Cancel.";
+        issueCount = rejected.issueCount();
+        applyIssues = rejected.issues();
+        state.rejectResourceImport(diagnostics);
+        return;
+      }
+      try {
+        state.document.applyEdit(prepared);
+      } catch (IllegalStateException changed) {
+        staleApply();
+        return;
+      }
+      retireApply();
+      applyPhase = ApplyPhase.APPLIED;
+      closed = true;
+      shown = null;
+      applyMessage =
+          "Resources imported. Private Properties input is unchanged; saving remains explicit.";
+      state.finishResourceImport();
+    } catch (Throwable rejected) {
+      if (applyPhase == ApplyPhase.APPLIED) {
+        applyMessage =
+            "Import committed; notification failed: " + BackgroundFailure.describe(rejected);
+        reportApply("IMPORT_APPLY_REFRESH_FAILED", applyMessage);
+      } else failApply(ticket, rejected);
+    }
+  }
+
+  private void refreshApply() {
+    if (!applying || executor == null || closed) return;
+    try {
+      if (!applyCurrent(false)) {
+        staleApply();
+        return;
+      }
+      var completion = BackgroundFailure.completed(applyTask);
+      if (completion != null && completion.failure() != null)
+        failApply(applyToken, completion.failure());
+    } catch (Throwable failure) {
+      failApply(applyToken, failure);
+    }
+  }
+
+  private void staleApply() {
+    retireApply();
+    shown = null;
+    if (!model.current(state.project())) forcedStale = true;
+    applyPhase = ApplyPhase.STALE;
+    applyMessage =
+        "Import preparation became stale. Review the current inputs and choose Import again; Reload"
+            + " if the destination changed.";
+  }
+
+  private void failApply(Object ticket, Throwable failure) {
+    if (ticket != applyToken || closed) return;
+    retireApply();
+    applyPhase = ApplyPhase.FAILED;
+    applyMessage =
+        "Import preparation failed: "
+            + BackgroundFailure.describe(failure)
+            + ". Choose Import again to retry, or Cancel.";
+    reportApply("IMPORT_APPLY_FAILED", applyMessage);
+  }
+
+  private void reportApply(String code, String message) {
+    try {
+      state.error(code, EditorEvents.Subsystem.IMPORT_EXPORT, message);
+    } catch (Throwable ignored) {
+      /* Retain explicit correction, retry and cancellation. */
+    }
+  }
+
+  private void retireApply() {
+    var previous = applyTask;
+    applyToken = new Object();
+    applyTask = null;
+    applyOwner = null;
+    applyPlan = null;
+    diagnosticOwner = diagnosticValues = null;
+    diagnosticScope = selectionKind = null;
+    applying = false;
+    if (previous != null) {
+      previous.cancel(true);
+      if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
+    }
+  }
+
   void cancel() {
-    if (applying) return;
+    if (closed || !cancellable()) return;
+    retireApply();
+    applyPhase = ApplyPhase.CANCELLED;
+    applyMessage = "Import cancelled. The project is unchanged.";
     retirePlanning();
     closed = true;
     shown = null;

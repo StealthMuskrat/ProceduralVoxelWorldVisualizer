@@ -16,6 +16,7 @@ Start with [Build and run](BUILD_AND_RUN.md) for the pinned Java toolchain, Wind
 - [Background resource export](BACKGROUND_RESOURCE_EXPORT.md) describes cancellable reviewed staging and atomic publication.
 - [Background export planning](BACKGROUND_EXPORT_PLANNING.md) describes cancellable catalog/closure preparation and fresh Included review.
 - [Background resource import](BACKGROUND_RESOURCE_IMPORT.md) describes cancellable package preparation and guarded review installation.
+- [Background final Import](BACKGROUND_IMPORT_APPLY.md) describes cancellable candidate validation/Undo preparation, exact reviewed-plan ownership and separate private input.
 - [Background import planning](BACKGROUND_IMPORT_PLANNING.md) describes cancellable choice/reload rebuilds and explicit fresh review.
 - [Project Save ownership](PROJECT_SAVE_OWNERSHIP.md) describes snapshot validation and checkpoint receipt publication.
 - [Document transaction ownership](DOCUMENT_TRANSACTION_OWNERSHIP.md) describes stale callback/history publication checks.

@@ -1,0 +1,144 @@
+package io.voxelcreator.example;
+
+import com.fasterxml.jackson.databind.node.*;
+import io.voxelcreator.api.*;
+import io.voxelcreator.model.*;
+import io.voxelcreator.storage.BlockPos;
+import java.nio.file.*;
+import java.util.*;
+
+/** Deferred independent saved-state replay of background final Import/retry/cancellation. */
+final class ImportApplyConsumer {
+  static void run(Path out) throws Exception {
+    var receipt = ProjectIO.JSON.readTree(out.resolve("import-apply-native.json").toFile());
+    require(
+        receipt.path("formatVersion").asInt() == 1 && receipt.path("cases").size() == 7,
+        "Import Apply receipt format");
+    var observed = new LinkedHashSet<String>();
+    for (var entry : receipt.path("cases")) {
+      String mode = entry.path("mode").asText();
+      require(observed.add(mode), "Duplicate Import Apply case");
+      require(
+          entry.path("queuedFrames").asInt() >= 12 && entry.path("heldFrames").asInt() >= 12,
+          "Import Apply held frames");
+      require(
+          entry.path("imported").asBoolean()
+              == List.of("success", "retry", "rejected").contains(mode),
+          "Import Apply outcome");
+      for (String key :
+          List.of(
+              "privateRetained",
+              "preferencesRetained",
+              "copyIdentityRetained",
+              "originalBytesRetained"))
+        require(entry.path(key).asBoolean(), "Import Apply retention receipt");
+    }
+    require(
+        observed.equals(
+            Set.of("success", "cancel", "escape", "retry", "rejected", "stale", "close")),
+        "Missing Import Apply cases");
+    int samples = 0, cells = 0;
+    for (String mode :
+        List.of("success", "cancel", "escape", "retry", "rejected", "stale", "close")) {
+      var directory = out.resolve(mode);
+      var beforeFile = directory.resolve("before.json");
+      var afterFile = directory.resolve("after.json");
+      byte[] beforeBytes = Files.readAllBytes(beforeFile),
+          afterBytes = Files.readAllBytes(afterFile);
+      var before = new ProjectLoader().load(beforeFile);
+      var after = new ProjectLoader().load(afterFile);
+      var incoming = new ProjectLoader().load(directory.resolve("incoming.json"));
+      require(
+          before.success() && after.success() && incoming.success(),
+          "Import Apply snapshots rejected");
+      boolean imported = List.of("success", "retry", "rejected").contains(mode);
+      require(
+          before.project().noise2D.size() == 2
+              && after.project().noise2D.size() == (imported ? 3 : 2),
+          "Import Apply resource counts");
+      var expected = ProjectIO.JSON.valueToTree(before.project());
+      var actual = ProjectIO.JSON.valueToTree(after.project());
+      require(before.project().project.seed == 17, "Import Apply source seed");
+      if (imported) {
+        var added = after.project().noise2D.getLast();
+        require(
+            added.id.equals("added")
+                && !added.uuid.equals(incoming.project().noise2D.getFirst().uuid),
+            "COPY identity");
+        var authored = ProjectIO.JSON.valueToTree(incoming.project().noise2D.getFirst());
+        ((ObjectNode) authored).put("uuid", added.uuid.toString());
+        require(authored.equals(ProjectIO.JSON.valueToTree(added)), "Copied resource values");
+        require(
+            after
+                .project()
+                .project
+                .rootOrder
+                .equals(
+                    Map.of(
+                        "noise2D",
+                        List.of(
+                            before.project().noise2D.get(0).uuid,
+                            before.project().noise2D.get(1).uuid,
+                            added.uuid))),
+            "Exact appended order");
+        ((ArrayNode) actual.get("noise2D")).remove(2);
+        ((ObjectNode) actual.get("project")).remove("rootOrder");
+        ((ObjectNode) expected.get("project")).remove("rootOrder");
+      }
+      require(
+          expected.equals(actual),
+          "Preview work changed unrelated committed values or REUSE definition");
+      try (var engine = new NoiseGeneratorEngine(2, 16, 16L << 20)) {
+        for (var p : List.of(before.project(), after.project())) {
+          var values = ProjectIO.JSON.valueToTree(p);
+          var compiled = new CompiledProject(p);
+          for (var noise : p.noise2D) {
+            double value =
+                switch (noise.id) {
+                  case "existing" -> .125;
+                  case "shared" -> .25;
+                  case "added" -> .75;
+                  default -> Double.NaN;
+                };
+            var sampler = compiled.noise2D(noise.uuid, compiled.defaultSeed());
+            for (int z = -1; z <= 1; z++)
+              for (int x = -3; x <= 3; x++) {
+                require(
+                    Double.doubleToRawLongBits(value)
+                        == Double.doubleToRawLongBits(sampler.sample(x, z)),
+                    "Import Apply scalar expectation");
+                samples++;
+              }
+          }
+          for (int root : new int[] {2, 4})
+            try (var world =
+                engine.openWorld(
+                    compiled, new WorldOptions(null, root, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+              for (int z = -1; z <= 1; z++)
+                for (int y = -3; y <= 3; y++)
+                  for (int x = -3; x <= 3; x++) {
+                    require(
+                        world.getVoxelTypeId(new BlockPos(x, y, z)) == 0,
+                        "Import import apply introduced World output");
+                    cells++;
+                  }
+            }
+          require(values.equals(ProjectIO.JSON.valueToTree(p)), "Replay mutated authoring values");
+        }
+      }
+      require(
+          Arrays.equals(beforeBytes, Files.readAllBytes(beforeFile))
+              && Arrays.equals(afterBytes, Files.readAllBytes(afterFile)),
+          "Replay changed saved bytes");
+    }
+    require(samples == 651 && cells == 4116, "Import Apply replay dimensions");
+    Files.writeString(
+        out.resolve("engine-replay.json"),
+        ProjectIO.JSON.writeValueAsString(
+            Map.of("formatVersion", 1, "fields", samples, "cells", cells, "roots", List.of(2, 4))));
+  }
+
+  private static void require(boolean condition, String message) {
+    if (!condition) throw new AssertionError(message);
+  }
+}

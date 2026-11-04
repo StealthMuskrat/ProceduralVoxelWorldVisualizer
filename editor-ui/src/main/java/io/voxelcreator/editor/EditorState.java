@@ -214,6 +214,22 @@ public final class EditorState implements AutoCloseable {
     return document.requestEdit(p -> replace(p, id, owned), NoiseCompiler::validate, edit);
   }
 
+  /** Import appends/reuses committed resources; separate private Properties input stays owned. */
+  void finishResourceImport() {
+    revision++;
+    issues = List.of();
+    validationScope = "Committed project";
+    status = "Resources imported";
+    notify("Information", "Previewed resource import committed");
+  }
+
+  void rejectResourceImport(List<Diagnostic> diagnostics) {
+    issues = List.copyOf(diagnostics);
+    validationScope = "Rejected import";
+    for (var diagnostic : issues)
+      reportDiagnostic(diagnostic, EditorEvents.Subsystem.IMPORT_EXPORT, true);
+  }
+
   void finishDraftApply() {
     revision++;
     issues = List.of();

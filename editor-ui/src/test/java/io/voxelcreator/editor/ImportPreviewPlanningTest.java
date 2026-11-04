@@ -106,7 +106,11 @@ class ImportPreviewPlanningTest {
       s.markShown(next);
       assertTrue(s.canApply());
       assertTrue(owner.valuesCurrent(state));
-      assertEquals(ImportEditSession.Result.APPLIED, s.apply());
+      assertEquals(ImportEditSession.Result.STARTED, s.apply());
+      var importCompletion = ui.poll(10, TimeUnit.SECONDS);
+      assertNotNull(importCompletion);
+      importCompletion.run();
+      assertTrue(s.closed());
       assertEquals(3, state.project().noise2D.size());
       assertEquals("private", ((Noise) state.draft).id);
       assertEquals("-", state.seedInputs.text("seedOffset"));
@@ -351,7 +355,9 @@ class ImportPreviewPlanningTest {
       assertTrue(s.preview().valid());
       assertEquals(allocation, s.preview().rows().get(1).targetUuid());
       s.markShown(s.preview());
-      assertEquals(ImportEditSession.Result.APPLIED, s.apply());
+      assertEquals(ImportEditSession.Result.STARTED, s.apply());
+      deliver(worker, ui);
+      assertTrue(s.closed());
       assertEquals(.5, state.project().noise2D.get(1).algorithm.parameters.get("value"));
     }
   }

@@ -7,6 +7,21 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void importHelpExplainsFinalBackgroundPreparationAndExplicitImportRetry() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.resource-import");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Final validation and Undo history prepare in the background"));
+    assertTrue(text.contains("Cancel or Escape"));
+    assertTrue(text.contains("Import retry"));
+    assertTrue(text.contains("Properties input stays separate"));
+    assertTrue(catalog.search("import validation background").contains(topic));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void expressionHelpExplainsBackgroundFeedbackAndIndependentPrivateStaging() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
