@@ -162,6 +162,7 @@ public final class NavigationEligibilityProbe {
                 + " self-pending eligibility / raw input preservation / healthy Apply-Discard / one"
                 + " Undo");
       }
+      BackgroundNavigationProbe.run(out.resolve("background-apply"));
     } finally {
       ImGui.destroyContext();
     }

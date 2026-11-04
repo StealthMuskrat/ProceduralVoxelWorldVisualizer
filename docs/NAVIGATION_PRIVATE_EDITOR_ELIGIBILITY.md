@@ -29,3 +29,5 @@ python scripts/verify_navigation_eligibility.py build/navigation-eligibility
 ```
 
 Future Windows wiring uses the bundled runtime, semicolon classpaths and exit-code guards. Artifact lists include the new receipts. Workflow triggers remain unchanged; development-branch pushes launch no workflows. No compiler, build, test, native probe, Python checker, schema/generator or GitHub workflow ran for this batch. Physical input/DPI, every private-editor/reveal path, full GUI/Windows 11 acceptance and production sign-off remain pending.
+
+The later unvalidated [background navigation Apply follow-up](BACKGROUND_NAVIGATION_APPLY.md) shares the worker prepared-edit path across Desktop Find, Properties references and source links. It repeats the same current private-editor/Find/source gates before completion and preserves the post-Apply destination fence. Legacy constructors remain synchronous. New cancellation/failure/native/independent definitions remain deferred under the main/manual-only testing pause.

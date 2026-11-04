@@ -7,7 +7,7 @@ import java.util.*;
 import java.util.function.LongSupplier;
 
 /** Advanced Find keeps committed query state separate from simple selectors and property drafts. */
-public final class ResourceFindPanel {
+public final class ResourceFindPanel implements AutoCloseable {
   final FloatingWindowLayout windowLayout = new FloatingWindowLayout(940, 680);
   private final EditorState state;
   final DialogLayout layout;
@@ -55,12 +55,33 @@ public final class ResourceFindPanel {
   }
 
   ResourceFindPanel(EditorState state, PropertyPanel properties, LongSupplier clock) {
+    this(state, properties, clock, null, null);
+  }
+
+  static ResourceFindPanel background(EditorState state, PropertyPanel properties) {
+    return new ResourceFindPanel(
+        state, properties, System::nanoTime, state.background, state.uiQueue::offer);
+  }
+
+  ResourceFindPanel(
+      EditorState state,
+      PropertyPanel properties,
+      LongSupplier clock,
+      java.util.concurrent.Executor executor,
+      java.util.function.Consumer<Runnable> ui) {
     this.clock = Objects.requireNonNull(clock);
     this.state = state;
     guardDialog = new NavigationGuardDialog(state, "Find");
     layout = guardDialog.layout;
     this.properties = properties;
-    navigation = new SearchNavigation(state);
+    navigation =
+        executor == null
+            ? new SearchNavigation(state)
+            : new SearchNavigation(
+                state,
+                executor,
+                ui,
+                value -> completedNavigation(value.target(), value.result(), value.applied()));
     directories = new ResourcePicker(state);
   }
 
@@ -364,13 +385,7 @@ public final class ResourceFindPanel {
                 applied[0] = true;
                 return !properties.searchBlocked();
               });
-      retireNavigation();
-      if (result == SearchNavigation.Result.NAVIGATED) reveal(target, applied[0]);
-      else if (result == SearchNavigation.Result.UNAVAILABLE)
-        message =
-            (applied[0] ? "Draft applied. " : "")
-                + "Navigation became stale or a property editor is open; finish that editor and"
-                + " select the result again.";
+      completedNavigation(target, result, applied[0]);
       return result;
     } catch (RuntimeException failure) {
       if (navigation.pending() && navigation.version() == owner) navigation.clear();
@@ -378,6 +393,24 @@ public final class ResourceFindPanel {
       reportNavigationFailure("FIND_NAVIGATION_FAILED", failure, applied[0]);
       return SearchNavigation.Result.UNAVAILABLE;
     }
+  }
+
+  private void completedNavigation(
+      EditorEvents.Target target, SearchNavigation.Result result, boolean applied) {
+    retireNavigation();
+    if (result == SearchNavigation.Result.NAVIGATED) reveal(target, applied);
+    else if (result == SearchNavigation.Result.UNAVAILABLE)
+      message =
+          (applied ? "Draft applied. " : "")
+              + "Navigation became stale or a property editor is open; finish that editor and"
+              + " select the result again.";
+  }
+
+  @Override
+  public void close() {
+    navigation.close();
+    actions.release();
+    session.clear();
   }
 
   private void retireNavigation() {
@@ -410,6 +443,7 @@ public final class ResourceFindPanel {
         "Leave Property Draft",
         "The current resource has unapplied edits. Apply them, discard them for this navigation, or"
             + " cancel.",
+        navigation,
         this::decideNavigation);
     if (!guardDialog.buttons().isEmpty()) guardDrawn = true;
   }

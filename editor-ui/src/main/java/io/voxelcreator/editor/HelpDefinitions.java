@@ -166,12 +166,18 @@ final class HelpDefinitions {
                   + " Results and Filters are separate pages. Go To Selected retains the selected"
                   + " committed hit even outside filters. When source navigation would replace"
                   + " private Properties edits, Apply / Discard / Cancel retains ownership of that"
-                  + " exact request. Accepted navigation also reveals the owning resource: it"
-                  + " opens its folder/layer ancestors, clears an obstructing browser filter and"
-                  + " scrolls to the row. Voxel types, sets and groups open in the corresponding"
-                  + " Voxel Manager tab. Later filtering, collapsing or closing takes precedence"
-                  + " over a pending reveal. Find References limits results to references to the"
-                  + " selected UUID."),
+                  + " exact request. Source links, Find and reference navigation prepare Apply"
+                  + " validation and Undo history in the background. Cancel or Escape keeps the"
+                  + " private draft and stays at the source. Failed preparation requires explicit"
+                  + " retry; changed input, document or source ownership rejects old work. A"
+                  + " successful Apply rechecks its destination: if the source link changed, the"
+                  + " edit remains committed without following that old link. Navigation does not"
+                  + " save the project or preferences. Accepted navigation also reveals the owning"
+                  + " resource: it opens its folder/layer ancestors, clears an obstructing browser"
+                  + " filter and scrolls to the row. Voxel types, sets and groups open in the"
+                  + " corresponding Voxel Manager tab. Later filtering, collapsing or closing takes"
+                  + " precedence over a pending reveal. Find References limits results to"
+                  + " references to the selected UUID."),
           new Guide(
               "help.pins",
               "Pinned controls and live sources",

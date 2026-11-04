@@ -3,10 +3,11 @@ package io.voxelcreator.editor;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.voxelcreator.model.*;
 import java.util.*;
-import java.util.function.BooleanSupplier;
+import java.util.concurrent.*;
+import java.util.function.*;
 
 /** Search-specific draft protection. A target always resolves UUIDs in the current project. */
-public final class SearchNavigation {
+public final class SearchNavigation implements AutoCloseable {
   public enum Result {
     NAVIGATED,
     NEEDS_DECISION,
@@ -30,12 +31,56 @@ public final class SearchNavigation {
   private List<UUID> selection;
   private long version;
 
+  record Completion(EditorEvents.Target target, Result result, boolean applied) {}
+
+  private final Executor executor;
+  private final Consumer<Runnable> ui;
+  private final Consumer<Completion> completion;
+  private Object workToken = new Object();
+  private FutureTask<Void> task;
+  private boolean admitting, disposed;
+  private long workVersion;
+  private String progress = "";
+  private ProjectFileOwner requestOwner, workOwner;
+  private List<Diagnostic> sharedIssues, sharedValues;
+  private String sharedScope;
+
   public SearchNavigation(EditorState state) {
+    this(state, null, null, null);
+  }
+
+  SearchNavigation(
+      EditorState state,
+      Executor executor,
+      Consumer<Runnable> ui,
+      Consumer<Completion> completion) {
     this.state = state;
+    this.executor = executor;
+    this.ui = ui;
+    this.completion = completion;
+    if (executor != null) {
+      Objects.requireNonNull(ui);
+      Objects.requireNonNull(completion);
+    }
   }
 
   public boolean pending() {
+    refresh();
     return pending != null;
+  }
+
+  boolean preparing() {
+    refresh();
+    return task != null || admitting;
+  }
+
+  long workVersion() {
+    return workVersion;
+  }
+
+  String progress() {
+    refresh();
+    return progress;
   }
 
   public EditorEvents.Target target() {
@@ -43,7 +88,7 @@ public final class SearchNavigation {
   }
 
   public Result request(EditorEvents.Target target) {
-    if (pending != null) return Result.UNAVAILABLE;
+    if (disposed || pending != null) return Result.UNAVAILABLE;
     if (!state.canNavigate(target)) return Result.UNAVAILABLE;
     version++;
     if (!Objects.equals(state.selected, target.resource()) && modified()) {
@@ -55,6 +100,7 @@ public final class SearchNavigation {
       draftBase = ProjectIO.JSON.valueToTree(state.draft);
       activeBase = active();
       seedVersion = state.seedInputs.version(state);
+      if (executor != null) requestOwner = new ProjectFileOwner(state);
       return Result.NEEDS_DECISION;
     }
     return state.navigate(target) ? Result.NAVIGATED : Result.UNAVAILABLE;
@@ -89,8 +135,22 @@ public final class SearchNavigation {
       clear();
       return Result.CANCELLED;
     }
+    if (task != null || admitting) return Result.NEEDS_DECISION;
     long owner = version;
-    if (!beforeDecision.getAsBoolean() || version != owner) {
+    Object gate = workToken;
+    if (executor != null) admitting = true;
+    boolean allowed;
+    try {
+      allowed = beforeDecision.getAsBoolean();
+    } catch (RuntimeException | Error failure) {
+      if (executor == null) throw failure;
+      if (gate != workToken || version != owner) return Result.UNAVAILABLE;
+      fail(gate, failure);
+      return Result.NEEDS_DECISION;
+    } finally {
+      if (executor != null && gate == workToken) admitting = false;
+    }
+    if (!allowed || version != owner) {
       if (version == owner) clear();
       return Result.UNAVAILABLE;
     }
@@ -106,6 +166,7 @@ public final class SearchNavigation {
       clear();
       return Result.UNAVAILABLE;
     }
+    if (decision == Decision.APPLY && executor != null) return prepare(beforeDecision, afterApply);
     if (decision == Decision.APPLY && !state.applyDraft()) return Result.NEEDS_DECISION;
     // A post-Apply source check may open a successor; retire this intent before calling it.
     clear();
@@ -137,6 +198,7 @@ public final class SearchNavigation {
   }
 
   public void clear() {
+    retireWork();
     version++;
     pending = null;
     source = null;
@@ -145,5 +207,205 @@ public final class SearchNavigation {
     project = null;
     draftOwner = null;
     selection = null;
+    requestOwner = null;
+    progress = "";
+  }
+
+  private Result prepare(BooleanSupplier beforeDecision, BooleanSupplier afterApply) {
+    retireWork();
+    Object token = workToken;
+    admitting = true;
+    try {
+      if (requestOwner == null || !requestOwner.valuesCurrent(state)) {
+        clear();
+        return Result.UNAVAILABLE;
+      }
+      var request = state.requestDraftApply();
+      if (request == null) {
+        progress = "Correct the private Properties input, or Cancel and request navigation again.";
+        return Result.NEEDS_DECISION;
+      }
+      workOwner = new ProjectFileOwner(state);
+      sharedIssues = state.issues;
+      sharedValues = List.copyOf(sharedIssues);
+      sharedScope = state.validationScope;
+      progress =
+          "Preparing Apply in the background. Committed values and the private draft remain"
+              + " active. Cancel or Escape keeps the draft and stays at the source.";
+      var target = pending;
+      long intent = version;
+      task =
+          new FutureTask<>(
+              () -> {
+                DocumentSession.PreparedEdit prepared = null;
+                Throwable failure = null;
+                try {
+                  prepared = request.prepare();
+                } catch (Throwable rejected) {
+                  failure = rejected;
+                }
+                var value = prepared;
+                var rejected = failure;
+                ui.accept(
+                    () ->
+                        publish(
+                            token, intent, target, value, rejected, beforeDecision, afterApply));
+                return null;
+              });
+      executor.execute(task);
+      return Result.NEEDS_DECISION;
+    } catch (Throwable failure) {
+      fail(token, failure);
+      return pending == null ? Result.UNAVAILABLE : Result.NEEDS_DECISION;
+    } finally {
+      if (token == workToken) admitting = false;
+    }
+  }
+
+  private boolean owns(Object token, long intent, EditorEvents.Target target) {
+    return !disposed
+        && token == workToken
+        && version == intent
+        && pending == target
+        && task != null;
+  }
+
+  private boolean feedbackCurrent() {
+    return sharedIssues == state.issues
+        && sharedValues.equals(state.issues)
+        && Objects.equals(sharedScope, state.validationScope);
+  }
+
+  private void publish(
+      Object token,
+      long intent,
+      EditorEvents.Target target,
+      DocumentSession.PreparedEdit prepared,
+      Throwable failure,
+      BooleanSupplier beforeDecision,
+      BooleanSupplier afterApply) {
+    if (!owns(token, intent, target)) return;
+    boolean applied = false;
+    long completed = -1;
+    try {
+      if (!workOwner.valuesCurrent(state) || !feedbackCurrent() || !state.canNavigate(target)) {
+        stale(target);
+        return;
+      }
+      if (failure != null) {
+        fail(token, failure);
+        return;
+      }
+      boolean current = beforeDecision.getAsBoolean();
+      if (!owns(token, intent, target)) return;
+      if (!current
+          || !workOwner.valuesCurrent(state)
+          || !feedbackCurrent()
+          || !state.canNavigate(target)
+          || !state.document.currentEdit(prepared)) {
+        stale(target);
+        return;
+      }
+      if (!prepared.success()) {
+        var diagnostics = prepared.diagnostics();
+        retireWork();
+        progress =
+            "Apply was rejected. The draft remains private; review Validation Results, retry"
+                + " Apply explicitly, or Cancel before correcting the draft.";
+        state.rejectDraftApply(diagnostics);
+        return;
+      }
+      state.document.applyEdit(prepared);
+      applied = true;
+      // Retire the intent before refresh/freshness callbacks can open a successor.
+      clear();
+      completed = version;
+      state.finishDraftApply();
+      var published = new ProjectFileOwner(state);
+      if (!afterApply.getAsBoolean()
+          || disposed
+          || version != completed
+          || !published.valuesCurrent(state)
+          || !state.canNavigate(target)) {
+        if (!disposed && version == completed) emit(target, Result.UNAVAILABLE, true);
+        return;
+      }
+      emit(target, state.navigate(target) ? Result.NAVIGATED : Result.UNAVAILABLE, true);
+    } catch (Throwable rejected) {
+      if (applied) {
+        report(
+            "NAVIGATION_APPLY_COMPLETION_FAILED",
+            "Draft applied; navigation failed: " + BackgroundFailure.describe(rejected));
+        if (!disposed && version == completed) emit(target, Result.UNAVAILABLE, true);
+      } else fail(token, rejected);
+    }
+  }
+
+  private void emit(EditorEvents.Target target, Result result, boolean applied) {
+    try {
+      completion.accept(new Completion(target, result, applied));
+    } catch (Throwable failure) {
+      report(
+          "NAVIGATION_APPLY_REVEAL_FAILED",
+          (applied ? "Draft applied; " : "") + BackgroundFailure.describe(failure));
+    }
+  }
+
+  private void stale(EditorEvents.Target target) {
+    clear();
+    emit(target, Result.UNAVAILABLE, false);
+  }
+
+  private void refresh() {
+    if (task == null || disposed) return;
+    try {
+      if (!workOwner.current(state) || !feedbackCurrent()) {
+        stale(pending);
+        return;
+      }
+      var done = BackgroundFailure.completed(task);
+      if (done != null && done.failure() != null) fail(workToken, done.failure());
+    } catch (Throwable failure) {
+      fail(workToken, failure);
+    }
+  }
+
+  private void fail(Object token, Throwable failure) {
+    if (token != workToken || disposed) return;
+    retireWork();
+    progress =
+        "Apply preparation failed: "
+            + BackgroundFailure.describe(failure)
+            + ". The draft remains private; Apply again to retry, or Cancel.";
+    report("NAVIGATION_APPLY_FAILED", progress);
+  }
+
+  private void report(String code, String text) {
+    try {
+      state.error(code, EditorEvents.Subsystem.PROJECT, text);
+    } catch (Throwable ignored) {
+      /* Keep cancellation and correction available. */
+    }
+  }
+
+  private void retireWork() {
+    var previous = task;
+    workToken = new Object();
+    workVersion++;
+    task = null;
+    admitting = false;
+    workOwner = null;
+    sharedIssues = sharedValues = null;
+    sharedScope = null;
+    if (previous != null) {
+      previous.cancel(true);
+      if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
+    }
+  }
+
+  @Override
+  public void close() {
+    disposed = true;
+    clear();
   }
 }

@@ -17,6 +17,7 @@ final class NavigationGuardDialog {
   private final NavigationDecisionScope decisions = new NavigationDecisionScope();
   private int drawnFrame = Integer.MIN_VALUE;
   private boolean revealBody, revealMessage;
+  private long shownWork = Long.MIN_VALUE;
 
   NavigationGuardDialog(EditorState state) {
     this(state, "Properties");
@@ -36,6 +37,7 @@ final class NavigationGuardDialog {
     decisions.open();
     revealBody = true;
     revealMessage = false;
+    shownWork = Long.MIN_VALUE;
     layout.open(title);
   }
 
@@ -68,10 +70,45 @@ final class NavigationGuardDialog {
       Runnable explanation,
       Function<SearchNavigation.Decision, SearchNavigation.Result> decide,
       String rejected) {
+    draw(title, explanation, decide, rejected, false, Long.MIN_VALUE);
+  }
+
+  void draw(
+      String title,
+      String explanation,
+      SearchNavigation navigation,
+      Function<SearchNavigation.Decision, SearchNavigation.Result> decide) {
+    boolean preparing = navigation.preparing();
+    long work = navigation.workVersion();
+    draw(
+        title,
+        () -> {
+          ImGui.textWrapped(explanation);
+          if (!navigation.progress().isEmpty()) ImGui.textWrapped(navigation.progress());
+        },
+        decide,
+        "Apply did not complete. Review the private draft or choose Discard/Cancel.",
+        preparing,
+        work);
+  }
+
+  private void draw(
+      String title,
+      Runnable explanation,
+      Function<SearchNavigation.Decision, SearchNavigation.Result> decide,
+      String rejected,
+      boolean preparing,
+      long work) {
     int frame = ImGui.getFrameCount();
     if (drawnFrame == frame) return;
     drawnFrame = frame;
     buttons.clear();
+    if (decisions.active() && shownWork != work) {
+      shownWork = work;
+      decisions.open();
+      message = "";
+      revealMessage = false;
+    }
     if (!decisions.active() || !layout.begin(title)) return;
     var ticket = decisions.capture(frame);
     SearchNavigation.Decision clicked = null;
@@ -96,7 +133,16 @@ final class NavigationGuardDialog {
       ImGui.pushID("draft-decision:" + ticket.version());
       try {
         for (var decision : SearchNavigation.Decision.values()) {
-          if (chrome.identifiedAction(decision.name(), decision.name())) clicked = decision;
+          ImGui.beginDisabled(preparing && decision != SearchNavigation.Decision.CANCEL);
+          try {
+            if (chrome.identifiedAction(
+                decision.name(),
+                preparing && decision == SearchNavigation.Decision.APPLY
+                    ? "Preparing Apply..."
+                    : decision.name())) clicked = decision;
+          } finally {
+            ImGui.endDisabled();
+          }
           buttons.put(decision, PopupLayout.itemBounds());
         }
       } finally {

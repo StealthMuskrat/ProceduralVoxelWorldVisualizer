@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 import math
 import sys
+import jsonschema
 
 out = Path(sys.argv[1])
 
@@ -54,4 +55,38 @@ for form in ('find', 'reference'):
     assert all(step['field'] == (2 + 2 * (2 + 1) + 3) * 2 == 22 for step in trace['steps'])
 assert read('after.json') == source
 assert read('preferences-before.json') == read('preferences.json')
-print('Find/reference private-editor eligibility, nine native routes, modal geometry, exact source edits and complete Undo/preferences replay PASS')
+# Deferred background Apply across actual source, Find and reference decision controls.
+background = out / 'background-apply'
+schema = json.loads((Path(__file__).resolve().parent.parent / 'schema/project.schema.json').read_text(encoding='utf-8'))
+validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
+background_report = json.loads((background / 'background-navigation.json').read_text(encoding='utf-8'))
+assert background_report['formatVersion'] == 1 and background_report['physicalInputVerified'] is False
+routes = [(route, mode) for route in ('source', 'find', 'reference')
+          for mode in (['success', 'cancel', 'escape', 'retry', 'stale', 'after-stale', 'close']
+                       if route == 'source' else ['success', 'cancel'])]
+assert [(case['route'], case['mode']) for case in background_report['cases']] == routes
+snapshots = 0
+for case in background_report['cases']:
+    route, mode = case['route'], case['mode']
+    applied = mode in ('success', 'retry', 'after-stale')
+    assert case['applied'] is applied and case['oneUndoRedo'] is applied
+    assert case['navigated'] is (applied and mode != 'after-stale')
+    assert case['responsiveFrames'] == 12
+    assert all(case[key] is True for key in ('privateUntilPublication', 'preferencesRetained', 'originalBytesRetained'))
+    directory = background / (route + '-' + mode)
+    baseline = json.loads((directory / 'before.json').read_text(encoding='utf-8'))
+    assert [noise['id'] for noise in baseline['noise2D']] == ['source', 'destination']
+    assert baseline['noise2D'][0]['algorithm']['parameters']['value'] == .125
+    assert baseline['noise2D'][1]['algorithm']['parameters']['value'] == .375
+    assert baseline['worldGenerator']['layers'] == []
+    assert json.loads((directory / 'preferences-before.json').read_text(encoding='utf-8')) == json.loads((directory / 'preferences.json').read_text(encoding='utf-8'))
+    for name in (['before', 'after', 'undone', 'redone'] if applied else ['before', 'after']):
+        saved = json.loads((directory / (name + '.json')).read_text(encoding='utf-8'))
+        validator.validate(saved)
+        expected_project = deepcopy(baseline)
+        expected_project['noise2D'][0]['algorithm']['parameters']['value'] = .625 if applied and name in ('after', 'redone') else .125
+        assert saved == expected_project
+        snapshots += 1
+assert snapshots == 32
+assert json.loads((background / 'engine-replay.json').read_text(encoding='utf-8')) == dict(formatVersion=1, snapshots=32, fields=1344, cells=9408, roots=[2, 4])
+print('Find/reference eligibility and background source/Find/reference Apply, exact saved states, Undo/Redo and independent engine replay PASS')

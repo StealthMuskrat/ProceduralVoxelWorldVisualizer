@@ -642,7 +642,15 @@ public final class PropertyPanel implements AutoCloseable {
     contextHelp = new ContextHelp(s.helpRequests);
     resourcePicker = new ResourcePicker(s, () -> state.draft, () -> noiseVersion);
     draftChoices = new DraftChoicePicker(s, () -> state.draft, () -> noiseVersion);
-    referenceNavigation = new SearchNavigation(s);
+    referenceNavigation =
+        executor == null
+            ? new SearchNavigation(s)
+            : new SearchNavigation(
+                s,
+                executor,
+                ui,
+                value ->
+                    completedReferenceNavigation(value.target(), value.result(), value.applied()));
     referenceDialog = new NavigationGuardDialog(s);
     applySession =
         executor == null
@@ -654,6 +662,7 @@ public final class PropertyPanel implements AutoCloseable {
   @Override
   public void close() {
     if (applySession != null) applySession.close();
+    referenceNavigation.close();
   }
 
   PropertiesApplySession probeApplySession() {
@@ -2116,6 +2125,7 @@ public final class PropertyPanel implements AutoCloseable {
     referenceDialog.draw(
         "Leave Noise Property Draft",
         "Apply the current draft, discard it for this navigation, or cancel.",
+        referenceNavigation,
         this::decideReferenceNavigation);
   }
 
@@ -2133,18 +2143,7 @@ public final class PropertyPanel implements AutoCloseable {
                 applied[0] = true;
                 return !privateEditorOpen();
               });
-      if (!referenceNavigation.pending()) referencePrompt = false;
-      if (result == SearchNavigation.Result.NAVIGATED && target != null) {
-        try {
-          goToProblem(target);
-        } catch (RuntimeException failure) {
-          referenceFailure("REFERENCE_REVEAL_FAILED", failure, applied[0]);
-        }
-      } else if (result == SearchNavigation.Result.UNAVAILABLE)
-        authoringMessage =
-            (applied[0] ? "Draft applied. " : "")
-                + "Navigation became stale or a property editor is open; finish that editor and"
-                + " request the reference again.";
+      completedReferenceNavigation(target, result, applied[0]);
       return result;
     } catch (RuntimeException failure) {
       if (referenceNavigation.pending() && referenceNavigation.version() == owner)
@@ -2153,6 +2152,22 @@ public final class PropertyPanel implements AutoCloseable {
       referenceFailure("REFERENCE_NAVIGATION_FAILED", failure, applied[0]);
       return SearchNavigation.Result.UNAVAILABLE;
     }
+  }
+
+  private void completedReferenceNavigation(
+      EditorEvents.Target target, SearchNavigation.Result result, boolean applied) {
+    if (!referenceNavigation.pending()) referencePrompt = false;
+    if (result == SearchNavigation.Result.NAVIGATED && target != null) {
+      try {
+        goToProblem(target);
+      } catch (RuntimeException failure) {
+        referenceFailure("REFERENCE_REVEAL_FAILED", failure, applied);
+      }
+    } else if (result == SearchNavigation.Result.UNAVAILABLE)
+      authoringMessage =
+          (applied ? "Draft applied. " : "")
+              + "Navigation became stale or a property editor is open; finish that editor and"
+              + " request the reference again.";
   }
 
   private void referenceFailure(String code, RuntimeException failure, boolean applied) {

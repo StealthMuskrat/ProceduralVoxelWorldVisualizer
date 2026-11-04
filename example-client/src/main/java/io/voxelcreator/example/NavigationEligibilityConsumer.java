@@ -45,6 +45,7 @@ public final class NavigationEligibilityConsumer {
             "Complete independent trace replay differs for " + mode);
       }
     }
+    BackgroundNavigationConsumer.run(out.resolve("background-apply"));
     System.out.println(
         "Navigation eligibility engine-only PASS; exact Find/reference source rename / one Undo /"
             + " complete field-22 trace replay / unchanged final project/preferences");

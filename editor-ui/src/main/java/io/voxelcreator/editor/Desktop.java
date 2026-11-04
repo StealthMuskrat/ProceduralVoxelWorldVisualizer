@@ -284,14 +284,16 @@ public final class Desktop extends Application {
             this::centerMainWindow);
     WorkspaceVisibility.restore(state.user.workspace)
         .forEach((name, visible) -> toolWindows.get(name).set(visible));
-    findPanel = new ResourceFindPanel(state, properties);
+    findPanel = ResourceFindPanel.background(state, properties);
+    lifecycle.own(findPanel::close);
     resources.findReferences =
         id -> {
           findPanel.references(id);
           find.set(true);
         };
     properties.findReferences = resources.findReferences;
-    sourceNavigation = new GuardedNavigation(state, properties);
+    sourceNavigation = GuardedNavigation.background(state, properties);
+    lifecycle.own(sourceNavigation::close);
     diagnostics =
         new DiagnosticsPanel(
             state,

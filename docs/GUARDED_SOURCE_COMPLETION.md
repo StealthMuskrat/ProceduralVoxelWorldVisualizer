@@ -27,3 +27,5 @@ python scripts/verify_guarded_source.py build/guarded-source
 ```
 
 Future Windows wiring retains bundled Java, semicolon classpaths and exit-code guards. Artifact lists include the new receipts. Workflow triggers are unchanged; no development-branch push launches them. No compiler, build, test, native probe, Python checker, schema/generator or GitHub workflow ran for this batch. Physical input/DPI, all navigation callers, full GUI/Windows 11 acceptance and production sign-off remain pending.
+
+The later unvalidated [background navigation Apply follow-up](BACKGROUND_NAVIGATION_APPLY.md) prepares Desktop guarded Apply on the editor executor and keeps Cancel/Escape active. Exact document/private/diagnostic authority and repeated current source checks guard publication. The old intent retires before refresh/post-Apply callbacks; an already committed edit is retained if freshness fails, and a successor remains independent. Legacy direct constructors retain the synchronous behavior described above. All new execution remains deferred.
