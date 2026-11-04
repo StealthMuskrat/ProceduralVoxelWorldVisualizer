@@ -1,0 +1,37 @@
+# Background structural noise planning
+
+Development implementation on main; **uncompiled and untested** under the owner's testing pause. No compiler, Gradle, JUnit, native probe, consumer, Python checker, schema generator or GitHub workflow ran. The last validated baseline remains **922 tests / 120 suites**. This is not complete Tree 6/A03/A10/A11/A32, Windows 11 hardware or final release acceptance evidence.
+
+## Initial action and resolution
+
+Desktop structural noise actions now capture the opening project and private Noise values, then run `NoiseAuthoring.plan` on the existing bounded editor executor. This includes the initial Move, Duplicate, Enable, Disable, Delete and shared-parameter action, as well as subsequent explicit resolution/replacement choices. The first compiler pass no longer runs synchronously merely to decide whether a resolution dialog is needed.
+
+The production action opens a temporary progress/review dialog. An initially valid request stages from the original action once its result reaches the owner and the dialog makes its next action decision; it does not require an extra Apply click. Cancel or Escape wins before that decision, including a completion-ready frame. An invalid Delete/Disable/Delete Parameter remains open for explicit dependency resolution. Other invalid actions show Issues and require correcting Properties after Cancel. Choosing a resolution ends automatic staging: the latest valid resolved plan still requires **Apply Resolved Edit**.
+
+Desired resolution/replacement update immediately. A newer choice retires older queued/completed work while the last completed plan remains available for inspection. Apply is disabled until the current request has produced a valid result. An unchanged choice does not recompile. Apply's native identity includes the preview request version, so a held action from a predecessor preview cannot authorize a different one; Cancel and page controls retain their opening identities through reflow.
+
+Scheduler rejection, worker Error/exception, external cancellation and failed UI delivery end pending state. Bounded feedback offers **Retry preview** on the Resolution footer action; there is no unchanged-frame retry loop. A retry uses the retained desired request. Invalid compiler results are ordinary reviewable diagnostics, distinct from an operational failure. Closed sessions do not reopen; Properties teardown closes its structural dialog and retires work.
+
+## Ownership and staging
+
+The worker converts privately held opening JSON values to separate project/Noise objects and calls the existing canonical planner. It never reads live EditorState, Properties, seed text, selected objects or native controls. The planner still handles all dependency/type/stage/order/output, pin, duplicate UUID and full-candidate compiler rules. No second evaluator or merge implementation is introduced.
+
+Each request has an opaque identity and a FutureTask. New choices, retry, Cancel, staging and lifecycle closure retire that identity, cancel the future and remove queued work when supported by the executor. Non-cooperative running compilation may finish later; its completion has no permission to replace a newer plan or a successor opening. A normal worker exit alone grants no result authority.
+
+Adoption checks the original document lifetime, project object/logical UUID/revision, exact Noise draft object/UUID, selected resource/kind/ordered siblings, raw seed ledger version and complete opening project/draft values. The final private staging boundary repeats the complete checks and uses `Plan.applyTo`'s unchanged-base guard. New/same-UUID Open, source replacement, in-place value changes and newer private input require Cancel and reopening; they are not silently absorbed into a successor plan.
+
+Staging copies only the canonical structural lists/bindings/parameters/pins into the existing Properties Noise, consumes the session, then updates focus/index state. A focus callback failure cannot repeat or reopen an accepted private edit. Other private fields, preexisting raw seed text, selection and preferences stay owned. Invalid raw seed input still blocks the parent Apply. Only explicit Properties Apply commits the full resource as a document transaction; saving remains explicit.
+
+The public direct NoiseEditDialog and existing synchronous NoiseEditSession constructor retain synchronous behavior for isolated callers. Production PropertyPanel uses its worker configuration for both initial and resolution paths. The headless NoiseAuthoring API, planner arithmetic, schema/registries, project/archive formats and generated values are unchanged.
+
+Opening snapshot capture, draft metadata/replacement rows, exact comparison, clipping/rendering and final candidate copy/assignment still cost owner-thread time. Full plan computation/compilation runs on workers; cancellation does not interrupt every planner phase. No measured large-project latency or memory bound is claimed.
+
+## Deferred definitions
+
+Fourteen `BackgroundNoiseEditTest` definitions cover actual worker separation and held UI delivery, private inline staging/raw-seed correction/one parent Undo-Redo with independent 12 arithmetic, rapid choice supersession and stale Apply refusal, unchanged/invalid choice handling, scheduler/worker/handoff/cancelled-future recovery, private/raw/selection/value/UUID/document lifetime changes, cancellation and duplicate callbacks/successors, rechecking a ready plan at Stage, explicit Source resolution with independent 4 arithmetic, and owned duplicate identities/candidate copies. One Help definition covers one-action completion, explicit resolved Apply, retry and private raw-input ownership. All fifteen new definitions are unexecuted.
+
+`BackgroundNoiseEditProbe` adds seven cases inside the existing `NoiseAuthoringProbe`: automatic unused-parameter deletion, explicit inline resolution, Cancel, Escape, scheduler retry, changed private values and Properties closure. The production PropertyPanel entry point and dialog footer stage/cancel decisions are used with explicit fixture requests/choices. Every scenario holds twelve queued frames and twelve undelivered-result frames and uses the real editor executor for planning. Successful scenarios prove private/raw/preference retention, blocked invalid parent Apply followed by explicit correction, one parent Undo/Redo and unchanged original checkpoint bytes. Artifacts are defined under `noise-authoring-probe/background/<mode>/`.
+
+The nested engine-only `NoiseEditConsumer` strictly reloads fourteen before/after projects, compares complete expected authored edits, and defines **294 exact (1+2)*4 field observations** plus **4,116 signed EMPTY World cells** at roots 2/4. The existing Python authoring replay adds fourteen schema checks, full saved-model comparisons and receipt checks. Original large-authoring rows, pin/disabled definitions and independent Source=4/snapshot expectations retain their existing scope. Existing manual-only Linux/Windows commands and artifact directories reach the new definitions without a new trigger or dispatch.
+
+No new check was executed. Broad GUI/physical keyboard/held-action/DPI/focus/platform behavior, stress/latency measurements, Windows 11 hardware acceptance and final independently verified artifacts remain pending.

@@ -40,6 +40,7 @@ public final class NoiseAuthoringConsumer {
         new CompiledProject(project).noise2D("authoring", 0).sample(-17, 23) == 4,
         "Independent raw-source replacement oracle");
     require(immutable.noise2D("authoring", 0).sample(-17, 23) == 12, "Compiled snapshot mutated");
+    NoiseEditConsumer.run(Path.of(args[0]).toAbsolutePath().getParent().resolve("background"));
     System.out.println(
         "NOISE_AUTHORING_ENGINE_ONLY_PASS private resolution / disabled preservation / exact 12 and"
             + " 4 expectations / immutable source / dependency order rejection");

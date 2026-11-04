@@ -680,6 +680,7 @@ public final class PropertyPanel implements AutoCloseable {
   @Override
   public void close() {
     if (curve != null) curve.cancel();
+    if (noiseEdit != null) noiseEdit.close();
     if (expressionChecking != null) expressionChecking.close();
     if (expressionDialog != null) expressionDialog.close();
     if (membershipDialog != null) membershipDialog.close();
@@ -1542,6 +1543,18 @@ public final class PropertyPanel implements AutoCloseable {
       authoringMessage = "Finish or cancel the pending noise edit first.";
       return;
     }
+    if (privateExecutor != null) {
+      noiseEdit =
+          new NoiseEditDialog(
+              state,
+              noise,
+              request,
+              selected -> afterNoiseEdit(noise, selected),
+              privateExecutor,
+              privateUi,
+              true);
+      return;
+    }
     var plan = NoiseAuthoring.plan(state.project(), noise, request);
     if (!plan.valid()) {
       if (Set.of(
@@ -1561,6 +1574,18 @@ public final class PropertyPanel implements AutoCloseable {
     }
     plan.applyTo(noise);
     afterNoiseEdit(noise, plan.selected());
+  }
+
+  void probeNoiseAction(NoiseAuthoring.Request request) {
+    requestNoiseEdit((Noise) state.draft, request);
+  }
+
+  NoiseEditDialog probeNoiseEditDialog() {
+    return noiseEdit;
+  }
+
+  void probeNoiseEditPanel() {
+    if (noiseEdit != null && noiseEdit.draw()) noiseEdit = null;
   }
 
   private void afterNoiseEdit(Noise noise, UUID selected) {

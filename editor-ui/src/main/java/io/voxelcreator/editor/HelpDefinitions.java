@@ -63,6 +63,19 @@ final class HelpDefinitions {
                   + " Open preserves the current project. Correct the rejected file before retrying"
                   + " Open; its array positions describe that candidate, not the active project."),
           new Guide(
+              "help.noise-edits",
+              "Structural noise edits and dependency resolution",
+              "Move, Duplicate, Enable, Disable, Delete and shared parameter edits check their"
+                  + " complete candidate in the background. Cancel or Escape keeps Properties"
+                  + " unchanged. An initially valid action finishes from its original request;"
+                  + " an edit needing dependency resolution keeps a private review. Changing"
+                  + " resolution supersedes older checking. Apply Resolved Edit uses only the"
+                  + " latest completed valid preview. Failed checking offers Retry preview."
+                  + " Changed project, selection or private input requires Cancel and reopening."
+                  + " Staging preserves other private input and raw seed text; Properties Apply"
+                  + " remains the explicit project transaction. Structural checking does not save"
+                  + " the project or preferences."),
+          new Guide(
               "help.noise-cycles",
               "Noise generator dependency cycles",
               "Noise references must form an acyclic graph, including references kept in disabled"
@@ -573,6 +586,9 @@ final class HelpDefinitions {
           Map.entry("themes", List.of("help.appearance", "creation-defaults")),
           Map.entry("noise.algorithm", List.of("noise", "creation-defaults")),
           Map.entry("noise.seedOffset", List.of("noise", "help.project-settings")),
+          Map.entry(
+              "help.noise-edits",
+              List.of("noise", "processing", "help.properties-apply", "diagnostics")),
           Map.entry("help.find", List.of("diagnostics", "noise", "help.trace", "help.pins")),
           Map.entry(
               "help.pins",

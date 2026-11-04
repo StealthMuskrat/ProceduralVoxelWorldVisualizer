@@ -5,12 +5,13 @@ import imgui.flag.*;
 import io.voxelcreator.core.NoiseAuthoring.*;
 import io.voxelcreator.model.ProjectData.Noise;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /**
  * Explicit dependency resolution stays private until the complete structural candidate validates.
  */
-public final class NoiseEditDialog {
+public final class NoiseEditDialog implements AutoCloseable {
   private final EditorState state;
   final DialogLayout layout;
   private final NoiseEditSession session;
@@ -27,12 +28,25 @@ public final class NoiseEditDialog {
   private final String nativeId = UUID.randomUUID().toString();
   private boolean issues, reveal = true, issuesReveal = true;
   private int submitted;
+  private boolean automatic;
 
   public NoiseEditDialog(EditorState state, Noise owner, Request request, Consumer<UUID> applied) {
+    this(state, owner, request, applied, null, null, false);
+  }
+
+  NoiseEditDialog(
+      EditorState state,
+      Noise owner,
+      Request request,
+      Consumer<UUID> applied,
+      Executor executor,
+      Consumer<Runnable> ui,
+      boolean automatic) {
     this.state = state;
     layout = new DialogLayout(state, "Properties", 640, 510);
     this.applied = Objects.requireNonNull(applied);
-    session = new NoiseEditSession(state, owner, request);
+    session = new NoiseEditSession(state, owner, request, executor, ui);
+    this.automatic = automatic;
     picker = new DraftChoicePicker(state, () -> session, () -> session.current() ? 0 : 1);
     target = request.target();
     action = request.action();
@@ -53,6 +67,7 @@ public final class NoiseEditDialog {
 
   public void choose(Resolution resolution, UUID replacement) {
     try {
+      automatic = false;
       session.choose(resolution, replacement);
       message = "";
       reveal = issuesReveal = true;
@@ -76,7 +91,13 @@ public final class NoiseEditDialog {
       opening = false;
     }
     if (!layout.begin(title)) return false;
-    boolean current = session.current();
+    boolean current = session.current() && session.phase() != NoiseEditSession.Phase.STALE;
+    var preview = session.preview();
+    if (automatic && session.ready() && !preview.valid()) {
+      automatic = false;
+      if (!Set.of(Action.DELETE, Action.DISABLE, Action.DELETE_PARAMETER).contains(action))
+        issues = true;
+    }
     chrome.begin("noise-edit-body");
     if (reveal) {
       ImGui.setScrollY(0);
@@ -85,40 +106,52 @@ public final class NoiseEditDialog {
     ImGui.textWrapped(action + " / " + bounded(row == null ? target.toString() : row.id(), 1024));
     if (!current) ImGui.textWrapped("Draft or project changed; Cancel and reopen this edit.");
     if (!message.isEmpty()) ImGui.textWrapped(bounded(message, 2048));
+    if (!session.message().isEmpty()) ImGui.textWrapped(bounded(session.message(), 2048));
     if (issues) diagnostics();
     else resolution(current);
     chrome.end();
     ImGui.pushID(nativeId);
-    ImGui.beginDisabled(!current || !session.preview().valid());
+    ImGui.pushID("preview:" + session.version());
+    ImGui.beginDisabled(!session.canStage());
     boolean apply = chrome.identifiedAction("apply", "Apply Resolved Edit");
     ImGui.endDisabled();
+    ImGui.popID();
     boolean cancel =
         chrome.identifiedAction("cancel", "Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false);
-    boolean showResolution = chrome.identifiedAction("resolution", "Resolution");
+    boolean showResolution =
+        chrome.identifiedAction("resolution", session.canRetry() ? "Retry preview" : "Resolution");
     boolean showIssues =
         chrome.identifiedAction(
-            "issues", "Issues (" + session.preview().diagnostics().size() + ")");
+            "issues", "Issues (" + (preview == null ? 0 : preview.diagnostics().size()) + ")");
     ImGui.popID();
     boolean closed = false;
     if (cancel) {
       session.cancel();
       closed = true;
-    } else if (apply) {
+    } else if (apply || automatic && session.canStage()) {
       try {
         UUID selected = session.stage();
         closed = true;
         try {
           applied.accept(selected);
-        } catch (RuntimeException failure) {
+        } catch (Throwable failure) {
           state.error(
               "NOISE_EDIT_FOCUS_FAILED",
               EditorEvents.Subsystem.APPLICATION,
               "Noise edit staged in Properties; focus could not be updated: "
-                  + Objects.requireNonNullElse(failure.getMessage(), failure.toString()));
+                  + BackgroundFailure.describe(failure));
         }
       } catch (RuntimeException invalid) {
+        automatic = false;
         message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
         reveal = true;
+      }
+    } else if (showResolution && session.canRetry()) {
+      try {
+        session.retry();
+        message = "";
+      } catch (RuntimeException invalid) {
+        message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
       }
     } else if (showResolution && issues) {
       issues = false;
@@ -137,6 +170,13 @@ public final class NoiseEditDialog {
     ImGui.textWrapped(
         "Choose how to replace affected inputs and Output. Apply updates the noise draft; Apply in"
             + " Properties saves it to the project.");
+    if (!Set.of(Action.DELETE, Action.DISABLE, Action.DELETE_PARAMETER).contains(action)) {
+      ImGui.textWrapped(
+          session.ready()
+              ? "Review Issues or Cancel to correct Properties before repeating this action."
+              : "This action will update Properties after successful checking.");
+      return;
+    }
     var resolutions = new ArrayList<String>(List.of("REJECT", "REPLACE"));
     if (action == Action.DELETE_PARAMETER) resolutions.add("INLINE_PARAMETER");
     else if (row != null
@@ -170,12 +210,15 @@ public final class NoiseEditDialog {
     ImGui.endDisabled();
     ImGui.popID();
     ImGui.textWrapped(
-        session.preview().diagnostics().size() + " issue(s); see Issues for the complete list.");
+        (session.preview() == null ? 0 : session.preview().diagnostics().size())
+            + " issue(s); see Issues for the complete list.");
   }
 
   private void diagnostics() {
     submitted = 0;
-    var diagnostics = session.preview().diagnostics();
+    var preview = session.preview();
+    var diagnostics =
+        preview == null ? List.<io.voxelcreator.model.Diagnostic>of() : preview.diagnostics();
     ImGui.textWrapped(diagnostics.size() + " issue(s)");
     UiScale.beginChild(
         "edit-diagnostics", 0, ResourceReviewLayout.content(ImGui.getContentRegionAvailY()), true);
@@ -220,6 +263,16 @@ public final class NoiseEditDialog {
 
   String nativeId() {
     return nativeId;
+  }
+
+  NoiseEditSession session() {
+    return session;
+  }
+
+  @Override
+  public void close() {
+    automatic = false;
+    session.close();
   }
 
   void probeCancel() {

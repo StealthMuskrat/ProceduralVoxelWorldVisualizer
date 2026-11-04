@@ -10,7 +10,8 @@ assert registry['types']==['Scalar','Boolean','Vector2','Vector3','Coordinates2D
 assert registry['finalOutputType']=='Scalar' and registry['structuralEditsUseCompilerValidation']
 assert registry['draftPublicationRequiresUnchangedBase']
 project=json.loads(a.project.read_text(encoding='utf-8'));r=json.loads(a.report.read_text(encoding='utf-8'))
-jsonschema.Draft202012Validator(json.loads((root/'schema/project.schema.json').read_text()),format_checker=jsonschema.FormatChecker()).validate(project)
+schema=json.loads((root/'schema/project.schema.json').read_text())
+jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker()).validate(project)
 assert r['formatVersion']==1 and r['items']==2002 and r['parametersBefore']==2000 and r['parametersAfter']==1999
 assert 0<r['itemRows']<=30 and 0<=r['propertyRows']<=30 and 0<r['parameterRows']<=30
 assert r['filteredRows']==1 and r['callbacks']==1 and r['metadataBuilds']>0 and r['sample']==12
@@ -30,3 +31,31 @@ assert n['pinnedControls']==[{'targetUuid':add['uuid'],'control':'','label':'Add
 assert (n['algorithm']['parameters']['value']+add['inputs']['b']['value'])*multiply['inputs']['b']['value']==12
 assert project['worldGenerator']['layers']==[]
 print('Noise authoring schema, six types, bounded native widgets, canonical pin cleanup, disabled preservation and independent (1+2)*4 expectation PASS')
+
+# Deferred background structural controls and full saved-state replay.
+background = a.project.parent / 'background'
+receipt = json.loads((background / 'noise-edit-native.json').read_text())
+assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
+modes = {'automatic', 'resolve', 'cancel', 'escape', 'retry', 'stale', 'close'}
+assert len(receipt['cases']) == len(modes) and {case['mode'] for case in receipt['cases']} == modes
+for case in receipt['cases']:
+    mode = case['mode']; staged = mode in {'automatic', 'resolve', 'retry'}
+    assert case['staged'] is staged
+    assert case['queuedFrames'] >= 12 and case['heldFrames'] >= 12
+    assert all(case[key] is True for key in ['privateRetained', 'rawRetained', 'preferencesRetained', 'originalBytesRetained'])
+    before = json.loads((background / mode / 'before.json').read_text())
+    after = json.loads((background / mode / 'after.json').read_text())
+    for saved in [before, after]: jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()).validate(saved)
+    expected = before
+    noise, = expected['noise2D']
+    assert noise['id'] == 'field' and len(noise['sharedParameters']) == 2
+    if staged:
+        noise['id'] = 'private'
+        noise['sharedParameters'].pop(0 if mode == 'resolve' else 1)
+        if mode == 'resolve':
+            binding = noise['processing'][0]['inputs']['b']
+            binding['sourceKind'] = 'Constant'; binding['value'] = 2.0
+            for key in ['parameterUuid', 'itemUuid', 'noiseGeneratorUuid', 'ambientKey']: binding.pop(key, None)
+    assert expected == after
+assert json.loads((background / 'engine-replay.json').read_text()) == dict(formatVersion=1, fields=294, cells=4116, roots=[2, 4])
+print('BACKGROUND_NOISE_EDIT_INDEPENDENT_PASS seven structural lifetimes / exact saved edits / 294 fields / 4116 EMPTY cells')

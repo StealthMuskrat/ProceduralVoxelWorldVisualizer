@@ -230,6 +230,7 @@ public final class NoiseAuthoringProbe {
                 + " / Escape Cancel / one parent Undo-Redo / guarded reference navigation /"
                 + " unchanged arithmetic");
       }
+      BackgroundNoiseEditProbe.run(output.resolve("background"));
     } finally {
       ImGui.destroyContext();
     }
