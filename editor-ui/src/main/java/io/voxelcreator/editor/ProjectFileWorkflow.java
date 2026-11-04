@@ -19,6 +19,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
   enum Phase {
     IDLE,
     DRAFT,
+    APPLYING,
     GUARD,
     OPEN,
     LOADING,
@@ -43,7 +44,13 @@ final class ProjectFileWorkflow implements AutoCloseable {
   private final BooleanSupplier blocked;
   private final Executor executor;
   private final Consumer<Runnable> ui;
-  private FutureTask<Void> openTask, saveTask;
+  private FutureTask<Void> openTask, saveTask, draftTask;
+  private record DraftResult(DocumentSession.PreparedEdit value, Throwable failure) {}
+  private final PreviewMailbox<DraftResult> draftHandoff = new PreviewMailbox<>();
+  private long draftDelivery;
+  private boolean draftReady;
+  private java.util.List<Diagnostic> draftIssues, draftIssueValues;
+  private String draftScope;
   private final OwnedPreviewMailbox<SavePayload> saveHandoff = new OwnedPreviewMailbox<>();
 
   private final class SavePayload implements AutoCloseable {
@@ -107,6 +114,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
   }
 
   Phase phase() {
+    refreshDraftApply();
     refreshOpen();
     refreshSave();
     return phase;
@@ -190,6 +198,10 @@ final class ProjectFileWorkflow implements AutoCloseable {
     }
     if (!current()) return;
     if (decision == DraftDecision.APPLY) {
+      if (executor != null) {
+        startDraftApply();
+        return;
+      }
       long attempt = generation;
       working = true;
       try {
@@ -215,6 +227,164 @@ final class ProjectFileWorkflow implements AutoCloseable {
     error = "";
     // Discard grants permission for the transition; preserve raw text until it actually succeeds.
     afterDraft();
+  }
+
+  private void startDraftApply() {
+    long attempt = ++generation;
+    try {
+      // Transition Apply owns the active Properties resource even with sibling selection.
+      var preparation = state.requestSelectionApply();
+      if (preparation == null) {
+        error = "Correct Properties input before Apply Draft, or cancel this transition.";
+        return;
+      }
+      if (!current()) return;
+      if (!owner.valuesCurrent(state)) {
+        stale(attempt, "");
+        return;
+      }
+      draftIssues = state.issues;
+      draftIssueValues = java.util.List.copyOf(draftIssues);
+      draftScope = state.validationScope;
+      long delivery = ++draftDelivery;
+      draftHandoff.advance(delivery);
+      phase = Phase.APPLYING;
+      error = "";
+      draftTask = new FutureTask<>(() -> {
+        DocumentSession.PreparedEdit value = null;
+        Throwable failure = null;
+        try {
+          value = preparation.prepare();
+        } catch (Throwable rejected) {
+          failure = rejected;
+        }
+        if (!draftHandoff.publish(delivery, new DraftResult(value, failure))) return null;
+        ui.accept(() -> deliveredDraft(attempt, delivery));
+        return null;
+      });
+      executor.execute(draftTask);
+    } catch (Throwable failure) {
+      failedDraft(attempt, failure);
+    }
+  }
+
+  private boolean draftDiagnosticsCurrent() {
+    return draftIssues == state.issues
+        && Objects.equals(draftScope, state.validationScope)
+        && draftIssueValues.equals(state.issues);
+  }
+
+  private void refreshDraftApply() {
+    if (phase != Phase.APPLYING || closed) return;
+    long attempt = generation;
+    try {
+      if (owner == null || !owner.current(state) || !draftDiagnosticsCurrent()) {
+        stale(attempt, "");
+        return;
+      }
+      var completed = BackgroundFailure.completed(draftTask);
+      if (completed != null && completed.failure() != null) failedDraft(attempt, completed.failure());
+    } catch (Throwable failure) {
+      failedDraft(attempt, failure);
+    }
+  }
+
+  private void deliveredDraft(long attempt, long delivery) {
+    if (closed || generation != attempt || phase != Phase.APPLYING
+        || draftDelivery != delivery || draftReady) return;
+    refreshDraftApply();
+    if (generation != attempt || phase != Phase.APPLYING) return;
+    draftTask = null;
+    draftReady = true;
+  }
+
+  /** The modal processes Cancel/Escape before accepting a delivered draft transaction. */
+  void acceptDraft() {
+    refreshDraftApply();
+    if (phase != Phase.APPLYING || !draftReady || closed) return;
+    long attempt = generation;
+    var result = draftHandoff.take();
+    try {
+      if (!current()) return;
+      if (!owner.valuesCurrent(state) || !draftDiagnosticsCurrent()) {
+        stale(attempt, "");
+        return;
+      }
+      if (result == null) throw new IllegalStateException("Properties Apply preparation unavailable");
+      if (result.failure() != null) {
+        failedDraft(attempt, result.failure());
+        return;
+      }
+      var prepared = Objects.requireNonNull(result.value());
+      if (!state.document.currentEdit(prepared)) {
+        stale(attempt, "");
+        return;
+      }
+      if (!prepared.success()) {
+        releaseDraft();
+        generation++;
+        phase = Phase.DRAFT;
+        error = "Properties Apply was rejected. Cancel to correct the draft, or choose Discard Draft.";
+        try {
+          state.rejectDraftApply(prepared.diagnostics());
+        } catch (Throwable failure) {
+          report("PROJECT_DRAFT_REJECTION_FEEDBACK_FAILED", "Properties remains private; feedback failed: ",
+              failure, generation);
+        }
+        return;
+      }
+      working = true;
+      state.document.applyEdit(prepared);
+    } catch (Throwable failure) {
+      failedDraft(attempt, failure);
+      return;
+    } finally {
+      working = false;
+    }
+    // Consume before refreshing the private editor or continuing into a file/exit callback.
+    releaseDraft();
+    generation++;
+    phase = Phase.DRAFT;
+    long completed = generation;
+    try {
+      working = true;
+      state.finishDraftApply();
+      if (closed || generation != completed) return;
+      owner = new ProjectFileOwner(state);
+      phase = Phase.DRAFT;
+      error = "";
+    } catch (Throwable failure) {
+      if (generation == completed) {
+        retire();
+        completed = generation;
+      }
+      report("PROJECT_DRAFT_APPLY_REFRESH_FAILED", "Properties applied; refresh failed: ", failure, completed);
+      return;
+    } finally {
+      working = false;
+    }
+    if (current("Properties applied. ")) afterDraft();
+  }
+
+  private void failedDraft(long attempt, Throwable failure) {
+    if (closed || generation != attempt) return;
+    releaseDraft();
+    generation++;
+    phase = Phase.DRAFT;
+    report("PROJECT_DRAFT_APPLY_FAILED", "Apply Draft failed; retry explicitly or cancel: ", failure, generation);
+  }
+
+  private void releaseDraft() {
+    var previous = draftTask;
+    draftTask = null;
+    draftReady = false;
+    draftIssues = draftIssueValues = null;
+    draftScope = null;
+    draftHandoff.advance(++draftDelivery);
+    if (previous != null) {
+      previous.cancel(true);
+      if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
+    }
   }
 
   private void afterDraft() {
@@ -644,6 +814,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
   }
 
   private void retire() {
+    releaseDraft();
     releaseOpen();
     releaseSave();
     generation++;
@@ -677,6 +848,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
     closed = true;
     retire();
     saveHandoff.close();
+    draftHandoff.close();
     error = "";
   }
 }

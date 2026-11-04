@@ -310,6 +310,19 @@ final class HelpDefinitions {
                   + " Save Preferences persists active preferences only and never applies"
                   + " private scale, theme or resource input."),
           new Guide(
+              "help.transition-draft-apply",
+              "Apply Properties before New, Open or Exit",
+              "New, Open and Exit first protect unapplied Properties input. Apply Draft prepares"
+                  + " validation and Undo history in the background. Cancel Apply or Escape aborts"
+                  + " the transition and keeps the edit private, including a result that is ready"
+                  + " on that frame. Changed document, draft, raw seed input, selection, path or"
+                  + " validation authority retires older work. Failure needs explicit Apply Draft"
+                  + " retry; invalid raw text stays visible for correction. Successful Apply is"
+                  + " one undoable project edit before the separate Save decision. Cancelling the"
+                  + " later decision keeps that edit committed. Discard Draft defers disposal until"
+                  + " the transition succeeds. A failed required Save aborts New, Open or Exit;"
+                  + " retrying that Save only saves the project. User preferences stay separate."),
+          new Guide(
               "help.preference-save",
               "Saving active preferences and workspace",
               "Save Preferences prepares active user preferences and the current workspace in the"
@@ -605,7 +618,7 @@ final class HelpDefinitions {
                   "help.world-conditions",
                   "help.world-lists")),
           Map.entry("navigation", List.of("bookmarks", "help.workspace", "shortcuts")),
-          Map.entry("save", List.of("help.project-settings", "archives", "creation-defaults")),
+          Map.entry("save", List.of("help.transition-draft-apply", "help.project-settings", "archives", "creation-defaults")),
           Map.entry("processing", List.of("noise", "layers", "help.trace", "help.pins")),
           Map.entry(
               "archives",
@@ -630,6 +643,7 @@ final class HelpDefinitions {
           Map.entry("themes", List.of("help.appearance", "creation-defaults", "help.preference-apply")),
           Map.entry("help.preference-apply", List.of("themes", "shortcuts", "help.appearance", "help.preference-save")),
           Map.entry("help.preference-save", List.of("help.workspace", "help.preference-apply", "save")),
+          Map.entry("help.transition-draft-apply", List.of("save", "help.properties-apply", "help.project-settings")),
           Map.entry("noise.algorithm", List.of("noise", "creation-defaults")),
           Map.entry("noise.seedOffset", List.of("noise", "help.project-settings")),
           Map.entry(

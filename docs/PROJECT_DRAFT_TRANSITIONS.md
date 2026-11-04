@@ -37,3 +37,6 @@ The earlier file workflow regression/native definitions now explicitly arrange D
 The subsequent unvalidated [project decision layout follow-up](PROJECT_DECISION_LAYOUT.md) gives draft/unsaved/path forms persistent decisions, Cancel-before-mutation arbitration, transient request-scoped native IDs and retained path/focus recovery. The owned workflow contracts above remain unchanged; new definitions add no passing evidence.
 
 The unvalidated [file completion follow-up](PROJECT_FILE_COMPLETION.md) delivers decisions and captured path strings after popup unwind, rechecks callback ownership, keeps synchronous publication busy and consumes terminal state before replacement/exit callbacks. Completed replacement refresh failure is reported separately from a failed Open; callback-opened successors retain their own state. Ten pure definitions, twenty-four native modal receipts, eleven routes and independent persistence/engine replay remain deferred.
+
+
+The later [background transition Draft Apply follow-up](BACKGROUND_TRANSITION_DRAFT_APPLY.md) adds production worker preparation and completion-ready Cancel/Escape before publication, preserving these explicit Apply/Save/Discard boundaries. Its implementation and deferred regression/native/independent definitions remain uncompiled/untested on main under the owner's testing pause.

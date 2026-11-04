@@ -7,6 +7,22 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void transitionDraftHelpExplainsReadyCancellationAndSeparateSaveDecision() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.transition-draft-apply");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Cancel Apply or Escape"));
+    assertTrue(text.contains("one undoable project edit before the separate Save decision"));
+    assertTrue(text.contains("Cancelling the later decision keeps that edit committed"));
+    assertTrue(text.contains("retrying that Save only saves the project"));
+    assertTrue(catalog.search("transition properties background").contains(topic));
+    assertTrue(catalog.topic("save").related().contains(topic.id()));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void ordinaryPreferenceSaveHelpExplainsCoalescingFailureRetryAndFinalExitSave() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

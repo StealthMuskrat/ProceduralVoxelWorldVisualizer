@@ -153,6 +153,11 @@ final class ProjectFileDialog {
             ImGui.textWrapped(
                 "Save writes the committed project. Applying here creates one ordinary undoable"
                     + " edit before any save decision.");
+          } else if (phase == ProjectFileWorkflow.Phase.APPLYING) {
+            ImGui.textWrapped("Preparing Properties Apply before: " + workflow.action());
+            ImGui.textWrapped(
+                "The project and private draft remain unchanged while validation and Undo history"
+                    + " prepare in the background. Cancel Apply or Escape aborts this transition.");
           } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
             ImGui.textWrapped("Continue with: " + workflow.action());
             ImGui.textWrapped("Save changes before continuing?");
@@ -207,6 +212,8 @@ final class ProjectFileDialog {
           primary = button("primary", "Save");
           secondary = button("secondary", "Don't Save");
           cancel = button("cancel", "Cancel");
+        } else if (phase == ProjectFileWorkflow.Phase.APPLYING) {
+          cancel = button("cancel", "Cancel Apply");
         } else if (phase == ProjectFileWorkflow.Phase.SAVING) {
           cancel = button("cancel", "Cancel Save");
         } else if (phase == ProjectFileWorkflow.Phase.LOADING) {
@@ -223,18 +230,21 @@ final class ProjectFileDialog {
     } finally {
       ImGui.endPopup();
     }
-    if (!(cancel || primary || secondary)
-        || !delivery.consume(ticket, frame)
-        || workflow.phase() != phase
-        || workflow.requestVersion() != request) return;
-    if (cancel) workflow.cancel();
-    else if (phase == ProjectFileWorkflow.Phase.DRAFT) {
-      if (secondary) workflow.decideDraft(ProjectFileWorkflow.DraftDecision.DISCARD);
-      else if (primary) workflow.decideDraft(ProjectFileWorkflow.DraftDecision.APPLY);
-    } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
-      if (secondary) workflow.decide(ProjectFileWorkflow.Decision.DISCARD);
-      else if (primary) workflow.decide(ProjectFileWorkflow.Decision.SAVE);
-    } else if (primary) workflow.submit(location);
+    if (cancel || primary || secondary) {
+      if (!delivery.consume(ticket, frame)
+          || workflow.phase() != phase
+          || workflow.requestVersion() != request) return;
+      if (cancel) workflow.cancel();
+      else if (phase == ProjectFileWorkflow.Phase.DRAFT) {
+        if (secondary) workflow.decideDraft(ProjectFileWorkflow.DraftDecision.DISCARD);
+        else if (primary) workflow.decideDraft(ProjectFileWorkflow.DraftDecision.APPLY);
+      } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
+        if (secondary) workflow.decide(ProjectFileWorkflow.Decision.DISCARD);
+        else if (primary) workflow.decide(ProjectFileWorkflow.Decision.SAVE);
+      } else if (primary) workflow.submit(location);
+    }
+    if (!cancel && phase == ProjectFileWorkflow.Phase.APPLYING
+        && workflow.phase() == phase && workflow.requestVersion() == request) workflow.acceptDraft();
     if (primary
         && workflow.phase() == phase
         && workflow.requestVersion() == request
@@ -264,6 +274,7 @@ final class ProjectFileDialog {
   private static String title(ProjectFileWorkflow.Phase phase) {
     return switch (phase) {
       case DRAFT -> "Unapplied Properties";
+      case APPLYING -> "Applying Properties";
       case GUARD -> "Unsaved Project";
       case LOADING -> "Opening Project";
       case SAVING -> "Saving Project";

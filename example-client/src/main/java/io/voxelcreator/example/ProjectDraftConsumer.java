@@ -50,6 +50,7 @@ public final class ProjectDraftConsumer {
       }
     }
     if (samples != 243 || cells != 432) throw new AssertionError("Observation count");
+    BackgroundTransitionDraftConsumer.run(out.resolve("background"));
     System.out.println(
         "PROJECT_DRAFT_ENGINE_ONLY_PASS exact signed seeds / 243 scalar values / 432 EMPTY cells /"
             + " three explicit saves");

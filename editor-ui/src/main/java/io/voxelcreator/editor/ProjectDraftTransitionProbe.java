@@ -227,6 +227,7 @@ public final class ProjectDraftTransitionProbe {
         cases++;
       }
       require(cases == 13, "Workflow count");
+      BackgroundTransitionDraftProbe.run(out.resolve("background"));
       Files.writeString(
           out.resolve("project-draft-native.json"),
           ProjectIO.JSON.writeValueAsString(
