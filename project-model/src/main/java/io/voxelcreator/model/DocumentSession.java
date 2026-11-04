@@ -20,6 +20,7 @@ public final class DocumentSession {
   private ProjectData active = new ProjectData();
   private Path path;
   private String saved = serialize(active);
+  private Object checkpointReceipt = new Object();
   private final Deque<ProjectDelta> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
   private long historyBytes;
   private Object sessionToken = new Object();
@@ -102,6 +103,7 @@ public final class DocumentSession {
     final Object lifetime = sessionToken;
     final Path sourcePath = path;
     final String checkpoint = saved;
+    final Object receipt = checkpointReceipt;
     final java.util.function.Function<ProjectData, List<Diagnostic>> validation = validator;
     final ProjectDelta undoHead = undo.peek(), redoHead = redo.peek();
     final long bytes = historyBytes;
@@ -111,6 +113,7 @@ public final class DocumentSession {
       if (source != active
           || lifetime != sessionToken
           || validation != validator
+          || receipt != checkpointReceipt
           || !Objects.equals(sourcePath, path)
           || !Objects.equals(checkpoint, saved)
           || undoHead != undo.peek()
@@ -146,6 +149,7 @@ public final class DocumentSession {
     private final Object lifetime = sessionToken;
     private final Path sourcePath = path;
     private final String sourceSaved = saved;
+    private final Object sourceReceipt = checkpointReceipt;
     private final java.util.function.Function<ProjectData, List<Diagnostic>> validation;
 
     private OpenRequest(
@@ -200,6 +204,7 @@ public final class DocumentSession {
         || request.validation != validator
         || request.source != active
         || request.lifetime != sessionToken
+        || request.sourceReceipt != checkpointReceipt
         || !Objects.equals(request.sourcePath, path)
         || !Objects.equals(request.sourceSaved, saved))
       throw new IllegalStateException("Prepared Open owner, document or validation policy changed");
@@ -227,9 +232,11 @@ public final class DocumentSession {
   }
 
   private void replace(ProjectData p, Path f, String nextSaved, Object nextToken) {
+    Object nextReceipt = new Object();
     active = p;
     path = f;
     saved = nextSaved;
+    checkpointReceipt = nextReceipt;
     sessionToken = nextToken;
     undo.clear();
     redo.clear();
@@ -247,6 +254,7 @@ public final class DocumentSession {
     private final Object lifetime = sessionToken;
     private final Path sourcePath = path;
     private final String sourceSaved = saved;
+    private final Object sourceReceipt = checkpointReceipt;
     private final java.util.function.Function<ProjectData, List<Diagnostic>> validation = validator;
     private final com.fasterxml.jackson.databind.JsonNode values =
         ProjectIO.JSON.valueToTree(active);
@@ -262,8 +270,12 @@ public final class DocumentSession {
 
     public PreparedSave prepare() throws IOException {
       var candidate = ProjectIO.copy(snapshot);
+      var validationValues = ProjectIO.JSON.valueToTree(candidate);
       var issues = List.copyOf(validation.apply(candidate));
       if (!issues.isEmpty()) throw new IOException(issues.toString());
+      if (!validationValues.equals(ProjectIO.JSON.valueToTree(candidate)))
+        throw new IOException(
+            "Save validation changed the committed snapshot; validation must be read-only");
       return new PreparedSave(this, persistence.prepareSave(file, candidate));
     }
   }
@@ -284,7 +296,7 @@ public final class DocumentSession {
     }
   }
 
-  /** Checks precede atomic replacement; after replacement the exact written checkpoint is final. */
+  /** Checks precede atomic replacement; a newer completed checkpoint retains its own metadata. */
   public void applySave(PreparedSave prepared) throws IOException {
     Objects.requireNonNull(prepared);
     var request = prepared.request;
@@ -292,21 +304,42 @@ public final class DocumentSession {
         || request.validation != validator
         || request.source != active
         || request.lifetime != sessionToken
+        || request.sourceReceipt != checkpointReceipt
         || !Objects.equals(request.sourcePath, path)
         || !Objects.equals(request.sourceSaved, saved)
         || !request.values.equals(ProjectIO.JSON.valueToTree(active)))
       throw new IllegalStateException("Prepared Save owner, document or validation policy changed");
+    Object nextReceipt = new Object();
     String checkpoint = prepared.staged.publish();
-    path = request.file;
-    saved = checkpoint;
+    // Replacement already succeeded. Preserve newer New/Open/Save completion metadata rather than
+    // relabelling it with this older path/checkpoint. Same-session later edits still remain dirty
+    // against the exact bytes just written, without replacing their model or history.
+    if (request.lifetime == sessionToken && request.sourceReceipt == checkpointReceipt) {
+      path = request.file;
+      saved = checkpoint;
+      checkpointReceipt = nextReceipt;
+    }
   }
 
+  /**
+   * Same owned snapshot, validation and atomic publication contract as prepared/background Save.
+   */
   public void save(Path file) throws IOException {
-    var issues = validator.apply(active);
-    if (!issues.isEmpty()) throw new IOException(issues.toString());
-    String nextSaved = persistence.saveAndGetCheckpoint(file, active);
-    path = file;
-    saved = nextSaved;
+    var prepared = requestSave(file).prepare();
+    Throwable failure = null;
+    try {
+      applySave(prepared);
+    } catch (IOException | RuntimeException | Error rejected) {
+      failure = rejected;
+      throw rejected;
+    } finally {
+      try {
+        prepared.close();
+      } catch (IOException | RuntimeException | Error cleanup) {
+        if (failure == null) throw cleanup;
+        if (cleanup != failure) failure.addSuppressed(cleanup);
+      }
+    }
   }
 
   private static String serialize(ProjectData p) {

@@ -135,6 +135,7 @@ public final class ProjectSaveConsumer {
                 "roots",
                 List.of(2, 4))));
     preparedReplay(out.resolve("prepared-save"));
+    SaveOwnershipConsumer.run(out.resolve("save-ownership"));
     System.out.println("PROJECT_SAVE_CONSUMER_PASS");
   }
 
