@@ -21,6 +21,7 @@ final class PerformanceEditSession {
   private Map<Field, String> text;
   private Feedback feedback;
   private long validations;
+  private long version;
   private boolean applying;
 
   PerformanceEditSession(UserConfig user) {
@@ -46,6 +47,7 @@ final class PerformanceEditSession {
     next.putAll(text);
     next.put(field, raw);
     text = Collections.unmodifiableMap(next);
+    version++;
     feedback = null;
   }
 
@@ -99,6 +101,31 @@ final class PerformanceEditSession {
       throw new IllegalStateException("Displayed performance fields differ from the private draft");
   }
 
+  long version() {
+    return version;
+  }
+
+  boolean ownsInput(UserConfig user, long captured, Map<Field, String> displayed) {
+    if (version != captured || !current(user)) return false;
+    try {
+      requireDisplayed(displayed);
+      return true;
+    } catch (RuntimeException changed) {
+      return false;
+    }
+  }
+
+  UserConfig.PreferenceRequest request(UserConfig user, Map<Field, String> displayed) {
+    requireIdle();
+    requireDisplayed(displayed);
+    if (!current(user))
+      throw new IllegalStateException("Active performance settings changed; Revert before Apply");
+    var checked = feedback();
+    if (checked.value() == null)
+      throw new IllegalArgumentException("Correct the marked performance input before Apply");
+    return user.requestPerformance(checked.value());
+  }
+
   void apply(UserConfig user, Path file, Map<Field, String> displayed) {
     requireIdle();
     requireDisplayed(displayed);
@@ -128,6 +155,7 @@ final class PerformanceEditSession {
     for (var field : Field.values()) raw.put(field, Long.toString(next.get(field)));
     base = next;
     text = Collections.unmodifiableMap(raw);
+    version++;
     feedback = null;
   }
 

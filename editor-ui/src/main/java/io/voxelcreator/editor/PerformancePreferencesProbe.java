@@ -206,6 +206,7 @@ public final class PerformancePreferencesProbe {
               paths.noneMatch(p -> p.getFileName().toString().matches("\\.user-config-.*\\.tmp")),
               "Temporary configuration leaked");
         }
+        BackgroundPreferenceProbe.run(out.resolve("background"));
         Files.writeString(
             out.resolve("performance-native.json"),
             ProjectIO.JSON.writeValueAsString(

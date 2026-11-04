@@ -5,11 +5,14 @@ import imgui.flag.ImGuiKey;
 import imgui.type.*;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /** Searchable private global/window scale controls; native application follows successful save. */
-final class UiScalePanel {
+final class UiScalePanel implements AutoCloseable {
   private final UserConfig user;
+  private final PreferenceApplySession applyWork;
+  private boolean closed;
   final PreferenceActionScope actionScope = new PreferenceActionScope();
   final SettingsPageChrome layout = new SettingsPageChrome(3);
   private DialogBounds.Rect targets;
@@ -30,9 +33,20 @@ final class UiScalePanel {
   private boolean probing, applyEnabled;
 
   UiScalePanel(UserConfig user, Path file, Consumer<String> errors) {
+    this(user, file, errors, null, null);
+  }
+
+  static UiScalePanel background(EditorState state, Path file, Consumer<String> errors) {
+    return new UiScalePanel(state.user, file, errors, state.background, state.uiQueue::offer);
+  }
+
+  UiScalePanel(UserConfig user, Path file, Consumer<String> errors,
+      Executor executor, Consumer<Runnable> ui) {
     this.user = Objects.requireNonNull(user);
     this.file = Objects.requireNonNull(file);
     this.errors = Objects.requireNonNull(errors);
+    applyWork =
+        executor == null ? null : new PreferenceApplySession(user, file, executor, ui, errors);
   }
 
   private void ensure() {
@@ -61,7 +75,10 @@ final class UiScalePanel {
   }
 
   boolean draw(Runnable heading, Runnable trailing) {
+    if (closed) return false;
     ensure();
+    if (applyWork != null) applyWork.refresh();
+    long work = applyWork == null ? 0 : applyWork.version();
     long request = actionScope.synchronize(activeValues());
     if (probing) {
       controls.clear();
@@ -143,13 +160,18 @@ final class UiScalePanel {
     if (session.changed())
       ImGui.textWrapped("Pending UI scales are excluded from Save Preferences");
     if (!message.isEmpty()) ImGui.textWrapped(message);
+    if (applyWork != null && !applyWork.message().isEmpty())
+      ImGui.textWrapped(StatusBarText.bounded(applyWork.message(), 3072));
     trailing.run();
     layout.end();
     ImGui.pushID("ui-scale-request:" + actionScope.nativeId() + ":" + request);
-    ImGui.beginDisabled(!applyEnabled);
-    boolean apply = layout.identifiedAction("apply", "Apply UI Scales");
+    boolean running = applyWork != null && applyWork.running();
+    ImGui.pushID("private-preference-work:" + (applyWork == null ? 0 : applyWork.version()));
+    ImGui.beginDisabled(!applyEnabled && !running);
+    boolean apply = layout.identifiedAction("apply", running ? "Cancel Apply" : "Apply UI Scales");
     control("apply");
     ImGui.endDisabled();
+    ImGui.popID();
     boolean revert = layout.identifiedAction("revert", "Revert UI Scales");
     control("revert");
     ImGui.beginDisabled(firstProblem == null);
@@ -157,33 +179,67 @@ final class UiScalePanel {
     control("invalid");
     ImGui.endDisabled();
     ImGui.popID();
-    if (!actionScope.current(activeValues()) || ImGui.isKeyPressed(ImGuiKey.Escape, false))
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      if (applyWork != null) applyWork.cancel();
       return false;
+    }
+    if (!actionScope.current(activeValues())) return false;
     if (revert)
       act(
           () -> {
+            if (applyWork != null) applyWork.cancel();
             session.revert(user);
             sync();
             message = "Active UI scales reloaded";
           });
-    else if (apply && applyEnabled)
-      act(
-          () -> {
-            session.apply(user, file, displayed());
-            sync();
-            message = "UI scales saved";
-          });
-    else if (invalid && firstProblem != null) {
+    else if (apply && (applyEnabled || running)
+        && (applyWork == null || work == applyWork.version())) {
+      if (running) applyWork.cancel();
+      else act(() -> {
+        if (applyWork == null) {
+          session.apply(user, file, displayed());
+          sync();
+          message = "UI Scales preferences saved";
+        } else {
+          var owner = session;
+          long version = owner.version();
+          var requestValue = owner.request(user, displayed());
+          applyWork.start(requestValue,
+              () -> session == owner && owner.ownsInput(user, version, displayed()));
+          message = "";
+        }
+      });
+    } else if (invalid && firstProblem != null) {
       if (!UiScaleEditSession.GLOBAL.equals(firstProblem)) {
         selected = firstProblem;
         filter.set(firstProblem);
       }
       reveal = firstProblem;
     }
-    return !revert && !(apply && applyEnabled) && !(invalid && firstProblem != null);
+    boolean accepted = applyWork != null && applyWork.accept();
+    if (accepted) act(
+          () -> {
+            session.revert(user);
+            sync();
+            message = "";
+          });
+    return !accepted && !revert && !(apply && applyEnabled) && !(invalid && firstProblem != null);
+  }
+
+  PreferenceApplySession probeApplyWork() {
+    return applyWork;
+  }
+
+  @Override
+  public void close() {
+    if (closed) return;
+    suspendActions();
+    if (applyWork != null) applyWork.close();
+    closed = true;
   }
 
   void suspendActions() {
+    if (applyWork != null) applyWork.cancel();
     actionScope.resetDraft();
   }
 
@@ -221,6 +277,7 @@ final class UiScalePanel {
 
   void probeRevert() {
     ensure();
+    if (applyWork != null) applyWork.cancel();
     session.revert(user);
     sync();
   }

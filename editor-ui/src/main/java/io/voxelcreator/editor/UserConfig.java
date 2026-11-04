@@ -1,5 +1,6 @@
 package io.voxelcreator.editor;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.voxelcreator.model.ProjectIO;
 import java.io.IOException;
 import java.nio.file.*;
@@ -263,6 +264,110 @@ public final class UserConfig {
     snapshot.validate();
     snapshot.writeSnapshot(path, files);
     candidate.writeTo(appearance);
+  }
+
+  private enum PreferenceKind {
+    PERFORMANCE, SCALES, TRUST
+  }
+
+  PreferenceRequest requestPerformance(PerformancePreferences.Values value) {
+    return new PreferenceRequest(PreferenceKind.PERFORMANCE, Objects.requireNonNull(value));
+  }
+
+  PreferenceRequest requestScales(UiScalePreferences.Values value) {
+    return new PreferenceRequest(PreferenceKind.SCALES, Objects.requireNonNull(value));
+  }
+
+  PreferenceRequest requestTrust(UpdateTrust.Values value) {
+    return new PreferenceRequest(PreferenceKind.TRUST, Objects.requireNonNull(value));
+  }
+
+  /** Captured on the owner thread; preparation reads only detached source values and patch data. */
+  final class PreferenceRequest {
+    private final PreferenceKind kind;
+    private final Object value;
+    private boolean published;
+    private final JsonNode source = ProjectIO.JSON.valueToTree(UserConfig.this);
+
+    private PreferenceRequest(PreferenceKind kind, Object value) {
+      this.kind = kind;
+      this.value = value;
+    }
+
+    boolean current(UserConfig user) {
+      return !published && user == UserConfig.this && source.equals(ProjectIO.JSON.valueToTree(user));
+    }
+
+    PreparedPreference prepare(Path path) throws Exception {
+      var candidate = ProjectIO.JSON.convertValue(source, UserConfig.class);
+      switch (kind) {
+        case PERFORMANCE -> ((PerformancePreferences.Values) value).writeTo(candidate);
+        case SCALES -> ((UiScalePreferences.Values) value).writeTo(candidate.appearance);
+        case TRUST -> {
+          var trust = (UpdateTrust.Values) value;
+          var checked = UpdateTrust.parse(trust.endpoint(), String.join("\n", trust.origins()));
+          candidate.performance.updateEndpoint = checked.endpoint();
+          candidate.performance.trustedOrigins = new ArrayList<>(checked.origins());
+        }
+      }
+      candidate.validate();
+      var prepared = new PreparedPreference(this, candidate);
+      prepared.file = files.prepare(path, candidate, ".user-config-");
+      return prepared;
+    }
+
+    void publish(PreparedPreference prepared, UserConfig user) throws Exception {
+      if (prepared.request != this || !current(user))
+        throw new IllegalStateException("Active preferences changed; review and Apply again");
+      prepared.file.publish();
+      published = true;
+      // Install only this form's owned fields, with no validation/copy/callback after replacement.
+      var next = prepared.candidate;
+      switch (kind) {
+        case PERFORMANCE -> {
+          var p = performance;
+          var n = next.performance;
+          p.workers = n.workers;
+          p.maxPreviewDimension = n.maxPreviewDimension;
+          visualization.previewSize = next.visualization.previewSize;
+          p.previewCellBudget = n.previewCellBudget;
+          p.cacheMiB = n.cacheMiB;
+          p.engineMiB = n.engineMiB;
+          p.sceneCpuMiB = n.sceneCpuMiB;
+          p.sceneGpuMiB = n.sceneGpuMiB;
+          p.uploadKiB = n.uploadKiB;
+          p.renderDistance = n.renderDistance;
+          p.verticalDistance = n.verticalDistance;
+          p.lodStart = n.lodStart;
+          p.lodQuality = n.lodQuality;
+          p.streamChunks = n.streamChunks;
+        }
+        case SCALES -> {
+          appearance.globalScale = next.appearance.globalScale;
+          appearance.windowScales = next.appearance.windowScales;
+        }
+        case TRUST -> {
+          performance.updateEndpoint = next.performance.updateEndpoint;
+          performance.trustedOrigins = next.performance.trustedOrigins;
+        }
+      }
+    }
+  }
+
+  static final class PreparedPreference implements AutoCloseable {
+    private final PreferenceRequest request;
+    private final UserConfig candidate;
+    private PreferenceFiles.Prepared file;
+
+    private PreparedPreference(PreferenceRequest request, UserConfig candidate) {
+      this.request = request;
+      this.candidate = candidate;
+    }
+
+    @Override
+    public void close() throws Exception {
+      file.close();
+    }
   }
 
   private void writeSnapshot(Path path, PreferenceFiles writer) {

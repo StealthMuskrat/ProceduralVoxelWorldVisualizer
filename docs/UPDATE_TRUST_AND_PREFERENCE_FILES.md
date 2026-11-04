@@ -37,3 +37,5 @@ The separate unvalidated [preference form layout follow-up](PREFERENCE_FORMS_LAY
 The unvalidated [manual update layout follow-up](UPDATE_CHECK_LAYOUT.md) keeps result-window actions persistent and exact-request scoped. It preserves applied trust and private preference ownership, including late-result rejection; all new regression/native/replay definitions remain deferred.
 
 The unvalidated [export completion follow-up](EXPORT_COMPLETION_OWNERSHIP.md) ends configuration cleanup at successful replacement and retains original rejection failures across checked/unchecked cleanup faults. Three additional PreferenceFilesTest definitions remain deferred; bounded serialization, private Apply and retry semantics remain.
+
+Subsequent unvalidated development on main: [background private preference Apply](BACKGROUND_PRIVATE_PREFERENCES.md) moves production Performance/UI Scales/Update Trust validation/serialization/staging to workers with exact raw/full-active checks, completion-ready cancellation and atomic activation. Direct synchronous callers remain compatible; new regression/native/independent definitions and full acceptance stay deferred.

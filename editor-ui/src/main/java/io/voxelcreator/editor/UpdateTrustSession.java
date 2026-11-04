@@ -14,6 +14,7 @@ final class UpdateTrustSession {
   private Text text;
   private Feedback feedback;
   private long validations;
+  private long version;
   private int endpointLimit, originsLimit;
 
   UpdateTrustSession(UserConfig user) {
@@ -47,6 +48,7 @@ final class UpdateTrustSession {
       throw new IllegalArgumentException("Update trust text exceeds the provisional editor limit");
     if (next.equals(text)) return;
     text = next;
+    version++;
     feedback = null;
   }
 
@@ -87,6 +89,30 @@ final class UpdateTrustSession {
               + " applying");
   }
 
+  long version() {
+    return version;
+  }
+
+  boolean ownsInput(UserConfig user, long captured, Text displayed) {
+    if (version != captured || !current(user)) return false;
+    try {
+      requireDisplayed(displayed);
+      return true;
+    } catch (RuntimeException changed) {
+      return false;
+    }
+  }
+
+  UserConfig.PreferenceRequest request(UserConfig user, Text displayed) {
+    requireDisplayed(displayed);
+    if (!current(user))
+      throw new IllegalStateException("Active update trust settings changed; Revert before Apply");
+    var checked = feedback();
+    if (checked.value() == null)
+      throw new IllegalArgumentException("Correct the marked update trust input before Apply");
+    return user.requestTrust(checked.value());
+  }
+
   void apply(UserConfig user, Path path, Text displayed) {
     requireDisplayed(displayed);
     if (!current(user))
@@ -112,6 +138,7 @@ final class UpdateTrustSession {
     endpointLimit = nextEndpointLimit;
     originsLimit = nextOriginsLimit;
     text = new Text(endpoint, raw);
+    version++;
     feedback = null;
   }
 }

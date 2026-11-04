@@ -38,3 +38,36 @@ assert periodic['performance']['updateEndpoint'] == ''
 assert not list(out.rglob('.user-config-*.tmp'))
 assert 'files' not in saved
 print('Performance exact integers, complete limits, privacy, retry and unrelated-preference replay PASS')
+
+
+background = out / 'background'
+receipt = json.loads((background / 'preferences-background-native.json').read_text(encoding='utf-8'))
+assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
+modes = ['limits-apply', 'limits-cancel', 'limits-retry', 'scales-apply', 'scales-escape', 'scales-edit', 'trust-apply', 'trust-revert', 'trust-hidden']
+assert [case['mode'] for case in receipt['cases']] == modes
+for case in receipt['cases']:
+    mode = case['mode']
+    applied = mode.endswith('apply') or mode == 'limits-retry'
+    assert case['applied'] is applied
+    assert case['queuedFrames'] == case['heldFrames'] == 12
+    for key in ('projectRetained', 'privateRetained', 'engineRetained', 'temporaryCleaned'):
+        assert case[key] is True, (mode, key)
+    base = json.loads((background / mode / 'user-before.json').read_text(encoding='utf-8'))
+    current = json.loads((background / mode / 'user-config.json').read_text(encoding='utf-8'))
+    if applied:
+        if mode.startswith('limits'):
+            base['performance']['cacheMiB'] = 256
+        elif mode.startswith('scales'):
+            base['appearance']['globalScale'] = 1.25
+            base['appearance']['windowScales']['Resources'] = 1.5
+        else:
+            base['performance']['updateEndpoint'] = 'https://updates.example.invalid/latest.json'
+            base['performance']['trustedOrigins'] = ['https://updates.example.invalid']
+    assert current == base, mode
+    original = json.loads((background / mode / 'before.json').read_text(encoding='utf-8'))
+    after = json.loads((background / mode / 'after.json').read_text(encoding='utf-8'))
+    assert original == after and len(after['noise2D']) == 1
+    assert after['noise2D'][0]['algorithm']['parameters'] == {'value': .125}
+    subprocess.run([sys.executable, str(root / 'scripts/verify_input_preferences.py'),
+                    str(background / mode / 'user-config.json')], check=True)
+print('BACKGROUND_PREFERENCE_INDEPENDENT_PASS nine exact preference patches / eighteen unchanged projects')

@@ -5,13 +5,16 @@ import imgui.flag.ImGuiKey;
 import imgui.type.ImString;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /**
  * Private manual-update settings retained across ordinary Settings navigation and save failures.
  */
-final class UpdateTrustPanel {
+final class UpdateTrustPanel implements AutoCloseable {
   private final UserConfig user;
+  private final PreferenceApplySession applyWork;
+  private boolean closed;
   final PreferenceActionScope actionScope = new PreferenceActionScope();
   private final PreferenceSaveAction saveActions = new PreferenceSaveAction();
   private int saveId;
@@ -30,9 +33,20 @@ final class UpdateTrustPanel {
   private final Map<String, float[]> controls = new HashMap<>();
 
   UpdateTrustPanel(UserConfig user, Path file, Consumer<String> errors) {
+    this(user, file, errors, null, null);
+  }
+
+  static UpdateTrustPanel background(EditorState state, Path file, Consumer<String> errors) {
+    return new UpdateTrustPanel(state.user, file, errors, state.background, state.uiQueue::offer);
+  }
+
+  UpdateTrustPanel(UserConfig user, Path file, Consumer<String> errors,
+      Executor executor, Consumer<Runnable> ui) {
     this.user = Objects.requireNonNull(user);
     this.file = Objects.requireNonNull(file);
     this.errors = Objects.requireNonNull(errors);
+    applyWork =
+        executor == null ? null : new PreferenceApplySession(user, file, executor, ui, errors);
   }
 
   private void ensure() {
@@ -59,7 +73,10 @@ final class UpdateTrustPanel {
   }
 
   void draw(Runnable savePreferences) {
+    if (closed) return;
     ensure();
+    if (applyWork != null) applyWork.refresh();
+    long work = applyWork == null ? 0 : applyWork.version();
     long request = actionScope.synchronize(activeValues());
     long saveRequest = saveActions.synchronize(actionScope, savePreferences != null);
     boolean save = false;
@@ -118,6 +135,8 @@ final class UpdateTrustPanel {
     applyEnabled = current && feedback.value() != null && displayedProblem.isEmpty();
     if (session.changed()) ImGui.textWrapped("Pending update settings are private");
     if (!message.isEmpty()) ImGui.textWrapped(message);
+    if (applyWork != null && !applyWork.message().isEmpty())
+      ImGui.textWrapped(StatusBarText.bounded(applyWork.message(), 3072));
     if (savePreferences != null) {
       ImGui.pushID("update-trust-save:" + saveActions.nativeId() + ":" + saveRequest);
       saveId = ImGui.getID("Save Preferences");
@@ -131,35 +150,60 @@ final class UpdateTrustPanel {
     }
     layout.end();
     ImGui.pushID("update-trust-request:" + actionScope.nativeId() + ":" + request);
-    ImGui.beginDisabled(!applyEnabled);
-    boolean apply = layout.identifiedAction("apply", "Apply Update Trust");
+    boolean running = applyWork != null && applyWork.running();
+    ImGui.pushID("private-preference-work:" + (applyWork == null ? 0 : applyWork.version()));
+    ImGui.beginDisabled(!applyEnabled && !running);
+    boolean apply = layout.identifiedAction("apply", running ? "Cancel Apply" : "Apply Update Trust");
     control("apply");
     ImGui.endDisabled();
+    ImGui.popID();
     boolean revert = layout.identifiedAction("revert", "Revert Update Trust");
     control("revert");
     boolean fields = layout.identifiedAction("fields", "Show Update Fields");
     control("fields");
     ImGui.popID();
-    if (!actionScope.current(activeValues()) || ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      if (applyWork != null) applyWork.cancel();
+      return;
+    }
+    if (!actionScope.current(activeValues())) return;
     if (revert)
       act(
           () -> {
+            if (applyWork != null) applyWork.cancel();
             session.revert(user);
             sync();
             message = "Active update settings reloaded";
           });
-    else if (apply && applyEnabled)
-      act(
-          () -> {
-            session.apply(user, file, displayed());
-            sync();
-            message = "Update trust saved";
-          });
-    else if (fields) {
+    else if (apply && (applyEnabled || running)
+        && (applyWork == null || work == applyWork.version())) {
+      if (running) applyWork.cancel();
+      else act(() -> {
+        if (applyWork == null) {
+          session.apply(user, file, displayed());
+          sync();
+          message = "Update Trust preferences saved";
+        } else {
+          var owner = session;
+          long version = owner.version();
+          var requestValue = owner.request(user, displayed());
+          applyWork.start(requestValue,
+              () -> session == owner && owner.ownsInput(user, version, displayed()));
+          message = "";
+        }
+      });
+    } else if (fields) {
       reveal = originsNext ? "origins" : "endpoint";
       originsNext = !originsNext;
     } else if (save && savePreferences != null && saveActions.current(actionScope, true))
       savePreferences.run();
+    if (applyWork != null && applyWork.accept())
+      act(
+          () -> {
+            session.revert(user);
+            sync();
+            message = "";
+          });
   }
 
   private record ActiveValues(String endpoint, List<String> origins) {
@@ -172,7 +216,20 @@ final class UpdateTrustPanel {
     return new ActiveValues(user.performance.updateEndpoint, user.performance.trustedOrigins);
   }
 
+  PreferenceApplySession probeApplyWork() {
+    return applyWork;
+  }
+
+  @Override
+  public void close() {
+    if (closed) return;
+    suspendActions();
+    if (applyWork != null) applyWork.close();
+    closed = true;
+  }
+
   void suspendActions() {
+    if (applyWork != null) applyWork.cancel();
     actionScope.resetDraft();
     saveActions.release();
   }
@@ -195,6 +252,7 @@ final class UpdateTrustPanel {
 
   void probeRevert() {
     ensure();
+    if (applyWork != null) applyWork.cancel();
     session.revert(user);
     sync();
   }

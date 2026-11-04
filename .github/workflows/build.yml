@@ -112,6 +112,7 @@ jobs:
           python scripts/verify_workspace.py build/workspace
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PerformancePreferencesProbe build/performance-preferences
           python scripts/verify_performance_preferences.py build/performance-preferences
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.BackgroundPreferenceConsumer build/performance-preferences/background
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreferencesLayoutProbe build/preferences-layout
           python scripts/verify_preferences_layout.py build/preferences-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.GeneralSettingsLayoutProbe build/general-settings-layout
@@ -859,6 +860,8 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PerformancePreferencesProbe build/performance-preferences
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/verify_performance_preferences.py build/performance-preferences
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.BackgroundPreferenceConsumer build/performance-preferences/background
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreferencesLayoutProbe build/preferences-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

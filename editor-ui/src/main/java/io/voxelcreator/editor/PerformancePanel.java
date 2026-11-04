@@ -7,11 +7,14 @@ import imgui.flag.ImGuiKey;
 import imgui.type.ImString;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /** Production explicit performance preferences, including exact 64-bit cell-budget input. */
-final class PerformancePanel {
+final class PerformancePanel implements AutoCloseable {
   private final UserConfig user;
+  private final PreferenceApplySession applyWork;
+  private boolean closed;
   private final SettingsGuidance guidance;
   final PreferenceActionScope actionScope = new PreferenceActionScope();
   private final PreferenceSaveAction saveActions = new PreferenceSaveAction();
@@ -32,19 +35,31 @@ final class PerformancePanel {
   private boolean probing, applyEnabled;
 
   PerformancePanel(UserConfig user, Path file, Consumer<String> errors) {
-    this(user, file, errors, null);
+    this(user, file, errors, null, null, null);
   }
 
   PerformancePanel(EditorState state, Path file, Consumer<String> errors) {
-    this(state.user, file, errors, state);
+    this(state.user, file, errors, state, null, null);
   }
 
-  private PerformancePanel(UserConfig user, Path file, Consumer<String> errors, EditorState state) {
+  static PerformancePanel background(EditorState state, Path file, Consumer<String> errors) {
+    return new PerformancePanel(state, file, errors, state.background, state.uiQueue::offer);
+  }
+
+  PerformancePanel(EditorState state, Path file, Consumer<String> errors,
+      Executor executor, Consumer<Runnable> ui) {
+    this(state.user, file, errors, state, executor, ui);
+  }
+
+  private PerformancePanel(UserConfig user, Path file, Consumer<String> errors, EditorState state,
+      Executor executor, Consumer<Runnable> ui) {
     this.user = Objects.requireNonNull(user);
     guidance = new SettingsGuidance(state);
     this.file = Objects.requireNonNull(file);
     this.errors = Objects.requireNonNull(errors);
     launched = PerformancePreferences.from(user);
+    applyWork =
+        executor == null ? null : new PreferenceApplySession(user, file, executor, ui, errors);
   }
 
   private void ensure() {
@@ -68,7 +83,10 @@ final class PerformancePanel {
   }
 
   void draw(Runnable savePreferences) {
+    if (closed) return;
     ensure();
+    if (applyWork != null) applyWork.refresh();
+    long work = applyWork == null ? 0 : applyWork.version();
     long request = actionScope.synchronize(PerformancePreferences.from(user));
     long saveRequest = saveActions.synchronize(actionScope, savePreferences != null);
     boolean save = false;
@@ -172,6 +190,8 @@ final class PerformancePanel {
                 + " Raise the budget if those previews are needed.");
     }
     if (!message.isEmpty()) ImGui.textWrapped(message);
+    if (applyWork != null && !applyWork.message().isEmpty())
+      ImGui.textWrapped(StatusBarText.bounded(applyWork.message(), 3072));
     if (savePreferences != null) {
       ImGui.pushID("performance-save:" + saveActions.nativeId() + ":" + saveRequest);
       saveId = ImGui.getID("Save Preferences");
@@ -185,10 +205,13 @@ final class PerformancePanel {
     }
     layout.end();
     ImGui.pushID("performance-request:" + actionScope.nativeId() + ":" + request);
-    ImGui.beginDisabled(!applyEnabled);
-    boolean apply = layout.identifiedAction("apply", "Apply Performance");
+    boolean running = applyWork != null && applyWork.running();
+    ImGui.pushID("private-preference-work:" + (applyWork == null ? 0 : applyWork.version()));
+    ImGui.beginDisabled(!applyEnabled && !running);
+    boolean apply = layout.identifiedAction("apply", running ? "Cancel Apply" : "Apply Performance");
     control("apply");
     ImGui.endDisabled();
+    ImGui.popID();
     boolean revert = layout.identifiedAction("revert", "Revert Performance");
     control("revert");
     ImGui.beginDisabled(firstProblem == null);
@@ -196,28 +219,62 @@ final class PerformancePanel {
     control("problem");
     ImGui.endDisabled();
     ImGui.popID();
-    if (!actionScope.current(PerformancePreferences.from(user))
-        || ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      if (applyWork != null) applyWork.cancel();
+      return;
+    }
+    if (!actionScope.current(PerformancePreferences.from(user))) return;
     if (revert)
       act(
           () -> {
+            if (applyWork != null) applyWork.cancel();
             session.revert(user);
             sync();
             message = "Active performance settings reloaded";
           });
-    else if (apply && applyEnabled)
-      act(
-          () -> {
-            session.apply(user, file, displayed());
-            sync();
-            message = "Performance preferences saved";
-          });
-    else if (problem && firstProblem != null) reveal = firstProblem;
+    else if (apply && (applyEnabled || running)
+        && (applyWork == null || work == applyWork.version())) {
+      if (running) applyWork.cancel();
+      else act(() -> {
+        if (applyWork == null) {
+          session.apply(user, file, displayed());
+          sync();
+          message = "Performance preferences saved";
+        } else {
+          var owner = session;
+          long version = owner.version();
+          var requestValue = owner.request(user, displayed());
+          applyWork.start(requestValue,
+              () -> session == owner && owner.ownsInput(user, version, displayed()));
+          message = "";
+        }
+      });
+    } else if (problem && firstProblem != null) reveal = firstProblem;
     else if (save && savePreferences != null && saveActions.current(actionScope, true))
       savePreferences.run();
+    if (applyWork != null && applyWork.accept())
+      act(
+          () -> {
+            session.revert(user);
+            sync();
+            message = "";
+          });
+  }
+
+  PreferenceApplySession probeApplyWork() {
+    return applyWork;
+  }
+
+  @Override
+  public void close() {
+    if (closed) return;
+    suspendActions();
+    if (applyWork != null) applyWork.close();
+    closed = true;
   }
 
   void suspendActions() {
+    if (applyWork != null) applyWork.cancel();
     actionScope.resetDraft();
     saveActions.release();
   }
@@ -238,6 +295,7 @@ final class PerformancePanel {
 
   void probeRevert() {
     ensure();
+    if (applyWork != null) applyWork.cancel();
     session.revert(user);
     sync();
   }

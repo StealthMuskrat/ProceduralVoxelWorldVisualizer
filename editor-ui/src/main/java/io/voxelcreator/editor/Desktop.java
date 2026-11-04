@@ -201,8 +201,8 @@ public final class Desktop extends Application {
     mainWindow.restoreHidden();
     inputSettings = new InputSettingsPanel(state.user);
     updateTrust =
-        new UpdateTrustPanel(
-            state.user,
+        UpdateTrustPanel.background(
+            state,
             UserConfig.directory().resolve("user-config.json"),
             message ->
                 state.error(
@@ -234,19 +234,22 @@ public final class Desktop extends Application {
           startupStage("updates-released");
         });
     performanceSettings =
-        new PerformancePanel(
+        PerformancePanel.background(
             state,
             UserConfig.directory().resolve("user-config.json"),
             message ->
                 state.error(
                     "PERFORMANCE_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
+    lifecycle.own(performanceSettings::close);
+    lifecycle.own(updateTrust::close);
     performancePage = new PerformanceSettingsPage(performanceSettings, updateTrust);
     scaleSettings =
-        new UiScalePanel(
-            state.user,
+        UiScalePanel.background(
+            state,
             UserConfig.directory().resolve("user-config.json"),
             message ->
                 state.error("UI_SCALE_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
+    lifecycle.own(scaleSettings::close);
     appearanceSettings =
         new AppearanceSettingsPanel(
             state.user,

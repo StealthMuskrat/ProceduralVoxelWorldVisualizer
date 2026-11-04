@@ -32,6 +32,7 @@ final class UiScaleEditSession {
   private Text opening, text;
   private Feedback feedback;
   private long validations;
+  private long version;
   private boolean applying;
 
   UiScaleEditSession(UserConfig user) {
@@ -74,6 +75,7 @@ final class UiScaleEditSession {
       throw new IllegalArgumentException("Scale input exceeds 128 characters");
     if (next.equals(text)) return;
     text = next;
+    version++;
     feedback = null;
   }
 
@@ -139,6 +141,31 @@ final class UiScaleEditSession {
       throw new IllegalStateException("Displayed scale fields differ from the private draft");
   }
 
+  long version() {
+    return version;
+  }
+
+  boolean ownsInput(UserConfig user, long captured, Text displayed) {
+    if (version != captured || !current(user)) return false;
+    try {
+      requireDisplayed(displayed);
+      return true;
+    } catch (RuntimeException changed) {
+      return false;
+    }
+  }
+
+  UserConfig.PreferenceRequest request(UserConfig user, Text displayed) {
+    idle();
+    requireDisplayed(displayed);
+    if (!current(user))
+      throw new IllegalStateException("Active scale settings changed; Revert before Apply");
+    var checked = feedback();
+    if (checked.value() == null)
+      throw new IllegalArgumentException("Correct the marked scale input before Apply");
+    return user.requestScales(checked.value());
+  }
+
   void apply(UserConfig user, Path file, Text displayed) {
     idle();
     requireDisplayed(displayed);
@@ -169,6 +196,7 @@ final class UiScaleEditSession {
       windows.put(name, Float.toString(next.overrides().getOrDefault(name, 1f)));
     base = next;
     opening = text = new Text(Float.toString(next.global()), windows, next.overrides().keySet());
+    version++;
     feedback = null;
   }
 
