@@ -71,3 +71,36 @@ for case in loading['cases']:
 replay = json.loads((background / 'engine-replay.json').read_text())
 assert replay == {'formatVersion': 1, 'fields': 294, 'cells': 3528, 'roots': [2, 4]}
 print('BACKGROUND_IMPORT_INDEPENDENT_PASS owned snapshots / native cancel-retry / complete retained project / 294 fields / 3528 EMPTY cells')
+
+# Deferred choice/reload background planning: independent full models and replay dimensions.
+planning = out / 'planning'
+planning_report = json.loads((planning / 'import-planning.json').read_text())
+assert planning_report['formatVersion'] == 1 and planning_report['physicalInputVerified'] is False
+assert [c['mode'] for c in planning_report['cases']] == ['choice', 'reload', 'cancel', 'escape', 'retry', 'close']
+for case in planning_report['cases']:
+    mode = case['mode']; imported = mode in ['choice', 'reload', 'retry']
+    assert case == dict(mode=mode, imported=imported, responsiveFrames=12,
+        privateRetained=True, preferencesRetained=True, originalBytesRetained=True, freshReviewRequired=True)
+    directory = planning / mode
+    before = json.loads((directory / 'before.json').read_text())
+    after = json.loads((directory / 'after.json').read_text())
+    incoming = json.loads((directory / 'incoming.json').read_text())
+    for project in [before, after, incoming]:
+        validator.validate(project)
+    assert before['project']['seed'] == 17
+    assert len(before['noise2D']) == 2 and len(after['noise2D']) == (3 if imported else 2)
+    assert [n['id'] for n in before['noise2D']] == ['existing', 'shared']
+    assert before['noise2D'] == after['noise2D'][:2]
+    assert [n['id'] for n in incoming['noise2D']] == ['shared', 'added']
+    if mode == 'reload': before['project']['seed'] = 18
+    if imported:
+        added = after['noise2D'].pop()
+        assert added['id'] == 'added' and added['uuid'] != incoming['noise2D'][1]['uuid']
+        authored = dict(incoming['noise2D'][1]); authored['uuid'] = added['uuid']
+        assert added == authored
+        assert after['project']['rootOrder'] == {'noise2D': [n['uuid'] for n in before['noise2D']] + [added['uuid']]}
+        for project in [before, after]: project['project'].pop('rootOrder', None)
+    assert before == after
+planning_replay = json.loads((planning / 'engine-replay.json').read_text())
+assert planning_replay == dict(formatVersion=1, fields=567, cells=3528, roots=[2, 4])
+print('IMPORT_PLANNING_INDEPENDENT_PASS six review lifetimes / complete saved models / 567 fields / 3528 EMPTY cells')

@@ -7,6 +7,20 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void importHelpExplainsBackgroundChoiceRebuildAndExplicitRetryReview() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.resource-import");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Changed choices and Reload rebuild"));
+    assertTrue(text.contains("Retry preview"));
+    assertTrue(text.contains("keeping COPY identities"));
+    assertTrue(catalog.search("import retry preview").contains(topic));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void curveGuidanceExplainsGuardedLinearExtensionWithoutChangingModeOrMetadataAuthority() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

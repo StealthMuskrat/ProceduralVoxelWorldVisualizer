@@ -6,14 +6,17 @@ import imgui.type.ImString;
 import io.voxelcreator.core.NoiseCompiler;
 import io.voxelcreator.model.*;
 import java.util.*;
-import java.util.function.BooleanSupplier;
+import java.util.concurrent.Executor;
+import java.util.function.*;
 
 /** Production COPY/REUSE/SKIP workspace, with bounded rows and explicit stale-preview reload. */
-final class ResourceImportPanel {
+final class ResourceImportPanel implements AutoCloseable {
   private final EditorState state;
   final DialogLayout layout;
   private final BooleanSupplier blocked;
   private final Runnable validation;
+  private final Executor executor;
+  private final Consumer<Runnable> ui;
   private ImportEditSession session;
   private boolean prompt;
   private final NavigationDecisionScope delivery = new NavigationDecisionScope();
@@ -24,6 +27,7 @@ final class ResourceImportPanel {
     CANCEL,
     APPLY,
     RELOAD,
+    RETRY,
     VALIDATION,
     RESOURCES,
     FILTERS,
@@ -40,7 +44,7 @@ final class ResourceImportPanel {
   private final UiFields fields = new UiFields();
   private String kind = "All", resolution = "All", message = "", section = "Resources";
   private final ImportRows projection = new ImportRows();
-  final SettingsPageChrome chrome = new SettingsPageChrome(4, 3);
+  final SettingsPageChrome chrome = new SettingsPageChrome(4, 4);
   private final Map<String, float[]> controls = new HashMap<>();
   private final Map<UUID, float[]> rowControls = new HashMap<>();
   private final Map<UUID, Integer> rowIds = new LinkedHashMap<>();
@@ -52,10 +56,22 @@ final class ResourceImportPanel {
   private boolean revealPage;
 
   ResourceImportPanel(EditorState state, BooleanSupplier blocked, Runnable validation) {
+    this(state, blocked, validation, null, null);
+  }
+
+  ResourceImportPanel(
+      EditorState state,
+      BooleanSupplier blocked,
+      Runnable validation,
+      Executor executor,
+      Consumer<Runnable> ui) {
     this.state = state;
     layout = new DialogLayout(state, "Resources", 820, 650);
     this.blocked = Objects.requireNonNull(blocked);
     this.validation = Objects.requireNonNull(validation);
+    this.executor = executor;
+    this.ui = ui;
+    if (executor != null) Objects.requireNonNull(ui);
   }
 
   boolean pending() {
@@ -75,13 +91,13 @@ final class ResourceImportPanel {
       issues.forEach(d -> state.reportDiagnostic(d, EditorEvents.Subsystem.IMPORT_EXPORT, true));
       return false;
     }
-    install(new ImportEditSession(state, incoming));
+    install(new ImportEditSession(state, incoming, executor, ui, blocked));
     return true;
   }
 
   boolean openPrepared(ImportEditSession.Prepared incoming, BooleanSupplier current) {
     if (!admit() || !current.getAsBoolean()) return false;
-    install(new ImportEditSession(state, incoming));
+    install(new ImportEditSession(state, incoming, executor, ui, blocked));
     return true;
   }
 
@@ -129,6 +145,11 @@ final class ResourceImportPanel {
     message = "";
   }
 
+  @Override
+  public void close() {
+    cancel();
+  }
+
   private void resetRows() {
     projection.clear();
     scroll = 0f;
@@ -172,6 +193,8 @@ final class ResourceImportPanel {
         chrome.begin("import-body");
         try {
           var preview = session.preview();
+          String planning = session.planningMessage();
+          if (!planning.isEmpty()) ImGui.textWrapped(bounded(planning, 3072));
           var view =
               projection.view(preview, new ImportRows.Filter(filter.get(), kind, resolution));
           if (revealPage) {
@@ -235,7 +258,7 @@ final class ResourceImportPanel {
             ImGui.textWrapped(
                 "Import appends or reuses committed resources in one undoable edit. Unapplied"
                     + " Properties input remains private. Cancel discards these import choices.");
-            if (!session.current()) {
+            if (!session.current() && !session.planning()) {
               ImGui.textWrapped(
                   "The destination changed. Reload to retain choices and review a fresh"
                       + " transaction. COPY identities may change on reload.");
@@ -261,7 +284,7 @@ final class ResourceImportPanel {
                       + " diagnostics are also available in Validation and Logs.");
           }
           if (!section.equals("Issues")) {
-            if (!session.current())
+            if (!session.current() && !session.planning())
               ImGui.textWrapped("! Destination changed. Reload and review before importing.");
             if (unavailable)
               ImGui.textWrapped("! Another private editor or project action blocks Import.");
@@ -274,13 +297,18 @@ final class ResourceImportPanel {
         boolean apply = action("apply", "Import", session.canApply() && !unavailable);
         boolean cancel = action("cancel", "Cancel", true);
         boolean reload =
-            action("reload", "Reload", !session.current() && session.canReload() && !unavailable);
+            action(
+                "reload",
+                "Reload",
+                !session.planning() && !session.current() && session.canReload() && !unavailable);
         boolean validate = action("validation", "Validation", session.issueCount() > 0);
+        boolean retry = action("retry", "Retry preview", session.canRetryPlan() && !unavailable);
         boolean resources = action("resources", "Resources", true);
         boolean filters = action("filters", "Filters", true);
         boolean issues = action("issues", "Issues", true);
         if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) command = Command.CANCEL;
         else if (reload) command = Command.RELOAD;
+        else if (retry) command = Command.RETRY;
         else if (apply) command = Command.APPLY;
         else if (validate) command = Command.VALIDATION;
         else if (resources) command = Command.RESOURCES;
@@ -344,8 +372,13 @@ final class ResourceImportPanel {
           || !decision.context().current(state)
           || session.preview() != decision.preview()) return;
       if (command == Command.RELOAD) {
+        if (session.planning() || !session.canReload()) return;
         session.reload();
         resetRows();
+        message = "";
+        page("Resources");
+      } else if (command == Command.RETRY) {
+        session.retryPlan();
         message = "";
         page("Resources");
       } else if (command == Command.APPLY) {

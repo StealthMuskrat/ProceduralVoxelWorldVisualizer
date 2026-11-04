@@ -82,13 +82,19 @@ final class HelpDefinitions {
               "help.resource-import",
               "Preparing and reviewing a resource import",
               "File > Import reads and validates the package and prepares its initial conflict"
-                  + " preview in the background. Cancel or Escape retires the pending request."
-                  + " A changed project, selection or private input prevents a late review from"
+                  + " preview in the background. Cancel or Escape retires the pending request. A"
+                  + " changed project, selection or private input prevents a late review from"
                   + " opening. Failures retain the entered path for correction and explicit retry."
                   + " Preparation does not change the project. Review COPY, compatible REUSE and"
-                  + " SKIP choices in the separate import workspace, then choose Import to commit"
-                  + " one undoable transaction. Cancel discards those choices. Private Properties"
-                  + " input stays separate, and saving the project remains explicit."),
+                  + " SKIP choices. Changed choices and Reload rebuild the conflict preview in the"
+                  + " background; the last plan stays visible but Import waits for a newly"
+                  + " displayed plan. Rapid choices supersede older work while keeping COPY"
+                  + " identities within the review. A failed rebuild offers Retry preview; Cancel"
+                  + " or Escape discards pending work and late completions. Reload checks the"
+                  + " current destination and may allocate new COPY identities. Review the"
+                  + " resulting choices in the separate import workspace, then choose Import to"
+                  + " commit one undoable transaction. Cancel discards those choices. Private"
+                  + " Properties input stays separate, and saving the project remains explicit."),
           new Guide(
               "help.project-open",
               "Opening a project",

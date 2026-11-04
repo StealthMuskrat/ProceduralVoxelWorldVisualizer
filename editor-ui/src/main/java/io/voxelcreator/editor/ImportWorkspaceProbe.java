@@ -216,6 +216,7 @@ public final class ImportWorkspaceProbe {
                 + " validation retry / private draft / one Undo-Redo");
       }
       ResourceImportLoadingProbe.run(out.resolve("background-import"));
+      ResourceImportPlanningProbe.run(out.resolve("planning"));
     } finally {
       ImGui.destroyContext();
     }

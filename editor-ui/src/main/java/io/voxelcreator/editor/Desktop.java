@@ -318,7 +318,13 @@ public final class Desktop extends Application {
         new ProjectHistoryPanel(
             state, () -> privateProjectInteraction() || projectFiles.workflow.busy());
     imports =
-        new ResourceImportPanel(state, this::packageInteractionBlocked, () -> validation.set(true));
+        new ResourceImportPanel(
+            state,
+            this::packageInteractionBlocked,
+            () -> validation.set(true),
+            state.background,
+            state.uiQueue::offer);
+    lifecycle.own(imports::close);
     packageDialog =
         ResourcePackageDialog.background(
             state, resources, imports, this::packageInteractionBlocked);

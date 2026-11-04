@@ -176,6 +176,26 @@ public final class ResourceImport {
       selectable = Set.copyOf(ids);
     }
 
+    private Session(Session source, Map<UUID, Choice> resolutions) {
+      // These snapshots and the COPY allocation are private and never mutated by planning.
+      // Each fork owns its choice map and cached plan, so a worker never changes the live draft.
+      destination = source.destination;
+      incoming = source.incoming;
+      base = source.base;
+      copied = source.copied;
+      selectable = source.selectable;
+      resolutions.forEach(this::choose);
+    }
+
+    /**
+     * Independent choice draft with the same COPY identities and destination snapshot. The map
+     * replaces all choices; omitted rows use COPY. The returned session may be planned on another
+     * thread while the original remains readable; do not concurrently mutate a single session.
+     */
+    public Session withChoices(Map<UUID, Choice> resolutions) {
+      return new Session(this, Map.copyOf(resolutions));
+    }
+
     public Map<UUID, Choice> choices() {
       return Map.copyOf(choices);
     }
