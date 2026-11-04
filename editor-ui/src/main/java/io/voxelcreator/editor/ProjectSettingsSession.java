@@ -3,6 +3,8 @@ package io.voxelcreator.editor;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.voxelcreator.model.*;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.*;
 
 /** Three private raw fields, bound to one exact document revision until Apply or Cancel. */
 final class ProjectSettingsSession {
@@ -20,9 +22,28 @@ final class ProjectSettingsSession {
   private int issueCount;
   private String applyFailure = "";
   private boolean closed, forcedStale;
+  private final Executor executor;
+  private final Consumer<Runnable> ui;
+  private final BooleanSupplier blocked;
+  private Object workToken = new Object();
+  private FutureTask<Void> task;
+  private boolean admitting;
+  private long workVersion;
+  private String progress = "";
+  private List<Diagnostic> sharedIssues, sharedValues;
+  private String sharedScope;
 
   ProjectSettingsSession(EditorState state) {
+    this(state, null, null, () -> false);
+  }
+
+  ProjectSettingsSession(
+      EditorState state, Executor executor, Consumer<Runnable> ui, BooleanSupplier blocked) {
     editor = state;
+    this.executor = executor;
+    this.ui = ui;
+    this.blocked = Objects.requireNonNull(blocked);
+    if (executor != null) Objects.requireNonNull(ui);
     project = state.project();
     projectId = project.project.uuid;
     projectBase = ProjectIO.JSON.valueToTree(project);
@@ -47,6 +68,12 @@ final class ProjectSettingsSession {
     if (Objects.requireNonNull(value).length() > MAX_CHARACTERS)
       throw new IllegalArgumentException("Project setting text limit " + MAX_CHARACTERS);
     if (text.get(field).equals(value)) return;
+    if (task != null || admitting) {
+      retireWork();
+      progress =
+          "Pending Apply cancelled because the settings were edited. Review the new text and Apply"
+              + " again.";
+    }
     text.put(field, value);
     cached = null;
     applyIssues = List.of();
@@ -67,7 +94,22 @@ final class ProjectSettingsSession {
   }
 
   boolean closed() {
+    refresh();
     return closed;
+  }
+
+  boolean applying() {
+    refresh();
+    return task != null || admitting;
+  }
+
+  long workVersion() {
+    return workVersion;
+  }
+
+  String progress() {
+    refresh();
+    return progress;
   }
 
   boolean modified() {
@@ -152,6 +194,7 @@ final class ProjectSettingsSession {
       if (!Objects.equals(text.get(field), displayed.get(field)))
         throw new IllegalStateException(
             "Displayed " + field + " differs from the private input; correct it before applying.");
+    if (task != null || admitting) return false;
     if (!projectBase.equals(ProjectIO.JSON.valueToTree(state.project()))) {
       forcedStale = true;
       throw new IllegalStateException(
@@ -170,6 +213,10 @@ final class ProjectSettingsSession {
     }
     long seed = Long.parseLong(text.get("seed"));
     int minY = Integer.parseInt(text.get("minY")), maxY = Integer.parseInt(text.get("maxY"));
+    if (executor != null) {
+      prepare(seed, minY, maxY);
+      return false;
+    }
     var result =
         state.changeResult(
             p -> {
@@ -187,7 +234,183 @@ final class ProjectSettingsSession {
     return true;
   }
 
+  private void prepare(long seed, int minY, int maxY) {
+    retireWork();
+    Object token = workToken;
+    admitting = true;
+    applyIssues = List.of();
+    issueCount = 0;
+    applyFailure = "";
+    try {
+      var values = Map.copyOf(text);
+      var request =
+          editor.document.requestEdit(
+              p -> {
+                p.project.seed = seed;
+                p.project.minY = minY;
+                p.project.maxY = maxY;
+              });
+      sharedIssues = editor.issues;
+      sharedValues = List.copyOf(sharedIssues);
+      sharedScope = editor.validationScope;
+      boolean denied = blocked.getAsBoolean();
+      if (token != workToken || closed) return;
+      if (denied || !current(editor) || !values.equals(text) || !baseCurrent()) {
+        staleWork();
+        return;
+      }
+      progress =
+          "Preparing and validating Project Settings in the background. Current committed settings"
+              + " remain active. Cancel or Escape closes this private settings draft without"
+              + " applying.";
+      task =
+          new FutureTask<>(
+              () -> {
+                DocumentSession.PreparedEdit result = null;
+                Throwable failure = null;
+                try {
+                  result = request.prepare();
+                } catch (Throwable rejected) {
+                  failure = rejected;
+                }
+                var completed = result;
+                var rejected = failure;
+                ui.accept(() -> publish(token, values, completed, rejected));
+                return null;
+              });
+      executor.execute(task);
+    } catch (Throwable failure) {
+      failWork(token, failure);
+    } finally {
+      if (token == workToken) admitting = false;
+    }
+  }
+
+  private boolean owns(Object token) {
+    return token == workToken && task != null && !closed;
+  }
+
+  private boolean feedbackCurrent() {
+    return sharedIssues == editor.issues
+        && sharedValues.equals(editor.issues)
+        && Objects.equals(sharedScope, editor.validationScope);
+  }
+
+  private void publish(
+      Object token,
+      Map<String, String> values,
+      DocumentSession.PreparedEdit prepared,
+      Throwable failure) {
+    if (!owns(token)) return;
+    try {
+      if (!current(editor) || !values.equals(text) || !feedbackCurrent()) {
+        staleWork();
+        return;
+      }
+      if (!baseCurrent()) {
+        staleWork();
+        return;
+      }
+      if (failure != null) {
+        failWork(token, failure);
+        return;
+      }
+      boolean denied = blocked.getAsBoolean();
+      if (!owns(token)) return;
+      if (denied
+          || !current(editor)
+          || !values.equals(text)
+          || !feedbackCurrent()
+          || !baseCurrent()
+          || !editor.document.currentEdit(prepared)) {
+        staleWork();
+        return;
+      }
+      if (!prepared.success()) {
+        var diagnostics = prepared.diagnostics();
+        var result = ProjectChangeResult.rejected(diagnostics);
+        retireWork();
+        applyIssues = result.issues();
+        issueCount = result.issueCount();
+        progress =
+            "Project Settings were rejected. Correct the text or review the candidate diagnostics,"
+                + " then Apply again.";
+        editor.rejectDraftApply(diagnostics);
+        return;
+      }
+      editor.document.applyEdit(prepared);
+      retireWork();
+      closed = true;
+      progress = "Project Settings applied.";
+      editor.revision++;
+      editor.issues = List.of();
+      editor.validationScope = "Committed project";
+      editor.status = "Project Settings applied";
+      // Settings publication never refreshes or overwrites separate private Properties input.
+    } catch (Throwable rejected) {
+      failWork(token, rejected);
+    }
+  }
+
+  void refresh() {
+    if (task == null || closed) return;
+    try {
+      if (!current(editor) || !feedbackCurrent()) {
+        staleWork();
+        return;
+      }
+      var completion = BackgroundFailure.completed(task);
+      if (completion != null && completion.failure() != null)
+        failWork(workToken, completion.failure());
+    } catch (Throwable failure) {
+      failWork(workToken, failure);
+    }
+  }
+
+  private boolean baseCurrent() {
+    if (projectBase.equals(ProjectIO.JSON.valueToTree(editor.project()))) return true;
+    forcedStale = true;
+    return false;
+  }
+
+  private void staleWork() {
+    retireWork();
+    progress =
+        "Project Settings Apply became stale. Review the text and Apply again, or discard and"
+            + " reload if the project changed.";
+  }
+
+  private void failWork(Object token, Throwable failure) {
+    if (token != workToken || closed) return;
+    retireWork();
+    applyIssues = List.of();
+    issueCount = 0;
+    applyFailure = BackgroundFailure.describe(failure);
+    progress =
+        "Project Settings Apply failed. The text is preserved; Apply again to retry or Cancel.";
+    try {
+      editor.error("PROJECT_SETTINGS_APPLY_FAILED", EditorEvents.Subsystem.PROJECT, applyFailure);
+    } catch (Throwable ignored) {
+      /* Keep correction and cancellation available. */
+    }
+  }
+
+  private void retireWork() {
+    var previous = task;
+    workToken = new Object();
+    workVersion++;
+    task = null;
+    admitting = false;
+    sharedIssues = sharedValues = null;
+    sharedScope = null;
+    if (previous != null) {
+      previous.cancel(true);
+      if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
+    }
+  }
+
   void cancel() {
+    retireWork();
     closed = true;
     applyIssues = List.of();
     issueCount = 0;

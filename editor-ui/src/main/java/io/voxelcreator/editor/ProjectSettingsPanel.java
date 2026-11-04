@@ -5,9 +5,11 @@ import imgui.flag.*;
 import imgui.type.ImString;
 import io.voxelcreator.model.*;
 import java.util.*;
+import java.util.concurrent.Executor;
+import java.util.function.*;
 
 /** Private Project Settings buffer shared by the menu and diagnostic entry points. */
-public final class ProjectSettingsPanel {
+public final class ProjectSettingsPanel implements AutoCloseable {
   private final EditorState state;
   private final SettingsGuidance guidance;
   private ProjectSettingsSession session;
@@ -26,13 +28,32 @@ public final class ProjectSettingsPanel {
   private boolean focusWindow;
   private String message = "";
   private int diagnosticRows;
+  private final Executor executor;
+  private final Consumer<Runnable> ui;
+  private final BooleanSupplier blocked;
+  private long shownWorkVersion = -1;
+  private boolean disposed;
 
   public ProjectSettingsPanel(EditorState state) {
+    this(state, null, null, () -> false);
+  }
+
+  static ProjectSettingsPanel background(EditorState state, BooleanSupplier blocked) {
+    return new ProjectSettingsPanel(state, state.background, state.uiQueue::offer, blocked);
+  }
+
+  ProjectSettingsPanel(
+      EditorState state, Executor executor, Consumer<Runnable> ui, BooleanSupplier blocked) {
     this.state = state;
+    this.executor = executor;
+    this.ui = ui;
+    this.blocked = Objects.requireNonNull(blocked);
+    if (executor != null) Objects.requireNonNull(ui);
     guidance = new SettingsGuidance(state);
   }
 
   public boolean open(EditorEvents.Target target) {
+    if (disposed) return false;
     if (target != null
         && (!target.settings()
             || target.resource() != null
@@ -52,7 +73,8 @@ public final class ProjectSettingsPanel {
   private void reload() {
     actionScope.release();
     if (session != null) session.cancel();
-    session = new ProjectSettingsSession(state);
+    session = new ProjectSettingsSession(state, executor, ui, blocked);
+    shownWorkVersion = -1;
     buffers.clear();
     boundInputs.clear();
     boundRows.clear();
@@ -85,7 +107,7 @@ public final class ProjectSettingsPanel {
   }
 
   boolean pendingChanges() {
-    return session != null && session.modified();
+    return session != null && (session.modified() || session.applying());
   }
 
   /** Called inside the shared Settings window; true closes that window after Apply/Cancel. */
@@ -95,6 +117,13 @@ public final class ProjectSettingsPanel {
     inputBounds.clear();
     diagnosticRows = 0;
     if (session == null || session.closed()) return true;
+    session.refresh();
+    if (session.closed()) return true;
+    long work = session.workVersion();
+    if (shownWorkVersion != work) {
+      actionScope.release();
+      shownWorkVersion = work;
+    }
     if (focusWindow) {
       ImGui.setWindowFocus("Project Settings");
       focusWindow = false;
@@ -103,6 +132,9 @@ public final class ProjectSettingsPanel {
     boolean current = session.current(state);
     focus.synchronize(state.project().project.uuid, null, session);
     layout.begin("project-settings-body");
+    if (!session.progress().isEmpty()) ImGui.textWrapped(bounded(session.progress(), 3072));
+    if (!session.applyFailure().isEmpty())
+      ImGui.textWrapped("! " + bounded(session.applyFailure(), 2048));
     if (!current) {
       focus.cancel();
       ImGui.textWrapped(
@@ -206,8 +238,8 @@ public final class ProjectSettingsPanel {
         ProjectSettingsProblemNavigation.first(owned, displayed(), problems, session.applyIssues());
     layout.end();
     ImGui.pushID("project-settings-request:" + request);
-    ImGui.beginDisabled(!current);
-    boolean apply = layout.identifiedAction("apply", "Apply");
+    ImGui.beginDisabled(!current || session.applying());
+    boolean apply = layout.identifiedAction("apply", session.applying() ? "Applying..." : "Apply");
     control("apply");
     ImGui.endDisabled();
     boolean cancel = layout.identifiedAction("cancel", "Cancel");
@@ -227,6 +259,7 @@ public final class ProjectSettingsPanel {
         ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows)
             && ImGui.isKeyPressed(ImGuiKey.Escape, false);
     if (cancel || escape) done = true;
+    else if (work != session.workVersion()) return false;
     else if (reload && !current) reload();
     else if (problem && firstProblem != null && current)
       focus.request(
@@ -235,7 +268,8 @@ public final class ProjectSettingsPanel {
     else if (apply && current) {
       try {
         done = session.apply(state, displayed());
-        if (!done)
+        if (session.applying()) message = "";
+        else if (!done)
           message =
               session.applyFailure().isEmpty()
                   ? "Project Settings were rejected. Correct the values or inspect Validation"
@@ -247,7 +281,7 @@ public final class ProjectSettingsPanel {
             Objects.requireNonNullElse(
                 invalid.getMessage(), "Project Settings could not be applied.");
       }
-      if (!done) revealFeedback = true;
+      if (!done && !session.applying()) revealFeedback = true;
     }
     if (done) cancel();
     return done;
@@ -336,5 +370,15 @@ public final class ProjectSettingsPanel {
 
   String applyFailure() {
     return session == null ? "" : session.applyFailure();
+  }
+
+  ProjectSettingsSession probeSession() {
+    return session;
+  }
+
+  @Override
+  public void close() {
+    disposed = true;
+    cancel();
   }
 }

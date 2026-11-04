@@ -213,11 +213,17 @@ final class HelpDefinitions {
           new Guide(
               "help.project-settings",
               "Project Settings",
-              "Project Settings edits seed and vertical bounds in a private draft. Apply validates"
-                  + " and publishes one project transaction. Cancel discards that settings draft."
-                  + " Reload handles a changed committed document explicitly; Show Problem reveals"
-                  + " a supported invalid or mismatched input. Saving User Config does not apply"
-                  + " Project Settings."),
+              "Project Settings edits seed and vertical bounds in a private draft. Apply prepares"
+                  + " full-project validation and one Undo delta in the background. Current"
+                  + " committed settings remain active until publication. Cancel or Escape closes"
+                  + " and discards this settings draft, including its pending Apply. Editing the"
+                  + " exact input text cancels an older Apply; review the text and Apply again"
+                  + " explicitly. Failures preserve the text for correction or retry. Separate"
+                  + " private Properties edits and seed text are preserved even after successful"
+                  + " Project Settings Apply. Reload handles a changed committed document"
+                  + " explicitly; Show Problem reveals a supported invalid or mismatched input."
+                  + " Saving User Config does not apply Project Settings. Apply does not save the"
+                  + " project."),
           new Guide(
               "help.appearance",
               "Appearance and UI scale",

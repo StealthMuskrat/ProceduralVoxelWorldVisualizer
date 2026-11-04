@@ -255,7 +255,9 @@ public final class Desktop extends Application {
             () -> themes.set(true),
             this::savePreferences);
     applicationSettings = new ApplicationSettingsPanel(state);
-    projectSettings = new ProjectSettingsPanel(state);
+    projectSettings =
+        ProjectSettingsPanel.background(state, this::projectSettingsInteractionBlocked);
+    lifecycle.own(projectSettings::close);
     themePanel =
         new ThemePanel(
             state.user,
@@ -842,6 +844,7 @@ public final class Desktop extends Application {
   }
 
   private void openSettings(String page) {
+    if (!page.equals("Project Settings")) projectSettings.cancel();
     settingsPage = page;
     settings.set(true);
     if (page.equals("Project Settings")) projectSettings.open(null);
@@ -1057,6 +1060,18 @@ public final class Desktop extends Application {
     return sourceProjectInteraction()
         || projectHistory.session.busy()
         || projectFiles.workflow.busy();
+  }
+
+  private boolean projectSettingsInteractionBlocked() {
+    return properties != null && properties.searchBlocked()
+        || resources != null && resources.blocksProjectTransition()
+        || sourceNavigation != null && sourceNavigation.pending()
+        || findPanel != null && findPanel.navigationPending()
+        || views != null && views.bookmarkInteractionPending()
+        || projectHistory != null && projectHistory.session.busy()
+        || projectFiles != null && projectFiles.workflow.busy()
+        || packageDialog != null && packageDialog.pending()
+        || imports != null && imports.pending();
   }
 
   private boolean privateProjectInteraction() {

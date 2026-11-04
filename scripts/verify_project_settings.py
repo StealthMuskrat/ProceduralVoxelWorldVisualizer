@@ -63,4 +63,50 @@ for name in ('project-seed', 'project-minY', 'project-maxY', 'project-seed-inval
 assert guidance['statePreserved'] is True
 assert guidance['preferencesWritten'] is guidance['captureStarted'] is guidance['physicalInputVerified'] is False
 assert not (guidance_dir / 'must-not-save.json').exists()
-print('PROJECT_SETTINGS_INDEPENDENT_PASS exact metadata / private text / guidance / ambient arithmetic / inherited ALL placement')
+# Deferred background Apply: independent complete saved values, inclusive bounds and replay receipts.
+background = out / 'background-apply'
+apply_report = json.loads((background / 'project-settings-apply.json').read_text(encoding='utf-8'))
+assert apply_report['formatVersion'] == 1 and apply_report['physicalInputVerified'] is False
+modes = ['success', 'cancel', 'escape', 'raw', 'retry', 'close']
+assert [case['mode'] for case in apply_report['cases']] == modes
+snapshots = 0
+for case in apply_report['cases']:
+    mode = case['mode']
+    applied = mode in ('success', 'retry')
+    assert case['applied'] is applied and case['oneUndoRedo'] is applied
+    assert case['responsiveFrames'] == 12
+    assert all(case[key] is True for key in ('privatePropertiesRetained', 'rawTextOwned',
+                                           'preferencesRetained', 'originalBytesRetained'))
+    directory = background / mode
+    baseline = json.loads((directory / 'before.json').read_text(encoding='utf-8'))
+    assert (baseline['project']['seed'], baseline['project']['minY'], baseline['project']['maxY']) == (5, -2, 2)
+    preferences = json.loads((directory / 'preferences.json').read_text(encoding='utf-8'))
+    assert preferences == json.loads((background / 'success/preferences.json').read_text(encoding='utf-8'))
+    for name in (['before', 'after', 'undone', 'redone'] if applied else ['before', 'after']):
+        saved = json.loads((directory / (name + '.json')).read_text(encoding='utf-8'))
+        jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()).validate(saved)
+        expected = json.loads(json.dumps(baseline))
+        target = applied and name in ('after', 'redone')
+        seed = 17 if target else 6 if mode == 'raw' and name == 'after' else 5
+        min_y, max_y = (-1, 1) if target else (-2, 2)
+        expected['project'].update(seed=seed, minY=min_y, maxY=max_y)
+        assert saved == expected
+        noise, = saved['noise2D']
+        item, = noise['processing']
+        voxel, = saved['voxelTypes']
+        layer, = saved['worldGenerator']['layers']
+        operation, = layer['operations']
+        assert noise['id'] == 'ambient' and item['kind'] == 'EXPRESSION'
+        assert item['parameters']['expression'] == 'x+projectSeed+worldMinY+worldMaxY+worldHeight'
+        assert noise['outputBinding']['itemUuid'] == item['uuid']
+        assert voxel['id'] == 'solid'
+        assert layer['defaults']['action'] == 'SET' and layer['defaults']['voxelTypeUuid'] == voxel['uuid']
+        assert operation['interpretation'] == 'ALL' and operation['noiseGeneratorUuid'] == noise['uuid']
+        assert operation['overrides'] == {}
+        offset = seed + min_y + max_y + max_y - min_y + 1
+        assert offset == (20 if target else 11 if mode == 'raw' and name == 'after' else 10)
+        snapshots += 1
+assert snapshots == 16
+replay = json.loads((background / 'engine-replay.json').read_text(encoding='utf-8'))
+assert replay == dict(formatVersion=1, snapshots=16, fields=336, cells=4704, roots=[2, 4])
+print('PROJECT_SETTINGS_INDEPENDENT_PASS exact metadata / private text / guidance / ambient arithmetic / inherited ALL placement / background Apply states')

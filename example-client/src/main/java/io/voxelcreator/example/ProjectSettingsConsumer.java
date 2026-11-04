@@ -34,6 +34,8 @@ public final class ProjectSettingsConsumer {
         }
     }
     if (observations != 141) throw new AssertionError("Observation count");
+    BackgroundProjectSettingsConsumer.run(
+        Path.of(args[0]).toAbsolutePath().getParent().resolve("background-apply"));
     System.out.println(
         "PROJECT_SETTINGS_ENGINE_ONLY_PASS 141 exact observations / seed ambient values / inclusive"
             + " vertical clipping");

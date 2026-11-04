@@ -7,6 +7,21 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void projectSettingsHelpExplainsBackgroundInputOwnershipAndSeparateProperties() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.project-settings");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Undo delta in the background"));
+    assertTrue(text.contains("Cancel or Escape"));
+    assertTrue(text.contains("Separate private Properties edits"));
+    assertTrue(text.contains("Apply does not save the project"));
+    assertTrue(catalog.search("project settings background").contains(topic));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void historyHelpRoutesUndoRedoAndExplainsBackgroundDiscardCancellationAndRetry() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

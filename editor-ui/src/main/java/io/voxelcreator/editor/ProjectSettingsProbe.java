@@ -225,6 +225,7 @@ public final class ProjectSettingsProbe {
             "PROJECT_SETTINGS_NATIVE_PASS exact raw text / diagnostic focus / stale guard / reload"
                 + " / Cancel / one Apply-Undo-Redo");
       }
+      BackgroundProjectSettingsProbe.run(out.resolve("background-apply"));
     } finally {
       ImGui.destroyContext();
     }
