@@ -157,6 +157,7 @@ public final class ArchiveRecoveryConsumer {
         out.resolve("archive-recovery.txt"),
         "formats=1,2\npublicationFailures=4\nexactCells=198\n");
     ArchiveReaderRecoveryConsumer.run(out.resolve("reader-recovery"));
+    ArchivePublicationConsumer.run(out.resolve("atomic-publication"));
     System.out.println("ARCHIVE_RECOVERY_CONSUMER_PASS");
   }
 

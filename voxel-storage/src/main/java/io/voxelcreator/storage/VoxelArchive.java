@@ -71,6 +71,7 @@ public final class VoxelArchive {
 
     private final Path destination, temp;
     private final ArchiveOutput file;
+    private final ArchivePublication publication;
     private final VoxelRegistry registry;
     private final Format format;
     private final Map<ChunkPos, Entry> index = new LinkedHashMap<>();
@@ -83,6 +84,17 @@ public final class VoxelArchive {
 
     Writer(Path path, VoxelRegistry registry, Format format, ArchiveOutput.Factory factory)
         throws IOException {
+      this(path, registry, format, factory, ArchivePublication::atomic);
+    }
+
+    Writer(
+        Path path,
+        VoxelRegistry registry,
+        Format format,
+        ArchiveOutput.Factory factory,
+        ArchivePublication publication)
+        throws IOException {
+      this.publication = Objects.requireNonNull(publication);
       this.format = Objects.requireNonNull(format);
       this.registry = Objects.requireNonNull(registry);
       Objects.requireNonNull(factory);
@@ -168,7 +180,9 @@ public final class VoxelArchive {
 
     /**
      * Sync and publish once. Successful preparation is retained across publication failure; retry
-     * finish to publish it. An unsuccessful rollback or file close requires close/recreate.
+     * finish to publish it. Publication requires atomic replacement; unsupported destinations
+     * reject without an ordinary replacement fallback. An unsuccessful rollback or file close
+     * requires close/recreate.
      */
     public void finish() throws IOException {
       if (state == State.FINISHED) return;
@@ -206,10 +220,12 @@ public final class VoxelArchive {
         state = State.PREPARED;
       }
       try {
-        Files.move(
-            temp, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        publication.replace(temp, destination);
       } catch (AtomicMoveNotSupportedException unsupported) {
-        Files.move(temp, destination, StandardCopyOption.REPLACE_EXISTING);
+        throw new IOException(
+            "Archive publication requires atomic replacement; choose a supporting destination for"
+                + " a new writer.",
+            unsupported);
       }
       state = State.FINISHED;
     }
