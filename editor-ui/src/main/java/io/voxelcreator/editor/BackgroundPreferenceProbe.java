@@ -112,6 +112,7 @@ final class BackgroundPreferenceProbe {
         }
       }
       BackgroundAppearanceInputProbe.run(out.resolve("appearance-input"));
+      PreferenceSaveProbe.run(out.resolve("active-save"));
       Files.writeString(out.resolve("preferences-background-native.json"), ProjectIO.JSON.writeValueAsString(
           Map.of("formatVersion", 1, "cases", cases, "physicalInputVerified", false)));
     } finally { ImGui.getIO().setFontGlobalScale(previousScale); }

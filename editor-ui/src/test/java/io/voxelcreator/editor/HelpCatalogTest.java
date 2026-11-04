@@ -7,6 +7,22 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void ordinaryPreferenceSaveHelpExplainsCoalescingFailureRetryAndFinalExitSave() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.preference-save");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Repeated requests share pending work"));
+    assertTrue(text.contains("saving coalesces to their latest values"));
+    assertTrue(text.contains("unchanged failed save waits for explicit Save Preferences"));
+    assertTrue(text.contains("finishes a final save before shutdown"));
+    assertTrue(catalog.search("workspace background save").contains(topic));
+    assertTrue(catalog.topic("help.preference-apply").related().contains(topic.id()));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void themeAndBindingHelpExplainsCancellationPreviewOwnershipAndRecording() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

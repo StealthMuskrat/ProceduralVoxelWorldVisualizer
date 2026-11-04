@@ -267,7 +267,12 @@ public final class UserConfig {
   }
 
   private enum PreferenceKind {
-    PERFORMANCE, SCALES, TRUST, THEME, SHORTCUTS
+    PERFORMANCE, SCALES, TRUST, THEME, SHORTCUTS, ACTIVE
+  }
+
+  /** Active values only: no private form is applied and publication changes no live fields. */
+  PreferenceRequest requestSave() {
+    return new PreferenceRequest(PreferenceKind.ACTIVE, null);
   }
 
   private record ShortcutValues(Map<String, String> values) {
@@ -315,6 +320,7 @@ public final class UserConfig {
     PreparedPreference prepare(Path path) throws Exception {
       var candidate = ProjectIO.JSON.convertValue(source, UserConfig.class);
       switch (kind) {
+        case ACTIVE -> candidate.input.shortcuts = Shortcuts.canonical(candidate.input.shortcuts);
         case PERFORMANCE -> ((PerformancePreferences.Values) value).writeTo(candidate);
         case SCALES -> ((UiScalePreferences.Values) value).writeTo(candidate.appearance);
         case THEME -> ((ThemePalette) value).writeTo(candidate.appearance);
@@ -341,6 +347,7 @@ public final class UserConfig {
       // Install only this form's owned fields, with no validation/copy/callback after replacement.
       var next = prepared.candidate;
       switch (kind) {
+        case ACTIVE -> {}
         case PERFORMANCE -> {
           var p = performance;
           var n = next.performance;

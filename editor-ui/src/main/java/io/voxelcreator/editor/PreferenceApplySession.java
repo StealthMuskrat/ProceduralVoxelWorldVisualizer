@@ -12,12 +12,13 @@ final class PreferenceApplySession implements AutoCloseable {
   private final Executor executor;
   private final Consumer<Runnable> ui;
   private final Consumer<String> errors;
+  private final boolean saving;
   private final OwnedPreviewMailbox<Payload> handoff = new OwnedPreviewMailbox<>();
   private UserConfig.PreferenceRequest request;
   private BooleanSupplier input;
   private FutureTask<Void> task;
   private Object token = new Object();
-  private boolean running, ready, closed;
+  private boolean running, ready, closed, stale;
   private long version;
   private String message = "";
 
@@ -41,11 +42,18 @@ final class PreferenceApplySession implements AutoCloseable {
   PreferenceApplySession(
       UserConfig user, Path target, Executor executor,
       Consumer<Runnable> ui, Consumer<String> errors) {
+    this(user, target, executor, ui, errors, false);
+  }
+
+  PreferenceApplySession(
+      UserConfig user, Path target, Executor executor,
+      Consumer<Runnable> ui, Consumer<String> errors, boolean saving) {
     this.user = Objects.requireNonNull(user);
     this.target = Objects.requireNonNull(target);
     this.executor = Objects.requireNonNull(executor);
     this.ui = Objects.requireNonNull(ui);
     this.errors = Objects.requireNonNull(errors);
+    this.saving = saving;
   }
 
   void start(UserConfig.PreferenceRequest request, BooleanSupplier input) {
@@ -59,7 +67,8 @@ final class PreferenceApplySession implements AutoCloseable {
       var captured = request;
       long delivery = handoff.begin();
       running = true;
-      message = "Preparing preferences in the background. Cancel Apply or Escape keeps private input.";
+      message = saving ? "Saving active preferences in the background."
+          : "Preparing preferences in the background. Cancel Apply or Escape keeps private input.";
       task =
           new FutureTask<>(
               () -> {
@@ -119,9 +128,13 @@ final class PreferenceApplySession implements AutoCloseable {
   void refresh() {
     if (!running || closed) return;
     try {
-      if (!current()) {
+      // Active saves coalesce on completion rather than cancelling a still-writing worker on
+      // every workspace/slider frame. They still recheck full source values before publication.
+      if ((!saving || ready || handoff.pending()) && !current()) {
         cancel();
-        message = "Preferences or private input changed. Review and Apply again; Revert if required.";
+        stale = true;
+        message = saving ? "Preferences changed; saving the latest active values."
+            : "Preferences or private input changed. Review and Apply again; Revert if required.";
         return;
       }
       var done = BackgroundFailure.completed(task);
@@ -142,7 +155,7 @@ final class PreferenceApplySession implements AutoCloseable {
       request.publish(payload.value, user);
       // Consumption precedes panel reload, native font/layout consequences and other callbacks.
       retire();
-      message = "Preferences saved and activated";
+      message = saving ? "Preferences saved" : "Preferences saved and activated";
       return true;
     } catch (Throwable failure) {
       fail(work, failure);
@@ -170,10 +183,15 @@ final class PreferenceApplySession implements AutoCloseable {
     return message;
   }
 
+  boolean stale() {
+    return stale;
+  }
+
   void cancel() {
     if (!running || closed) return;
     retire();
-    message = "Preference Apply cancelled. Private input is preserved.";
+    message = saving ? "Preference save cancelled."
+        : "Preference Apply cancelled. Private input is preserved.";
   }
 
   private void retire() {
@@ -183,7 +201,7 @@ final class PreferenceApplySession implements AutoCloseable {
     task = null;
     request = null;
     input = null;
-    running = ready = false;
+    running = ready = stale = false;
     handoff.invalidate();
     if (previous != null) {
       previous.cancel(true);
@@ -196,8 +214,10 @@ final class PreferenceApplySession implements AutoCloseable {
     retire();
     message =
         StatusBarText.bounded(
-            "Preference Apply failed: " + BackgroundFailure.describe(failure)
-                + ". Retry Apply explicitly or Revert the private form.",
+            (saving ? "Preference Save failed: " : "Preference Apply failed: ")
+                + BackgroundFailure.describe(failure)
+                + (saving ? ". Retry Save Preferences explicitly."
+                    : ". Retry Apply explicitly or Revert the private form."),
             3072);
     report(message);
   }

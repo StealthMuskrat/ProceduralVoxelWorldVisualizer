@@ -310,6 +310,20 @@ final class HelpDefinitions {
                   + " Save Preferences persists active preferences only and never applies"
                   + " private scale, theme or resource input."),
           new Guide(
+              "help.preference-save",
+              "Saving active preferences and workspace",
+              "Save Preferences prepares active user preferences and the current workspace in the"
+                  + " background. Repeated requests share pending work. If active values change"
+                  + " before publication, saving coalesces to their latest values instead of"
+                  + " replacing them with an older snapshot. Private theme, binding, scale,"
+                  + " performance and trust drafts stay private. Periodic workspace saves use the"
+                  + " same path; an unchanged failed save waits for explicit Save Preferences"
+                  + " retry, or changed active values at the next periodic tick. Closing a"
+                  + " settings panel does not cancel an ordinary active save. Normal application"
+                  + " exit retires older work and finishes a final save before shutdown. Failed"
+                  + " writes preserve the previous file and active values. Project Save, dirty"
+                  + " state, history and private Properties remain separate."),
+          new Guide(
               "help.preference-apply",
               "Theme save and keyboard binding Apply",
               "Save Theme and Apply Bindings prepare their files in the background. Cancel Apply or"
@@ -614,7 +628,8 @@ final class HelpDefinitions {
           Map.entry("shortcuts", List.of("navigation", "help.manual", "help.preference-apply")),
           Map.entry("creation-defaults", List.of("noise", "processing", "help.appearance")),
           Map.entry("themes", List.of("help.appearance", "creation-defaults", "help.preference-apply")),
-          Map.entry("help.preference-apply", List.of("themes", "shortcuts", "help.appearance")),
+          Map.entry("help.preference-apply", List.of("themes", "shortcuts", "help.appearance", "help.preference-save")),
+          Map.entry("help.preference-save", List.of("help.workspace", "help.preference-apply", "save")),
           Map.entry("noise.algorithm", List.of("noise", "creation-defaults")),
           Map.entry("noise.seedOffset", List.of("noise", "help.project-settings")),
           Map.entry(
@@ -624,7 +639,7 @@ final class HelpDefinitions {
           Map.entry(
               "help.pins",
               List.of("noise", "processing", "help.find", "save", "help.scalar-readouts")),
-          Map.entry("help.workspace", List.of("navigation", "help.appearance")),
+          Map.entry("help.workspace", List.of("navigation", "help.appearance", "help.preference-save")),
           Map.entry("help.updates", List.of("help.about", "creation-defaults")),
           Map.entry(
               "help.project-settings",

@@ -13,7 +13,10 @@ public final class BackgroundPreferenceConsumer {
         "appearance-input/theme-apply", "appearance-input/theme-cancel", "appearance-input/theme-raw",
         "appearance-input/theme-owner", "appearance-input/theme-reopen", "appearance-input/theme-retry",
         "appearance-input/bindings-apply", "appearance-input/bindings-escape", "appearance-input/bindings-record",
-        "appearance-input/bindings-revert", "appearance-input/bindings-hidden", "appearance-input/bindings-retry"
+        "appearance-input/bindings-revert", "appearance-input/bindings-hidden", "appearance-input/bindings-retry",
+        "active-save/manual-save", "active-save/periodic-save", "active-save/coalesce", "active-save/ready-edit",
+        "active-save/queue-retry", "active-save/ready-close", "active-save/exit-save", "active-save/exit-failure",
+        "active-save/apply-race"
     }) {
       var before = new ProjectLoader().load(Path.of(args[0]).resolve(mode).resolve("before.json"));
       var after = new ProjectLoader().load(Path.of(args[0]).resolve(mode).resolve("after.json"));
@@ -42,7 +45,7 @@ public final class BackgroundPreferenceConsumer {
         }
       }
     }
-    if (samples != 882 || cells != 6048) throw new AssertionError("Preference replay coverage changed");
-    System.out.println("BACKGROUND_PREFERENCE_ENGINE_ONLY_PASS 882 independent fields / 6048 EMPTY cells");
+    if (samples != 1260 || cells != 8640) throw new AssertionError("Preference replay coverage changed");
+    System.out.println("BACKGROUND_PREFERENCE_ENGINE_ONLY_PASS 1260 independent fields / 8640 EMPTY cells");
   }
 }

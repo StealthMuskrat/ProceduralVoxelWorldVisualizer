@@ -106,3 +106,44 @@ for case in receipt['cases']:
     subprocess.run([sys.executable, str(root / 'scripts/verify_input_preferences.py'),
                     str(folder / 'user-config.json')], check=True)
 print('BACKGROUND_APPEARANCE_INPUT_INDEPENDENT_PASS twelve exact preference patches / twenty-four unchanged projects')
+
+
+active_save = background / 'active-save'
+receipt = json.loads((active_save / 'active-save-native.json').read_text(encoding='utf-8'))
+assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
+modes = ['manual-save', 'periodic-save', 'coalesce', 'ready-edit', 'queue-retry',
+         'ready-close', 'exit-save', 'exit-failure', 'apply-race']
+assert [case['mode'] for case in receipt['cases']] == modes
+for case in receipt['cases']:
+    mode = case['mode']
+    persisted = mode not in ('ready-close', 'exit-failure')
+    notices = 0 if mode in ('periodic-save', 'ready-close', 'exit-save', 'exit-failure') else 1
+    assert case['persisted'] is persisted and case['notifications'] == notices
+    assert case['queuedFrames'] == case['heldFrames'] == 12
+    for key in ('projectRetained', 'privateRetained', 'temporaryCleaned'):
+        assert case[key] is True, (mode, key)
+    folder = active_save / mode
+    base = json.loads((folder / 'user-before.json').read_text(encoding='utf-8'))
+    current = json.loads((folder / 'user-config.json').read_text(encoding='utf-8'))
+    if persisted:
+        ini = (folder / 'workspace.ini').read_text(encoding='utf-8')
+        assert '[Window][Active preference save reference]' in ini
+        base['workspace']['docking'] = ini
+        if mode in ('coalesce', 'ready-edit'):
+            base['workspace']['width'] = 1366
+            base['visualization']['grid'] = False
+        if mode == 'coalesce':
+            base['workspace']['visibleWindows'] = ['Logs']
+        elif mode == 'exit-save':
+            base['workspace'].update(width=1280, x=-100, y=75)
+        elif mode == 'apply-race':
+            base['appearance']['theme'] = 'Light'
+    assert current == base, mode
+    original = json.loads((folder / 'before.json').read_text(encoding='utf-8'))
+    after = json.loads((folder / 'after.json').read_text(encoding='utf-8'))
+    assert original == after and len(after['noise2D']) == 1
+    assert after['noise2D'][0]['algorithm']['parameters'] == {'value': .125}
+    assert not list(folder.glob('*.tmp')) and not list(folder.glob('.*.tmp'))
+    subprocess.run([sys.executable, str(root / 'scripts/verify_input_preferences.py'),
+                    str(folder / 'user-config.json')], check=True)
+print('BACKGROUND_ACTIVE_SAVE_INDEPENDENT_PASS nine complete active snapshots / eighteen unchanged projects')

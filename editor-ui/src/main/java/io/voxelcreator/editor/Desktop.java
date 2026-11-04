@@ -37,6 +37,7 @@ public final class Desktop extends Application {
   private ApplicationSettingsPanel applicationSettings;
   private ResourceFindPanel findPanel;
   private ThemePanel themePanel;
+  private PreferenceSaveSession preferenceSaves;
   private UpdateTrustPanel updateTrust;
   private WorkspacePanel workspaceSettings;
   private PerformancePanel performanceSettings;
@@ -199,6 +200,12 @@ public final class Desktop extends Application {
   protected void preRun() {
     mainWindow = new MainWindowPlacement(state.user.workspace, new GlfwMainWindow(handle));
     mainWindow.restoreHidden();
+    preferenceSaves =
+        new PreferenceSaveSession(
+            state.user, UserConfig.directory().resolve("user-config.json"),
+            state.background, state.uiQueue::offer, message -> state.status = message,
+            message -> state.error("PREFERENCE_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
+    lifecycle.own(preferenceSaves::close);
     inputSettings =
         InputSettingsPanel.background(
             state,
@@ -494,12 +501,9 @@ public final class Desktop extends Application {
     if (presentation.visible() && System.nanoTime() - preferenceSave > 5_000_000_000L) {
       preferenceSave = System.nanoTime();
       captureWorkspace();
-      try {
-        state.user.save();
-      } catch (Exception e) {
-        state.status = e.getMessage();
-      }
+      preferenceSaves.request(false);
     }
+    preferenceSaves.frame();
     if (smokeFrames > 0) {
       views.smokePhase(480 - smokeFrames);
       smokeDiagnostics(480 - smokeFrames);
@@ -945,12 +949,9 @@ public final class Desktop extends Application {
   }
 
   private void savePreferences() {
-    try {
-      state.user.save();
-      state.status = "Preferences saved";
-    } catch (Exception e) {
-      state.notify("Error", e.getMessage());
-    }
+    captureWorkspace();
+    preferenceSaves.request(true);
+    state.status = preferenceSaves.message();
   }
 
   private void drawHelp() {
@@ -1208,7 +1209,7 @@ public final class Desktop extends Application {
     if (presentation.visible()) {
       mainWindow.capture();
       captureWorkspace();
-      state.user.save();
+      preferenceSaves.finish();
     }
   }
 
