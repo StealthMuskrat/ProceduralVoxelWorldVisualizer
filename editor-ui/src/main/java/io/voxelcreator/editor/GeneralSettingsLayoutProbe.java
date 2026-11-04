@@ -338,6 +338,7 @@ public final class GeneralSettingsLayoutProbe {
             "GENERAL_SETTINGS_LAYOUT_NATIVE_PASS persistent actions / private project / live"
                 + " preferences / shared capture");
       }
+      RegenerationRateProbe.run(out.resolve("regeneration-rate"));
     } finally {
       ImGui.destroyContext();
     }

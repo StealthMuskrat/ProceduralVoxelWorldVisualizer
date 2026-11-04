@@ -114,6 +114,7 @@ jobs:
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.PreferencesLayoutProbe build/preferences-layout
           python scripts/verify_preferences_layout.py build/preferences-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.GeneralSettingsLayoutProbe build/general-settings-layout
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.RegenerationRateConsumer build/general-settings-layout/regeneration-rate
           python scripts/verify_general_settings_layout.py build/general-settings-layout
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ImmediateSettingsDecisionProbe build/immediate-settings-decisions
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ImmediateSettingsDecisionConsumer build/immediate-settings-decisions
@@ -860,6 +861,8 @@ jobs:
           python scripts/verify_preferences_layout.py build/preferences-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.GeneralSettingsLayoutProbe build/general-settings-layout
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          java -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.RegenerationRateConsumer build/general-settings-layout/regeneration-rate
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_general_settings_layout.py build/general-settings-layout
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

@@ -155,7 +155,17 @@ final class SettingsControlMetadata {
               "Include complete layer/operation work totals in the next profiler capture.",
               "Work totals add capture overhead, time every visited placement and include column"
                   + " prefetch. This does not change the operation sample stride or start a"
-                  + " capture; Start Capture snapshots the option."));
+                  + " capture; Start Capture snapshots the option."),
+          definition(
+              "settings.editor.opportunitiesPerSecond",
+              "Regeneration Opportunities Per Second",
+              HelpDefinitions.REGENERATION_RATE_TOOLTIP,
+              "A complete whole decimal rate from 1 through 20 takes effect immediately. Invalid"
+                  + " text retains the last valid active rate. Restore Active Rate discards only"
+                  + " rejected input. Save Preferences persists active values and does not apply"
+                  + " invalid rate text or private project inputs. These are opportunities for"
+                  + " dirty selected data and dependencies; idle opportunities do not generate"
+                  + " work. Changing the rate does not change field or voxel values."));
 
   private static final Set<String> IDS;
 

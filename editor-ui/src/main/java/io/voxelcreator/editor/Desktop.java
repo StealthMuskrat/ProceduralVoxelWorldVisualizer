@@ -331,7 +331,7 @@ public final class Desktop extends Application {
         });
     livePreferences =
         new LivePreferencesPanel(
-            state.user,
+            state,
             this::savePreferences,
             () -> {
               settingsCategory = "Performance";

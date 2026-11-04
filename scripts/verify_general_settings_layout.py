@@ -25,7 +25,7 @@ global_scales = (1, .5, 1, 2.5, 2.5, 1)
 window_scales = (1, 1, 1, 1, 2.5, 1)
 orders = {'project': ('apply', 'cancel', 'reload', 'problem'), 'editor': ('save',),
           'visualization': ('save', 'limits', 'retry'), 'debug': ('capture', 'profiler')}
-fields = {'project': {'seed', 'minY', 'maxY'}, 'editor': {'auto', 'rate'}, 'debug': set(),
+fields = {'project': {'seed', 'minY', 'maxY'}, 'editor': {'auto', 'rate', 'rate-text'}, 'debug': set(),
           'visualization': {'grid', 'unlit', 'streaming', 'ao', 'fog', 'shadows', 'resolution',
                             'volume-shadows', 'volume-steps', 'indirect'}}
 ids = {}
@@ -69,7 +69,7 @@ for case in report['cases']:
         assert rect['x'] >= case['body']['x'] - .1
         assert rect['x'] + rect['width'] <= case['body']['x'] + case['body']['width'] + .1
         # Long labels sit above these fields; native checkbox targets keep their normal size.
-        if form == 'project' or key in ('rate', 'resolution', 'volume-steps'):
+        if form == 'project' or key in ('resolution', 'volume-steps'):
             assert rect['width'] > .5 * case['body']['width']
 saved = json.loads((out / 'user-config.json').read_text(encoding='utf-8'))
 assert saved['editor'] == {'autoRegenerate': False, 'opportunitiesPerSecond': 20}
@@ -82,3 +82,37 @@ assert project['project']['seed'] == 3 and type(project['project']['seed']) is i
 assert project['project']['minY'] == 2 and project['project']['maxY'] == 9
 assert project['noise2D'][0]['id'] == 'committed'
 print('General settings layout, exact private text, preference/project retry and shared capture replay PASS')
+
+# Deferred exact rate pair, live/invalid persistence and unchanged authoring replay.
+rate_out = out / 'regeneration-rate'
+rate = json.loads((rate_out / 'rate-native.json').read_text(encoding='utf-8'))
+assert rate['formatVersion'] == 1 and rate['physicalInputVerified'] is False
+assert rate['heldPaneRetired'] is True and rate['replacementRetired'] is True and rate['projectPrivateRetained'] is True
+assert rate['saves'] == 2 and rate['rejected'] == ['-', '0', '21', '1.0', '1e1', ' 7', '2147483648']
+assert rate['help'] == ['settings.editor.opportunitiesPerSecond'] * 2
+assert len(rate['cases']) == 6
+identity = None
+for i, case in enumerate(rate['cases']):
+    row = case['row']
+    pair_id = (row['sliderId'], row['inputId'])
+    assert pair_id[0] != pair_id[1] and row['enabled'] is True
+    if identity is None: identity = pair_id
+    assert identity == pair_id and case['scenario'] == i
+    for key in ['slider', 'input']:
+        rect = row[key]
+        assert all(math.isfinite(v) for v in rect.values()) and rect['width'] > 0 and rect['height'] > 0
+        assert rect['x'] >= case['body']['x'] - .1
+        assert rect['x'] + rect['width'] <= case['body']['x'] + case['body']['width'] + .1
+    if row['inline']:
+        assert row['slider']['x'] + row['slider']['width'] <= row['input']['x'] + .02
+    else:
+        assert row['slider']['y'] + row['slider']['height'] <= row['input']['y'] + .02
+base = json.loads((rate_out / 'preferences-before.json').read_text(encoding='utf-8'))
+for name, value in [('preferences-invalid.json', 7), ('preferences-final.json', 20)]:
+    active = json.loads((rate_out / name).read_text(encoding='utf-8'))
+    expected = json.loads(json.dumps(base)); expected['editor']['opportunitiesPerSecond'] = value
+    assert active == expected and type(active['editor']['opportunitiesPerSecond']) is int
+assert (rate_out / 'project-before.json').read_bytes() == (rate_out / 'project-after.json').read_bytes()
+replay = json.loads((rate_out / 'engine-replay.json').read_text(encoding='utf-8'))
+assert replay == {'formatVersion': 1, 'fields': 42, 'cells': 588, 'roots': [2, 4]}
+print('REGENERATION_RATE_INDEPENDENT_PASS exact pair / rejected text isolation / active persistence / 42 fields / 588 EMPTY cells')

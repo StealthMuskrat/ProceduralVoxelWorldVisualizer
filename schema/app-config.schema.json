@@ -13,7 +13,7 @@
         "controls" : {
           "type" : "object",
           "additionalProperties" : false,
-          "maxProperties" : 537,
+          "maxProperties" : 538,
           "properties" : {
             "themes" : {
               "allOf" : [ {
@@ -8312,6 +8312,19 @@
               } ]
             },
             "settings.capture.work" : {
+              "allOf" : [ {
+                "$ref" : "#/$defs/Control"
+              }, {
+                "properties" : {
+                  "options" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : { }
+                  }
+                }
+              } ]
+            },
+            "settings.editor.opportunitiesPerSecond" : {
               "allOf" : [ {
                 "$ref" : "#/$defs/Control"
               }, {

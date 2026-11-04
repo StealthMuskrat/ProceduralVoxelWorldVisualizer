@@ -5,6 +5,10 @@ import java.util.*;
 
 /** Central help-only guidance and semantic links; authored AppMetadata supplies control text. */
 final class HelpDefinitions {
+  static final String REGENERATION_RATE_TOOLTIP =
+      "Adjust 1–20 regeneration opportunities per second. Only complete valid text updates the"
+          + " active preference; invalid text stays visible. Save Preferences writes active values"
+          + " only.";
   static final String BOUNDED_INTEGER_TOOLTIP =
       "Adjust this private integer input. Exact text accepts the complete documented range; the"
           + " existing Apply or Start Capture action remains explicit.";
@@ -505,6 +509,8 @@ final class HelpDefinitions {
     if (LINKS.containsKey(id)) return LINKS.get(id);
     if (id.startsWith("settings.project."))
       return List.of("help.settings-guidance", "help.project-settings", "help.long-inputs");
+    if (id.equals("settings.editor.opportunitiesPerSecond"))
+      return List.of("help.visualization", "help.settings-guidance", "save");
     if (id.startsWith("settings.performance.") || id.startsWith("settings.capture."))
       return List.of("help.settings-guidance", "help.runtime-limits", "profiler");
     if (id.startsWith("curve.editor."))

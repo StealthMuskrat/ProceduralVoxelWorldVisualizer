@@ -18,6 +18,26 @@ class SettingsControlMetadataTest {
   }
 
   @Test
+  void rateProfileAndSchemaExposeOnlyPresentationGuidanceAndKeepTheFixedIntegerDomain()
+      throws Exception {
+    var metadata = AppMetadata.read(root().resolve("fixtures/app-config-editor-rate.json"));
+    String topic = "settings.editor.opportunitiesPerSecond";
+    assertEquals("Configured live rate guide", metadata.control(topic).label);
+    String tooltip = SettingsControlMetadata.integerTooltip(metadata, topic, "+0007", 1, 20, true);
+    assertTrue(tooltip.contains("Configured exact rate 100% ### snow 雪"));
+    assertTrue(tooltip.contains("+0007"));
+    assertTrue(tooltip.contains("[1, 20]"));
+    assertFalse(metadata.creationDefaults.containsKey(topic));
+    assertFalse(CreationRegistry.CONTROLS.containsKey(topic));
+    var catalog = new HelpCatalog(metadata);
+    assertTrue(catalog.search("configured live rate").contains(catalog.topic(topic)));
+    assertTrue(catalog.topic(topic).copyText(catalog).contains("Save Preferences"));
+    assertEquals(1, RegenerationRateInput.parse("1"));
+    assertEquals(20, RegenerationRateInput.parse("20"));
+    assertThrows(IllegalArgumentException.class, () -> RegenerationRateInput.parse("21"));
+  }
+
+  @Test
   void everyProjectPerformanceAndCaptureInputHasOnePresentationSubject() {
     var expected = new HashSet<String>();
     for (String field : List.of("seed", "minY", "maxY"))
@@ -27,6 +47,7 @@ class SettingsControlMetadataTest {
     for (var field : ProfileCaptureInputs.Field.values())
       expected.add(SettingsControlMetadata.capture(field));
     expected.add("settings.capture.work");
+    expected.add("settings.editor.opportunitiesPerSecond");
     var actual = new HashSet<String>();
     var metadata = AppMetadata.defaults();
     for (var definition : SettingsControlMetadata.DEFINITIONS) {
@@ -37,7 +58,7 @@ class SettingsControlMetadataTest {
       assertTrue(definition.description().length() <= 8192);
       assertEquals(definition.tooltip(), metadata.control(definition.id()).tooltip);
     }
-    assertEquals(22, actual.size());
+    assertEquals(23, actual.size());
     assertEquals(expected, actual);
     metadata.validate();
   }

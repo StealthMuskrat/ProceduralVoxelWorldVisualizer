@@ -1,0 +1,10 @@
+{
+  "formatVersion": 1,
+  "controls": {
+    "settings.editor.opportunitiesPerSecond": {
+      "label": "Configured live rate guide",
+      "tooltip": "Configured exact rate 100% ### snow 雪",
+      "description": "Only valid whole rates become active. Save Preferences keeps active values."
+    }
+  }
+}

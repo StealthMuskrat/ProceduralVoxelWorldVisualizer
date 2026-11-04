@@ -3,6 +3,7 @@ package io.voxelcreator.editor;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import imgui.type.ImBoolean;
+import imgui.type.ImString;
 import java.util.*;
 import java.util.function.*;
 
@@ -21,6 +22,11 @@ final class LivePreferencesPanel {
   private final Map<String, DialogBounds.Rect> inputBounds = new LinkedHashMap<>();
   private boolean probing;
   private String reveal;
+  private final SettingsGuidance guidance;
+  private final RegenerationRateInput rate = new RegenerationRateInput();
+  private final ImString rateText = new ImString(RegenerationRateInput.MAX_TEXT + 1);
+  private ExactLongInput rateInput = new ExactLongInput();
+  private ExactLongInput.Row rateRow;
 
   LivePreferencesPanel(
       UserConfig user,
@@ -28,6 +34,26 @@ final class LivePreferencesPanel {
       Runnable limits,
       Runnable retryShadows,
       Supplier<List<String>> shadows) {
+    this(user, new SettingsGuidance(null), save, limits, retryShadows, shadows);
+  }
+
+  LivePreferencesPanel(
+      EditorState state,
+      Runnable save,
+      Runnable limits,
+      Runnable retryShadows,
+      Supplier<List<String>> shadows) {
+    this(state.user, new SettingsGuidance(state), save, limits, retryShadows, shadows);
+  }
+
+  private LivePreferencesPanel(
+      UserConfig user,
+      SettingsGuidance guidance,
+      Runnable save,
+      Runnable limits,
+      Runnable retryShadows,
+      Supplier<List<String>> shadows) {
+    this.guidance = guidance;
     this.user = Objects.requireNonNull(user);
     this.save = Objects.requireNonNull(save);
     this.limits = Objects.requireNonNull(limits);
@@ -46,17 +72,64 @@ final class LivePreferencesPanel {
         "Auto regenerate on changes",
         user.editor.autoRegenerate,
         value -> user.editor.autoRegenerate = value);
+    rate.synchronize(user.editor);
+    if (!rateText.get().equals(rate.text())) rateText.set(rate.text());
     ImGui.textWrapped("Regeneration opportunities per second");
-    ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
-    String id = "##editor-opportunities";
-    identify("rate", id);
-    int[] rate = {user.editor.opportunitiesPerSecond};
-    if (ImGui.sliderInt(id, rate, 1, 20))
-      user.editor.opportunitiesPerSecond = Math.max(1, Math.min(20, rate[0]));
-    control("rate");
+    ImGui.pushID("editor-rate:" + actionId + ":" + rate.version());
+    try {
+      rateRow =
+          rateInput.draw(
+              "##editor-opportunities-text",
+              Math.max(1, ImGui.getContentRegionAvailX()),
+              rateText,
+              rate.text(),
+              (long) rate.value(),
+              rate.current(user.editor),
+              RegenerationRateInput.MINIMUM,
+              RegenerationRateInput.MAXIMUM,
+              20,
+              HelpDefinitions.REGENERATION_RATE_TOOLTIP,
+              value -> rate.edit(user.editor, value),
+              () -> {},
+              nativeId ->
+                  guidance.integer(
+                      "settings.editor.opportunitiesPerSecond",
+                      nativeId,
+                      rateText.get(),
+                      RegenerationRateInput.MINIMUM,
+                      RegenerationRateInput.MAXIMUM,
+                      rate.current(user.editor)));
+      if (probing) {
+        ids.put("rate", rateRow.sliderId());
+        ids.put("rate-text", rateRow.inputId());
+        inputBounds.put("rate", rateRow.slider());
+        inputBounds.put("rate-text", rateRow.input());
+        controls.put("rate", center(rateRow.slider()));
+        controls.put("rate-text", center(rateRow.input()));
+        if ("rate".equals(reveal) || "rate-text".equals(reveal)) {
+          ImGui.setScrollHereY(.25f);
+          reveal = null;
+        }
+      }
+      String problem = rate.problem();
+      if (!problem.isEmpty()) {
+        ImGui.textWrapped("! " + problem + " The active rate remains " + rate.value() + ".");
+        boolean restore =
+            ImGui.button("Restore Active Rate", Math.max(1, ImGui.getContentRegionAvailX()), 0);
+        control("restore-rate");
+        if (restore) {
+          rate.restore(user.editor);
+          rateText.set(rate.text());
+          rateInput = new ExactLongInput();
+        }
+      }
+    } finally {
+      ImGui.popID();
+    }
     ImGui.textWrapped(
         "Auto mode offers 1–20 opportunities per second and regenerates only dirty selected data or"
-            + " dependencies. It does not generate on every opportunity.");
+            + " dependencies. It does not generate on every opportunity. Complete valid text takes"
+            + " effect immediately; Save Preferences writes the active rate only.");
     editorLayout.end();
     ImGui.pushID("editor-actions:" + actionId + ":" + request);
     boolean persist = editorLayout.identifiedAction("save", "Save Preferences");
@@ -137,6 +210,7 @@ final class LivePreferencesPanel {
 
   void suspendEditorActions() {
     editorActions.release();
+    rate.suspend();
   }
 
   void suspendVisualizationActions() {
@@ -199,6 +273,26 @@ final class LivePreferencesPanel {
       ImGui.setScrollHereY(.25f);
       reveal = null;
     }
+  }
+
+  private static float[] center(DialogBounds.Rect rect) {
+    return new float[] {rect.x() + rect.width() / 2, rect.y() + rect.height() / 2};
+  }
+
+  ContextHelp rateHelp() {
+    return guidance.contextHelp();
+  }
+
+  ExactLongInput.Row rateRow() {
+    return rateRow;
+  }
+
+  String rateText() {
+    return rate.text();
+  }
+
+  String rateProblem() {
+    return rate.problem();
   }
 
   float[] probeControl(String key) {
