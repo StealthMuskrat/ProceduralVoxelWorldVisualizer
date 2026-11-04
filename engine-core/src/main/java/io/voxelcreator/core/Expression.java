@@ -192,16 +192,16 @@ public final class Expression {
         });
     m.put("clamp", new Function(3, a -> clamp(a[0], a[1], a[2])));
     m.put("lerp", new Function(3, a -> FiniteInterpolation.between(a[0], a[1], a[2])));
-    m.put("inverseLerp", new Function(3, a -> (a[2] - a[0]) / (a[1] - a[0])));
+    m.put("inverseLerp", new Function(3, a -> FiniteMapping.inverse(a[0], a[1], a[2])));
     m.put(
         "smoothstep",
         new Function(
             3,
             a -> {
-              double t = clamp((a[2] - a[0]) / (a[1] - a[0]), 0, 1);
+              double t = clamp(FiniteMapping.inverse(a[0], a[1], a[2]), 0, 1);
               return t * t * (3 - 2 * t);
             }));
-    m.put("remap", new Function(5, a -> a[3] + (a[0] - a[1]) / (a[2] - a[1]) * (a[4] - a[3])));
+    m.put("remap", new Function(5, a -> FiniteMapping.remap(a[0], a[1], a[2], a[3], a[4])));
     m.put(
         "wrap",
         new Function(

@@ -216,8 +216,10 @@ public final class ProcessingExtensions {
             number("outputMin", "Output minimum", 0, -Double.MAX_VALUE, Double.MAX_VALUE),
             number("outputMax", "Output maximum", 1, -Double.MAX_VALUE, Double.MAX_VALUE),
             bool("clamp", "Clamp output", false)),
-        "Affine mapping with distinct input endpoints; descending ranges are supported. Optional"
-            + " output clamp uses sorted output bounds.");
+        "Affine mapping with distinct input endpoints; descending ranges are supported. Ordinary"
+            + " finite arithmetic keeps its bits; overflowed intermediates from finite operands use"
+            + " an exact binary rational with one nearest-even conversion. Optional output clamp"
+            + " uses sorted output bounds.");
     put(
         m,
         "CLAMP",

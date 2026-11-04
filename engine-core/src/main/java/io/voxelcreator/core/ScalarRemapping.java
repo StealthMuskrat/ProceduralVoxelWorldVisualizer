@@ -118,8 +118,8 @@ public final class ScalarRemapping {
     public double sample(double a, double x, double y, double z) {
       return switch (kind) {
         case "REMAP" -> {
-          double t = (a - n("inputMin")) / (n("inputMax") - n("inputMin"));
-          double v = n("outputMin") + t * (n("outputMax") - n("outputMin"));
+          double v =
+              FiniteMapping.remap(a, n("inputMin"), n("inputMax"), n("outputMin"), n("outputMax"));
           yield controls.get("clamp").booleanValue()
               ? Expression.clamp(
                   v,

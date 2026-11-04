@@ -52,6 +52,10 @@ public final class ScalarRemappingConsumer {
       FiniteInterpolationConsumer.run(
           Path.of(args[2]).resolveSibling("finite-interpolation-vectors.json"),
           Path.of(args[3]).resolve("finite-interpolation"));
+    if (args.length > 3)
+      FiniteMappingConsumer.run(
+          Path.of(args[2]).resolveSibling("finite-mapping-vectors.json"),
+          Path.of(args[3]).resolve("finite-mapping"));
     System.out.println(
         "SCALAR_REMAPPING_ENGINE_ONLY_PASS "
             + count

@@ -947,7 +947,7 @@
         "options" : [ ],
         "threeDimensional" : false
       } ],
-      "description" : "Affine mapping with distinct input endpoints; descending ranges are supported. Optional output clamp uses sorted output bounds."
+      "description" : "Affine mapping with distinct input endpoints; descending ranges are supported. Ordinary finite arithmetic keeps its bits; overflowed intermediates from finite operands use an exact binary rational with one nearest-even conversion. Optional output clamp uses sorted output bounds."
     },
     "CLAMP" : {
       "dimensions" : [ 2, 3 ],

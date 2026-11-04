@@ -1,0 +1,222 @@
+{
+  "formatVersion": 1,
+  "reference": "Hand-specified binary endpoint/affine identities and nearest-even half-way cases. Hexadecimal doubles specify exact inputs and expected bits; no reference evaluator was executed.",
+  "cases": [
+    {
+      "id": "inverse-mid",
+      "operation": "inverseLerp",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "0x0p0",
+      "expectedHex": "0x1p-1"
+    },
+    {
+      "id": "inverse-quarter",
+      "operation": "inverseLerp",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "-0x1p1022",
+      "expectedHex": "0x1p-2"
+    },
+    {
+      "id": "inverse-three-quarters",
+      "operation": "inverseLerp",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "0x1p1022",
+      "expectedHex": "0x1.8p-1"
+    },
+    {
+      "id": "inverse-descending",
+      "operation": "inverseLerp",
+      "inputMinHex": "0x1p1023",
+      "inputMaxHex": "-0x1p1023",
+      "valueHex": "0x0p0",
+      "expectedHex": "0x1p-1"
+    },
+    {
+      "id": "inverse-both-overflow",
+      "operation": "inverseLerp",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "0x1p1023",
+      "expectedHex": "0x1p0"
+    },
+    {
+      "id": "inverse-negative-difference",
+      "operation": "inverseLerp",
+      "inputMinHex": "0x1p1023",
+      "inputMaxHex": "0x1p1022",
+      "valueHex": "-0x1p1023",
+      "expectedHex": "0x1p2"
+    },
+    {
+      "id": "inverse-positive-difference",
+      "operation": "inverseLerp",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "-0x1p1022",
+      "valueHex": "0x1p1023",
+      "expectedHex": "0x1p2"
+    },
+    {
+      "id": "inverse-maximum-endpoints",
+      "operation": "inverseLerp",
+      "inputMinHex": "-0x1.fffffffffffffp1023",
+      "inputMaxHex": "0x1.fffffffffffffp1023",
+      "valueHex": "0x0p0",
+      "expectedHex": "0x1p-1"
+    },
+    {
+      "id": "remap-unit",
+      "operation": "remap",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "0x0p0",
+      "outputMinHex": "0x0p0",
+      "outputMaxHex": "0x1p0",
+      "expectedHex": "0x1p-1"
+    },
+    {
+      "id": "remap-opposite-mid",
+      "operation": "remap",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "0x0p0",
+      "outputMinHex": "-0x1p1023",
+      "outputMaxHex": "0x1p1023",
+      "expectedHex": "0x0p0"
+    },
+    {
+      "id": "remap-opposite-quarter",
+      "operation": "remap",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "-0x1p1022",
+      "outputMinHex": "-0x1p1023",
+      "outputMaxHex": "0x1p1023",
+      "expectedHex": "-0x1p1022"
+    },
+    {
+      "id": "remap-descending",
+      "operation": "remap",
+      "inputMinHex": "0x1p1023",
+      "inputMaxHex": "-0x1p1023",
+      "valueHex": "0x1p1022",
+      "outputMinHex": "0x1p1023",
+      "outputMaxHex": "-0x1p1023",
+      "expectedHex": "0x1p1022"
+    },
+    {
+      "id": "remap-output-span",
+      "operation": "remap",
+      "inputMinHex": "0x0p0",
+      "inputMaxHex": "0x1p0",
+      "valueHex": "0x1p-1",
+      "outputMinHex": "-0x1p1023",
+      "outputMaxHex": "0x1p1023",
+      "expectedHex": "0x0p0"
+    },
+    {
+      "id": "remap-output-offset",
+      "operation": "remap",
+      "inputMinHex": "0x0p0",
+      "inputMaxHex": "0x1p0",
+      "valueHex": "0x1p1",
+      "outputMinHex": "0x1p1023",
+      "outputMaxHex": "0x0p0",
+      "expectedHex": "-0x1p1023"
+    },
+    {
+      "id": "remap-unrepresentable-weight",
+      "operation": "remap",
+      "inputMinHex": "0x0p0",
+      "inputMaxHex": "0x0.0000000000001p-1022",
+      "valueHex": "0x1p0",
+      "outputMinHex": "0x0p0",
+      "outputMaxHex": "0x0.0000000000001p-1022",
+      "expectedHex": "0x1p0"
+    },
+    {
+      "id": "remap-constant-output",
+      "operation": "remap",
+      "inputMinHex": "0x0p0",
+      "inputMaxHex": "0x0.0000000000001p-1022",
+      "valueHex": "0x1p0",
+      "outputMinHex": "0x1p-2",
+      "outputMaxHex": "0x1p-2",
+      "expectedHex": "0x1p-2"
+    },
+    {
+      "id": "remap-positive-half-subnormal",
+      "operation": "remap",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "0x0p0",
+      "outputMinHex": "0x0p0",
+      "outputMaxHex": "0x0.0000000000001p-1022",
+      "expectedHex": "0x0p0"
+    },
+    {
+      "id": "remap-negative-half-subnormal",
+      "operation": "remap",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "0x0p0",
+      "outputMinHex": "0x0p0",
+      "outputMaxHex": "-0x0.0000000000001p-1022",
+      "expectedHex": "-0x0p0"
+    },
+    {
+      "id": "remap-smallest-normal-carry",
+      "operation": "remap",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "0x0p0",
+      "outputMinHex": "0x0.fffffffffffffp-1022",
+      "outputMaxHex": "0x1p-1022",
+      "expectedHex": "0x1p-1022"
+    },
+    {
+      "id": "remap-normal-half-even",
+      "operation": "remap",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "0x0p0",
+      "outputMinHex": "0x1.0000000000001p0",
+      "outputMaxHex": "0x1.0000000000002p0",
+      "expectedHex": "0x1.0000000000002p0"
+    },
+    {
+      "id": "smooth-mid",
+      "operation": "smoothstep",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "0x0p0",
+      "expectedHex": "0x1p-1"
+    },
+    {
+      "id": "smooth-quarter",
+      "operation": "smoothstep",
+      "inputMinHex": "-0x1p1023",
+      "inputMaxHex": "0x1p1023",
+      "valueHex": "-0x1p1022",
+      "expectedHex": "0x1.4p-3"
+    },
+    {
+      "id": "smooth-descending",
+      "operation": "smoothstep",
+      "inputMinHex": "0x1p1023",
+      "inputMaxHex": "-0x1p1023",
+      "valueHex": "0x1p1022",
+      "expectedHex": "0x1.4p-3"
+    },
+    {
+      "id": "smooth-saturating",
+      "operation": "smoothstep",
+      "inputMinHex": "0x1p1023",
+      "inputMaxHex": "0x1p1022",
+      "valueHex": "-0x1p1023",
+      "expectedHex": "0x1p0"
+    }
+  ]
+}
