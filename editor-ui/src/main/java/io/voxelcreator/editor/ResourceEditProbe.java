@@ -164,6 +164,7 @@ public final class ResourceEditProbe {
             "RESOURCE_EDIT_NATIVE_PASS inline text / atomic Apply / rollback / duplicate / delete /"
                 + " cut lifecycle");
       }
+      BackgroundResourceEditProbe.run(out.resolve("background-prepare"));
     } finally {
       ImGui.destroyContext();
     }

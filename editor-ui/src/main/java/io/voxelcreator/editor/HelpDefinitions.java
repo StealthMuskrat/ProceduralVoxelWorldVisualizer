@@ -90,6 +90,18 @@ final class HelpDefinitions {
                   + " that old selection. Selection remains outside Undo history and never saves"
                   + " the project."),
           new Guide(
+              "help.resource-actions",
+              "Resource actions with private Properties",
+              "Create, Rename, Duplicate, Paste, Move, ordering, placement insertion and Delete"
+                  + " prepare their resource transaction in the background. Unchanged Properties"
+                  + " starts preparation immediately; Cancel or Escape before publication keeps"
+                  + " the project unchanged. Failed preparation offers Retry Action. With private"
+                  + " Properties edits, choose Apply, Discard or Cancel. Apply validates the draft"
+                  + " first, then runs and validates the resource action as one Undo step. Deleting"
+                  + " a resource cannot hide its invalid private draft. Discard releases private"
+                  + " input only after the action publishes successfully. Changed document, input,"
+                  + " history, checkpoint or policy rejects old work. Saving stays explicit."),
+          new Guide(
               "help.project-save",
               "Saving a project",
               "Save and Save As prepare a committed snapshot in the background. Cancel Save or"
@@ -478,7 +490,15 @@ final class HelpDefinitions {
               "help.properties-apply",
               List.of("noise", "layers", "help.project-save", "diagnostics")),
           Map.entry(
-              "help.resource-session", List.of("save", "help.project-open", "help.project-save")),
+              "help.resource-session",
+              List.of("save", "help.project-open", "help.project-save", "help.resource-actions")),
+          Map.entry(
+              "help.resource-actions",
+              List.of(
+                  "help.resource-session",
+                  "help.properties-apply",
+                  "help.project-save",
+                  "diagnostics")),
           Map.entry(
               "noise",
               List.of(

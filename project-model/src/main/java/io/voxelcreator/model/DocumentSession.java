@@ -4,6 +4,7 @@ import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** Atomic, bounded structural-delta transactions; view navigation never enters this history. */
 public final class DocumentSession {
@@ -82,7 +83,21 @@ public final class DocumentSession {
 
   /** Capture on the document owner thread; preparation may then run on a worker. */
   public EditRequest requestEdit(Consumer<ProjectData> change) {
-    return new EditRequest(Objects.requireNonNull(change));
+    return new EditRequest(Objects.requireNonNull(change), null, null);
+  }
+
+  /**
+   * Capture two candidate-only stages with an intermediate validation boundary. The final stage
+   * runs only after that boundary accepts; the captured document policy then validates the result.
+   */
+  public EditRequest requestEdit(
+      Consumer<ProjectData> initialChange,
+      Function<ProjectData, List<Diagnostic>> intermediateValidation,
+      Consumer<ProjectData> finalChange) {
+    return new EditRequest(
+        Objects.requireNonNull(initialChange),
+        Objects.requireNonNull(intermediateValidation),
+        Objects.requireNonNull(finalChange));
   }
 
   /**
@@ -92,9 +107,16 @@ public final class DocumentSession {
   public final class EditRequest {
     private final TransactionOwner source = new TransactionOwner();
     private final Consumer<ProjectData> change;
+    private final Function<ProjectData, List<Diagnostic>> intermediateValidation;
+    private final Consumer<ProjectData> finalChange;
 
-    private EditRequest(Consumer<ProjectData> change) {
+    private EditRequest(
+        Consumer<ProjectData> change,
+        Function<ProjectData, List<Diagnostic>> intermediateValidation,
+        Consumer<ProjectData> finalChange) {
       this.change = change;
+      this.intermediateValidation = intermediateValidation;
+      this.finalChange = finalChange;
     }
 
     private DocumentSession owner() {
@@ -104,6 +126,11 @@ public final class DocumentSession {
     public PreparedEdit prepare() {
       var candidate = ProjectIO.JSON.convertValue(source.values, ProjectData.class);
       change.accept(candidate);
+      if (intermediateValidation != null) {
+        var intermediate = List.copyOf(intermediateValidation.apply(candidate));
+        if (!intermediate.isEmpty()) return new PreparedEdit(this, null, null, intermediate);
+        finalChange.accept(candidate);
+      }
       var issues = List.copyOf(source.validation.apply(candidate));
       if (!issues.isEmpty()) return new PreparedEdit(this, null, null, issues);
       // Freeze after validation: later changes to a retained callback input cannot alter the

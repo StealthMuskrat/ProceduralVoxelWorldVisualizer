@@ -3,9 +3,12 @@ package io.voxelcreator.editor;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.voxelcreator.model.*;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.*;
 
 /** One stale-safe browser edit; failed candidates never dispose of private Properties input. */
-final class ResourceEditSession {
+final class ResourceEditSession implements AutoCloseable {
   enum Result {
     APPLIED,
     NEEDS_DECISION,
@@ -25,21 +28,50 @@ final class ResourceEditSession {
   private Object draft;
   private JsonNode draftValue;
   private List<UUID> selection;
+  private final Executor executor;
+  private final Consumer<Runnable> ui;
+  private final BooleanSupplier blocked;
+  private final Consumer<Result> completion;
+  private ProjectFileOwner requestOwner, workOwner;
+  private Object workToken = new Object();
+  private FutureTask<Void> task;
+  private boolean admitting, disposed, privateDecision, applyingDraft;
+  private long workVersion;
+  private String progress = "";
+  private List<Diagnostic> sharedIssues, sharedValues;
+  private String sharedScope;
 
   ResourceEditSession(EditorState state) {
     this(state, () -> {});
   }
 
   ResourceEditSession(EditorState state, Runnable afterReconcile) {
+    this(state, afterReconcile, null, null, () -> false, result -> {});
+  }
+
+  ResourceEditSession(
+      EditorState state,
+      Runnable afterReconcile,
+      Executor executor,
+      Consumer<Runnable> ui,
+      BooleanSupplier blocked,
+      Consumer<Result> completion) {
     this.state = Objects.requireNonNull(state);
     this.afterReconcile = Objects.requireNonNull(afterReconcile);
+    this.executor = executor;
+    this.ui = ui;
+    this.blocked = Objects.requireNonNull(blocked);
+    this.completion = Objects.requireNonNull(completion);
+    if (executor != null) Objects.requireNonNull(ui);
   }
 
   boolean busy() {
+    refresh();
     return executing;
   }
 
   boolean pending() {
+    refresh();
     return edit != null;
   }
 
@@ -47,8 +79,30 @@ final class ResourceEditSession {
     return label;
   }
 
+  boolean preparing() {
+    refresh();
+    return task != null || admitting;
+  }
+
+  boolean privateDecision() {
+    return privateDecision;
+  }
+
+  boolean preparingApply() {
+    return applyingDraft;
+  }
+
+  long workVersion() {
+    return workVersion;
+  }
+
+  String progress() {
+    refresh();
+    return progress;
+  }
+
   Result request(String label, ResourceBrowserEdits.Edit edit) {
-    if (executing || pending()) return Result.UNAVAILABLE;
+    if (disposed || executing || pending()) return Result.UNAVAILABLE;
     Objects.requireNonNull(label);
     this.label = label.length() > 240 ? label.substring(0, 239) + "…" : label;
     this.edit = Objects.requireNonNull(edit);
@@ -58,7 +112,11 @@ final class ResourceEditSession {
     draftValue = ProjectIO.JSON.valueToTree(draft);
     selection = List.copyOf(state.multiSelection);
     seedVersion = state.seedInputs.version(state);
-    if (modified()) return Result.NEEDS_DECISION;
+    privateDecision = modified();
+    progress = "";
+    if (executor != null) requestOwner = new ProjectFileOwner(state);
+    if (privateDecision) return Result.NEEDS_DECISION;
+    if (executor != null) return prepare(false);
     var result = execute(false);
     // No modal was opened for an unmodified draft; a failed command is requested afresh.
     if (result != Result.APPLIED) clear();
@@ -78,6 +136,7 @@ final class ResourceEditSession {
       clear();
       return Result.CANCELLED;
     }
+    if (task != null || admitting) return Result.NEEDS_DECISION;
     if (!context.current(state)
         || !Objects.equals(selected, state.selected)
         || state.draft != draft
@@ -87,6 +146,8 @@ final class ResourceEditSession {
       clear();
       return Result.UNAVAILABLE;
     }
+    if (executor != null)
+      return prepare(privateDecision && decision == SearchNavigation.Decision.APPLY);
     return execute(decision == SearchNavigation.Decision.APPLY);
   }
 
@@ -138,9 +199,11 @@ final class ResourceEditSession {
   void clear() {
     if (executing) return;
     retire();
+    progress = "";
   }
 
   private void retire() {
+    retireWork();
     edit = null;
     label = "";
     context = null;
@@ -148,5 +211,213 @@ final class ResourceEditSession {
     draftValue = null;
     selection = null;
     selected = null;
+    requestOwner = null;
+    privateDecision = false;
+  }
+
+  private Result prepare(boolean applyDraft) {
+    retireWork();
+    applyingDraft = applyDraft;
+    Object token = workToken;
+    admitting = true;
+    try {
+      var acceptedEdit = edit;
+      boolean denied = blocked.getAsBoolean();
+      if (token != workToken || edit != acceptedEdit || disposed) return Result.UNAVAILABLE;
+      if (denied || requestOwner == null || !requestOwner.valuesCurrent(state)) {
+        clear();
+        return Result.UNAVAILABLE;
+      }
+      var destination = new AtomicReference<ResourceBrowserEdits.Selection>();
+      var request =
+          state.requestBrowserEdit(applyDraft, p -> destination.set(acceptedEdit.apply(p)));
+      if (request == null) {
+        progress =
+            "Properties input was rejected. Cancel to correct it, or choose Discard to run only the"
+                + " resource action.";
+        return Result.REJECTED;
+      }
+      workOwner = new ProjectFileOwner(state);
+      sharedIssues = state.issues;
+      sharedValues = List.copyOf(sharedIssues);
+      sharedScope = state.validationScope;
+      progress =
+          "Preparing the resource action in the background. Committed values and private Properties"
+              + " input remain active. Cancel or Escape before publication keeps them unchanged.";
+      task =
+          new FutureTask<>(
+              () -> {
+                DocumentSession.PreparedEdit prepared = null;
+                Throwable failure = null;
+                try {
+                  prepared = request.prepare();
+                } catch (Throwable rejected) {
+                  failure = rejected;
+                }
+                var result = prepared;
+                var rejected = failure;
+                var requested = destination.get();
+                ui.accept(() -> publish(token, acceptedEdit, result, requested, rejected));
+                return null;
+              });
+      executor.execute(task);
+      return Result.NEEDS_DECISION;
+    } catch (Throwable failure) {
+      fail(token, failure);
+      return edit == null ? Result.UNAVAILABLE : Result.NEEDS_DECISION;
+    } finally {
+      if (token == workToken) admitting = false;
+    }
+  }
+
+  private boolean owns(Object token, ResourceBrowserEdits.Edit acceptedEdit) {
+    return !disposed && token == workToken && edit == acceptedEdit && task != null;
+  }
+
+  private boolean feedbackCurrent() {
+    return sharedIssues == state.issues
+        && sharedValues.equals(state.issues)
+        && Objects.equals(sharedScope, state.validationScope);
+  }
+
+  private void publish(
+      Object token,
+      ResourceBrowserEdits.Edit acceptedEdit,
+      DocumentSession.PreparedEdit prepared,
+      ResourceBrowserEdits.Selection destination,
+      Throwable failure) {
+    if (!owns(token, acceptedEdit)) return;
+    boolean applied = false;
+    try {
+      if (!workOwner.valuesCurrent(state) || !feedbackCurrent()) {
+        stale();
+        return;
+      }
+      if (failure != null) {
+        fail(token, failure);
+        return;
+      }
+      boolean denied = blocked.getAsBoolean();
+      if (!owns(token, acceptedEdit)) return;
+      if (denied
+          || !workOwner.valuesCurrent(state)
+          || !feedbackCurrent()
+          || !state.document.currentEdit(prepared)) {
+        stale();
+        return;
+      }
+      if (!prepared.success()) {
+        var diagnostics = prepared.diagnostics();
+        retireWork();
+        progress =
+            "The draft or resource action was rejected. Private input remains active; retry"
+                + " explicitly, choose Discard if available, or Cancel before correcting the"
+                + " request.";
+        state.rejectDraftApply(diagnostics);
+        return;
+      }
+      executing = true;
+      state.document.applyEdit(prepared);
+      applied = true;
+      retire();
+      state.revision++;
+      state.issues = List.of();
+      state.validationScope = "Committed project";
+      state.status = "Resource edit applied";
+      progress = "Resource action applied. Saving remains explicit.";
+      try {
+        reconcile(destination);
+        afterReconcile.run();
+      } catch (Throwable rejected) {
+        progress =
+            "Resource edit committed; selection refresh failed: "
+                + BackgroundFailure.describe(rejected);
+        reportFailure("RESOURCE_EDIT_RECONCILE_FAILED", progress);
+      }
+      finish(Result.APPLIED);
+    } catch (Throwable rejected) {
+      if (applied) {
+        retire();
+        progress =
+            "Resource edit committed; completion failed: " + BackgroundFailure.describe(rejected);
+        reportFailure("RESOURCE_EDIT_RECONCILE_FAILED", progress);
+        finish(Result.APPLIED);
+      } else fail(token, rejected);
+    } finally {
+      executing = false;
+    }
+  }
+
+  private void finish(Result result) {
+    if (disposed) return;
+    try {
+      completion.accept(result);
+    } catch (Throwable failure) {
+      reportFailure(
+          "RESOURCE_EDIT_COMPLETION_FAILED",
+          "Resource edit completion failed: " + BackgroundFailure.describe(failure));
+    }
+  }
+
+  private void stale() {
+    retire();
+    progress =
+        "Resource action became stale. Current project, selection and private input are retained;"
+            + " request the action again.";
+    finish(Result.UNAVAILABLE);
+  }
+
+  private void refresh() {
+    if (task == null || disposed) return;
+    try {
+      if (!workOwner.current(state) || !feedbackCurrent()) {
+        stale();
+        return;
+      }
+      var done = BackgroundFailure.completed(task);
+      if (done != null && done.failure() != null) fail(workToken, done.failure());
+    } catch (Throwable failure) {
+      fail(workToken, failure);
+    }
+  }
+
+  private void fail(Object token, Throwable failure) {
+    if (token != workToken || disposed) return;
+    retireWork();
+    progress =
+        "Resource action preparation failed: "
+            + BackgroundFailure.describe(failure)
+            + ". Private input is retained; retry explicitly or Cancel.";
+    reportFailure("RESOURCE_EDIT_PREPARE_FAILED", progress);
+  }
+
+  private void reportFailure(String code, String message) {
+    try {
+      state.error(code, EditorEvents.Subsystem.PROJECT, message);
+    } catch (Throwable ignored) {
+      /* Keep explicit recovery available. */
+    }
+  }
+
+  private void retireWork() {
+    var previous = task;
+    workToken = new Object();
+    workVersion++;
+    task = null;
+    admitting = false;
+    applyingDraft = false;
+    workOwner = null;
+    sharedIssues = sharedValues = null;
+    sharedScope = null;
+    if (previous != null) {
+      previous.cancel(true);
+      if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
+    }
+  }
+
+  @Override
+  public void close() {
+    disposed = true;
+    if (!executing) clear();
   }
 }

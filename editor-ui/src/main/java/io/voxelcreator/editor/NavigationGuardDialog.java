@@ -99,6 +99,20 @@ final class NavigationGuardDialog {
       String rejected,
       boolean preparing,
       long work) {
+    draw(
+        title, explanation, decide, rejected, preparing, work, "APPLY", "Preparing Apply...", true);
+  }
+
+  void draw(
+      String title,
+      Runnable explanation,
+      Function<SearchNavigation.Decision, SearchNavigation.Result> decide,
+      String rejected,
+      boolean preparing,
+      long work,
+      String applyLabel,
+      String preparingLabel,
+      boolean allowDiscard) {
     int frame = ImGui.getFrameCount();
     if (drawnFrame == frame) return;
     drawnFrame = frame;
@@ -133,12 +147,14 @@ final class NavigationGuardDialog {
       ImGui.pushID("draft-decision:" + ticket.version());
       try {
         for (var decision : SearchNavigation.Decision.values()) {
-          ImGui.beginDisabled(preparing && decision != SearchNavigation.Decision.CANCEL);
+          ImGui.beginDisabled(
+              preparing && decision != SearchNavigation.Decision.CANCEL
+                  || decision == SearchNavigation.Decision.DISCARD && !allowDiscard);
           try {
             if (chrome.identifiedAction(
                 decision.name(),
-                preparing && decision == SearchNavigation.Decision.APPLY
-                    ? "Preparing Apply..."
+                decision == SearchNavigation.Decision.APPLY
+                    ? preparing ? preparingLabel : applyLabel
                     : decision.name())) clicked = decision;
           } finally {
             ImGui.endDisabled();

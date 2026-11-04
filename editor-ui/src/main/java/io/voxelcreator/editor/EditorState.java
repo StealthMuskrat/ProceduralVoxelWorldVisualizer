@@ -201,6 +201,19 @@ public final class EditorState implements AutoCloseable {
     return document.requestEdit(p -> replace(p, id, owned));
   }
 
+  /**
+   * Candidate-only staged draft validation prevents an action from hiding invalid private input.
+   */
+  DocumentSession.EditRequest requestBrowserEdit(boolean applyDraft, Consumer<ProjectData> edit) {
+    if (!applyDraft) return document.requestEdit(edit);
+    if (!validSeedInputs() || !(draft instanceof Identity identity)) return null;
+    if (!Objects.equals(selected, identity.uuid) || find(project(), selected) == null)
+      throw new IllegalStateException("The Properties source changed; select the resource again");
+    UUID id = identity.uuid;
+    var owned = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(draft), draft.getClass());
+    return document.requestEdit(p -> replace(p, id, owned), NoiseCompiler::validate, edit);
+  }
+
   void finishDraftApply() {
     revision++;
     issues = List.of();

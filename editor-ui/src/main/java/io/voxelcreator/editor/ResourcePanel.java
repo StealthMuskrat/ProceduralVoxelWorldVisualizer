@@ -118,7 +118,11 @@ public final class ResourcePanel implements AutoCloseable {
             ? new ResourceSelectionSession(s)
             : new ResourceSelectionSession(
                 s, () -> {}, executor, ui, properties::searchBlocked, this::finishSelection);
-    edits = new ResourceEditSession(s);
+    edits =
+        executor == null
+            ? new ResourceEditSession(s)
+            : new ResourceEditSession(
+                s, () -> {}, executor, ui, properties::searchBlocked, this::finishEdit);
     selectionGuard = new NavigationGuardDialog(s, "Resources", 620, 300);
     editGuard = new NavigationGuardDialog(s, "Resources", 620, 300);
   }
@@ -809,6 +813,9 @@ public final class ResourcePanel implements AutoCloseable {
 
   @Override
   public void close() {
+    edits.close();
+    if (editCommitted != null) editCommitted.clear();
+    editCommitted = null;
     selection.close();
     cancelExport();
   }
@@ -884,18 +891,30 @@ public final class ResourcePanel implements AutoCloseable {
         () -> {
           ImGui.textWrapped(AppMetadata.uiText("Requested action: " + edits.label()));
           ImGui.textWrapped(
-              "Apply the Properties draft and this action together as one undoable edit, discard"
-                  + " the draft only if the action succeeds, or cancel.");
+              edits.privateDecision()
+                  ? "Apply the Properties draft and this action together as one undoable edit,"
+                      + " discard the draft only if the action succeeds, or cancel."
+                  : "This resource action prepares one undoable edit. Cancel before publication"
+                      + " keeps the committed project unchanged. Failed preparation can be"
+                      + " retried explicitly.");
+          if (!edits.progress().isEmpty())
+            ImGui.textWrapped(StatusBarText.clip(edits.progress(), 4096));
         },
         decision -> {
           var result = decideEdit(decision);
           return result == ResourceEditSession.Result.REJECTED
+                  || result == ResourceEditSession.Result.NEEDS_DECISION
               ? SearchNavigation.Result.NEEDS_DECISION
               : result == ResourceEditSession.Result.APPLIED
                   ? SearchNavigation.Result.NAVIGATED
                   : SearchNavigation.Result.UNAVAILABLE;
         },
-        "The draft or action was rejected. Cancel to correct it; no changes were published.");
+        "The draft or action was rejected. Cancel to correct it; no changes were published.",
+        edits.preparing(),
+        edits.workVersion(),
+        edits.privateDecision() ? "APPLY" : "Retry Action",
+        edits.preparingApply() ? "Preparing Apply..." : "Preparing action...",
+        edits.privateDecision());
   }
 
   ResourceEditSession.Result decideEdit(SearchNavigation.Decision decision) {
@@ -905,15 +924,28 @@ public final class ResourcePanel implements AutoCloseable {
         properties.searchBlocked() && decision != SearchNavigation.Decision.CANCEL
             ? ResourceEditSession.Result.UNAVAILABLE
             : edits.decide(decision);
-    if (result == ResourceEditSession.Result.REJECTED) return result;
+    finishEdit(result);
+    return result;
+  }
+
+  private void finishEdit(ResourceEditSession.Result result) {
+    if (result == ResourceEditSession.Result.REJECTED
+        || result == ResourceEditSession.Result.NEEDS_DECISION) return;
     var completion = editCommitted;
     editCommitted = null;
+    String progress = edits.progress();
     edits.clear();
     if (result == ResourceEditSession.Result.APPLIED && completion != null) completion.complete();
     else if (completion != null) completion.clear();
     if (result == ResourceEditSession.Result.UNAVAILABLE)
-      state.status = "Project, selection or draft changed; request the resource action again";
-    return result;
+      state.status =
+          progress.isEmpty()
+              ? "Project, selection or draft changed; request the resource action again"
+              : progress;
+  }
+
+  ResourceEditSession probeEditSession() {
+    return edits;
   }
 
   private ResourceEditSession.Result createResource(

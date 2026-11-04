@@ -51,6 +51,8 @@ public final class BrowserEditConsumer {
         }
     }
     if (count != 243 || cells != 144) throw new AssertionError("Observation count");
+    BackgroundResourceEditConsumer.run(
+        Path.of(args[0]).toAbsolutePath().getParent().resolve("background-prepare"));
     System.out.println(
         "BROWSER_EDIT_ENGINE_ONLY_PASS 243 exact scalar values / 144 EMPTY cells / exact saved"
             + " structure");

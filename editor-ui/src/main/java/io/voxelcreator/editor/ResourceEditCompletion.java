@@ -18,14 +18,18 @@ final class ResourceEditCompletion {
     if (accepted == null) return;
     try {
       accepted.run();
-    } catch (RuntimeException failure) {
-      state.error(
-          "RESOURCE_EDIT_REFRESH_FAILED",
-          EditorEvents.Subsystem.APPLICATION,
-          StatusBarText.bounded(
-              "Resource edit committed; UI refresh failed: "
-                  + Objects.requireNonNullElse(failure.getMessage(), failure.toString()),
-              1024));
+    } catch (Throwable failure) {
+      try {
+        state.error(
+            "RESOURCE_EDIT_REFRESH_FAILED",
+            EditorEvents.Subsystem.APPLICATION,
+            StatusBarText.bounded(
+                "Resource edit committed; UI refresh failed: "
+                    + BackgroundFailure.describe(failure),
+                1024));
+      } catch (Throwable ignored) {
+        /* The consumed UI refresh must never replay an accepted edit. */
+      }
     }
   }
 
