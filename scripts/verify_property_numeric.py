@@ -109,3 +109,37 @@ assert read('applied.json') == read('redone.json') == expected
 assert read('undone.json') == before
 assert read('preferences-before.json') == read('preferences.json')
 print('Property numeric paired/stacked geometry, stable IDs, exact focus and complete Apply/Undo/persistence PASS')
+
+# Deferred background Properties Apply, prepared headless edits and complete saved-state oracles.
+import jsonschema
+background = out / 'background-apply'
+apply_report = json.loads((background / 'properties-apply.json').read_text())
+assert apply_report['formatVersion'] == 1 and apply_report['physicalInputVerified'] is False
+assert [c['mode'] for c in apply_report['cases']] == ['success', 'cancel', 'escape', 'raw', 'retry', 'close']
+project_schema = json.loads((Path(__file__).resolve().parent.parent / 'schema/project.schema.json').read_text())
+project_validator = jsonschema.Draft202012Validator(project_schema, format_checker=jsonschema.FormatChecker())
+snapshots = 0
+for case in apply_report['cases']:
+    mode = case['mode']; applied = mode in ['success', 'retry']; directory = background / mode
+    assert case == dict(mode=mode, applied=applied, responsiveFrames=12, privateBoundary=True,
+        preferencesRetained=True, originalBytesRetained=True, oneUndoRedo=applied)
+    before = json.loads((directory / 'before.json').read_text())
+    assert before['project']['seed'] == 17 and len(before['noise2D']) == 1
+    assert before['noise2D'][0]['id'] == 'field' and before['noise2D'][0]['algorithm']['parameters'] == {'value': .125}
+    for name in (['before', 'after', 'undone', 'redone'] if applied else ['before', 'after']):
+        project = json.loads((directory / (name + '.json')).read_text()); project_validator.validate(project)
+        expected = deepcopy(before)
+        if name == 'redone' or name == 'after' and applied:
+            expected['noise2D'][0]['algorithm']['parameters']['value'] = .625
+        if name == 'after' and mode == 'raw': expected['project']['seed'] = 18
+        assert project == expected
+        snapshots += 1
+    if applied:
+        project = json.loads((directory / 'api-applied.json').read_text()); project_validator.validate(project)
+        expected = deepcopy(before); expected['noise2D'][0]['algorithm']['parameters']['value'] = .625
+        assert project == expected
+assert snapshots == 16
+apply_replay = json.loads((background / 'engine-replay.json').read_text())
+assert apply_replay == dict(formatVersion=1, snapshots=16, preparedTransactions=2, apiStates=8,
+    fields=504, cells=7056, roots=[2, 4])
+print('PROPERTIES_APPLY_INDEPENDENT_PASS complete saved values / 18 project schemas / prepared history / 504 fields / 7056 EMPTY cells')

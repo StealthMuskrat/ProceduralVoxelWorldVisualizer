@@ -26,6 +26,18 @@ final class HelpDefinitions {
   static final List<Guide> GUIDES =
       List.of(
           new Guide(
+              "help.properties-apply",
+              "Applying private Properties edits",
+              "Properties edits stay private until Apply. Desktop prepares the candidate, compiler"
+                  + " validation and Undo delta in the background while committed previews remain"
+                  + " active. Cancel Apply or Escape retires that request and keeps the draft."
+                  + " Changed document, private values, seed text, selection, history, Save"
+                  + " checkpoint or validation policy prevents late publication. Rejected input"
+                  + " stays available for correction; Apply again explicitly retries. A successful"
+                  + " result commits one undoable transaction and refreshes Properties. It does"
+                  + " not save the project or change preferences. Child curve, expression and"
+                  + " membership editors retain their separate private Apply boundaries."),
+          new Guide(
               "help.folder-hierarchy",
               "Folder ancestry and resource order",
               "Folders organize resources without changing generated fields, placement inheritance"
@@ -427,10 +439,19 @@ final class HelpDefinitions {
               List.of("save", "help.validation", "diagnostics", "help.folder-hierarchy")),
           Map.entry("help.project-save", List.of("save", "help.project-open", "diagnostics")),
           Map.entry(
+              "help.properties-apply",
+              List.of("noise", "layers", "help.project-save", "diagnostics")),
+          Map.entry(
               "help.resource-session", List.of("save", "help.project-open", "help.project-save")),
           Map.entry(
               "noise",
-              List.of("noise.algorithm", "processing", "layers", "creation-defaults", "help.pins")),
+              List.of(
+                  "noise.algorithm",
+                  "processing",
+                  "layers",
+                  "creation-defaults",
+                  "help.pins",
+                  "help.properties-apply")),
           Map.entry(
               "layers",
               List.of(

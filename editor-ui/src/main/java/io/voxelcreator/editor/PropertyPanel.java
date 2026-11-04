@@ -9,12 +9,14 @@ import io.voxelcreator.model.*;
 import io.voxelcreator.model.ProjectData.*;
 import io.voxelcreator.model.ProjectData.Predicate;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.*;
 
-public final class PropertyPanel {
+public final class PropertyPanel implements AutoCloseable {
   final FloatingWindowLayout windowLayout = new FloatingWindowLayout(480, 720);
   final PanelDockControls docking = new PanelDockControls("Properties");
   private final EditorState state;
+  private final PropertiesApplySession applySession;
   final SettingsPageChrome chrome = new SettingsPageChrome(3);
   final PropertyActionOwner actionOwner = new PropertyActionOwner();
   private boolean revealProblems, footerEditable;
@@ -472,7 +474,9 @@ public final class PropertyPanel {
   }
 
   public boolean searchBlocked() {
-    return privateEditorOpen() || referenceNavigation.pending();
+    return privateEditorOpen()
+        || referenceNavigation.pending()
+        || applySession != null && applySession.running();
   }
 
   private boolean privateEditorOpen() {
@@ -626,12 +630,34 @@ public final class PropertyPanel {
   }
 
   public PropertyPanel(EditorState s) {
+    this(s, null, null);
+  }
+
+  static PropertyPanel background(EditorState state) {
+    return new PropertyPanel(state, state.background, state.uiQueue::offer);
+  }
+
+  PropertyPanel(EditorState s, Executor executor, Consumer<Runnable> ui) {
     state = s;
     contextHelp = new ContextHelp(s.helpRequests);
     resourcePicker = new ResourcePicker(s, () -> state.draft, () -> noiseVersion);
     draftChoices = new DraftChoicePicker(s, () -> state.draft, () -> noiseVersion);
     referenceNavigation = new SearchNavigation(s);
     referenceDialog = new NavigationGuardDialog(s);
+    applySession =
+        executor == null
+            ? null
+            : new PropertiesApplySession(
+                s, executor, ui, () -> privateEditorOpen() || referenceNavigation.pending());
+  }
+
+  @Override
+  public void close() {
+    if (applySession != null) applySession.close();
+  }
+
+  PropertiesApplySession probeApplySession() {
+    return applySession;
   }
 
   ResourcePicker probeResourcePicker() {
@@ -643,6 +669,7 @@ public final class PropertyPanel {
   }
 
   public void draw() {
+    if (applySession != null) applySession.view();
     if (!(state.draft instanceof VoxelType) || state.multiSelection.size() != 1)
       voxelIdentity.clear();
     identityInput = null;
@@ -691,6 +718,8 @@ public final class PropertyPanel {
       bodySelectionCount = state.multiSelection.size();
       docking.draw();
       chrome.begin("properties-body");
+      if (applySession != null && !applySession.view().message().isEmpty())
+        ImGui.textWrapped(StatusBarText.clip(applySession.view().message(), 3072));
       if (changedBody || revealProblems) {
         ImGui.setScrollY(0);
         revealProblems = false;
@@ -812,13 +841,20 @@ public final class PropertyPanel {
   }
 
   private void drawActions(long version) {
+    boolean applying = applySession != null && applySession.running();
     boolean blocked = searchBlocked();
     footerEditable = actionOwner.editable(state, blocked);
     boolean problems = !state.issues.isEmpty() || state.seedInputs.pending(state);
     ImGui.pushID("properties-actions:" + version);
+    ImGui.beginDisabled(!footerEditable && !applying);
+    boolean apply = chrome.identifiedAction("apply", applying ? "Cancel Apply" : "Apply");
+    f.tooltip(
+        applying
+            ? "Cancel the pending Apply and keep this edit private."
+            : "Apply validates this edit and commits one undoable transaction.");
+    contextHelp.item("help.properties-apply", "properties-apply", true);
+    ImGui.endDisabled();
     ImGui.beginDisabled(!footerEditable);
-    boolean apply = chrome.identifiedAction("apply", "Apply");
-    f.tooltip("Apply validates this edit and commits one undoable transaction.");
     boolean revert = chrome.identifiedAction("revert", "Revert");
     f.tooltip("Revert reloads the selected resource and discards its private edits.");
     ImGui.endDisabled();
@@ -827,13 +863,19 @@ public final class PropertyPanel {
     ImGui.endDisabled();
     ImGui.popID();
     // Escape does not discard this parent draft or authorize a simultaneous document action.
-    if (!ImGui.isKeyPressed(ImGuiKey.Escape, false)
+    if (applying) {
+      if (apply || ImGui.isKeyPressed(ImGuiKey.Escape, false)) applySession.cancel();
+    } else if (!ImGui.isKeyPressed(ImGuiKey.Escape, false)
         && actionOwner.editable(state, searchBlocked())) {
       if (revert) {
         state.refreshDraft();
         f.clear();
         revealProblems();
-      } else if (apply && !state.applyDraft()) revealProblems();
+      } else if (apply) {
+        if (applySession == null) {
+          if (!state.applyDraft()) revealProblems();
+        } else if (!applySession.start()) revealProblems();
+      }
     }
     if (show && problems) revealProblems();
   }

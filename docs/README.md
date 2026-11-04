@@ -20,6 +20,7 @@ Start with [Build and run](BUILD_AND_RUN.md) for the pinned Java toolchain, Wind
 - [Project Save ownership](PROJECT_SAVE_OWNERSHIP.md) describes snapshot validation and checkpoint receipt publication.
 - [Document transaction ownership](DOCUMENT_TRANSACTION_OWNERSHIP.md) describes stale callback/history publication checks.
 - [API](API.md) describes the independent headless engine.
+- [Background Properties Apply](BACKGROUND_PROPERTIES_APPLY.md) describes prepared edits, cancellation and guarded history publication.
 - [Specification](SPECIFICATION.md) defines the complete assignment.
 - [Completion roadmap](DEVELOPMENT_ROADMAP.md) lists remaining development and final delivery work.
 - [Requirements and evidence](REQUIREMENTS_AND_TESTS.md) distinguishes observed results from deferred definitions.

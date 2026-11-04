@@ -64,6 +64,11 @@ public final class DocumentSession {
     owner.requireCurrent();
     if (!issues.isEmpty()) return issues;
     var delta = ProjectDelta.between(owner.values, ProjectIO.JSON.valueToTree(candidate));
+    publishEdit(candidate, delta);
+    return List.of();
+  }
+
+  private void publishEdit(ProjectData candidate, ProjectDelta delta) {
     if (!delta.empty()) {
       for (var removed : redo) historyBytes -= removed.bytes();
       redo.clear();
@@ -73,7 +78,92 @@ public final class DocumentSession {
         historyBytes -= undo.removeLast().bytes();
       active = candidate;
     }
-    return List.of();
+  }
+
+  /** Capture on the document owner thread; preparation may then run on a worker. */
+  public EditRequest requestEdit(Consumer<ProjectData> change) {
+    return new EditRequest(Objects.requireNonNull(change));
+  }
+
+  /**
+   * Owned source values and captured validation policy. Change/validation run on the preparation
+   * thread and must not read or mutate this live document. Publication is an owner-thread action.
+   */
+  public final class EditRequest {
+    private final TransactionOwner source = new TransactionOwner();
+    private final Consumer<ProjectData> change;
+
+    private EditRequest(Consumer<ProjectData> change) {
+      this.change = change;
+    }
+
+    private DocumentSession owner() {
+      return DocumentSession.this;
+    }
+
+    public PreparedEdit prepare() {
+      var candidate = ProjectIO.JSON.convertValue(source.values, ProjectData.class);
+      change.accept(candidate);
+      var issues = List.copyOf(source.validation.apply(candidate));
+      if (!issues.isEmpty()) return new PreparedEdit(this, null, null, issues);
+      // Freeze after validation: later changes to a retained callback input cannot alter the
+      // candidate or undo delta after preparation returns. No mutable accessor escapes.
+      var values = ProjectIO.JSON.valueToTree(candidate);
+      var frozen = ProjectIO.JSON.convertValue(values, ProjectData.class);
+      var delta = ProjectDelta.between(source.values, values);
+      return new PreparedEdit(this, frozen, delta, List.of());
+    }
+  }
+
+  /** Private validated candidate/delta; successful publication is single-use, including no-ops. */
+  public static final class PreparedEdit {
+    private final EditRequest request;
+    private final ProjectData candidate;
+    private final ProjectDelta delta;
+    private final List<Diagnostic> diagnostics;
+    private boolean consumed;
+
+    private PreparedEdit(
+        EditRequest request,
+        ProjectData candidate,
+        ProjectDelta delta,
+        List<Diagnostic> diagnostics) {
+      this.request = request;
+      this.candidate = candidate;
+      this.delta = delta;
+      this.diagnostics = List.copyOf(diagnostics);
+    }
+
+    public List<Diagnostic> diagnostics() {
+      return diagnostics;
+    }
+
+    public boolean success() {
+      return candidate != null && diagnostics.isEmpty();
+    }
+  }
+
+  /** Owner-thread check for successful or rejected work; does not consume or validate again. */
+  public boolean currentEdit(PreparedEdit prepared) {
+    if (prepared == null || prepared.consumed || prepared.request.owner() != this) return false;
+    try {
+      prepared.request.source.requireCurrent();
+      return true;
+    } catch (IllegalStateException changed) {
+      return false;
+    }
+  }
+
+  /** Publish only against the exact captured source, checkpoint, history and validation policy. */
+  public void applyEdit(PreparedEdit prepared) {
+    Objects.requireNonNull(prepared);
+    if (prepared.request.owner() != this)
+      throw new IllegalStateException("Prepared edit belongs to another document");
+    prepared.request.source.requireCurrent();
+    if (prepared.consumed || !prepared.success())
+      throw new IllegalStateException("Prepared edit is rejected or already consumed");
+    prepared.consumed = true;
+    publishEdit(prepared.candidate, prepared.delta);
   }
 
   public void undo() {

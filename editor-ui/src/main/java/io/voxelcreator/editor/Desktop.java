@@ -261,7 +261,8 @@ public final class Desktop extends Application {
             state.user,
             message ->
                 state.error("THEME_EDIT_FAILED", EditorEvents.Subsystem.APPLICATION, message));
-    properties = new PropertyPanel(state);
+    properties = PropertyPanel.background(state);
+    lifecycle.own(properties::close);
     resources =
         new ResourcePanel(
             state,

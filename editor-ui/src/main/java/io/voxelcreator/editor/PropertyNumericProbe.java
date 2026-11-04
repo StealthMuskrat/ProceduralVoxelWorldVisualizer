@@ -160,6 +160,7 @@ public final class PropertyNumericProbe {
             "PROPERTY_NUMERIC_NATIVE_PASS production noise rows / exact focus / private Apply and"
                 + " Undo");
       }
+      PropertiesApplyProbe.run(out.resolve("background-apply"));
     } finally {
       ImGui.destroyContext();
     }

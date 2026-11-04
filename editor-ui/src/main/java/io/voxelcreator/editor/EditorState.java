@@ -176,6 +176,32 @@ public final class EditorState implements AutoCloseable {
     return false;
   }
 
+  DocumentSession.EditRequest requestDraftApply() {
+    if (!validSeedInputs()
+        || !(draft instanceof Identity identity)
+        || multiSelection.size() != 1
+        || !multiSelection.contains(selected)) return null;
+    if (!Objects.equals(selected, identity.uuid) || find(project(), selected) == null)
+      throw new IllegalStateException("The Properties source changed; select the resource again");
+    UUID id = identity.uuid;
+    var owned = ProjectIO.JSON.convertValue(ProjectIO.JSON.valueToTree(draft), draft.getClass());
+    return document.requestEdit(p -> replace(p, id, owned));
+  }
+
+  void finishDraftApply() {
+    revision++;
+    issues = List.of();
+    validationScope = "Committed project";
+    status = "Properties edit applied";
+    refreshDraft();
+  }
+
+  void rejectDraftApply(List<Diagnostic> diagnostics) {
+    issues = List.copyOf(diagnostics);
+    validationScope = "Rejected edit";
+    for (var issue : issues) reportDiagnostic(issue, EditorEvents.Subsystem.PROJECT, true);
+  }
+
   private boolean validSeedInputs() {
     var provisional = seedInputs.diagnostics(this);
     if (!provisional.isEmpty()) {

@@ -42,6 +42,7 @@ public final class PropertyNumericConsumer {
       }
     }
     if (samples != 648 || cells != 576) throw new AssertionError("Replay coverage changed");
+    PropertiesApplyConsumer.run(out.resolve("background-apply"));
     System.out.println(
         "Property numeric engine-only PASS; 648 exact scalar samples and 576 signed/root EMPTY"
             + " cells");

@@ -7,6 +7,21 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void propertiesApplyHelpExplainsBackgroundValidationCancellationAndPrivatePublication() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.properties-apply");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Cancel Apply or Escape"));
+    assertTrue(text.contains("Undo delta in the background"));
+    assertTrue(text.contains("does not save the project"));
+    assertTrue(catalog.search("properties apply background").contains(topic));
+    assertTrue(catalog.topic("noise").related().contains(topic.id()));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void exportHelpExplainsBackgroundCatalogSelectionReloadAndExplicitPreviewRetry() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
