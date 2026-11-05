@@ -25,3 +25,6 @@ The existing UpdateCheckLayoutProbe invokes UpdateRecoveryReplay before its proj
 The existing future verify_update_check_layout.py requires those ten recovery cases in addition to the original forty-two phase/reflow receipts. Existing project/private ID/rejected seed/raw history/engine/user-config invariants surround the new replay. The unchanged engine-JAR-only UpdateCheckLayoutConsumer reads the project/preferences saved after recovery, strictly loads the project, defines 35 signed-coordinate .125 samples and checks EMPTY worlds at roots 2/4. Existing manual Linux/Windows commands and artifact paths include the nested recovery report without a workflow change or dispatch.
 
 Only source inspection, Java formatting and git diff --check were performed. Main remains the sole branch. Broader callback/queue scheduling, real transport and OS integration, physical input/DPI/detached windows/GPU/Windows 11 hardware and complete acceptance/release validation remain pending.
+
+
+Follow-up: [ready manual update decisions](READY_UPDATE_CHECKS.md) retains delivered results/failures privately until owner acceptance while continuing to observe terminal handoff faults. Existing inline-publication fault definitions now invoke explicit acceptance; delivered but unaccepted work can still fail or cancel. All expanded definitions remain uncompiled/untested.

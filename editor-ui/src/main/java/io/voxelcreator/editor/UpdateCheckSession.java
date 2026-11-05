@@ -62,6 +62,11 @@ final class UpdateCheckSession implements AutoCloseable {
   private Applied applied;
   private Object token = new Object();
   private FutureTask<Void> task;
+  private record Prepared(
+      UpdateTrust.Values configuration, UpdateChecker.Release release, Throwable failure) {}
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery;
+  private boolean preparedReady;
   private Result result;
   private boolean opening;
 
@@ -108,6 +113,8 @@ final class UpdateCheckSession implements AutoCloseable {
     phase = Phase.RUNNING;
     message = "Checking the applied metadata endpoint…";
     Object request = token;
+    long handed = ++delivery;
+    handoff.advance(handed);
     task =
         new FutureTask<>(
             () -> {
@@ -118,9 +125,8 @@ final class UpdateCheckSession implements AutoCloseable {
               } catch (Throwable rejected) {
                 failure = rejected;
               }
-              var value = release;
-              var rejected = failure;
-              ui.accept(() -> publish(request, configuration, value, rejected));
+              if (!handoff.publish(handed, new Prepared(configuration, release, failure))) return null;
+              ui.accept(() -> delivered(request, handed));
               return null;
             });
     try {
@@ -135,6 +141,27 @@ final class UpdateCheckSession implements AutoCloseable {
     return true;
   }
 
+  private void delivered(Object request, long handed) {
+    if (request != token || phase != Phase.RUNNING || delivery != handed || preparedReady) return;
+    refresh();
+    if (request != token || phase != Phase.RUNNING) return;
+    // Keep observing the task: inline readiness may precede a handoff failure.
+    preparedReady = true;
+  }
+
+  /** Current visible decisions precede acceptance; an open collapsed host still completes. */
+  void acceptPrepared() {
+    Object request = token;
+    refresh();
+    if (request != token || phase != Phase.RUNNING || !preparedReady) return;
+    var value = handoff.take();
+    if (value == null) {
+      failure(new IllegalStateException("Update check result unavailable"));
+      return;
+    }
+    publish(request, value.configuration(), value.release(), value.failure());
+  }
+
   private void publish(
       Object request,
       UpdateTrust.Values configuration,
@@ -143,7 +170,6 @@ final class UpdateCheckSession implements AutoCloseable {
     if (request != token || phase != Phase.RUNNING) return;
     refresh();
     if (request != token || phase != Phase.RUNNING) return;
-    task = null;
     if (rejected != null) {
       failure(rejected);
       return;
@@ -156,6 +182,7 @@ final class UpdateCheckSession implements AutoCloseable {
           new Result(
               release,
               order > 0 ? Comparison.NEWER : order == 0 ? Comparison.CURRENT : Comparison.OLDER);
+      release();
       phase = Phase.READY;
       message =
           switch (result.comparison()) {
@@ -188,7 +215,7 @@ final class UpdateCheckSession implements AutoCloseable {
     var observed = task;
     if (observed == null || !observed.isDone()) return;
     try {
-      // A normal task still waits for its queued UI publication. Only exceptional task exit
+      // A normal task waits for queued readiness and owner acceptance. Only exceptional task exit
       // (for example a rejected UI handoff) is recovered here, on the UI thread.
       observed.get();
     } catch (CancellationException cancelled) {
@@ -236,10 +263,17 @@ final class UpdateCheckSession implements AutoCloseable {
     token = new Object();
     result = null;
     if (task != null) task.cancel(true);
+    release();
+  }
+
+  private void release() {
     task = null;
+    preparedReady = false;
+    handoff.advance(++delivery);
   }
 
   private void failure(Throwable error) {
+    release();
     result = null;
     phase = Phase.FAILED;
     String primary = "Update check failed: " + describe(error);
@@ -276,6 +310,7 @@ final class UpdateCheckSession implements AutoCloseable {
     if (phase != Phase.CLOSED) {
       invalidate();
       phase = Phase.CLOSED;
+      handoff.close();
       message = "Update checker closed";
     }
   }

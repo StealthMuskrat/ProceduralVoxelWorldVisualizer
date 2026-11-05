@@ -7,6 +7,23 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void updateHelpExplainsReadyCancellationCollapseAndReviewedLinkActions() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.updates");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Cancel Check or Escape runs before accepting a ready result or worker failure"));
+    assertTrue(text.contains("Closing the window cancels ready work"));
+    assertTrue(text.contains("collapsing keeps an explicit check collecting and allows it to finish"));
+    assertTrue(text.contains("no second confirmation"));
+    assertTrue(text.contains("exact reviewed link actions"));
+    assertTrue(catalog.search("update ready cancel").contains(topic));
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Check for Updates"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void validationHelpExplainsReadyCancellationEscapeAndHiddenCompletion() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

@@ -53,6 +53,7 @@ final class UpdateCheckPanel implements AutoCloseable {
       return;
     }
     var view = session.view();
+    var work = session.requestToken();
     windowLayout.prepare();
     boolean visible = ImGui.begin("Check for Updates", open);
     UiScale.window(session.preferences(), "Check for Updates");
@@ -125,7 +126,7 @@ final class UpdateCheckPanel implements AutoCloseable {
         session.cancel();
         clearFeedback();
         actionScope.release();
-      }
+      } else if (work == session.requestToken()) session.acceptPrepared();
     }
   }
 

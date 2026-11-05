@@ -99,4 +99,20 @@ assert recovery['openedTargets'] == recovery['copiedTargets'] == ['https://relea
 assert recovery['networkRequests'] == recovery['externalBrowserLaunches'] == 0
 assert recovery['physicalInputVerified'] is False
 
-print('Update result geometry, fault recovery, scoped activation and unchanged project replay PASS')
+# Deferred current-control ownership of delivered metadata and cancelled worker failures.
+ready = json.loads((out / 'ready/update-ready-native.json').read_text(encoding='utf-8'))
+assert ready['formatVersion'] == 1
+modes = ['ready-cancel', 'ready-escape', 'ready-close', 'ready-failure-cancel',
+         'ready-invalid-cancel', 'ready-collapse', 'ready-configure']
+assert [case['mode'] for case in ready['cases']] == modes
+for case in ready['cases']:
+    mode = case['mode']
+    accepted = mode in ('ready-collapse', 'ready-configure')
+    assert case == dict(mode=mode, phase='READY' if accepted else 'CANCELLED', resultExposed=accepted,
+        stableReadyToken=True, errors=0, fetchCalls=2 if mode == 'ready-configure' else 1,
+        configured=1 if mode == 'ready-configure' else 0, manualLinkActions=0)
+assert ready['fetchCalls'] == 8 and ready['configured'] == 1 and ready['errorReports'] == 0
+assert ready['projectPreserved'] is True and ready['physicalInputVerified'] is False
+assert ready['networkRequests'] == ready['externalBrowserLaunches'] == 0
+
+print('Update result geometry, fault recovery, ready decisions, scoped activation and unchanged project replay PASS')

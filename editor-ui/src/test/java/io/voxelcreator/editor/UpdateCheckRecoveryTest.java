@@ -23,13 +23,14 @@ class UpdateCheckRecoveryTest {
     return user;
   }
 
-  private void deliver() {
+  private void deliver(UpdateCheckSession session) {
     workers.removeFirst().run();
     while (!ui.isEmpty()) ui.removeFirst().run();
+    session.acceptPrepared();
   }
 
   @Test
-  void fetcherErrorsWaitForUiPublicationAndRemainExplicitlyRetryable() {
+  void fetcherErrorsWaitForOwnerAcceptanceAndRemainExplicitlyRetryable() {
     var calls = new AtomicInteger();
     var error = new AssertionError("fetch-error");
     try (var session =
@@ -48,6 +49,9 @@ class UpdateCheckRecoveryTest {
       assertEquals(UpdateCheckSession.Phase.RUNNING, session.view().phase());
       assertTrue(errors.isEmpty());
       ui.removeFirst().run();
+      assertEquals(UpdateCheckSession.Phase.RUNNING, session.view().phase());
+      assertTrue(errors.isEmpty());
+      session.acceptPrepared();
       assertEquals(UpdateCheckSession.Phase.FAILED, session.view().phase());
       assertTrue(session.view().message().contains("fetch-error"));
       assertNull(session.view().result());
@@ -56,7 +60,7 @@ class UpdateCheckRecoveryTest {
       assertTrue(workers.isEmpty());
       assertEquals(0, error.getSuppressed().length);
       assertTrue(session.start());
-      deliver();
+      deliver(session);
       assertEquals(UpdateCheckSession.Phase.READY, session.view().phase());
       assertEquals(2, calls.get());
     }
@@ -89,7 +93,7 @@ class UpdateCheckRecoveryTest {
       assertEquals(0, calls.get());
       reject.set(false);
       assertTrue(session.start());
-      deliver();
+      deliver(session);
       assertEquals(UpdateCheckSession.Phase.READY, session.view().phase());
     }
   }
@@ -128,7 +132,7 @@ class UpdateCheckRecoveryTest {
         assertEquals(1, errors.size());
         reject.set(false);
         assertTrue(session.start());
-        deliver();
+        deliver(session);
         assertEquals(UpdateCheckSession.Phase.READY, session.view().phase());
       }
     }
@@ -154,9 +158,10 @@ class UpdateCheckRecoveryTest {
       reject.set(false);
       session.start();
       ui.removeFirst().run();
+      session.acceptPrepared();
       assertEquals(UpdateCheckSession.Phase.RUNNING, session.view().phase());
       assertNull(session.view().result());
-      deliver();
+      deliver(session);
       assertEquals(UpdateCheckSession.Phase.READY, session.view().phase());
       assertEquals(1, errors.size());
     }
@@ -213,7 +218,7 @@ class UpdateCheckRecoveryTest {
                 throw new IllegalStateException("reporter-runtime");
               })) {
         session.start();
-        assertDoesNotThrow(this::deliver);
+        assertDoesNotThrow(() -> deliver(session));
         assertEquals(UpdateCheckSession.Phase.FAILED, session.view().phase());
         assertTrue(session.view().message().contains("primary-"));
         assertTrue(session.view().message().contains("Error notification failed: reporter-"));
@@ -244,10 +249,10 @@ class UpdateCheckRecoveryTest {
             })) {
       owner.set(session);
       session.start();
-      deliver();
+      deliver(session);
       assertEquals(UpdateCheckSession.Phase.RUNNING, session.view().phase());
       assertFalse(session.view().message().contains("old-"));
-      deliver();
+      deliver(session);
       assertEquals(UpdateCheckSession.Phase.READY, session.view().phase());
       assertEquals(2, calls.get());
     }
@@ -316,7 +321,7 @@ class UpdateCheckRecoveryTest {
               }
               workers.add(task);
             },
-            Runnable::run,
+            action -> { action.run(); owner.get().acceptPrepared(); },
             (e, o) -> {
               if (fetches.incrementAndGet() == 1) throw new AssertionError("first-fetch");
               return RELEASE;
@@ -339,6 +344,7 @@ class UpdateCheckRecoveryTest {
 
   @Test
   void aPosterFaultAfterSuccessfulUiPublicationCannotRollBackTheReviewedResult() {
+    var owner = new AtomicReference<UpdateCheckSession>();
     try (var session =
         new UpdateCheckSession(
             configured(),
@@ -346,10 +352,12 @@ class UpdateCheckRecoveryTest {
             workers::add,
             action -> {
               action.run();
+              owner.get().acceptPrepared();
               throw new AssertionError("after-publication");
             },
             (e, o) -> RELEASE,
             errors::add)) {
+      owner.set(session);
       session.start();
       workers.removeFirst().run();
       var reviewed = session.view().result();
@@ -365,6 +373,7 @@ class UpdateCheckRecoveryTest {
   void executorRejectionAfterInlineTerminalPublicationCannotReplaceItsResultOrReportTwice() {
     for (boolean failedFetch : new boolean[] {false, true}) {
       errors.clear();
+      var owner = new AtomicReference<UpdateCheckSession>();
       try (var session =
           new UpdateCheckSession(
               configured(),
@@ -373,12 +382,13 @@ class UpdateCheckRecoveryTest {
                 task.run();
                 throw new AssertionError("after-execution");
               },
-              Runnable::run,
+              action -> { action.run(); owner.get().acceptPrepared(); },
               (e, o) -> {
                 if (failedFetch) throw new AssertionError("published-fetch-failure");
                 return RELEASE;
               },
               errors::add)) {
+        owner.set(session);
         assertFalse(session.start());
         assertEquals(
             failedFetch ? UpdateCheckSession.Phase.FAILED : UpdateCheckSession.Phase.READY,

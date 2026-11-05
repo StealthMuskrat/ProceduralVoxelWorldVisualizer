@@ -293,7 +293,12 @@ final class HelpDefinitions {
                   + " Trust. Failed configuration writes retain the private draft. Checks validate"
                   + " certificate trust, schema, response limits and origins; results offer a"
                   + " verified release-information link. There is no autonomous download, install"
-                  + " or replacement."),
+                  + " or replacement. Delivered metadata stays private while Running. Current"
+                  + " Cancel Check or Escape runs before accepting a ready result or worker"
+                  + " failure. Closing the window cancels ready work; collapsing keeps an explicit"
+                  + " check collecting and allows it to finish. The original check needs no second"
+                  + " confirmation. Accepted results open or copy a URL only through the exact"
+                  + " reviewed link actions. Retry uses Check Again explicitly."),
           new Guide(
               "help.project-settings",
               "Project Settings",

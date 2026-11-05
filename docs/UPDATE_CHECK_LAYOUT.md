@@ -17,3 +17,6 @@ The new probe injects queued worker/UI, fetch, browser and clipboard boundaries.
 No schema, trust policy, transport deadline/body limit, version grammar, metadata format, engine/model API, project save, startup resource or licensing changes are introduced. Actual DNS/TLS/deadline/cancellation cleanup, OS browser/clipboard behavior, all callback/focus/keyboard/closure timings, physical DPI/detached/GPU behavior and full GUI/Windows 11 acceptance remain pending. This does not advance A01–A36 or production sign-off.
 
 The subsequent unvalidated [manual update recovery follow-up](UPDATE_CHECK_RECOVERY.md) contains action/reporting Errors, retains retry result/IDs and suppresses failed-handoff feedback for already hidden hosts. Ten additional recovery cases run inside the existing future layout probe/checker path, before unchanged project/preferences are saved for independent replay. No validation or workflow ran.
+
+
+Follow-up: [ready manual update decisions](READY_UPDATE_CHECKS.md) preserves pending Cancel IDs through delivery and accepts only shown work after native scope unwind, including collapsed completion. Seven added ready-result cases are nested after the ten recovery cases; the forty-two original phase/reflow cases retain their dimensions. All remain uncompiled/untested.

@@ -29,13 +29,14 @@ class UpdateCheckSessionTest {
     return new UpdateCheckSession(user, "1.0.0", workers::add, ui::add, fetcher, errors::add);
   }
 
-  private void deliver() {
+  private void deliver(UpdateCheckSession session) {
     workers.removeFirst().run();
     while (!ui.isEmpty()) ui.removeFirst().run();
+    session.acceptPrepared();
   }
 
   @Test
-  void repeatedClicksShareOneRequestAndPublicationWaitsForTheUiQueue() {
+  void repeatedClicksShareOneRequestAndPublicationWaitsForOwnerAcceptance() {
     var calls = new AtomicInteger();
     try (var session =
         session(
@@ -52,7 +53,12 @@ class UpdateCheckSessionTest {
       workers.removeFirst().run();
       assertEquals(UpdateCheckSession.Phase.RUNNING, session.view().phase());
       assertNull(session.view().result());
+      var token = session.requestToken();
       ui.removeFirst().run();
+      assertEquals(UpdateCheckSession.Phase.RUNNING, session.view().phase());
+      assertSame(token, session.requestToken());
+      assertNull(session.view().result());
+      session.acceptPrepared();
       assertEquals(UpdateCheckSession.Comparison.NEWER, session.view().result().comparison());
       assertEquals(1, calls.get());
     }
@@ -66,9 +72,10 @@ class UpdateCheckSessionTest {
       session.cancel();
       assertTrue(session.start());
       ui.removeFirst().run();
+      session.acceptPrepared();
       assertEquals(UpdateCheckSession.Phase.RUNNING, session.view().phase());
       assertNull(session.view().result());
-      deliver();
+      deliver(session);
       assertEquals(UpdateCheckSession.Phase.READY, session.view().phase());
     }
   }
@@ -79,7 +86,7 @@ class UpdateCheckSessionTest {
       session.start();
       user.appearance.theme = "Light";
       user.workspace.width = 1234;
-      deliver();
+      deliver(session);
       var result = session.view().result();
       assertEquals(UpdateCheckSession.Comparison.CURRENT, result.comparison());
       user.performance.trustedOrigins.add("https://other.example.test");
@@ -91,6 +98,7 @@ class UpdateCheckSessionTest {
       workers.removeFirst().run();
       user.performance.updateEndpoint = ENDPOINT + "?next=1";
       ui.removeFirst().run();
+      session.acceptPrepared();
       assertEquals(UpdateCheckSession.Phase.STALE, session.view().phase());
       assertNull(session.view().result());
     }
@@ -103,6 +111,7 @@ class UpdateCheckSessionTest {
     workers.removeFirst().run();
     session.close();
     ui.removeFirst().run();
+    session.acceptPrepared();
     session.close();
     assertEquals(UpdateCheckSession.Phase.CLOSED, session.view().phase());
     assertNull(session.view().result());
@@ -119,13 +128,13 @@ class UpdateCheckSessionTest {
               return new UpdateChecker.Release("0.9.0", LINK);
             })) {
       session.start();
-      deliver();
+      deliver(session);
       assertEquals(UpdateCheckSession.Phase.FAILED, session.view().phase());
       assertTrue(session.view().message().contains("IOException"));
       assertNull(session.view().result());
       assertEquals(1, errors.size());
       session.start();
-      deliver();
+      deliver(session);
       assertEquals(UpdateCheckSession.Comparison.OLDER, session.view().result().comparison());
     }
     try (var rejected =
@@ -158,7 +167,7 @@ class UpdateCheckSessionTest {
                 "1.0.0", "https://releases.example.test/" + "x".repeat(4096)))) {
       try (var session = session((e, o) -> release)) {
         session.start();
-        deliver();
+        deliver(session);
         assertEquals(UpdateCheckSession.Phase.FAILED, session.view().phase());
         assertNull(session.view().result());
       }
@@ -180,7 +189,7 @@ class UpdateCheckSessionTest {
       throws Exception {
     try (var session = session((e, o) -> new UpdateChecker.Release("1.0.1", LINK))) {
       session.start();
-      deliver();
+      deliver(session);
       var reviewed = session.view().result();
       var equal = new UpdateCheckSession.Result(reviewed.release(), reviewed.comparison());
       assertThrows(
@@ -230,7 +239,7 @@ class UpdateCheckSessionTest {
   void reentrantOpenIsBlockedAndBrowserCallbacksCannotReviveClosedResults() throws Exception {
     try (var session = session((e, o) -> new UpdateChecker.Release("1.0.0", LINK))) {
       session.start();
-      deliver();
+      deliver(session);
       var reviewed = session.view().result();
       session.open(
           reviewed,
@@ -254,12 +263,12 @@ class UpdateCheckSessionTest {
       assertNotSame(idle, first);
       assertFalse(session.start());
       assertSame(first, session.requestToken());
-      deliver();
+      deliver(session);
       var reviewed = session.view().result();
       assertSame(first, session.requestToken());
       assertTrue(session.start());
       assertNotSame(first, session.requestToken());
-      deliver();
+      deliver(session);
       assertEquals(reviewed, session.view().result());
       assertNotSame(reviewed, session.view().result());
       assertThrows(
