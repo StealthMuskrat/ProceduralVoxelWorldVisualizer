@@ -7,6 +7,22 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void inspectorHelpExplainsReadyDecisionsAndEscapeSuppressionWithoutMetadataMutation() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.trace");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Delivery alone never replaces the displayed trace or publishes a trace log"));
+    assertTrue(text.contains("Current Cancel Pick or Cancel Trace runs before accepting a ready result or worker failure"));
+    assertTrue(text.contains("Escape suppresses acceptance for that frame while keeping the request pending"));
+    assertTrue(text.contains("Collapsed explicit work still completes"));
+    assertTrue(text.contains("original request finishes without another confirmation"));
+    assertTrue(catalog.search("trace ready cancel").contains(topic));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void structuralNoiseHelpExplainsReadyCancellationAndExactResolvedApply() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

@@ -662,7 +662,12 @@ final class HelpDefinitions {
                   + " state and preserves the last valid trace. A failed coordinate attempt offers"
                   + " Retry Trace for that exact target, independently of entered XYZ or an older"
                   + " displayed result. A failed pick offers a new pick or Trace XYZ instead of"
-                  + " inventing a coordinate target. Nothing retries automatically."),
+                  + " inventing a coordinate target. Nothing retries automatically. Delivery alone"
+                  + " never replaces the displayed trace or publishes a trace log. Current Cancel"
+                  + " Pick or Cancel Trace runs before accepting a ready result or worker failure."
+                  + " Closing the Inspector retires pending work. Escape suppresses acceptance for"
+                  + " that frame while keeping the request pending. Collapsed explicit work still"
+                  + " completes. The original request finishes without another confirmation."),
           new Guide(
               "help.about",
               "About and dependency licenses",

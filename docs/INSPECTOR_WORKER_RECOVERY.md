@@ -25,3 +25,8 @@ InspectorWorkerRecoveryProbe adds eight production native/worker cases under the
 The nested native report and unchanged before/after project feed added assertions in the existing deferred viewport-document checker. Existing document retirement, queue rejection, same-UUID reopen, old-publication rejection, immutable image and independent engine replay definitions remain. Workflow commands/triggers are unchanged, and no dispatch occurred. Physical input/DPI and Windows 11/hardware certification remain separate.
 
 Only source inspection, Java formatting and git diff --check accompany this batch. Real scheduling/cancellation/native/platform/hardware and full acceptance/release remain pending. Main remains the sole branch.
+
+
+## Ready Inspector completion follow-up — unvalidated
+
+[Ready Inspector results](READY_INSPECTOR_RESULTS.md) supersedes completion-callback publication with CPU readiness, current shown-ticket decisions after native scope unwind and complete-source/display checks. It preserves exact retry targets, Escape's frame suppression and collapsed explicit completion, while preparing immutable trace presentation after world closure. Eighteen actor and one Help definitions plus six added native cases remain uncompiled/untested. The worker receipt now defines eight fault/recovery plus six ready-retirement cases, retaining ten trace logs and the existing 22/42 analytic fields. Independent replay dimensions and the observed 922-test/120-suite baseline do not advance.

@@ -69,3 +69,13 @@ for row in rows:
     assert row['target'] == dict(x=x, y=0, z=3)
     assert row['field'] == (2 + 2*(x+1) + 3)*2 and row['finalType'] == 1
 assert read('inspector-worker/before.json') == read('inspector-worker/after.json')
+
+# Deferred ready Inspector results keep current Cancel/close/edit and Escape-frame authority.
+ready = recovery['readyCases']
+assert [row['mode'] for row in ready] == ['trace-cancel', 'pick-cancel', 'trace-failure-cancel',
+                                        'trace-escape-cancel', 'trace-close', 'trace-edit']
+for row in ready:
+    assert row['heldFrames'] == 12 and row['readyRetired'] is True
+    assert row['escapeSuppressed'] is (row['mode'] == 'trace-escape-cancel')
+    assert row['traceLogsBefore'] == row['traceLogsAfter'] == 10
+    assert row['notificationsRetained'] is row['coordinateRetained'] is True

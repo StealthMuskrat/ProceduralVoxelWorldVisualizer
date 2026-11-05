@@ -29,3 +29,8 @@ python scripts/verify_inspector_retry.py build/inspector-retry
 ```
 
 Future Windows wiring uses bundled Java, semicolon classpaths and exit-code guards. Artifact lists retain the receipts and source/result files. Development-branch push triggers remain disabled. No compiler, build, test, native probe, Python checker, schema/generator or GitHub workflow ran for this batch. Physical input/DPI, full GUI/Windows 11 acceptance, arbitrary device failures and production sign-off remain pending.
+
+
+## Ready Inspector completion follow-up — unvalidated
+
+[Ready Inspector results](READY_INSPECTOR_RESULTS.md) supersedes completion-callback publication with CPU readiness, current shown-ticket decisions after native scope unwind and complete-source/display checks. It preserves exact retry targets, Escape's frame suppression and collapsed explicit completion, while preparing immutable trace presentation after world closure. Eighteen actor and one Help definitions plus six added native cases remain uncompiled/untested. The worker receipt now defines eight fault/recovery plus six ready-retirement cases, retaining ten trace logs and the existing 22/42 analytic fields. Independent replay dimensions and the observed 922-test/120-suite baseline do not advance.

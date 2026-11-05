@@ -2,6 +2,7 @@ package io.voxelcreator.editor;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiKey;
 import io.voxelcreator.model.*;
 import io.voxelcreator.storage.BlockPos;
 import java.nio.file.*;
@@ -121,7 +122,47 @@ final class InspectorWorkerRecoveryProbe {
                       "finalType",
                       result.finalType()));
             }
-        require(rows.size() == 8 && state.traces.size() == 10, "Unexpected recovery dimensions");
+        var readyRows = new ArrayList<Map<String, Object>>();
+        for (String mode : List.of("trace-cancel", "pick-cancel", "trace-failure-cancel",
+            "trace-escape-cancel", "trace-close", "trace-edit")) {
+          int count = state.traces.size();
+          var prior = mode.equals("pick-cancel") ? views.probeInspectorTrace() : historical;
+          long notifications = notifications();
+          if (mode.equals("trace-failure-cancel"))
+            views.probeInspectorWorkerFailure(new AssertionError("ready-inspector-cancel"), false);
+          if (mode.equals("pick-cancel")) views.probeWorldPick();
+          else views.inspectTrace(TraceCoordinateIntent.capture(state, historical));
+          untilHeld(views::probeInspectorWorkerDone);
+          for (int i = 0; i < 12; i++) frame(false);
+          require(!views.probeInspectorReady() && (views.probeCoordinateTracePending() || views.probeWorldPickPending()),
+              "Inspector bypassed UI delivery");
+          String key = mode.equals("trace-close") ? "inspector-close" : "trace-cancel";
+          var at = views.probeAdmissionControl(key); require(at != null, "Ready Inspector control missing");
+          var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame(false);
+          io.addMouseButtonEvent(0, true); frame(false);
+          state.drain();
+          require(views.probeInspectorReady() && views.probeInspectorTrace() == prior && state.traces.size() == count,
+              "Delivery adopted Inspector result before current controls");
+          if (mode.equals("trace-escape-cancel")) {
+            io.addKeyEvent(ImGuiKey.Escape, true); frame();
+            require(views.probeInspectorReady() && views.probeCoordinateTracePending()
+                && views.probeInspectorTrace() == prior && state.traces.size() == count,
+                "Escape suppression frame adopted ready Inspector result");
+            io.addKeyEvent(ImGuiKey.Escape, false);
+          }
+          if (mode.equals("trace-edit")) views.probeInspectorCoordinateEdit("X", "8");
+          io.addMouseButtonEvent(0, false); frame(); frame();
+          require(!views.probeCoordinateTracePending() && !views.probeWorldPickPending()
+              && views.probeInspectorTrace() == prior && state.traces.size() == count
+              && views.probeInspectorRetry() == null && notifications() == notifications,
+              "Retired ready Inspector result changed trace/log/retry/failure feedback");
+          if (mode.equals("trace-edit")) views.probeInspectorCoordinateEdit("X", "7");
+          require(views.probeInspectorCoordinate().equals(ENTERED), "Ready cancellation changed entered XYZ");
+          readyRows.add(Map.of("mode", mode, "heldFrames", 12, "readyRetired", true,
+              "escapeSuppressed", mode.equals("trace-escape-cancel"), "traceLogsBefore", count,
+              "traceLogsAfter", state.traces.size(), "notificationsRetained", true, "coordinateRetained", true));
+        }
+        require(rows.size() == 8 && readyRows.size() == 6 && state.traces.size() == 10, "Unexpected recovery dimensions");
         require(
             before.equals(ProjectIO.JSON.valueToTree(state.project()))
                 && revision == state.revision
@@ -147,6 +188,8 @@ final class InspectorWorkerRecoveryProbe {
                     rows,
                     "traceLogs",
                     state.traces.size(),
+                    "readyCases",
+                    readyRows,
                     "projectPreserved",
                     true,
                     "privatePreserved",
@@ -182,8 +225,24 @@ final class InspectorWorkerRecoveryProbe {
     frame();
   }
 
-  private static void frame() {
-    state.drain();
+  private static long notifications() {
+    return state.events.snapshot().stream().filter(e -> e.code().equals("APPLICATION_MESSAGE"))
+        .mapToLong(EditorEvents.Entry::count).sum();
+  }
+
+  private static void untilHeld(BooleanSupplier ready) {
+    long end = System.nanoTime() + 30_000_000_000L;
+    while (!ready.getAsBoolean()) {
+      frame(false);
+      if (System.nanoTime() > end) throw new AssertionError("Held Inspector timeout");
+      Thread.yield();
+    }
+  }
+
+  private static void frame() { frame(true); }
+
+  private static void frame(boolean drain) {
+    if (drain) state.drain();
     ImGui.newFrame();
     ImGui.setNextWindowPos(20, 20, ImGuiCond.Always);
     ImGui.setNextWindowSize(950, 750, ImGuiCond.Always);

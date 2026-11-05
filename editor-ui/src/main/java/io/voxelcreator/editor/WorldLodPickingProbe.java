@@ -219,6 +219,7 @@ final class WorldLodPickingProbe {
     try (var hold = holdWorkers()) {
       for (int i = 0; i < 8; i++) queued.add(state.background.submit(() -> {}));
       control("trace-coordinate");
+      frame(); // A newly submitted failed attempt waits for its own Inspector frame.
       require(
           !views.probeCoordinateTracePending()
               && views.probeInspectorTaskFeedback().contains("queue is full")
