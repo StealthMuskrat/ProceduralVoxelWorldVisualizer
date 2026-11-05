@@ -121,7 +121,7 @@ class RegionCompletionTest {
 
   @Test
   void allTerminalPathsReleaseTheirRegionSlotBeforeReentrantCompletionCallbacks() throws Exception {
-    for (String mode : List.of("SUCCESS", "CANCEL", "DELIVERY_FAILURE", "FATAL"))
+    for (String mode : List.of("SUCCESS", "CANCEL", "DELIVERY_FAILURE", "DELIVERY_ERROR"))
       try (var engine = new NoiseGeneratorEngine(2, 64, 8L << 20);
           var world = world(engine)) {
         var siblings = new ArrayList<Held>();
@@ -141,7 +141,7 @@ class RegionCompletionTest {
                       Thread.currentThread().interrupt();
                       throw new CancellationException();
                     }
-                    if (mode.equals("FATAL")) throw new AssertionError("consumer fatal");
+                    if (mode.equals("DELIVERY_ERROR")) throw new AssertionError("consumer error");
                     if (mode.equals("DELIVERY_FAILURE"))
                       return CompletableFuture.failedFuture(
                           new IllegalArgumentException("delivery"));
@@ -173,17 +173,15 @@ class RegionCompletionTest {
                   .get(3, TimeUnit.SECONDS)
                   .progress()
                   .completed());
-          if (mode.equals("FATAL"))
-            assertThrows(
-                ExecutionException.class, () -> task.completion().get(3, TimeUnit.SECONDS));
-          else {
-            var summary = task.completion().get(3, TimeUnit.SECONDS);
-            assertEquals(
-                mode.equals("SUCCESS")
-                    ? "COMPLETED"
-                    : mode.equals("CANCEL") ? "CANCELLED" : "COMPLETED_WITH_ERRORS",
-                summary.progress().state());
-          }
+          var summary = task.completion().get(3, TimeUnit.SECONDS);
+          assertEquals(
+              mode.equals("SUCCESS")
+                  ? "COMPLETED"
+                  : mode.equals("CANCEL") ? "CANCELLED" : "COMPLETED_WITH_ERRORS",
+              summary.progress().state());
+          assertEquals(mode.startsWith("DELIVERY") ? 1 : 0, summary.progress().failed());
+          assertEquals(mode.equals("SUCCESS") ? 1 : 0, summary.progress().completed());
+          assertEquals(mode.equals("CANCEL") ? 1 : 0, summary.progress().cancelled());
         } finally {
           release.countDown();
           siblings.forEach(

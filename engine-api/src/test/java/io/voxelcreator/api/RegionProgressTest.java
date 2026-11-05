@@ -238,24 +238,34 @@ class RegionProgressTest {
   }
 
   @Test
-  void fatalConsumerOutcomePublishesACoherentFailedSnapshotBeforeObserverFailure()
+  void consumerErrorsPublishPolicyPartitionsAndMatchingSummarySnapshots()
       throws Exception {
-    try (var engine = new NoiseGeneratorEngine(1, 32, 8L << 20);
-        var world = world(engine, 2)) {
-      var fatal = new AssertionError("fatal consumer fixture");
-      var task =
-          world.streamRegion(
-              request(
-                  2, RegionRequest.DeliveryOrder.COORDINATE, RegionRequest.FailurePolicy.CONTINUE),
-              chunk -> {
-                throw fatal;
-              });
-      assertSame(
-          fatal,
-          assertThrows(ExecutionException.class, () -> task.completion().get(3, TimeUnit.SECONDS))
-              .getCause());
-      assertEquals(new TaskProgress("FAILED", 0, 0, 0, 1028), task.progress());
-    }
+    for (var order : RegionRequest.DeliveryOrder.values())
+      for (var policy : RegionRequest.FailurePolicy.values())
+        try (var engine = new NoiseGeneratorEngine(1, 32, 8L << 20);
+            var world = world(engine, 2)) {
+          var error = new AssertionError("consumer Error fixture");
+          var task =
+              world.streamRegion(
+                  request(2, order, policy),
+                  chunk -> {
+                    throw error;
+                  });
+          var summary = task.completion().get(10, TimeUnit.SECONDS);
+          boolean continuing = policy == RegionRequest.FailurePolicy.CONTINUE;
+          assertEquals(
+              new TaskProgress(continuing ? "COMPLETED_WITH_ERRORS" : "CANCELLED", 0, 0,
+                  continuing ? 1028 : 1, continuing ? 0 : 1027),
+              summary.progress());
+          assertEquals(summary.progress(), task.progress());
+          partition(task.progress(), 1028);
+          assertEquals(continuing ? 1024 : 1, summary.failures().size());
+          assertEquals("DELIVERY", summary.failures().getFirst().phase());
+          assertEquals("consumer Error fixture", summary.failures().getFirst().message());
+          assertEquals(0, error.getSuppressed().length);
+          assertEquals(0, world.inFlightChunks());
+          assertTrue(world.generateChunk(new ChunkPos(0, 0, 0)).isEmpty());
+        }
   }
 
   @Test

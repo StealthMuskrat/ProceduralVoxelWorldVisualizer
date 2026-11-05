@@ -636,12 +636,15 @@ public final class WorldContext implements AutoCloseable {
     check();
     var future = new CompletableFuture<RegionResult>();
     var task = new AtomicReference<RegionTask>();
-    future.whenComplete(
+    future.handle(
         (value, error) -> {
           // External timeout/completion also withdraws an undeliverable collection result.
           // Normal publication happens only after its stream has already released ownership.
           var active = task.get();
           if (active != null) active.cancel();
+          // This observer has no outcome to propagate. A failed dependent stage can invoke
+          // arbitrary host Throwable text while constructing its own failure envelope.
+          return null;
         });
     Thread.ofVirtual()
         .start(
