@@ -121,12 +121,12 @@ print('BACKGROUND_EXPORT_INDEPENDENT_PASS staged publication / preserved sources
 planning = out / 'planning'
 plan = json.loads((planning / 'export-planning.json').read_text())
 assert plan['formatVersion'] == 1 and plan['physicalInputVerified'] is False
-modes = ['initial', 'selection', 'reload', 'cancel', 'escape', 'retry', 'close']
+modes = ['initial', 'selection', 'reload', 'cancel', 'escape', 'retry', 'close', 'ready-cancel', 'ready-selection-cancel', 'ready-reload-escape', 'ready-close']
 assert [case['mode'] for case in plan['cases']] == modes
 for case in plan['cases']:
     mode = case['mode']; published = mode in ['initial', 'selection', 'reload', 'retry']
     assert case == dict(mode=mode, published=published, responsiveFrames=12, freshIncludedRequired=True,
-        privateRetained=True, preferencesRetained=True, originalBytesRetained=True)
+        privateRetained=True, preferencesRetained=True, originalBytesRetained=True, readyRetired=mode.startswith('ready-'))
     directory = planning / mode
     before = json.loads((directory / 'source.json').read_text())
     after = json.loads((directory / 'source-after.json').read_text())
@@ -135,13 +135,13 @@ for case in plan['cases']:
     assert set(package) == {'packageVersion', 'resources'} and package['packageVersion'] == 1
     for p in [before, after, package['resources'], prior['resources']]: project_validator.validate(p)
     assert before['project']['seed'] == 17
-    if mode == 'reload':
+    if mode in ['reload', 'ready-reload-escape']:
         before['project']['seed'] = 18
         before['noise2D'][0]['algorithm']['parameters']['value'] = .25
     assert before == after
     assert [n['id'] for n in after['noise2D']] == ['base', 'derived']
     base, derived = after['noise2D']
-    assert base['algorithm']['parameters'] == {'value': .25 if mode == 'reload' else .125}
+    assert base['algorithm']['parameters'] == {'value': .25 if mode in ['reload', 'ready-reload-escape'] else .125}
     addition, = derived['processing']
     assert addition['kind'] == 'ADD'
     assert addition['inputs']['a']['sourceKind'] == 'Noise Generator Reference'
@@ -159,5 +159,5 @@ for case in plan['cases']:
     assert all(not payload[key] for key in ['voxelTypes', 'voxelGroups', 'voxelSets', 'folders'])
     assert not list(directory.glob('*.tmp'))
 replay = json.loads((planning / 'engine-replay.json').read_text())
-assert replay == dict(formatVersion=1, fields=504, cells=4116, roots=[2, 4])
-print('EXPORT_PLANNING_INDEPENDENT_PASS seven preview lifetimes / exact dependency payloads / 504 fields / 4116 EMPTY cells')
+assert replay == dict(formatVersion=1, fields=756, cells=6468, roots=[2, 4])
+print('EXPORT_PLANNING_INDEPENDENT_PASS eleven preview lifetimes / exact dependency payloads / 756 fields / 6468 EMPTY cells')

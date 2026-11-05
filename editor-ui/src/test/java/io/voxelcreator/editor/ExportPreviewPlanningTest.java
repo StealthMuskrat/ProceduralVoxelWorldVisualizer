@@ -75,9 +75,10 @@ class ExportPreviewPlanningTest {
     return new ExportEditSession(state, derived(state), workers, ui::add, () -> false);
   }
 
-  static void deliver(Workers workers, Queue<Runnable> ui) {
+  static void deliver(Workers workers, Queue<Runnable> ui, ExportEditSession s) {
     workers.run();
     ui.remove().run();
+    s.acceptPlanning();
   }
 
   @Test
@@ -108,7 +109,13 @@ class ExportPreviewPlanningTest {
       assertNull(s.preview());
       assertNull(s.catalog());
       assertTrue(owner.valuesCurrent(state));
+      var request = s.planningToken();
       callback.run();
+      assertSame(request, s.planningToken());
+      assertTrue(s.planning());
+      assertNull(s.catalog());
+      assertNull(s.preview());
+      s.acceptPlanning();
       assertEquals(2, s.catalog().size());
       assertEquals(
           List.of("base", "derived"),
@@ -127,7 +134,7 @@ class ExportPreviewPlanningTest {
       var workers = new Workers();
       var ui = new ArrayDeque<Runnable>();
       var s = edit(state, workers, ui);
-      deliver(workers, ui);
+      deliver(workers, ui, s);
       var old = s.preview();
       var catalog = s.catalog();
       s.markShown(old);
@@ -137,7 +144,7 @@ class ExportPreviewPlanningTest {
       assertFalse(s.canExport());
       s.markShown(old);
       assertThrows(IllegalStateException.class, () -> s.exportSnapshot(old));
-      deliver(workers, ui);
+      deliver(workers, ui, s);
       assertSame(catalog, s.catalog());
       assertNotSame(old, s.preview());
       assertFalse(s.canExport());
@@ -156,7 +163,7 @@ class ExportPreviewPlanningTest {
       var workers = new Workers();
       var ui = new ArrayDeque<Runnable>();
       var s = edit(state, workers, ui);
-      deliver(workers, ui);
+      deliver(workers, ui, s);
       var old = s.preview();
       s.select(base(state));
       workers.run();
@@ -167,7 +174,7 @@ class ExportPreviewPlanningTest {
       assertSame(old, s.preview());
       workers.run();
       assertTrue(ui.isEmpty());
-      deliver(workers, ui);
+      deliver(workers, ui, s);
       assertEquals(derived(state), s.selected());
       assertEquals(2, s.preview().resources().noise2D.size());
       assertFalse(s.canExport());
@@ -180,7 +187,7 @@ class ExportPreviewPlanningTest {
       var workers = new Workers();
       var ui = new ArrayDeque<Runnable>();
       var s = edit(state, workers, ui);
-      deliver(workers, ui);
+      deliver(workers, ui, s);
       var preview = s.preview();
       s.markShown(preview);
       for (int i = 0; i < 32; i++) s.select(new HashSet<>(derived(state)));
@@ -207,11 +214,12 @@ class ExportPreviewPlanningTest {
           assertTrue(
               state.change(p -> p.noise2D.getFirst().algorithm.parameters.put("value", .25)));
         ui.remove().run();
+        s.acceptPlanning();
         assertNull(s.preview());
         assertFalse(s.current());
         assertFalse(s.canExport());
         s.reload();
-        deliver(workers, ui);
+        deliver(workers, ui, s);
         assertEquals(
             .25, s.preview().resources().noise2D.getFirst().algorithm.parameters.get("value"));
         assertFalse(s.canExport());
@@ -234,11 +242,12 @@ class ExportPreviewPlanningTest {
         else state.document.save(directory.resolve("active-" + mode + ".json"));
         var owner = new ProjectFileOwner(state);
         ui.remove().run();
+        s.acceptPlanning();
         assertFalse(s.canExport());
         assertTrue(s.canRetryPlan());
         assertTrue(owner.valuesCurrent(state));
         s.retryPlan();
-        deliver(workers, ui);
+        deliver(workers, ui, s);
         assertTrue(owner.valuesCurrent(state));
         assertFalse(s.canExport());
       }
@@ -252,19 +261,19 @@ class ExportPreviewPlanningTest {
       var selected = new LinkedHashSet<>(derived(state));
       var panel = new ResourceExportPanel(state, selected, workers, ui::add, () -> false);
       panel.open();
-      deliver(workers, ui);
+      deliver(workers, ui, panel.session());
       var old = panel.session().preview();
       assertTrue(state.change(p -> ResourceGraph.remove(p, Set.of(p.noise2D.getLast().uuid))));
       panel.reload();
       assertSame(old, panel.session().preview());
       assertFalse(panel.canRemoveUnavailable());
-      deliver(workers, ui);
+      deliver(workers, ui, panel.session());
       assertEquals(1, panel.unavailable());
       assertTrue(panel.canRemoveUnavailable());
       assertNull(panel.session().preview());
       panel.removeUnavailable();
       assertTrue(selected.isEmpty());
-      deliver(workers, ui);
+      deliver(workers, ui, panel.session());
       assertEquals(0, panel.unavailable());
       assertFalse(panel.canExport());
       panel.reset();
@@ -290,7 +299,7 @@ class ExportPreviewPlanningTest {
       assertFalse(s.canExport());
       reject.set(false);
       s.retryPlan();
-      deliver(workers, ui);
+      deliver(workers, ui, s);
       assertNotNull(s.preview());
       assertFalse(s.canExport());
     }
@@ -327,13 +336,13 @@ class ExportPreviewPlanningTest {
       var ui = new ArrayDeque<Runnable>();
       var s = edit(state, workers, ui);
       assertTrue(s.planning());
-      deliver(workers, ui);
+      deliver(workers, ui, s);
       assertFalse(s.planning());
       assertTrue(s.canRetryPlan());
       assertNull(s.catalog());
       state.project().project.rootOrder = new LinkedHashMap<>();
       s.reload();
-      deliver(workers, ui);
+      deliver(workers, ui, s);
       assertEquals(2, s.catalog().size());
       assertFalse(s.canExport());
     }
@@ -357,7 +366,7 @@ class ExportPreviewPlanningTest {
                   return true;
                 });
         holder[0] = s;
-        deliver(workers, ui);
+        deliver(workers, ui, s);
         assertNull(s.preview());
         assertFalse(s.canExport());
         assertEquals(cancel, s.closed());
@@ -373,7 +382,7 @@ class ExportPreviewPlanningTest {
       var owner = new ProjectFileOwner(state);
       long history = state.document.historyBytes();
       var s = edit(state, workers, ui);
-      deliver(workers, ui);
+      deliver(workers, ui, s);
       var file = directory.resolve("selection.json");
       Files.writeString(file, "previous");
       assertThrows(IllegalStateException.class, () -> s.write(file, new ResourcePackageFiles()));
@@ -402,16 +411,16 @@ class ExportPreviewPlanningTest {
           new ResourceExportWriter(state, workers, ui::add, files::prepare, () -> false)) {
         assertFalse(writer.start(target.toString(), s, s.preview(), () -> true));
         assertEquals("previous", Files.readString(target));
-        deliver(workers, ui);
+        deliver(workers, ui, s);
         s.markShown(s.preview());
         s.select(base(state));
         var old = s.preview();
         assertFalse(writer.start(target.toString(), s, old, () -> true));
-        deliver(workers, ui);
+        deliver(workers, ui, s);
         assertEquals("previous", Files.readString(target));
         s.markShown(s.preview());
         assertTrue(writer.start(target.toString(), s, s.preview(), () -> true));
-        deliver(workers, ui);
+        deliver(workers, ui, s);
         writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.READY, writer.view().phase());
         assertEquals(1, files.read(target).noise2D.size());
@@ -433,6 +442,7 @@ class ExportPreviewPlanningTest {
         else state.newSession();
         var values = ProjectIO.JSON.valueToTree(state.project());
         ui.remove().run();
+        s.acceptPlanning();
         assertNull(s.preview());
         assertFalse(s.current());
         assertFalse(s.canReload());
@@ -468,7 +478,7 @@ class ExportPreviewPlanningTest {
           late.run();
           assertSame(successor, resources.exportView().session());
           assertNull(successor.preview());
-          deliver(workers, ui);
+          deliver(workers, ui, successor);
           assertFalse(successor.canExport());
           dialog.close();
         }

@@ -21,7 +21,7 @@ final class ResourceExportPlanningProbe {
     var cases = new ArrayList<Map<String, Object>>();
     ImGui.getIO().setDisplaySize(1400, 1000);
     for (String mode :
-        List.of("initial", "selection", "reload", "cancel", "escape", "retry", "close")) {
+        List.of("initial", "selection", "reload", "cancel", "escape", "retry", "close", "ready-cancel", "ready-selection-cancel", "ready-reload-escape", "ready-close")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       var target = directory.resolve("selection.pvresources.json");
@@ -78,13 +78,13 @@ final class ResourceExportPlanningProbe {
             reject.set(false);
             click(dialog.control("reload"));
           }
-          if (mode.equals("selection") || mode.equals("reload")) {
+          if (mode.equals("selection") || mode.equals("reload") || mode.equals("ready-selection-cancel") || mode.equals("ready-reload-escape")) {
             finish(state, tasks);
             ui.remove().run();
             frames(4);
             click(dialog.control("included"));
             require(resources.canExport(), "Initial Included review");
-            if (mode.equals("selection")) {
+            if (mode.equals("selection") || mode.equals("ready-selection-cancel")) {
               click(dialog.control("choices"));
               var view = resources.exportView();
               click(view.probeControl(state.project().noise2D.getLast().uuid.toString()));
@@ -119,16 +119,34 @@ final class ResourceExportPlanningProbe {
           require(
               session.preview() == held && !resources.canExport(),
               "Worker adopted before UI delivery");
-          if (mode.equals("cancel")) click(dialog.control("cancel"));
-          else if (mode.equals("escape")) {
-            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
-            frame();
-            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
-            frames(3);
-          } else if (mode.equals("close")) dialog.close();
-          ui.remove().run();
+          var request = session.planningToken();
+          if (mode.startsWith("ready-")) {
+            if (!mode.equals("ready-reload-escape") && !mode.equals("ready-close")) hold(dialog.control("cancel"));
+            ui.remove().run();
+            require(session.planning() && session.planningToken() == request && session.preview() == held
+                && !resources.canExport() && dialog.pending() && dialog.error().isEmpty(),
+                "Ready catalog/closure installed or changed current cancellation ownership");
+            if (mode.equals("ready-reload-escape")) {
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+            } else if (mode.equals("ready-close")) { dialog.close(); frames(3); }
+            else { ImGui.getIO().addMouseButtonEvent(0, false); frames(3); }
+            require(!dialog.pending() && session.preview() == held, "Ready retirement installed an obsolete closure");
+          } else {
+            if (mode.equals("cancel")) click(dialog.control("cancel"));
+            else if (mode.equals("escape")) {
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+              frame();
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+              frames(3);
+            } else if (mode.equals("close")) dialog.close();
+            ui.remove().run();
+          }
           boolean published = List.of("initial", "selection", "reload", "retry").contains(mode);
           if (published) {
+            require(session.planning() && session.preview() == held && !resources.canExport(),
+                "Delivery installed or acknowledged the replacement Included plan");
+            frame(); // Current dialog controls finish before accepting its shown request.
             require(
                 session.preview() != held && !resources.canExport(),
                 "Replacement inherited Included authority");
@@ -180,7 +198,9 @@ final class ResourceExportPlanningProbe {
                   "preferencesRetained",
                   true,
                   "originalBytesRetained",
-                  true));
+                  true,
+                  "readyRetired",
+                  mode.startsWith("ready-")));
         }
       }
     }
@@ -237,6 +257,12 @@ final class ResourceExportPlanningProbe {
     frame();
     io.addInputCharactersUTF8(text);
     frames(4);
+  }
+
+  private static void hold(float[] at) {
+    require(at != null, "Missing ready preview Cancel control");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(float[] at) {

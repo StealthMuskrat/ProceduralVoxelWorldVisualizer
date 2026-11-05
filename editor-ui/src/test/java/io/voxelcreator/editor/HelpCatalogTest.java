@@ -7,6 +7,22 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void exportPlanningHelpExplainsReadySelectionCancellationAndFreshIncludedDisplay() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.resource-export");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Catalog and dependency delivery alone never replaces Included rows"));
+    assertTrue(text.contains("Current checkbox and Cancel/Escape decisions run before accepting a ready preview or preview failure"));
+    assertTrue(text.contains("accepted replacement still needs a fresh Included display"));
+    assertTrue(text.contains("missing selections remain until explicitly removed"));
+    assertTrue(catalog.search("export catalog ready").contains(topic));
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Export"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void exportHelpExplainsReadyCancellationBeforeDestinationReplacement() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

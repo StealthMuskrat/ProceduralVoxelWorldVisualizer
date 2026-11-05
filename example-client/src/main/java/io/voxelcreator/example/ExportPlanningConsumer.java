@@ -16,7 +16,7 @@ public final class ExportPlanningConsumer {
   static void run(Path out) throws Exception {
     int fields = 0, cells = 0;
     for (String mode :
-        List.of("initial", "selection", "reload", "cancel", "escape", "retry", "close")) {
+        List.of("initial", "selection", "reload", "cancel", "escape", "retry", "close", "ready-cancel", "ready-selection-cancel", "ready-reload-escape", "ready-close")) {
       var directory = out.resolve(mode);
       var sourceFile = directory.resolve("source-after.json");
       var targetFile = directory.resolve("selection.pvresources.json");
@@ -33,7 +33,7 @@ public final class ExportPlanningConsumer {
           before.success() && source.success() && target.success(),
           "Export planning snapshots rejected");
       var expected = ProjectIO.JSON.valueToTree(before.project());
-      if (mode.equals("reload")) {
+      if (mode.equals("reload") || mode.equals("ready-reload-escape")) {
         ((ObjectNode) expected.get("project")).put("seed", 18);
         ((ObjectNode) expected.at("/noise2D/0/algorithm/parameters")).put("value", .25);
       }
@@ -76,8 +76,8 @@ public final class ExportPlanningConsumer {
           for (var n : p.noise2D) {
             double value =
                 switch (n.id) {
-                  case "base" -> mode.equals("reload") ? .25 : .125;
-                  case "derived" -> mode.equals("reload") ? .75 : .625;
+                  case "base" -> (mode.equals("reload") || mode.equals("ready-reload-escape")) ? .25 : .125;
+                  case "derived" -> (mode.equals("reload") || mode.equals("ready-reload-escape")) ? .75 : .625;
                   case "prior" -> .25;
                   default -> Double.NaN;
                 };
@@ -113,12 +113,12 @@ public final class ExportPlanningConsumer {
               && Arrays.equals(targetBytes, Files.readAllBytes(targetFile)),
           "Replay changed saved bytes");
     }
-    require(fields == 504 && cells == 4116, "Export planning observation count");
+    require(fields == 756 && cells == 6468, "Export planning observation count");
     Files.writeString(
         out.resolve("engine-replay.json"),
         ProjectIO.JSON.writeValueAsString(
             Map.of("formatVersion", 1, "fields", fields, "cells", cells, "roots", List.of(2, 4))));
-    System.out.println("EXPORT_PLANNING_ENGINE_ONLY_PASS 504 exact fields / 4116 EMPTY cells");
+    System.out.println("EXPORT_PLANNING_ENGINE_ONLY_PASS 756 exact fields / 6468 EMPTY cells");
   }
 
   private static void require(boolean value, String message) {

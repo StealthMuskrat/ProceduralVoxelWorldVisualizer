@@ -30,6 +30,10 @@ final class ExportEditSession {
   private Object request = new Object();
   private ProjectFileOwner planningOwner;
   private FutureTask<Void> task;
+  private record Completion(Prepared value, Throwable failure) {}
+  private final PreviewMailbox<Completion> handoff = new PreviewMailbox<>();
+  private long delivery;
+  private boolean preparedReady;
   private String planningMessage = "";
 
   private record Prepared(
@@ -157,6 +161,10 @@ final class ExportEditSession {
     return current() && catalog != null && catalogSource == frozen;
   }
 
+  Object planningToken() {
+    return request;
+  }
+
   boolean planning() {
     refresh();
     return task != null;
@@ -190,6 +198,8 @@ final class ExportEditSession {
           "Preparing the resource catalog and dependency preview in the background. Any visible"
               + " Included rows belong to the last completed plan; review the new plan before"
               + " Export.";
+      long handed = ++delivery;
+      handoff.advance(handed);
       task =
           new FutureTask<>(
               () -> {
@@ -209,9 +219,8 @@ final class ExportEditSession {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var completed = result;
-                var rejected = failure;
-                ui.accept(() -> publish(ticket, completed, rejected));
+                if (!handoff.publish(handed, new Completion(result, failure))) return null;
+                ui.accept(() -> delivered(ticket, handed));
                 return null;
               });
       executor.execute(task);
@@ -224,10 +233,52 @@ final class ExportEditSession {
     return ticket == request && task != null && !closed;
   }
 
-  private void publish(Object ticket, Prepared result, Throwable failure) {
+  private void delivered(Object ticket, long handed) {
+    if (!ownsPlanning(ticket) || delivery != handed || preparedReady) return;
+    refresh();
+    if (!ownsPlanning(ticket)) return;
+    // Observe the task through readiness: an inline handoff may still throw before returning.
+    preparedReady = true;
+  }
+
+  void acceptPlanning() {
+    acceptPlanning(() -> true);
+  }
+
+  /** Current selection and host controls decide before installing this exact catalog/closure. */
+  void acceptPlanning(BooleanSupplier shown) {
+    Object ticket = request;
+    refresh();
+    if (!ownsPlanning(ticket) || !preparedReady) return;
+    Objects.requireNonNull(shown);
+    var value = handoff.take();
+    if (value == null) {
+      failPlanning(ticket, new IllegalStateException("Export preview preparation unavailable"));
+      return;
+    }
+    publish(ticket, value.value(), value.failure(), shown);
+  }
+
+  private boolean planningCurrent(Object ticket, BooleanSupplier shown) {
+    if (!ownsPlanning(ticket)
+        || !planningOwner.valuesCurrent(state)
+        || !current()
+        || !sourceValue.equals(ProjectIO.JSON.valueToTree(state.project()))) return false;
+    boolean visible = shown.getAsBoolean();
+    return visible
+        && ownsPlanning(ticket)
+        && planningOwner.valuesCurrent(state)
+        && current()
+        && sourceValue.equals(ProjectIO.JSON.valueToTree(state.project()));
+  }
+
+  private void publish(Object ticket, Prepared result, Throwable failure, BooleanSupplier shown) {
+    if (!ownsPlanning(ticket)) return;
+    refresh();
     if (!ownsPlanning(ticket)) return;
     try {
-      if (!planningOwner.valuesCurrent(state)) {
+      if (!planningCurrent(ticket, shown)) {
+        if (!ownsPlanning(ticket)) return;
         stalePlanning();
         return;
       }
@@ -237,7 +288,8 @@ final class ExportEditSession {
       }
       boolean unavailable = blocked.getAsBoolean();
       if (!ownsPlanning(ticket)) return;
-      if (unavailable || !planningOwner.valuesCurrent(state) || !current()) {
+      if (unavailable || !planningCurrent(ticket, shown)) {
+        if (!ownsPlanning(ticket)) return;
         stalePlanning();
         return;
       }
@@ -299,6 +351,8 @@ final class ExportEditSession {
     request = new Object();
     task = null;
     planningOwner = null;
+    preparedReady = false;
+    handoff.advance(++delivery);
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
@@ -360,6 +414,7 @@ final class ExportEditSession {
     try {
       prepared.publish(state.document::path);
       closed = true;
+      handoff.close();
       shown = null;
     } finally {
       writing = false;
@@ -388,6 +443,7 @@ final class ExportEditSession {
     try {
       files.writeGuarded(destination, preview.resources(), state.document::path);
       closed = true;
+      handoff.close();
       shown = null;
     } finally {
       writing = false;
@@ -397,6 +453,7 @@ final class ExportEditSession {
   void cancel() {
     if (writing) return;
     retirePlanning();
+    handoff.close();
     closed = true;
     shown = null;
   }

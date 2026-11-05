@@ -133,6 +133,8 @@ public final class ResourceExportPanel {
 
   /** Standalone composition retained for callers that host this panel without the package modal. */
   public void draw() {
+    var owner = edit;
+    var request = owner == null ? null : owner.planningToken();
     chrome.begin("export-body");
     drawPage(section);
     chrome.end();
@@ -151,6 +153,20 @@ public final class ResourceExportPanel {
     else if (choices) page("Choices");
     else if (included) page("Included");
     else if (issues) page("Issues");
+    acceptPlanning(owner, request, () -> true);
+  }
+
+  void acceptPlanning(ExportEditSession owner, Object request, BooleanSupplier shown) {
+    if (owner == null
+        || edit != owner
+        || owner.planningToken() != request
+        || !selected.equals(owner.selected())) return;
+    owner.acceptPlanning(
+        () -> {
+          if (edit != owner || !selected.equals(owner.selected())) return false;
+          boolean visible = shown.getAsBoolean();
+          return visible && edit == owner && selected.equals(owner.selected());
+        });
   }
 
   void page(String value) {
