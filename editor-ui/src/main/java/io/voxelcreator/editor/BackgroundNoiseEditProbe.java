@@ -45,7 +45,7 @@ final class BackgroundNoiseEditProbe {
     Files.createDirectories(out);
     var cases = new ArrayList<Map<String, Object>>();
     for (String mode :
-        List.of("automatic", "resolve", "cancel", "escape", "retry", "stale", "close")) {
+        List.of("automatic", "resolve", "cancel", "escape", "retry", "stale", "close", "ready-cancel", "ready-escape", "ready-close", "ready-invalid-cancel", "ready-resolve-cancel")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       try (var s = new EditorState(new UserConfig(), false)) {
@@ -69,7 +69,7 @@ final class BackgroundNoiseEditProbe {
                 },
                 ui::add);
         UUID target =
-            (mode.equals("resolve")
+            (List.of("resolve", "ready-invalid-cancel", "ready-resolve-cancel").contains(mode)
                     ? draft.sharedParameters.getFirst()
                     : draft.sharedParameters.getLast())
                 .uuid;
@@ -84,7 +84,7 @@ final class BackgroundNoiseEditProbe {
           reject.set(false);
           click(dialog.control("resolution"));
         }
-        if (mode.equals("resolve")) {
+        if (mode.equals("resolve") || mode.equals("ready-resolve-cancel")) {
           finish(s, tasks);
           ui.remove().run();
           frames(3);
@@ -109,16 +109,32 @@ final class BackgroundNoiseEditProbe {
             before.equals(ProjectIO.JSON.valueToTree(s.project()))
                 && privateBefore.equals(ProjectIO.JSON.valueToTree(draft)),
             "Structural preparation published values");
-        if (mode.equals("cancel")) click(dialog.control("cancel"));
-        else if (mode.equals("escape")) {
-          ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
-          frame();
-          ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
-          frames(3);
-        } else if (mode.equals("close")) panel.close();
-        else if (mode.equals("stale")) draft.id = "new-private";
-        ui.remove().run();
-        // Adoption alone does not mutate Properties. The owning production draw stages an automatic
+        if (mode.startsWith("ready-")) {
+          long version = edit.version();
+          if (!mode.equals("ready-escape") && !mode.equals("ready-close")) hold(dialog.control("cancel"));
+          ui.remove().run();
+          require(edit.phase() == NoiseEditSession.Phase.RUNNING && edit.version() == version
+              && !edit.canStage() && privateBefore.equals(ProjectIO.JSON.valueToTree(draft)),
+              "Ready structural result changed preview authority or private values before controls");
+          if (mode.equals("ready-escape")) {
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+          } else if (mode.equals("ready-close")) { panel.close(); frames(3); }
+          else { ImGui.getIO().addMouseButtonEvent(0, false); frames(3); }
+          require(edit.closed() && privateBefore.equals(ProjectIO.JSON.valueToTree(draft)),
+              "Ready cancellation staged an obsolete structural edit");
+        } else {
+          if (mode.equals("cancel")) click(dialog.control("cancel"));
+          else if (mode.equals("escape")) {
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+            frame();
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+            frames(3);
+          } else if (mode.equals("close")) panel.close();
+          else if (mode.equals("stale")) draft.id = "new-private";
+          ui.remove().run();
+        }
+        // Readiness alone does not mutate Properties. The owning production draw stages an automatic
         // action.
         require(
             (mode.equals("stale")
@@ -186,7 +202,9 @@ final class BackgroundNoiseEditProbe {
                 "preferencesRetained",
                 true,
                 "originalBytesRetained",
-                true));
+                true,
+                "readyRetired",
+                mode.startsWith("ready-")));
         panel.close();
         frames(2);
       }
@@ -199,6 +217,12 @@ final class BackgroundNoiseEditProbe {
 
   private static void finish(EditorState s, ArrayDeque<Runnable> tasks) throws Exception {
     s.background.submit(tasks.remove()).get(10, TimeUnit.SECONDS);
+  }
+
+  private static void hold(float[] at) {
+    require(at != null, "Missing ready structural Cancel control");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(float[] at) {

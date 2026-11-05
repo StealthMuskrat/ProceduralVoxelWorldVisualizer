@@ -49,9 +49,10 @@ class BackgroundNoiseEditTest {
     return new NoiseEditSession(s, noise(s), request(s), worker, ui::add);
   }
 
-  static void deliver(Workers worker, Queue<Runnable> ui) {
+  static void deliver(Workers worker, Queue<Runnable> ui, NoiseEditSession edit) {
     worker.run();
     ui.remove().run();
+    edit.acceptPrepared();
   }
 
   @Test
@@ -84,8 +85,13 @@ class BackgroundNoiseEditTest {
           assertNull(edit.preview());
           assertFalse(edit.canStage());
         }
+        long version = edit.version();
         completion.run();
         completion.run();
+        assertEquals(version, edit.version());
+        assertEquals(NoiseEditSession.Phase.RUNNING, edit.phase());
+        assertNull(edit.preview());
+        edit.acceptPrepared();
         assertTrue(edit.ready());
         assertFalse(edit.preview().valid());
         assertEquals(committed, ProjectIO.JSON.valueToTree(s.project()));
@@ -105,11 +111,11 @@ class BackgroundNoiseEditTest {
       var before = ProjectIO.JSON.valueToTree(s.project());
       long history = s.document.historyBytes(), revision = s.revision;
       try (var edit = session(s, worker, ui)) {
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertFalse(edit.canStage());
         edit.choose(Resolution.INLINE_PARAMETER, null);
         assertFalse(edit.canStage());
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertTrue(edit.canStage());
         edit.stage();
         assertTrue(edit.closed());
@@ -140,7 +146,7 @@ class BackgroundNoiseEditTest {
       var worker = new Workers();
       var ui = new ArrayDeque<Runnable>();
       try (var edit = session(s, worker, ui)) {
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         var initial = edit.preview();
         edit.choose(Resolution.INLINE_PARAMETER, null);
         worker.run();
@@ -152,10 +158,10 @@ class BackgroundNoiseEditTest {
         assertSame(initial, edit.preview());
         assertFalse(edit.canStage());
         assertThrows(IllegalStateException.class, edit::stage);
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertFalse(edit.preview().valid());
         edit.choose(Resolution.INLINE_PARAMETER, null);
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertTrue(edit.canStage());
       }
     }
@@ -170,16 +176,16 @@ class BackgroundNoiseEditTest {
         long version = edit.version();
         edit.choose(Resolution.REJECT, null);
         assertEquals(version, edit.version());
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         var plan = edit.preview();
         edit.choose(Resolution.REJECT, null);
         assertSame(plan, edit.preview());
         edit.choose(Resolution.REPLACE, UUID.randomUUID());
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertTrue(edit.ready());
         assertFalse(edit.canStage());
         edit.choose(Resolution.INLINE_PARAMETER, null);
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         edit.stage();
         assertTrue(edit.closed());
       }
@@ -203,7 +209,7 @@ class BackgroundNoiseEditTest {
         assertTrue(worker.tasks.isEmpty());
         worker.reject = false;
         edit.retry();
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertTrue(edit.ready());
         assertFalse(edit.canRetry());
       }
@@ -233,12 +239,13 @@ class BackgroundNoiseEditTest {
                 })) {
           worker.run();
           if (!ui.isEmpty()) ui.remove().run();
+          edit.acceptPrepared();
           assertTrue(edit.canRetry());
           assertEquals(Resolution.REJECT, edit.resolution());
           assertFalse(edit.canStage());
           broken.set(false);
           edit.retry();
-          deliver(worker, ui);
+          deliver(worker, ui, edit);
           assertTrue(edit.ready());
           assertEquals(
               1,
@@ -258,7 +265,7 @@ class BackgroundNoiseEditTest {
         ((Future<?>) worker.tasks.getFirst()).cancel(false);
         assertTrue(edit.canRetry());
         edit.retry();
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertTrue(edit.ready());
       }
     }
@@ -280,6 +287,7 @@ class BackgroundNoiseEditTest {
           }
           var before = ProjectIO.JSON.valueToTree(s.draft);
           ui.remove().run();
+          edit.acceptPrepared();
           assertEquals(NoiseEditSession.Phase.STALE, edit.phase());
           assertFalse(edit.canStage());
           assertEquals(before, ProjectIO.JSON.valueToTree(s.draft));
@@ -298,6 +306,7 @@ class BackgroundNoiseEditTest {
           if (identity) s.project().project.uuid = UUID.randomUUID();
           else s.project().project.seed++;
           ui.remove().run();
+          edit.acceptPrepared();
           assertEquals(NoiseEditSession.Phase.STALE, edit.phase());
           assertThrows(
               IllegalStateException.class, () -> edit.choose(Resolution.INLINE_PARAMETER, null));
@@ -321,6 +330,7 @@ class BackgroundNoiseEditTest {
           else s.newSession();
           var before = ProjectIO.JSON.valueToTree(s.project());
           ui.remove().run();
+          edit.acceptPrepared();
           assertFalse(edit.current());
           assertEquals(NoiseEditSession.Phase.STALE, edit.phase());
           assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
@@ -342,7 +352,7 @@ class BackgroundNoiseEditTest {
         old.run();
         assertEquals(NoiseEditSession.Phase.RUNNING, next.phase());
         assertNull(next.preview());
-        deliver(worker, ui);
+        deliver(worker, ui, next);
         assertTrue(next.ready());
         assertTrue(first.closed());
       }
@@ -355,9 +365,9 @@ class BackgroundNoiseEditTest {
       var worker = new Workers();
       var ui = new ArrayDeque<Runnable>();
       try (var edit = session(s, worker, ui)) {
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         edit.choose(Resolution.INLINE_PARAMETER, null);
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         noise(s).sharedParameters.getFirst().value = ProjectIO.JSON.valueToTree(9);
         var changed = ProjectIO.JSON.valueToTree(s.draft);
         assertThrows(IllegalStateException.class, edit::stage);
@@ -378,7 +388,7 @@ class BackgroundNoiseEditTest {
       var request =
           new Request(Action.DELETE, owner.processing.getFirst().uuid, Resolution.SOURCE, null);
       try (var edit = new NoiseEditSession(s, owner, request, worker, ui::add)) {
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertTrue(edit.canStage());
         assertEquals(Resolution.SOURCE, edit.resolution());
         edit.stage();
@@ -398,7 +408,7 @@ class BackgroundNoiseEditTest {
       try (var edit =
           new NoiseEditSession(
               s, owner, Request.simple(Action.DUPLICATE_PARAMETER, original), worker, ui::add)) {
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         var plan = edit.preview();
         var chosen = plan.selected();
         assertNotEquals(original, chosen);

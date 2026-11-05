@@ -12,12 +12,14 @@ final class NoiseEditConsumer {
   static void run(Path out) throws Exception {
     var receipt = ProjectIO.JSON.readTree(out.resolve("noise-edit-native.json").toFile());
     require(
-        receipt.path("formatVersion").asInt() == 1 && receipt.path("cases").size() == 7,
+        receipt.path("formatVersion").asInt() == 1 && receipt.path("cases").size() == 12,
         "Structural receipt format");
     var modes = new LinkedHashSet<String>();
     for (var entry : receipt.path("cases")) {
       var mode = entry.path("mode").asText();
       require(modes.add(mode), "Duplicate structural case");
+      require(entry.path("readyRetired").isBoolean()
+          && entry.path("readyRetired").asBoolean() == mode.startsWith("ready-"), "Structural ready retirement");
       require(
           entry.path("staged").asBoolean()
               == List.of("automatic", "resolve", "retry").contains(mode),
@@ -30,7 +32,7 @@ final class NoiseEditConsumer {
         require(entry.path(key).asBoolean(), "Structural input retention");
     }
     require(
-        modes.equals(Set.of("automatic", "resolve", "cancel", "escape", "retry", "stale", "close")),
+        modes.equals(Set.of("automatic", "resolve", "cancel", "escape", "retry", "stale", "close", "ready-cancel", "ready-escape", "ready-close", "ready-invalid-cancel", "ready-resolve-cancel")),
         "Missing structural case");
     int fields = 0, cells = 0;
     for (String mode : modes) {
@@ -97,7 +99,7 @@ final class NoiseEditConsumer {
               && Arrays.equals(afterBytes, Files.readAllBytes(afterFile)),
           "Structural replay changed saved bytes");
     }
-    require(fields == 294 && cells == 4116, "Structural replay dimensions");
+    require(fields == 504 && cells == 7056, "Structural replay dimensions");
     Files.writeString(
         out.resolve("engine-replay.json"),
         ProjectIO.JSON.writeValueAsString(

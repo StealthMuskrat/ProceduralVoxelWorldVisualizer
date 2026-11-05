@@ -74,7 +74,12 @@ final class HelpDefinitions {
                   + " Changed project, selection or private input requires Cancel and reopening."
                   + " Staging preserves other private input and raw seed text; Properties Apply"
                   + " remains the explicit project transaction. Structural checking does not save"
-                  + " the project or preferences."),
+                  + " the project or preferences. Delivery alone never replaces the visible"
+                  + " structural preview or reports a planner failure. Current resolution and"
+                  + " Cancel/Escape decisions run before accepting ready checking. Initial valid"
+                  + " actions still finish without another confirmation; resolved edits need the"
+                  + " current accepted preview and Apply Resolved Edit. An older held Apply cannot"
+                  + " stage a replacement preview."),
           new Guide(
               "help.noise-cycles",
               "Noise generator dependency cycles",

@@ -38,6 +38,10 @@ final class NoiseEditSession implements AutoCloseable {
   private final Consumer<Runnable> ui;
   private final Planner planner;
   private FutureTask<Void> task;
+  private record Prepared(NoiseAuthoring.Plan value, Throwable failure) {}
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery;
+  private boolean preparedReady;
   private Object token = new Object();
   private long version;
   private Phase phase;
@@ -193,6 +197,8 @@ final class NoiseEditSession implements AutoCloseable {
     Object request = token;
     var desired = new Request(action, target, resolution, replacement);
     try {
+      long handed = ++delivery;
+      handoff.advance(handed);
       task =
           new FutureTask<>(
               () -> {
@@ -205,9 +211,8 @@ final class NoiseEditSession implements AutoCloseable {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var completed = value;
-                var rejected = failure;
-                ui.accept(() -> publish(request, completed, rejected));
+                if (!handoff.publish(handed, new Prepared(value, failure))) return null;
+                ui.accept(() -> delivered(request, handed));
                 return null;
               });
       executor.execute(task);
@@ -220,23 +225,59 @@ final class NoiseEditSession implements AutoCloseable {
     return request == token && !closed && phase == Phase.RUNNING;
   }
 
-  private void publish(Object request, NoiseAuthoring.Plan completed, Throwable failure) {
+  private void delivered(Object request, long handed) {
+    if (!owns(request) || delivery != handed || preparedReady) return;
+    refresh();
+    if (!owns(request)) return;
+    // Keep observing the task: an inline readiness handoff may still throw before returning.
+    preparedReady = true;
+  }
+
+  void acceptPrepared() {
+    acceptPrepared(() -> true);
+  }
+
+  /** Current resolution, Cancel/Escape and host controls decide before adopting this preview. */
+  void acceptPrepared(BooleanSupplier shown) {
+    Object request = token;
+    refresh();
+    if (!owns(request) || !preparedReady) return;
+    Objects.requireNonNull(shown);
+    var value = handoff.take();
+    if (value == null) {
+      fail(request, new IllegalStateException("Noise edit preview preparation unavailable"));
+      return;
+    }
+    publish(request, value.value(), value.failure(), shown);
+  }
+
+  private void publish(
+      Object request, NoiseAuthoring.Plan completed, Throwable failure, BooleanSupplier shown) {
     if (!owns(request)) return;
     try {
       requireCurrent();
+      boolean visible = shown.getAsBoolean();
+      if (!owns(request)) return;
+      if (!visible) {
+        stale();
+        return;
+      }
+      requireCurrent();
     } catch (RuntimeException changed) {
-      stale();
+      if (owns(request)) stale();
       return;
     } catch (Throwable rejected) {
       fail(request, rejected);
       return;
     }
+    // Accepted results must not interrupt a worker finishing its delivery call.
+    task = null;
     if (failure != null) {
       fail(request, failure);
       return;
     }
     retire();
-    plan = completed;
+    plan = Objects.requireNonNull(completed);
     phase = Phase.READY;
     message = "";
   }
@@ -282,6 +323,8 @@ final class NoiseEditSession implements AutoCloseable {
     token = new Object();
     version++;
     task = null;
+    preparedReady = false;
+    handoff.advance(++delivery);
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
@@ -298,6 +341,7 @@ final class NoiseEditSession implements AutoCloseable {
     closed = true;
     retire();
     phase = Phase.CLOSED;
+    handoff.close();
     return accepted.selected();
   }
 
@@ -306,6 +350,7 @@ final class NoiseEditSession implements AutoCloseable {
     closed = true;
     retire();
     phase = Phase.CLOSED;
+    handoff.close();
   }
 
   boolean closed() {

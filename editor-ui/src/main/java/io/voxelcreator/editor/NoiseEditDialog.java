@@ -30,6 +30,13 @@ public final class NoiseEditDialog implements AutoCloseable {
   private int submitted;
   private boolean automatic;
 
+  record Decision(NoiseEditDialog owner, long work, Plan preview) {}
+
+  Decision capture() {
+    var preview = session.preview();
+    return new Decision(this, session.version(), preview);
+  }
+
   public NoiseEditDialog(EditorState state, Noise owner, Request request, Consumer<UUID> applied) {
     this(state, owner, request, applied, null, null, false);
   }
@@ -78,12 +85,9 @@ public final class NoiseEditDialog implements AutoCloseable {
   }
 
   public boolean draw() {
-    String title = "Resolve Noise Item Edit";
+    String title = "Resolve Noise Item Edit###noise-edit:" + nativeId;
     if (session.closed()) {
-      if (layout.begin(title)) {
-        ImGui.closeCurrentPopup();
-        ImGui.endPopup();
-      }
+      closePopup(title);
       return true;
     }
     if (opening) {
@@ -91,78 +95,120 @@ public final class NoiseEditDialog implements AutoCloseable {
       opening = false;
     }
     if (!layout.begin(title)) return false;
-    boolean current = session.current() && session.phase() != NoiseEditSession.Phase.STALE;
-    var preview = session.preview();
-    if (automatic && session.ready() && !preview.valid()) {
+    Decision shown;
+    boolean apply = false, cancel = false, showResolution = false, showIssues = false;
+    try {
+      boolean current = session.current() && session.phase() != NoiseEditSession.Phase.STALE;
+      shown = capture();
+      var preview = shown.preview();
+      noticeInvalidPreview(preview);
+      chrome.begin("noise-edit-body");
+      try {
+        if (reveal) {
+          ImGui.setScrollY(0);
+          reveal = false;
+        }
+        ImGui.textWrapped(action + " / " + bounded(row == null ? target.toString() : row.id(), 1024));
+        if (!current) ImGui.textWrapped("Draft or project changed; Cancel and reopen this edit.");
+        if (!message.isEmpty()) ImGui.textWrapped(bounded(message, 2048));
+        if (!session.message().isEmpty()) ImGui.textWrapped(bounded(session.message(), 2048));
+        if (issues) diagnostics();
+        else resolution(current);
+      } finally {
+        chrome.end();
+      }
+      ImGui.pushID(nativeId);
+      try {
+        ImGui.pushID("preview:" + session.version());
+        try {
+          ImGui.beginDisabled(!session.canStage());
+          apply = chrome.identifiedAction("apply", "Apply Resolved Edit");
+          ImGui.endDisabled();
+        } finally {
+          ImGui.popID();
+        }
+        cancel = chrome.identifiedAction("cancel", "Cancel")
+            || ImGui.isKeyPressed(ImGuiKey.Escape, false);
+        showResolution = chrome.identifiedAction("resolution", session.canRetry() ? "Retry preview" : "Resolution");
+        showIssues = chrome.identifiedAction("issues", "Issues (" + (preview == null ? 0 : preview.diagnostics().size()) + ")");
+      } finally {
+        ImGui.popID();
+      }
+    } finally {
+      ImGui.endPopup();
+    }
+    boolean closed = decide(shown, apply, cancel, showResolution, showIssues);
+    if (closed) closePopup(title);
+    return closed;
+  }
+
+  boolean decide(
+      Decision shown, boolean apply, boolean cancel, boolean showResolution, boolean showIssues) {
+    if (shown == null || shown.owner() != this || session.closed()) return session.closed();
+    if (cancel) {
+      session.cancel();
+    } else {
+      if (showResolution && session.canRetry()) {
+        try {
+          session.retry();
+          message = "";
+        } catch (RuntimeException invalid) {
+          message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+        }
+      } else if (showResolution && issues) {
+        issues = false;
+        reveal = true;
+      } else if (showIssues && !issues) {
+        issues = true;
+        reveal = issuesReveal = true;
+      }
+      boolean sameWork = session.version() == shown.work();
+      if (sameWork) session.acceptPrepared(() -> !session.closed());
+      noticeInvalidPreview(session.preview());
+      if (sameWork
+          && (automatic && session.canStage()
+              || apply && session.version() == shown.work()
+                  && session.preview() == shown.preview() && session.canStage()))
+        stage();
+    }
+    return session.closed();
+  }
+
+  private void noticeInvalidPreview(Plan preview) {
+    if (automatic && session.ready() && preview != null && !preview.valid()) {
       automatic = false;
       if (!Set.of(Action.DELETE, Action.DISABLE, Action.DELETE_PARAMETER).contains(action))
         issues = true;
     }
-    chrome.begin("noise-edit-body");
-    if (reveal) {
-      ImGui.setScrollY(0);
-      reveal = false;
-    }
-    ImGui.textWrapped(action + " / " + bounded(row == null ? target.toString() : row.id(), 1024));
-    if (!current) ImGui.textWrapped("Draft or project changed; Cancel and reopen this edit.");
-    if (!message.isEmpty()) ImGui.textWrapped(bounded(message, 2048));
-    if (!session.message().isEmpty()) ImGui.textWrapped(bounded(session.message(), 2048));
-    if (issues) diagnostics();
-    else resolution(current);
-    chrome.end();
-    ImGui.pushID(nativeId);
-    ImGui.pushID("preview:" + session.version());
-    ImGui.beginDisabled(!session.canStage());
-    boolean apply = chrome.identifiedAction("apply", "Apply Resolved Edit");
-    ImGui.endDisabled();
-    ImGui.popID();
-    boolean cancel =
-        chrome.identifiedAction("cancel", "Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape, false);
-    boolean showResolution =
-        chrome.identifiedAction("resolution", session.canRetry() ? "Retry preview" : "Resolution");
-    boolean showIssues =
-        chrome.identifiedAction(
-            "issues", "Issues (" + (preview == null ? 0 : preview.diagnostics().size()) + ")");
-    ImGui.popID();
-    boolean closed = false;
-    if (cancel) {
-      session.cancel();
-      closed = true;
-    } else if (apply || automatic && session.canStage()) {
+  }
+
+  private void stage() {
+    try {
+      UUID selected = session.stage();
       try {
-        UUID selected = session.stage();
-        closed = true;
-        try {
-          applied.accept(selected);
-        } catch (Throwable failure) {
-          state.error(
-              "NOISE_EDIT_FOCUS_FAILED",
-              EditorEvents.Subsystem.APPLICATION,
-              "Noise edit staged in Properties; focus could not be updated: "
-                  + BackgroundFailure.describe(failure));
-        }
-      } catch (RuntimeException invalid) {
-        automatic = false;
-        message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
-        reveal = true;
+        applied.accept(selected);
+      } catch (Throwable failure) {
+        state.error(
+            "NOISE_EDIT_FOCUS_FAILED",
+            EditorEvents.Subsystem.APPLICATION,
+            "Noise edit staged in Properties; focus could not be updated: "
+                + BackgroundFailure.describe(failure));
       }
-    } else if (showResolution && session.canRetry()) {
-      try {
-        session.retry();
-        message = "";
-      } catch (RuntimeException invalid) {
-        message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
-      }
-    } else if (showResolution && issues) {
-      issues = false;
+    } catch (RuntimeException invalid) {
+      automatic = false;
+      message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
       reveal = true;
-    } else if (showIssues && !issues) {
-      issues = true;
-      reveal = issuesReveal = true;
     }
-    if (closed) ImGui.closeCurrentPopup();
-    ImGui.endPopup();
-    return closed;
+  }
+
+  private void closePopup(String title) {
+    if (layout.begin(title)) {
+      try {
+        ImGui.closeCurrentPopup();
+      } finally {
+        ImGui.endPopup();
+      }
+    }
   }
 
   private void resolution(boolean current) {

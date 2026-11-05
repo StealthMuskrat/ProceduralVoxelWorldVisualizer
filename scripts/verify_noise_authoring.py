@@ -36,11 +36,12 @@ print('Noise authoring schema, six types, bounded native widgets, canonical pin 
 background = a.project.parent / 'background'
 receipt = json.loads((background / 'noise-edit-native.json').read_text())
 assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
-modes = {'automatic', 'resolve', 'cancel', 'escape', 'retry', 'stale', 'close'}
+modes = {'automatic', 'resolve', 'cancel', 'escape', 'retry', 'stale', 'close', 'ready-cancel', 'ready-escape', 'ready-close', 'ready-invalid-cancel', 'ready-resolve-cancel'}
 assert len(receipt['cases']) == len(modes) and {case['mode'] for case in receipt['cases']} == modes
 for case in receipt['cases']:
     mode = case['mode']; staged = mode in {'automatic', 'resolve', 'retry'}
     assert case['staged'] is staged
+    assert case['readyRetired'] is mode.startswith('ready-')
     assert case['queuedFrames'] >= 12 and case['heldFrames'] >= 12
     assert all(case[key] is True for key in ['privateRetained', 'rawRetained', 'preferencesRetained', 'originalBytesRetained'])
     before = json.loads((background / mode / 'before.json').read_text())
@@ -57,5 +58,5 @@ for case in receipt['cases']:
             binding['sourceKind'] = 'Constant'; binding['value'] = 2.0
             for key in ['parameterUuid', 'itemUuid', 'noiseGeneratorUuid', 'ambientKey']: binding.pop(key, None)
     assert expected == after
-assert json.loads((background / 'engine-replay.json').read_text()) == dict(formatVersion=1, fields=294, cells=4116, roots=[2, 4])
-print('BACKGROUND_NOISE_EDIT_INDEPENDENT_PASS seven structural lifetimes / exact saved edits / 294 fields / 4116 EMPTY cells')
+assert json.loads((background / 'engine-replay.json').read_text()) == dict(formatVersion=1, fields=504, cells=7056, roots=[2, 4])
+print('BACKGROUND_NOISE_EDIT_INDEPENDENT_PASS twelve structural lifetimes / exact saved edits / 504 fields / 7056 EMPTY cells')

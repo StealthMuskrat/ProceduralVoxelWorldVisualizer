@@ -7,6 +7,23 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void structuralNoiseHelpExplainsReadyCancellationAndExactResolvedApply() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.noise-edits");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Delivery alone never replaces the visible structural preview or reports a planner failure"));
+    assertTrue(text.contains("Current resolution and Cancel/Escape decisions run before accepting ready checking"));
+    assertTrue(text.contains("Initial valid actions still finish without another confirmation"));
+    assertTrue(text.contains("resolved edits need the current accepted preview and Apply Resolved Edit"));
+    assertTrue(text.contains("older held Apply cannot stage a replacement preview"));
+    assertTrue(catalog.search("noise structural ready").contains(topic));
+    assertTrue(topic.related().contains("help.properties-apply"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void projectSaveHelpExplainsReadyCancellationAndSeparateSaveBeforeOpenPaths() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
