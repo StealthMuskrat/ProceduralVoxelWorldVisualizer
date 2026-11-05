@@ -18,7 +18,7 @@ public final class BackgroundMembershipConsumer {
     for (String kind : List.of("set", "group")) {
       for (String mode :
           kind.equals("set")
-              ? List.of("success", "cancel", "escape", "retry", "edit", "raw", "close", "empty")
+              ? List.of("success", "cancel", "escape", "retry", "edit", "raw", "close", "empty", "ready-cancel", "ready-escape", "ready-edit")
               : List.of("success", "empty")) {
         var directory = out.resolve(kind + "-" + mode);
         var before = new ProjectLoader().load(directory.resolve("before.json"));
@@ -64,7 +64,7 @@ public final class BackgroundMembershipConsumer {
       }
     }
     require(
-        snapshots == 32 && fields == 672 && cells == 9408 && solid == 5880,
+        snapshots == 38 && fields == 798 && cells == 11172 && solid == 7140,
         "Membership replay dimensions");
     Files.writeString(
         out.resolve("engine-replay.json"),
@@ -83,7 +83,7 @@ public final class BackgroundMembershipConsumer {
                 "roots",
                 List.of(2, 4))));
     System.out.println(
-        "BACKGROUND_MEMBERSHIP_ENGINE_ONLY_PASS 32 saved states / 672 fields / 9408 cells / sets"
+        "BACKGROUND_MEMBERSHIP_ENGINE_ONLY_PASS 38 saved states / 798 fields / 11172 cells / sets"
             + " affect predicates, groups organize");
   }
 

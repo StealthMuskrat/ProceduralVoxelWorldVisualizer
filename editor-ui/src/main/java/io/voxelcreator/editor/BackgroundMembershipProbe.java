@@ -23,7 +23,7 @@ final class BackgroundMembershipProbe {
     for (String kind : List.of("set", "group")) {
       for (String mode :
           kind.equals("set")
-              ? List.of("success", "cancel", "escape", "retry", "edit", "raw", "close", "empty")
+              ? List.of("success", "cancel", "escape", "retry", "edit", "raw", "close", "empty", "ready-cancel", "ready-escape", "ready-edit")
               : List.of("success", "empty")) {
         var directory = out.resolve(kind + "-" + mode);
         Files.createDirectories(directory);
@@ -82,24 +82,47 @@ final class BackgroundMembershipProbe {
             require(
                 session.applying() && resourceMembers(state, kind).equals(List.of(spare)),
                 "Worker published before UI delivery");
-            if (mode.equals("cancel")) click(members.control("cancel"));
-            else if (mode.equals("escape")) {
-              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
-              frame();
-              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+            if (mode.startsWith("ready-")) {
+              if (mode.equals("ready-cancel")) hold(members.control("cancel"));
+              else if (mode.equals("ready-edit")) hold(members.control(solid.toString()));
+              ui.remove().run();
+              require(session.applying() && session.workVersion() == work
+                  && resourceMembers(state, kind).equals(List.of(spare))
+                  && draft.voxelTypeUuids.equals(List.of(spare)),
+                  "Ready members delivery published or changed Cancel authority");
+              if (mode.equals("ready-cancel")) {
+                ImGui.getIO().addMouseButtonEvent(0, false); frames(3);
+              } else if (mode.equals("ready-escape")) {
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+              } else {
+                // Press the checkbox before delivery and release on the ready frame.
+                ImGui.getIO().addMouseButtonEvent(0, false); frames(3);
+                click(members.control(solid.toString()));
+                require(!session.applying() && session.values().equals(expected),
+                    "Ready choice edit/restore retained old Apply authority");
+                click(members.control("cancel"));
+              }
+            } else {
+              if (mode.equals("cancel")) click(members.control("cancel"));
+              else if (mode.equals("escape")) {
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+                frame();
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+                frames(3);
+              } else if (mode.equals("close")) properties.close();
+              else if (mode.equals("raw")) state.project().project.seed = 6;
+              else if (mode.equals("edit")) {
+                click(members.control(solid.toString()));
+                click(members.control(third.toString()));
+                expected = List.of(spare, third);
+                require(
+                    !session.applying() && session.values().equals(expected),
+                    "Changed checkboxes did not retire old Apply");
+              }
+              ui.remove().run();
               frames(3);
-            } else if (mode.equals("close")) properties.close();
-            else if (mode.equals("raw")) state.project().project.seed = 6;
-            else if (mode.equals("edit")) {
-              click(members.control(solid.toString()));
-              click(members.control(third.toString()));
-              expected = List.of(spare, third);
-              require(
-                  !session.applying() && session.values().equals(expected),
-                  "Changed checkboxes did not retire old Apply");
             }
-            ui.remove().run();
-            frames(3);
             if (mode.equals("retry") || mode.equals("edit")) {
               require(
                   !session.closed()
@@ -180,7 +203,9 @@ final class BackgroundMembershipProbe {
                     "preferencesRetained",
                     true,
                     "originalBytesRetained",
-                    true));
+                    true,
+                    "readyRetired",
+                    mode.startsWith("ready-")));
           } finally {
             properties.close();
             frames(2);
@@ -244,6 +269,12 @@ final class BackgroundMembershipProbe {
             ? state.project().voxelSets.getFirst()
             : state.project().voxelGroups.getFirst())
         .voxelTypeUuids;
+  }
+
+  private static void hold(float[] at) {
+    require(at != null, "Membership control missing");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(float[] at) {

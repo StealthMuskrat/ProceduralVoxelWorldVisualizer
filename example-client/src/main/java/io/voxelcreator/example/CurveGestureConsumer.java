@@ -27,7 +27,7 @@ public final class CurveGestureConsumer {
   private static void backgroundApply(Path root) throws Exception {
     int observations = 0;
     for (String mode : new String[] {
-        "apply", "cancel-apply", "escape-ready", "cancel-ready", "cancel", "retry", "edit", "stale", "close"
+        "apply", "cancel-apply", "escape-ready", "cancel-ready", "cancel", "retry", "edit", "stale", "close", "apply-ready", "collapse-ready"
     }) {
       var beforePath = root.resolve(mode).resolve("before.json");
       var afterPath = root.resolve(mode).resolve("after.json");
@@ -61,8 +61,9 @@ public final class CurveGestureConsumer {
           }
       }
     }
+    if (observations != 462) throw new AssertionError("Curve Apply replay dimensions");
     System.out.println("BACKGROUND_CURVE_APPLY_ENGINE_ONLY_PASS " + observations
-        + " independent clamped linear observations across eighteen saved projects");
+        + " independent clamped linear observations across twenty-two saved projects");
   }
 
 }

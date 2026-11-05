@@ -310,6 +310,21 @@ final class HelpDefinitions {
                   + " Save Preferences persists active preferences only and never applies"
                   + " private scale, theme or resource input."),
           new Guide(
+              "help.child-apply-recovery",
+              "Cancelling prepared membership and curve edits",
+              "Membership Cancel/Escape and Curve Cancel Apply/Cancel/Escape run before accepting"
+                  + " a ready background result. Delivery alone changes no members or curve."
+                  + " Member checkbox changes retire older work, even when the same choices are"
+                  + " restored. Failed preparation remains cancellable before its feedback is"
+                  + " accepted; retry is explicit. Collapsing Curve Editor cancels pending Apply"
+                  + " while retaining its local curve and history. An unavailable membership"
+                  + " modal retires preparation while retaining choices. Successful Apply Members"
+                  + " commits only members in one project Undo transaction and updates only the"
+                  + " private member list. Curve Apply stages only its curve in private Properties;"
+                  + " parent Properties Apply commits it later. Separate private ID/seed input,"
+                  + " project Save and preferences retain their own ownership. The original Apply"
+                  + " action finishes without another confirmation."),
+          new Guide(
               "help.direct-apply-recovery",
               "Cancelling prepared Properties and Project Settings",
               "Properties Cancel Apply and Project Settings Cancel/Escape run before accepting a"
@@ -679,6 +694,7 @@ final class HelpDefinitions {
           Map.entry("help.find", List.of("diagnostics", "noise", "help.trace", "help.pins", "help.ready-navigation-apply")),
           Map.entry("help.ready-navigation-apply", List.of("help.find", "help.resource-session", "help.properties-apply")),
           Map.entry("help.direct-apply-recovery", List.of("help.properties-apply", "help.project-settings", "save")),
+          Map.entry("help.child-apply-recovery", List.of("help.membership-apply", "help.curve-guidance", "help.properties-apply")),
           Map.entry(
               "help.pins",
               List.of("noise", "processing", "help.find", "save", "help.scalar-readouts")),
@@ -707,6 +723,7 @@ final class HelpDefinitions {
                   "help.voxel-identities",
                   "help.properties-apply",
                   "help.project-save",
+                  "help.child-apply-recovery",
                   "diagnostics")),
           Map.entry(
               "help.visualization",
@@ -728,6 +745,7 @@ final class HelpDefinitions {
                   "curve.editor.outsideDomain",
                   "curve.editor.x",
                   "help.scalar-readouts",
+                  "help.child-apply-recovery",
                   "noise")),
           Map.entry(
               "help.world-guidance",

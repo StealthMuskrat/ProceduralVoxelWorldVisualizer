@@ -30,12 +30,13 @@ print('Curve pointer interruption report, independent knots and output ownership
 background = root / 'background-curve'
 receipt = json.loads((background / 'curve-apply-native.json').read_text(encoding='utf-8'))
 assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
-modes = ('apply', 'cancel-apply', 'escape-ready', 'cancel-ready', 'cancel', 'retry', 'edit', 'stale', 'close')
+modes = ('apply', 'cancel-apply', 'escape-ready', 'cancel-ready', 'cancel', 'retry', 'edit', 'stale', 'close', 'apply-ready', 'collapse-ready')
 assert [case['mode'] for case in receipt['cases']] == list(modes)
 for case in receipt['cases']:
     mode = case['mode']
     staged = mode in ('apply', 'retry')
     assert case['staged'] is staged
+    assert case['readyRetired'] is (mode in ('escape-ready', 'cancel-ready', 'apply-ready', 'collapse-ready'))
     assert case['queuedFrames'] == case['heldFrames'] == 12
     for key in ('privateRetained', 'rawRetained', 'preferencesRetained', 'originalBytesRetained'):
         assert case[key] is True, (mode, key)
@@ -45,4 +46,4 @@ for case in receipt['cases']:
         before['noise2D'][0]['id'] = 'private'
         before['noise2D'][0]['processing'][0]['parameters']['curve']['points'][1]['y'] = 3
     assert after == before, mode
-print('Background Curve Apply receipts and eighteen complete saved states PASS')
+print('Background Curve Apply receipts and twenty-two complete saved states PASS')

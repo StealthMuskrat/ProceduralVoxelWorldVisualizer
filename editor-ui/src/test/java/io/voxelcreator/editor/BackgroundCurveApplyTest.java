@@ -64,7 +64,7 @@ class BackgroundCurveApplyTest {
   }
 
   @Test
-  void actualWorkerPreparesAnOwnedSnapshotAndOnlyUiDeliveryStages() throws Exception {
+  void actualWorkerPreparesAnOwnedSnapshotAndOnlyOwnerAcceptanceStages() throws Exception {
     try (var worker = Executors.newSingleThreadExecutor()) {
       var local = new Curve();
       var before = ProjectIO.JSON.valueToTree(local);
@@ -261,7 +261,10 @@ class BackgroundCurveApplyTest {
       })) {
         edit.apply(local);
         worker.run();
-        if (!ui.isEmpty()) ui.remove().run();
+        if (!ui.isEmpty()) {
+          ui.remove().run();
+          edit.accept();
+        }
         assertFalse(edit.running());
         assertFalse(edit.error().isEmpty());
         assertEquals(0, stages.get());
@@ -287,6 +290,9 @@ class BackgroundCurveApplyTest {
         edit.apply(local);
         worker.run();
         ui.remove().run();
+        assertTrue(edit.ready());
+        assertTrue(edit.error().isEmpty());
+        assertFalse(edit.accept());
         assertFalse(edit.closed());
         assertFalse(edit.error().isEmpty());
         assertEquals(0, local.points.getLast().x);

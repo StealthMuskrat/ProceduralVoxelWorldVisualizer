@@ -27,6 +27,11 @@ public final class MembershipEditSession implements AutoCloseable {
   private final Consumer<Runnable> ui;
   private Object workToken = new Object();
   private FutureTask<Void> task;
+  private record Prepared(DocumentSession.PreparedEdit value, Throwable failure) {}
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery;
+  private boolean ready;
+  private List<UUID> workValues;
   private boolean admitting;
   private long workVersion;
   private ProjectFileOwner workOwner;
@@ -110,7 +115,7 @@ public final class MembershipEditSession implements AutoCloseable {
     requireOpen();
     if (!currentOwner(state))
       throw new IllegalStateException("Membership owner changed; Cancel and reopen the editor");
-    if (task != null || admitting) return false;
+    if (task != null || ready || admitting) return false;
     var active = ResourceGraph.find(state.project(), owner);
     if (active == null
         || !activeBase.equals(ProjectIO.JSON.valueToTree(active.resource()))
@@ -174,6 +179,7 @@ public final class MembershipEditSession implements AutoCloseable {
 
   public void cancel() {
     retireWork();
+    handoff.close();
     closed = true;
     applyIssues = List.of();
     issueCount = 0;
@@ -183,7 +189,7 @@ public final class MembershipEditSession implements AutoCloseable {
 
   boolean applying() {
     refresh();
-    return task != null || admitting;
+    return task != null || ready || admitting;
   }
 
   long workVersion() {
@@ -200,7 +206,7 @@ public final class MembershipEditSession implements AutoCloseable {
   }
 
   private void changed() {
-    if (task != null || admitting) {
+    if (task != null || ready || admitting) {
       retireWork();
       progress =
           "Pending Apply cancelled because member choices changed. Review the selection and Apply"
@@ -235,6 +241,9 @@ public final class MembershipEditSession implements AutoCloseable {
           "Preparing and validating member changes in the background. Committed members and private"
               + " Properties input remain active. Cancel or Escape closes this selection without"
               + " applying.";
+      workValues = candidate;
+      long handed = ++delivery;
+      handoff.advance(handed);
       task =
           new FutureTask<>(
               () -> {
@@ -245,9 +254,8 @@ public final class MembershipEditSession implements AutoCloseable {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var value = prepared;
-                var rejected = failure;
-                ui.accept(() -> publish(token, candidate, value, rejected));
+                if (!handoff.publish(handed, new Prepared(prepared, failure))) return null;
+                ui.accept(() -> delivered(token, handed));
                 return null;
               });
       executor.execute(task);
@@ -259,7 +267,35 @@ public final class MembershipEditSession implements AutoCloseable {
   }
 
   private boolean owns(Object token) {
-    return token == workToken && task != null && !closed;
+    return token == workToken && (task != null || ready) && !closed;
+  }
+
+  private void delivered(Object token, long handed) {
+    if (!owns(token) || delivery != handed || ready) return;
+    refresh();
+    if (!owns(token)) return;
+    task = null;
+    ready = true;
+  }
+
+  /** The shown modal processes choice changes and cancellation before accepting this result. */
+  boolean acceptPrepared() {
+    refresh();
+    if (!ready || closed) return false;
+    var value = handoff.take();
+    if (value == null) {
+      fail(workToken, new IllegalStateException("Membership Apply preparation unavailable"));
+      return false;
+    }
+    publish(workToken, workValues, value.value(), value.failure());
+    return closed;
+  }
+
+  void suspendApply() {
+    if (closed || (task == null && !ready && !admitting)) return;
+    retireWork();
+    progress =
+        "Membership Apply cancelled. Private choices are preserved; Apply Members again explicitly.";
   }
 
   private boolean feedbackCurrent() {
@@ -307,6 +343,7 @@ public final class MembershipEditSession implements AutoCloseable {
       applied = true;
       retireWork();
       closed = true;
+      handoff.close();
       editor.revision++;
       editor.issues = List.of();
       editor.validationScope = "Committed project";
@@ -328,7 +365,7 @@ public final class MembershipEditSession implements AutoCloseable {
   }
 
   private void refresh() {
-    if (task == null || closed) return;
+    if ((task == null && !ready) || closed) return;
     try {
       if (!currentOwner(editor) || !workOwner.current(editor) || !feedbackCurrent()) {
         stale();
@@ -373,6 +410,9 @@ public final class MembershipEditSession implements AutoCloseable {
     workToken = new Object();
     workVersion++;
     task = null;
+    ready = false;
+    workValues = null;
+    handoff.advance(++delivery);
     admitting = false;
     workOwner = null;
     sharedIssues = sharedValues = null;

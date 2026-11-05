@@ -23,7 +23,10 @@ final class CurveApplySession implements AutoCloseable {
   private RuntimeException followUpFailure;
   private FutureTask<Void> task;
   private JsonNode input;
-  private CurveDraftEdit.Prepared prepared;
+  private record Prepared(CurveDraftEdit.Prepared value, Throwable failure) {}
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery;
+  private boolean ready;
   private Object token = new Object();
   private long version;
 
@@ -102,10 +105,13 @@ final class CurveApplySession implements AutoCloseable {
             + " or Escape keeps the private curve open.";
     Object request = token;
     try {
-      if (!current.getAsBoolean())
-        throw new IllegalStateException("Curve source changed; Cancel and reopen");
+      boolean valid = current.getAsBoolean();
+      if (!owns(request)) return;
+      if (!valid) throw new IllegalStateException("Curve source changed; Cancel and reopen");
       input = ProjectIO.JSON.valueToTree(curve);
       var captured = input;
+      long handed = ++delivery;
+      handoff.advance(handed);
       task =
           new FutureTask<>(
               () -> {
@@ -116,9 +122,8 @@ final class CurveApplySession implements AutoCloseable {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var completed = value;
-                var rejected = failure;
-                ui.accept(() -> complete(request, completed, rejected));
+                if (!handoff.publish(handed, new Prepared(value, failure))) return null;
+                ui.accept(() -> delivered(request, handed));
                 return null;
               });
       executor.execute(task);
@@ -132,50 +137,58 @@ final class CurveApplySession implements AutoCloseable {
   }
 
   private boolean exact() {
-    return current.getAsBoolean() && input.equals(ProjectIO.JSON.valueToTree(local.get()));
+    var expected = input;
+    return current.getAsBoolean()
+        && expected != null
+        && expected.equals(ProjectIO.JSON.valueToTree(local.get()));
   }
 
-  private void complete(Object request, CurveDraftEdit.Prepared value, Throwable failure) {
+  private void delivered(Object request, long handed) {
+    if (!owns(request) || delivery != handed || ready) return;
+    refresh();
     if (!owns(request)) return;
-    try {
-      if (!exact()) {
-        cancelApply();
-        progress = "Curve or source changed. Apply the current curve explicitly.";
-        return;
-      }
-      if (failure != null) {
-        fail(request, failure);
-        return;
-      }
-      // Delivery only makes the result available. The dialog decides after Cancel/Escape input.
-      token = new Object();
-      task = null;
-      prepared = value;
-    } catch (Throwable rejected) {
-      fail(token, rejected);
-    }
+    task = null;
+    ready = true;
   }
 
   boolean ready() {
     refresh();
-    return !closed && applying && prepared != null;
+    return !closed && applying && ready;
   }
 
   boolean accept() {
-    if (!ready()) return false;
+    Object request = token;
+    refresh();
+    if (!owns(request) || !ready) return false;
+    Prepared value;
     try {
-      var value = prepared;
-      retire();
-      progress = "";
-      applying = true;
-      try {
-        return publish(() -> preparedStage.accept(value));
-      } finally {
-        applying = false;
+      boolean valid = exact();
+      if (!owns(request)) return false;
+      if (!valid) {
+        cancelApply();
+        progress = "Curve or source changed. Apply the current curve explicitly.";
+        return false;
       }
+      value = handoff.take();
+      if (value == null) throw new IllegalStateException("Curve Apply preparation unavailable");
+      if (value.failure() != null) {
+        fail(request, value.failure());
+        return false;
+      }
+    } catch (Throwable rejected) {
+      fail(request, rejected);
+      return false;
+    }
+    retire();
+    progress = "";
+    applying = true;
+    try {
+      return publish(() -> preparedStage.accept(Objects.requireNonNull(value.value())));
     } catch (Throwable rejected) {
       fail(token, rejected);
       return false;
+    } finally {
+      applying = false;
     }
   }
 
@@ -189,6 +202,7 @@ final class CurveApplySession implements AutoCloseable {
       return false;
     }
     closed = true;
+    handoff.close();
     error = "";
     progress = "";
     try {
@@ -201,16 +215,19 @@ final class CurveApplySession implements AutoCloseable {
 
   void refresh() {
     if (executor == null || !applying || closed) return;
+    Object request = token;
     try {
-      if (!exact()) {
+      boolean valid = exact();
+      if (!owns(request)) return;
+      if (!valid) {
         cancelApply();
         progress = "Curve or source changed. Apply the current curve explicitly.";
         return;
       }
       var done = BackgroundFailure.completed(task);
-      if (done != null && done.failure() != null) fail(token, done.failure());
+      if (done != null && done.failure() != null) fail(request, done.failure());
     } catch (Throwable failure) {
-      fail(token, failure);
+      fail(request, failure);
     }
   }
 
@@ -232,7 +249,8 @@ final class CurveApplySession implements AutoCloseable {
     version++;
     task = null;
     input = null;
-    prepared = null;
+    ready = false;
+    handoff.advance(++delivery);
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
@@ -275,6 +293,7 @@ final class CurveApplySession implements AutoCloseable {
   void cancel() {
     closed = true;
     retire();
+    handoff.close();
     applying = false;
   }
 

@@ -51,13 +51,14 @@ class BackgroundMembershipTest {
     return session;
   }
 
-  static void deliver(Workers worker, Queue<Runnable> ui) {
+  static void deliver(Workers worker, Queue<Runnable> ui, MembershipEditSession edit) {
     worker.run();
     ui.remove().run();
+    edit.acceptPrepared();
   }
 
   @Test
-  void actualWorkerWaitsForOwnerDeliveryAndOnlyMembersReachOneUndoRedoTransaction()
+  void actualWorkerWaitsForOwnerAcceptanceAndOnlyMembersReachOneUndoRedoTransaction()
       throws Exception {
     try (var s = state("set");
         var worker = Executors.newSingleThreadExecutor()) {
@@ -82,6 +83,10 @@ class BackgroundMembershipTest {
       assertEquals(List.of(type(s, 1)), ((Membership) parent).voxelTypeUuids);
       callback.run();
       callback.run();
+      assertTrue(edit.applying());
+      assertFalse(edit.closed());
+      assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
+      edit.acceptPrepared();
       assertTrue(edit.closed());
       assertSame(parent, s.draft);
       assertEquals(" private-id ", ((Membership) parent).id);
@@ -113,7 +118,7 @@ class BackgroundMembershipTest {
           } else edit.setVisible(new ResourceTreeIndex(s.project()).kind("voxel", "third"), true);
           var expected = empty ? List.<UUID>of() : List.of(type(s, 1), type(s, 0), type(s, 2));
           assertFalse(edit.apply(s));
-          deliver(worker, ui);
+          deliver(worker, ui, edit);
           assertTrue(edit.closed());
           assertEquals(expected, BackgroundMembershipProbe.resourceMembers(s, kind));
           assertEquals(expected, ((Membership) s.draft).voxelTypeUuids);
@@ -135,11 +140,12 @@ class BackgroundMembershipTest {
       edit.set(type(s, 0), true);
       assertTrue(edit.workVersion() > version);
       ui.remove().run();
+      edit.acceptPrepared();
       assertFalse(edit.closed());
       assertFalse(edit.applying());
       assertEquals(List.of(type(s, 1)), s.project().voxelSets.getFirst().voxelTypeUuids);
       edit.apply(s);
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertTrue(edit.closed());
     }
   }
@@ -157,7 +163,7 @@ class BackgroundMembershipTest {
       assertEquals(1, worker.tasks.size());
       assertEquals(version, edit.workVersion());
       assertEquals(choices, edit.revision());
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertTrue(edit.closed());
     }
   }
@@ -174,7 +180,7 @@ class BackgroundMembershipTest {
       s.document.setValidator(p -> issues);
       for (int i = 0; i < 2; i++) {
         edit.apply(s);
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertEquals(300, edit.issueCount());
         assertEquals(256, edit.applyIssues().size());
       }
@@ -186,14 +192,14 @@ class BackgroundMembershipTest {
             throw new AssertionError("worker fixture");
           });
       edit.apply(s);
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertEquals(0, edit.issueCount());
       assertTrue(edit.applyIssues().isEmpty());
       assertFalse(edit.applyFailure().isBlank());
       assertEquals(2, edit.count());
       s.document.setValidator(NoiseCompiler::validate);
       edit.apply(s);
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertTrue(edit.closed());
     }
   }
@@ -230,7 +236,7 @@ class BackgroundMembershipTest {
         if (mode == 2) worker.run();
         fail.set(false);
         edit.apply(s);
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertTrue(edit.closed());
       }
   }
@@ -254,6 +260,7 @@ class BackgroundMembershipTest {
         var draft = s.draft;
         var privateValues = ProjectIO.JSON.valueToTree(draft);
         ui.remove().run();
+        edit.acceptPrepared();
         assertFalse(edit.closed());
         assertFalse(edit.applying());
         assertSame(draft, s.draft);
@@ -274,12 +281,13 @@ class BackgroundMembershipTest {
       worker.run();
       assertTrue(s.change(p -> p.voxelTypes.getLast().color.r = 19));
       ui.remove().run();
+      edit.acceptPrepared();
       assertFalse(edit.applying());
       assertFalse(edit.closed());
       assertEquals(2, edit.count());
       assertTrue(edit.currentOwner(s));
       edit.apply(s);
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertTrue(edit.closed());
       assertEquals(19, s.project().voxelTypes.getLast().color.r);
     }
@@ -306,6 +314,7 @@ class BackgroundMembershipTest {
         var project = ProjectIO.JSON.valueToTree(s.project());
         var draft = s.draft;
         ui.remove().run();
+        edit.acceptPrepared();
         assertFalse(edit.closed());
         assertFalse(edit.applying());
         assertSame(draft, s.draft);
@@ -327,6 +336,7 @@ class BackgroundMembershipTest {
         var successor = session(s, worker, ui);
         successor.set(type(s, 2), true);
         ui.remove().run();
+        edit.acceptPrepared();
         assertTrue(edit.closed());
         assertFalse(successor.closed());
         assertEquals(3, successor.count());
@@ -346,6 +356,7 @@ class BackgroundMembershipTest {
       var newer = List.of(Diagnostic.error("NEWER", "/fixture", "New result"));
       s.issues = newer;
       ui.remove().run();
+      edit.acceptPrepared();
       assertSame(newer, s.issues);
       assertFalse(edit.applying());
       assertFalse(edit.closed());
@@ -371,7 +382,7 @@ class BackgroundMembershipTest {
                 return List.of();
               });
         edit.apply(s);
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertTrue(edit.closed());
         assertEquals(
             BackgroundMembershipProbe.resourceMembers(s, "set"),
@@ -396,7 +407,7 @@ class BackgroundMembershipTest {
       var ui = new ArrayDeque<Runnable>();
       var edit = session(s, worker, ui);
       edit.apply(s);
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       try (var accepted = s.engine.openWorld(new CompiledProject(s.project()))) {
         assertEquals(0, accepted.getVoxelTypeId(pos));
         assertEquals(1, old.getVoxelTypeId(pos));
@@ -422,7 +433,7 @@ class BackgroundMembershipTest {
           });
       long revision = s.revision;
       edit.apply(s);
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertTrue(edit.closed());
       assertEquals(revision + 1, s.revision);
       assertTrue(s.project().voxelSets.isEmpty());

@@ -61,7 +61,10 @@ public final class MembershipDialog implements AutoCloseable {
       layout.open("Edit Voxel Membership");
       pending = false;
     }
-    if (!layout.begin("Edit Voxel Membership")) return false;
+    if (!layout.begin("Edit Voxel Membership")) {
+      session.suspendApply();
+      return false;
+    }
     long work = session.workVersion();
     boolean appearing = ImGui.isWindowAppearing();
     boolean current = session.currentOwner(state);
@@ -132,7 +135,7 @@ public final class MembershipDialog implements AutoCloseable {
       done = true;
       ImGui.closeCurrentPopup();
     } else if (work != session.workVersion()) {
-      // Choice edits or work completion retire footer releases from the previous phase.
+      // Choice edits retire footer releases from the previous request.
     } else if (select) session.setVisible(displayed, true);
     else if (clear) session.setVisible(displayed, false);
     else if (mode) selectedOnly = !selectedOnly;
@@ -156,6 +159,13 @@ public final class MembershipDialog implements AutoCloseable {
       }
     }
     ImGui.endPopup();
+    if (!done && work == session.workVersion() && session.acceptPrepared()) {
+      if (layout.begin("Edit Voxel Membership")) {
+        ImGui.closeCurrentPopup();
+        ImGui.endPopup();
+      }
+      done = true;
+    }
     return done;
   }
 

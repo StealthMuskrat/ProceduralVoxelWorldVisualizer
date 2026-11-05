@@ -17,7 +17,7 @@ final class BackgroundCurveApplyProbe {
   static void run(Path out) throws Exception {
     Files.createDirectories(out);
     var cases = new ArrayList<Map<String, Object>>();
-    for (String mode : List.of("apply", "cancel-apply", "escape-ready", "cancel-ready", "cancel", "retry", "edit", "stale", "close")) {
+    for (String mode : List.of("apply", "cancel-apply", "escape-ready", "cancel-ready", "cancel", "retry", "edit", "stale", "close", "apply-ready", "collapse-ready")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       try (var s = new EditorState(new UserConfig(), false)) {
@@ -74,7 +74,21 @@ final class BackgroundCurveApplyProbe {
         frames(12);
         require(edit.running() && !edit.ready() && ui.size() == 1, "Curve Apply bypassed UI");
         require(privateBefore.equals(ProjectIO.JSON.valueToTree(draft)), "Worker staged curve");
-        if (mode.equals("escape-ready")) {
+        if (mode.equals("apply-ready") || mode.equals("collapse-ready")) {
+          long work = edit.version();
+          if (mode.equals("apply-ready")) hold(dialog.probeControl("apply"));
+          ui.remove().run();
+          require(edit.ready() && edit.version() == work && edit.running(),
+              "Ready curve delivery changed Cancel Apply authority");
+          if (mode.equals("apply-ready")) {
+            ImGui.getIO().addMouseButtonEvent(0, false); frames(3);
+          } else {
+            ImGui.setWindowCollapsed("Curve Editor", true, ImGuiCond.Always); frames(3);
+            require(!edit.running() && !edit.closed()
+                && dialog.probeCurve().points.getLast().y == 3, "Collapse lost private curve or retained Apply");
+            ImGui.setWindowCollapsed("Curve Editor", false, ImGuiCond.Always); frames(3);
+          }
+        } else if (mode.equals("escape-ready")) {
           ui.remove().run();
           require(edit.ready(), "Delivered curve was not ready");
           ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
@@ -135,7 +149,8 @@ final class BackgroundCurveApplyProbe {
         s.document.save(directory.resolve("after.json"));
         cases.add(Map.of("mode", mode, "staged", staged, "queuedFrames", 12, "heldFrames", 12,
             "privateRetained", true, "rawRetained", true, "preferencesRetained", true,
-            "originalBytesRetained", true));
+            "originalBytesRetained", true,
+            "readyRetired", List.of("escape-ready", "cancel-ready", "apply-ready", "collapse-ready").contains(mode)));
         panel.close();
         frames(2);
       }
@@ -158,6 +173,12 @@ final class BackgroundCurveApplyProbe {
     frame();
     io.addKeyEvent(ImGuiKey.Enter, false);
     frames(2);
+  }
+
+  private static void hold(float[] at) {
+    require(at != null, "Curve control missing");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(float[] at) {

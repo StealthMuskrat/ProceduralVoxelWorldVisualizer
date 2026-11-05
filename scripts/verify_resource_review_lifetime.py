@@ -91,7 +91,7 @@ background = out / 'background-membership'
 receipt = json.loads((background / 'background-membership.json').read_text(encoding='utf-8'))
 assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
 routes = [(kind, mode) for kind in ('set', 'group')
-          for mode in (['success', 'cancel', 'escape', 'retry', 'edit', 'raw', 'close', 'empty']
+          for mode in (['success', 'cancel', 'escape', 'retry', 'edit', 'raw', 'close', 'empty', 'ready-cancel', 'ready-escape', 'ready-edit']
                        if kind == 'set' else ['success', 'empty'])]
 assert [(case['kind'], case['mode']) for case in receipt['cases']] == routes
 schema = json.loads((Path(__file__).resolve().parent.parent / 'schema/project.schema.json').read_text(encoding='utf-8'))
@@ -102,6 +102,7 @@ for case in receipt['cases']:
     applied = mode in ('success', 'retry', 'edit', 'empty')
     assert case['applied'] is applied and case['oneUndoRedo'] is applied
     assert case['responsiveFrames'] == 12
+    assert case['readyRetired'] is mode.startswith('ready-')
     assert case['members'] == (0 if mode == 'empty' else 2 if applied else 1)
     assert all(case[key] is True for key in ('privateIdSeedRetained', 'preferencesRetained', 'originalBytesRetained'))
     directory = background / (kind + '-' + mode)
@@ -132,6 +133,6 @@ for case in receipt['cases']:
         expected['project']['seed'] = 6 if mode == 'raw' and name == 'after' else 5
         assert saved == expected
         snapshots += 1
-assert snapshots == 32
-assert json.loads((background / 'engine-replay.json').read_text(encoding='utf-8')) == dict(formatVersion=1, snapshots=32, fields=672, cells=9408, solidCells=5880, roots=[2, 4])
+assert snapshots == 38
+assert json.loads((background / 'engine-replay.json').read_text(encoding='utf-8')) == dict(formatVersion=1, snapshots=38, fields=798, cells=11172, solidCells=7140, roots=[2, 4])
 print('Resource review lifetime and background members-only Apply: exact saved state, set/group semantics, private input retention, native and engine replay PASS')

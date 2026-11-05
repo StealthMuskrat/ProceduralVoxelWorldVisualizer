@@ -420,6 +420,7 @@ public final class CurveDialog {
       return true;
     }
     if (!visible) {
+      publication.cancelApply();
       pointer.cancel();
       numericGesture.cancel();
       focused = false;
@@ -937,10 +938,10 @@ public final class CurveDialog {
         if (publication.apply(session.curve())) finishPublication();
       }
     }
-    if (open.get()
-        && !ImGui.isKeyPressed(ImGuiKey.Escape, false)
-        && publication.accept()) finishPublication();
+    boolean accept = open.get() && work == publication.version()
+        && !ImGui.isKeyPressed(ImGuiKey.Escape, false);
     ImGui.end();
+    if (accept && publication.accept()) finishPublication();
     return !open.get();
   }
 

@@ -7,6 +7,23 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void childApplyHelpDistinguishesReadyCancellationMemberTransactionsAndPrivateCurves() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.child-apply-recovery");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("ready background result"));
+    assertTrue(text.contains("Collapsing Curve Editor cancels pending Apply"));
+    assertTrue(text.contains("one project Undo transaction"));
+    assertTrue(text.contains("Curve Apply stages only its curve in private Properties"));
+    assertTrue(catalog.search("membership prepared private").contains(topic));
+    assertTrue(catalog.topic("help.membership-apply").related().contains(topic.id()));
+    assertTrue(catalog.topic("help.curve-guidance").related().contains(topic.id()));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void directApplyHelpExplainsReadyCancellationCollapseAndSeparatePrivateInput() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
