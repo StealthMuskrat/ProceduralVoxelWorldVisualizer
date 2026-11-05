@@ -91,10 +91,11 @@ final class RequestFuture<T> extends CompletableFuture<T> {
             var outcome = retire(failure);
             throw outcome instanceof CompletionException completed
                 ? completed
-                : new CompletionException(outcome);
+                : new CompletionException(null, outcome);
           }
           var failure = retire(null);
-          if (failure != null) throw new CompletionException(failure);
+          // Host Throwable text access must not replace a supplier/retirement failure.
+          if (failure != null) throw new CompletionException(null, failure);
           return value;
         },
         executor);

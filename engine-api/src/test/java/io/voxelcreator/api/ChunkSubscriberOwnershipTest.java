@@ -40,6 +40,67 @@ class ChunkSubscriberOwnershipTest {
     return new HeldWorker(release);
   }
 
+  private static Throwable unreadableSupplier(boolean error, AtomicInteger reads) {
+    return error ? new AssertionError() {
+      public String getMessage() { reads.incrementAndGet(); throw new AssertionError("message reader"); }
+      public String toString() { reads.incrementAndGet(); throw new AssertionError("text reader"); }
+    } : new IllegalStateException() {
+      public String getMessage() { reads.incrementAndGet(); throw new AssertionError("message reader"); }
+      public String toString() { reads.incrementAndGet(); throw new AssertionError("text reader"); }
+    };
+  }
+
+  private static VoxelChunk supplierFault(Throwable failure) {
+    if (failure instanceof RuntimeException runtime) throw runtime;
+    throw (Error) failure;
+  }
+
+  @Test
+  void asynchronousSupplierFaultRetiresOnlyItsSubscriberBeforeSharedGenerationContinues() throws Exception {
+    for (boolean error : new boolean[] {false, true}) for (boolean background : new boolean[] {false, true}) {
+      VoxelChunk retained;
+      try (var engine = new NoiseGeneratorEngine(1, 16, 8L << 20);
+          var world = world(engine); var held = hold(engine)) {
+        var position = new ChunkPos(-1, 0, 1); var reads = new AtomicInteger(); var failure = unreadableSupplier(error, reads);
+        var token = new CancellationToken(); var future = world.generateChunkAsync(position, token); var peer = world.generateChunkAsync(position);
+        var observed = future.handle((value, fault) -> {
+          assertNull(value); assertEquals(1, world.inFlightChunks()); assertEquals(1, engine.metrics().queued()); assertFalse(peer.isDone()); return fault;
+        });
+        if (background) future.completeAsync(() -> supplierFault(failure));
+        else future.completeAsync(() -> supplierFault(failure), Runnable::run);
+        var outcome = assertInstanceOf(CompletionException.class, observed.get(3, TimeUnit.SECONDS));
+        assertSame(failure, outcome.getCause()); assertFalse(future.isCancelled()); assertEquals(0, reads.get());
+        token.cancel(); assertFalse(peer.isDone()); assertEquals(1, world.inFlightChunks());
+        held.close(); retained = peer.get(3, TimeUnit.SECONDS); assertTrue(retained.isEmpty());
+        assertEquals(0, world.inFlightChunks()); assertEquals(1, engine.metrics().completed()); assertEquals(0, failure.getSuppressed().length);
+      }
+      assertEquals(0, retained.getVoxelTypeId(0, 0, 0)); assertEquals(0, retained.getVoxelTypeId(1, 1, 1));
+    }
+  }
+
+  @Test
+  void lastSubscriberAsyncFaultFreesQueuedWorkBeforeCallbackAdmitsAReplacement() throws Exception {
+    for (boolean error : new boolean[] {false, true}) {
+      VoxelChunk retained;
+      try (var engine = new NoiseGeneratorEngine(1, 16, 8L << 20);
+          var world = world(engine); var held = hold(engine)) {
+        var position = new ChunkPos(1, 0, -1); var reads = new AtomicInteger(); var failure = unreadableSupplier(error, reads);
+        var token = new CancellationToken(); var future = world.generateChunkAsync(position, token);
+        var successor = new AtomicReference<CompletableFuture<VoxelChunk>>(); var calls = new AtomicInteger();
+        var observed = future.handle((value, fault) -> {
+          calls.incrementAndGet(); assertNull(value); assertEquals(0, world.inFlightChunks()); assertEquals(0, engine.metrics().queued());
+          successor.set(world.generateChunkAsync(position)); return fault;
+        });
+        future.completeAsync(() -> supplierFault(failure), Runnable::run);
+        assertSame(failure, assertInstanceOf(CompletionException.class, observed.get(3, TimeUnit.SECONDS)).getCause());
+        assertEquals(1, calls.get()); assertEquals(0, reads.get()); assertEquals(1, world.inFlightChunks()); assertEquals(1, engine.metrics().queued());
+        token.cancel(); assertFalse(successor.get().isDone()); held.close(); retained = successor.get().get(3, TimeUnit.SECONDS);
+        assertTrue(retained.isEmpty()); assertEquals(0, world.inFlightChunks()); assertEquals(1, engine.metrics().completed()); assertEquals(0, failure.getSuppressed().length);
+      }
+      assertEquals(0, retained.getVoxelTypeId(0, 0, 0)); assertEquals(0, retained.getVoxelTypeId(1, 1, 1));
+    }
+  }
+
   @Test
   void blockedCallbackCanAdmitASuccessorAtTheFullSubscriberLimit() throws Exception {
     try (var engine = new NoiseGeneratorEngine(1, 16, 8L << 20);

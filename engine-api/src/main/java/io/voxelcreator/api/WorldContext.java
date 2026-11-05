@@ -216,6 +216,7 @@ public final class WorldContext implements AutoCloseable {
    * Requests a subscriber-owned future. A terminal mutation of an admitted future withdraws only
    * that subscriber, releasing its registration/admission before dependent callbacks run. Copies
    * and dependent futures are independent observers; timed reads do not withdraw the subscriber.
+   * Asynchronous caller completion preserves supplier failure causes without reading their text.
    * Host callbacks retain ordinary CompletableFuture execution semantics and can block the
    * completing thread. An already cached result has no admitted subscriber to retire.
    */

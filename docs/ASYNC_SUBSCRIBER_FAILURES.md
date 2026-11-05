@@ -1,0 +1,29 @@
+# Asynchronous subscriber failure preservation
+
+Development implementation on main; **uncompiled and untested** under the owner's testing pause. No compiler, Gradle, JUnit, native probe, schema/Python checker, independent consumer, packaging, real update request or GitHub workflow ran. The observed baseline remains **922 tests / 120 suites**. Native/Windows 11 and final release acceptance remain pending; no A01–A36 gate advances.
+
+## Failure wrapping must not invoke host text
+
+RequestFuture already retires an admitted chunk subscriber before completeAsync publishes its result or invokes dependent callbacks. Its wrapped supplier previously constructed a CompletionException using only the failure as constructor argument. That constructor may invoke the host Throwable's toString/getMessage. If either accessor throws, the asynchronous result can expose the accessor fault instead of the original supplier or retirement failure. A mutable accessor can also be consumed before the host deliberately reads it. The same risk exists when a successful supplier is rejected by failed retirement.
+
+Both asynchronous wrapping sites now supply an explicit null message and retain the original Throwable as cause. A supplier's existing CompletionException remains the same envelope. A raw supplier CancellationException remains wrapped asynchronous failure, rather than making the future itself cancelled. Successful supplier values remain unpublished if retirement fails. The existing static-message combined envelope preserves supplier-failure priority with a distinct retirement failure suppressed on that new envelope; neither host failure's own suppressed list changes.
+
+Retirement still runs once before publication. Executor selection/rejection, invalid arguments, skipping a queued supplier after another publisher wins, competing publication, later obtrusion and already-running supplier semantics retain their existing contracts. A running supplier may still finish after another publisher wins; its losing fault must not invoke host text or retire the subscriber twice. This change introduces no retry, executor, extra callback thread or isolated host execution.
+
+## Preserve subscriber ownership
+
+Only the asynchronously completed caller's admitted request is withdrawn. A healthy shared subscriber keeps its generation. Removing the last unstarted subscriber releases its pending-future entry, cancellation registration, in-flight entry and queued job before that future's callbacks can request a same-position replacement. Cancelling the retired caller's token cannot withdraw a peer or replacement. Completed generated chunks remain immutable and usable after world/engine closure. Caller completion does not supply engine generation or cache values.
+
+Host suppliers and continuations retain ordinary cooperative CompletableFuture execution semantics and can block their executing thread. Public future reads, copies and arbitrary host dependent callbacks have their own JDK exception behavior; this fix covers the engine's two completeAsync wrapping sites. It does not certify callback isolation, real-time cleanup or recovery from an unusable VM. Engine/model/storage remain independent of editor/native code. Public signatures, saved formats, schema/registry structures, deterministic sampling/generation math and project/preferences behavior remain unchanged.
+
+## Deferred coverage
+
+Five new RequestAsyncFailureTest definitions cover inline/default supplier completion with unreadable RuntimeException, Error, CancellationException, CompletionException and sneaky checked causes; retirement-only faults that discard a successful supplier value; combined/same-object supplier and retirement faults without host mutation; an already-running losing supplier with a competing successful publisher; and a mutable message untouched until one explicit host read. They observe terminal faults through normal handle values so the harness does not itself format the host failure.
+
+Two additional ChunkSubscriberOwnershipTest definitions use actual held engine workers. RuntimeException/Error suppliers in inline/default completion paths must retire one subscriber while preserving a healthy pending shared peer. Last-subscriber failure must remove queued ownership before its callback admits a replacement. Both definitions preserve original cause identity, avoid host text access and keep generated EMPTY snapshots usable after closure. All seven added definitions remain uncompiled/untested.
+
+ChunkSubscriberOwnershipConsumer extends its separate engine-JAR-only replay with **32 asynchronous failure cases**: roots 2/4, four supplier fault forms, sole/shared subscriber ownership and mutable/unreadable messages. Public parent gates hold generation while callbacks observe retirement and, for sole subscribers, admit replacements. Each case defines zero engine text reads, one explicit host message read, once-only callback observation, original cause/envelope identity, ordinary async cancellation semantics and a healthy generated successor/peer after retiring-token cancellation.
+
+The added cases retain **32 generated chunks with 1,152 exact EMPTY-cell expectations**, checked after engine/context closure. The original full-admission replay remains two cases/four retained chunks/144 cells. Existing report fields retain their original dimensions; a nested asyncFailures object carries the added counts. Complete authoring JSON must remain equal. The existing CancellationOwnershipConsumer already invokes this client and the manual-only workflow already compiles all example sources, so no workflow command, trigger, native case or receipt changes are needed. No report was generated.
+
+Source review and git whitespace/content/metadata checks are the available verification. Remaining feature/failure audit, runtime/concurrency/load validation, native/Windows 11 and release acceptance remain outstanding.
