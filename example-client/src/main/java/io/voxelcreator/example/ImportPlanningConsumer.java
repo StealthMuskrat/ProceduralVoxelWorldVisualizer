@@ -11,7 +11,7 @@ import java.util.*;
 final class ImportPlanningConsumer {
   static void run(Path out) throws Exception {
     int samples = 0, cells = 0;
-    for (String mode : List.of("choice", "reload", "cancel", "escape", "retry", "close")) {
+    for (String mode : List.of("choice", "reload", "cancel", "escape", "retry", "close", "ready-cancel", "ready-escape", "ready-close", "ready-reload-cancel")) {
       var directory = out.resolve(mode);
       var beforeFile = directory.resolve("before.json");
       var afterFile = directory.resolve("after.json");
@@ -30,7 +30,7 @@ final class ImportPlanningConsumer {
       var expected = ProjectIO.JSON.valueToTree(before.project());
       var actual = ProjectIO.JSON.valueToTree(after.project());
       require(before.project().project.seed == 17, "Planning source seed");
-      if (mode.equals("reload")) ((ObjectNode) expected.get("project")).put("seed", 18);
+      if (mode.equals("reload") || mode.equals("ready-reload-cancel")) ((ObjectNode) expected.get("project")).put("seed", 18);
       if (imported) {
         var added = after.project().noise2D.getLast();
         require(
@@ -103,7 +103,7 @@ final class ImportPlanningConsumer {
               && Arrays.equals(afterBytes, Files.readAllBytes(afterFile)),
           "Replay changed saved bytes");
     }
-    require(samples == 567 && cells == 3528, "Planning replay dimensions");
+    require(samples == 903 && cells == 5880, "Planning replay dimensions");
     Files.writeString(
         out.resolve("engine-replay.json"),
         ProjectIO.JSON.writeValueAsString(

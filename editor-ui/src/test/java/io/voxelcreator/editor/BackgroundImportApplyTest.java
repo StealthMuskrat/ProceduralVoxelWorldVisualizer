@@ -70,6 +70,7 @@ class BackgroundImportApplyTest {
   static void deliver(Workers worker, Queue<Runnable> ui, ImportEditSession edit) {
     worker.run();
     ui.remove().run();
+    edit.acceptPlanning();
     edit.acceptPrepared();
   }
 

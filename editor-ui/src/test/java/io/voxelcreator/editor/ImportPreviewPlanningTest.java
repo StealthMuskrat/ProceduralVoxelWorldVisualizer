@@ -62,9 +62,10 @@ class ImportPreviewPlanningTest {
     return new ImportEditSession(state, incoming(), worker, ui::add, () -> false);
   }
 
-  static void deliver(Workers worker, Queue<Runnable> ui) {
+  static void deliver(Workers worker, Queue<Runnable> ui, ImportEditSession s) {
     worker.run();
     ui.remove().run();
+    s.acceptPlanning();
   }
 
   @Test
@@ -96,7 +97,13 @@ class ImportPreviewPlanningTest {
       s.markShown(old);
       assertFalse(s.canApply());
       assertEquals(ImportEditSession.Result.NOT_REVIEWED, s.apply());
+      var request = s.planningToken();
       completion.run();
+      assertSame(request, s.planningToken());
+      assertTrue(s.planning());
+      assertSame(old, s.preview());
+      assertFalse(s.canApply());
+      s.acceptPlanning();
       var next = s.preview();
       assertNotSame(old, next);
       assertFalse(s.canApply());
@@ -141,7 +148,7 @@ class ImportPreviewPlanningTest {
       assertSame(old, s.preview());
       worker.run();
       assertTrue(ui.isEmpty());
-      deliver(worker, ui);
+      deliver(worker, ui, s);
       assertEquals(ResourceImport.Choice.REUSE, s.choice(shared));
       assertEquals(ResourceImport.Choice.COPY, s.choice(added));
       assertEquals(old.rows().get(1).targetUuid(), s.preview().rows().get(1).targetUuid());
@@ -175,14 +182,14 @@ class ImportPreviewPlanningTest {
       var ui = new ArrayDeque<Runnable>();
       var s = session(state, worker, ui);
       s.choose(id(s), ResourceImport.Choice.REUSE);
-      deliver(worker, ui);
+      deliver(worker, ui, s);
       var old = s.preview();
       s.markShown(old);
       assertTrue(state.change(p -> p.project.seed = 18));
       s.reload();
       assertSame(old, s.preview());
       assertFalse(s.canApply());
-      deliver(worker, ui);
+      deliver(worker, ui, s);
       assertTrue(s.current());
       assertEquals(ResourceImport.Choice.REUSE, s.choice(id(s)));
       assertNotEquals(old.rows().get(1).targetUuid(), s.preview().rows().get(1).targetUuid());
@@ -204,11 +211,12 @@ class ImportPreviewPlanningTest {
         if (raw) state.project().project.seed = 18;
         else assertTrue(state.change(p -> p.project.seed = 18));
         ui.remove().run();
+        s.acceptPlanning();
         assertSame(old, s.preview());
         assertFalse(s.current());
         assertFalse(s.canApply());
         s.reload();
-        deliver(worker, ui);
+        deliver(worker, ui, s);
         assertEquals(18, s.preview().candidate().project.seed);
         assertTrue(s.current());
       }
@@ -229,12 +237,13 @@ class ImportPreviewPlanningTest {
         else state.select("noise2D", state.project().noise2D.getLast().uuid);
         var owner = new ProjectFileOwner(state);
         ui.remove().run();
+        s.acceptPlanning();
         assertFalse(s.canApply());
         assertTrue(s.canRetryPlan());
         assertTrue(owner.valuesCurrent(state));
         assertEquals(before, ProjectIO.JSON.valueToTree(state.project()));
         s.retryPlan();
-        deliver(worker, ui);
+        deliver(worker, ui, s);
         assertFalse(s.canApply());
         assertTrue(owner.valuesCurrent(state));
       }
@@ -253,6 +262,7 @@ class ImportPreviewPlanningTest {
         if (replace) state.newSession();
         else s.cancel();
         ui.remove().run();
+        s.acceptPlanning();
         assertSame(old, s.preview());
         assertFalse(s.canApply());
         assertFalse(s.canReload());
@@ -282,7 +292,7 @@ class ImportPreviewPlanningTest {
       assertFalse(s.canApply());
       reject.set(false);
       s.retryPlan();
-      deliver(worker, ui);
+      deliver(worker, ui, s);
       assertNotSame(old, s.preview());
       assertFalse(s.canApply());
     }
@@ -332,7 +342,7 @@ class ImportPreviewPlanningTest {
         holder[0] = s;
         var old = s.preview();
         s.choose(id(s), ResourceImport.Choice.REUSE);
-        deliver(worker, ui);
+        deliver(worker, ui, s);
         assertSame(old, s.preview());
         assertFalse(s.canApply());
         assertEquals(2, state.project().noise2D.size());
@@ -347,19 +357,19 @@ class ImportPreviewPlanningTest {
       var ui = new ArrayDeque<Runnable>();
       var s = session(state, worker, ui);
       s.choose(id(s), ResourceImport.Choice.REUSE);
-      deliver(worker, ui);
+      deliver(worker, ui, s);
       assertTrue(state.change(p -> p.noise2D.getLast().algorithm.parameters.put("value", .5)));
       s.reload();
-      deliver(worker, ui);
+      deliver(worker, ui, s);
       assertFalse(s.preview().valid());
       var allocation = s.preview().rows().get(1).targetUuid();
       s.choose(id(s), ResourceImport.Choice.COPY);
-      deliver(worker, ui);
+      deliver(worker, ui, s);
       assertTrue(s.preview().valid());
       assertEquals(allocation, s.preview().rows().get(1).targetUuid());
       s.markShown(s.preview());
       assertEquals(ImportEditSession.Result.STARTED, s.apply());
-      deliver(worker, ui);
+      deliver(worker, ui, s);
       s.acceptPrepared();
       assertTrue(s.closed());
       assertEquals(.5, state.project().noise2D.get(1).algorithm.parameters.get("value"));

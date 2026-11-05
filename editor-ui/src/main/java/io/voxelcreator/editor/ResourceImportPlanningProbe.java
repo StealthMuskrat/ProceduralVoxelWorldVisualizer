@@ -16,7 +16,7 @@ final class ResourceImportPlanningProbe {
   static void run(Path out) throws Exception {
     Files.createDirectories(out);
     var cases = new ArrayList<Map<String, Object>>();
-    for (String mode : List.of("choice", "reload", "cancel", "escape", "retry", "close")) {
+    for (String mode : List.of("choice", "reload", "cancel", "escape", "retry", "close", "ready-cancel", "ready-escape", "ready-close", "ready-reload-cancel")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       try (var state = new EditorState(new UserConfig(), false)) {
@@ -65,7 +65,7 @@ final class ResourceImportPlanningProbe {
           reject.set(false);
           click(panel.control("retry"));
         }
-        if (mode.equals("reload")) {
+        if (mode.equals("reload") || mode.equals("ready-reload-cancel")) {
           finish(state, tasks);
           ui.remove().run();
           frames(3);
@@ -90,16 +90,34 @@ final class ResourceImportPlanningProbe {
         require(
             session.preview() == held && !session.canApply(),
             "Worker published before UI delivery");
-        if (mode.equals("cancel")) click(panel.control("cancel"));
-        else if (mode.equals("escape")) {
-          ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
-          frame();
-          ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
-          frames(3);
-        } else if (mode.equals("close")) panel.close();
-        ui.remove().run();
+        var request = session.planningToken();
+        if (mode.startsWith("ready-")) {
+          if (!mode.equals("ready-escape") && !mode.equals("ready-close")) hold(panel.control("cancel"));
+          ui.remove().run();
+          require(session.planning() && session.preview() == held
+              && session.planningToken() == request && !session.canApply(),
+              "Ready preview replaced rows or changed pending ownership before controls");
+          if (mode.equals("ready-escape")) {
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+          } else if (mode.equals("ready-close")) { panel.close(); frames(3); }
+          else { ImGui.getIO().addMouseButtonEvent(0, false); frames(3); }
+          require(!panel.pending() && session.preview() == held, "Ready cancellation installed an obsolete preview");
+        } else {
+          if (mode.equals("cancel")) click(panel.control("cancel"));
+          else if (mode.equals("escape")) {
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+            frame();
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+            frames(3);
+          } else if (mode.equals("close")) panel.close();
+          ui.remove().run();
+        }
         boolean imported = List.of("choice", "reload", "retry").contains(mode);
         if (imported) {
+          require(session.planning() && session.preview() == held && !session.canApply(),
+              "Delivery installed or acknowledged a replacement plan");
+          frame(); // Current controls finish before acceptance after popup unwind.
           var fresh = session.preview();
           require(fresh != held && !session.canApply(), "New plan inherited shown authority");
           require(
@@ -152,7 +170,9 @@ final class ResourceImportPlanningProbe {
                 "originalBytesRetained",
                 true,
                 "freshReviewRequired",
-                true));
+                true,
+                "readyRetired",
+                mode.startsWith("ready-")));
         panel.close();
       }
     }
@@ -173,6 +193,12 @@ final class ResourceImportPlanningProbe {
 
   private static void finish(EditorState state, ArrayDeque<Runnable> tasks) throws Exception {
     state.background.submit(tasks.remove()).get(10, TimeUnit.SECONDS);
+  }
+
+  private static void hold(float[] at) {
+    require(at != null, "Missing preview Cancel control");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(float[] at) {

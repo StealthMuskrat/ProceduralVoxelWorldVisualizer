@@ -171,6 +171,7 @@ final class ResourceImportPanel implements AutoCloseable {
     }
     var opening = capture(frame);
     long applyWork = opening.owner().applyVersion();
+    var planningWork = opening.owner().planningToken();
     boolean unavailable;
     try {
       unavailable = blocked.getAsBoolean();
@@ -325,9 +326,15 @@ final class ResourceImportPanel implements AutoCloseable {
       ImGui.endPopup();
     }
     if (command != null) dispatch(decision, command, frame);
+    acceptPlanning(opening, planningWork);
     if (owns(opening) && opening.owner().applyVersion() == applyWork)
       opening.owner().acceptPrepared();
     if (delivery.version() == opening.ticket().version() && !pending()) closePopup();
+  }
+
+  void acceptPlanning(Decision shown, Object request) {
+    if (!owns(shown) || shown.owner().planningToken() != request) return;
+    shown.owner().acceptPlanning(() -> owns(shown) && shown.context().current(state));
   }
 
   Decision capture(int frame) {

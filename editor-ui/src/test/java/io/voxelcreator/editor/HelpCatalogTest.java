@@ -7,6 +7,22 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void importPlanningHelpKeepsReadyCancellationAndFreshRowReviewDistinct() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.resource-import");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Choice and Reload delivery alone never replaces the visible preview"));
+    assertTrue(text.contains("Current review Cancel or Escape runs before accepting a ready preview or rebuild failure"));
+    assertTrue(text.contains("Accepted replacement rows must be displayed before Import"));
+    assertTrue(text.contains("keeping COPY identities"));
+    assertTrue(catalog.search("reload ready preview").contains(topic));
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Import"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void packageLoadingHelpExplainsReadyPathDecisionsBeforeSeparateExplicitReview() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

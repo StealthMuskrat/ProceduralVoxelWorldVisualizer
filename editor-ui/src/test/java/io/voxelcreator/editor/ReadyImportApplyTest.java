@@ -167,7 +167,7 @@ class ReadyImportApplyTest {
       var worker = new BackgroundImportApplyTest.Workers(); var ui = new ArrayDeque<Runnable>();
       var incoming = BackgroundImportApplyTest.incoming();
       var edit = new ImportEditSession(s, incoming, worker, ui::add, () -> false);
-      edit.choose(incoming.noise2D.getFirst().uuid, ResourceImport.Choice.SKIP); worker.run(); ui.remove().run();
+      edit.choose(incoming.noise2D.getFirst().uuid, ResourceImport.Choice.SKIP); worker.run(); ui.remove().run(); edit.acceptPlanning();
       edit.markShown(edit.preview()); var before = ProjectIO.JSON.valueToTree(s.project()); var draft = s.draft;
       long bytes = s.document.historyBytes(), raw = s.seedInputs.version(s);
       edit.apply(); worker.run(); var delivered = ui.remove(); delivered.run();

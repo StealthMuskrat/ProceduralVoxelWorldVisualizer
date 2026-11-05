@@ -67,6 +67,10 @@ final class ImportEditSession {
   private Object request = new Object();
   private FutureTask<Void> planningTask;
   private ProjectFileOwner planningOwner;
+  private record PreparedPlan(ResourceImport.Session value, Throwable failure) {}
+  private final PreviewMailbox<PreparedPlan> planningHandoff = new PreviewMailbox<>();
+  private long planningDelivery;
+  private boolean planningReady;
   private boolean planReady, reloadRequested;
   private String planningMessage = "";
   private List<Diagnostic> applyIssues = List.of();
@@ -219,6 +223,10 @@ final class ImportEditSession {
     } else schedule(true, null);
   }
 
+  Object planningToken() {
+    return request;
+  }
+
   boolean planning() {
     refresh();
     return planningTask != null;
@@ -256,6 +264,8 @@ final class ImportEditSession {
       planningMessage =
           "Rebuilding the conflict preview in the background. Rows show the last completed plan."
               + " Review the new plan before Import.";
+      long handed = ++planningDelivery;
+      planningHandoff.advance(handed);
       planningTask =
           new FutureTask<>(
               () -> {
@@ -269,9 +279,8 @@ final class ImportEditSession {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var completed = result;
-                var rejected = failure;
-                ui.accept(() -> publish(ticket, completed, rejected));
+                if (!planningHandoff.publish(handed, new PreparedPlan(result, failure))) return null;
+                ui.accept(() -> deliveredPlanning(ticket, handed));
                 return null;
               });
       executor.execute(planningTask);
@@ -284,10 +293,49 @@ final class ImportEditSession {
     return ticket == request && planningTask != null && !closed;
   }
 
-  private void publish(Object ticket, ResourceImport.Session result, Throwable failure) {
+  private void deliveredPlanning(Object ticket, long handed) {
+    if (!ownsPlanning(ticket) || planningDelivery != handed || planningReady) return;
+    refresh();
+    if (!ownsPlanning(ticket)) return;
+    // Keep the FutureTask: an inline readiness handoff may still throw before returning.
+    planningReady = true;
+  }
+
+  void acceptPlanning() {
+    acceptPlanning(() -> true);
+  }
+
+  /** Current review controls decide before installing this request's replacement preview. */
+  void acceptPlanning(BooleanSupplier shown) {
+    Object ticket = request;
+    refresh();
+    if (!ownsPlanning(ticket) || !planningReady) return;
+    Objects.requireNonNull(shown);
+    var value = planningHandoff.take();
+    if (value == null) {
+      failPlanning(ticket, new IllegalStateException("Import preview preparation unavailable"));
+      return;
+    }
+    publishPlanning(ticket, value.value(), value.failure(), shown);
+  }
+
+  private boolean planningCurrent(Object ticket, BooleanSupplier shown) {
+    if (!ownsPlanning(ticket) || !planningOwner.valuesCurrent(state) || !canReload()) return false;
+    boolean visible = shown.getAsBoolean();
+    return visible && ownsPlanning(ticket) && planningOwner.valuesCurrent(state) && canReload();
+  }
+
+  private void publishPlanning(
+      Object ticket,
+      ResourceImport.Session result,
+      Throwable failure,
+      BooleanSupplier shown) {
+    if (!ownsPlanning(ticket)) return;
+    refresh();
     if (!ownsPlanning(ticket)) return;
     try {
-      if (!planningOwner.valuesCurrent(state)) {
+      if (!planningCurrent(ticket, shown)) {
+        if (!ownsPlanning(ticket)) return;
         stalePlanning();
         return;
       }
@@ -298,9 +346,9 @@ final class ImportEditSession {
       boolean unavailable = blocked.getAsBoolean();
       if (!ownsPlanning(ticket)) return;
       if (unavailable
-          || !planningOwner.valuesCurrent(state)
-          || !canReload()
+          || !planningCurrent(ticket, shown)
           || !Objects.requireNonNull(result).current(state.project())) {
+        if (!ownsPlanning(ticket)) return;
         stalePlanning();
         return;
       }
@@ -354,6 +402,8 @@ final class ImportEditSession {
     request = new Object();
     planningTask = null;
     planningOwner = null;
+    planningReady = false;
+    planningHandoff.advance(++planningDelivery);
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
@@ -549,6 +599,7 @@ final class ImportEditSession {
       applyPhase = ApplyPhase.APPLIED;
       closed = true;
       applyHandoff.close();
+      planningHandoff.close();
       shown = null;
       applyMessage =
           "Resources imported. Private Properties input is unchanged; saving remains explicit.";
@@ -631,6 +682,7 @@ final class ImportEditSession {
     applyPhase = ApplyPhase.CANCELLED;
     applyMessage = "Import cancelled. The project is unchanged.";
     retirePlanning();
+    planningHandoff.close();
     closed = true;
     shown = null;
     applyIssues = List.of();

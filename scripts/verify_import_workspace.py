@@ -77,11 +77,12 @@ print('BACKGROUND_IMPORT_INDEPENDENT_PASS owned snapshots / native cancel-retry 
 planning = out / 'planning'
 planning_report = json.loads((planning / 'import-planning.json').read_text())
 assert planning_report['formatVersion'] == 1 and planning_report['physicalInputVerified'] is False
-assert [c['mode'] for c in planning_report['cases']] == ['choice', 'reload', 'cancel', 'escape', 'retry', 'close']
+assert [c['mode'] for c in planning_report['cases']] == ['choice', 'reload', 'cancel', 'escape', 'retry', 'close', 'ready-cancel', 'ready-escape', 'ready-close', 'ready-reload-cancel']
 for case in planning_report['cases']:
     mode = case['mode']; imported = mode in ['choice', 'reload', 'retry']
     assert case == dict(mode=mode, imported=imported, responsiveFrames=12,
-        privateRetained=True, preferencesRetained=True, originalBytesRetained=True, freshReviewRequired=True)
+        privateRetained=True, preferencesRetained=True, originalBytesRetained=True, freshReviewRequired=True,
+        readyRetired=mode.startswith('ready-'))
     directory = planning / mode
     before = json.loads((directory / 'before.json').read_text())
     after = json.loads((directory / 'after.json').read_text())
@@ -93,7 +94,7 @@ for case in planning_report['cases']:
     assert [n['id'] for n in before['noise2D']] == ['existing', 'shared']
     assert before['noise2D'] == after['noise2D'][:2]
     assert [n['id'] for n in incoming['noise2D']] == ['shared', 'added']
-    if mode == 'reload': before['project']['seed'] = 18
+    if mode in ['reload', 'ready-reload-cancel']: before['project']['seed'] = 18
     if imported:
         added = after['noise2D'].pop()
         assert added['id'] == 'added' and added['uuid'] != incoming['noise2D'][1]['uuid']
@@ -103,8 +104,8 @@ for case in planning_report['cases']:
         for project in [before, after]: project['project'].pop('rootOrder', None)
     assert before == after
 planning_replay = json.loads((planning / 'engine-replay.json').read_text())
-assert planning_replay == dict(formatVersion=1, fields=567, cells=3528, roots=[2, 4])
-print('IMPORT_PLANNING_INDEPENDENT_PASS six review lifetimes / complete saved models / 567 fields / 3528 EMPTY cells')
+assert planning_replay == dict(formatVersion=1, fields=903, cells=5880, roots=[2, 4])
+print('IMPORT_PLANNING_INDEPENDENT_PASS ten review lifetimes / complete saved models / 903 fields / 5880 EMPTY cells')
 
 # Deferred final Import validation/publication receipts and complete saved-state checks.
 apply = out / 'apply'
