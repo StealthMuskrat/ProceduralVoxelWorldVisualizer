@@ -86,6 +86,7 @@ class BackgroundMembershipTest {
       assertTrue(edit.applying());
       assertFalse(edit.closed());
       assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
+      worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
       edit.acceptPrepared();
       assertTrue(edit.closed());
       assertSame(parent, s.draft);

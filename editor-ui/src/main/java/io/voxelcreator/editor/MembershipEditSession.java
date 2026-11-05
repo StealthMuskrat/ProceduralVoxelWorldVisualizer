@@ -30,7 +30,7 @@ public final class MembershipEditSession implements AutoCloseable {
   private record Prepared(DocumentSession.PreparedEdit value, Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery;
-  private boolean ready;
+  private boolean ready, admitted;
   private List<UUID> workValues;
   private boolean admitting;
   private long workVersion;
@@ -178,9 +178,10 @@ public final class MembershipEditSession implements AutoCloseable {
   }
 
   public void cancel() {
+    if (closed) return;
+    closed = true;
     retireWork();
     handoff.close();
-    closed = true;
     applyIssues = List.of();
     issueCount = 0;
     applyFailure = "";
@@ -207,7 +208,8 @@ public final class MembershipEditSession implements AutoCloseable {
 
   private void changed() {
     if (task != null || ready || admitting) {
-      retireWork();
+      Object changed = retireWork();
+      if (closed || changed != workToken) return;
       progress =
           "Pending Apply cancelled because member choices changed. Review the selection and Apply"
               + " Members again.";
@@ -218,8 +220,8 @@ public final class MembershipEditSession implements AutoCloseable {
   }
 
   private void prepare(List<UUID> candidate) {
-    retireWork();
-    Object token = workToken;
+    Object token = retireWork();
+    if (closed || token != workToken || task != null) return;
     admitting = true;
     applyIssues = List.of();
     issueCount = 0;
@@ -259,6 +261,7 @@ public final class MembershipEditSession implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
+      if (owns(token)) admitted = true;
     } catch (Throwable failure) {
       fail(token, failure);
     } finally {
@@ -272,28 +275,34 @@ public final class MembershipEditSession implements AutoCloseable {
 
   private void delivered(Object token, long handed) {
     if (!owns(token) || delivery != handed || ready) return;
-    refresh();
-    if (!owns(token)) return;
-    task = null;
+    // Keep observing the task until posting and executor admission finish normally.
     ready = true;
   }
 
   /** The shown modal processes choice changes and cancellation before accepting this result. */
   boolean acceptPrepared() {
+    Object token = workToken;
     refresh();
-    if (!ready || closed) return false;
-    var value = handoff.take();
-    if (value == null) {
-      fail(workToken, new IllegalStateException("Membership Apply preparation unavailable"));
+    if (!owns(token) || !ready || !admitted || admitting) return false;
+    var completed = BackgroundFailure.completed(task);
+    if (!owns(token) || completed == null) return false;
+    if (completed.failure() != null) {
+      fail(token, completed.failure());
       return false;
     }
-    publish(workToken, workValues, value.value(), value.failure());
+    var value = handoff.take();
+    if (value == null) {
+      fail(token, new IllegalStateException("Membership Apply preparation unavailable"));
+      return false;
+    }
+    publish(token, workValues, value.value(), value.failure());
     return closed;
   }
 
   void suspendApply() {
     if (closed || (task == null && !ready && !admitting)) return;
-    retireWork();
+    Object suspended = retireWork();
+    if (closed || suspended != workToken) return;
     progress =
         "Membership Apply cancelled. Private choices are preserved; Apply Members again explicitly.";
   }
@@ -330,7 +339,8 @@ public final class MembershipEditSession implements AutoCloseable {
       if (!prepared.success()) {
         var diagnostics = prepared.diagnostics();
         var result = ProjectChangeResult.rejected(diagnostics);
-        retireWork();
+        Object rejected = retireWork();
+        if (closed || rejected != workToken) return;
         applyIssues = result.issues();
         issueCount = result.issueCount();
         progress =
@@ -341,8 +351,8 @@ public final class MembershipEditSession implements AutoCloseable {
       }
       editor.document.applyEdit(prepared);
       applied = true;
-      retireWork();
       closed = true;
+      retireWork();
       handoff.close();
       editor.revision++;
       editor.issues = List.of();
@@ -366,20 +376,22 @@ public final class MembershipEditSession implements AutoCloseable {
 
   private void refresh() {
     if ((task == null && !ready) || closed) return;
+    Object token = workToken;
     try {
       if (!currentOwner(editor) || !workOwner.current(editor) || !feedbackCurrent()) {
         stale();
         return;
       }
       var done = BackgroundFailure.completed(task);
-      if (done != null && done.failure() != null) fail(workToken, done.failure());
+      if (owns(token) && done != null && done.failure() != null) fail(token, done.failure());
     } catch (Throwable failure) {
-      fail(workToken, failure);
+      fail(token, failure);
     }
   }
 
   private void stale() {
-    retireWork();
+    Object invalidated = retireWork();
+    if (closed || invalidated != workToken) return;
     progress =
         "Membership Apply became stale. The selection is retained; review it and Apply Members"
             + " again, or Cancel and reopen if the owner changed.";
@@ -387,10 +399,13 @@ public final class MembershipEditSession implements AutoCloseable {
 
   private void fail(Object token, Throwable failure) {
     if (token != workToken || closed) return;
-    retireWork();
+    Object failed = retireWork();
+    if (closed || failed != workToken) return;
+    String feedback = BackgroundFailure.describe(failure);
+    if (closed || failed != workToken) return;
     applyIssues = List.of();
     issueCount = 0;
-    applyFailure = BackgroundFailure.describe(failure);
+    applyFailure = feedback;
     progress =
         "Membership Apply failed. The selection is retained; Apply Members again to retry, or"
             + " Cancel.";
@@ -405,12 +420,13 @@ public final class MembershipEditSession implements AutoCloseable {
     }
   }
 
-  private void retireWork() {
+  private Object retireWork() {
     var previous = task;
-    workToken = new Object();
+    Object retired = new Object();
+    workToken = retired;
     workVersion++;
     task = null;
-    ready = false;
+    ready = admitted = false;
     workValues = null;
     handoff.advance(++delivery);
     admitting = false;
@@ -421,6 +437,7 @@ public final class MembershipEditSession implements AutoCloseable {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   @Override

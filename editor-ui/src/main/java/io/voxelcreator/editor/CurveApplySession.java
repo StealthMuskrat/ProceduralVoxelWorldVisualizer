@@ -26,7 +26,7 @@ final class CurveApplySession implements AutoCloseable {
   private record Prepared(CurveDraftEdit.Prepared value, Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery;
-  private boolean ready;
+  private boolean ready, admitted;
   private Object token = new Object();
   private long version;
 
@@ -97,13 +97,13 @@ final class CurveApplySession implements AutoCloseable {
   }
 
   private void start(Curve curve) {
-    retire();
+    Object request = retire();
+    if (closed || request != token || task != null) return;
     error = "";
     applying = true;
     progress =
         "Preparing Curve Apply in the background. Editing cancels this Apply; Cancel Apply"
             + " or Escape keeps the private curve open.";
-    Object request = token;
     try {
       boolean valid = current.getAsBoolean();
       if (!owns(request)) return;
@@ -127,6 +127,7 @@ final class CurveApplySession implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
+      if (owns(request)) admitted = true;
     } catch (Throwable failure) {
       fail(request, failure);
     }
@@ -145,9 +146,7 @@ final class CurveApplySession implements AutoCloseable {
 
   private void delivered(Object request, long handed) {
     if (!owns(request) || delivery != handed || ready) return;
-    refresh();
-    if (!owns(request)) return;
-    task = null;
+    // Readiness alone does not prove complete posting or successful executor admission.
     ready = true;
   }
 
@@ -159,14 +158,19 @@ final class CurveApplySession implements AutoCloseable {
   boolean accept() {
     Object request = token;
     refresh();
-    if (!owns(request) || !ready) return false;
+    if (!owns(request) || !ready || !admitted) return false;
+    var completed = BackgroundFailure.completed(task);
+    if (!owns(request) || completed == null) return false;
+    if (completed.failure() != null) {
+      fail(request, completed.failure());
+      return false;
+    }
     Prepared value;
     try {
       boolean valid = exact();
       if (!owns(request)) return false;
       if (!valid) {
-        cancelApply();
-        progress = "Curve or source changed. Apply the current curve explicitly.";
+        changed(request);
         return false;
       }
       value = handoff.take();
@@ -179,26 +183,29 @@ final class CurveApplySession implements AutoCloseable {
       fail(request, rejected);
       return false;
     }
-    retire();
+    Object adopted = retire();
+    if (closed || adopted != token) return false;
     progress = "";
     applying = true;
     try {
       return publish(() -> preparedStage.accept(Objects.requireNonNull(value.value())));
     } catch (Throwable rejected) {
-      fail(token, rejected);
+      fail(adopted, rejected);
       return false;
     } finally {
-      applying = false;
+      if (adopted == token) applying = false;
     }
   }
 
   private boolean publish(Runnable publication) {
+    Object request = token;
     try {
       publication.run();
     } catch (RuntimeException rejected) {
-      error =
-          StatusBarText.bounded(
-              Objects.requireNonNullElse(rejected.getMessage(), rejected.toString()), 2048);
+      if (closed || request != token) return false;
+      String feedback = StatusBarText.bounded(BackgroundFailure.describe(rejected), 2048);
+      if (closed || request != token) return false;
+      error = feedback;
       return false;
     }
     closed = true;
@@ -220,12 +227,11 @@ final class CurveApplySession implements AutoCloseable {
       boolean valid = exact();
       if (!owns(request)) return;
       if (!valid) {
-        cancelApply();
-        progress = "Curve or source changed. Apply the current curve explicitly.";
+        changed(request);
         return;
       }
       var done = BackgroundFailure.completed(task);
-      if (done != null && done.failure() != null) fail(request, done.failure());
+      if (owns(request) && done != null && done.failure() != null) fail(request, done.failure());
     } catch (Throwable failure) {
       fail(request, failure);
     }
@@ -233,34 +239,45 @@ final class CurveApplySession implements AutoCloseable {
 
   private void fail(Object request, Throwable failure) {
     if (request != token || closed) return;
-    retire();
-    applying = false;
-    progress = "";
-    error =
+    Object failed = retire();
+    if (closed || failed != token) return;
+    String feedback =
         "Curve Apply failed: "
             + BackgroundFailure.describe(failure)
             + ". Retry Apply explicitly or Cancel.";
-    error = StatusBarText.bounded(error, 2048);
+    if (closed || failed != token) return;
+    progress = "";
+    error = StatusBarText.bounded(feedback, 2048);
   }
 
-  private void retire() {
+  private void changed(Object request) {
+    if (!owns(request)) return;
+    Object invalidated = retire();
+    if (closed || invalidated != token) return;
+    error = "";
+    progress = "Curve or source changed. Apply the current curve explicitly.";
+  }
+
+  private Object retire() {
     var previous = task;
-    token = new Object();
+    Object retired = new Object();
+    token = retired;
     version++;
     task = null;
     input = null;
-    ready = false;
+    applying = ready = admitted = false;
     handoff.advance(++delivery);
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   void cancelApply() {
     if (closed || executor == null || !applying) return;
-    retire();
-    applying = false;
+    Object cancelled = retire();
+    if (closed || cancelled != token) return;
     error = "";
     progress = "Curve Apply cancelled. Private curve edits are preserved.";
   }

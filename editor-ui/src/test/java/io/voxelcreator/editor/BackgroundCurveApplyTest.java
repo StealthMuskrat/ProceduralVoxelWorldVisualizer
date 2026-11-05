@@ -91,6 +91,7 @@ class BackgroundCurveApplyTest {
         completion.run();
         assertTrue(edit.ready());
         assertEquals(0, stages.get());
+        worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
         assertTrue(edit.accept());
         assertTrue(edit.closed());
         assertEquals(1, stages.get());
