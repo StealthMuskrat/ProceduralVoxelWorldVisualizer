@@ -7,6 +7,23 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void packageLoadingHelpExplainsReadyPathDecisionsBeforeSeparateExplicitReview() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.resource-import");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Initial package delivery alone never opens review"));
+    assertTrue(text.contains("File Location handles current Cancel or Escape before accepting a ready package or preparation failure"));
+    assertTrue(text.contains("original request, current opening and exact displayed path"));
+    assertTrue(text.contains("Loading finishes without a second confirmation"));
+    assertTrue(text.contains("separate visible review and explicit Import action are still required"));
+    assertTrue(catalog.search("package ready path").contains(topic));
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Import"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void updateHelpExplainsReadyCancellationCollapseAndReviewedLinkActions() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

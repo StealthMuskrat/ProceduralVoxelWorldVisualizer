@@ -43,11 +43,12 @@ print('IMPORT_WORKSPACE_INDEPENDENT_PASS exact COPY/REUSE/SKIP / preserved exist
 background = out / 'background-import'
 loading = json.loads((background / 'background-import.json').read_text())
 assert loading['formatVersion'] == 1 and loading['physicalInputVerified'] is False
-assert [c['mode'] for c in loading['cases']] == ['success', 'cancel', 'escape', 'raw', 'retry', 'close']
+assert [c['mode'] for c in loading['cases']] == ['success', 'cancel', 'escape', 'raw', 'retry', 'close', 'ready-cancel', 'ready-escape', 'ready-close', 'ready-invalid-cancel', 'ready-failure-cancel']
 for case in loading['cases']:
     mode = case['mode']
     assert case['imported'] is (mode in ['success', 'retry'])
     assert case['responsiveFrames'] == 12
+    assert case['readyRetired'] is mode.startswith('ready-')
     assert all(case[k] is True for k in ['privateRetained', 'preferencesRetained', 'originalBytesRetained'])
     folder = background / mode
     previous = json.loads((folder / 'before.json').read_text())
@@ -69,8 +70,8 @@ for case in loading['cases']:
         previous['project'].pop('rootOrder', None); retained['project'].pop('rootOrder', None)
     assert previous == retained
 replay = json.loads((background / 'engine-replay.json').read_text())
-assert replay == {'formatVersion': 1, 'fields': 294, 'cells': 3528, 'roots': [2, 4]}
-print('BACKGROUND_IMPORT_INDEPENDENT_PASS owned snapshots / native cancel-retry / complete retained project / 294 fields / 3528 EMPTY cells')
+assert replay == {'formatVersion': 1, 'fields': 504, 'cells': 6468, 'roots': [2, 4]}
+print('BACKGROUND_IMPORT_INDEPENDENT_PASS owned snapshots / native cancel-retry / complete retained project / 504 fields / 6468 EMPTY cells')
 
 # Deferred choice/reload background planning: independent full models and replay dimensions.
 planning = out / 'planning'

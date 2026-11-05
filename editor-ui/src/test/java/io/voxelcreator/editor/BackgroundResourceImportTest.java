@@ -81,7 +81,7 @@ class BackgroundResourceImportTest {
   }
 
   @Test
-  void readValidationAndInitialPreviewRunOffThreadWithOwnerThreadReviewPublication()
+  void readValidationAndInitialPreviewRunOffThreadWithOwnerReviewAcceptance()
       throws Exception {
     try (var state = state();
         var workers = Executors.newSingleThreadExecutor()) {
@@ -121,7 +121,12 @@ class BackgroundResourceImportTest {
         var deliver = queue.poll(5, TimeUnit.SECONDS);
         assertNotNull(deliver);
         assertFalse(panel.pending());
+        var request = loading.requestToken();
         deliver.run();
+        assertEquals(ResourceImportLoader.Phase.RUNNING, loading.view().phase());
+        assertSame(request, loading.requestToken());
+        assertFalse(panel.pending());
+        loading.acceptPrepared();
         assertEquals(ResourceImportLoader.Phase.READY, loading.view().phase());
         assertTrue(panel.pending());
         assertSame(panel.session().preview(), panel.session().preview());
@@ -146,6 +151,7 @@ class BackgroundResourceImportTest {
         assertEquals(ResourceImportLoader.Phase.RUNNING, loading.view().phase());
         assertFalse(panel.pending());
         ui.removeFirst().run();
+        loading.acceptPrepared();
         retained(state, owner, draft, history);
         var session = panel.session();
         assertFalse(session.canApply());
@@ -211,6 +217,7 @@ class BackgroundResourceImportTest {
         assertEquals(ResourceImportLoader.Phase.RUNNING, loading.view().phase());
         workers.run();
         ui.removeFirst().run();
+        loading.acceptPrepared();
         var session = panel.session();
         old.run();
         assertSame(session, panel.session());
@@ -232,6 +239,7 @@ class BackgroundResourceImportTest {
         state.project().project.seed = 314;
         var after = ProjectIO.JSON.valueToTree(state.project());
         ui.removeFirst().run();
+        loading.acceptPrepared();
         assertEquals(ResourceImportLoader.Phase.STALE, loading.view().phase());
         assertFalse(panel.pending());
         assertEquals(after, ProjectIO.JSON.valueToTree(state.project()));
@@ -258,6 +266,7 @@ class BackgroundResourceImportTest {
           }
           var after = new ProjectFileOwner(state);
           ui.removeFirst().run();
+          loading.acceptPrepared();
           assertEquals(ResourceImportLoader.Phase.STALE, loading.view().phase());
           assertTrue(after.valuesCurrent(state));
           assertFalse(panel.pending());
@@ -281,6 +290,7 @@ class BackgroundResourceImportTest {
           else state.newSession();
           var after = new ProjectFileOwner(state);
           ui.removeFirst().run();
+          loading.acceptPrepared();
           assertEquals(ResourceImportLoader.Phase.STALE, loading.view().phase());
           assertTrue(after.valuesCurrent(state));
           assertFalse(panel.pending());
@@ -302,6 +312,7 @@ class BackgroundResourceImportTest {
         assertTrue(loading.start(file.toString()));
         workers.run();
         ui.removeFirst().run();
+        loading.acceptPrepared();
         assertEquals(ResourceImportLoader.Phase.FAILED, loading.view().phase());
         assertFalse(panel.pending());
         assertTrue(owner.valuesCurrent(state));
@@ -310,6 +321,7 @@ class BackgroundResourceImportTest {
         assertTrue(loading.start(file.toString()));
         workers.run();
         ui.removeFirst().run();
+        loading.acceptPrepared();
         assertEquals(ResourceImportLoader.Phase.READY, loading.view().phase());
         assertTrue(panel.pending());
       }
@@ -339,6 +351,7 @@ class BackgroundResourceImportTest {
         assertTrue(loading.start(file.toString()));
         workers.run();
         ui.removeFirst().run();
+        loading.acceptPrepared();
         assertEquals(ResourceImportLoader.Phase.FAILED, loading.view().phase());
         assertFalse(panel.pending());
         assertSame(issues, state.issues);
@@ -361,6 +374,7 @@ class BackgroundResourceImportTest {
         assertEquals(1, workers.tasks.size());
         workers.run();
         ui.removeFirst().run();
+        loading.acceptPrepared();
         assertTrue(panel.pending());
       }
     }
@@ -427,6 +441,7 @@ class BackgroundResourceImportTest {
           if (mode.equals("cancel")) ((Future<?>) workers.tasks.getFirst()).cancel(true);
           workers.run();
           while (!ui.isEmpty()) ui.removeFirst().run();
+          loading.acceptPrepared();
           assertEquals(
               mode.equals("cancel")
                   ? ResourceImportLoader.Phase.CANCELLED
@@ -460,6 +475,7 @@ class BackgroundResourceImportTest {
           workers.run();
           if (!cancel) blocked.set(true);
           ui.removeFirst().run();
+          loading.acceptPrepared();
           assertFalse(panel.pending());
           assertEquals(
               cancel ? ResourceImportLoader.Phase.CANCELLED : ResourceImportLoader.Phase.STALE,
@@ -518,7 +534,12 @@ class BackgroundResourceImportTest {
         assertEquals(Path.of(dialog.pathText()), seen.get());
         assertTrue(dialog.pending());
         assertFalse(panel.pending());
+        var shown = dialog.capture(3);
+        var request = dialog.importRequestToken();
         ui.removeFirst().run();
+        assertTrue(dialog.importRunning());
+        assertFalse(panel.pending());
+        dialog.acceptImport(shown, request);
         dialog.pollImport();
         assertFalse(dialog.pending());
         assertTrue(panel.pending());

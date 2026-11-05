@@ -10,7 +10,7 @@ import java.util.*;
 final class BackgroundImportConsumer {
   static void run(Path out) throws Exception {
     long samples = 0, cells = 0;
-    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close")) {
+    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close", "ready-cancel", "ready-escape", "ready-close", "ready-invalid-cancel", "ready-failure-cancel")) {
       var directory = out.resolve(mode);
       var beforeFile = directory.resolve("before.json");
       var afterFile = directory.resolve("after.json");
@@ -106,7 +106,7 @@ final class BackgroundImportConsumer {
               && Arrays.equals(afterBytes, Files.readAllBytes(afterFile)),
           "Runtime replay changed saved snapshots");
     }
-    require(samples == 294 && cells == 3528, "Unexpected background import observation count");
+    require(samples == 504 && cells == 6468, "Unexpected background import observation count");
     Files.writeString(
         out.resolve("engine-replay.json"),
         ProjectIO.JSON.writeValueAsString(

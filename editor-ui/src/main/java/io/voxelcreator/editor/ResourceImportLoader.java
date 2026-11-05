@@ -41,6 +41,11 @@ final class ResourceImportLoader implements AutoCloseable {
   private Object token = new Object();
   private ProjectFileOwner owner;
   private FutureTask<Void> task;
+  private record Prepared(ImportEditSession.Prepared value, Throwable failure) {}
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery;
+  private boolean preparedReady;
+  private String sourceText;
 
   ResourceImportLoader(
       EditorState state,
@@ -62,6 +67,10 @@ final class ResourceImportLoader implements AutoCloseable {
     return new View(phase, message);
   }
 
+  Object requestToken() {
+    return token;
+  }
+
   boolean start(String location) {
     refresh();
     if (phase == Phase.CLOSED || phase == Phase.RUNNING) return false;
@@ -69,12 +78,15 @@ final class ResourceImportLoader implements AutoCloseable {
     Object request = token;
     try {
       Path source = ResourcePackageFiles.location(location);
+      sourceText = location;
       owner = new ProjectFileOwner(state);
       var destination = ProjectIO.copy(state.project());
       phase = Phase.RUNNING;
       message =
           "Reading and validating the package and preparing its conflict preview in the"
               + " background.";
+      long handed = ++delivery;
+      handoff.advance(handed);
       task =
           new FutureTask<>(
               () -> {
@@ -85,9 +97,8 @@ final class ResourceImportLoader implements AutoCloseable {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var value = result;
-                var rejected = failure;
-                ui.accept(() -> publish(request, value, rejected));
+                if (!handoff.publish(handed, new Prepared(result, failure))) return null;
+                ui.accept(() -> delivered(request, handed));
                 return null;
               });
       executor.execute(task);
@@ -106,12 +117,53 @@ final class ResourceImportLoader implements AutoCloseable {
     return owns(request) && owner.valuesCurrent(state);
   }
 
-  private void publish(Object request, ImportEditSession.Prepared prepared, Throwable failure) {
+  private void delivered(Object request, long handed) {
+    if (!owns(request) || delivery != handed || preparedReady) return;
+    refresh();
+    if (!owns(request)) return;
+    // An inline handoff may still fail before returning; keep observing its FutureTask.
+    preparedReady = true;
+  }
+
+  void acceptPrepared() {
+    acceptPrepared(sourceText, () -> true);
+  }
+
+  /** Path controls and the exact current opening decide before review can be installed. */
+  void acceptPrepared(String displayed, BooleanSupplier shown) {
+    Object request = token;
+    refresh();
+    if (!owns(request) || !preparedReady) return;
+    if (!Objects.equals(sourceText, displayed)) {
+      stale();
+      return;
+    }
+    Objects.requireNonNull(shown);
+    var value = handoff.take();
+    if (value == null) {
+      fail(request, new IllegalStateException("Import package preparation unavailable"));
+      return;
+    }
+    publish(request, value.value(), value.failure(), shown);
+  }
+
+  private boolean current(Object request, BooleanSupplier shown) {
+    if (!current(request)) return false;
+    boolean visible = shown.getAsBoolean();
+    return visible && current(request);
+  }
+
+  private void publish(
+      Object request,
+      ImportEditSession.Prepared prepared,
+      Throwable failure,
+      BooleanSupplier shown) {
     if (!owns(request)) return;
     refresh();
     if (!owns(request)) return;
     try {
-      if (!current(request)) {
+      if (!current(request, shown)) {
+        if (!owns(request)) return;
         stale();
         return;
       }
@@ -125,11 +177,12 @@ final class ResourceImportLoader implements AutoCloseable {
       }
       boolean unavailable = blocked.getAsBoolean();
       if (!owns(request)) return;
-      if (unavailable || !current(request)) {
+      if (unavailable || !current(request, shown)) {
+        if (!owns(request)) return;
         stale();
         return;
       }
-      boolean opened = review.open(Objects.requireNonNull(prepared), () -> current(request));
+      boolean opened = review.open(Objects.requireNonNull(prepared), () -> current(request, shown));
       if (!owns(request)) return;
       if (!opened) {
         fail(request, new IllegalStateException("Import review is blocked; retry when ready"));
@@ -178,6 +231,9 @@ final class ResourceImportLoader implements AutoCloseable {
     token = new Object();
     owner = null;
     task = null;
+    sourceText = null;
+    preparedReady = false;
+    handoff.advance(++delivery);
   }
 
   private void retire() {
@@ -206,6 +262,7 @@ final class ResourceImportLoader implements AutoCloseable {
     if (phase == Phase.CLOSED) return;
     retire();
     phase = Phase.CLOSED;
+    handoff.close();
     message = "Import preparation closed.";
   }
 }

@@ -20,7 +20,7 @@ final class ResourceImportLoadingProbe {
   static void run(Path out) throws Exception {
     Files.createDirectories(out);
     var cases = new ArrayList<Map<String, Object>>();
-    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close")) {
+    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close", "ready-cancel", "ready-escape", "ready-close", "ready-invalid-cancel", "ready-failure-cancel")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       var source = directory.resolve("资源 package.pvresources.json");
@@ -28,7 +28,7 @@ final class ResourceImportLoadingProbe {
       incoming.noise2D.add(noise("incoming", .75));
       String packageBytes =
           ProjectIO.JSON.writeValueAsString(Map.of("packageVersion", 1, "resources", incoming));
-      Files.writeString(source, mode.equals("retry") ? "{\"packageVersion\":2}" : packageBytes);
+      Files.writeString(source, (mode.equals("retry") || mode.equals("ready-invalid-cancel")) ? "{\"packageVersion\":2}" : packageBytes);
       try (var editor = new EditorState(new UserConfig(), false)) {
         state = editor;
         state.user.appearance.globalScale = 1;
@@ -58,6 +58,7 @@ final class ResourceImportLoadingProbe {
         ui = new ConcurrentLinkedQueue<>();
         var entered = new CountDownLatch(1);
         var release = new CountDownLatch(1);
+        var finished = new CountDownLatch(1);
         var files = new ResourcePackageFiles();
         var uiThread = Thread.currentThread();
         try (var workspace =
@@ -73,9 +74,12 @@ final class ResourceImportLoadingProbe {
                   require(
                       Thread.currentThread() != uiThread, "Package preparation ran on UI thread");
                   entered.countDown();
-                  if (!release.await(20, TimeUnit.SECONDS))
-                    throw new IllegalStateException("Import gate timed out");
-                  return ImportEditSession.prepare(destination, files.read(file));
+                  try {
+                    if (!release.await(20, TimeUnit.SECONDS))
+                      throw new IllegalStateException("Import gate timed out");
+                    if (mode.equals("ready-failure-cancel")) throw new AssertionError("held package preparation failure");
+                    return ImportEditSession.prepare(destination, files.read(file));
+                  } finally { finished.countDown(); }
                 })) {
           dialog = workspace;
           holdUi = true;
@@ -107,13 +111,26 @@ final class ResourceImportLoadingProbe {
             frame();
             require(!dialog.pending(), "Escape retained the loading dialog");
             release.countDown();
-            await(() -> !ui.isEmpty(), "Cancelled worker did not retire its callback");
+            await(() -> finished.getCount() == 0, "Cancelled worker did not finish retiring preparation");
           } else {
             release.countDown();
             await(() -> !ui.isEmpty(), "Package completion did not reach UI queue");
             require(
                 dialog.pending() && !panel.pending(), "Worker opened review without UI delivery");
-            if (mode.equals("cancel")) click(dialog.control("cancel"));
+            if (mode.startsWith("ready-")) {
+              var request = dialog.importRequestToken();
+              if (!mode.equals("ready-escape") && !mode.equals("ready-close")) hold(dialog.control("cancel"));
+              ui.remove().run();
+              require(dialog.pending() && dialog.importRunning() && !panel.pending()
+                  && request == dialog.importRequestToken() && dialog.error().isEmpty(),
+                  "Ready package result opened review or changed Cancel authority");
+              if (mode.equals("ready-escape")) {
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+              } else if (mode.equals("ready-close")) { dialog.close(); frames(3); }
+              else { ImGui.getIO().addMouseButtonEvent(0, false); frames(3); }
+              require(!dialog.pending() && !panel.pending(), "Ready cancellation opened or retained an obsolete review");
+            } else if (mode.equals("cancel")) click(dialog.control("cancel"));
             else if (mode.equals("close")) dialog.close();
             else if (mode.equals("raw")) state.project().project.seed = 18;
           }
@@ -197,7 +214,9 @@ final class ResourceImportLoadingProbe {
                   "preferencesRetained",
                   true,
                   "originalBytesRetained",
-                  true));
+                  true,
+                  "readyRetired",
+                  mode.startsWith("ready-")));
         } finally {
           release.countDown();
           panel.cancel();
@@ -248,6 +267,12 @@ final class ResourceImportLoadingProbe {
 
   private static void frames(int count) {
     for (int i = 0; i < count; i++) frame();
+  }
+
+  private static void hold(float[] at) {
+    require(at != null, "Missing package Cancel control");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(float[] at) {

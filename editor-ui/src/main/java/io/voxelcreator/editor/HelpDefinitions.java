@@ -194,7 +194,12 @@ final class HelpDefinitions {
                   + " runs before accepting a ready result, including rejected or failed"
                   + " preparation. The original Import action finishes without another"
                   + " confirmation. Cancellation retains separate private Properties input;"
-                  + " reopening Import requires a new review."),
+                  + " reopening Import requires a new review. Initial package delivery alone"
+                  + " never opens review. File Location handles current Cancel or Escape before"
+                  + " accepting a ready package or preparation failure. Acceptance requires the"
+                  + " original request, current opening and exact displayed path. Loading finishes"
+                  + " without a second confirmation; the separate visible review and explicit"
+                  + " Import action are still required."),
           new Guide(
               "help.project-open",
               "Opening a project",
