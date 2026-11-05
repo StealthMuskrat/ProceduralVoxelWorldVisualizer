@@ -24,12 +24,14 @@ final class ProjectSaveProbe {
     var rows = new ArrayList<Map<String, Object>>();
     var uiThread = Thread.currentThread();
     for (String mode :
-        List.of("SAVE", "CANCEL_READY", "ESCAPE", "COMMITTED", "COMPILER", "RETRY_EXIT", "NEW")) {
+        List.of("SAVE", "CANCEL_READY", "ESCAPE", "COMMITTED", "COMPILER", "RETRY_EXIT", "NEW", "READY_CANCEL", "READY_ESCAPE", "READY_CLOSE", "READY_COMPILER_CANCEL", "READY_NEW_CANCEL", "READY_NAMED_CANCEL", "NAMED_SAVE", "READY_OPEN_CANCEL")) {
+      boolean ready = mode.startsWith("READY_");
+      boolean named = mode.equals("READY_NAMED_CANCEL") || mode.equals("NAMED_SAVE");
       var entered = new CountDownLatch(1);
       var release = new CountDownLatch(1);
       var worker = new AtomicReference<Thread>();
       int[] replacements = {0}, exits = {0};
-      holdUi = false;
+      holdUi = ready || named;
       try (var editor = new EditorState(new UserConfig(), false)) {
         state = editor;
         require(
@@ -52,6 +54,15 @@ final class ProjectSaveProbe {
         var token = state.document.sessionToken();
         var path = out.resolve(mode + "-saved.json").toAbsolutePath();
         Files.writeString(path, "previous destination");
+        if (named) {
+          state.document.save(path);
+          require(state.change(p -> p.project.seed = 43), "Named Save fixture edit");
+          before = ProjectIO.JSON.valueToTree(state.project());
+          active = state.project();
+          token = state.document.sessionToken();
+        }
+        String prior = Files.readString(path);
+        Files.writeString(out.resolve(mode + "-prior.txt"), prior);
         state.document.setValidator(
             project -> {
               worker.set(Thread.currentThread());
@@ -63,22 +74,33 @@ final class ProjectSaveProbe {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Cancelled Save gate", interrupted);
               }
-              if (mode.equals("COMPILER") || mode.equals("RETRY_EXIT"))
+              if (mode.equals("COMPILER") || mode.equals("RETRY_EXIT") || mode.equals("READY_COMPILER_CANCEL"))
                 throw new AssertionError("Controlled Save validation failure");
               return NoiseCompiler.validate(project);
             });
+        Path incoming = null;
+        byte[] incomingBytes = null;
+        if (mode.equals("READY_OPEN_CANCEL")) {
+          incoming = out.resolve(mode + "-incoming.json").toAbsolutePath();
+          var candidate = new ProjectData(); candidate.project.seed = 99;
+          new ProjectIO().save(incoming, candidate); incomingBytes = Files.readAllBytes(incoming);
+        }
         dialog =
             ProjectFileDialog.background(
                 state, () -> replacements[0]++, () -> exits[0]++, () -> false);
-        if (mode.equals("NEW") || mode.equals("RETRY_EXIT")) {
-          dialog.workflow.request(mode.equals("NEW") ? Intent.NEW : Intent.EXIT);
+        if (mode.equals("READY_OPEN_CANCEL")) {
+          require(dialog.openLocation(incoming.toString()), "Supplied Open admission");
+          dialog.workflow.decideDraft(DraftDecision.DISCARD); dialog.workflow.decide(Decision.SAVE);
+        } else if (mode.equals("NEW") || mode.equals("RETRY_EXIT") || mode.equals("READY_NEW_CANCEL")) {
+          dialog.workflow.request(mode.equals("RETRY_EXIT") ? Intent.EXIT : Intent.NEW);
           dialog.workflow.decideDraft(DraftDecision.DISCARD);
           dialog.workflow.decide(Decision.SAVE);
-        } else dialog.workflow.save(true);
+        } else dialog.workflow.save(!named);
         frame();
         frame();
-        text(path.toString());
-        click("Save");
+        if (incoming != null) require(!dialog.probePath().equals(incoming.toString()), "Save As inherited the pending Open filename");
+        if (!named) { text(path.toString()); click("Save"); }
+        else require(dialog.probeSavingPath().equals(path.toString()), "Named Save displayed the wrong destination");
         require(entered.await(5, TimeUnit.SECONDS), "Save validation worker did not start");
         for (int i = 0; i < 12; i++) frame();
         require(
@@ -88,7 +110,7 @@ final class ProjectSaveProbe {
                 && state.document.dirty(),
             "Blocked Save published UI state");
         require(
-            Files.readString(path).equals("previous destination"),
+            Files.readString(path).equals(prior),
             "Background worker replaced destination");
         if (mode.equals("CANCEL_READY")) {
           holdUi = true;
@@ -100,6 +122,21 @@ final class ProjectSaveProbe {
         } else if (mode.equals("ESCAPE")) key(ImGuiKey.Escape);
         else if (mode.equals("COMMITTED")) state.project().project.seed = 42;
         release.countDown();
+        if (ready || named) {
+          await(() -> !state.uiQueue.isEmpty(), false);
+          if (ready && !mode.equals("READY_ESCAPE") && !mode.equals("READY_CLOSE")) hold("Cancel Save");
+          long version = dialog.workflow.saveVersion();
+          state.uiQueue.remove().run();
+          require(dialog.workflow.phase() == Phase.SAVING && dialog.workflow.saveVersion() == version
+              && dialog.workflow.error().isEmpty() && Files.readString(path).equals(prior)
+              && dialog.probeSavingPath().equals(path.toString()) && replacements[0] == 0 && exits[0] == 0,
+              "Ready Save replaced, reported, continued or changed current Cancel authority");
+          if (mode.equals("READY_ESCAPE")) key(ImGuiKey.Escape);
+          else if (mode.equals("READY_CLOSE")) { dialog.workflow.close(); frame(); }
+          else if (ready) { ImGui.getIO().addMouseButtonEvent(0, false); frame(); }
+          else frame(); // Named Save accepts after the current saving controls.
+        }
+        holdUi = false;
         await(() -> dialog.workflow.phase() != Phase.SAVING, true);
         if (Set.of("COMPILER", "RETRY_EXIT").contains(mode)) {
           require(
@@ -115,18 +152,18 @@ final class ProjectSaveProbe {
           await(() -> dialog.workflow.phase() != Phase.SAVING, true);
           require(exits[0] == 0 && replacements[0] == 0, "Save retry resumed aborted Exit");
         }
-        boolean published = Set.of("SAVE", "RETRY_EXIT", "NEW").contains(mode);
+        boolean published = Set.of("SAVE", "RETRY_EXIT", "NEW", "NAMED_SAVE").contains(mode);
         if (published) {
           var saved = new ProjectIO().load(path);
           require(
               saved.success()
-                  && saved.project().project.seed == 41
+                  && saved.project().project.seed == (named ? 43 : 41)
                   && saved.project().noise2D.getFirst().id.equals("owned"),
               "Save wrote private or wrong data");
           require(!state.document.dirty(), "Successful Save left wrong checkpoint");
         } else
           require(
-              Files.readString(path).equals("previous destination"),
+              Files.readString(path).equals(prior),
               "Cancelled/rejected Save overwrote destination");
         if (mode.equals("NEW")) {
           require(
@@ -147,9 +184,10 @@ final class ProjectSaveProbe {
         require(
             preferences.equals(ProjectIO.JSON.valueToTree(state.user)), "Save changed preferences");
         require(temporaryFiles(out).isEmpty(), "Unpublished Save sibling leaked");
+        if (incoming != null) require(Arrays.equals(incomingBytes, Files.readAllBytes(incoming)), "Save before Open changed its pending incoming file");
         Files.writeString(
             out.resolve(mode + "-active.json"), ProjectIO.JSON.writeValueAsString(state.project()));
-        rows.add(
+        var receipt = new LinkedHashMap<String, Object>(
             Map.of(
                 "mode",
                 mode,
@@ -169,6 +207,9 @@ final class ProjectSaveProbe {
                 12,
                 "preferencesPreserved",
                 true));
+        receipt.put("readyRetired", ready);
+        receipt.put("saveFailures", state.events.snapshot().stream().filter(e -> e.code().equals("PROJECT_SAVE_FAILED")).count());
+        rows.add(receipt);
         dialog.workflow.cancel();
         frame();
         frame();
@@ -200,6 +241,12 @@ final class ProjectSaveProbe {
       frame();
       frame();
     }
+  }
+
+  private static void hold(String label) {
+    frame(); frame(); var center = dialog.probeControl(label); require(center != null, "Missing ready Save control");
+    var io = ImGui.getIO(); io.addMousePosEvent(center[0], center[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(String label) {

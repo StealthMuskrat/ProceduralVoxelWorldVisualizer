@@ -149,7 +149,13 @@ final class HelpDefinitions {
                   + " checked again. Failed saves keep the entered path for explicit retry; retry"
                   + " saves only and does not resume an aborted transition. Saving preserves"
                   + " private draft input, selection, generated values and Undo history. No"
-                  + " autosave is enabled."),
+                  + " autosave is enabled. Delivery alone never replaces the file or marks the"
+                  + " project saved. Current Cancel Save or Escape runs before accepting ready"
+                  + " staging or preparation failure. The original Save finishes without another"
+                  + " confirmation. Named Save displays its destination; a Save before Open keeps"
+                  + " the incoming filename separate. A changed displayed destination or saving"
+                  + " dialog retires older staging. Failure retains the Save destination and retries"
+                  + " only Save."),
           new Guide(
               "help.resource-export",
               "Reviewing and exporting a resource package",

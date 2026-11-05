@@ -113,23 +113,33 @@ save_root = out / 'background-save'
 saves = json.loads((save_root / 'project-save-native.json').read_text(encoding='utf-8'))
 assert saves['formatVersion'] == 1
 save_cases = {row['mode']: row for row in saves['cases']}
-assert len(save_cases) == len(saves['cases']) == 7
-assert set(save_cases) == {'SAVE', 'CANCEL_READY', 'ESCAPE', 'COMMITTED', 'COMPILER', 'RETRY_EXIT', 'NEW'}
+assert len(save_cases) == len(saves['cases']) == 15
+assert set(save_cases) == {'SAVE', 'CANCEL_READY', 'ESCAPE', 'COMMITTED', 'COMPILER', 'RETRY_EXIT', 'NEW',
+                           'READY_CANCEL', 'READY_ESCAPE', 'READY_CLOSE', 'READY_COMPILER_CANCEL',
+                           'READY_NEW_CANCEL', 'READY_NAMED_CANCEL', 'NAMED_SAVE', 'READY_OPEN_CANCEL'}
 for mode, row in save_cases.items():
-    published = mode in ('SAVE', 'RETRY_EXIT', 'NEW')
+    published = mode in ('SAVE', 'RETRY_EXIT', 'NEW', 'NAMED_SAVE')
     assert row['published'] == published
+    assert row['readyRetired'] is mode.startswith('READY_')
+    assert row['saveFailures'] == (1 if mode in ('COMPILER', 'RETRY_EXIT') else 0)
     assert row['workerOffUi'] and row['preferencesPreserved'] and row['responsiveFrames'] == 12
     assert row['replacements'] == (1 if mode == 'NEW' else 0) and row['exits'] == 0
-    assert row['seed'] == (0 if mode == 'NEW' else 42 if mode == 'COMMITTED' else 41)
+    assert row['seed'] == (0 if mode == 'NEW' else 42 if mode == 'COMMITTED' else 43 if mode in ('READY_NAMED_CANCEL', 'NAMED_SAVE') else 41)
     assert row['phase'] == ('SAVE' if mode == 'COMPILER' else 'IDLE')
     target = save_root / f'{mode}-saved.json'
     if published:
         saved = json.loads(target.read_text(encoding='utf-8'))
-        assert saved['project']['seed'] == 41 and len(saved['noise2D']) == 1
+        assert saved['project']['seed'] == (43 if mode == 'NAMED_SAVE' else 41) and len(saved['noise2D']) == 1
         assert saved['noise2D'][0]['id'] == 'owned'
         assert saved['noise2D'][0]['algorithm']['parameters'] == {'value': .25}
     else:
-        assert target.read_bytes() == b'previous destination'
+        assert target.read_bytes() == (save_root / f'{mode}-prior.txt').read_bytes()
+        if mode == 'READY_NAMED_CANCEL':
+            prior = json.loads(target.read_text(encoding='utf-8'))
+            assert prior['project']['seed'] == 41 and prior['noise2D'][0]['id'] == 'owned'
+    if mode == 'READY_OPEN_CANCEL':
+        incoming = json.loads((save_root / f'{mode}-incoming.json').read_text(encoding='utf-8'))
+        assert incoming['project']['seed'] == 99 and not incoming['noise2D']
     active = json.loads((save_root / f'{mode}-active.json').read_text(encoding='utf-8'))
     assert active['project']['seed'] == row['seed']
     assert len(active['noise2D']) == (0 if mode == 'NEW' else 1)

@@ -15,12 +15,13 @@ final class ProjectFileDialog {
   final ProjectFileWorkflow workflow;
   private final ImString path = new ImString(4096);
   private ProjectFileWorkflow.Phase shown = ProjectFileWorkflow.Phase.IDLE;
-  private long shownRequest = -1, pathRequest = -1;
+  private long shownRequest = -1, pathRequest = -1, openPathRequest = -1;
+  private String requestedOpenPath;
   private final SettingsPageChrome decisions = new SettingsPageChrome(3);
   private final SettingsPageChrome paths = new SettingsPageChrome(2);
   private SettingsPageChrome chrome = paths;
   private boolean focusPath, revealError;
-  private String shownError = "";
+  private String shownError = "", savingPath = "";
   private int pathId;
   private final NavigationDecisionScope delivery = new NavigationDecisionScope();
   private int drawnFrame = Integer.MIN_VALUE;
@@ -89,6 +90,8 @@ final class ProjectFileDialog {
     if (!workflow.requestOpenLocation()) return false;
     path.set(location == null ? "" : location);
     pathRequest = workflow.requestVersion();
+    openPathRequest = pathRequest;
+    requestedOpenPath = path.get();
     focusPath = true;
     if (workflow.phase() == ProjectFileWorkflow.Phase.OPEN) workflow.submit(location);
     return true;
@@ -103,12 +106,23 @@ final class ProjectFileDialog {
     var phase = workflow.phase();
     long request = workflow.requestVersion();
     long openWork = workflow.openVersion();
+    long saveWork = workflow.saveVersion();
     boolean changed = shown != phase || shownRequest != request;
     if (changed && shown != ProjectFileWorkflow.Phase.IDLE) closePopup(title(shown));
     if (changed && phase != ProjectFileWorkflow.Phase.IDLE) {
       delivery.open();
+      if (phase == ProjectFileWorkflow.Phase.SAVING) savingPath = workflow.savingLocation();
       if (phase == ProjectFileWorkflow.Phase.OPEN || phase == ProjectFileWorkflow.Phase.SAVE) {
-        if (pathRequest != request) {
+        if (phase == ProjectFileWorkflow.Phase.OPEN && openPathRequest == request) {
+          pathRequest = request;
+          path.set(requestedOpenPath);
+        } else if (phase == ProjectFileWorkflow.Phase.SAVE && workflow.savingLocation() != null) {
+          pathRequest = request;
+          path.set(workflow.savingLocation());
+        } else if (phase == ProjectFileWorkflow.Phase.SAVE && openPathRequest == request) {
+          pathRequest = request;
+          path.set(saveSuggestion());
+        } else if (pathRequest != request) {
           pathRequest = request;
           path.set(
               state.document.path() == null
@@ -125,6 +139,8 @@ final class ProjectFileDialog {
     shownRequest = request;
     if (phase == ProjectFileWorkflow.Phase.IDLE) {
       delivery.close();
+      openPathRequest = -1;
+      requestedOpenPath = null;
       return;
     }
     if (!layout.begin(title(phase))) return;
@@ -132,13 +148,15 @@ final class ProjectFileDialog {
     boolean pathPhase =
         phase == ProjectFileWorkflow.Phase.SAVE || phase == ProjectFileWorkflow.Phase.OPEN;
     chrome = pathPhase ? paths : decisions;
+    String displayedSave = savingPath;
     String error = workflow.error();
     if (pathPhase && !error.isEmpty() && !error.equals(shownError)) focusPath = true;
     if (!pathPhase && !error.isEmpty() && !error.equals(shownError)) revealError = true;
     shownError = error;
     // Own native press/release identity across external cancellation and same-phase reopening.
     String scope = "project-file:" + request + ":" + phase.name()
-        + (phase == ProjectFileWorkflow.Phase.LOADING ? ":" + openWork : "");
+        + (phase == ProjectFileWorkflow.Phase.LOADING ? ":" + openWork
+            : phase == ProjectFileWorkflow.Phase.SAVING ? ":" + saveWork : "");
     boolean primary = false, secondary = false, cancel = false;
     String location = null;
     try {
@@ -165,6 +183,7 @@ final class ProjectFileDialog {
             ImGui.textWrapped("Save changes before continuing?");
           } else if (phase == ProjectFileWorkflow.Phase.SAVING) {
             ImGui.textWrapped("Preparing the committed project Save in the background.");
+            ImGui.textWrapped("Destination: " + StatusBarText.clip(displayedSave, 4096));
             ImGui.textWrapped(
                 "Cancel Save preserves the current destination and aborts any pending New, Open or"
                     + " Exit.");
@@ -243,7 +262,13 @@ final class ProjectFileDialog {
       } else if (phase == ProjectFileWorkflow.Phase.GUARD) {
         if (secondary) workflow.decide(ProjectFileWorkflow.Decision.DISCARD);
         else if (primary) workflow.decide(ProjectFileWorkflow.Decision.SAVE);
-      } else if (primary) workflow.submit(location);
+      } else if (primary) {
+        if (phase == ProjectFileWorkflow.Phase.OPEN) {
+          openPathRequest = request;
+          requestedOpenPath = location;
+        }
+        workflow.submit(location);
+      }
     }
     if (!cancel && phase == ProjectFileWorkflow.Phase.LOADING
         && delivery.owns(ticket) && workflow.phase() == phase
@@ -252,6 +277,14 @@ final class ProjectFileDialog {
           path.get(),
           () -> delivery.owns(ticket) && workflow.phase() == phase
               && workflow.requestVersion() == request && workflow.openVersion() == openWork);
+    if (!cancel && phase == ProjectFileWorkflow.Phase.SAVING
+        && delivery.owns(ticket) && workflow.phase() == phase
+        && workflow.requestVersion() == request && workflow.saveVersion() == saveWork)
+      workflow.acceptSave(
+          displayedSave,
+          () -> delivery.owns(ticket) && workflow.phase() == phase
+              && workflow.requestVersion() == request && workflow.saveVersion() == saveWork
+              && Objects.equals(savingPath, displayedSave));
     if (!cancel && phase == ProjectFileWorkflow.Phase.APPLYING
         && workflow.phase() == phase && workflow.requestVersion() == request) workflow.acceptDraft();
     if (primary
@@ -268,6 +301,18 @@ final class ProjectFileDialog {
       pathId = 0;
       shown = ProjectFileWorkflow.Phase.IDLE;
     }
+  }
+
+  private String saveSuggestion() {
+    String suggestion = state.document.path() == null ? "project.pvproj.json" : state.document.path().toString();
+    try {
+      if (java.nio.file.Path.of(suggestion).toAbsolutePath().normalize()
+          .equals(java.nio.file.Path.of(requestedOpenPath).toAbsolutePath().normalize()))
+        return "project-before-open.pvproj.json";
+    } catch (java.nio.file.InvalidPathException ignored) {
+      // Open retains its invalid text for explicit correction; it is never a Save suggestion.
+    }
+    return suggestion;
   }
 
   private void closePopup(String title) {
@@ -313,6 +358,10 @@ final class ProjectFileDialog {
 
   boolean focusPending() {
     return focusPath;
+  }
+
+  String probeSavingPath() {
+    return savingPath;
   }
 
   String probePath() {

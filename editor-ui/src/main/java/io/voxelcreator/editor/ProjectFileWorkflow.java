@@ -57,16 +57,21 @@ final class ProjectFileWorkflow implements AutoCloseable {
   private java.util.List<Diagnostic> draftIssues, draftIssueValues;
   private String draftScope;
   private final OwnedPreviewMailbox<SavePayload> saveHandoff = new OwnedPreviewMailbox<>();
+  private boolean saveReady;
+  private String saveText;
 
   private final class SavePayload implements AutoCloseable {
     final DocumentSession.PreparedSave prepared;
+    final Throwable failure;
 
-    SavePayload(DocumentSession.PreparedSave prepared) {
+    SavePayload(DocumentSession.PreparedSave prepared, Throwable failure) {
       this.prepared = prepared;
+      this.failure = failure;
     }
 
     @Override
     public void close() {
+      if (prepared == null) return;
       try {
         prepared.close();
       } catch (Throwable failure) {
@@ -120,6 +125,14 @@ final class ProjectFileWorkflow implements AutoCloseable {
 
   long openVersion() {
     return generation;
+  }
+
+  long saveVersion() {
+    return generation;
+  }
+
+  String savingLocation() {
+    return saveText;
   }
 
   Phase phase() {
@@ -667,6 +680,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
 
   private void startSave(String location) {
     long attempt = ++generation;
+    saveText = location;
     try {
       var request = state.document.requestSave(path(location));
       long handoff = saveHandoff.begin();
@@ -675,15 +689,15 @@ final class ProjectFileWorkflow implements AutoCloseable {
       saveTask =
           new FutureTask<>(
               () -> {
+                DocumentSession.PreparedSave prepared = null;
                 Throwable failure = null;
                 try {
-                  var prepared = request.prepare();
-                  if (!saveHandoff.publish(handoff, new SavePayload(prepared))) return null;
+                  prepared = Objects.requireNonNull(request.prepare());
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var rejected = failure;
-                ui.accept(() -> publishSave(attempt, handoff, rejected));
+                if (!saveHandoff.publish(handoff, new SavePayload(prepared, failure))) return null;
+                ui.accept(() -> deliveredSave(attempt, handoff));
                 return null;
               });
       executor.execute(saveTask);
@@ -708,25 +722,58 @@ final class ProjectFileWorkflow implements AutoCloseable {
     }
   }
 
-  private void publishSave(long attempt, long handoff, Throwable failure) {
-    if (closed || generation != attempt || phase != Phase.SAVING || !saveHandoff.current(handoff))
+  private boolean ownsSave(long attempt) {
+    return !closed && generation == attempt && phase == Phase.SAVING;
+  }
+
+  private void deliveredSave(long attempt, long handoff) {
+    if (!ownsSave(attempt) || !saveHandoff.current(handoff) || saveReady) return;
+    refreshSave();
+    if (!ownsSave(attempt)) return;
+    // An inline readiness handoff can still throw; retain task observation until acceptance.
+    saveReady = true;
+  }
+
+  void acceptSave() {
+    acceptSave(saveText, () -> true);
+  }
+
+  /** Current saving controls decide before file replacement, checkpoint installation or failure. */
+  void acceptSave(String displayed, BooleanSupplier shown) {
+    long attempt = generation;
+    refreshSave();
+    if (!ownsSave(attempt) || !saveReady) return;
+    if (!Objects.equals(saveText, displayed)) {
+      stale(attempt, "");
       return;
-    saveTask = null;
+    }
+    Objects.requireNonNull(shown);
     var payload = saveHandoff.take();
+    publishSave(attempt, payload, shown);
+  }
+
+  private boolean saveCurrent(long attempt, BooleanSupplier shown) {
+    if (!ownsSave(attempt) || !current() || !ownsSave(attempt)) return false;
+    boolean visible = shown.getAsBoolean();
+    if (!ownsSave(attempt)) return false;
+    if (visible && current() && ownsSave(attempt) && owner.valuesCurrent(state)) return true;
+    stale(attempt, "");
+    return false;
+  }
+
+  private void publishSave(long attempt, SavePayload payload, BooleanSupplier shown) {
     var authority = owner;
     try {
-      if (!current()) return;
-      if (!authority.valuesCurrent(state)) {
-        stale(attempt, "");
-        return;
-      }
-      if (failure != null) {
-        failedSave(attempt, failure);
-        return;
-      }
+      if (!saveCurrent(attempt, shown)) return;
+      // Accepted results must not interrupt a worker finishing its delivery call.
+      saveTask = null;
       if (payload == null) throw new IllegalStateException("Save preparation was not delivered");
+      if (payload.failure != null) {
+        failedSave(attempt, payload.failure);
+        return;
+      }
       working = true;
-      state.document.applySave(payload.prepared);
+      state.document.applySave(Objects.requireNonNull(payload.prepared));
     } catch (Throwable rejected) {
       failedSave(attempt, rejected);
       return;
@@ -766,7 +813,9 @@ final class ProjectFileWorkflow implements AutoCloseable {
 
   private void failedSave(long attempt, Throwable failure) {
     if (closed || generation != attempt) return;
+    String failedLocation = saveText;
     releaseSave();
+    saveText = failedLocation;
     generation++;
     pending = null;
     transition = false;
@@ -778,6 +827,8 @@ final class ProjectFileWorkflow implements AutoCloseable {
   private void releaseSave() {
     var old = saveTask;
     saveTask = null;
+    saveReady = false;
+    saveText = null;
     saveHandoff.invalidate();
     if (old != null) {
       old.cancel(true);

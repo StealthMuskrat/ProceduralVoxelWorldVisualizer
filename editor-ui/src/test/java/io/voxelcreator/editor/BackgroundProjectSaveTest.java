@@ -85,7 +85,14 @@ class BackgroundProjectSaveTest {
       assertEquals(1, temporaryFiles().size());
       assertNull(state.document.path());
       assertTrue(state.document.dirty());
+      long readyVersion = files.saveVersion();
       ui.removeFirst().run();
+      assertEquals(Phase.SAVING, files.phase());
+      assertEquals(readyVersion, files.saveVersion());
+      assertEquals("previous destination", Files.readString(path));
+      assertNull(state.document.path());
+      assertTrue(state.document.dirty());
+      files.acceptSave();
       assertEquals(Phase.IDLE, files.phase());
       assertSame(active, state.project());
       assertSame(draft, state.draft);
@@ -114,6 +121,7 @@ class BackgroundProjectSaveTest {
       workers.run();
       assertEquals(41, new ProjectIO().load(path).project().project.seed);
       ui.removeFirst().run();
+      files.acceptSave();
       assertEquals(42, new ProjectIO().load(path).project().project.seed);
       assertFalse(state.document.dirty());
     }
@@ -137,6 +145,7 @@ class BackgroundProjectSaveTest {
         assertArrayEquals(new int[] {0}, replacements);
         assertArrayEquals(new int[] {0}, exits);
         ui.removeFirst().run();
+        files.acceptSave();
         assertEquals(41, new ProjectIO().load(path).project().project.seed);
         assertEquals(intent == Intent.OPEN ? Phase.OPEN : Phase.IDLE, files.phase());
         assertEquals(intent == Intent.NEW ? 1 : 0, replacements[0]);
@@ -166,6 +175,7 @@ class BackgroundProjectSaveTest {
         workers.run();
         files.cancel();
         ui.removeFirst().run();
+        files.acceptSave();
         assertEquals("previous destination", Files.readString(path));
         assertTrue(temporaryFiles().isEmpty());
         assertEquals(Phase.IDLE, files.phase());
@@ -215,6 +225,7 @@ class BackgroundProjectSaveTest {
         files.submit(path.toString());
         workers.run();
         ui.removeFirst().run();
+        files.acceptSave();
         assertEquals(Phase.SAVE, files.phase());
         assertFalse(files.error().isEmpty());
         assertFalse(Files.exists(path));
@@ -222,6 +233,7 @@ class BackgroundProjectSaveTest {
         files.submit(path.toString());
         workers.run();
         ui.removeFirst().run();
+        files.acceptSave();
         assertEquals(Phase.IDLE, files.phase());
         assertEquals(41, state.project().project.seed);
         assertFalse(state.document.dirty());
@@ -242,6 +254,7 @@ class BackgroundProjectSaveTest {
       workers.run();
       state.project().project.seed = 42;
       ui.removeFirst().run();
+      files.acceptSave();
       assertEquals("previous destination", Files.readString(path));
       assertEquals(Phase.IDLE, files.phase());
       assertEquals(42, state.project().project.seed);
@@ -264,6 +277,7 @@ class BackgroundProjectSaveTest {
         if (policy) state.document.setValidator(p -> List.of());
         else ((Noise) state.draft).id = "later private value";
         ui.removeFirst().run();
+        files.acceptSave();
         assertEquals("previous destination", Files.readString(path));
         assertEquals(policy ? Phase.SAVE : Phase.IDLE, files.phase());
         assertEquals(policy ? "unapplied" : "later private value", ((Noise) state.draft).id);
@@ -313,6 +327,7 @@ class BackgroundProjectSaveTest {
       workers.run();
       files.close();
       ui.removeFirst().run();
+      files.acceptSave();
       assertEquals(Phase.IDLE, files.phase());
       assertFalse(Files.exists(path));
       assertTrue(temporaryFiles().isEmpty());
@@ -336,9 +351,11 @@ class BackgroundProjectSaveTest {
       files.submit(next.toString());
       workers.run();
       ui.removeFirst().run();
+      files.acceptSave();
       assertEquals(Phase.SAVING, files.phase());
       assertFalse(Files.exists(old));
       ui.removeFirst().run();
+      files.acceptSave();
       assertTrue(Files.exists(next));
       assertEquals(next, state.document.path());
       assertTrue(temporaryFiles().isEmpty());
@@ -360,6 +377,7 @@ class BackgroundProjectSaveTest {
       files.submit(target.toString());
       workers.run();
       ui.removeFirst().run();
+      files.acceptSave();
       assertEquals(Phase.SAVE, files.phase());
       assertEquals("retained", Files.readString(target.resolve("sentinel")));
       assertTrue(temporaryFiles().isEmpty());

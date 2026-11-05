@@ -269,7 +269,7 @@ class BackgroundTransitionDraftTest {
       try (var files = new ProjectFileWorkflow(s, () -> fail("replace"), exits::incrementAndGet, () -> false, worker, ui::add)) {
         start(files, Intent.EXIT); deliver(worker, ui); files.acceptDraft();
         files.decide(Decision.SAVE); files.submit("\u0000"); assertEquals(Phase.SAVE, files.phase());
-        var target = directory.resolve("retry.json"); files.submit(target.toString()); deliver(worker, ui);
+        var target = directory.resolve("retry.json"); files.submit(target.toString()); deliver(worker, ui); files.acceptSave();
         assertEquals(Phase.IDLE, files.phase()); assertEquals(0, exits.get());
         assertEquals(.625, new ProjectIO().load(target).project().noise2D.getFirst().algorithm.parameters.get("value"));
         files.request(Intent.EXIT); assertEquals(1, exits.get());

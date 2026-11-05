@@ -7,6 +7,24 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void projectSaveHelpExplainsReadyCancellationAndSeparateSaveBeforeOpenPaths() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.project-save");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Delivery alone never replaces the file or marks the project saved"));
+    assertTrue(text.contains("Cancel Save or Escape runs before accepting ready staging or preparation failure"));
+    assertTrue(text.contains("original Save finishes without another confirmation"));
+    assertTrue(text.contains("Save before Open keeps the incoming filename separate"));
+    assertTrue(text.contains("Failure retains the Save destination and retries only Save"));
+    assertTrue(catalog.search("save ready destination").contains(topic));
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Save"));
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("SaveAs"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void projectOpenHelpExplainsReadyCancellationBeforeReplacementAndExplicitStartupOwnership() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
