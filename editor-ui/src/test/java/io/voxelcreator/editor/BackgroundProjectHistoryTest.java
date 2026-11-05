@@ -90,6 +90,7 @@ class BackgroundProjectHistoryTest {
         callback.run();
         assertTrue(h.preparing());
         assertEquals(.625, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
+        workers.submit(() -> {}).get(10, TimeUnit.SECONDS);
         h.acceptPrepared();
         assertFalse(h.pending());
         assertEquals(.125, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
@@ -98,6 +99,7 @@ class BackgroundProjectHistoryTest {
         var redo = queue.poll(10, TimeUnit.SECONDS);
         assertNotNull(redo);
         redo.run();
+        workers.submit(() -> {}).get(10, TimeUnit.SECONDS);
         h.acceptPrepared();
         assertEquals(.625, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
       }

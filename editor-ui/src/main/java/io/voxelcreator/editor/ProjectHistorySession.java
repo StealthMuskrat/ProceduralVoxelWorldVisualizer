@@ -40,7 +40,7 @@ final class ProjectHistorySession implements AutoCloseable {
   private record Prepared(DocumentSession.PreparedHistory value, Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery, workVersion;
-  private boolean ready;
+  private boolean ready, admitted;
   private Object workToken = new Object();
   private boolean closed;
 
@@ -228,6 +228,7 @@ final class ProjectHistorySession implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
+      if (ownsWork(token)) admitted = true;
       return Result.PREPARING;
     } catch (Throwable failure) {
       failBackground(token, failure);
@@ -241,9 +242,7 @@ final class ProjectHistorySession implements AutoCloseable {
 
   private void delivered(Object token, long handed) {
     if (!ownsWork(token) || delivery != handed || ready) return;
-    refreshBackground();
-    if (!ownsWork(token)) return;
-    task = null;
+    // A readiness receipt does not prove complete posting or successful admission.
     ready = true;
   }
 
@@ -251,7 +250,13 @@ final class ProjectHistorySession implements AutoCloseable {
   void acceptPrepared() {
     Object token = workToken;
     refreshBackground();
-    if (!ownsWork(token) || !ready || moving) return;
+    if (!ownsWork(token) || !ready || !admitted || moving) return;
+    var completed = BackgroundFailure.completed(task);
+    if (!ownsWork(token) || completed == null) return;
+    if (completed.failure() != null) {
+      failBackground(token, completed.failure());
+      return;
+    }
     var value = handoff.take();
     if (value == null) {
       failBackground(token, new IllegalStateException("History preparation unavailable"));
@@ -293,9 +298,10 @@ final class ProjectHistorySession implements AutoCloseable {
       }
       // Retire confirmation authority before any publication/refresh callback, retaining the
       // existing non-reentrant final movement fence until selection reconciliation completes.
-      clear();
       moving = true;
       try {
+        Object consumed = retire();
+        if (closed || consumed != workToken) return;
         try {
           state.document.applyHistory(prepared);
         } catch (Throwable rejected) {
@@ -321,21 +327,23 @@ final class ProjectHistorySession implements AutoCloseable {
 
   private void refreshBackground() {
     if ((task == null && !ready) || closed) return;
+    Object token = workToken;
     try {
       if (!owner.current(state)) {
         staleBackground();
         return;
       }
       var completion = BackgroundFailure.completed(task);
-      if (completion != null && completion.failure() != null)
-        failBackground(workToken, completion.failure());
+      if (ownsWork(token) && completion != null && completion.failure() != null)
+        failBackground(token, completion.failure());
     } catch (Throwable failure) {
-      failBackground(workToken, failure);
+      failBackground(token, failure);
     }
   }
 
   private void staleBackground() {
-    clear();
+    Object invalidated = retire();
+    if (closed || invalidated != workToken) return;
     state.status =
         "History preparation became stale. Request Undo or Redo again; current private input is"
             + " retained.";
@@ -343,11 +351,19 @@ final class ProjectHistorySession implements AutoCloseable {
 
   private void failBackground(Object token, Throwable failure) {
     if (token != workToken || closed) return;
-    clear();
-    reportBackground(
-        "PROJECT_HISTORY_FAILED",
-        "History preparation failed; request Undo or Redo again: ",
-        failure);
+    Object failed = retire();
+    if (closed || failed != workToken) return;
+    String feedback =
+        "History preparation failed; request Undo or Redo again: "
+            + BackgroundFailure.describe(failure);
+    if (closed || failed != workToken) return;
+    try {
+      state.error(
+          "PROJECT_HISTORY_FAILED", EditorEvents.Subsystem.PROJECT,
+          StatusBarText.clip(feedback, 2048));
+    } catch (Throwable ignored) {
+      /* Leave cancellation and a fresh request available. */
+    }
   }
 
   private void reportBackground(String code, String prefix, Throwable failure) {
@@ -368,10 +384,15 @@ final class ProjectHistorySession implements AutoCloseable {
   }
 
   void clear() {
+    retire();
+  }
+
+  private Object retire() {
     var previous = task;
-    workToken = new Object();
+    Object retired = new Object();
+    workToken = retired;
     task = null;
-    ready = false;
+    ready = admitted = false;
     handoff.advance(++delivery);
     workVersion++;
     generation++;
@@ -381,13 +402,14 @@ final class ProjectHistorySession implements AutoCloseable {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   @Override
   public void close() {
     if (closed) return;
-    clear();
     closed = true;
+    clear();
     handoff.close();
   }
 }
