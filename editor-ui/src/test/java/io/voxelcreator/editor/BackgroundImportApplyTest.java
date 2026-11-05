@@ -110,6 +110,7 @@ class BackgroundImportApplyTest {
       assertFalse(edit.closed());
       assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
       assertEquals(history, s.document.historyBytes());
+      worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
       edit.acceptPrepared();
       assertTrue(edit.closed());
       assertEquals(ImportEditSession.ApplyPhase.APPLIED, edit.applyPhase());

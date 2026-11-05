@@ -115,6 +115,7 @@ class ExportPreviewPlanningTest {
       assertTrue(s.planning());
       assertNull(s.catalog());
       assertNull(s.preview());
+      workers.submit(() -> {}).get(10, TimeUnit.SECONDS);
       s.acceptPlanning();
       assertEquals(2, s.catalog().size());
       assertEquals(

@@ -70,7 +70,7 @@ final class ImportEditSession {
   private record PreparedPlan(ResourceImport.Session value, Throwable failure) {}
   private final PreviewMailbox<PreparedPlan> planningHandoff = new PreviewMailbox<>();
   private long planningDelivery;
-  private boolean planningReady;
+  private boolean planningReady, planningAdmitted;
   private boolean planReady, reloadRequested;
   private String planningMessage = "";
   private List<Diagnostic> applyIssues = List.of();
@@ -80,7 +80,7 @@ final class ImportEditSession {
   private record PreparedApply(DocumentSession.PreparedEdit value, Throwable failure) {}
   private final PreviewMailbox<PreparedApply> applyHandoff = new PreviewMailbox<>();
   private long applyDelivery, applyVersion;
-  private boolean applyReady;
+  private boolean applyReady, applyAdmitted;
   private ProjectFileOwner applyOwner;
   private ResourceImport.Plan applyPlan;
   private List<Diagnostic> diagnosticOwner, diagnosticValues;
@@ -249,14 +249,14 @@ final class ImportEditSession {
   }
 
   private void schedule(boolean reload, ResourceImport.Session fork) {
-    retirePlanning();
+    Object ticket = retirePlanning();
+    if (closed || ticket != request || planningTask != null) return;
     planReady = false;
     shown = null;
     clearIssues();
     applyMessage = "";
     applyPhase = ApplyPhase.IDLE;
     reloadRequested = reload;
-    Object ticket = request;
     try {
       planningOwner = new ProjectFileOwner(state);
       var snapshot = reload ? ProjectIO.copy(state.project()) : null;
@@ -284,6 +284,7 @@ final class ImportEditSession {
                 return null;
               });
       executor.execute(planningTask);
+      if (ownsPlanning(ticket)) planningAdmitted = true;
     } catch (Throwable failure) {
       failPlanning(ticket, failure);
     }
@@ -295,9 +296,7 @@ final class ImportEditSession {
 
   private void deliveredPlanning(Object ticket, long handed) {
     if (!ownsPlanning(ticket) || planningDelivery != handed || planningReady) return;
-    refresh();
-    if (!ownsPlanning(ticket)) return;
-    // Keep the FutureTask: an inline readiness handoff may still throw before returning.
+    // A receipt cannot prove normal worker return or successful executor admission.
     planningReady = true;
   }
 
@@ -309,8 +308,14 @@ final class ImportEditSession {
   void acceptPlanning(BooleanSupplier shown) {
     Object ticket = request;
     refresh();
-    if (!ownsPlanning(ticket) || !planningReady) return;
+    if (!ownsPlanning(ticket) || !planningReady || !planningAdmitted) return;
     Objects.requireNonNull(shown);
+    var completed = BackgroundFailure.completed(planningTask);
+    if (!ownsPlanning(ticket) || completed == null) return;
+    if (completed.failure() != null) {
+      failPlanning(ticket, completed.failure());
+      return;
+    }
     var value = planningHandoff.take();
     if (value == null) {
       failPlanning(ticket, new IllegalStateException("Import preview preparation unavailable"));
@@ -352,7 +357,8 @@ final class ImportEditSession {
         stalePlanning();
         return;
       }
-      retirePlanning();
+      Object completed = retirePlanning();
+      if (closed || completed != request) return;
       install(result);
     } catch (Throwable rejected) {
       failPlanning(ticket, rejected);
@@ -362,21 +368,23 @@ final class ImportEditSession {
   private void refresh() {
     refreshApply();
     if (planningTask == null || closed) return;
+    Object ticket = request;
     try {
       if (!planningOwner.current(state)) {
         stalePlanning();
         return;
       }
       var completion = BackgroundFailure.completed(planningTask);
-      if (completion != null && completion.failure() != null)
-        failPlanning(request, completion.failure());
+      if (ownsPlanning(ticket) && completion != null && completion.failure() != null)
+        failPlanning(ticket, completion.failure());
     } catch (Throwable rejected) {
-      failPlanning(request, rejected);
+      failPlanning(ticket, rejected);
     }
   }
 
   private void stalePlanning() {
-    retirePlanning();
+    Object invalidated = retirePlanning();
+    if (closed || invalidated != request) return;
     if (!model.current(state.project())) forcedStale = true;
     planningMessage =
         "The destination, private inputs or pending action changed. Reload or Retry preview before"
@@ -385,11 +393,14 @@ final class ImportEditSession {
 
   private void failPlanning(Object ticket, Throwable failure) {
     if (ticket != request || closed) return;
-    retirePlanning();
-    planningMessage =
+    Object failed = retirePlanning();
+    if (closed || failed != request) return;
+    String feedback =
         "Preview rebuild failed: "
             + BackgroundFailure.describe(failure)
             + ". Retry preview or Cancel.";
+    if (closed || failed != request) return;
+    planningMessage = feedback;
     try {
       state.error("IMPORT_PREVIEW_FAILED", EditorEvents.Subsystem.IMPORT_EXPORT, planningMessage);
     } catch (Throwable ignored) {
@@ -397,17 +408,20 @@ final class ImportEditSession {
     }
   }
 
-  private void retirePlanning() {
+  /** Keep the identity reserved before task cancellation can enter another planning request. */
+  private Object retirePlanning() {
     var previous = planningTask;
-    request = new Object();
+    Object retired = new Object();
+    request = retired;
     planningTask = null;
     planningOwner = null;
-    planningReady = false;
+    planningReady = planningAdmitted = false;
     planningHandoff.advance(++planningDelivery);
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   void markShown(ResourceImport.Plan preview) {
@@ -476,8 +490,8 @@ final class ImportEditSession {
   }
 
   private Result startApply() {
-    retireApply();
-    Object ticket = applyToken;
+    Object ticket = retireApply();
+    if (closed || ticket != applyToken || applying) return Result.CLOSED;
     try {
       var preparation = state.document.requestEdit(model::applyTo);
       applyOwner = new ProjectFileOwner(state);
@@ -515,7 +529,8 @@ final class ImportEditSession {
                 return null;
               });
       executor.execute(applyTask);
-      return Result.STARTED;
+      if (ownsApply(ticket)) applyAdmitted = true;
+      return ownsApply(ticket) ? Result.STARTED : Result.CLOSED;
     } catch (Throwable failure) {
       failApply(ticket, failure);
       return Result.REJECTED;
@@ -528,9 +543,7 @@ final class ImportEditSession {
 
   private void deliveredApply(Object ticket, long handed) {
     if (!ownsApply(ticket) || applyDelivery != handed || applyReady) return;
-    refreshApply();
-    if (!ownsApply(ticket)) return;
-    applyTask = null;
+    // Retain the task until its entire handoff and executor admission have completed.
     applyReady = true;
   }
 
@@ -538,7 +551,13 @@ final class ImportEditSession {
   void acceptPrepared() {
     Object ticket = applyToken;
     refreshApply();
-    if (!ownsApply(ticket) || !applyReady) return;
+    if (!ownsApply(ticket) || !applyReady || !applyAdmitted) return;
+    var completed = BackgroundFailure.completed(applyTask);
+    if (!ownsApply(ticket) || completed == null) return;
+    if (completed.failure() != null) {
+      failApply(ticket, completed.failure());
+      return;
+    }
     var value = applyHandoff.take();
     if (value == null) {
       failApply(ticket, new IllegalStateException("Import preparation unavailable"));
@@ -580,7 +599,8 @@ final class ImportEditSession {
       if (!prepared.success()) {
         var diagnostics = prepared.diagnostics();
         var rejected = ProjectChangeResult.rejected(diagnostics);
-        retireApply();
+        Object rejectedRequest = retireApply();
+        if (closed || rejectedRequest != applyToken) return;
         applyPhase = ApplyPhase.REJECTED;
         applyMessage =
             "Import was rejected. Review validation, then choose Import again to retry or Cancel.";
@@ -595,9 +615,9 @@ final class ImportEditSession {
         staleApply();
         return;
       }
-      retireApply();
       applyPhase = ApplyPhase.APPLIED;
       closed = true;
+      retireApply();
       applyHandoff.close();
       planningHandoff.close();
       shown = null;
@@ -615,21 +635,23 @@ final class ImportEditSession {
 
   private void refreshApply() {
     if (!applying || executor == null || closed) return;
+    Object ticket = applyToken;
     try {
       if (!applyCurrent(false)) {
         staleApply();
         return;
       }
       var completion = BackgroundFailure.completed(applyTask);
-      if (completion != null && completion.failure() != null)
-        failApply(applyToken, completion.failure());
+      if (ownsApply(ticket) && completion != null && completion.failure() != null)
+        failApply(ticket, completion.failure());
     } catch (Throwable failure) {
-      failApply(applyToken, failure);
+      failApply(ticket, failure);
     }
   }
 
   private void staleApply() {
-    retireApply();
+    Object invalidated = retireApply();
+    if (closed || invalidated != applyToken) return;
     shown = null;
     if (!model.current(state.project())) forcedStale = true;
     applyPhase = ApplyPhase.STALE;
@@ -640,12 +662,15 @@ final class ImportEditSession {
 
   private void failApply(Object ticket, Throwable failure) {
     if (ticket != applyToken || closed) return;
-    retireApply();
     applyPhase = ApplyPhase.FAILED;
-    applyMessage =
+    Object failed = retireApply();
+    if (closed || failed != applyToken) return;
+    String feedback =
         "Import preparation failed: "
             + BackgroundFailure.describe(failure)
             + ". Choose Import again to retry, or Cancel.";
+    if (closed || failed != applyToken) return;
+    applyMessage = feedback;
     reportApply("IMPORT_APPLY_FAILED", applyMessage);
   }
 
@@ -657,11 +682,13 @@ final class ImportEditSession {
     }
   }
 
-  private void retireApply() {
+  /** Keep the identity reserved before task cancellation can enter another Apply request. */
+  private Object retireApply() {
     var previous = applyTask;
-    applyToken = new Object();
+    Object retired = new Object();
+    applyToken = retired;
     applyTask = null;
-    applyReady = false;
+    applyReady = applyAdmitted = false;
     applyHandoff.advance(++applyDelivery);
     applyVersion++;
     applyOwner = null;
@@ -673,17 +700,18 @@ final class ImportEditSession {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   void cancel() {
     if (closed || !cancellable()) return;
+    closed = true;
     retireApply();
     applyHandoff.close();
     applyPhase = ApplyPhase.CANCELLED;
     applyMessage = "Import cancelled. The project is unchanged.";
     retirePlanning();
     planningHandoff.close();
-    closed = true;
     shown = null;
     applyIssues = List.of();
     issueCount = 0;

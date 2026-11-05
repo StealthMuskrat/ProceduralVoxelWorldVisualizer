@@ -33,7 +33,7 @@ final class ExportEditSession {
   private record Completion(Prepared value, Throwable failure) {}
   private final PreviewMailbox<Completion> handoff = new PreviewMailbox<>();
   private long delivery;
-  private boolean preparedReady;
+  private boolean preparedReady, admitted;
   private String planningMessage = "";
 
   private record Prepared(
@@ -185,10 +185,10 @@ final class ExportEditSession {
   }
 
   private void schedule() {
-    retirePlanning();
+    Object ticket = retirePlanning();
+    if (closed || ticket != request || task != null) return;
     planReady = false;
     shown = null;
-    Object ticket = request;
     try {
       planningOwner = new ProjectFileOwner(state);
       var snapshot = frozen;
@@ -224,6 +224,7 @@ final class ExportEditSession {
                 return null;
               });
       executor.execute(task);
+      if (ownsPlanning(ticket)) admitted = true;
     } catch (Throwable failure) {
       failPlanning(ticket, failure);
     }
@@ -235,9 +236,7 @@ final class ExportEditSession {
 
   private void delivered(Object ticket, long handed) {
     if (!ownsPlanning(ticket) || delivery != handed || preparedReady) return;
-    refresh();
-    if (!ownsPlanning(ticket)) return;
-    // Observe the task through readiness: an inline handoff may still throw before returning.
+    // A receipt cannot prove normal worker return or successful executor admission.
     preparedReady = true;
   }
 
@@ -249,8 +248,14 @@ final class ExportEditSession {
   void acceptPlanning(BooleanSupplier shown) {
     Object ticket = request;
     refresh();
-    if (!ownsPlanning(ticket) || !preparedReady) return;
+    if (!ownsPlanning(ticket) || !preparedReady || !admitted) return;
     Objects.requireNonNull(shown);
+    var completed = BackgroundFailure.completed(task);
+    if (!ownsPlanning(ticket) || completed == null) return;
+    if (completed.failure() != null) {
+      failPlanning(ticket, completed.failure());
+      return;
+    }
     var value = handoff.take();
     if (value == null) {
       failPlanning(ticket, new IllegalStateException("Export preview preparation unavailable"));
@@ -294,14 +299,15 @@ final class ExportEditSession {
         return;
       }
       Objects.requireNonNull(result);
-      retirePlanning();
+      Object completed = retirePlanning();
+      if (closed || completed != request) return;
       catalog = result.catalog();
       catalogSource = frozen;
       model = result.model();
       preview = result.preview();
       this.unavailable = result.unavailable();
       planReady = true;
-      shown = null;
+      this.shown = null;
       planningMessage = "";
       if (preview != null) preparations++;
     } catch (Throwable rejected) {
@@ -311,21 +317,23 @@ final class ExportEditSession {
 
   private void refresh() {
     if (task == null || closed) return;
+    Object ticket = request;
     try {
       if (!planningOwner.current(state)) {
         stalePlanning();
         return;
       }
       var completion = BackgroundFailure.completed(task);
-      if (completion != null && completion.failure() != null)
-        failPlanning(request, completion.failure());
+      if (ownsPlanning(ticket) && completion != null && completion.failure() != null)
+        failPlanning(ticket, completion.failure());
     } catch (Throwable failure) {
-      failPlanning(request, failure);
+      failPlanning(ticket, failure);
     }
   }
 
   private void stalePlanning() {
-    retirePlanning();
+    Object invalidated = retirePlanning();
+    if (closed || invalidated != request) return;
     if (!sourceValue.equals(ProjectIO.JSON.valueToTree(state.project()))) forcedStale = true;
     planningMessage =
         "The source, private input or pending action changed. Reload or Retry preview before"
@@ -334,11 +342,14 @@ final class ExportEditSession {
 
   private void failPlanning(Object ticket, Throwable failure) {
     if (ticket != request || closed) return;
-    retirePlanning();
-    planningMessage =
+    Object failed = retirePlanning();
+    if (closed || failed != request) return;
+    String feedback =
         "Export preview preparation failed: "
             + BackgroundFailure.describe(failure)
             + ". Retry preview or Cancel.";
+    if (closed || failed != request) return;
+    planningMessage = feedback;
     try {
       state.error("EXPORT_PREVIEW_FAILED", EditorEvents.Subsystem.IMPORT_EXPORT, planningMessage);
     } catch (Throwable ignored) {
@@ -346,17 +357,20 @@ final class ExportEditSession {
     }
   }
 
-  private void retirePlanning() {
+  /** Keep the identity reserved before task cancellation can enter another planning request. */
+  private Object retirePlanning() {
     var previous = task;
-    request = new Object();
+    Object retired = new Object();
+    request = retired;
     task = null;
     planningOwner = null;
-    preparedReady = false;
+    preparedReady = admitted = false;
     handoff.advance(++delivery);
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   ResourceExportSession preparedModel() {
@@ -452,9 +466,9 @@ final class ExportEditSession {
 
   void cancel() {
     if (writing) return;
+    closed = true;
     retirePlanning();
     handoff.close();
-    closed = true;
     shown = null;
   }
 }

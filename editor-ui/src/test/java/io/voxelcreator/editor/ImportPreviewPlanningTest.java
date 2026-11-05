@@ -103,6 +103,7 @@ class ImportPreviewPlanningTest {
       assertTrue(s.planning());
       assertSame(old, s.preview());
       assertFalse(s.canApply());
+      worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
       s.acceptPlanning();
       var next = s.preview();
       assertNotSame(old, next);
@@ -119,6 +120,7 @@ class ImportPreviewPlanningTest {
       importCompletion.run();
       assertTrue(s.busy());
       assertFalse(s.closed());
+      worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
       s.acceptPrepared();
       assertTrue(s.closed());
       assertEquals(3, state.project().noise2D.size());
