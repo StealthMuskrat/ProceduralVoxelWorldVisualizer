@@ -24,13 +24,16 @@ final class PreferenceApplySession implements AutoCloseable {
 
   private final class Payload implements AutoCloseable {
     final UserConfig.PreparedPreference value;
+    final Throwable failure;
 
-    Payload(UserConfig.PreparedPreference value) {
+    Payload(UserConfig.PreparedPreference value, Throwable failure) {
       this.value = value;
+      this.failure = failure;
     }
 
     @Override
     public void close() {
+      if (value == null) return;
       try {
         value.close();
       } catch (Throwable failure) {
@@ -63,7 +66,8 @@ final class PreferenceApplySession implements AutoCloseable {
     try {
       this.request = Objects.requireNonNull(request);
       this.input = Objects.requireNonNull(input);
-      if (!current()) throw new IllegalStateException("Preference input changed before Apply");
+      if (!input.getAsBoolean() || work != token || !request.current(user))
+        throw new IllegalStateException("Preference input changed before Apply");
       var captured = request;
       long delivery = handoff.begin();
       running = true;
@@ -72,12 +76,11 @@ final class PreferenceApplySession implements AutoCloseable {
       task =
           new FutureTask<>(
               () -> {
-                Throwable failure = null;
+                Payload payload;
                 try {
                   var value = captured.prepare(target);
-                  Payload payload;
                   try {
-                    payload = new Payload(value);
+                    payload = new Payload(value, null);
                   } catch (Throwable allocation) {
                     try {
                       value.close();
@@ -86,12 +89,12 @@ final class PreferenceApplySession implements AutoCloseable {
                     }
                     throw allocation;
                   }
-                  if (!handoff.publish(delivery, payload)) return null;
                 } catch (Throwable rejected) {
-                  failure = rejected;
+                  payload = new Payload(null, rejected);
                 }
-                var rejected = failure;
-                ui.accept(() -> complete(work, delivery, rejected));
+                if (!handoff.publish(delivery, payload)) return null;
+                // Queued UI callbacks retain identities, never a file or captured failure.
+                ui.accept(() -> complete(work, delivery));
                 return null;
               });
       executor.execute(task);
@@ -100,37 +103,34 @@ final class PreferenceApplySession implements AutoCloseable {
     }
   }
 
-  private boolean current() {
-    return request != null && input.getAsBoolean() && request.current(user);
+  private boolean current(Object work) {
+    var captured = request;
+    var guard = input;
+    return captured != null && guard != null && guard.getAsBoolean()
+        && owns(work) && request == captured && captured.current(user);
   }
 
   private boolean owns(Object work) {
     return running && !closed && work == token;
   }
 
-  private void complete(Object work, long delivery, Throwable failure) {
+  private void complete(Object work, long delivery) {
     if (!owns(work) || !handoff.current(delivery)) return;
-    refresh();
-    if (!owns(work)) return;
-    if (failure != null) {
-      fail(work, failure);
-      return;
-    }
-    if (!handoff.pending()) {
-      fail(work, new IllegalStateException("Preference preparation was not delivered"));
-      return;
-    }
+    // Success and preparation failure both wait for current panel controls. Keep the task
+    // observable: an inline UI handoff may run this callback and then throw.
     ready = true;
-    task = null;
-    token = new Object();
   }
 
   void refresh() {
     if (!running || closed) return;
+    Object work = token;
     try {
       // Active saves coalesce on completion rather than cancelling a still-writing worker on
       // every workspace/slider frame. They still recheck full source values before publication.
-      if ((!saving || ready || handoff.pending()) && !current()) {
+      boolean check = !saving || ready || handoff.pending();
+      boolean valid = !check || current(work);
+      if (!owns(work)) return;
+      if (!valid) {
         cancel();
         stale = true;
         message = saving ? "Preferences changed; saving the latest active values."
@@ -138,22 +138,35 @@ final class PreferenceApplySession implements AutoCloseable {
         return;
       }
       var done = BackgroundFailure.completed(task);
-      if (done != null && done.failure() != null) fail(token, done.failure());
+      if (done != null && done.failure() != null) fail(work, done.failure());
     } catch (Throwable failure) {
-      fail(token, failure);
+      fail(work, failure);
     }
   }
 
   boolean accept() {
-    refresh();
-    if (!running || !ready || closed) return false;
-    var payload = handoff.take();
+    return accept(version);
+  }
+
+  boolean accept(long shownVersion) {
     Object work = token;
+    if (shownVersion != version) return false;
+    refresh();
+    if (!owns(work) || !ready || shownVersion != version) return false;
+    Payload payload = null;
     try {
+      var captured = request;
+      if (!current(work) || !owns(work)) return false;
+      payload = handoff.take();
+      // Once accepted, the finishing worker no longer owns cancellation authority.
+      task = null;
       if (payload == null) throw new IllegalStateException("Preference preparation is unavailable");
-      if (!current()) throw new IllegalStateException("Preferences or private input changed");
-      request.publish(payload.value, user);
-      // Consumption precedes panel reload, native font/layout consequences and other callbacks.
+      if (payload.failure != null) {
+        fail(work, payload.failure);
+        return false;
+      }
+      captured.publish(payload.value, user);
+      // Consume before panel reload, native consequences or external feedback.
       retire();
       message = saving ? "Preferences saved" : "Preferences saved and activated";
       return true;
@@ -233,8 +246,8 @@ final class PreferenceApplySession implements AutoCloseable {
   @Override
   public void close() {
     if (closed) return;
+    closed = true;
     retire();
     handoff.close();
-    closed = true;
   }
 }

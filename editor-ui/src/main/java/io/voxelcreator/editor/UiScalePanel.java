@@ -216,7 +216,7 @@ final class UiScalePanel implements AutoCloseable {
       }
       reveal = firstProblem;
     }
-    boolean accepted = applyWork != null && applyWork.accept();
+    boolean accepted = applyWork != null && applyWork.accept(work);
     if (accepted) act(
           () -> {
             session.revert(user);

@@ -340,7 +340,7 @@ public final class InputSettingsPanel implements AutoCloseable {
     // Footer cancellation must precede capture polling; suppression remains owned for this frame.
     pollCapture(editingText);
     // A captured chord or cancelled recording owns this frame before any ready Apply publishes.
-    if (applyWork != null && applyWork.accept()) {
+    if (applyWork != null && applyWork.accept(work)) {
       try {
         capture.cancel();
         session.revert(user.input.shortcuts);

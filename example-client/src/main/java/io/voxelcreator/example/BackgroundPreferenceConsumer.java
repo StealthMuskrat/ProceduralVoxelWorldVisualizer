@@ -9,7 +9,7 @@ public final class BackgroundPreferenceConsumer {
   public static void main(String[] args) throws Exception {
     int samples = 0, cells = 0;
     for (String mode : new String[] {
-        "limits-apply", "limits-cancel", "limits-retry", "scales-apply", "scales-escape", "scales-edit", "trust-apply", "trust-revert", "trust-hidden",
+        "limits-apply", "limits-cancel", "limits-retry", "scales-apply", "scales-escape", "scales-edit", "trust-apply", "trust-revert", "trust-hidden", "limits-ready-cancel", "limits-ready-failure-cancel",
         "appearance-input/theme-apply", "appearance-input/theme-cancel", "appearance-input/theme-raw",
         "appearance-input/theme-owner", "appearance-input/theme-reopen", "appearance-input/theme-retry",
         "appearance-input/bindings-apply", "appearance-input/bindings-escape", "appearance-input/bindings-record",
@@ -45,7 +45,7 @@ public final class BackgroundPreferenceConsumer {
         }
       }
     }
-    if (samples != 1260 || cells != 8640) throw new AssertionError("Preference replay coverage changed");
-    System.out.println("BACKGROUND_PREFERENCE_ENGINE_ONLY_PASS 1260 independent fields / 8640 EMPTY cells");
+    if (samples != 1344 || cells != 9216) throw new AssertionError("Preference replay coverage changed");
+    System.out.println("BACKGROUND_PREFERENCE_ENGINE_ONLY_PASS 1344 independent fields / 9216 EMPTY cells");
   }
 }

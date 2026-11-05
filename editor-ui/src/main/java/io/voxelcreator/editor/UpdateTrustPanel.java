@@ -197,7 +197,7 @@ final class UpdateTrustPanel implements AutoCloseable {
       originsNext = !originsNext;
     } else if (save && savePreferences != null && saveActions.current(actionScope, true))
       savePreferences.run();
-    if (applyWork != null && applyWork.accept())
+    if (applyWork != null && applyWork.accept(work))
       act(
           () -> {
             session.revert(user);

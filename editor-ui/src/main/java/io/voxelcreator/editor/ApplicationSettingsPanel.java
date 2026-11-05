@@ -16,6 +16,7 @@ public final class ApplicationSettingsPanel implements AutoCloseable {
   private final EditorState state;
   private final Executor executor;
   private final Consumer<Runnable> ui;
+  private final PreferenceFiles files;
   private MetadataApplySession applyWork;
   private boolean closed;
   final SettingsPageChrome layout = new SettingsPageChrome(4);
@@ -57,7 +58,13 @@ public final class ApplicationSettingsPanel implements AutoCloseable {
   }
 
   ApplicationSettingsPanel(EditorState state, Executor executor, Consumer<Runnable> ui) {
+    this(state, executor, ui, new PreferenceFiles());
+  }
+
+  ApplicationSettingsPanel(
+      EditorState state, Executor executor, Consumer<Runnable> ui, PreferenceFiles files) {
     this.state = state;
+    this.files = Objects.requireNonNull(files);
     this.executor = executor;
     this.ui = ui;
     if (executor != null) Objects.requireNonNull(ui);
@@ -68,7 +75,7 @@ public final class ApplicationSettingsPanel implements AutoCloseable {
     if (session == null) session = new MetadataEditSession(state.metadata);
     if (executor != null && applyWork == null)
       applyWork =
-          new MetadataApplySession(state, executor, ui, this::displayed, new PreferenceFiles());
+          new MetadataApplySession(state, executor, ui, this::displayed, files);
   }
 
   private void changed() {
@@ -271,7 +278,7 @@ public final class ApplicationSettingsPanel implements AutoCloseable {
       page = "Creation Defaults";
       detailReset = true;
     }
-    if (applyWork != null && applyWork.accept()) {
+    if (applyWork != null && applyWork.accept(work)) {
       resetEditors();
       message = "";
     }

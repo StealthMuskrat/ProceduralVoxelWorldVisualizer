@@ -252,7 +252,7 @@ final class PerformancePanel implements AutoCloseable {
     } else if (problem && firstProblem != null) reveal = firstProblem;
     else if (save && savePreferences != null && saveActions.current(actionScope, true))
       savePreferences.run();
-    if (applyWork != null && applyWork.accept())
+    if (applyWork != null && applyWork.accept(work))
       act(
           () -> {
             session.revert(user);

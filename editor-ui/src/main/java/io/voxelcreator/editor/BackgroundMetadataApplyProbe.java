@@ -18,7 +18,7 @@ final class BackgroundMetadataApplyProbe {
     String previous = System.getProperty("voxel.configDir");
     var cases = new ArrayList<Map<String, Object>>();
     try {
-      for (String mode : List.of("apply", "cancel", "escape-ready", "revert-ready", "edit", "active", "hidden", "close", "retry")) {
+      for (String mode : List.of("apply", "cancel", "escape-ready", "revert-ready", "edit", "active", "hidden", "close", "retry", "ready-cancel", "ready-failure-cancel")) {
         var directory = out.resolve(mode).toAbsolutePath(); Files.createDirectories(directory);
         System.setProperty("voxel.configDir", directory.toString());
         try (var s = new EditorState(new UserConfig(), false)) {
@@ -39,10 +39,22 @@ final class BackgroundMetadataApplyProbe {
           long revision = s.revision, history = s.document.historyBytes();
           var tasks = new ArrayDeque<Runnable>(); var ui = new ArrayDeque<Runnable>();
           var reject = new AtomicBoolean(mode.equals("retry"));
+          var brokenWrite = new AtomicBoolean();
+          var failedWrite = new AtomicBoolean();
+          var files = mode.equals("ready-failure-cancel")
+              ? new PreferenceFiles(new PreferenceFiles.Storage() {
+                public void write(Path temp, byte[] bytes) throws java.io.IOException {
+                  Files.write(temp, bytes);
+                  if (brokenWrite.get()) { failedWrite.set(true); throw new AssertionError("held profile preparation"); }
+                }
+                public void replace(Path temp, Path target) throws java.io.IOException {
+                  Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                }
+              }) : new PreferenceFiles();
           panel = new ApplicationSettingsPanel(s, task -> {
             if (reject.get()) throw new RejectedExecutionException("held profile queue");
             tasks.add(task);
-          }, ui::add);
+          }, ui::add, files);
           panel.showControl(VALUE, "Creation Defaults");
           panel.probeStageCreation(VALUE, "0.75");
           frames(4);
@@ -54,11 +66,24 @@ final class BackgroundMetadataApplyProbe {
             reject.set(false); click(panel.controlAt("apply"));
           }
           frames(12); require(work.running() && !work.ready(), "Profile bypassed worker");
+          brokenWrite.set(mode.equals("ready-failure-cancel"));
           s.background.submit(tasks.remove()).get(10, TimeUnit.SECONDS);
           frames(12);
           require(work.running() && !work.ready() && ui.size() == 1, "Profile bypassed UI delivery");
           require(Arrays.equals(original, Files.readAllBytes(target)), "Preparation replaced profile");
-          if (mode.equals("escape-ready")) {
+          boolean readyRetired = mode.startsWith("ready-");
+          boolean failureHeld = failedWrite.get();
+          require(failureHeld == mode.equals("ready-failure-cancel"), "Preparation failure injection was not observed");
+          if (readyRetired) {
+            var at = panel.controlAt("apply"); var io = ImGui.getIO();
+            io.addMousePosEvent(at[0], at[1]); frame(); io.addMouseButtonEvent(0, true); frame();
+            long version = work.version();
+            ui.remove().run();
+            require(work.ready() && work.running() && work.version() == version, "Ready profile changed Cancel identity");
+            require(noProfileFailure(s), "Preparation failure reported before current Cancel");
+            io.addMouseButtonEvent(0, false); frames(3);
+            require(noProfileFailure(s), "Current Cancel reported retired preparation failure");
+          } else if (mode.equals("escape-ready")) {
             ui.remove().run(); require(work.ready(), "Profile not ready");
             ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
             ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
@@ -96,7 +121,7 @@ final class BackgroundMetadataApplyProbe {
           }
           cases.add(Map.of("mode", mode, "applied", applied, "queuedFrames", 12, "heldFrames", 12,
               "projectPreserved", true, "privatePreserved", true, "preferencesPreserved", true,
-              "temporaryCleaned", true));
+              "temporaryCleaned", true, "readyRetired", readyRetired, "failureHeld", failureHeld));
           panel.close(); frames(2);
         }
       }
@@ -106,6 +131,10 @@ final class BackgroundMetadataApplyProbe {
       if (previous == null) System.clearProperty("voxel.configDir");
       else System.setProperty("voxel.configDir", previous);
     }
+  }
+
+  private static boolean noProfileFailure(EditorState state) {
+    return state.events.snapshot().stream().noneMatch(e -> e.code().equals("APPLICATION_PROFILE_APPLY_FAILED"));
   }
 
   private static void click(float[] at) {

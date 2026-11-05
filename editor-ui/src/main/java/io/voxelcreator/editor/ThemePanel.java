@@ -174,7 +174,7 @@ public final class ThemePanel {
         saveRequested = false;
         act(this::startSave);
       }
-      if (applyWork != null && applyWork.accept())
+      if (applyWork != null && applyWork.accept(work))
         act(() -> {
           session.revert(user);
           actionScope.resetDraft();

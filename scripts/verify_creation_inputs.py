@@ -30,12 +30,14 @@ print('CREATION_INPUT_INDEPENDENT_PASS exact seed / small double / complete vect
 background = out / 'background'
 receipt = json.loads((background / 'profile-apply-native.json').read_text(encoding='utf-8'))
 assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
-modes = ['apply', 'cancel', 'escape-ready', 'revert-ready', 'edit', 'active', 'hidden', 'close', 'retry']
+modes = ['apply', 'cancel', 'escape-ready', 'revert-ready', 'edit', 'active', 'hidden', 'close', 'retry', 'ready-cancel', 'ready-failure-cancel']
 assert [case['mode'] for case in receipt['cases']] == modes
 for case in receipt['cases']:
     mode = case['mode']
     applied = mode in ('apply', 'retry')
     assert case['applied'] is applied
+    assert case['readyRetired'] is mode.startswith('ready-')
+    assert case['failureHeld'] is (mode == 'ready-failure-cancel')
     assert case['queuedFrames'] == case['heldFrames'] == 12
     for key in ('projectPreserved', 'privatePreserved', 'preferencesPreserved', 'temporaryCleaned'):
         assert case[key] is True, (mode, key)
@@ -45,4 +47,4 @@ for case in receipt['cases']:
     created = json.loads((background / mode / 'created.json').read_text(encoding='utf-8'))
     assert [n['id'] for n in created['noise2D']] == ['existing', 'future']
     assert [n['algorithm']['parameters']['value'] for n in created['noise2D']] == [.125, .75 if applied else .25]
-print('BACKGROUND_PROFILE_INDEPENDENT_PASS receipts / nine saved profiles / authored and future defaults')
+print('BACKGROUND_PROFILE_INDEPENDENT_PASS receipts / eleven saved profiles / authored and future defaults')

@@ -22,13 +22,16 @@ final class MetadataApplySession implements AutoCloseable {
 
   private final class Payload implements AutoCloseable {
     final MetadataEditSession.Prepared value;
+    final Throwable failure;
 
-    Payload(MetadataEditSession.Prepared value) {
+    Payload(MetadataEditSession.Prepared value, Throwable failure) {
       this.value = value;
+      this.failure = failure;
     }
 
     @Override
     public void close() {
+      if (value == null) return;
       try {
         value.close();
       } catch (Throwable failure) {
@@ -57,8 +60,10 @@ final class MetadataApplySession implements AutoCloseable {
     retire();
     Object work = token;
     try {
-      request = session.capture(state.metadata, displayed.get());
-      var captured = request;
+      var shown = displayed.get();
+      if (closed || work != token || running) return;
+      var captured = session.capture(state.metadata, shown);
+      request = captured;
       long delivery = handoff.begin();
       running = true;
       message =
@@ -67,12 +72,11 @@ final class MetadataApplySession implements AutoCloseable {
       task =
           new FutureTask<>(
               () -> {
-                Throwable failure = null;
+                Payload payload;
                 try {
                   var value = captured.prepare(target, files);
-                  Payload payload;
                   try {
-                    payload = new Payload(value);
+                    payload = new Payload(value, null);
                   } catch (Throwable allocation) {
                     try {
                       value.close();
@@ -81,12 +85,12 @@ final class MetadataApplySession implements AutoCloseable {
                     }
                     throw allocation;
                   }
-                  if (!handoff.publish(delivery, payload)) return null;
                 } catch (Throwable rejected) {
-                  failure = rejected;
+                  payload = new Payload(null, rejected);
                 }
-                var rejected = failure;
-                ui.accept(() -> complete(work, delivery, rejected));
+                if (!handoff.publish(delivery, payload)) return null;
+                // Queued UI callbacks retain identities, never a file or captured failure.
+                ui.accept(() -> complete(work, delivery));
                 return null;
               });
       executor.execute(task);
@@ -99,51 +103,63 @@ final class MetadataApplySession implements AutoCloseable {
     return !closed && running && work == token;
   }
 
-  private boolean current() {
-    return request != null && request.current(state.metadata, displayed.get());
+  private boolean current(Object work) {
+    var captured = request;
+    if (captured == null) return false;
+    var shown = displayed.get();
+    return owns(work) && request == captured && captured.current(state.metadata, shown);
   }
 
-  private void complete(Object work, long delivery, Throwable failure) {
+  private void complete(Object work, long delivery) {
     if (!owns(work) || !handoff.current(delivery)) return;
-    refresh();
-    if (!owns(work)) return;
-    if (failure != null) {
-      fail(work, failure);
-      return;
-    }
-    if (!handoff.pending()) {
-      fail(work, new IllegalStateException("Profile preparation was not delivered"));
-      return;
-    }
-    // Keep the payload private until the panel processes Escape/Revert/Cancel for this frame.
+    // Success and preparation failure both wait for current panel controls. Keep the task
+    // observable: an inline UI handoff may run this callback and then throw.
     ready = true;
-    task = null;
-    token = new Object();
   }
 
   void refresh() {
     if (!running || closed) return;
+    Object work = token;
     try {
-      if (!current()) {
+      boolean valid = current(work);
+      if (!owns(work)) return;
+      if (!valid) {
         cancel();
         message = "Profile or input changed. Apply the current profile explicitly.";
         return;
       }
       var done = BackgroundFailure.completed(task);
-      if (done != null && done.failure() != null) fail(token, done.failure());
+      if (done != null && done.failure() != null) fail(work, done.failure());
     } catch (Throwable failure) {
-      fail(token, failure);
+      fail(work, failure);
     }
   }
 
   boolean accept() {
-    refresh();
-    if (!ready || !running || closed) return false;
-    var payload = handoff.take();
+    return accept(version);
+  }
+
+  boolean accept(long shownVersion) {
     Object work = token;
+    if (shownVersion != version) return false;
+    refresh();
+    if (!owns(work) || !ready || shownVersion != version) return false;
+    Payload payload = null;
     try {
+      var captured = request;
+      if (!current(work) || !owns(work)) return false;
+      var shown = displayed.get();
+      if (!owns(work) || request != captured) return false;
+      payload = handoff.take();
+      // Once accepted, the finishing worker no longer owns cancellation authority.
+      task = null;
       if (payload == null) throw new IllegalStateException("Profile preparation is unavailable");
-      request.publish(payload.value, state, displayed.get());
+      if (payload.failure != null) {
+        fail(work, payload.failure);
+        return false;
+      }
+      captured.publish(payload.value, state, shown);
+      // Consume before panel reload, native consequences or external feedback.
       retire();
       message = "Application profile saved and activated";
       return true;
@@ -216,8 +232,8 @@ final class MetadataApplySession implements AutoCloseable {
   @Override
   public void close() {
     if (closed) return;
+    closed = true;
     retire();
     handoff.close();
-    closed = true;
   }
 }

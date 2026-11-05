@@ -24,9 +24,21 @@ final class BackgroundPreferenceProbe {
     float previousScale = ImGui.getIO().getFontGlobalScale();
     var cases = new ArrayList<Map<String, Object>>();
     try {
-      for (String mode : List.of("limits-apply", "limits-cancel", "limits-retry", "scales-apply", "scales-escape", "scales-edit", "trust-apply", "trust-revert", "trust-hidden")) {
+      for (String mode : List.of("limits-apply", "limits-cancel", "limits-retry", "scales-apply", "scales-escape", "scales-edit", "trust-apply", "trust-revert", "trust-hidden", "limits-ready-cancel", "limits-ready-failure-cancel")) {
         var directory = out.resolve(mode); Files.createDirectories(directory);
-        var user = new UserConfig(); user.performance.workers = 2;
+        var brokenWrite = new AtomicBoolean();
+        var failedWrite = new AtomicBoolean();
+        var user = mode.equals("limits-ready-failure-cancel")
+            ? new UserConfig(new PreferenceFiles(new PreferenceFiles.Storage() {
+              public void write(Path temp, byte[] bytes) throws java.io.IOException {
+                Files.write(temp, bytes);
+                if (brokenWrite.get()) { failedWrite.set(true); throw new AssertionError("held preference preparation"); }
+              }
+              public void replace(Path temp, Path target) throws java.io.IOException {
+                Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+              }
+            })) : new UserConfig();
+        user.performance.workers = 2;
         user.workspace.width = 1234; user.appearance.windowScales.put("Extension Pane", 1.75f);
         var file = directory.resolve("user-config.json"); user.save(file);
         user.save(directory.resolve("user-before.json"));
@@ -48,15 +60,16 @@ final class BackgroundPreferenceProbe {
           java.util.concurrent.Executor worker = task -> {
             if (reject.get()) throw new RejectedExecutionException("held preference queue"); tasks.add(task);
           };
+          var reports = new ArrayList<String>();
           kind = mode.startsWith("limits") ? 0 : mode.startsWith("scales") ? 1 : 2;
           if (kind == 0) {
-            limits = new PerformancePanel(s, file, text -> {}, worker, ui::add); limits.probeControls();
+            limits = new PerformancePanel(s, file, reports::add, worker, ui::add); limits.probeControls();
             limits.probeEdit(PerformancePreferences.Field.CACHE_MIB, "256");
           } else if (kind == 1) {
-            scales = new UiScalePanel(user, file, text -> {}, worker, ui::add); scales.probeControls();
+            scales = new UiScalePanel(user, file, reports::add, worker, ui::add); scales.probeControls();
             scales.probeEditGlobal("1.25"); scales.probeEditWindow("Resources", "1.5");
           } else {
-            trust = new UpdateTrustPanel(user, file, text -> {}, worker, ui::add); trust.probeControls();
+            trust = new UpdateTrustPanel(user, file, reports::add, worker, ui::add); trust.probeControls();
             trust.probeEdit(ENDPOINT, ORIGIN);
           }
           frames(4); click(control("apply")); var work = work();
@@ -66,10 +79,23 @@ final class BackgroundPreferenceProbe {
             reject.set(false); click(control("apply"));
           }
           frames(12); require(work.running() && !work.ready(), "Preferences bypassed worker");
+          brokenWrite.set(mode.equals("limits-ready-failure-cancel"));
           s.background.submit(tasks.remove()).get(10, TimeUnit.SECONDS);
           frames(12); require(work.running() && !work.ready() && ui.size() == 1, "Preferences bypassed UI delivery");
           require(Arrays.equals(original, Files.readAllBytes(file)), "Preparation replaced preferences");
-          if (mode.equals("scales-escape")) {
+          boolean readyRetired = mode.startsWith("limits-ready-");
+          boolean failureHeld = failedWrite.get();
+          require(failureHeld == mode.equals("limits-ready-failure-cancel"), "Preparation failure injection was not observed");
+          if (readyRetired) {
+            var at = control("apply"); var io = ImGui.getIO();
+            io.addMousePosEvent(at[0], at[1]); frame(); io.addMouseButtonEvent(0, true); frame();
+            long version = work.version();
+            ui.remove().run();
+            require(work.ready() && work.running() && version == work.version(), "Ready preference changed Cancel identity");
+            require(reports.isEmpty(), "Preparation failure reported before current Cancel");
+            io.addMouseButtonEvent(0, false); frames(3);
+            require(reports.isEmpty(), "Current Cancel reported retired preparation failure");
+          } else if (mode.equals("scales-escape")) {
             ui.remove().run(); require(work.ready(), "Preferences not ready");
             ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
             ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
@@ -107,7 +133,7 @@ final class BackgroundPreferenceProbe {
             require(paths.noneMatch(p -> p.getFileName().toString().endsWith(".tmp")), "Unpublished preference sibling leaked");
           }
           cases.add(Map.of("mode", mode, "applied", applied, "queuedFrames", 12, "heldFrames", 12,
-              "projectRetained", true, "privateRetained", true, "engineRetained", true, "temporaryCleaned", true));
+              "projectRetained", true, "privateRetained", true, "engineRetained", true, "temporaryCleaned", true, "readyRetired", readyRetired, "failureHeld", failureHeld));
           close(); frames(2);
         }
       }

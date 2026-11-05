@@ -8,7 +8,7 @@ public final class MetadataApplyConsumer {
   public static void main(String[] args) throws Exception {
     int count = 0;
     for (String mode : new String[] {
-        "apply", "cancel", "escape-ready", "revert-ready", "edit", "active", "hidden", "close", "retry"
+        "apply", "cancel", "escape-ready", "revert-ready", "edit", "active", "hidden", "close", "retry", "ready-cancel", "ready-failure-cancel"
     }) {
       var load = new ProjectLoader().load(Path.of(args[0]).resolve(mode).resolve("created.json"));
       if (!load.success()) throw new AssertionError(load.diagnostics());
@@ -22,6 +22,7 @@ public final class MetadataApplyConsumer {
           count += 2;
         }
     }
+    if (count != 462) throw new AssertionError("Profile replay coverage changed");
     System.out.println("BACKGROUND_PROFILE_ENGINE_ONLY_PASS " + count + " independent constant observations");
   }
 }

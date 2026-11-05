@@ -175,8 +175,9 @@ class BackgroundMetadataApplyTest {
         try (var apply = writer(s, edit, worker, ui)) {
           apply.start(edit, target);
           if (!worker.tasks.isEmpty()) { worker.run(); ui.remove().run(); }
-          assertFalse(apply.running());
+          // Worker validation failure now waits for the current panel decision.
           assertFalse(apply.accept());
+          assertFalse(apply.running());
           assertTrue(apply.message().contains("failed"));
           assertEquals("previous", Files.readString(target));
         }

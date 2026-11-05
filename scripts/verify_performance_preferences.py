@@ -43,12 +43,14 @@ print('Performance exact integers, complete limits, privacy, retry and unrelated
 background = out / 'background'
 receipt = json.loads((background / 'preferences-background-native.json').read_text(encoding='utf-8'))
 assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
-modes = ['limits-apply', 'limits-cancel', 'limits-retry', 'scales-apply', 'scales-escape', 'scales-edit', 'trust-apply', 'trust-revert', 'trust-hidden']
+modes = ['limits-apply', 'limits-cancel', 'limits-retry', 'scales-apply', 'scales-escape', 'scales-edit', 'trust-apply', 'trust-revert', 'trust-hidden', 'limits-ready-cancel', 'limits-ready-failure-cancel']
 assert [case['mode'] for case in receipt['cases']] == modes
 for case in receipt['cases']:
     mode = case['mode']
     applied = mode.endswith('apply') or mode == 'limits-retry'
     assert case['applied'] is applied
+    assert case['readyRetired'] is mode.startswith('limits-ready-')
+    assert case['failureHeld'] is (mode == 'limits-ready-failure-cancel')
     assert case['queuedFrames'] == case['heldFrames'] == 12
     for key in ('projectRetained', 'privateRetained', 'engineRetained', 'temporaryCleaned'):
         assert case[key] is True, (mode, key)
@@ -70,7 +72,7 @@ for case in receipt['cases']:
     assert after['noise2D'][0]['algorithm']['parameters'] == {'value': .125}
     subprocess.run([sys.executable, str(root / 'scripts/verify_input_preferences.py'),
                     str(background / mode / 'user-config.json')], check=True)
-print('BACKGROUND_PREFERENCE_INDEPENDENT_PASS nine exact preference patches / eighteen unchanged projects')
+print('BACKGROUND_PREFERENCE_INDEPENDENT_PASS eleven exact preference patches / twenty-two unchanged projects')
 
 
 appearance_input = background / 'appearance-input'
