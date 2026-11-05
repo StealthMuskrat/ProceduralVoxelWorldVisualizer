@@ -66,18 +66,27 @@ final class InspectorTask implements AutoCloseable {
   boolean ready() { return pending() && delivered; }
 
   boolean completed() {
-    return pending() && BackgroundFailure.completed(future) != null;
+    var shown = ticket;
+    var observed = future;
+    if (!current(shown)) return false;
+    var completion = BackgroundFailure.completed(observed);
+    return observes(shown, observed) && completion != null;
+  }
+
+  private boolean observes(Ticket shown, Future<?> observed) {
+    return current(shown) && future == observed;
   }
 
   /** After current controls: consumed before any trace/log/failure callback or native update. */
   Result accept(Ticket shown, BooleanSupplier valid) {
     if (!current(shown)) return null;
-    var completion = BackgroundFailure.completed(future);
-    if (!current(shown) || completion == null
+    var observed = future;
+    var completion = BackgroundFailure.completed(observed);
+    if (!observes(shown, observed) || completion == null
         || completion.failure() == null && !delivered) return null;
     try {
       boolean allowed = valid.getAsBoolean();
-      if (!current(shown) || !allowed) return null;
+      if (!observes(shown, observed) || !allowed) return null;
       var value = completion.failure() == null ? handoff.take() : Result.failed(completion.failure());
       if (value == null) value = Result.failed(new IllegalStateException("Inspector result was not delivered"));
       if (value.failure() == null && (shown.request.viewBound()
@@ -85,7 +94,7 @@ final class InspectorTask implements AutoCloseable {
         value = Result.failed(new IllegalStateException("Inspector result does not match its request"));
       return finish(shown.request) ? value : null;
     } catch (Throwable failure) {
-      if (!current(shown)) return null;
+      if (!observes(shown, observed)) return null;
       return finish(shown.request) ? Result.failed(failure) : null;
     }
   }
@@ -94,8 +103,8 @@ final class InspectorTask implements AutoCloseable {
     Objects.requireNonNull(value);
     if (!value.viewBound()) Objects.requireNonNull(target);
     if (closed) throw new IllegalStateException("Inspector work is closed");
-    cancel();
-    if (closed || ticket != null) return; // Cancellation callbacks may have created a successor.
+    long opening = retire(true);
+    if (closed || generation != opening || ticket != null) return;
     request = value;
     coordinate = target;
     ticket = new Ticket(value, generation);
@@ -113,9 +122,11 @@ final class InspectorTask implements AutoCloseable {
 
   /** A successful worker still waits for its UI callback; only terminal failure is observed. */
   Throwable failure() {
-    if (closed || request == null || future == null) return null;
-    var completion = BackgroundFailure.completed(future);
-    return completion == null ? null : completion.failure();
+    var shown = ticket;
+    var observed = future;
+    if (!current(shown) || observed == null) return null;
+    var completion = BackgroundFailure.completed(observed);
+    return !observes(shown, observed) || completion == null ? null : completion.failure();
   }
 
   static String describe(Throwable failure) {
@@ -139,8 +150,12 @@ final class InspectorTask implements AutoCloseable {
   }
 
   boolean finishSuccessful(InspectorRequests.Request owner) {
-    // An already known terminal failure takes precedence over an enqueued success callback.
-    return matches(owner) && failure() == null && finish(owner);
+    var shown = ticket;
+    var observed = future;
+    if (!current(shown) || shown.request != owner) return false;
+    var completion = BackgroundFailure.completed(observed);
+    return observes(shown, observed) && completion != null && completion.failure() == null
+        && finish(owner);
   }
 
   boolean finish(InspectorRequests.Request owner) {
@@ -151,15 +166,17 @@ final class InspectorTask implements AutoCloseable {
 
   void cancel() { retire(true); }
 
-  private void retire(boolean interrupt) {
+  private long retire(boolean interrupt) {
     var previous = future;
     ticket = null;
     future = null;
     request = null;
     coordinate = null;
     delivered = false;
-    handoff.advance(++generation);
+    long retired = ++generation;
+    handoff.advance(retired);
     if (interrupt && previous != null) previous.cancel(true);
+    return retired;
   }
 
   public void close() {
