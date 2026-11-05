@@ -92,6 +92,7 @@ class BackgroundResourceExportTest {
         assertEquals(ResourceExportWriter.Phase.RUNNING, writer.view().phase());
         assertEquals("prior", Files.readString(target));
         assertFalse(source.closed());
+        workers.submit(() -> {}).get(5, TimeUnit.SECONDS);
         writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.READY, writer.view().phase());
         assertTrue(source.closed());

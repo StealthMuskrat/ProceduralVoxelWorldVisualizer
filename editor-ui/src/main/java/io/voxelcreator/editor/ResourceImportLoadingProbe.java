@@ -135,6 +135,7 @@ final class ResourceImportLoadingProbe {
             else if (mode.equals("raw")) state.project().project.seed = 18;
           }
           holdUi = false;
+          await(() -> !dialog.importRunning(), "Package completion did not finish its owner handoff");
           frames(5);
           boolean imported = mode.equals("success") || mode.equals("retry");
           if (mode.equals("retry")) {

@@ -44,7 +44,7 @@ final class ResourceImportLoader implements AutoCloseable {
   private record Prepared(ImportEditSession.Prepared value, Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery;
-  private boolean preparedReady;
+  private boolean preparedReady, admitted;
   private String sourceText;
 
   ResourceImportLoader(
@@ -74,8 +74,8 @@ final class ResourceImportLoader implements AutoCloseable {
   boolean start(String location) {
     refresh();
     if (phase == Phase.CLOSED || phase == Phase.RUNNING) return false;
-    retire();
-    Object request = token;
+    Object request = retire();
+    if (request != token || phase == Phase.CLOSED || phase == Phase.RUNNING) return false;
     try {
       Path source = ResourcePackageFiles.location(location);
       sourceText = location;
@@ -102,7 +102,8 @@ final class ResourceImportLoader implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
-      return true;
+      if (owns(request)) admitted = true;
+      return owns(request);
     } catch (Throwable failure) {
       fail(request, failure);
       return false;
@@ -119,9 +120,7 @@ final class ResourceImportLoader implements AutoCloseable {
 
   private void delivered(Object request, long handed) {
     if (!owns(request) || delivery != handed || preparedReady) return;
-    refresh();
-    if (!owns(request)) return;
-    // An inline handoff may still fail before returning; keep observing its FutureTask.
+    // Readiness is only a receipt; posting and executor admission must both finish normally.
     preparedReady = true;
   }
 
@@ -133,12 +132,19 @@ final class ResourceImportLoader implements AutoCloseable {
   void acceptPrepared(String displayed, BooleanSupplier shown) {
     Object request = token;
     refresh();
-    if (!owns(request) || !preparedReady) return;
+    if (!owns(request) || !preparedReady || !admitted) return;
     if (!Objects.equals(sourceText, displayed)) {
       stale();
       return;
     }
     Objects.requireNonNull(shown);
+    var completed = BackgroundFailure.completed(task);
+    if (!owns(request) || completed == null) return;
+    if (completed.failure() != null) {
+      if (completed.failure() instanceof CancellationException) cancel();
+      else fail(request, completed.failure());
+      return;
+    }
     var value = handoff.take();
     if (value == null) {
       fail(request, new IllegalStateException("Import package preparation unavailable"));
@@ -198,30 +204,33 @@ final class ResourceImportLoader implements AutoCloseable {
 
   void refresh() {
     if (phase != Phase.RUNNING) return;
+    Object request = token;
     try {
       if (!owner.current(state)) {
         stale();
         return;
       }
       var completion = BackgroundFailure.completed(task);
-      if (completion == null || completion.failure() == null) return;
+      if (!owns(request) || completion == null || completion.failure() == null) return;
       if (completion.failure() instanceof CancellationException) cancel();
-      else fail(token, completion.failure());
+      else fail(request, completion.failure());
     } catch (Throwable failure) {
-      fail(token, failure);
+      fail(request, failure);
     }
   }
 
   void cancel() {
     if (phase != Phase.RUNNING) return;
-    retire();
     phase = Phase.CANCELLED;
+    Object cancelled = retire();
+    if (cancelled != token || phase != Phase.CANCELLED) return;
     message = "Import preparation cancelled. The project is unchanged.";
   }
 
   private void stale() {
-    retire();
     phase = Phase.STALE;
+    Object invalidated = retire();
+    if (invalidated != token || phase != Phase.STALE) return;
     message =
         "The project, private inputs or pending action changed. Retry to prepare the current"
             + " import.";
@@ -232,24 +241,30 @@ final class ResourceImportLoader implements AutoCloseable {
     owner = null;
     task = null;
     sourceText = null;
-    preparedReady = false;
+    preparedReady = admitted = false;
     handoff.advance(++delivery);
   }
 
-  private void retire() {
+  /** Preserve the identity reserved before cancellation can admit a successor. */
+  private Object retire() {
     var previous = task;
     release();
+    Object retired = token;
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   private void fail(Object request, Throwable failure) {
     if (request != token || phase == Phase.CLOSED) return;
-    retire();
     phase = Phase.FAILED;
-    message = "Import preparation failed: " + BackgroundFailure.describe(failure);
+    Object failed = retire();
+    if (failed != token || phase != Phase.FAILED) return;
+    String feedback = "Import preparation failed: " + BackgroundFailure.describe(failure);
+    if (failed != token || phase != Phase.FAILED) return;
+    message = feedback;
     try {
       state.error("FILE_IMPORT_PREPARATION_FAILED", EditorEvents.Subsystem.IMPORT_EXPORT, message);
     } catch (Throwable ignored) {
@@ -260,8 +275,8 @@ final class ResourceImportLoader implements AutoCloseable {
   @Override
   public void close() {
     if (phase == Phase.CLOSED) return;
-    retire();
     phase = Phase.CLOSED;
+    retire();
     handoff.close();
     message = "Import preparation closed.";
   }

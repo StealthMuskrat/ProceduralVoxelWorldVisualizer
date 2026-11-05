@@ -40,7 +40,7 @@ final class ResourceExportWriter implements AutoCloseable {
   private ResourceExportSession.Preview preview;
   private BooleanSupplier gate;
   private FutureTask<Void> task;
-  private boolean publishing, closeRequested, preparedReady;
+  private boolean publishing, closeRequested, preparedReady, admitted;
   private String targetText;
 
   private final class Payload implements AutoCloseable {
@@ -104,8 +104,8 @@ final class ResourceExportWriter implements AutoCloseable {
       BooleanSupplier gate) {
     refresh();
     if (phase == Phase.RUNNING || phase == Phase.CLOSED) return false;
-    retire();
-    Object request = token;
+    Object request = retire();
+    if (request != token || phase == Phase.CLOSED || phase == Phase.RUNNING) return false;
     try {
       this.source = Objects.requireNonNull(source);
       this.preview = Objects.requireNonNull(preview);
@@ -136,7 +136,8 @@ final class ResourceExportWriter implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
-      return true;
+      if (owns(request)) admitted = true;
+      return owns(request);
     } catch (Throwable failure) {
       fail(request, failure);
       return false;
@@ -165,7 +166,7 @@ final class ResourceExportWriter implements AutoCloseable {
         return;
       }
       var completion = BackgroundFailure.completed(task);
-      if (completion != null && completion.failure() != null) {
+      if (owns(request) && completion != null && completion.failure() != null) {
         if (completion.failure() instanceof CancellationException) cancel();
         else fail(request, completion.failure());
       }
@@ -176,9 +177,7 @@ final class ResourceExportWriter implements AutoCloseable {
 
   private void delivered(Object request, long delivery) {
     if (!owns(request) || !handoff.current(delivery) || preparedReady) return;
-    refresh();
-    if (!owns(request)) return;
-    // Keep observing the task: an inline readiness handoff can still fail before returning.
+    // Readiness is only a receipt; posting and executor admission must both finish normally.
     preparedReady = true;
   }
 
@@ -190,12 +189,19 @@ final class ResourceExportWriter implements AutoCloseable {
   void acceptPrepared(String displayed, BooleanSupplier shown) {
     Object request = token;
     refresh();
-    if (!owns(request) || !preparedReady) return;
+    if (!owns(request) || !preparedReady || !admitted) return;
     if (!Objects.equals(targetText, displayed)) {
       stale();
       return;
     }
     Objects.requireNonNull(shown);
+    var completed = BackgroundFailure.completed(task);
+    if (!owns(request) || completed == null) return;
+    if (completed.failure() != null) {
+      if (completed.failure() instanceof CancellationException) cancel();
+      else fail(request, completed.failure());
+      return;
+    }
     var payload = handoff.take();
     publish(request, payload, shown);
   }
@@ -255,21 +261,19 @@ final class ResourceExportWriter implements AutoCloseable {
 
   void cancel() {
     if (phase != Phase.RUNNING || publishing) return;
-    retire();
     phase = Phase.CANCELLED;
+    Object cancelled = retire();
+    if (cancelled != token || phase != Phase.CANCELLED) return;
     message = "Export cancelled before replacement. The previous destination is retained.";
   }
 
   private void stale() {
-    retire();
     phase = Phase.STALE;
+    Object invalidated = retire();
+    if (invalidated != token || phase != Phase.STALE) return;
     message =
         "The export source, selection or private inputs changed. Review the current preview and"
             + " retry.";
-  }
-
-  private void release() {
-    release(new Object());
   }
 
   private void release(Object next) {
@@ -280,24 +284,30 @@ final class ResourceExportWriter implements AutoCloseable {
     preview = null;
     gate = null;
     targetText = null;
-    preparedReady = false;
+    preparedReady = admitted = false;
   }
 
-  private void retire() {
+  /** Preserve the identity reserved before cleanup/cancellation can admit a successor. */
+  private Object retire() {
     var previous = task;
-    release();
+    Object retired = new Object();
+    release(retired);
     handoff.invalidate();
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   private void fail(Object request, Throwable failure) {
     if (request != token || phase == Phase.CLOSED) return;
-    retire();
     phase = Phase.FAILED;
-    message = "Export failed: " + BackgroundFailure.describe(failure);
+    Object failed = retire();
+    if (failed != token || phase != Phase.FAILED) return;
+    String feedback = "Export failed: " + BackgroundFailure.describe(failure);
+    if (failed != token || phase != Phase.FAILED) return;
+    message = feedback;
     try {
       state.error("FILE_EXPORT_PREPARATION_FAILED", EditorEvents.Subsystem.IMPORT_EXPORT, message);
     } catch (Throwable ignored) {
@@ -312,9 +322,9 @@ final class ResourceExportWriter implements AutoCloseable {
       closeRequested = true;
       return;
     }
+    phase = Phase.CLOSED;
     retire();
     handoff.close();
-    phase = Phase.CLOSED;
     message = "Export preparation closed.";
   }
 }

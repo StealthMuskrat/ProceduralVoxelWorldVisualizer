@@ -126,6 +126,7 @@ class BackgroundResourceImportTest {
         assertEquals(ResourceImportLoader.Phase.RUNNING, loading.view().phase());
         assertSame(request, loading.requestToken());
         assertFalse(panel.pending());
+        workers.submit(() -> {}).get(5, TimeUnit.SECONDS);
         loading.acceptPrepared();
         assertEquals(ResourceImportLoader.Phase.READY, loading.view().phase());
         assertTrue(panel.pending());

@@ -186,6 +186,7 @@ final class ResourceExportWritingProbe {
             else if (mode.equals("close")) dialog.close();
           }
           holdUi = false;
+          await(() -> !dialog.exportRunning(), "Export completion did not finish its owner handoff");
           frames(5);
           boolean published = mode.equals("success") || mode.equals("retry");
           if (mode.equals("retry")) {
