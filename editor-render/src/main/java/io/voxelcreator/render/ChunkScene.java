@@ -116,6 +116,7 @@ public final class ChunkScene implements AutoCloseable {
     boolean working, dirty = true, uploaded, displayed, failed;
     CancellationToken token;
     Future<?> future;
+    Result prepared;
 
     Entry(ChunkPos p) {
       position = p;
@@ -205,6 +206,7 @@ public final class ChunkScene implements AutoCloseable {
     frame++;
     budgetBlocked = false;
     drain(completions);
+    if (closed) return;
     plan();
     evict();
     if (pressure.paused()) {
@@ -217,6 +219,7 @@ public final class ChunkScene implements AutoCloseable {
             .thenComparingDouble(p -> distanceSquared(p, this.center))
             .thenComparing(Comparator.naturalOrder()));
     for (var position : priority) {
+      if (closed) return;
       if (active >= (pressure.preload() ? config.jobs : 1)) break;
       Entry entry = entries.get(position);
       if (entry == null) {
@@ -270,6 +273,7 @@ public final class ChunkScene implements AutoCloseable {
                       + 4096L * config.size * config.size);
       if (admit(bytes)) submitMesh(entry, bytes, signature, selected);
     }
+    if (closed) return;
     status =
         lastError != null
             ? "Chunk failed; Regenerate to retry: " + lastError
@@ -352,7 +356,7 @@ public final class ChunkScene implements AutoCloseable {
     long id = entry.jobId;
     CancellationToken token = entry.token;
     try {
-      entry.future =
+      var submitted =
           executor.submit(
               () -> {
                 try {
@@ -368,10 +372,19 @@ public final class ChunkScene implements AutoCloseable {
                   ready.add(new Result(entry.position, id, null, null, null, 0, error));
                 }
               });
+      if (owns(entry, id)) entry.future = submitted;
+      else submitted.cancel(true);
     } catch (RejectedExecutionException full) {
+      if (!owns(entry, id)) return;
+      token.cancel();
       finish(entry);
       rejected = true;
       status = "Background queue is full";
+    } catch (Throwable failure) {
+      if (!owns(entry, id)) return;
+      token.cancel();
+      finish(entry);
+      failed(entry, id, failure);
     }
   }
 
@@ -392,7 +405,7 @@ public final class ChunkScene implements AutoCloseable {
     int size = config.size;
     boolean points = config.points;
     try {
-      entry.future =
+      var submitted =
           executor.submit(
               () -> {
                 var profile = profiling.apply(entry.position);
@@ -440,10 +453,19 @@ public final class ChunkScene implements AutoCloseable {
                 }
                 ready.add(completion);
               });
+      if (owns(entry, id)) entry.future = submitted;
+      else submitted.cancel(true);
     } catch (RejectedExecutionException full) {
+      if (!owns(entry, id)) return;
+      token.cancel();
       finish(entry);
       rejected = true;
       status = "Background queue is full";
+    } catch (Throwable failure) {
+      if (!owns(entry, id)) return;
+      token.cancel();
+      finish(entry);
+      failed(entry, id, failure);
     }
   }
 
@@ -456,6 +478,10 @@ public final class ChunkScene implements AutoCloseable {
     active++;
   }
 
+  private boolean owns(Entry entry, long id) {
+    return !closed && entries.get(entry.position) == entry && entry.working && entry.jobId == id;
+  }
+
   private void finish(Entry entry) {
     entry.working = false;
     active--;
@@ -463,14 +489,17 @@ public final class ChunkScene implements AutoCloseable {
     entry.reservation = 0;
     entry.future = null;
     entry.token = null;
+    entry.prepared = null;
   }
 
   private void cancel(Entry entry) {
     if (!entry.working) return;
-    entry.token.cancel();
-    if (entry.future != null) entry.future.cancel(true);
+    var token = entry.token;
+    var future = entry.future;
     entry.jobId = ++sequence;
+    token.cancel();
     finish(entry);
+    if (future != null) future.cancel(true);
   }
 
   private void drain(int limit) {
@@ -482,14 +511,28 @@ public final class ChunkScene implements AutoCloseable {
         discarded++;
         continue;
       }
+      entry.prepared = result;
+    }
+    int settled = 0;
+    for (var entry : new ArrayList<>(entries.values())) {
+      if (settled >= limit || closed) break;
+      if (!entry.working || entry.future == null) continue;
+      long id = entry.jobId;
+      var observed = entry.future;
+      var terminal = completed(observed);
+      if (!owns(entry, id) || entry.future != observed || terminal == null) continue;
+      var result = entry.prepared;
+      if (terminal.failure == null && result == null) continue; // Receipt may await its drain budget.
+      settled++;
+      var token = entry.token;
       finish(entry);
-      if (result.error != null) {
-        if (!(result.error instanceof CancellationException)) {
-          lastError = String.valueOf(result.error.getMessage());
-          if (result.error instanceof RejectedExecutionException
-              || result.error instanceof OutOfMemoryError) rejected = true;
-          else entry.failed = true;
+      var failure = terminal.failure != null ? terminal.failure : result.error;
+      if (failure != null) {
+        if (terminal.failure != null) {
+          token.cancel();
+          observed.cancel(true);
         }
+        failed(entry, id, failure);
         continue;
       }
       if (result.data != null) {
@@ -509,6 +552,46 @@ public final class ChunkScene implements AutoCloseable {
         meshes++;
       }
     }
+  }
+
+  private record Completion(Throwable failure) {}
+
+  /** An unfinished worker is never read; a terminal fault also settles work with no receipt. */
+  private static Completion completed(Future<?> future) {
+    try {
+      if (!future.isDone()) return null;
+      future.get();
+      return new Completion(null);
+    } catch (ExecutionException failure) {
+      return new Completion(failure.getCause() == null ? failure : failure.getCause());
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      return new Completion(interrupted);
+    } catch (Throwable failure) {
+      return new Completion(failure);
+    }
+  }
+
+  private void failed(Entry entry, long id, Throwable failure) {
+    if (failure instanceof CancellationException) return;
+    String detail;
+    try {
+      detail = failure.getMessage();
+    } catch (Throwable unreadable) {
+      detail = null;
+    }
+    if (detail == null || detail.isBlank()) detail = failure.getClass().getSimpleName();
+    if (detail.isBlank()) detail = failure.getClass().getName();
+    if (detail.length() > 2048) {
+      int end = Character.isHighSurrogate(detail.charAt(2046)) ? 2046 : 2047;
+      detail = detail.substring(0, end) + "…";
+    }
+    if (closed || entries.get(entry.position) != entry || entry.jobId != id || entry.working)
+      return;
+    lastError = detail;
+    if (failure instanceof RejectedExecutionException || failure instanceof OutOfMemoryError)
+      rejected = true;
+    else entry.failed = true;
   }
 
   private boolean haloReady(ChunkPos position) {
