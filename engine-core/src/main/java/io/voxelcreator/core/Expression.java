@@ -50,8 +50,10 @@ public final class Expression {
   public static final class BatchFailure extends IllegalArgumentException {
     public final int sampleIndex;
 
+    /** Captures cause text once, bounded to 2,048 UTF-16 units, retaining cause and sample index. */
     public BatchFailure(int sampleIndex, RuntimeException cause) {
-      super("Expression batch sample " + sampleIndex + ": " + cause.getMessage(), cause);
+      super("Expression batch sample " + sampleIndex + ": "
+          + FailureText.describe(Objects.requireNonNull(cause)), cause);
       this.sampleIndex = sampleIndex;
     }
   }

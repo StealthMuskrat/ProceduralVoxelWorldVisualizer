@@ -41,6 +41,7 @@ public final class GridCoordinateConsumer {
       for (int i = 1; i < prefix.length; i++) bits(99, prefix[i]);
     }
     BatchFailureConsumer.run(out.resolve("batch-failures"));
+    ExpressionFailureConsumer.run(out.resolve("expression-failures"));
     Files.writeString(
         out.resolve("grid-coordinate-report.txt"),
         "twoDimensionalValues="
