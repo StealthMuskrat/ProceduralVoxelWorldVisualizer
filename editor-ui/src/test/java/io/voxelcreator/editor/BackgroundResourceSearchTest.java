@@ -67,6 +67,7 @@ class BackgroundResourceSearchTest {
         assertNotSame(caller, builtOn.get()); assertSame(builtOn.get(), searchedOn.get());
         assertTrue(find.pending()); assertFalse(find.matches(live.get()));
         delivery.run(); delivery.run();
+        worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
         var rows = observe(find, s, live, "needle", 1, false);
         assertEquals(List.of("needle"), rows.stream().map(ResourceSearchIndex.Hit::label).toList());
         assertTrue(find.matches(live.get())); assertEquals(1, find.builds());

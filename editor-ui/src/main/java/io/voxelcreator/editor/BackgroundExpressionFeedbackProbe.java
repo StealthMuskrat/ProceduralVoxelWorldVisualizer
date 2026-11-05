@@ -32,7 +32,7 @@ final class BackgroundExpressionFeedbackProbe {
   private static Workers workers;
   private static ArrayDeque<Runnable> ui;
   private static AtomicLong clock;
-  private static boolean rejectHandoff;
+  private static boolean rejectHandoff, inlineHandoff;
 
   static void run(Path out) throws Exception {
     var cases = new ArrayList<Map<String, Object>>();
@@ -184,10 +184,12 @@ final class BackgroundExpressionFeedbackProbe {
       closePanel();
     }
 
-    for (boolean handoff : new boolean[] {false, true}) {
+    for (int failureMode = 0; failureMode < 3; failureMode++) {
+      boolean handoff = failureMode != 0;
       try (var state = open()) {
         workers.reject = !handoff;
         rejectHandoff = handoff;
+        inlineHandoff = failureMode == 2;
         frames(4);
         if (handoff) workers.runAll();
         frames(12);
@@ -200,7 +202,7 @@ final class BackgroundExpressionFeedbackProbe {
         require(
             panel.probeExpressionFeedback().launches() == launches,
             "Failed source automatically resubmitted");
-        workers.reject = rejectHandoff = false;
+        workers.reject = rejectHandoff = inlineHandoff = false;
         click(panel.probeExpressionControl("retry"));
         settle();
         require(
@@ -222,13 +224,18 @@ final class BackgroundExpressionFeedbackProbe {
         cases.add(
             Map.of(
                 "id",
-                handoff ? "handoff-retry" : "schedule-retry",
+                failureMode == 2 ? "inline-handoff-retry" : handoff ? "handoff-retry" : "schedule-retry",
                 "busyFrames",
                 24,
                 "explicitRetry",
                 true,
                 "lateCancelIgnored",
-                true));
+                true,
+                "inlineFailureObserved",
+                failureMode == 2,
+                "failures",
+                state.events.snapshot().stream().filter(e -> e.code().equals("EXPRESSION_FEEDBACK_FAILED"))
+                    .mapToLong(EditorEvents.Entry::count).sum()));
       } finally {
         closePanel();
       }
@@ -301,13 +308,16 @@ final class BackgroundExpressionFeedbackProbe {
     workers = new Workers();
     ui = new ArrayDeque<>();
     clock = new AtomicLong();
-    rejectHandoff = false;
+    rejectHandoff = inlineHandoff = false;
     panel =
         new PropertyPanel(
             state,
             workers,
             completion -> {
-              if (rejectHandoff) throw new AssertionError("feedback handoff unavailable");
+              if (rejectHandoff) {
+                if (inlineHandoff) completion.run();
+                throw new AssertionError("feedback handoff unavailable");
+              }
               ui.add(completion);
             },
             clock::get);

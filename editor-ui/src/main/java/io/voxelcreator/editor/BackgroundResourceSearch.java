@@ -32,7 +32,7 @@ final class BackgroundResourceSearch implements AutoCloseable {
       Source source,
       ResourceSearchIndex index,
       ResourceSearchIndex.Filter filter,
-      List<ResourceSearchIndex.Hit> hits) implements AutoCloseable {
+      List<ResourceSearchIndex.Hit> hits, Throwable failure) implements AutoCloseable {
     @Override
     public void close() {
       // CPU values are released with their owned mailbox slot.
@@ -54,8 +54,9 @@ final class BackgroundResourceSearch implements AutoCloseable {
   private List<ResourceSearchIndex.Hit> results = List.of();
   private Phase phase = Phase.IDLE;
   private Object token = new Object();
+  private Object adopting;
   private FutureTask<Void> task;
-  private boolean delayed, desiredImmediate;
+  private boolean delayed, desiredImmediate, delivered, admitted;
   private long changedAt, builds, queries, version;
   private String message = "";
 
@@ -117,7 +118,8 @@ final class BackgroundResourceSearch implements AutoCloseable {
         desiredImmediate = true;
         delayed = false;
       }
-      refresh();
+      var capturedSource = source;
+      if (!refresh() || source != capturedSource || !request.equals(desired)) return results;
       if (phase == Phase.FAILED || phase == Phase.CLOSED) return results;
       if (acceptedSource == source && request.equals(accepted)) {
         if (phase != Phase.READY) retire();
@@ -157,7 +159,7 @@ final class BackgroundResourceSearch implements AutoCloseable {
       task =
           new FutureTask<>(
               () -> {
-                Throwable failure = null;
+                Outcome outcome;
                 try {
                   var ready =
                       existing == null
@@ -165,15 +167,16 @@ final class BackgroundResourceSearch implements AutoCloseable {
                               build.apply(ProjectIO.JSON.convertValue(owner.values(), ProjectData.class)))
                           : existing;
                   var hits = List.copyOf(Objects.requireNonNull(search.apply(ready, filter)));
-                  if (!handoff.publish(delivery, new Outcome(owner, ready, filter, hits))) return null;
+                  outcome = new Outcome(owner, ready, filter, hits, null);
                 } catch (Throwable rejected) {
-                  failure = rejected;
+                  outcome = new Outcome(owner, null, filter, List.of(), rejected);
                 }
-                var rejected = failure;
-                ui.accept(() -> publish(request, delivery, rejected));
+                if (!handoff.publish(delivery, outcome)) return null;
+                ui.accept(() -> delivered(request, delivery));
                 return null;
               });
       executor.execute(task);
+      if (owns(request)) admitted = true;
     } catch (Throwable failure) {
       fail(request, failure);
     }
@@ -183,30 +186,39 @@ final class BackgroundResourceSearch implements AutoCloseable {
     return request == token && (phase == Phase.BUILDING || phase == Phase.SEARCHING);
   }
 
-  private void publish(Object request, long delivery, Throwable failure) {
-    if (!owns(request) || !handoff.current(delivery)) return;
-    refresh();
-    if (!owns(request)) return;
+  private void delivered(Object request, long delivery) {
+    if (owns(request) && handoff.current(delivery)) delivered = true;
+  }
+
+  private boolean publish(Object request) {
+    if (!owns(request) || adopting == request) return false;
+    Object outer = adopting;
+    adopting = request;
+    var captured = source;
     var outcome = handoff.take();
     try {
-      if (!source.valuesCurrent(state)) {
-        fail(request, new IllegalStateException("Committed values changed; retry the current search"));
-        return;
-      }
-      if (failure != null) {
-        fail(request, failure);
-        return;
-      }
-      if (outcome == null || outcome.source() != source)
+      if (outcome == null || outcome.source() != captured)
         throw new IllegalStateException("Find result was not delivered");
       var currentFilter = liveFilter.get();
+      // A presentation callback may clear/close Find or prepare an entirely new request.
+      if (!owns(request) || source != captured) return false;
+      if (!captured.valuesCurrent(state)) {
+        fail(request, new IllegalStateException("Committed values changed; retry the current search"));
+        return false;
+      }
+      if (outcome.failure() != null) {
+        fail(request, outcome.failure());
+        return false;
+      }
       boolean exact = outcome.filter().equals(desired) && outcome.filter().equals(currentFilter);
+      // The complete worker and its UI handoff succeeded before any rows/index are adopted.
+      task = null;
       retire();
       index = outcome.index();
       if (exact) {
         results = outcome.hits();
         accepted = outcome.filter();
-        acceptedSource = source;
+        acceptedSource = captured;
         phase = Phase.READY;
         message = "";
       } else {
@@ -216,33 +228,62 @@ final class BackgroundResourceSearch implements AutoCloseable {
             && ResourceSearchSession.sameScope(outcome.filter(), desired);
         message = "The index is ready; waiting for the current query.";
       }
+      return true;
     } catch (Throwable rejected) {
-      fail(token, rejected);
+      fail(request, rejected);
+      return false;
+    } finally {
+      adopting = outer;
     }
   }
 
-  private void refresh() {
-    if (phase != Phase.BUILDING && phase != Phase.SEARCHING) return;
+  private boolean refresh() {
+    if (phase != Phase.BUILDING && phase != Phase.SEARCHING) return true;
+    Object request = token;
+    var captured = source;
     try {
-      if (!source.current(state)) {
+      if (!captured.current(state)) {
         cancelPending();
-        return;
+        return false;
       }
       var done = BackgroundFailure.completed(task);
-      if (done != null && done.failure() != null) fail(token, done.failure());
+      if (done != null && done.failure() != null) {
+        fail(request, done.failure());
+        return false;
+      }
+      // A callback can run inline inside ui.accept; readiness does not prove the handoff returned.
+      return !admitted || !delivered || done == null || publish(request);
     } catch (Throwable failure) {
-      fail(token, failure);
+      fail(request, failure);
+      return false;
     }
   }
 
   boolean pending() {
     refresh();
-    return phase != Phase.IDLE && phase != Phase.CLOSED && !matches(liveFilter.get());
+    boolean current = currentRows(null);
+    return phase != Phase.IDLE && phase != Phase.CLOSED && !current;
   }
 
   boolean matches(ResourceSearchIndex.Filter request) {
-    return phase == Phase.READY && source != null && source.current(state)
-        && acceptedSource == source && request.equals(accepted) && request.equals(liveFilter.get());
+    refresh();
+    return currentRows(Objects.requireNonNull(request));
+  }
+
+  private boolean currentRows(ResourceSearchIndex.Filter request) {
+    if (phase != Phase.READY || source == null || acceptedSource != source) return false;
+    Object work = token;
+    var captured = source;
+    var shown = accepted;
+    try {
+      var filter = liveFilter.get();
+      return work == token && phase == Phase.READY && source == captured
+          && acceptedSource == captured && accepted == shown && captured.current(state)
+          && (request == null || request.equals(shown)) && shown.equals(filter);
+    } catch (Throwable failure) {
+      fail(work, failure);
+      return false;
+    }
   }
 
   boolean failed() {
@@ -267,6 +308,7 @@ final class BackgroundResourceSearch implements AutoCloseable {
   }
 
   int indexed() {
+    refresh();
     return index == null ? 0 : index.size();
   }
 
@@ -307,6 +349,7 @@ final class BackgroundResourceSearch implements AutoCloseable {
     token = new Object();
     version++;
     task = null;
+    delivered = admitted = false;
     failedOwner = null;
     failedFilter = null;
     handoff.invalidate();

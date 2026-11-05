@@ -32,3 +32,8 @@ Only compilation moves to workers. Input resolution, immutable request projectio
 - The existing `verify_expression_selection.py` definition requires the six-case background receipt in addition to the original saved-project/schema assertions. Existing manual-only Linux/Windows probe/replay wiring reaches these definitions without adding a workflow trigger or dispatch. The established independent expression consumer and saved arithmetic fixture retain their original scope.
 
 These are definitions, not observed passes. Full compilation, replay, large-document measurements, physical keyboard/DPI behavior, broader GUI/platform/Windows 11 testing and final packaged deliverables remain pending.
+
+
+## Advisory completion follow-up — unvalidated
+
+[Advisory completion ownership](ADVISORY_COMPLETION_OWNERSHIP.md) supersedes completion-callback adoption with automatic owner observation after successful admission, complete worker return and UI delivery. Request/source fences surround reentrant callbacks, and CPU mailboxes release retired success/failure payloads independently of queued callbacks. Eighteen new regression definitions, four adapted prior definitions and two added native retry cases remain uncompiled/untested. Find now defines ten background cases/twenty saved projects/840 fields/2,880 EMPTY cells; Expression defines seven native cases with unchanged saved arithmetic replay. The 922-test/120-suite baseline and all outstanding acceptance gates remain unchanged.

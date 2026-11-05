@@ -22,7 +22,7 @@ final class BackgroundFindProbe {
     float previousScale = ImGui.getIO().getFontGlobalScale();
     var cases = new ArrayList<Map<String, Object>>();
     try {
-      for (String mode : List.of("ready", "coalesced", "retry", "cancel", "collapse", "revision", "live-query", "cancelled-worker", "close")) {
+      for (String mode : List.of("ready", "coalesced", "retry", "cancel", "collapse", "revision", "live-query", "cancelled-worker", "close", "inline-handoff-retry")) {
         var directory = out.resolve(mode); Files.createDirectories(directory);
         now = 0; collapsed = false; open.set(true);
         try (var s = new EditorState(new UserConfig(), false)) {
@@ -43,13 +43,27 @@ final class BackgroundFindProbe {
           long revision = s.revision, history = s.document.historyBytes();
           var tasks = new ArrayDeque<Runnable>(); var ui = new ArrayDeque<Runnable>();
           var reject = new AtomicBoolean(mode.equals("retry"));
+          var inlineFault = new AtomicBoolean(mode.equals("inline-handoff-retry"));
+          boolean inlineFailureObserved = false;
           try (var properties = new PropertyPanel(s)) {
             find = new ResourceFindPanel(s, properties, () -> now, task -> {
               if (reject.get()) throw new RejectedExecutionException("held Find queue");
               tasks.add(task);
-            }, ui::add, true);
+            }, callback -> {
+              if (inlineFault.get()) {
+                callback.run(); throw new AssertionError("Find handoff failed after readiness");
+              }
+              ui.add(callback);
+            }, true);
             find.filter(filter(mode.equals("coalesced") ? "" : "needle"));
             frames(4);
+            if (mode.equals("inline-handoff-retry")) {
+              finish(s, tasks); frame();
+              require(find.searchFailed(), "Inline Find handoff failure was hidden by readiness");
+              inlineFailureObserved = true;
+              frames(12); require(tasks.isEmpty(), "Find retried inline failure automatically");
+              inlineFault.set(false); click(find.controlAt("retry"));
+            }
             if (mode.equals("retry") || mode.equals("cancelled-worker")) {
               if (mode.equals("cancelled-worker")) {
                 ((Future<?>) tasks.remove()).cancel(false); frame();
@@ -111,7 +125,10 @@ final class BackgroundFindProbe {
                 ProjectIO.JSON.writeValueAsString(s.user));
             cases.add(Map.of("mode", mode, "queuedFrames", 12, "heldFrames", 12,
                 "privateRetained", true, "preferencesRetained", true, "navigationGuarded", true,
-                "builds", find.builds(), "queries", find.queries()));
+                "builds", find.builds(), "queries", find.queries(),
+                "inlineFailureObserved", inlineFailureObserved,
+                "failures", s.events.snapshot().stream().filter(e -> e.code().equals("FIND_SEARCH_FAILED"))
+                    .mapToLong(EditorEvents.Entry::count).sum()));
             find.close(); frames(2);
           }
         }

@@ -47,7 +47,7 @@ public final class FindDebounceConsumer {
   private static void background(Path out) throws Exception {
     int samples = 0, cells = 0;
     for (String mode : new String[] {
-        "ready", "coalesced", "retry", "cancel", "collapse", "revision", "live-query", "cancelled-worker", "close"
+        "ready", "coalesced", "retry", "cancel", "collapse", "revision", "live-query", "cancelled-worker", "close", "inline-handoff-retry"
     }) {
       var before = new ProjectLoader().load(out.resolve(mode).resolve("before.json"));
       var after = new ProjectLoader().load(out.resolve(mode).resolve("after.json"));
@@ -84,8 +84,8 @@ public final class FindDebounceConsumer {
         }
       }
     }
-    if (samples != 756 || cells != 2592) throw new AssertionError("Background Find replay coverage");
-    System.out.println("BACKGROUND_FIND_ENGINE_ONLY_PASS 756 constant fields / 2592 EMPTY cells");
+    if (samples != 840 || cells != 2880) throw new AssertionError("Background Find replay coverage");
+    System.out.println("BACKGROUND_FIND_ENGINE_ONLY_PASS 840 constant fields / 2880 EMPTY cells");
   }
 
 }

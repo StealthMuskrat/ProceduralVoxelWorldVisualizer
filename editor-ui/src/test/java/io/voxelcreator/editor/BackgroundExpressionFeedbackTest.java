@@ -107,6 +107,7 @@ class BackgroundExpressionFeedbackTest {
         }
         completion.run();
         completion.run();
+        worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
         assertTrue(observe(actor, s).result().valid());
         assertEquals(1, actor.launches());
         assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
@@ -423,6 +424,7 @@ class BackgroundExpressionFeedbackTest {
           clock.addAndGet(BackgroundExpressionFeedback.QUIET_NANOS);
           observe(actor, s);
           deliver(workers, ui);
+          actor.view(); // Owner observation adopts and caches delivered feedback.
         }
         assertEquals(128, actor.cachedEntries());
         for (int i = 0; i < 20; i++) {
@@ -431,6 +433,7 @@ class BackgroundExpressionFeedbackTest {
           clock.addAndGet(BackgroundExpressionFeedback.QUIET_NANOS);
           observe(actor, s);
           deliver(workers, ui);
+          actor.view(); // Owner observation adopts and caches delivered feedback.
         }
         assertTrue(actor.cachedEntries() < 128);
         assertTrue(actor.cachedBytes() <= BackgroundExpressionFeedback.CACHE_BYTES);
@@ -537,10 +540,11 @@ class BackgroundExpressionFeedbackTest {
       try (var actor = actor(s, workers, ui, clock)) {
         observe(actor, s);
         deliver(workers, ui);
+        var feedback = actor.view().result();
         var selection = new ExpressionSelectionCallback();
         selection.context(
             s.project(), s.draft, actor.selectionOwner(), ExpressionFeedback.source(item(s)));
-        selection.request(ExpressionFeedback.source(item(s)), actor.view().result());
+        selection.request(ExpressionFeedback.source(item(s)), feedback);
         assertTrue(selection.pending());
         item(s).inputs.put("unknown", Binding.constant(1));
         observe(actor, s);

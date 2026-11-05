@@ -63,6 +63,13 @@ final class BackgroundExpressionFeedback implements AutoCloseable {
     }
   }
 
+  private record Prepared(
+      Owner owner, ExpressionFeedback.Request input, ExpressionFeedback.Result result,
+      Throwable failure) {}
+
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery;
+  private boolean delivered, admitted;
   private final EditorState state;
   private final Executor executor;
   private final Consumer<Runnable> ui;
@@ -79,6 +86,7 @@ final class BackgroundExpressionFeedback implements AutoCloseable {
   private String message = "";
   private FutureTask<Void> task;
   private Object token = new Object();
+  private Object adopting;
 
   BackgroundExpressionFeedback(
       EditorState state,
@@ -108,13 +116,23 @@ final class BackgroundExpressionFeedback implements AutoCloseable {
     return source == null ? ExpressionFeedback.source(item) : source.get();
   }
 
+  private boolean currentWork(Object request) {
+    return request == token && phase != Phase.CLOSED;
+  }
+
+  private View snapshot() {
+    return new View(phase, phase == Phase.READY ? result : null, message, phase == Phase.FAILED);
+  }
+
   View observe(Noise noise, Item item) {
-    if (phase == Phase.CLOSED) return view();
+    if (phase == Phase.CLOSED) return snapshot();
+    Object request = token;
     try {
       var current = Owner.capture(state, noise, item);
       boolean contextChanged = !current.equals(owner);
       if (contextChanged) {
         retire();
+        request = token;
         owner = current;
         desired = null;
         cache.clear();
@@ -122,11 +140,14 @@ final class BackgroundExpressionFeedback implements AutoCloseable {
       }
       if (!current.current(state)) {
         stale();
-        return view();
+        return snapshot();
       }
-      var input = ExpressionFeedback.capture(state.project(), noise, item, text(item));
+      String currentText = text(item);
+      if (!currentWork(request)) return snapshot();
+      var input = ExpressionFeedback.capture(state.project(), noise, item, currentText);
       if (!input.equals(desired) || phase == Phase.STALE) {
         retire();
+        request = token;
         desired = input;
         result = cache.get(input);
         if (result != null) {
@@ -134,27 +155,35 @@ final class BackgroundExpressionFeedback implements AutoCloseable {
           message = "";
         } else {
           phase = Phase.WAITING;
-          changedAt = clock.getAsLong() - (contextChanged ? QUIET_NANOS : 0);
+          long now = clock.getAsLong();
+          if (!currentWork(request)) return snapshot();
+          changedAt = now - (contextChanged ? QUIET_NANOS : 0);
           message = "Waiting for typing to pause before checking the expression.";
         }
       }
       refresh();
-      if (phase == Phase.WAITING && clock.getAsLong() - changedAt >= QUIET_NANOS) start();
+      if (!currentWork(request)) return snapshot();
+      if (phase == Phase.WAITING) {
+        long now = clock.getAsLong();
+        if (!currentWork(request)) return snapshot();
+        if (now - changedAt >= QUIET_NANOS) start();
+      }
     } catch (Throwable failure) {
-      fail(token, failure);
+      fail(request, failure);
     }
-    return view();
+    return snapshot();
   }
 
   View view() {
     refresh();
-    return new View(phase, phase == Phase.READY ? result : null, message, phase == Phase.FAILED);
+    return snapshot();
   }
 
   private void start() {
     var input = desired;
     var captured = owner;
     Object request = token;
+    long handed = delivery;
     phase = Phase.RUNNING;
     message = "Checking expression feedback in the background...";
     launches++;
@@ -169,12 +198,13 @@ final class BackgroundExpressionFeedback implements AutoCloseable {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var completed = value;
-                var rejected = failure;
-                ui.accept(() -> publish(request, captured, input, completed, rejected));
+                if (!handoff.publish(handed, new Prepared(captured, input, value, failure)))
+                  return null;
+                ui.accept(() -> delivered(request, handed));
                 return null;
               });
       executor.execute(task);
+      if (owns(request)) admitted = true;
     } catch (Throwable failure) {
       fail(request, failure);
     }
@@ -184,31 +214,40 @@ final class BackgroundExpressionFeedback implements AutoCloseable {
     return request == token && phase == Phase.RUNNING && task != null;
   }
 
-  private void publish(
-      Object request,
-      Owner captured,
-      ExpressionFeedback.Request input,
-      ExpressionFeedback.Result completed,
-      Throwable failure) {
-    if (!owns(request)) return;
+  private void delivered(Object request, long handed) {
+    if (owns(request) && handed == delivery) delivered = true;
+  }
+
+  private void publish(Object request) {
+    if (!owns(request) || adopting == request) return;
+    Object outer = adopting;
+    adopting = request;
+    var prepared = handoff.take();
     try {
+      if (prepared == null || prepared.owner() != owner || !prepared.input().equals(desired))
+        throw new IllegalStateException("Expression feedback was not delivered");
+      var captured = prepared.owner();
+      var input = prepared.input();
+      String currentText = text(captured.item());
+      if (!owns(request)) return;
       if (!captured.current(state)
           || !input.equals(
               ExpressionFeedback.capture(
-                  state.project(), captured.noise(), captured.item(), text(captured.item())))) {
+                  state.project(), captured.noise(), captured.item(), currentText))) {
         stale();
         return;
       }
-      if (failure != null) {
-        fail(request, failure);
+      if (prepared.failure() != null) {
+        fail(request, prepared.failure());
         return;
       }
+      task = null;
       retire();
-      result = completed;
+      result = prepared.result();
       phase = Phase.READY;
       message = "";
       if (input.bytes() <= CACHE_BYTES) {
-        var previous = cache.put(input, completed);
+        var previous = cache.put(input, result);
         if (previous == null) cacheBytes += input.bytes();
         while (cache.size() > 128 || cacheBytes > CACHE_BYTES) {
           var first = cache.keySet().iterator().next();
@@ -218,11 +257,14 @@ final class BackgroundExpressionFeedback implements AutoCloseable {
       }
     } catch (Throwable rejected) {
       fail(request, rejected);
+    } finally {
+      adopting = outer;
     }
   }
 
   private void refresh() {
     if (phase == Phase.CLOSED || owner == null) return;
+    Object request = token;
     try {
       if (!owner.current(state)) {
         stale();
@@ -230,43 +272,55 @@ final class BackgroundExpressionFeedback implements AutoCloseable {
       }
       if (task != null) {
         var done = BackgroundFailure.completed(task);
-        if (done != null && done.failure() != null) fail(token, done.failure());
+        if (done != null && done.failure() != null) fail(request, done.failure());
+        else if (done != null && admitted && delivered) publish(request);
       }
     } catch (Throwable failure) {
-      fail(token, failure);
+      fail(request, failure);
     }
   }
 
   void retry() {
     if (phase != Phase.FAILED || owner == null || desired == null) return;
+    Object request = token;
+    var captured = owner;
+    var input = desired;
     try {
-      if (!owner.current(state)
-          || !desired.equals(
+      String currentText = text(captured.item());
+      if (!currentWork(request)) return;
+      if (!captured.current(state)
+          || !input.equals(
               ExpressionFeedback.capture(
-                  state.project(), owner.noise(), owner.item(), text(owner.item())))) {
+                  state.project(), captured.noise(), captured.item(), currentText))) {
         stale();
         return;
       }
       retire();
+      request = token;
       phase = Phase.WAITING;
-      changedAt = clock.getAsLong() - QUIET_NANOS;
+      long now = clock.getAsLong();
+      if (!currentWork(request)) return;
+      changedAt = now - QUIET_NANOS;
       message = "Retrying expression feedback.";
       start();
     } catch (Throwable failure) {
-      fail(token, failure);
+      fail(request, failure);
     }
   }
 
   void supersede() {
     if (phase == Phase.CLOSED) return;
     retire();
+    Object request = token;
     desired = null;
     phase = Phase.WAITING;
     try {
-      changedAt = clock.getAsLong();
+      long now = clock.getAsLong();
+      if (!currentWork(request)) return;
+      changedAt = now;
       message = "Waiting for typing to pause before checking the expression.";
     } catch (Throwable failure) {
-      fail(token, failure);
+      fail(request, failure);
     }
   }
 
@@ -308,6 +362,8 @@ final class BackgroundExpressionFeedback implements AutoCloseable {
     token = new Object();
     version++;
     task = null;
+    delivered = admitted = false;
+    handoff.advance(++delivery);
     result = null;
     if (previous != null) {
       previous.cancel(true);
@@ -343,6 +399,7 @@ final class BackgroundExpressionFeedback implements AutoCloseable {
     desired = null;
     cache.clear();
     cacheBytes = 0;
+    handoff.close();
     phase = Phase.CLOSED;
     message = "";
   }

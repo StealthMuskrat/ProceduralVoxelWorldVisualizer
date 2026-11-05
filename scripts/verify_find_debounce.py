@@ -36,10 +36,12 @@ print('Find debounce independent receipts, native geometry and complete project/
 background = out / 'background'
 receipt = json.loads((background / 'find-background-native.json').read_text(encoding='utf-8'))
 assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
-modes = ['ready', 'coalesced', 'retry', 'cancel', 'collapse', 'revision', 'live-query', 'cancelled-worker', 'close']
+modes = ['ready', 'coalesced', 'retry', 'cancel', 'collapse', 'revision', 'live-query', 'cancelled-worker', 'close', 'inline-handoff-retry']
 assert [case['mode'] for case in receipt['cases']] == modes
 for case in receipt['cases']:
     mode = case['mode']
+    assert case['inlineFailureObserved'] is (mode == 'inline-handoff-retry')
+    assert case['failures'] == (1 if mode in ('retry', 'cancelled-worker', 'inline-handoff-retry') else 0)
     assert case['queuedFrames'] == case['heldFrames'] == 12
     for key in ('privateRetained', 'preferencesRetained', 'navigationGuarded'):
         assert case[key] is True, (mode, key)
@@ -59,4 +61,4 @@ for case in receipt['cases']:
     preferences_before = json.loads((background / mode / 'preferences-before.json').read_text(encoding='utf-8'))
     preferences_after = json.loads((background / mode / 'preferences-after.json').read_text(encoding='utf-8'))
     assert preferences_before == preferences_after, mode
-print('BACKGROUND_FIND_INDEPENDENT_PASS nine worker/lifecycle receipts / eighteen saved documents / preferences')
+print('BACKGROUND_FIND_INDEPENDENT_PASS ten worker/lifecycle receipts / twenty saved documents / preferences')
