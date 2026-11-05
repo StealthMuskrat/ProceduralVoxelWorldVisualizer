@@ -29,7 +29,7 @@ assert not project['worldGenerator']['layers']
 background = out / 'background-prepare'
 receipt = json.loads((background / 'background-resource-edit.json').read_text(encoding='utf-8'))
 assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
-modes = ['clean', 'apply', 'discard', 'cancel', 'escape', 'retry', 'raw', 'close']
+modes = ['clean', 'apply', 'discard', 'cancel', 'escape', 'retry', 'raw', 'close', 'ready-cancel', 'ready-escape', 'ready-clean-cancel', 'ready-discard-cancel']
 assert [case['mode'] for case in receipt['cases']] == modes
 snapshots = 0
 for case in receipt['cases']:
@@ -38,6 +38,7 @@ for case in receipt['cases']:
     private_applied = mode in ('apply', 'retry')
     assert case['applied'] is applied and case['oneUndoRedo'] is applied
     assert case['privateApplied'] is private_applied and case['responsiveFrames'] == 12
+    assert case['readyRetired'] is mode.startswith('ready-')
     assert all(case[key] is True for key in ('privateUntilPublication', 'preferencesRetained', 'originalBytesRetained'))
     directory = background / mode
     baseline = json.loads((directory / 'before.json').read_text(encoding='utf-8'))
@@ -62,12 +63,12 @@ for case in receipt['cases']:
         expected['project']['seed'] = 6 if mode == 'raw' and name == 'after' else 5
         assert saved == expected
         snapshots += 1
-assert snapshots == 24
+assert snapshots == 32
 api = json.loads((background / 'api-redone.json').read_text(encoding='utf-8'))
 jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()).validate(api)
 expected = json.loads((background / 'clean/before.json').read_text(encoding='utf-8'))
 expected['noise2D'][0]['id'] = 'api-renamed'
 expected['noise2D'][0]['algorithm']['parameters']['value'] = .625
 assert api == expected
-assert json.loads((background / 'engine-replay.json').read_text(encoding='utf-8')) == dict(formatVersion=1, snapshots=24, apiStates=3, preparedTransactions=1, fields=1134, cells=7938, solidCells=1260, roots=[2, 4])
+assert json.loads((background / 'engine-replay.json').read_text(encoding='utf-8')) == dict(formatVersion=1, snapshots=32, apiStates=3, preparedTransactions=1, fields=1470, cells=10290, solidCells=1260, roots=[2, 4])
 print('BROWSER_EDIT_INDEPENDENT_PASS atomic staged Apply / background cancellation and retry / exact saved models and schema / threshold World and public API replay')

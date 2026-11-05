@@ -37,6 +37,10 @@ final class ProjectHistorySession implements AutoCloseable {
   private final Executor executor;
   private final Consumer<Runnable> ui;
   private FutureTask<Void> task;
+  private record Prepared(DocumentSession.PreparedHistory value, Throwable failure) {}
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery, workVersion;
+  private boolean ready;
   private Object workToken = new Object();
   private boolean closed;
 
@@ -81,7 +85,11 @@ final class ProjectHistorySession implements AutoCloseable {
 
   boolean preparing() {
     refreshBackground();
-    return task != null;
+    return task != null || ready;
+  }
+
+  long workVersion() {
+    return workVersion;
   }
 
   private boolean available(Direction direction) {
@@ -197,11 +205,14 @@ final class ProjectHistorySession implements AutoCloseable {
 
   private Result prepare(Direction direction) {
     pending = direction;
+    workVersion++;
     Object token = workToken;
     try {
       owner = new ProjectFileOwner(state);
       var preparation =
           direction == Direction.UNDO ? state.document.requestUndo() : state.document.requestRedo();
+      long handed = ++delivery;
+      handoff.advance(handed);
       task =
           new FutureTask<>(
               () -> {
@@ -212,9 +223,8 @@ final class ProjectHistorySession implements AutoCloseable {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var completed = result;
-                var rejected = failure;
-                ui.accept(() -> publish(token, direction, completed, rejected));
+                if (!handoff.publish(handed, new Prepared(result, failure))) return null;
+                ui.accept(() -> delivered(token, handed));
                 return null;
               });
       executor.execute(task);
@@ -226,7 +236,28 @@ final class ProjectHistorySession implements AutoCloseable {
   }
 
   private boolean ownsWork(Object token) {
-    return token == workToken && task != null && pending != null && !closed;
+    return token == workToken && (task != null || ready) && pending != null && !closed;
+  }
+
+  private void delivered(Object token, long handed) {
+    if (!ownsWork(token) || delivery != handed || ready) return;
+    refreshBackground();
+    if (!ownsWork(token)) return;
+    task = null;
+    ready = true;
+  }
+
+  /** The shown history modal processes current cancellation before installing a history step. */
+  void acceptPrepared() {
+    Object token = workToken;
+    refreshBackground();
+    if (!ownsWork(token) || !ready || moving) return;
+    var value = handoff.take();
+    if (value == null) {
+      failBackground(token, new IllegalStateException("History preparation unavailable"));
+      return;
+    }
+    publish(token, pending, value.value(), value.failure());
   }
 
   private void publish(
@@ -289,7 +320,7 @@ final class ProjectHistorySession implements AutoCloseable {
   }
 
   private void refreshBackground() {
-    if (task == null || closed) return;
+    if ((task == null && !ready) || closed) return;
     try {
       if (!owner.current(state)) {
         staleBackground();
@@ -340,6 +371,9 @@ final class ProjectHistorySession implements AutoCloseable {
     var previous = task;
     workToken = new Object();
     task = null;
+    ready = false;
+    handoff.advance(++delivery);
+    workVersion++;
     generation++;
     pending = null;
     owner = null;
@@ -354,5 +388,6 @@ final class ProjectHistorySession implements AutoCloseable {
     if (closed) return;
     clear();
     closed = true;
+    handoff.close();
   }
 }

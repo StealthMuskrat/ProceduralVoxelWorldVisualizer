@@ -75,6 +75,7 @@ final class ProjectHistoryPanel implements AutoCloseable {
         "Unapplied Properties and Project History", ImGuiWindowFlags.AlwaysAutoResize)) return;
     var ticket = decisions.capture(frame);
     long request = shownRequest;
+    long work = session.workVersion();
     String action = session.direction() == ProjectHistorySession.Direction.UNDO ? "Undo" : "Redo";
     boolean discard = false, cancel = false;
     try {
@@ -119,6 +120,16 @@ final class ProjectHistoryPanel implements AutoCloseable {
       session.decide(
           cancel ? ProjectHistorySession.Decision.CANCEL : ProjectHistorySession.Decision.DISCARD);
       if (!session.pending() && decisions.owns(ticket)) {
+        decisions.close();
+        controls.clear();
+        closePopup();
+      }
+    }
+    if (decisions.owns(ticket)
+        && session.requestVersion() == request
+        && session.workVersion() == work) {
+      session.acceptPrepared();
+      if (!session.pending() && decisions.owns(ticket) && session.requestVersion() == request) {
         decisions.close();
         controls.clear();
         closePopup();

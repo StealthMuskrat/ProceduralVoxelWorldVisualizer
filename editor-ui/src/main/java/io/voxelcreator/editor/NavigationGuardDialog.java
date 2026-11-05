@@ -133,7 +133,7 @@ final class NavigationGuardDialog {
         applyLabel, preparingLabel, allowDiscard, () -> false);
   }
 
-  private void draw(
+  void draw(
       String title,
       Runnable explanation,
       Function<SearchNavigation.Decision, SearchNavigation.Result> decide,

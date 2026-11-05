@@ -56,9 +56,10 @@ class BackgroundProjectHistoryTest {
         s, () -> false, () -> s.reconcileSelection(s.multiSelection, s.selected), workers, ui::add);
   }
 
-  static void deliver(Workers worker, Queue<Runnable> ui) {
+  static void deliver(Workers worker, Queue<Runnable> ui, ProjectHistorySession h) {
     worker.run();
     ui.remove().run();
+    h.acceptPrepared();
   }
 
   static void confirm(ProjectHistorySession h) {
@@ -67,7 +68,7 @@ class BackgroundProjectHistoryTest {
   }
 
   @Test
-  void cleanUndoAndRedoValidateOffThreadAndWaitForOwnerDelivery() throws Exception {
+  void cleanUndoAndRedoValidateOffThreadAndWaitForOwnerAcceptance() throws Exception {
     try (var state = state(false);
         var workers = Executors.newSingleThreadExecutor()) {
       var queue = new LinkedBlockingQueue<Runnable>();
@@ -87,6 +88,9 @@ class BackgroundProjectHistoryTest {
         assertEquals(.625, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
         assertTrue(h.preparing());
         callback.run();
+        assertTrue(h.preparing());
+        assertEquals(.625, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
+        h.acceptPrepared();
         assertFalse(h.pending());
         assertEquals(.125, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
         assertEquals(bytes, state.document.historyBytes());
@@ -94,6 +98,7 @@ class BackgroundProjectHistoryTest {
         var redo = queue.poll(10, TimeUnit.SECONDS);
         assertNotNull(redo);
         redo.run();
+        h.acceptPrepared();
         assertEquals(.625, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
       }
     }
@@ -113,6 +118,7 @@ class BackgroundProjectHistoryTest {
         workers.run();
         assertSame(draft, state.draft);
         queue.remove().run();
+        h.acceptPrepared();
         assertNotSame(draft, state.draft);
         assertEquals(.125, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
         assertEquals("field", ((Noise) state.draft).id);
@@ -160,6 +166,7 @@ class BackgroundProjectHistoryTest {
           else assertTrue(state.change(p -> p.project.seed = 18));
           var owner = new ProjectFileOwner(state);
           queue.remove().run();
+          h.acceptPrepared();
           assertFalse(h.pending());
           assertTrue(owner.valuesCurrent(state));
         }
@@ -183,6 +190,7 @@ class BackgroundProjectHistoryTest {
           else assertTrue(state.document.open(path).isEmpty());
           var owner = new ProjectFileOwner(state);
           queue.remove().run();
+          h.acceptPrepared();
           assertFalse(h.pending());
           assertTrue(owner.valuesCurrent(state));
         }
@@ -204,13 +212,13 @@ class BackgroundProjectHistoryTest {
             });
         try (var h = history(state, workers, queue)) {
           confirm(h);
-          deliver(workers, queue);
+          deliver(workers, queue, h);
           assertFalse(h.pending());
           assertTrue(owner.valuesCurrent(state));
           assertEquals(bytes, state.document.historyBytes());
           state.document.setValidator(NoiseCompiler::validate);
           confirm(h);
-          deliver(workers, queue);
+          deliver(workers, queue, h);
           assertEquals(.125, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
         }
       }
@@ -246,7 +254,7 @@ class BackgroundProjectHistoryTest {
           assertTrue(owner.valuesCurrent(state));
           fail.set(false);
           assertEquals(Result.PREPARING, h.request(Direction.UNDO));
-          deliver(workers, queue);
+          deliver(workers, queue, h);
           assertFalse(h.pending());
           assertTrue(state.document.canRedo());
         }
@@ -263,7 +271,7 @@ class BackgroundProjectHistoryTest {
         assertEquals(Result.UNAVAILABLE, h.request(Direction.REDO));
         assertEquals(Result.UNAVAILABLE, h.decide(Decision.DISCARD));
         assertEquals(1, workers.tasks.size());
-        deliver(workers, queue);
+        deliver(workers, queue, h);
         assertEquals(.125, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
       }
     }
@@ -296,7 +304,7 @@ class BackgroundProjectHistoryTest {
                 queue::add)) {
           holder[0] = h;
           confirm(h);
-          deliver(workers, queue);
+          deliver(workers, queue, h);
           assertEquals(cancel, h.pending());
           assertTrue(owner.valuesCurrent(state));
           if (cancel) assertEquals(Result.CANCELLED, h.decide(Decision.CANCEL));
@@ -329,6 +337,7 @@ class BackgroundProjectHistoryTest {
         var late = queue.remove();
         late.run();
         late.run();
+        h.acceptPrepared();
         assertFalse(h.pending());
         assertFalse(h.busy());
         assertEquals(1, refreshed.get());
@@ -354,7 +363,7 @@ class BackgroundProjectHistoryTest {
       var queue = new ArrayDeque<Runnable>();
       try (var h = history(state, workers, queue)) {
         confirm(h);
-        deliver(workers, queue);
+        deliver(workers, queue, h);
         assertNull(state.selected);
         assertNull(state.draft);
         assertTrue(state.multiSelection.isEmpty());
@@ -379,7 +388,7 @@ class BackgroundProjectHistoryTest {
         late.run();
         assertTrue(second.preparing());
         assertEquals(.625, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
-        deliver(workers, queue);
+        deliver(workers, queue, second);
         assertTrue(state.document.canRedo());
       }
     }

@@ -17,7 +17,7 @@ public final class BackgroundHistoryConsumer {
 
   static void run(Path out) throws Exception {
     int fields = 0, cells = 0, snapshots = 0;
-    for (String mode : List.of("clean", "discard", "cancel", "escape", "retry", "close")) {
+    for (String mode : List.of("clean", "discard", "cancel", "escape", "retry", "close", "ready-cancel", "ready-escape", "ready-clean-cancel", "ready-close")) {
       var directory = out.resolve(mode);
       var before = new ProjectLoader().load(directory.resolve("before.json"));
       require(before.success(), "History baseline rejected");
@@ -90,7 +90,7 @@ public final class BackgroundHistoryConsumer {
     fields += persisted[0];
     cells += persisted[1];
     require(
-        snapshots == 15 && fields == 399 && cells == 5586, "Background history replay dimensions");
+        snapshots == 23 && fields == 567 && cells == 7938, "Background history replay dimensions");
     Files.writeString(
         out.resolve("engine-replay.json"),
         ProjectIO.JSON.writeValueAsString(
@@ -110,7 +110,7 @@ public final class BackgroundHistoryConsumer {
                 "roots",
                 List.of(2, 4))));
     System.out.println(
-        "BACKGROUND_HISTORY_ENGINE_ONLY_PASS 15 saved states / 2 prepared steps / 399 fields / 5586"
+        "BACKGROUND_HISTORY_ENGINE_ONLY_PASS 23 saved states / 2 prepared steps / 567 fields / 7938"
             + " EMPTY cells");
   }
 

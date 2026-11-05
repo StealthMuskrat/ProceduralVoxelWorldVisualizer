@@ -892,6 +892,8 @@ public final class ResourcePanel implements AutoCloseable {
       editGuard.open(title);
       editPrompt = false;
     }
+    boolean preparing = edits.preparing();
+    long work = edits.workVersion();
     editGuard.draw(
         title,
         () -> {
@@ -916,11 +918,15 @@ public final class ResourcePanel implements AutoCloseable {
                   : SearchNavigation.Result.UNAVAILABLE;
         },
         "The draft or action was rejected. Cancel to correct it; no changes were published.",
-        edits.preparing(),
-        edits.workVersion(),
+        preparing,
+        work,
         edits.privateDecision() ? "APPLY" : "Retry Action",
         edits.preparingApply() ? "Preparing Apply..." : "Preparing action...",
-        edits.privateDecision());
+        edits.privateDecision(),
+        () -> {
+          if (edits.workVersion() == work) edits.acceptPrepared();
+          return !edits.pending();
+        });
   }
 
   ResourceEditSession.Result decideEdit(SearchNavigation.Decision decision) {

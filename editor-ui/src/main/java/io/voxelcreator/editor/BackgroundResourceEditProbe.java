@@ -19,7 +19,7 @@ final class BackgroundResourceEditProbe {
     Files.createDirectories(out);
     var cases = new ArrayList<Map<String, Object>>();
     for (String mode :
-        List.of("clean", "apply", "discard", "cancel", "escape", "retry", "raw", "close")) {
+        List.of("clean", "apply", "discard", "cancel", "escape", "retry", "raw", "close", "ready-cancel", "ready-escape", "ready-clean-cancel", "ready-discard-cancel")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       try (var state = new EditorState(new UserConfig(), false);
@@ -57,8 +57,10 @@ final class BackgroundResourceEditProbe {
         state.document.save(directory.resolve("before.json"));
         byte[] original = Files.readAllBytes(directory.resolve("before.json"));
         state.select("noise2D", state.project().noise2D.getFirst().uuid);
-        if (!mode.equals("clean")) ((Noise) state.draft).algorithm.parameters.put("value", .625);
-        if (mode.equals("discard")) state.seedInputs.edit(state, "seedOffset", "Seed", "-");
+        boolean clean = mode.equals("clean") || mode.equals("ready-clean-cancel");
+        boolean discard = mode.equals("discard") || mode.equals("ready-discard-cancel");
+        if (!clean) ((Noise) state.draft).algorithm.parameters.put("value", .625);
+        if (discard) state.seedInputs.edit(state, "seedOffset", "Seed", "-");
         var draft = state.draft;
         var privateValues = ProjectIO.JSON.valueToTree(draft);
         var preferences = ProjectIO.JSON.valueToTree(state.user);
@@ -77,11 +79,11 @@ final class BackgroundResourceEditProbe {
           frames(4);
           rename();
           var edits = resources.probeEditSession();
-          if (!mode.equals("clean")) {
+          if (!clean) {
             require(
                 edits.pending() && !edits.preparing() && tasks.isEmpty(),
                 "Modified draft did not wait for a decision");
-            click(mode.equals("discard") ? "DISCARD" : "APPLY");
+            click(discard ? "DISCARD" : "APPLY");
           }
           require(
               edits.preparing() && !edits.busy() && tasks.size() == 1,
@@ -98,7 +100,7 @@ final class BackgroundResourceEditProbe {
             require(
                 work == resources.editGuard.requestVersion(),
                 "Resource gesture IDs changed while preparing");
-            if (mode.equals("discard"))
+            if (discard)
               require(
                   "-".equals(state.seedInputs.text("seedOffset")),
                   "Discard disposed input before publication");
@@ -109,16 +111,32 @@ final class BackgroundResourceEditProbe {
                   && state.draft == draft
                   && state.project().noise2D.getFirst().id.equals("a"),
               "Worker published before UI delivery");
-          if (mode.equals("cancel")) click("CANCEL");
-          else if (mode.equals("escape")) {
-            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
-            frame();
-            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+          if (mode.startsWith("ready-")) {
+            long prepared = edits.workVersion();
+            if (!mode.equals("ready-escape")) hold("CANCEL");
+            ui.remove().run();
+            require(edits.preparing() && edits.workVersion() == prepared
+                && work == resources.editGuard.requestVersion() && state.draft == draft
+                && state.project().noise2D.getFirst().id.equals("a"),
+                "Ready resource delivery published or changed Cancel authority");
+            if (mode.equals("ready-escape")) {
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+            } else {
+              ImGui.getIO().addMouseButtonEvent(0, false); frames(3);
+            }
+          } else {
+            if (mode.equals("cancel")) click("CANCEL");
+            else if (mode.equals("escape")) {
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+              frame();
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+              frames(3);
+            } else if (mode.equals("raw")) state.project().project.seed = 6;
+            else if (mode.equals("close")) resources.close();
+            ui.remove().run();
             frames(3);
-          } else if (mode.equals("raw")) state.project().project.seed = 6;
-          else if (mode.equals("close")) resources.close();
-          ui.remove().run();
-          frames(3);
+          }
           if (mode.equals("retry")) {
             require(
                 edits.pending()
@@ -148,10 +166,10 @@ final class BackgroundResourceEditProbe {
                 state.draft == draft
                     && privateValues.equals(ProjectIO.JSON.valueToTree(state.draft)),
                 "Retired action lost private input");
-          if (mode.equals("discard"))
+          if (discard)
             require(
-                !state.seedInputs.pending(state),
-                "Successful Discard retained obsolete raw ownership");
+                applied ? !state.seedInputs.pending(state) : "-".equals(state.seedInputs.text("seedOffset")),
+                "Discard cancellation/publication lost raw input ownership");
           state.document.save(directory.resolve("after.json"));
           if (applied) {
             var accepted = ProjectIO.JSON.valueToTree(state.project());
@@ -190,7 +208,9 @@ final class BackgroundResourceEditProbe {
                   "preferencesRetained",
                   true,
                   "originalBytesRetained",
-                  true));
+                  true,
+                  "readyRetired",
+                  mode.startsWith("ready-")));
         } finally {
           resources.close();
           frames(2);
@@ -221,6 +241,12 @@ final class BackgroundResourceEditProbe {
     io.addKeyEvent(ImGuiKey.Enter, false);
     frames(3);
     require(resources.probeEditPending(), "Inline rename did not retain the resource request");
+  }
+
+  private static void hold(String key) {
+    var at = resources.probeEditButton(key); require(at != null, "Resource action missing " + key);
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(String key) {

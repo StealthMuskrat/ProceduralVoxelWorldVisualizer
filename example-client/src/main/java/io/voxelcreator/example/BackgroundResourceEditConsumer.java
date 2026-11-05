@@ -18,7 +18,7 @@ public final class BackgroundResourceEditConsumer {
   static void run(Path out) throws Exception {
     int snapshots = 0, fields = 0, cells = 0, solid = 0;
     for (String mode :
-        List.of("clean", "apply", "discard", "cancel", "escape", "retry", "raw", "close")) {
+        List.of("clean", "apply", "discard", "cancel", "escape", "retry", "raw", "close", "ready-cancel", "ready-escape", "ready-clean-cancel", "ready-discard-cancel")) {
       var directory = out.resolve(mode);
       var before = new ProjectLoader().load(directory.resolve("before.json"));
       require(before.success(), "Browser action baseline rejected");
@@ -94,7 +94,7 @@ public final class BackgroundResourceEditConsumer {
         baseline.equals(ProjectIO.JSON.valueToTree(reloaded.project())),
         "Public staged edit changed unrelated persisted values");
     require(
-        snapshots == 24 && fields == 1134 && cells == 7938 && solid == 1260,
+        snapshots == 32 && fields == 1470 && cells == 10290 && solid == 1260,
         "Browser action replay dimensions");
     Files.writeString(
         out.resolve("engine-replay.json"),
@@ -117,8 +117,8 @@ public final class BackgroundResourceEditConsumer {
                 "roots",
                 List.of(2, 4))));
     System.out.println(
-        "BACKGROUND_RESOURCE_EDIT_ENGINE_ONLY_PASS 24 saved states / 3 API states / 1134 fields /"
-            + " 7938 cells");
+        "BACKGROUND_RESOURCE_EDIT_ENGINE_ONLY_PASS 32 saved states / 3 API states / 1470 fields /"
+            + " 10290 cells");
   }
 
   private static int[] observe(ProjectData project, double expected) {

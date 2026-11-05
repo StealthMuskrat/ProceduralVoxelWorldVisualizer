@@ -310,6 +310,21 @@ final class HelpDefinitions {
                   + " Save Preferences persists active preferences only and never applies"
                   + " private scale, theme or resource input."),
           new Guide(
+              "help.command-history-recovery",
+              "Cancelling prepared resource actions and project history",
+              "Resource-action and project-history Cancel/Escape controls run before accepting a"
+                  + " ready background result. Delivery alone changes no project values, history"
+                  + " stacks, selection or private Properties input. A clean action or clean"
+                  + " Undo/Redo still stays cancellable while its progress dialog is shown."
+                  + " Resource Apply validates private Properties before the command; Discard runs"
+                  + " only the command and disposes of private input after successful publication."
+                  + " Undo/Redo never applies private Properties: its discard decision takes effect"
+                  + " only when the history step publishes. Failed preparation remains cancellable"
+                  + " before its feedback is accepted. Retry Action, Apply/Discard or a fresh"
+                  + " Undo/Redo request is explicit. Successful work finishes from the original"
+                  + " action without another confirmation. Project Save and preferences remain"
+                  + " separate."),
+          new Guide(
               "help.child-apply-recovery",
               "Cancelling prepared membership and curve edits",
               "Membership Cancel/Escape and Curve Cancel Apply/Cancel/Escape run before accepting"
@@ -616,7 +631,7 @@ final class HelpDefinitions {
       Map.ofEntries(
           Map.entry(
               "help.project-history",
-              List.of("help.properties-apply", "help.project-save", "save", "diagnostics")),
+              List.of("help.properties-apply", "help.project-save", "save", "diagnostics", "help.command-history-recovery")),
           Map.entry("help.manual", List.of("noise", "help.find", "shortcuts", "help.about")),
           Map.entry(
               "help.noise-cycles",
@@ -640,6 +655,7 @@ final class HelpDefinitions {
                   "help.resource-session",
                   "help.properties-apply",
                   "help.project-save",
+                  "help.command-history-recovery",
                   "diagnostics")),
           Map.entry(
               "noise",
@@ -695,6 +711,7 @@ final class HelpDefinitions {
           Map.entry("help.ready-navigation-apply", List.of("help.find", "help.resource-session", "help.properties-apply")),
           Map.entry("help.direct-apply-recovery", List.of("help.properties-apply", "help.project-settings", "save")),
           Map.entry("help.child-apply-recovery", List.of("help.membership-apply", "help.curve-guidance", "help.properties-apply")),
+          Map.entry("help.command-history-recovery", List.of("help.resource-actions", "help.project-history", "help.properties-apply", "help.project-save")),
           Map.entry(
               "help.pins",
               List.of("noise", "processing", "help.find", "save", "help.scalar-readouts")),

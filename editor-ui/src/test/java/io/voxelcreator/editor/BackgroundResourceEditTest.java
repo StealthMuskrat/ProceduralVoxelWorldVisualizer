@@ -79,9 +79,10 @@ class BackgroundResourceEditTest {
     return ResourceBrowserEdits.rename(s.project().noise2D.getFirst().uuid, "renamed");
   }
 
-  static void deliver(Workers worker, Queue<Runnable> ui) {
+  static void deliver(Workers worker, Queue<Runnable> ui, ResourceEditSession edits) {
     worker.run();
     ui.remove().run();
+    edits.acceptPrepared();
   }
 
   @Test
@@ -111,6 +112,11 @@ class BackgroundResourceEditTest {
       assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
       callback.run();
       callback.run();
+      assertTrue(edits.preparing());
+      assertSame(draft, s.draft);
+      assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
+      assertTrue(done.isEmpty());
+      edits.acceptPrepared();
       assertEquals(List.of(APPLIED), done);
       assertFalse(edits.pending());
       assertEquals("renamed", s.project().noise2D.getFirst().id);
@@ -137,6 +143,7 @@ class BackgroundResourceEditTest {
         assertSame(draft, s.draft);
         assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
         ui.remove().run();
+        edits.acceptPrepared();
         assertEquals(List.of(APPLIED), done);
         assertEquals(
             apply ? .625 : .125, s.project().noise2D.getFirst().algorithm.parameters.get("value"));
@@ -172,7 +179,7 @@ class BackgroundResourceEditTest {
           assertTrue(worker.tasks.isEmpty());
         } else {
           assertEquals(NEEDS_DECISION, result);
-          deliver(worker, ui);
+          deliver(worker, ui, edits);
           assertFalse(s.issues.isEmpty());
         }
         assertEquals(0, calls.get());
@@ -182,6 +189,7 @@ class BackgroundResourceEditTest {
         worker.run();
         assertSame(draft, s.draft);
         ui.remove().run();
+        edits.acceptPrepared();
         assertEquals(1, calls.get());
         assertNull(EditorState.find(s.project(), a));
         assertNull(s.draft);
@@ -224,7 +232,7 @@ class BackgroundResourceEditTest {
         var edits = session(s, worker, ui, done);
         edits.request("Command", edit);
         edits.decide(APPLY);
-        deliver(worker, ui);
+        deliver(worker, ui, edits);
         assertEquals(List.of(APPLIED), done);
         if (mode != 7)
           assertEquals(
@@ -267,6 +275,7 @@ class BackgroundResourceEditTest {
         var before = ProjectIO.JSON.valueToTree(s.project());
         var draft = s.draft;
         ui.remove().run();
+        edits.acceptPrepared();
         assertEquals(List.of(UNAVAILABLE), done);
         assertSame(draft, s.draft);
         assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
@@ -303,6 +312,7 @@ class BackgroundResourceEditTest {
           var before = ProjectIO.JSON.valueToTree(s.project());
           var draft = s.draft;
           ui.remove().run();
+          edits.acceptPrepared();
           assertFalse(edits.pending());
           assertSame(draft, s.draft);
           assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
@@ -331,6 +341,7 @@ class BackgroundResourceEditTest {
           edits.request("Successor", ResourceBrowserEdits.rename(s.selected, "successor"));
         }
         ui.remove().run();
+        edits.acceptPrepared();
         assertEquals("a", s.project().noise2D.getFirst().id);
         assertTrue(done.isEmpty());
         assertEquals(mode == 2, edits.pending());
@@ -372,7 +383,7 @@ class BackgroundResourceEditTest {
               return rename.apply(p);
             });
         edits.decide(APPLY);
-        if (mode == 1) deliver(worker, ui);
+        if (mode == 1) deliver(worker, ui, edits);
         else if (mode == 2) worker.run();
         else if (mode == 3) ((Future<?>) worker.tasks.getFirst()).cancel(false);
         assertFalse(edits.preparing());
@@ -382,7 +393,7 @@ class BackgroundResourceEditTest {
         if (mode == 3) worker.run();
         fail.set(false);
         edits.decide(APPLY);
-        deliver(worker, ui);
+        deliver(worker, ui, edits);
         assertEquals("renamed", s.project().noise2D.getFirst().id);
       }
   }
@@ -398,7 +409,7 @@ class BackgroundResourceEditTest {
       var edits = session(s, worker, ui, new ArrayList<>());
       edits.request("Rename", rename(s));
       edits.decide(APPLY);
-      deliver(worker, ui);
+      deliver(worker, ui, edits);
       issues.clear();
       assertEquals(1, s.issues.size());
       assertTrue(edits.pending());
@@ -408,6 +419,7 @@ class BackgroundResourceEditTest {
       var newer = List.of(Diagnostic.error("NEWER", "/fixture", "New result"));
       s.issues = newer;
       ui.remove().run();
+      edits.acceptPrepared();
       assertSame(newer, s.issues);
       assertEquals("a", s.project().noise2D.getFirst().id);
       assertFalse(edits.pending());
@@ -442,7 +454,7 @@ class BackgroundResourceEditTest {
         holder[0] = edits;
         edits.request("Rename", rename(s));
         edits.decide(APPLY);
-        if (mode == 1 || mode == 2) deliver(worker, ui);
+        if (mode == 1 || mode == 2) deliver(worker, ui, edits);
         else assertTrue(worker.tasks.isEmpty());
         assertEquals(mode == 2 ? "renamed" : "a", s.project().noise2D.getFirst().id);
         if (mode == 3) {
@@ -477,7 +489,7 @@ class BackgroundResourceEditTest {
       long revision = s.revision;
       edits.request("Rename", rename(s));
       edits.decide(APPLY);
-      deliver(worker, ui);
+      deliver(worker, ui, edits);
       assertEquals(List.of(APPLIED), done);
       assertFalse(edits.pending());
       assertEquals(revision + 1, s.revision);
@@ -507,13 +519,13 @@ class BackgroundResourceEditTest {
       var ui = new ArrayDeque<Runnable>();
       var edits = session(s, worker, ui, new ArrayList<>());
       assertEquals(NEEDS_DECISION, edits.request("No op", p -> null));
-      deliver(worker, ui);
+      deliver(worker, ui, edits);
       assertTrue(s.document.canRedo());
       assertEquals(bytes, s.document.historyBytes());
       assertEquals(.125, old.sample(-3, 2));
       s.selectResources(List.of(), null, "", true);
       edits.request("Retry without selection", p -> null);
-      deliver(worker, ui);
+      deliver(worker, ui, edits);
       assertFalse(edits.pending());
       var fail = new AtomicBoolean(true);
       edits.request(
@@ -522,12 +534,12 @@ class BackgroundResourceEditTest {
             if (fail.get()) throw new AssertionError("clean fixture");
             return null;
           });
-      deliver(worker, ui);
+      deliver(worker, ui, edits);
       assertTrue(edits.pending());
       assertFalse(edits.privateDecision());
       fail.set(false);
       assertEquals(NEEDS_DECISION, edits.decide(APPLY));
-      deliver(worker, ui);
+      deliver(worker, ui, edits);
       assertFalse(edits.pending());
     }
   }

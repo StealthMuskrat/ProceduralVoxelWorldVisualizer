@@ -35,6 +35,12 @@ final class ResourceEditSession implements AutoCloseable {
   private ProjectFileOwner requestOwner, workOwner;
   private Object workToken = new Object();
   private FutureTask<Void> task;
+  private record Prepared(
+      DocumentSession.PreparedEdit value, ResourceBrowserEdits.Selection destination,
+      Throwable failure) {}
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery;
+  private boolean ready;
   private boolean admitting, disposed, privateDecision, applyingDraft;
   private long workVersion;
   private String progress = "";
@@ -81,7 +87,7 @@ final class ResourceEditSession implements AutoCloseable {
 
   boolean preparing() {
     refresh();
-    return task != null || admitting;
+    return task != null || ready || admitting;
   }
 
   boolean privateDecision() {
@@ -136,7 +142,7 @@ final class ResourceEditSession implements AutoCloseable {
       clear();
       return Result.CANCELLED;
     }
-    if (task != null || admitting) return Result.NEEDS_DECISION;
+    if (task != null || ready || admitting) return Result.NEEDS_DECISION;
     if (!context.current(state)
         || !Objects.equals(selected, state.selected)
         || state.draft != draft
@@ -244,6 +250,8 @@ final class ResourceEditSession implements AutoCloseable {
       progress =
           "Preparing the resource action in the background. Committed values and private Properties"
               + " input remain active. Cancel or Escape before publication keeps them unchanged.";
+      long handed = ++delivery;
+      handoff.advance(handed);
       task =
           new FutureTask<>(
               () -> {
@@ -254,10 +262,9 @@ final class ResourceEditSession implements AutoCloseable {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var result = prepared;
-                var rejected = failure;
-                var requested = destination.get();
-                ui.accept(() -> publish(token, acceptedEdit, result, requested, rejected));
+                if (!handoff.publish(handed, new Prepared(prepared, destination.get(), failure)))
+                  return null;
+                ui.accept(() -> delivered(token, handed));
                 return null;
               });
       executor.execute(task);
@@ -271,7 +278,29 @@ final class ResourceEditSession implements AutoCloseable {
   }
 
   private boolean owns(Object token, ResourceBrowserEdits.Edit acceptedEdit) {
-    return !disposed && token == workToken && edit == acceptedEdit && task != null;
+    return !disposed && token == workToken && edit == acceptedEdit && (task != null || ready);
+  }
+
+  private void delivered(Object token, long handed) {
+    if (!owns(token, edit) || edit == null || delivery != handed || ready) return;
+    refresh();
+    if (!owns(token, edit) || edit == null) return;
+    task = null;
+    ready = true;
+  }
+
+  /** The shown action dialog processes Cancel/Escape before committing the prepared command. */
+  void acceptPrepared() {
+    Object token = workToken;
+    var acceptedEdit = edit;
+    refresh();
+    if (!owns(token, acceptedEdit) || !ready || edit == null || executing) return;
+    var value = handoff.take();
+    if (value == null) {
+      fail(token, new IllegalStateException("Resource action preparation unavailable"));
+      return;
+    }
+    publish(token, acceptedEdit, value.value(), value.destination(), value.failure());
   }
 
   private boolean feedbackCurrent() {
@@ -368,7 +397,7 @@ final class ResourceEditSession implements AutoCloseable {
   }
 
   private void refresh() {
-    if (task == null || disposed) return;
+    if ((task == null && !ready) || disposed) return;
     try {
       if (!workOwner.current(state) || !feedbackCurrent()) {
         stale();
@@ -404,6 +433,8 @@ final class ResourceEditSession implements AutoCloseable {
     workToken = new Object();
     workVersion++;
     task = null;
+    ready = false;
+    handoff.advance(++delivery);
     admitting = false;
     applyingDraft = false;
     workOwner = null;
@@ -419,5 +450,6 @@ final class ResourceEditSession implements AutoCloseable {
   public void close() {
     disposed = true;
     if (!executing) clear();
+    handoff.close();
   }
 }

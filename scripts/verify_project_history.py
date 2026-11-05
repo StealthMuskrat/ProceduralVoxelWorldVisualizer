@@ -34,12 +34,12 @@ from copy import deepcopy
 background = out / 'background'
 background_report = json.loads((background / 'background-history.json').read_text())
 assert background_report['formatVersion'] == 1 and background_report['physicalInputVerified'] is False
-assert [c['mode'] for c in background_report['cases']] == ['clean', 'discard', 'cancel', 'escape', 'retry', 'close']
+assert [c['mode'] for c in background_report['cases']] == ['clean', 'discard', 'cancel', 'escape', 'retry', 'close', 'ready-cancel', 'ready-escape', 'ready-clean-cancel', 'ready-close']
 snapshots = 0
 for case in background_report['cases']:
     mode = case['mode']; moved = mode in ['clean', 'discard', 'retry']; directory = background / mode
     assert case == dict(mode=mode, moved=moved, responsiveFrames=12, discardOnlyOnPublication=True,
-        preferencesRetained=True, originalBytesRetained=True, historyBytesUnchanged=True)
+        preferencesRetained=True, originalBytesRetained=True, historyBytesUnchanged=True, readyRetired=mode.startswith("ready-"))
     before = json.loads((directory / 'before.json').read_text())
     assert before['project']['seed'] == 17 and len(before['noise2D']) == 1
     assert before['noise2D'][0]['id'] == 'field' and before['noise2D'][0]['algorithm']['parameters'] == {'value': .625}
@@ -49,11 +49,11 @@ for case in background_report['cases']:
         if name == 'after' and moved: expected['noise2D'][0]['algorithm']['parameters']['value'] = .125
         assert project == expected
         snapshots += 1
-assert snapshots == 15
+assert snapshots == 23
 public_result = json.loads((background / 'api-redone.json').read_text()); validator.validate(public_result)
 expected = json.loads((background / 'clean/before.json').read_text())
 expected['noise2D'][0]['algorithm']['parameters']['value'] = .875
 assert public_result == expected
 replay = json.loads((background / 'engine-replay.json').read_text())
-assert replay == dict(formatVersion=1, snapshots=15, preparedSteps=2, apiStates=4, fields=399, cells=5586, roots=[2, 4])
-print('BACKGROUND_HISTORY_INDEPENDENT_PASS 16 project schemas / complete values / prepared history / 399 fields / 5586 EMPTY cells')
+assert replay == dict(formatVersion=1, snapshots=23, preparedSteps=2, apiStates=4, fields=567, cells=7938, roots=[2, 4])
+print('BACKGROUND_HISTORY_INDEPENDENT_PASS 24 project schemas / complete values / prepared history / 567 fields / 7938 EMPTY cells')

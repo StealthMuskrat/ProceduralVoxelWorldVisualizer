@@ -21,7 +21,7 @@ final class BackgroundProjectHistoryProbe {
   static void run(Path out) throws Exception {
     Files.createDirectories(out);
     var cases = new ArrayList<Map<String, Object>>();
-    for (String mode : List.of("clean", "discard", "cancel", "escape", "retry", "close")) {
+    for (String mode : List.of("clean", "discard", "cancel", "escape", "retry", "close", "ready-cancel", "ready-escape", "ready-clean-cancel", "ready-close")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       try (var state = new EditorState(new UserConfig(), false)) {
@@ -43,7 +43,8 @@ final class BackgroundProjectHistoryProbe {
         state.document.save(directory.resolve("before.json"));
         byte[] bytes = Files.readAllBytes(directory.resolve("before.json"));
         state.select("noise2D", state.project().noise2D.getFirst().uuid);
-        if (!mode.equals("clean")) {
+        boolean clean = mode.equals("clean") || mode.equals("ready-clean-cancel");
+        if (!clean) {
           ((Noise) state.draft).id = "private";
           state.seedInputs.edit(state, "seedOffset", "Seed", "-");
         }
@@ -69,7 +70,7 @@ final class BackgroundProjectHistoryProbe {
         try {
           panel.request(Direction.UNDO);
           frames(4);
-          if (!mode.equals("clean")) click("DISCARD");
+          if (!clean) click("DISCARD");
           for (int i = 0; i < 12; i++) {
             frame();
             require(
@@ -90,15 +91,30 @@ final class BackgroundProjectHistoryProbe {
           require(
               panel.session.preparing() && state.draft == draft,
               "Worker published before owner delivery");
-          if (mode.equals("cancel")) click("CANCEL");
-          else if (mode.equals("escape")) {
-            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
-            frame();
-            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+          if (mode.startsWith("ready-")) {
+            long work = panel.session.workVersion(), request = panel.session.requestVersion();
+            if (mode.equals("ready-cancel") || mode.equals("ready-clean-cancel")) hold("CANCEL");
+            ui.remove().run();
+            require(panel.session.preparing() && panel.session.workVersion() == work
+                && panel.session.requestVersion() == request && state.draft == draft
+                && state.project().noise2D.getFirst().algorithm.parameters.get("value") == .625,
+                "Ready history delivery published or changed Cancel authority");
+            if (mode.equals("ready-escape")) {
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+            } else if (mode.equals("ready-close")) { panel.close(); frames(3); }
+            else { ImGui.getIO().addMouseButtonEvent(0, false); frames(3); }
+          } else {
+            if (mode.equals("cancel")) click("CANCEL");
+            else if (mode.equals("escape")) {
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+              frame();
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+              frames(3);
+            } else if (mode.equals("close")) panel.close();
+            ui.remove().run();
             frames(3);
-          } else if (mode.equals("close")) panel.close();
-          ui.remove().run();
-          frames(3);
+          }
           if (mode.equals("retry")) {
             require(
                 !panel.session.pending()
@@ -162,7 +178,9 @@ final class BackgroundProjectHistoryProbe {
                   "originalBytesRetained",
                   true,
                   "historyBytesUnchanged",
-                  true));
+                  true,
+                  "readyRetired",
+                  mode.startsWith("ready-")));
         } finally {
           panel.close();
         }
@@ -172,6 +190,12 @@ final class BackgroundProjectHistoryProbe {
         out.resolve("background-history.json"),
         ProjectIO.JSON.writeValueAsString(
             Map.of("formatVersion", 1, "cases", cases, "physicalInputVerified", false)));
+  }
+
+  private static void hold(String key) {
+    var at = panel.control(key); require(at != null, "History control missing");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(String key) {
