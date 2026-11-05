@@ -23,3 +23,8 @@ Broader GUI/DPI, actual window-X gestures, concurrent external filesystem races,
 The unvalidated [Profiler workspace follow-up](PROFILER_LAYOUT.md) keeps Prepare/Discard/JSON/CSV and capture recovery actions persistent across retained sections, adds exact next-capture text and stable logical series identities, and retains the reviewed-token/atomic-file contracts described above. New definitions remain unexecuted.
 
 The unvalidated [Profiler/Debug decision follow-up](PROFILER_DECISIONS.md) binds export footer IDs to the exact review and consumption state, independently of live captures/display refresh. A held frozen-review export remains valid through unrelated capture replacement; a held predecessor cannot consume a newly prepared review. Failed writes retain retry IDs. New definitions remain deferred.
+
+
+## Background export follow-up on main — unvalidated
+
+[Background Profiler exports](BACKGROUND_PROFILER_EXPORT.md) supersedes the production synchronous file write with canonical worker staging and current shown-request acceptance after Profiler window unwind. Frozen review/format/raw path, latest active-project protection, reserved/consumed publication and closeable mailbox ownership preserve Cancel/Escape, retry and review independence. Direct constructors and ProfileIO remain synchronous. Eighteen actor and one Help definitions plus eight native cases remain uncompiled/untested; independent replay defines sixteen unchanged projects/336 fields/2,304 EMPTY cells. The manual-only workflow includes future replay wiring without dispatch. The observed 922-test/120-suite baseline and all acceptance gates remain unchanged.

@@ -7,6 +7,23 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void profilerExportHelpExplainsFrozenWorkerStagingCurrentCancellationAndProjectProtection() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.profile-export");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Production JSON/CSV encoding runs in a background worker"));
+    assertTrue(text.contains("Delivery alone never replaces the destination"));
+    assertTrue(text.contains("Current Cancel Export or Escape runs before accepting ready staging or preparation failure"));
+    assertTrue(text.contains("Failure also keeps it for explicit retry"));
+    assertTrue(text.contains("latest active project path remains protected"));
+    assertTrue(catalog.search("profiler export background").contains(topic));
+    assertTrue(catalog.topic("profiler").related().contains(topic.id()));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void inspectorHelpExplainsReadyDecisionsAndEscapeSuppressionWithoutMetadataMutation() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

@@ -324,11 +324,12 @@ public final class Desktop extends Application {
               } else sourceNavigation.request(target);
             });
     captures =
-        new ProfilePanel(
+        ProfilePanel.background(
             state,
             target -> {
               if (state.canNavigate(target)) sourceNavigation.request(target);
             });
+    lifecycle.own(captures::close);
     projectFiles =
         ProjectFileDialog.background(
             state,

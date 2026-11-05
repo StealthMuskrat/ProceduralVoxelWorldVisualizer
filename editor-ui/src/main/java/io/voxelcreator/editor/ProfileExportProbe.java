@@ -204,6 +204,7 @@ public final class ProfileExportProbe {
             "PROFILE_EXPORT_NATIVE_PASS owned review / protected project / retry / JSON+CSV /"
                 + " private input");
       }
+      BackgroundProfileExportProbe.run(out.resolve("background"));
     } finally {
       ImGui.destroyContext();
     }

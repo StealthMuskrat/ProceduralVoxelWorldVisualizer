@@ -521,6 +521,7 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileExportProbe build/profile-export
           python scripts/verify_profile_export.py build/profile-export
+          java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.ProfileExportConsumer build/profile-export/background
       - name: Strict OpenGL 3.0 arena reference
         run: |
           LIBGL_ALWAYS_SOFTWARE=1 MESA_GL_VERSION_OVERRIDE=3.0 MESA_GLSL_VERSION_OVERRIDE=130 xvfb-run -a java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.StreamingRenderProbe --require-gl30
@@ -1619,6 +1620,8 @@ jobs:
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.ProfileExportProbe build/profile-export
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify_profile_export.py build/profile-export
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe -cp 'build/independent;build/release/jars/noise-generator-engine.jar' io.voxelcreator.example.ProfileExportConsumer build/profile-export/background
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows strict OpenGL 3.0 arena reference
         shell: pwsh

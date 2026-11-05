@@ -9,7 +9,7 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /** UI-owned capture controls. Capture/export/navigation never change the project document. */
-public final class ProfilePanel {
+public final class ProfilePanel implements AutoCloseable {
   final FloatingWindowLayout windowLayout = new FloatingWindowLayout(1050, 800);
   private final EditorState state;
   private final SettingsGuidance guidance;
@@ -26,7 +26,7 @@ public final class ProfilePanel {
       new EnumMap<>(ProfileCaptureInputs.Field.class);
   private final Map<ProfileCaptureInputs.Field, ExactLongInput.Row> captureRows =
       new EnumMap<>(ProfileCaptureInputs.Field.class);
-  final SettingsPageChrome layout = new SettingsPageChrome(4, 4);
+  final SettingsPageChrome layout;
   final PreferenceActionScope captureActions = new PreferenceActionScope();
   final SettingsActionScope prepareActions = new SettingsActionScope(),
       reviewActions = new SettingsActionScope();
@@ -44,6 +44,8 @@ public final class ProfilePanel {
   private Profiler.Capture displayed;
   private Profiler.Snapshot snapshot;
   private ProfileExportSession exportReview;
+  private final BackgroundProfileExport exportWork;
+  private boolean closed;
   private Profiler.Snapshot filteredSnapshot;
   private String filteredKind, filteredQuery;
   private List<Profiler.Series> filteredRows = List.of();
@@ -66,7 +68,21 @@ public final class ProfilePanel {
   private final Map<String, float[]> workControls = new HashMap<>();
 
   public ProfilePanel(EditorState state, Consumer<EditorEvents.Target> navigate) {
+    this(state, navigate, null, null, new ProfileExportFiles());
+  }
+
+  static ProfilePanel background(EditorState state, Consumer<EditorEvents.Target> navigate) {
+    return new ProfilePanel(state, navigate, state.background, state.uiQueue::offer, new ProfileExportFiles());
+  }
+
+  ProfilePanel(EditorState state, Consumer<EditorEvents.Target> navigate,
+      java.util.concurrent.Executor executor, Consumer<Runnable> ui, ProfileExportFiles files) {
     this.state = state;
+    layout = executor == null ? new SettingsPageChrome(4, 4) : new SettingsPageChrome(4, 5);
+    exportWork = executor == null ? null : new BackgroundProfileExport(executor, ui, files,
+        state.document::path,
+        text -> state.error("PROFILE_EXPORT_FAILED", EditorEvents.Subsystem.IMPORT_EXPORT, text),
+        text -> state.error("PROFILE_EXPORT_CLEANUP_FAILED", EditorEvents.Subsystem.IMPORT_EXPORT, text));
     guidance = new SettingsGuidance(state);
     this.navigate = navigate;
     captureInputs
@@ -77,6 +93,7 @@ public final class ProfilePanel {
   }
 
   public void start() {
+    if (closed) return;
     try {
       var options = captureInputs.request(displayedCaptureInputs());
       state.engine.profiler().start(options);
@@ -134,6 +151,7 @@ public final class ProfilePanel {
 
   /** Called once per editor frame, including while the Profiler window is closed. */
   public void frame(float seconds, Viewports views) {
+    if (closed) return;
     views.collectGpuTimings();
     var scope = state.engine.profiler().scope(0, state.project().project.uuid, null);
     if (scope == null) return;
@@ -221,6 +239,9 @@ public final class ProfilePanel {
       Viewports.StreamingStatistics rendering,
       java.util.function.IntSupplier compact,
       List<io.voxelcreator.render.GpuTimerQueries.Statistics> gpuTimings) {
+    if (closed) return;
+    if (exportWork != null) exportWork.refresh();
+    long exportVersion = exportWork == null ? 0 : exportWork.version();
     if (!open.get()) {
       suspendActions();
       return;
@@ -279,8 +300,12 @@ public final class ProfilePanel {
     }
     if (!message.isEmpty() && !section.equals("Export")) ImGui.textWrapped(message);
     layout.end();
-    drawActions(capture, captureRequest, shown, prepareRequest, review, reviewRequest);
+    drawActions(capture, captureRequest, shown, prepareRequest, review, reviewRequest, exportVersion);
     ImGui.end();
+    if (exportWork != null && open.get()) {
+      var written = exportWork.accept(exportVersion);
+      if (written != null) message = exportWork.message();
+    }
   }
 
   private void drawRuntime(
@@ -625,7 +650,9 @@ public final class ProfilePanel {
               + " samples / "
               + reviewed.series().size()
               + " series");
-      if (!exportReview.available())
+      if (exportWork != null && exportWork.running())
+        ImGui.textWrapped("The reviewed capture is being prepared for export.");
+      else if (!exportReview.available())
         ImGui.textWrapped(
             "This review has been consumed. Prepare the displayed capture to export again.");
     } else ImGui.textWrapped("Prepare the displayed capture to review its export.");
@@ -635,6 +662,8 @@ public final class ProfilePanel {
     ImGui.inputText("##profile-export-path", exportPath);
     workControl("export-path");
     ImGui.textWrapped(message);
+    if (exportWork != null && !exportWork.message().isEmpty() && !exportWork.message().equals(message))
+      ImGui.textWrapped(exportWork.message());
     ImGui.textWrapped(
         "Exports use the reviewed snapshot and include every retained sample and series. A failed"
             + " export keeps its review. Prepare again to use the displayed capture.");
@@ -646,7 +675,7 @@ public final class ProfilePanel {
       Profiler.Snapshot shown,
       long prepareRequest,
       ProfileExportSession review,
-      long reviewRequest) {
+      long reviewRequest, long exportVersion) {
     var first = captureInputs.firstProblem(displayedCaptureInputs());
     ImGui.pushID("profile-capture:" + captureRequest);
     ImGui.beginDisabled(first != null);
@@ -684,7 +713,23 @@ public final class ProfilePanel {
     workControl("export-csv");
     ImGui.endDisabled();
     ImGui.popID();
-    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) return;
+    boolean cancelExport = false;
+    if (exportWork != null) {
+      boolean running = exportWork.running();
+      ImGui.pushID("profile-export-work:" + exportVersion);
+      ImGui.beginDisabled(!running);
+      cancelExport = layout.identifiedAction("cancel-export", "Cancel Export");
+      if (running) workControl("cancel-export");
+      ImGui.endDisabled();
+      ImGui.popID();
+    }
+    if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+      if (exportWork != null) exportWork.cancel();
+      return;
+    }
+    if (cancelExport && exportWork != null && exportWork.version() == exportVersion) {
+      exportWork.cancel(); return;
+    }
     boolean captureCurrent =
         captureActions.current(ProfileActionContext.from(state.engine.profiler()));
     boolean prepareCurrent = prepareActions.current(this, snapshot == null ? this : snapshot);
@@ -694,6 +739,7 @@ public final class ProfilePanel {
             exportReview == null ? this : exportReview,
             exportReview != null && exportReview.available() ? 1 : 0);
     if (discard && review != null && reviewCurrent) {
+      if (exportWork != null) exportWork.cancel();
       review.cancel();
       exportReview = null;
       message = "";
@@ -708,6 +754,7 @@ public final class ProfilePanel {
       revealLimit = first;
     } else if (start && first == null && captureCurrent) start();
     else if (prepare && shown != null && prepareCurrent) {
+      if (exportWork != null) exportWork.cancel();
       if (exportReview != null) exportReview.cancel();
       exportReview = new ProfileExportSession(shown);
       section = "Export";
@@ -717,6 +764,7 @@ public final class ProfilePanel {
   }
 
   void suspendActions() {
+    if (exportWork != null) exportWork.cancel();
     captureActions.resetDraft();
     prepareActions.release();
     reviewActions.release();
@@ -733,6 +781,13 @@ public final class ProfilePanel {
 
   private void export(ProfileExportSession owner, boolean csv) {
     section = "Export";
+    if (exportWork != null) {
+      String path = exportPath.get();
+      exportWork.start(owner, path, csv,
+          () -> !closed && exportReview == owner && exportPath.get().equals(path) && section.equals("Export"));
+      message = "";
+      return;
+    }
     try {
       var reviewed = owner.snapshot();
       var path = owner.write(exportPath.get(), csv, state.document.path());
@@ -765,6 +820,7 @@ public final class ProfilePanel {
   }
 
   void probeReview(Profiler.Snapshot value) {
+    if (exportWork != null) exportWork.cancel();
     if (exportReview != null) exportReview.cancel();
     exportReview = new ProfileExportSession(value);
     section = "Export";
@@ -779,6 +835,7 @@ public final class ProfilePanel {
   void section(String value) {
     if (value == null || !SECTIONS.contains(value))
       throw new IllegalArgumentException("Unknown profiler section");
+    if (!value.equals("Export") && exportWork != null) exportWork.cancel();
     section = value;
     if (value.equals("Measurements")) revealSeries = true;
   }
@@ -900,4 +957,16 @@ public final class ProfilePanel {
       throw new IllegalStateException(
           "Native capture controls or real frame/heap metrics were not observed");
   }
+  BackgroundProfileExport probeExportWork() { return exportWork; }
+
+  @Override
+  public void close() {
+    if (closed) return;
+    closed = true;
+    if (exportWork != null) exportWork.close();
+    if (exportReview != null && exportReview.available()) exportReview.cancel();
+    exportReview = null;
+    suspendActions();
+  }
+
 }

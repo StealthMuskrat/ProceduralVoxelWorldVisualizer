@@ -650,6 +650,20 @@ final class HelpDefinitions {
                   + " Override; Apply publishes the private resource as one undoable transaction"
                   + " and Save remains explicit."),
           new Guide(
+              "help.profile-export",
+              "Profiler capture export",
+              "Prepare Export keeps the exact reviewed capture through live samples, replacement"
+                  + " captures, Stop and Clear. Production JSON/CSV encoding runs in a background"
+                  + " worker. Delivery alone never replaces the destination. Current Cancel Export"
+                  + " or Escape runs before accepting ready staging or preparation failure. Closing"
+                  + " or collapsing Profiler, changing its export path or leaving Export retires"
+                  + " pending work and keeps the review. Failure also keeps it for explicit retry."
+                  + " Prepare again replaces the review; Discard Review consumes it. The original"
+                  + " export finishes without another confirmation. Successful replacement consumes"
+                  + " the review once. The latest active project path remains protected, even if"
+                  + " it changed during preparation. Capture exports never apply private Properties"
+                  + " or change project history."),
+          new Guide(
               "help.trace",
               "Generation traces",
               "Trace a coordinate to inspect the immutable recorded generation result and ordered"
@@ -744,7 +758,8 @@ final class HelpDefinitions {
               "diagnostics", List.of("help.validation", "help.find", "help.trace", "profiler")),
           Map.entry("help.validation", List.of("diagnostics", "help.find")),
           Map.entry(
-              "profiler", List.of("diagnostics", "help.visualization", "help.runtime-limits")),
+              "profiler", List.of("diagnostics", "help.visualization", "help.runtime-limits", "help.profile-export")),
+          Map.entry("help.profile-export", List.of("profiler", "help.project-save", "help.workspace")),
           Map.entry(
               "help.runtime-limits", List.of("profiler", "help.appearance", "help.long-inputs")),
           Map.entry("shortcuts", List.of("navigation", "help.manual", "help.preference-apply")),

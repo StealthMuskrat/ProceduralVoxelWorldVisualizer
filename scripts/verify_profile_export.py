@@ -31,3 +31,33 @@ assert project['noise2D'][0]['algorithm']['parameters']['value'] == .125
 assert all(c['samples'][0]['projectUuid'] == project['project']['uuid'] for c in captures)
 assert not list(out.rglob('.profile-*.tmp'))
 print('Profile export review, retry, protected project and JSON/CSV replay PASS')
+
+# Deferred worker staging/readiness and exact current-control cancellation.
+background = out / 'background'
+receipt = json.loads((background / 'profile-export-background-native.json').read_text(encoding='utf-8'))
+assert receipt['formatVersion'] == 1 and receipt['physicalInputVerified'] is False
+modes = ['json', 'csv', 'ready-cancel', 'ready-failure-cancel', 'ready-escape', 'ready-close', 'ready-collapse', 'ready-path']
+assert [row['mode'] for row in receipt['cases']] == modes
+for row in receipt['cases']:
+    mode = row['mode']
+    published = mode in ('json', 'csv')
+    assert row['published'] is published and row['readyRetired'] is (not published)
+    assert row['failureHeld'] is (mode == 'ready-failure-cancel')
+    assert row['queuedFrames'] == row['heldFrames'] == 12
+    assert all(row[key] is True for key in ('projectPreserved', 'privatePreserved', 'preferencesPreserved', 'temporaryCleaned'))
+    folder = background / mode
+    before = json.loads((folder / 'before.json').read_text(encoding='utf-8'))
+    after = json.loads((folder / 'after.json').read_text(encoding='utf-8'))
+    assert before == after and after['noise2D'][0]['id'] == 'field'
+    assert after['noise2D'][0]['algorithm']['parameters'] == {'value': .125}
+    if published:
+        subprocess.run([sys.executable, str(root / 'scripts/verify_profile_capture.py'),
+                        str(folder / 'capture.json'), str(folder / 'capture.csv')], check=True)
+        capture = json.loads((folder / 'capture.json').read_text(encoding='utf-8'))
+        assert capture['state'] == 'STOPPED' and len(capture['samples']) == len(capture['series']) == 1
+        assert capture['samples'][0]['value'] == 123 and capture['samples'][0]['label'] == 'reviewed,雪'
+        assert capture['samples'][0]['projectUuid'] == after['project']['uuid']
+    else:
+        assert (folder / 'capture.json').read_text(encoding='utf-8') == 'previous capture'
+assert not list(background.rglob('.profile-*.tmp'))
+print('BACKGROUND_PROFILE_EXPORT_INDEPENDENT_PASS eight decisions / canonical JSON+CSV / sixteen unchanged projects')

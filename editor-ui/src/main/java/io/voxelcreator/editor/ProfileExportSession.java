@@ -15,6 +15,35 @@ final class ProfileExportSession {
   private final Profiler.Snapshot snapshot;
   private final Writer writer;
   private boolean consumed, writing;
+  private Attempt pending;
+
+  final class Attempt implements AutoCloseable {
+    boolean current() { return pending == this && writing && !consumed; }
+
+    void publish(ProfileExportFiles.Prepared prepared, Path activeProject) throws IOException {
+      if (!current()) throw new IOException("Capture export review changed");
+      prepared.publish(activeProject);
+      // No callbacks/copy/validation after successful replacement and before consumption.
+      consumed = true;
+      writing = false;
+      pending = null;
+    }
+
+    @Override
+    public void close() {
+      if (pending != this) return;
+      pending = null;
+      writing = false;
+    }
+  }
+
+  Attempt reserve() throws IOException {
+    if (!available()) throw new IOException("Prepare a capture export before writing");
+    var attempt = new Attempt();
+    pending = attempt;
+    writing = true;
+    return attempt;
+  }
 
   ProfileExportSession(Profiler.Snapshot snapshot) {
     this(
@@ -45,13 +74,7 @@ final class ProfileExportSession {
 
   Path write(String text, boolean csv, Path activeProject) throws IOException {
     if (!available()) throw new IOException("Prepare a capture export before writing");
-    if (text == null || text.isBlank()) throw new IOException("Choose an export path");
-    final Path path;
-    try {
-      path = Path.of(text).toAbsolutePath();
-    } catch (InvalidPathException invalid) {
-      throw new IOException("Invalid capture path: " + invalid.getReason(), invalid);
-    }
+    Path path = location(text);
     ExportPaths.rejectProjectTarget(path, activeProject, "capture file");
     writing = true;
     try {
@@ -61,5 +84,16 @@ final class ProfileExportSession {
     } finally {
       writing = false;
     }
+  }
+
+  static Path location(String text) throws IOException {
+    if (text == null || text.isBlank()) throw new IOException("Choose an export path");
+    final Path path;
+    try {
+      path = Path.of(text).toAbsolutePath();
+    } catch (InvalidPathException invalid) {
+      throw new IOException("Invalid capture path: " + invalid.getReason(), invalid);
+    }
+    return path;
   }
 }
