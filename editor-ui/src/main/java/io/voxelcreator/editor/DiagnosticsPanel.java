@@ -422,7 +422,10 @@ public final class DiagnosticsPanel {
         "Validation",
         validationLayout,
         validationActions,
-        validationRunActions)) return;
+        validationRunActions)) {
+      committedValidation.acceptPrepared();
+      return;
+    }
     validationDrawn = true;
     var check = committedValidation.view();
     boolean running = check.phase() == ProjectValidationSession.Phase.RUNNING;
@@ -540,6 +543,8 @@ public final class DiagnosticsPanel {
         external("DIAGNOSTIC_NAVIGATION_FAILED", () -> navigate.accept(target));
     }
     ImGui.end();
+    if (!escaped && runToken == committedValidation.requestToken())
+      committedValidation.acceptPrepared();
   }
 
   private void rowTail(float top) {

@@ -7,6 +7,22 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void validationHelpExplainsReadyCancellationEscapeAndHiddenCompletion() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.validation");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Current Cancel Validation runs before accepting a ready result or worker failure"));
+    assertTrue(text.contains("Escape suppresses actions and acceptance for its frame"));
+    assertTrue(text.contains("Hidden or collapsed results still accept an explicitly requested background check"));
+    assertTrue(text.contains("no second confirmation"));
+    assertTrue(catalog.search("validation ready cancel").contains(topic));
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Validate"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void importHelpExplainsReadyCancellationAndRetainedSeparatePrivateInput() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

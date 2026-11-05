@@ -397,7 +397,11 @@ public final class DiagnosticDecisionProbe {
                     Map.entry("heldBulkViewBlocked", true),
                     Map.entry("heldOccurrencesBlocked", true),
                     Map.entry("validationOwnersScoped", true),
-                    Map.entry("backgroundValidationCases", 8),
+                    Map.entry("backgroundValidationCases", 13),
+                    Map.entry("validationReadyDecisions", Map.of(
+                        "cancelBeforePublication", true, "failureCancelledBeforeReport", true,
+                        "escapeSuppressed", true, "collapsedCompletion", true,
+                        "newerFeedbackRetained", true, "hiddenCompletion", true)),
                     Map.entry("backgroundValidationFailures", validationErrors.size()),
                     Map.entry("callbackFailuresContained", true),
                     Map.entry("hiddenContextsReleased", true),
@@ -463,6 +467,9 @@ public final class DiagnosticDecisionProbe {
     open.set(false);
     frame();
     validationUi.remove().run();
+    frame();
+    require(checks.view().phase() == ProjectValidationSession.Phase.READY,
+        "Hidden Validation did not accept its explicitly requested result");
     open.set(true);
     frames(3);
     require(
@@ -485,6 +492,52 @@ public final class DiagnosticDecisionProbe {
     require(
         checks.view().phase() == ProjectValidationSession.Phase.READY && state.issues.isEmpty(),
         "Explicit validation retry failed");
+    readyValidationReplay();
+  }
+
+  private static void readyValidationReplay() {
+    var previous = state.issues;
+    click("validate"); validationWork.remove().run();
+    var request = checks.requestToken(); press(control("validate"));
+    validationUi.remove().run();
+    require(checks.view().phase() == ProjectValidationSession.Phase.RUNNING
+        && request == checks.requestToken() && state.issues == previous,
+        "Ready validation changed Cancel identity or published rows");
+    release(); frames(3);
+    require(checks.view().phase() == ProjectValidationSession.Phase.CANCELLED
+        && state.issues == previous && validationWork.isEmpty(), "Ready Cancel lost to publication");
+
+    failValidation = true; click("validate"); validationWork.remove().run();
+    int errors = validationErrors.size(); press(control("validate")); validationUi.remove().run();
+    require(checks.view().phase() == ProjectValidationSession.Phase.RUNNING
+        && validationErrors.size() == errors, "Ready failure reported before Cancel controls");
+    release(); frames(3); failValidation = false;
+    require(checks.view().phase() == ProjectValidationSession.Phase.CANCELLED
+        && state.issues == previous && validationErrors.size() == errors,
+        "Cancelled ready failure replaced feedback or reported an error");
+
+    click("validate"); validationWork.remove().run(); validationUi.remove().run();
+    ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
+    require(checks.view().phase() == ProjectValidationSession.Phase.RUNNING && state.issues == previous,
+        "Escape frame accepted a ready validation result");
+    ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+    require(checks.view().phase() == ProjectValidationSession.Phase.READY && state.issues.isEmpty(),
+        "Validation did not complete after Escape suppression");
+
+    click("validate"); validationWork.remove().run(); validationUi.remove().run();
+    collapsed = true; frame();
+    require(checks.view().phase() == ProjectValidationSession.Phase.READY,
+        "Collapsed Validation lost its explicitly requested result");
+    collapsed = false; frames(3);
+
+    click("validate"); validationWork.remove().run(); validationUi.remove().run();
+    var newer = List.of(Diagnostic.error("READY_NEWER", "/project/seed", "newer private feedback"));
+    state.issues = newer; state.validationScope = "Rejected Apply"; frames(3);
+    require(checks.view().phase() == ProjectValidationSession.Phase.STALE && state.issues == newer,
+        "Ready validation replaced newer diagnostic ownership");
+    click("validate"); validationWork.remove().run(); validationUi.remove().run(); frames(3);
+    require(checks.view().phase() == ProjectValidationSession.Phase.READY && state.issues.isEmpty(),
+        "Ready validation explicit recovery failed");
   }
 
   private static boolean code(String value) {

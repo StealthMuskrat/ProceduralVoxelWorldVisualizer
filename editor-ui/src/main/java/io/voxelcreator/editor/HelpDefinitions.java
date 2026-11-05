@@ -226,7 +226,12 @@ final class HelpDefinitions {
                   + " rejected-edit result makes an older check stale. Choose Validate Committed"
                   + " Project again to retry cancelled, stale or failed checks. Copy Details and Go"
                   + " To Problem retain their exact displayed-result ownership. Validation does not"
-                  + " Apply drafts, save projects or change preferences."),
+                  + " Apply drafts, save projects or change preferences. Delivery alone keeps the"
+                  + " check Running and previous rows active. Current Cancel Validation runs before"
+                  + " accepting a ready result or worker failure. Escape suppresses actions and"
+                  + " acceptance for its frame; use Cancel Validation to stop the check. Hidden or"
+                  + " collapsed results still accept an explicitly requested background check."
+                  + " Successful validation needs no second confirmation."),
           new Guide(
               "help.find",
               "Find resources and references",

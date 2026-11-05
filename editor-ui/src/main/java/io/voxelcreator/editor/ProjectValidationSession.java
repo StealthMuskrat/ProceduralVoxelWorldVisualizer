@@ -30,6 +30,10 @@ final class ProjectValidationSession implements AutoCloseable {
   private String message = "Validate the committed project when requested.";
   private Object token = new Object();
   private FutureTask<Void> task;
+  private record Prepared(List<Diagnostic> issues, Throwable failure) {}
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery;
+  private boolean preparedReady;
   private Owner owner;
 
   private static final class Owner {
@@ -105,6 +109,8 @@ final class ProjectValidationSession implements AutoCloseable {
       owner = new Owner(state, ProjectIO.JSON.valueToTree(snapshot));
       phase = Phase.RUNNING;
       message = "Validating a committed snapshot in the background. Previous results remain below.";
+      long handed = ++delivery;
+      handoff.advance(handed);
       task =
           new FutureTask<>(
               () -> {
@@ -115,9 +121,8 @@ final class ProjectValidationSession implements AutoCloseable {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var value = result;
-                var rejected = failure;
-                ui.accept(() -> publish(request, value, rejected));
+                if (!handoff.publish(handed, new Prepared(result, failure))) return null;
+                ui.accept(() -> delivered(request, handed));
                 return null;
               });
       executor.execute(task);
@@ -126,6 +131,27 @@ final class ProjectValidationSession implements AutoCloseable {
       fail(request, rejected);
       return false;
     }
+  }
+
+  private void delivered(Object request, long handed) {
+    if (request != token || phase != Phase.RUNNING || delivery != handed || preparedReady) return;
+    refresh();
+    if (request != token || phase != Phase.RUNNING) return;
+    // Keep observing handoff completion: an inline delivery may still throw before returning.
+    preparedReady = true;
+  }
+
+  /** Visible controls decide first; hidden results retain their explicit background completion. */
+  void acceptPrepared() {
+    Object request = token;
+    refresh();
+    if (request != token || phase != Phase.RUNNING || !preparedReady) return;
+    var value = handoff.take();
+    if (value == null) {
+      fail(request, new IllegalStateException("Project validation result unavailable"));
+      return;
+    }
+    publish(request, value.issues(), value.failure());
   }
 
   private void publish(Object request, List<Diagnostic> result, Throwable failure) {
@@ -173,8 +199,8 @@ final class ProjectValidationSession implements AutoCloseable {
     if (observed == null || !observed.isDone()) return;
     Object request = token;
     try {
-      // Successful workers await their queued UI publication. Exceptional handoff is surfaced
-      // here, even when no callback could reach the queue.
+      // Successful workers await queued readiness and owner acceptance. Exceptional handoff is
+      // surfaced here, even when no callback could reach the queue.
       observed.get();
     } catch (CancellationException cancelled) {
       cancel();
@@ -204,6 +230,8 @@ final class ProjectValidationSession implements AutoCloseable {
   private void release() {
     token = new Object();
     task = null;
+    preparedReady = false;
+    handoff.advance(++delivery);
     owner = null;
   }
 
@@ -241,6 +269,7 @@ final class ProjectValidationSession implements AutoCloseable {
     if (phase == Phase.CLOSED) return;
     retire();
     phase = Phase.CLOSED;
+    handoff.close();
     message = "Validation workspace closed.";
   }
 }

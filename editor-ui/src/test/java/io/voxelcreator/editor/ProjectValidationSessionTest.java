@@ -31,7 +31,7 @@ class ProjectValidationSessionTest {
   }
 
   @Test
-  void workerOwnsASnapshotAndOnlyUiPublicationReplacesDiagnostics() {
+  void workerOwnsASnapshotAndOnlyOwnerAcceptanceReplacesDiagnostics() {
     try (var state = state()) {
       var work = new ArrayDeque<Runnable>();
       var ui = new ArrayDeque<Runnable>();
@@ -54,7 +54,12 @@ class ProjectValidationSessionTest {
         assertEquals(ProjectValidationSession.Phase.RUNNING, session.view().phase());
         assertEquals(List.of(PRIVATE), state.issues);
         assertEquals("Rejected edit", state.validationScope);
+        var request = session.requestToken();
         ui.remove().run();
+        assertEquals(ProjectValidationSession.Phase.RUNNING, session.view().phase());
+        assertSame(request, session.requestToken());
+        assertEquals(List.of(PRIVATE), state.issues);
+        session.acceptPrepared();
         assertEquals(ProjectValidationSession.Phase.READY, session.view().phase());
         assertEquals(List.of(RESULT), state.issues);
         assertEquals("Committed project", state.validationScope);
@@ -79,6 +84,7 @@ class ProjectValidationSessionTest {
         assertTrue(state.change(p -> p.project.seed = 7));
         var issues = state.issues;
         ui.remove().run();
+        session.acceptPrepared();
         assertEquals(ProjectValidationSession.Phase.STALE, session.view().phase());
         assertSame(issues, state.issues);
       }
@@ -95,6 +101,7 @@ class ProjectValidationSessionTest {
         work.remove().run();
         state.newSession();
         ui.remove().run();
+        session.acceptPrepared();
         assertEquals(ProjectValidationSession.Phase.STALE, session.view().phase());
         assertTrue(state.issues.isEmpty());
       }
@@ -113,6 +120,7 @@ class ProjectValidationSessionTest {
         state.validationScope = "Rejected Apply";
         var current = state.issues;
         ui.remove().run();
+        session.acceptPrepared();
         assertEquals(ProjectValidationSession.Phase.STALE, session.view().phase());
         assertSame(current, state.issues);
       }
@@ -133,6 +141,7 @@ class ProjectValidationSessionTest {
           else state.issues.add(RESULT);
           var current = List.copyOf(state.issues);
           ui.remove().run();
+          session.acceptPrepared();
           assertEquals(ProjectValidationSession.Phase.STALE, session.view().phase());
           assertEquals(current, state.issues);
         }
@@ -155,6 +164,7 @@ class ProjectValidationSessionTest {
         assertEquals(ProjectValidationSession.Phase.RUNNING, session.view().phase());
         work.remove().run();
         ui.remove().run();
+        session.acceptPrepared();
         assertEquals(ProjectValidationSession.Phase.READY, session.view().phase());
       }
     }
@@ -170,6 +180,7 @@ class ProjectValidationSessionTest {
       work.remove().run();
       session.close();
       ui.remove().run();
+      session.acceptPrepared();
       assertEquals(ProjectValidationSession.Phase.CLOSED, session.view().phase());
       assertFalse(session.start());
       assertEquals(List.of(PRIVATE), state.issues);
@@ -178,7 +189,7 @@ class ProjectValidationSessionTest {
   }
 
   @Test
-  void workerErrorsArePublishedOnlyOnUiAndReporterErrorsDoNotTrapRetry() {
+  void workerErrorsWaitForOwnerAcceptanceAndReporterErrorsDoNotTrapRetry() {
     try (var state = state()) {
       var work = new ArrayDeque<Runnable>();
       var ui = new ArrayDeque<Runnable>();
@@ -199,6 +210,7 @@ class ProjectValidationSessionTest {
         work.remove().run();
         assertTrue(reports.isEmpty());
         ui.remove().run();
+        session.acceptPrepared();
         assertEquals(ProjectValidationSession.Phase.FAILED, session.view().phase());
         assertEquals(1, reports.size());
         assertTrue(reports.getFirst().contains("compile-failed"));
@@ -258,6 +270,7 @@ class ProjectValidationSessionTest {
         session.start();
         work.remove().run();
         ui.remove().run();
+        session.acceptPrepared();
         assertEquals(ProjectValidationSession.Phase.FAILED, session.view().phase());
         assertEquals(List.of(PRIVATE), state.issues);
       }
@@ -265,7 +278,8 @@ class ProjectValidationSessionTest {
   }
 
   @Test
-  void successfulUiPublicationCannotBeReclassifiedByALaterExecutorFault() {
+  void inlineDeliveryCannotPublishAfterALaterExecutorFaultBeforeAcceptance() {
+    var reports = new ArrayList<String>();
     try (var state = state();
         var session =
             new ProjectValidationSession(
@@ -276,12 +290,12 @@ class ProjectValidationSessionTest {
                 },
                 Runnable::run,
                 p -> List.of(),
-                text -> {
-                  throw new AssertionError("Unexpected report");
-                })) {
-      session.start();
-      assertEquals(ProjectValidationSession.Phase.READY, session.view().phase());
-      assertTrue(state.issues.isEmpty());
+                reports::add)) {
+      assertFalse(session.start());
+      session.acceptPrepared();
+      assertEquals(ProjectValidationSession.Phase.FAILED, session.view().phase());
+      assertEquals(List.of(PRIVATE), state.issues);
+      assertEquals(1, reports.size());
       assertFalse(Thread.currentThread().isInterrupted());
     }
   }
@@ -298,6 +312,7 @@ class ProjectValidationSessionTest {
         state.user.performance.engineMiB = 512;
         var draft = state.draft;
         ui.remove().run();
+        session.acceptPrepared();
         assertEquals(ProjectValidationSession.Phase.READY, session.view().phase());
         assertSame(draft, state.draft);
         assertEquals(512, state.user.performance.engineMiB);
@@ -315,6 +330,7 @@ class ProjectValidationSessionTest {
         session.start();
         work.remove().run();
         ui.remove().run();
+        session.acceptPrepared();
         assertEquals(ProjectValidationSession.Phase.READY, session.view().phase());
         state.change(p -> p.project.seed = 4);
         assertEquals(ProjectValidationSession.Phase.STALE, session.view().phase());
@@ -380,11 +396,13 @@ class ProjectValidationSessionTest {
         session.start();
         work.remove().run();
         ui.remove().run();
+        session.acceptPrepared();
         assertEquals(ProjectValidationSession.Phase.RUNNING, session.view().phase());
         assertEquals(1, reports.size());
         assertTrue(reports.getFirst().startsWith("Project validation failed: "));
         work.remove().run();
         ui.remove().run();
+        session.acceptPrepared();
         assertEquals(ProjectValidationSession.Phase.READY, session.view().phase());
         assertTrue(state.issues.isEmpty());
       }
