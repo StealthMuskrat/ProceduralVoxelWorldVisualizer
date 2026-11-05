@@ -17,6 +17,7 @@ import java.util.function.BooleanSupplier;
 final class ProjectOpenProbe {
   private static EditorState state;
   private static ProjectFileDialog dialog;
+  private static boolean holdUi;
 
   static void run(Path out) throws Exception {
     Files.createDirectories(out);
@@ -31,7 +32,15 @@ final class ProjectOpenProbe {
             "PRIVATE",
             "COMPILER",
             "MALFORMED",
-            "POLICY")) {
+            "POLICY",
+            "READY_CANCEL",
+            "READY_ESCAPE",
+            "READY_CLOSE",
+            "READY_MALFORMED_CANCEL",
+            "READY_COMPILER_CANCEL")) {
+      boolean ready = mode.startsWith("READY_");
+      boolean malformed = mode.equals("MALFORMED") || mode.equals("READY_MALFORMED_CANCEL");
+      holdUi = ready;
       var entered = new CountDownLatch(1);
       var release = new CountDownLatch(1);
       var worker = new AtomicReference<Thread>();
@@ -56,7 +65,7 @@ final class ProjectOpenProbe {
         candidate.noise2D.add(noise("incoming", .75));
         var file = out.resolve(mode + "-incoming.json").toAbsolutePath();
         new ProjectIO().save(file, candidate);
-        if (mode.equals("MALFORMED")) Files.writeString(file, "{ malformed");
+        if (malformed) Files.writeString(file, "{ malformed");
         state.document.setValidator(
             project -> {
               worker.set(Thread.currentThread());
@@ -68,7 +77,8 @@ final class ProjectOpenProbe {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Cancelled gate", interrupted);
               }
-              if (mode.equals("COMPILER")) throw new AssertionError("Controlled compiler failure");
+              if (mode.equals("COMPILER") || mode.equals("READY_COMPILER_CANCEL"))
+                throw new AssertionError("Controlled compiler failure");
               return NoiseCompiler.validate(project);
             });
         dialog =
@@ -86,7 +96,7 @@ final class ProjectOpenProbe {
         frame();
         text(file.toString());
         click("Open");
-        if (!mode.equals("MALFORMED")) {
+        if (!malformed) {
           require(entered.await(5, TimeUnit.SECONDS), "Worker never entered compiler");
           for (int i = 0; i < 12; i++) frame();
           require(
@@ -105,6 +115,23 @@ final class ProjectOpenProbe {
             state.document.setValidator(NoiseCompiler::validate);
           }
         }
+        if (ready) {
+          if (malformed) for (int i = 0; i < 12; i++) frame();
+          await(() -> !state.uiQueue.isEmpty(), false);
+          if (!mode.equals("READY_ESCAPE") && !mode.equals("READY_CLOSE")) hold("Cancel Open");
+          long version = dialog.workflow.openVersion();
+          state.uiQueue.remove().run();
+          require(dialog.workflow.phase() == Phase.LOADING && dialog.workflow.openVersion() == version
+              && state.project() == active && state.document.sessionToken() == token
+              && dialog.workflow.error().isEmpty() && replacements[0] == 0,
+              "Ready Open installed or reported before current controls");
+          if (mode.equals("READY_ESCAPE")) key(ImGuiKey.Escape);
+          else if (mode.equals("READY_CLOSE")) { dialog.workflow.close(); frame(); }
+          else { ImGui.getIO().addMouseButtonEvent(0, false); frame(); }
+          require(dialog.workflow.phase() == Phase.IDLE && state.project() == active,
+              "Ready retirement replaced the project or retained loading");
+        }
+        holdUi = false;
         await(() -> dialog.workflow.phase() != Phase.LOADING, true);
         boolean success = mode.equals("SUCCESS");
         if (success) {
@@ -153,15 +180,20 @@ final class ProjectOpenProbe {
                 "seed",
                 state.project().project.seed,
                 "workerOffUi",
-                mode.equals("MALFORMED") || worker.get() != uiThread,
+                malformed || worker.get() != uiThread,
                 "responsiveFrames",
                 mode.equals("MALFORMED") ? 0 : 12,
                 "preferencesPreserved",
-                true));
+                true,
+                "readyRetired",
+                ready,
+                "openFailures",
+                state.events.snapshot().stream().filter(e -> e.code().equals("PROJECT_OPEN_FAILED")).count()));
         dialog.workflow.cancel();
         frame();
         frame();
       } finally {
+        holdUi = false;
         release.countDown();
         if (dialog != null) dialog.workflow.close();
       }
@@ -191,6 +223,12 @@ final class ProjectOpenProbe {
       frame();
       frame();
     }
+  }
+
+  private static void hold(String label) {
+    frame(); frame(); var center = dialog.probeControl(label); require(center != null, "Missing ready Open control");
+    var io = ImGui.getIO(); io.addMousePosEvent(center[0], center[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(String label) {
@@ -229,7 +267,7 @@ final class ProjectOpenProbe {
   }
 
   private static void frame() {
-    state.drain();
+    if (!holdUi) state.drain();
     ImGui.getIO().setDisplaySize(1100, 800);
     ImGui.getIO().setFontGlobalScale(1);
     ImGui.newFrame();

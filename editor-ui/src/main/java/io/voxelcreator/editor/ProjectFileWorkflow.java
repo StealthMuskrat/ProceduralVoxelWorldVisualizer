@@ -45,6 +45,11 @@ final class ProjectFileWorkflow implements AutoCloseable {
   private final Executor executor;
   private final Consumer<Runnable> ui;
   private FutureTask<Void> openTask, saveTask, draftTask;
+  private record OpenResult(DocumentSession.PreparedOpen value, Throwable failure) {}
+  private final PreviewMailbox<OpenResult> openHandoff = new PreviewMailbox<>();
+  private long openDelivery;
+  private boolean openReady;
+  private String openText;
   private record DraftResult(DocumentSession.PreparedEdit value, Throwable failure) {}
   private final PreviewMailbox<DraftResult> draftHandoff = new PreviewMailbox<>();
   private long draftDelivery;
@@ -111,6 +116,10 @@ final class ProjectFileWorkflow implements AutoCloseable {
 
   long requestVersion() {
     return requestVersion;
+  }
+
+  long openVersion() {
+    return generation;
   }
 
   Phase phase() {
@@ -472,6 +481,9 @@ final class ProjectFileWorkflow implements AutoCloseable {
     long attempt = ++generation;
     try {
       var request = state.document.requestOpen(path(location));
+      openText = location;
+      long handed = ++openDelivery;
+      openHandoff.advance(handed);
       phase = Phase.LOADING;
       error = "";
       openTask =
@@ -484,9 +496,8 @@ final class ProjectFileWorkflow implements AutoCloseable {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var result = prepared;
-                var rejected = failure;
-                ui.accept(() -> publishOpen(attempt, result, rejected));
+                if (!openHandoff.publish(handed, new OpenResult(prepared, failure))) return null;
+                ui.accept(() -> deliveredOpen(attempt, handed));
                 return null;
               });
       executor.execute(openTask);
@@ -511,21 +522,61 @@ final class ProjectFileWorkflow implements AutoCloseable {
     }
   }
 
-  private void publishOpen(long attempt, DocumentSession.PreparedOpen prepared, Throwable failure) {
-    if (closed || generation != attempt || phase != Phase.LOADING) return;
-    // The preparation is complete; queued publication must not interrupt a successful worker.
-    openTask = null;
+  private boolean ownsOpen(long attempt) {
+    return !closed && generation == attempt && phase == Phase.LOADING;
+  }
+
+  private void deliveredOpen(long attempt, long handed) {
+    if (!ownsOpen(attempt) || openDelivery != handed || openReady) return;
+    refreshOpen();
+    if (!ownsOpen(attempt)) return;
+    // Keep observing the task until acceptance; an inline handoff can still fail afterward.
+    openReady = true;
+  }
+
+  void acceptOpen() {
+    acceptOpen(openText, () -> true);
+  }
+
+  /** Current loading controls decide before replacing the active document or reporting rejection. */
+  void acceptOpen(String displayed, BooleanSupplier shown) {
+    long attempt = generation;
+    refreshOpen();
+    if (!ownsOpen(attempt) || !openReady) return;
+    if (!Objects.equals(openText, displayed)) {
+      stale(attempt, "");
+      return;
+    }
+    Objects.requireNonNull(shown);
+    var value = openHandoff.take();
+    if (value == null) {
+      failedOpen(attempt, new IllegalStateException("Project Open preparation unavailable"));
+      return;
+    }
+    publishOpen(attempt, value.value(), value.failure(), shown);
+  }
+
+  private boolean openCurrent(long attempt, BooleanSupplier shown) {
+    if (!ownsOpen(attempt) || !current() || !ownsOpen(attempt)) return false;
+    boolean visible = shown.getAsBoolean();
+    if (!ownsOpen(attempt)) return false;
+    if (visible && current() && ownsOpen(attempt) && owner.valuesCurrent(state)) return true;
+    stale(attempt, "");
+    return false;
+  }
+
+  private void publishOpen(
+      long attempt, DocumentSession.PreparedOpen prepared, Throwable failure, BooleanSupplier shown) {
+    if (!ownsOpen(attempt)) return;
     try {
-      if (!current()) return;
-      if (!owner.valuesCurrent(state)) {
-        stale(attempt, "");
-        return;
-      }
+      if (!openCurrent(attempt, shown)) return;
+      // Accepted results must not interrupt a worker finishing its delivery call.
+      openTask = null;
       if (failure != null) {
         failedOpen(attempt, failure);
         return;
       }
-      if (!prepared.success()) {
+      if (!Objects.requireNonNull(prepared).success()) {
         failedOpen(attempt, new IOException(prepared.diagnostics().toString()));
         return;
       }
@@ -574,6 +625,9 @@ final class ProjectFileWorkflow implements AutoCloseable {
   private void releaseOpen() {
     var old = openTask;
     openTask = null;
+    openReady = false;
+    openText = null;
+    openHandoff.advance(++openDelivery);
     if (old != null) {
       old.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(old);
@@ -849,6 +903,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
     retire();
     saveHandoff.close();
     draftHandoff.close();
+    openHandoff.close();
     error = "";
   }
 }

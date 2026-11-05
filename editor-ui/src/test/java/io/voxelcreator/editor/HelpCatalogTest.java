@@ -7,6 +7,23 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void projectOpenHelpExplainsReadyCancellationBeforeReplacementAndExplicitStartupOwnership() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.project-open");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Delivery alone never replaces the active project or reports a rejected candidate"));
+    assertTrue(text.contains("Cancel Open or Escape runs before accepting a ready result or preparation failure"));
+    assertTrue(text.contains("original Open finishes without another confirmation"));
+    assertTrue(text.contains("changed displayed path or reopened loading dialog requires a fresh request"));
+    assertTrue(text.contains("explicit startup paths follow the same rule"));
+    assertTrue(catalog.search("open ready candidate").contains(topic));
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Open"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void exportPlanningHelpExplainsReadySelectionCancellationAndFreshIncludedDisplay() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

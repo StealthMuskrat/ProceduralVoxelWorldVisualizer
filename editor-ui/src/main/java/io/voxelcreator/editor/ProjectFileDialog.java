@@ -102,6 +102,7 @@ final class ProjectFileDialog {
     pathId = 0;
     var phase = workflow.phase();
     long request = workflow.requestVersion();
+    long openWork = workflow.openVersion();
     boolean changed = shown != phase || shownRequest != request;
     if (changed && shown != ProjectFileWorkflow.Phase.IDLE) closePopup(title(shown));
     if (changed && phase != ProjectFileWorkflow.Phase.IDLE) {
@@ -136,7 +137,8 @@ final class ProjectFileDialog {
     if (!pathPhase && !error.isEmpty() && !error.equals(shownError)) revealError = true;
     shownError = error;
     // Own native press/release identity across external cancellation and same-phase reopening.
-    String scope = "project-file:" + request + ":" + phase.name();
+    String scope = "project-file:" + request + ":" + phase.name()
+        + (phase == ProjectFileWorkflow.Phase.LOADING ? ":" + openWork : "");
     boolean primary = false, secondary = false, cancel = false;
     String location = null;
     try {
@@ -243,6 +245,13 @@ final class ProjectFileDialog {
         else if (primary) workflow.decide(ProjectFileWorkflow.Decision.SAVE);
       } else if (primary) workflow.submit(location);
     }
+    if (!cancel && phase == ProjectFileWorkflow.Phase.LOADING
+        && delivery.owns(ticket) && workflow.phase() == phase
+        && workflow.requestVersion() == request && workflow.openVersion() == openWork)
+      workflow.acceptOpen(
+          path.get(),
+          () -> delivery.owns(ticket) && workflow.phase() == phase
+              && workflow.requestVersion() == request && workflow.openVersion() == openWork);
     if (!cancel && phase == ProjectFileWorkflow.Phase.APPLYING
         && workflow.phase() == phase && workflow.requestVersion() == request) workflow.acceptDraft();
     if (primary

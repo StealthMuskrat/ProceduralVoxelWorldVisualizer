@@ -87,11 +87,14 @@ background_root = out / 'background-open'
 background = json.loads((background_root / 'project-open-native.json').read_text(encoding='utf-8'))
 assert background['formatVersion'] == 1
 background_cases = {row['mode']: row for row in background['cases']}
-assert len(background_cases) == len(background['cases']) == 8
+assert len(background_cases) == len(background['cases']) == 13
 assert set(background_cases) == {'SUCCESS', 'CANCEL', 'ESCAPE', 'COMMITTED', 'PRIVATE',
-                                 'COMPILER', 'MALFORMED', 'POLICY'}
+                                 'COMPILER', 'MALFORMED', 'POLICY', 'READY_CANCEL', 'READY_ESCAPE',
+                                 'READY_CLOSE', 'READY_MALFORMED_CANCEL', 'READY_COMPILER_CANCEL'}
 for mode, row in background_cases.items():
     assert row['workerOffUi'] and row['preferencesPreserved']
+    assert row['readyRetired'] is mode.startswith('READY_')
+    assert row['openFailures'] == (1 if mode in ('COMPILER', 'MALFORMED', 'POLICY') else 0)
     assert row['responsiveFrames'] == (0 if mode == 'MALFORMED' else 12)
     assert row['replacements'] == (1 if mode == 'SUCCESS' else 0)
     assert row['seed'] == (99 if mode == 'SUCCESS' else 42 if mode == 'COMMITTED' else 41)

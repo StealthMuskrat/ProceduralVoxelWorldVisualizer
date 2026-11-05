@@ -220,7 +220,12 @@ final class HelpDefinitions {
                   + " retry. Successful Open replaces the document once, resets history and starts"
                   + " a clean saved checkpoint. An explicitly supplied startup filename uses the"
                   + " same background Open and retry path; launching without one remains empty."
-                  + " Save and Save As remain explicit committed-project writes."),
+                  + " Save and Save As remain explicit committed-project writes. Delivery alone"
+                  + " never replaces the active project or reports a rejected candidate. Current"
+                  + " Cancel Open or Escape runs before accepting a ready result or preparation"
+                  + " failure. The original Open finishes without another confirmation. A changed"
+                  + " displayed path or reopened loading dialog requires a fresh request. Closing"
+                  + " retires the candidate; explicit startup paths follow the same rule."),
           new Guide(
               "help.manual",
               "Using Help",
