@@ -1,0 +1,29 @@
+# Private acknowledgement outcomes
+
+Development implementation on main; **uncompiled and untested** under the owner's testing pause. No compiler, Gradle, JUnit, native probe, schema/Python checker, independent consumer, packaging, real update request or GitHub workflow ran. The observed baseline remains **922 tests / 120 suites**. Native/Windows 11 and final release acceptance remain pending; no A01–A36 gate advances.
+
+## Preserve the original host failure before reporting
+
+The previous observer called get/join on a converted host CompletableFuture, or completed a private future exceptionally for an opaque stage. JDK failure observation may construct an ExecutionException or CompletionException with a cause-derived message. That can invoke arbitrary host Throwable text access before the engine's safe region-description boundary runs. An unreadable accessor could replace the original failure; a mutable accessor could be consumed before the summary's intended single observation. A whenComplete dependent may also propagate the original failure through another wrapper even after its callback has run.
+
+ConsumerAcknowledgement now registers handle and writes a normal private Outcome value containing the original Throwable reference or success. The callback returns normally, so the dependent stage need not propagate the host failure. Only the engine-owned normal-value future is read with get/join. The engine does not call host Future get/join or construct a cause-derived wrapper message. Existing CancellationException and CompletionException control flow remains intact; other acknowledged failures use an explicit-null-message CompletionException. The region policy still observes the same original cause once for its bounded summary/diagnostic description. Host failures and their suppressed lists are not modified.
+
+Conversion remains optional: an UnsupportedOperationException from toCompletableFuture selects direct stage observation. Other conversion faults, null stages, null converted futures, registration faults and null observation results remain one delivery fault. A registration UnsupportedOperationException is not mistaken for unsupported conversion and does not retry through the host stage. Registration that calls the handler and then throws retains the registration fault's priority. Duplicate notifications cannot replace the first private outcome. Consumer accept is never retried.
+
+## Pending ownership and cancellation
+
+One handler is registered while an acknowledgement remains pending. Cancellation checkpoints retain the existing 50 ms private wait interval; interrupt handling restores the flag and withdraws the region wait through cancellation. Neither path completes or cancels the host stage. Existing in-flight backpressure, CONTINUE/FAIL_FAST partitions, completed immutable chunks, request cleanup and context independence retain their contracts.
+
+A converted future may already be complete while an unrelated host callback blocks the publishing thread before the engine's original handler runs. The coordinator checks source isDone while its private outcome is pending and can register one additional handler on the completed source. That immediate observation preserves completed-future progress without host get/join. A single refresh flag prevents repeated registrations; there are at most two engine handlers for a converted acknowledgement, and one for an opaque stage.
+
+Host accept, conversion, status and handler registration remain cooperative code and may block or throw. A pending host stage may retain the small private outcome bridge until completion; the callback captures no world, chunk or cancellation token. This is not callback detachment, preemption, a measured real-time cancellation guarantee or a claim of recovery from an unusable VM. There is no new executor. Engine/model/storage remain independent of editor/native dependencies, and public signatures, saved formats, schemas, deterministic math and UI/preferences remain unchanged.
+
+## Deferred coverage
+
+Eight new AcknowledgementOutcomeTest definitions cover already-failed raw futures and delayed convertible/opaque failures with unreadable RuntimeException/Error text; one pending registration across cancellation polls without host get/join/cancel; a callback registered after engine observation that blocks the host publisher; duplicate notifications; unsupported/null converted registration without fallback; registration fault priority after notification; and actual region-policy/order partitions with one original description read and no host mutation. Existing delivery, region and independent-client observation fixtures now intercept handle. No definition has run.
+
+DeliveryErrorConsumer extends its separate public-API failureDetails replay from direct/enveloped forms to direct/enveloped/raw failed futures. Roots 2/4, both orders, both policies and mutable/unreadable/long descriptions define **72 cases and 72 message reads**, adding 24 cases. Each detail must match its diagnostic, preserve DELIVERY/chunk ownership and exact progress, and avoid retrying consumer side effects.
+
+The expanded replay retains **144 attempted-delivery chunks with 5,184 exact signed-position cells, including 1,440 stone cells**, checked after engine/context closure using the existing Y-clipped constant .75 fixture. The original separate 32 cases, 64 chunks, 2,304 cells/640 stone cells and 21 field samples remain unchanged. The existing nested failureDetails report carries the expanded totals; complete authoring JSON must remain unchanged. No new workflow command, trigger, native case or receipt is introduced, and no replay report was generated.
+
+Source review and git whitespace/content/metadata checks are the available verification. The remaining feature/failure-boundary audit, runtime/concurrency/stress validation, native/Windows 11 and release acceptance remain outstanding.

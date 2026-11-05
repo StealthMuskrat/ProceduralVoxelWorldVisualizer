@@ -37,11 +37,11 @@ class RegionAcknowledgementTest {
     final AtomicReference<Thread> thread = new AtomicReference<>();
 
     @Override
-    public Void get(long timeout, TimeUnit unit)
-        throws InterruptedException, ExecutionException, TimeoutException {
+    public <U> CompletableFuture<U> handle(java.util.function.BiFunction<? super Void, Throwable, ? extends U> handler) {
       thread.set(Thread.currentThread());
+      var result = super.handle(handler);
       waiting.countDown();
-      return super.get(timeout, unit);
+      return result;
     }
   }
 
@@ -61,11 +61,11 @@ class RegionAcknowledgementTest {
                   throw new IllegalStateException("conversion-boom");
                 throw new UnsupportedOperationException("Host stage has no future conversion");
               }
-              if (method.getName().equals("whenComplete") && mode.equals("BAD_OBSERVER"))
+              if (method.getName().equals("handle") && mode.equals("BAD_OBSERVER"))
                 throw new IllegalStateException("observe-boom");
               try {
                 Object result = method.invoke(source, args);
-                if (method.getName().equals("whenComplete")) observed.countDown();
+                if (method.getName().equals("handle")) observed.countDown();
                 return result;
               } catch (InvocationTargetException failure) {
                 throw failure.getCause();

@@ -176,7 +176,7 @@ public final class DeliveryErrorConsumer {
   private static Map<String, Object> failureDetails(CompiledProject compiled) throws Exception {
     var retained = new ArrayList<VoxelChunk>(); long cases = 0, reads = 0;
     for (int root : new int[] {2, 4}) for (var order : RegionRequest.DeliveryOrder.values())
-      for (var policy : RegionRequest.FailurePolicy.values()) for (boolean acknowledged : new boolean[] {false, true})
+      for (var policy : RegionRequest.FailurePolicy.values()) for (String form : List.of("DIRECT", "ENVELOPED", "RAW"))
         for (String mode : List.of("MUTABLE", "UNREADABLE", "LONG"))
           try (var engine = new NoiseGeneratorEngine(2, 32, 16L << 20);
               var world = engine.openWorld(compiled, new WorldOptions(null, root, WorldOptions.CachePolicy.NO_CACHE, 0))) {
@@ -193,7 +193,8 @@ public final class DeliveryErrorConsumer {
             var task = world.streamRegion(new RegionRequest(bounds, policy, order, 2), chunk -> {
               require(positions.add(chunk.position()), "Description recovery retried a consumer"); attempted.add(chunk);
               if (attempted.size() == 1) {
-                if (acknowledged) return CompletableFuture.failedFuture(new CompletionException("host envelope", failure));
+                if (form.equals("ENVELOPED")) return CompletableFuture.failedFuture(new CompletionException("host envelope", failure));
+                if (form.equals("RAW")) return CompletableFuture.failedFuture(failure);
                 throw failure;
               }
               return CompletableFuture.completedFuture(null);
@@ -217,7 +218,7 @@ public final class DeliveryErrorConsumer {
       int wy = chunk.position().y() * chunk.size() + y, expected = wy >= -1 && wy <= 2 ? 1 : 0;
       require(chunk.getVoxelTypeId(x, y, z) == expected, "Description recovery invalidated retained generated cells"); cells++; if (expected == 1) solid++;
     }
-    require(cases == 48 && reads == 48 && retained.size() == 96 && cells == 3456 && solid == 960, "Unexpected description replay dimensions");
+    require(cases == 72 && reads == 72 && retained.size() == 144 && cells == 5184 && solid == 1440, "Unexpected description replay dimensions");
     return Map.of("cases", cases, "messageReads", reads, "retainedChunks", retained.size(), "retainedCells", cells, "solidCells", solid, "roots", List.of(2, 4));
   }
 
@@ -236,7 +237,7 @@ public final class DeliveryErrorConsumer {
                 if (mode.equals("CONVERSION")) throw error;
                 throw new UnsupportedOperationException("No host conversion");
               }
-              if (method.getName().equals("whenComplete")) throw error;
+              if (method.getName().equals("handle")) throw error;
               try {
                 return method.invoke(host, args);
               } catch (InvocationTargetException wrapped) {

@@ -23,7 +23,7 @@ class ConsumerDeliveryTest {
                 if (conversion) throw failure;
                 throw new UnsupportedOperationException("Observe instead");
               }
-              if (method.getName().equals("whenComplete")) throw failure;
+              if (method.getName().equals("handle")) throw failure;
               throw new AssertionError("Unexpected host method " + method.getName());
             });
   }
@@ -89,7 +89,7 @@ class ConsumerDeliveryTest {
   }
 
   @Test
-  void hostFutureReadErrorsAlsoUseTheDeliveryBoundary() {
+  void hostFutureReadsAreAvoidedAndPendingStatusFaultsUseTheDeliveryBoundary() {
     var failure = new AssertionError("future-read-error");
     var timed =
         new CompletableFuture<Void>() {
@@ -105,7 +105,6 @@ class ConsumerDeliveryTest {
             throw failure;
           }
         };
-    joined.complete(null);
     var polled =
         new CompletableFuture<Void>() {
           @Override
@@ -113,17 +112,18 @@ class ConsumerDeliveryTest {
             throw failure;
           }
         };
-    for (CompletableFuture<Void> stage : List.of(timed, joined, polled))
-      assertSame(
-          failure,
-          assertThrows(
-                  CompletionException.class,
-                  () ->
-                      ConsumerAcknowledgement.deliver(
-                          chunk -> stage, CHUNK, new CancellationToken()))
-              .getCause());
-    assertFalse(timed.isDone());
-    assertFalse(timed.isCancelled());
+    for (CompletableFuture<Void> stage : List.of(timed, joined, polled)) {
+      stage.complete(null);
+      assertDoesNotThrow(() -> ConsumerAcknowledgement.deliver(chunk -> stage, CHUNK, new CancellationToken()));
+      assertFalse(stage.isCancelled());
+    }
+    var pending = new CompletableFuture<Void>() {
+      @Override public boolean isDone() { throw failure; }
+    };
+    assertSame(failure, assertThrows(CompletionException.class,
+        () -> ConsumerAcknowledgement.deliver(chunk -> pending, CHUNK, new CancellationToken())).getCause());
+    assertFalse(pending.isCancelled());
+    pending.complete(null);
   }
 
   @Test
@@ -133,10 +133,10 @@ class ConsumerDeliveryTest {
     var host =
         new CompletableFuture<Void>() {
           @Override
-          public Void get(long timeout, TimeUnit unit)
-              throws InterruptedException, ExecutionException, TimeoutException {
+          public <U> CompletableFuture<U> handle(java.util.function.BiFunction<? super Void, Throwable, ? extends U> handler) {
+            var result = super.handle(handler);
             entered.countDown();
-            return super.get(timeout, unit);
+            return result;
           }
         };
     try (var tasks = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -175,7 +175,7 @@ class ConsumerDeliveryTest {
                 (proxy, method, args) -> {
                   if (method.getName().equals("toCompletableFuture"))
                     throw new UnsupportedOperationException();
-                  if (method.getName().equals("whenComplete")) {
+                  if (method.getName().equals("handle")) {
                     try {
                       method.invoke(host, args);
                     } catch (InvocationTargetException wrapped) {

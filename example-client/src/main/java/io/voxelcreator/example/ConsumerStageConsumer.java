@@ -217,7 +217,7 @@ public final class ConsumerStageConsumer {
                 throw new UnsupportedOperationException("No host future conversion");
               try {
                 Object result = method.invoke(host, args);
-                if (method.getName().equals("whenComplete")) observed.countDown();
+                if (method.getName().equals("handle")) observed.countDown();
                 return result;
               } catch (InvocationTargetException failure) {
                 throw failure.getCause();

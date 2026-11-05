@@ -34,7 +34,7 @@ class RegionDeliveryErrorTest {
                 if (mode.equals("CONVERSION")) throw failure;
                 throw new UnsupportedOperationException("No host conversion");
               }
-              if (method.getName().equals("whenComplete")) throw failure;
+              if (method.getName().equals("handle")) throw failure;
               try {
                 return method.invoke(host, args);
               } catch (InvocationTargetException wrapped) {
