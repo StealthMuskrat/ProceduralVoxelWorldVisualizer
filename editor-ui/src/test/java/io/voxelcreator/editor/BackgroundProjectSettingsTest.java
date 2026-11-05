@@ -72,13 +72,14 @@ class BackgroundProjectSettingsTest {
     return Map.of("seed", s.text("seed"), "minY", s.text("minY"), "maxY", s.text("maxY"));
   }
 
-  static void deliver(Workers workers, Queue<Runnable> ui) {
+  static void deliver(Workers workers, Queue<Runnable> ui, ProjectSettingsSession s) {
     workers.run();
     ui.remove().run();
+    s.acceptPrepared(shown(s));
   }
 
   @Test
-  void fullValidationRunsOffThreadAndPublicationWaitsForOwnerDelivery() throws Exception {
+  void fullValidationRunsOffThreadAndPublicationWaitsForOwnerAcceptance() throws Exception {
     try (var state = state();
         var worker = Executors.newSingleThreadExecutor()) {
       var queue = new LinkedBlockingQueue<Runnable>();
@@ -100,6 +101,10 @@ class BackgroundProjectSettingsTest {
       assertEquals(5, state.project().project.seed);
       assertEquals("+000017", s.text("seed"));
       callback.run();
+      assertFalse(s.closed());
+      assertTrue(s.applying());
+      assertEquals(5, state.project().project.seed);
+      s.acceptPrepared(shown(s));
       assertTrue(s.closed());
       assertEquals(17, state.project().project.seed);
       assertEquals(-1, state.project().project.minY);
@@ -141,7 +146,7 @@ class BackgroundProjectSettingsTest {
       state.document.setValidator(p -> issues);
       for (int i = 0; i < 2; i++) {
         s.apply(state, shown(s));
-        deliver(worker, queue);
+        deliver(worker, queue, s);
         assertFalse(s.closed());
         assertEquals(300, s.issueCount());
         assertEquals(256, s.applyIssues().size());
@@ -152,7 +157,7 @@ class BackgroundProjectSettingsTest {
       assertEquals(5, state.project().project.seed);
       state.document.setValidator(NoiseCompiler::validate);
       s.apply(state, shown(s));
-      deliver(worker, queue);
+      deliver(worker, queue, s);
       assertTrue(s.closed());
     }
   }
@@ -169,12 +174,13 @@ class BackgroundProjectSettingsTest {
       s.edit("seed", "+17");
       assertTrue(s.workVersion() > version);
       queue.remove().run();
+      s.acceptPrepared(shown(s));
       assertFalse(s.closed());
       assertFalse(s.applying());
       assertEquals("+17", s.text("seed"));
       assertEquals(5, state.project().project.seed);
       s.apply(state, shown(s));
-      deliver(worker, queue);
+      deliver(worker, queue, s);
       assertEquals(17, state.project().project.seed);
     }
   }
@@ -191,7 +197,7 @@ class BackgroundProjectSettingsTest {
       assertFalse(s.apply(state, shown(s)));
       assertEquals(1, worker.tasks.size());
       assertEquals(version, s.workVersion());
-      deliver(worker, queue);
+      deliver(worker, queue, s);
       assertTrue(s.closed());
     }
   }
@@ -215,6 +221,7 @@ class BackgroundProjectSettingsTest {
         else assertTrue(state.document.open(path).isEmpty());
         var values = ProjectIO.JSON.valueToTree(state.project());
         queue.remove().run();
+        s.acceptPrepared(shown(s));
         assertFalse(s.closed());
         assertEquals(values, ProjectIO.JSON.valueToTree(state.project()));
         assertEquals("+000017", s.text("seed"));
@@ -241,6 +248,7 @@ class BackgroundProjectSettingsTest {
         var value = ProjectIO.JSON.valueToTree(draft);
         long version = state.seedInputs.version(state);
         queue.remove().run();
+        s.acceptPrepared(shown(s));
         assertTrue(s.closed());
         assertSame(draft, state.draft);
         assertEquals(value, ProjectIO.JSON.valueToTree(state.draft));
@@ -268,13 +276,14 @@ class BackgroundProjectSettingsTest {
         }
         var values = ProjectIO.JSON.valueToTree(state.project());
         queue.remove().run();
+        s.acceptPrepared(shown(s));
         assertFalse(s.closed());
         assertEquals(values, ProjectIO.JSON.valueToTree(state.project()));
         assertFalse(s.applying());
         if (mode < 2) {
           assertTrue(s.current(state));
           s.apply(state, shown(s));
-          deliver(worker, queue);
+          deliver(worker, queue, s);
           assertTrue(s.closed());
         }
       }
@@ -308,7 +317,7 @@ class BackgroundProjectSettingsTest {
           assertTrue(s.closed());
           assertTrue(worker.tasks.isEmpty());
         } else {
-          deliver(worker, queue);
+          deliver(worker, queue, s);
           assertEquals(mode == 2 ? 17 : 5, state.project().project.seed);
         }
       }
@@ -348,7 +357,7 @@ class BackgroundProjectSettingsTest {
         if (mode == 2) worker.run();
         fail.set(false);
         s.apply(state, shown(s));
-        deliver(worker, queue);
+        deliver(worker, queue, s);
         assertTrue(s.closed());
       }
   }
@@ -361,20 +370,20 @@ class BackgroundProjectSettingsTest {
       var s = session(state, worker, queue);
       state.document.setValidator(p -> List.of(Diagnostic.error("FIRST", "/fixture", "Rejected")));
       s.apply(state, shown(s));
-      deliver(worker, queue);
+      deliver(worker, queue, s);
       assertEquals(1, s.issueCount());
       state.document.setValidator(
           p -> {
             throw new AssertionError("validator fixture");
           });
       s.apply(state, shown(s));
-      deliver(worker, queue);
+      deliver(worker, queue, s);
       assertEquals(0, s.issueCount());
       assertTrue(s.applyIssues().isEmpty());
       assertFalse(s.applyFailure().isBlank());
       state.document.setValidator(NoiseCompiler::validate);
       s.apply(state, shown(s));
-      deliver(worker, queue);
+      deliver(worker, queue, s);
       assertTrue(s.closed());
     }
   }
@@ -390,6 +399,7 @@ class BackgroundProjectSettingsTest {
       var newer = List.of(Diagnostic.error("NEWER", "/fixture", "New result"));
       state.issues = newer;
       queue.remove().run();
+      s.acceptPrepared(shown(s));
       assertSame(newer, state.issues);
       assertFalse(s.closed());
       assertEquals(5, state.project().project.seed);
@@ -412,6 +422,7 @@ class BackgroundProjectSettingsTest {
       assertTrue(panel.open(null));
       var successor = panel.probeSession();
       queue.remove().run();
+      successor.acceptPrepared(shown(successor));
       assertSame(successor, panel.probeSession());
       assertFalse(successor.closed());
       assertEquals("5", panel.text("seed"));
@@ -430,7 +441,7 @@ class BackgroundProjectSettingsTest {
       var queue = new ArrayDeque<Runnable>();
       var s = session(state, worker, queue);
       s.apply(state, shown(s));
-      deliver(worker, queue);
+      deliver(worker, queue, s);
       assertEquals(10, old.sample(0, 0));
       assertEquals(20, new CompiledProject(state.project()).noise2D("ambient", 17).sample(0, 0));
       var accepted = ProjectIO.JSON.valueToTree(state.project());
@@ -453,7 +464,7 @@ class BackgroundProjectSettingsTest {
       var s = new ProjectSettingsSession(state, worker, queue::add, () -> false);
       s.edit("seed", "+0005");
       s.apply(state, shown(s));
-      deliver(worker, queue);
+      deliver(worker, queue, s);
       assertTrue(s.closed());
       assertTrue(state.document.canRedo());
       assertEquals(bytes, state.document.historyBytes());

@@ -51,13 +51,14 @@ class PropertiesApplySessionTest {
     return new PropertiesApplySession(s, workers, ui::add, () -> false);
   }
 
-  static void deliver(Workers worker, Queue<Runnable> ui) {
+  static void deliver(Workers worker, Queue<Runnable> ui, PropertiesApplySession apply) {
     worker.run();
     ui.remove().run();
+    apply.acceptPrepared();
   }
 
   @Test
-  void compilationRunsOffThreadAndOnlyUiDeliveryPublishesOneUndoableEdit() throws Exception {
+  void compilationRunsOffThreadAndOwnerAcceptancePublishesOneUndoableEdit() throws Exception {
     try (var state = state();
         var workers = Executors.newSingleThreadExecutor()) {
       var ui = new LinkedBlockingQueue<Runnable>();
@@ -79,6 +80,10 @@ class PropertiesApplySessionTest {
         assertEquals(before, ProjectIO.JSON.valueToTree(state.project()));
         assertSame(draft, state.draft);
         completion.run();
+        assertTrue(apply.running());
+        assertSame(draft, state.draft);
+        assertEquals(before, ProjectIO.JSON.valueToTree(state.project()));
+        apply.acceptPrepared();
         assertEquals(PropertiesApplySession.Phase.APPLIED, apply.view().phase());
         assertEquals(.625, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
         assertNotSame(draft, state.draft);
@@ -101,7 +106,7 @@ class PropertiesApplySessionTest {
           assertTrue(apply.start());
           if (completed) workers.run();
           apply.cancel();
-          if (completed) ui.remove().run();
+          if (completed) { ui.remove().run(); apply.acceptPrepared(); }
           else workers.run();
           assertEquals(PropertiesApplySession.Phase.CANCELLED, apply.view().phase());
           assertTrue(owner.valuesCurrent(state));
@@ -125,6 +130,7 @@ class PropertiesApplySessionTest {
           else state.project().project.seed = 18;
           var owner = new ProjectFileOwner(state);
           ui.remove().run();
+          apply.acceptPrepared();
           assertEquals(PropertiesApplySession.Phase.STALE, apply.view().phase());
           assertTrue(owner.valuesCurrent(state));
         }
@@ -153,6 +159,7 @@ class PropertiesApplySessionTest {
           else state.document.setValidator(NoiseCompiler::validate);
           var owner = new ProjectFileOwner(state);
           ui.remove().run();
+          apply.acceptPrepared();
           assertEquals(PropertiesApplySession.Phase.STALE, apply.view().phase());
           assertTrue(owner.valuesCurrent(state));
         }
@@ -173,7 +180,7 @@ class PropertiesApplySessionTest {
       try (var apply = session(state, workers, ui)) {
         for (int i = 0; i < 2; i++) {
           assertTrue(apply.start());
-          deliver(workers, ui);
+          deliver(workers, ui, apply);
           assertEquals(PropertiesApplySession.Phase.REJECTED, apply.view().phase());
           assertEquals(300, state.issues.size());
           assertSame(draft, state.draft);
@@ -183,7 +190,7 @@ class PropertiesApplySessionTest {
         assertEquals(values, ProjectIO.JSON.valueToTree(state.project()));
         state.document.setValidator(NoiseCompiler::validate);
         assertTrue(apply.start());
-        deliver(workers, ui);
+        deliver(workers, ui, apply);
         assertEquals(PropertiesApplySession.Phase.APPLIED, apply.view().phase());
         assertTrue(state.issues.isEmpty());
       }
@@ -222,13 +229,13 @@ class PropertiesApplySessionTest {
           apply.start();
           if (mode != 0) {
             workers.run();
-            if (!ui.isEmpty()) ui.remove().run();
+            if (!ui.isEmpty()) { ui.remove().run(); apply.acceptPrepared(); }
           }
           assertEquals(PropertiesApplySession.Phase.FAILED, apply.view().phase());
           assertEquals(values, ProjectIO.JSON.valueToTree(state.project()));
           fail.set(false);
           assertTrue(apply.start());
-          deliver(workers, ui);
+          deliver(workers, ui, apply);
           assertEquals(PropertiesApplySession.Phase.APPLIED, apply.view().phase());
         }
       }
@@ -273,7 +280,7 @@ class PropertiesApplySessionTest {
           holder[0] = apply;
           boolean accepted = apply.start();
           if (admission) assertFalse(accepted);
-          else deliver(workers, ui);
+          else deliver(workers, ui, apply);
           assertEquals(PropertiesApplySession.Phase.CANCELLED, apply.view().phase());
           assertTrue(owner.valuesCurrent(state));
         }
@@ -294,6 +301,7 @@ class PropertiesApplySessionTest {
           if (inplace) state.issues.add(later);
           else state.issues = List.of(later);
           ui.remove().run();
+          apply.acceptPrepared();
           assertEquals(PropertiesApplySession.Phase.STALE, apply.view().phase());
           assertEquals(List.of(later), state.issues);
           assertEquals(.125, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
@@ -309,14 +317,14 @@ class PropertiesApplySessionTest {
       var ui = new ArrayDeque<Runnable>();
       try (var apply = session(state, workers, ui)) {
         assertTrue(apply.start());
-        deliver(workers, ui);
+        deliver(workers, ui, apply);
         assertEquals(.125, previous.sample(1, 2));
         assertEquals(.625, new CompiledProject(state.project()).noise2D("field", 17).sample(1, 2));
         state.document.undo();
         state.refreshDraft();
         long bytes = state.document.historyBytes();
         assertTrue(apply.start());
-        deliver(workers, ui);
+        deliver(workers, ui, apply);
         assertTrue(state.document.canRedo());
         assertEquals(bytes, state.document.historyBytes());
       }
@@ -336,6 +344,7 @@ class PropertiesApplySessionTest {
       workers.run();
       apply.close();
       ui.remove().run();
+      apply.acceptPrepared();
       assertEquals(PropertiesApplySession.Phase.CLOSED, apply.view().phase());
       assertFalse(apply.start());
       assertTrue(owner.valuesCurrent(state));
@@ -354,6 +363,7 @@ class PropertiesApplySessionTest {
       panel.close();
       var successor = new PropertyPanel(state, workers, ui::add);
       ui.remove().run();
+      successor.probeApplySession().acceptPrepared();
       assertEquals(PropertiesApplySession.Phase.IDLE, successor.probeApplySession().view().phase());
       assertEquals(.125, state.project().noise2D.getFirst().algorithm.parameters.get("value"));
       successor.close();

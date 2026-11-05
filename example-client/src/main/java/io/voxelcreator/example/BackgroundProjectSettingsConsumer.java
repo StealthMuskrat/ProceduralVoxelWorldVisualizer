@@ -15,7 +15,7 @@ public final class BackgroundProjectSettingsConsumer {
 
   static void run(Path out) throws Exception {
     int fields = 0, cells = 0, snapshots = 0;
-    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close")) {
+    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close", "ready-cancel", "ready-escape", "ready-collapse")) {
       var directory = out.resolve(mode);
       var before = new ProjectLoader().load(directory.resolve("before.json"));
       require(
@@ -50,7 +50,7 @@ public final class BackgroundProjectSettingsConsumer {
             Arrays.equals(bytes, Files.readAllBytes(file)), "Settings replay changed saved bytes");
       }
     }
-    require(snapshots == 16 && fields == 336 && cells == 4704, "Settings replay dimensions");
+    require(snapshots == 22 && fields == 462 && cells == 6468, "Settings replay dimensions");
     Files.writeString(
         out.resolve("engine-replay.json"),
         ProjectIO.JSON.writeValueAsString(
@@ -66,7 +66,7 @@ public final class BackgroundProjectSettingsConsumer {
                 "roots",
                 List.of(2, 4))));
     System.out.println(
-        "BACKGROUND_PROJECT_SETTINGS_ENGINE_ONLY_PASS 16 saved states / 336 fields / 4704"
+        "BACKGROUND_PROJECT_SETTINGS_ENGINE_ONLY_PASS 22 saved states / 462 fields / 6468"
             + " inclusive-bound cells");
   }
 

@@ -119,7 +119,8 @@ public final class ProjectSettingsPanel implements AutoCloseable {
     if (session == null || session.closed()) return true;
     session.refresh();
     if (session.closed()) return true;
-    long work = session.workVersion();
+    var owner = session;
+    long work = owner.workVersion();
     if (shownWorkVersion != work) {
       actionScope.release();
       shownWorkVersion = work;
@@ -283,8 +284,15 @@ public final class ProjectSettingsPanel implements AutoCloseable {
       }
       if (!done && !session.applying()) revealFeedback = true;
     }
+    if (!done && session == owner && work == owner.workVersion())
+      done = owner.acceptPrepared(displayed());
     if (done) cancel();
     return done;
+  }
+
+  void suspendActions() {
+    actionScope.release();
+    if (session != null) session.suspendApply();
   }
 
   private void edit(String field, String value) {

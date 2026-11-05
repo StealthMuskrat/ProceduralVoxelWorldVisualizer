@@ -13,14 +13,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Deferred production settings controls with held worker completion and owner delivery. */
 final class BackgroundProjectSettingsProbe {
   private static ProjectSettingsPanel panel;
-  private static boolean visible;
+  private static boolean visible, collapsed;
   private static final Map<String, String> RAW =
       Map.of("seed", "+000017", "minY", "-1", "maxY", "+1");
 
   static void run(Path out) throws Exception {
     Files.createDirectories(out);
     var cases = new ArrayList<Map<String, Object>>();
-    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close")) {
+    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close", "ready-cancel", "ready-escape", "ready-collapse")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       try (var state = new EditorState(new UserConfig(), false)) {
@@ -44,6 +44,7 @@ final class BackgroundProjectSettingsProbe {
             });
         panel = new ProjectSettingsPanel(state, tasks::add, ui::add, () -> false);
         visible = true;
+        collapsed = false;
         try {
           require(panel.open(null), "Settings open");
           frames(4);
@@ -83,18 +84,35 @@ final class BackgroundProjectSettingsProbe {
           require(
               session.applying() && state.project().project.seed == 5,
               "Worker published before UI delivery");
-          if (mode.equals("cancel")) click("cancel");
-          else if (mode.equals("escape")) {
-            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
-            frame();
-            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+          if (mode.startsWith("ready-")) {
+            long work = session.workVersion();
+            if (mode.equals("ready-cancel")) hold("cancel");
+            ui.remove().run();
+            require(session.applying() && session.workVersion() == work && rawOwned(session)
+                && state.project().project.seed == 5, "Ready settings delivery published or changed Cancel authority");
+            if (mode.equals("ready-cancel")) ImGui.getIO().addMouseButtonEvent(0, false);
+            else if (mode.equals("ready-escape")) ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+            else collapsed = true;
+            frame(); ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+            if (collapsed) {
+              require(visible && !session.applying() && !session.closed() && rawOwned(session),
+                  "Collapse discarded private Project Settings");
+              collapsed = false; frames(3); click("cancel");
+            }
+          } else {
+            if (mode.equals("cancel")) click("cancel");
+            else if (mode.equals("escape")) {
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+              frame();
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+              frames(3);
+            } else if (mode.equals("close")) {
+              panel.close();
+              visible = false;
+            } else if (mode.equals("raw")) state.project().project.seed = 6;
+            ui.remove().run();
             frames(3);
-          } else if (mode.equals("close")) {
-            panel.close();
-            visible = false;
-          } else if (mode.equals("raw")) state.project().project.seed = 6;
-          ui.remove().run();
-          frames(3);
+          }
           if (mode.equals("retry")) {
             require(
                 visible
@@ -168,7 +186,9 @@ final class BackgroundProjectSettingsProbe {
                   "originalBytesRetained",
                   true,
                   "oneUndoRedo",
-                  applied));
+                  applied,
+                  "readyRetired",
+                  mode.startsWith("ready-")));
         } finally {
           panel.close();
           visible = false;
@@ -231,6 +251,12 @@ final class BackgroundProjectSettingsProbe {
     frames(3);
   }
 
+  private static void hold(String action) {
+    var at = panel.controlAt(action); require(at != null, "Settings action missing");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
+  }
+
   private static void click(String action) {
     var at = panel.controlAt(action);
     require(at != null, "Settings action missing " + action);
@@ -252,8 +278,10 @@ final class BackgroundProjectSettingsProbe {
     if (visible) {
       ImGui.setNextWindowPos(0, 0, ImGuiCond.Always);
       ImGui.setNextWindowSize(850, 650, ImGuiCond.Always);
-      ImGui.setNextWindowCollapsed(false, ImGuiCond.Always);
-      if (ImGui.begin("Project Settings") && panel.draw()) visible = false;
+      ImGui.setNextWindowCollapsed(collapsed, ImGuiCond.Always);
+      if (ImGui.begin("Project Settings")) {
+        if (panel.draw()) visible = false;
+      } else panel.suspendActions();
       ImGui.end();
     }
     ImGui.render();

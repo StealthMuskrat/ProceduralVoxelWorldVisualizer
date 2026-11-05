@@ -115,14 +115,14 @@ import jsonschema
 background = out / 'background-apply'
 apply_report = json.loads((background / 'properties-apply.json').read_text())
 assert apply_report['formatVersion'] == 1 and apply_report['physicalInputVerified'] is False
-assert [c['mode'] for c in apply_report['cases']] == ['success', 'cancel', 'escape', 'raw', 'retry', 'close']
+assert [c['mode'] for c in apply_report['cases']] == ['success', 'cancel', 'escape', 'raw', 'retry', 'close', 'ready-cancel', 'ready-escape', 'ready-collapse']
 project_schema = json.loads((Path(__file__).resolve().parent.parent / 'schema/project.schema.json').read_text())
 project_validator = jsonschema.Draft202012Validator(project_schema, format_checker=jsonschema.FormatChecker())
 snapshots = 0
 for case in apply_report['cases']:
     mode = case['mode']; applied = mode in ['success', 'retry']; directory = background / mode
     assert case == dict(mode=mode, applied=applied, responsiveFrames=12, privateBoundary=True,
-        preferencesRetained=True, originalBytesRetained=True, oneUndoRedo=applied)
+        preferencesRetained=True, originalBytesRetained=True, oneUndoRedo=applied, readyRetired=mode.startswith('ready-'))
     before = json.loads((directory / 'before.json').read_text())
     assert before['project']['seed'] == 17 and len(before['noise2D']) == 1
     assert before['noise2D'][0]['id'] == 'field' and before['noise2D'][0]['algorithm']['parameters'] == {'value': .125}
@@ -138,8 +138,8 @@ for case in apply_report['cases']:
         project = json.loads((directory / 'api-applied.json').read_text()); project_validator.validate(project)
         expected = deepcopy(before); expected['noise2D'][0]['algorithm']['parameters']['value'] = .625
         assert project == expected
-assert snapshots == 16
+assert snapshots == 22
 apply_replay = json.loads((background / 'engine-replay.json').read_text())
-assert apply_replay == dict(formatVersion=1, snapshots=16, preparedTransactions=2, apiStates=8,
-    fields=504, cells=7056, roots=[2, 4])
-print('PROPERTIES_APPLY_INDEPENDENT_PASS complete saved values / 18 project schemas / prepared history / 504 fields / 7056 EMPTY cells')
+assert apply_replay == dict(formatVersion=1, snapshots=22, preparedTransactions=2, apiStates=8,
+    fields=630, cells=8820, roots=[2, 4])
+print('PROPERTIES_APPLY_INDEPENDENT_PASS complete saved values / 24 project schemas / prepared history / 630 fields / 8820 EMPTY cells')

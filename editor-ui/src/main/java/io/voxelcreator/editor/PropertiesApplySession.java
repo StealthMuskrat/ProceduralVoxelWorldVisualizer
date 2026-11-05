@@ -31,6 +31,10 @@ final class PropertiesApplySession implements AutoCloseable {
   private List<Diagnostic> issues, issueValues;
   private String scope;
   private FutureTask<Void> task;
+  private record Prepared(DocumentSession.PreparedEdit value, Throwable failure) {}
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery, version;
+  private boolean ready;
 
   PropertiesApplySession(
       EditorState state, Executor executor, Consumer<Runnable> ui, BooleanSupplier blocked) {
@@ -76,6 +80,8 @@ final class PropertiesApplySession implements AutoCloseable {
       message =
           "Preparing Properties Apply in the background. Committed values remain active. Cancel"
               + " Apply or Escape to keep the edit private.";
+      long handed = ++delivery;
+      handoff.advance(handed);
       task =
           new FutureTask<>(
               () -> {
@@ -86,9 +92,8 @@ final class PropertiesApplySession implements AutoCloseable {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var value = prepared;
-                var rejected = failure;
-                ui.accept(() -> publish(request, value, rejected));
+                if (!handoff.publish(handed, new Prepared(prepared, failure))) return null;
+                ui.accept(() -> delivered(request, handed));
                 return null;
               });
       executor.execute(task);
@@ -101,6 +106,30 @@ final class PropertiesApplySession implements AutoCloseable {
 
   private boolean owns(Object request) {
     return request == token && phase == Phase.RUNNING;
+  }
+
+  long version() {
+    return version;
+  }
+
+  private void delivered(Object request, long handed) {
+    if (!owns(request) || delivery != handed || ready) return;
+    refresh();
+    if (!owns(request)) return;
+    task = null;
+    ready = true;
+  }
+
+  /** The visible footer and child editors decide current-frame cancellation before acceptance. */
+  void acceptPrepared() {
+    refresh();
+    if (phase != Phase.RUNNING || !ready) return;
+    var value = handoff.take();
+    if (value == null) {
+      fail(token, new IllegalStateException("Properties Apply preparation unavailable"));
+      return;
+    }
+    publish(token, value.value(), value.failure());
   }
 
   private boolean diagnosticsCurrent() {
@@ -166,7 +195,7 @@ final class PropertiesApplySession implements AutoCloseable {
   private void refresh() {
     if (phase != Phase.RUNNING) return;
     try {
-      if (!owner.current(state) || !diagnosticsCurrent()) {
+      if (!owner.current(state) || !diagnosticsCurrent() || !issueValues.equals(state.issues)) {
         stale();
         return;
       }
@@ -215,6 +244,9 @@ final class PropertiesApplySession implements AutoCloseable {
     var previous = task;
     token = new Object();
     task = null;
+    ready = false;
+    handoff.advance(++delivery);
+    version++;
     owner = null;
     issues = issueValues = null;
     scope = null;
@@ -229,6 +261,7 @@ final class PropertiesApplySession implements AutoCloseable {
     if (phase == Phase.CLOSED) return;
     retire();
     phase = Phase.CLOSED;
+    handoff.close();
     message = "Properties Apply closed.";
   }
 }

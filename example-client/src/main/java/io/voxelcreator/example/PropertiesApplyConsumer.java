@@ -19,7 +19,7 @@ public final class PropertiesApplyConsumer {
 
   static void run(Path out) throws Exception {
     int fields = 0, cells = 0, snapshots = 0, transactions = 0;
-    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close")) {
+    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close", "ready-cancel", "ready-escape", "ready-collapse")) {
       var directory = out.resolve(mode);
       var original = new ProjectLoader().load(directory.resolve("before.json"));
       require(original.success(), "Apply baseline rejected");
@@ -89,7 +89,7 @@ public final class PropertiesApplyConsumer {
       }
     }
     require(
-        snapshots == 16 && transactions == 2 && fields == 504 && cells == 7056,
+        snapshots == 22 && transactions == 2 && fields == 630 && cells == 8820,
         "Apply replay dimensions");
     Files.writeString(
         out.resolve("engine-replay.json"),
@@ -110,8 +110,8 @@ public final class PropertiesApplyConsumer {
                 "roots",
                 List.of(2, 4))));
     System.out.println(
-        "PROPERTIES_APPLY_ENGINE_ONLY_PASS 16 saved states / 2 prepared transactions / 504 fields /"
-            + " 7056 EMPTY cells");
+        "PROPERTIES_APPLY_ENGINE_ONLY_PASS 22 saved states / 2 prepared transactions / 630 fields /"
+            + " 8820 EMPTY cells");
   }
 
   private static int[] observe(ProjectData p, double expected) {

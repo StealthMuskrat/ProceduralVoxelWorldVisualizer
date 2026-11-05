@@ -310,6 +310,20 @@ final class HelpDefinitions {
                   + " Save Preferences persists active preferences only and never applies"
                   + " private scale, theme or resource input."),
           new Guide(
+              "help.direct-apply-recovery",
+              "Cancelling prepared Properties and Project Settings",
+              "Properties Cancel Apply and Project Settings Cancel/Escape run before accepting a"
+                  + " ready background result on that frame. Delivered preparation alone changes"
+                  + " no project values. A successful Apply finishes from the original action"
+                  + " without another confirmation. Collapsing either host retires pending work;"
+                  + " reopening retains private input for explicit Apply retry. Closing Project"
+                  + " Settings still discards its private settings form. Project Settings checks"
+                  + " every displayed raw seed/Y field before publication and preserves separate"
+                  + " private Properties edits and seed input. Ordinary Properties Apply commits"
+                  + " its owned resource and refreshes that private draft. Both create one Undo"
+                  + " boundary and require explicit retry after failure. Project Save and user"
+                  + " preferences remain separate."),
+          new Guide(
               "help.ready-navigation-apply",
               "Cancelling prepared navigation and resource selection",
               "Source links, Find, property references and browser selections keep Apply pending"
@@ -601,7 +615,7 @@ final class HelpDefinitions {
           Map.entry("help.project-save", List.of("save", "help.project-open", "diagnostics")),
           Map.entry(
               "help.properties-apply",
-              List.of("noise", "layers", "help.project-save", "diagnostics")),
+              List.of("noise", "layers", "help.project-save", "diagnostics", "help.direct-apply-recovery")),
           Map.entry(
               "help.resource-session",
               List.of("save", "help.project-open", "help.project-save", "help.resource-actions", "help.ready-navigation-apply")),
@@ -664,6 +678,7 @@ final class HelpDefinitions {
               List.of("noise", "processing", "help.properties-apply", "diagnostics")),
           Map.entry("help.find", List.of("diagnostics", "noise", "help.trace", "help.pins", "help.ready-navigation-apply")),
           Map.entry("help.ready-navigation-apply", List.of("help.find", "help.resource-session", "help.properties-apply")),
+          Map.entry("help.direct-apply-recovery", List.of("help.properties-apply", "help.project-settings", "save")),
           Map.entry(
               "help.pins",
               List.of("noise", "processing", "help.find", "save", "help.scalar-readouts")),

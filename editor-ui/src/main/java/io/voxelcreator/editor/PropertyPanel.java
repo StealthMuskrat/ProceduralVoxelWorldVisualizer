@@ -714,6 +714,7 @@ public final class PropertyPanel implements AutoCloseable {
     expressionSeen = false;
     membershipOpenButton = null;
     if (applySession != null) applySession.view();
+    long applyWork = applySession == null ? 0 : applySession.version();
     if (!(state.draft instanceof VoxelType) || state.multiSelection.size() != 1)
       voxelIdentity.clear();
     identityInput = null;
@@ -753,7 +754,10 @@ public final class PropertyPanel implements AutoCloseable {
     UiScale.window(state.user, "Properties");
     windowLayout.observe();
     DialogLayout.observe(state, "Properties");
-    if (!visible) voxelIdentity.clear();
+    if (!visible) {
+      voxelIdentity.clear();
+      if (applySession != null) applySession.cancel();
+    }
     if (visible) {
       boolean changedBody =
           !Objects.equals(last, state.selected)
@@ -891,6 +895,8 @@ public final class PropertyPanel implements AutoCloseable {
     drawReferenceGuard();
     if (expressionChecking != null && !expressionSeen) expressionChecking.suspend();
     drawSmokeWorldControls();
+    if (visible && applySession != null && applySession.version() == applyWork)
+      applySession.acceptPrepared();
   }
 
   private void drawActions(long version) {

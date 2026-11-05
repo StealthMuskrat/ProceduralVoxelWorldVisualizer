@@ -67,7 +67,7 @@ assert not (guidance_dir / 'must-not-save.json').exists()
 background = out / 'background-apply'
 apply_report = json.loads((background / 'project-settings-apply.json').read_text(encoding='utf-8'))
 assert apply_report['formatVersion'] == 1 and apply_report['physicalInputVerified'] is False
-modes = ['success', 'cancel', 'escape', 'raw', 'retry', 'close']
+modes = ['success', 'cancel', 'escape', 'raw', 'retry', 'close', 'ready-cancel', 'ready-escape', 'ready-collapse']
 assert [case['mode'] for case in apply_report['cases']] == modes
 snapshots = 0
 for case in apply_report['cases']:
@@ -75,6 +75,7 @@ for case in apply_report['cases']:
     applied = mode in ('success', 'retry')
     assert case['applied'] is applied and case['oneUndoRedo'] is applied
     assert case['responsiveFrames'] == 12
+    assert case['readyRetired'] is mode.startswith('ready-')
     assert all(case[key] is True for key in ('privatePropertiesRetained', 'rawTextOwned',
                                            'preferencesRetained', 'originalBytesRetained'))
     directory = background / mode
@@ -106,7 +107,7 @@ for case in apply_report['cases']:
         offset = seed + min_y + max_y + max_y - min_y + 1
         assert offset == (20 if target else 11 if mode == 'raw' and name == 'after' else 10)
         snapshots += 1
-assert snapshots == 16
+assert snapshots == 22
 replay = json.loads((background / 'engine-replay.json').read_text(encoding='utf-8'))
-assert replay == dict(formatVersion=1, snapshots=16, fields=336, cells=4704, roots=[2, 4])
+assert replay == dict(formatVersion=1, snapshots=22, fields=462, cells=6468, roots=[2, 4])
 print('PROJECT_SETTINGS_INDEPENDENT_PASS exact metadata / private text / guidance / ambient arithmetic / inherited ALL placement / background Apply states')

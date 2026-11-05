@@ -7,6 +7,22 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void directApplyHelpExplainsReadyCancellationCollapseAndSeparatePrivateInput() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.direct-apply-recovery");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Cancel/Escape run before accepting a ready background result"));
+    assertTrue(text.contains("Collapsing either host retires pending work"));
+    assertTrue(text.contains("every displayed raw seed/Y field"));
+    assertTrue(text.contains("preserves separate private Properties edits"));
+    assertTrue(catalog.search("properties prepared private").contains(topic));
+    assertTrue(catalog.topic("help.properties-apply").related().contains(topic.id()));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void guardedApplyHelpExplainsReadyCancellationAndOneOriginalAction() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

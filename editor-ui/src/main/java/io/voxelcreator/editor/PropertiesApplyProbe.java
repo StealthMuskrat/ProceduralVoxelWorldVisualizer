@@ -13,12 +13,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Deferred real Properties footer with held preparation/UI delivery and complete saved replay. */
 final class PropertiesApplyProbe {
   private static PropertyPanel panel;
+  private static boolean collapsed;
 
   static void run(Path out) throws Exception {
     Files.createDirectories(out);
     var cases = new ArrayList<Map<String, Object>>();
     ImGui.getIO().setDisplaySize(1400, 1000);
-    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close")) {
+    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close", "ready-cancel", "ready-escape", "ready-collapse")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       try (var state = new EditorState(new UserConfig(), false)) {
@@ -51,6 +52,7 @@ final class PropertiesApplyProbe {
               if (fail.getAndSet(false)) throw new AssertionError("held Apply failure");
               return NoiseCompiler.validate(p);
             });
+        collapsed = false;
         panel = new PropertyPanel(state, tasks::add, ui::add);
         var apply = panel.probeApplySession();
         try {
@@ -69,16 +71,30 @@ final class PropertiesApplyProbe {
           }
           state.background.submit(tasks.remove()).get(10, TimeUnit.SECONDS);
           require(apply.running() && state.draft == draft, "Worker published without UI delivery");
-          if (mode.equals("cancel")) click(panel.probeAction("apply"));
-          else if (mode.equals("escape")) {
-            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
-            frame();
-            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+          if (mode.startsWith("ready-")) {
+            long work = apply.version();
+            if (mode.equals("ready-cancel")) hold(panel.probeAction("apply"));
+            ui.remove().run();
+            require(apply.running() && apply.version() == work && state.draft == draft
+                && state.project().noise2D.getFirst().algorithm.parameters.get("value") == .125,
+                "Ready Properties delivery published or changed Cancel authority");
+            if (mode.equals("ready-cancel")) ImGui.getIO().addMouseButtonEvent(0, false);
+            else if (mode.equals("ready-escape")) ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+            else collapsed = true;
+            frame(); ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+            if (collapsed) { collapsed = false; frames(3); }
+          } else {
+            if (mode.equals("cancel")) click(panel.probeAction("apply"));
+            else if (mode.equals("escape")) {
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+              frame();
+              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+              frames(3);
+            } else if (mode.equals("raw")) state.project().project.seed = 18;
+            else if (mode.equals("close")) panel.close();
+            ui.remove().run();
             frames(3);
-          } else if (mode.equals("raw")) state.project().project.seed = 18;
-          else if (mode.equals("close")) panel.close();
-          ui.remove().run();
-          frames(3);
+          }
           if (mode.equals("retry")) {
             require(
                 apply.view().phase() == PropertiesApplySession.Phase.FAILED && state.draft == draft,
@@ -136,7 +152,9 @@ final class PropertiesApplyProbe {
                   "originalBytesRetained",
                   true,
                   "oneUndoRedo",
-                  applied));
+                  applied,
+                  "readyRetired",
+                  mode.startsWith("ready-")));
         } finally {
           panel.close();
         }
@@ -146,6 +164,12 @@ final class PropertiesApplyProbe {
         out.resolve("properties-apply.json"),
         ProjectIO.JSON.writeValueAsString(
             Map.of("formatVersion", 1, "cases", cases, "physicalInputVerified", false)));
+  }
+
+  private static void hold(float[] at) {
+    require(at != null, "Apply control missing");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(float[] at) {
@@ -167,7 +191,7 @@ final class PropertiesApplyProbe {
     ImGui.newFrame();
     ImGui.setNextWindowPos(30, 30, ImGuiCond.Always);
     ImGui.setNextWindowSize(650, 800, ImGuiCond.Always);
-    ImGui.setNextWindowCollapsed(false, ImGuiCond.Always);
+    ImGui.setNextWindowCollapsed(collapsed, ImGuiCond.Always);
     panel.draw();
     ImGui.render();
   }

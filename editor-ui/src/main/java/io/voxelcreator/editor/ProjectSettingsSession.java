@@ -27,6 +27,11 @@ final class ProjectSettingsSession {
   private final BooleanSupplier blocked;
   private Object workToken = new Object();
   private FutureTask<Void> task;
+  private record Prepared(DocumentSession.PreparedEdit value, Throwable failure) {}
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery;
+  private boolean ready;
+  private Map<String, String> workValues;
   private boolean admitting;
   private long workVersion;
   private String progress = "";
@@ -68,7 +73,7 @@ final class ProjectSettingsSession {
     if (Objects.requireNonNull(value).length() > MAX_CHARACTERS)
       throw new IllegalArgumentException("Project setting text limit " + MAX_CHARACTERS);
     if (text.get(field).equals(value)) return;
-    if (task != null || admitting) {
+    if (task != null || ready || admitting) {
       retireWork();
       progress =
           "Pending Apply cancelled because the settings were edited. Review the new text and Apply"
@@ -100,7 +105,7 @@ final class ProjectSettingsSession {
 
   boolean applying() {
     refresh();
-    return task != null || admitting;
+    return task != null || ready || admitting;
   }
 
   long workVersion() {
@@ -194,7 +199,7 @@ final class ProjectSettingsSession {
       if (!Objects.equals(text.get(field), displayed.get(field)))
         throw new IllegalStateException(
             "Displayed " + field + " differs from the private input; correct it before applying.");
-    if (task != null || admitting) return false;
+    if (task != null || ready || admitting) return false;
     if (!projectBase.equals(ProjectIO.JSON.valueToTree(state.project()))) {
       forcedStale = true;
       throw new IllegalStateException(
@@ -263,6 +268,9 @@ final class ProjectSettingsSession {
           "Preparing and validating Project Settings in the background. Current committed settings"
               + " remain active. Cancel or Escape closes this private settings draft without"
               + " applying.";
+      workValues = values;
+      long handed = ++delivery;
+      handoff.advance(handed);
       task =
           new FutureTask<>(
               () -> {
@@ -273,9 +281,8 @@ final class ProjectSettingsSession {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var completed = result;
-                var rejected = failure;
-                ui.accept(() -> publish(token, values, completed, rejected));
+                if (!handoff.publish(handed, new Prepared(result, failure))) return null;
+                ui.accept(() -> delivered(token, handed));
                 return null;
               });
       executor.execute(task);
@@ -287,7 +294,39 @@ final class ProjectSettingsSession {
   }
 
   private boolean owns(Object token) {
-    return token == workToken && task != null && !closed;
+    return token == workToken && (task != null || ready) && !closed;
+  }
+
+  private void delivered(Object token, long handed) {
+    if (!owns(token) || delivery != handed || ready) return;
+    refresh();
+    if (!owns(token)) return;
+    task = null;
+    ready = true;
+  }
+
+  /** The panel decides Cancel/Reload and verifies exact displayed fields before publication. */
+  boolean acceptPrepared(Map<String, String> displayed) {
+    refresh();
+    if (!ready || closed) return false;
+    Object token = workToken;
+    try {
+      if (!workValues.equals(text) || !workValues.equals(displayed))
+        throw new IllegalStateException("Displayed Project Settings changed; review the fields and Apply again");
+      var value = handoff.take();
+      if (value == null) throw new IllegalStateException("Project Settings preparation unavailable");
+      publish(token, workValues, value.value(), value.failure());
+      return closed;
+    } catch (Throwable failure) {
+      failWork(token, failure);
+      return false;
+    }
+  }
+
+  void suspendApply() {
+    if (closed || (task == null && !ready && !admitting)) return;
+    retireWork();
+    progress = "Project Settings Apply cancelled. Private text is preserved; Apply again explicitly.";
   }
 
   private boolean feedbackCurrent() {
@@ -341,6 +380,7 @@ final class ProjectSettingsSession {
       editor.document.applyEdit(prepared);
       retireWork();
       closed = true;
+      handoff.close();
       progress = "Project Settings applied.";
       editor.revision++;
       editor.issues = List.of();
@@ -353,7 +393,7 @@ final class ProjectSettingsSession {
   }
 
   void refresh() {
-    if (task == null || closed) return;
+    if ((task == null && !ready) || closed) return;
     try {
       if (!current(editor) || !feedbackCurrent()) {
         staleWork();
@@ -400,6 +440,9 @@ final class ProjectSettingsSession {
     workToken = new Object();
     workVersion++;
     task = null;
+    ready = false;
+    workValues = null;
+    handoff.advance(++delivery);
     admitting = false;
     sharedIssues = sharedValues = null;
     sharedScope = null;
@@ -412,6 +455,7 @@ final class ProjectSettingsSession {
   void cancel() {
     retireWork();
     closed = true;
+    handoff.close();
     applyIssues = List.of();
     issueCount = 0;
     applyFailure = "";

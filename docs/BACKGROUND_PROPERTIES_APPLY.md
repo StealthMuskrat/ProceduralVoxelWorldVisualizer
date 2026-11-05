@@ -37,3 +37,6 @@ The later unvalidated [background Project Settings follow-up](BACKGROUND_PROJECT
 The later unvalidated [background navigation Apply follow-up](BACKGROUND_NAVIGATION_APPLY.md) extends prepared edits to Desktop source/Find/reference Apply-before-navigation. It retains cancellation and correction while adding the existing post-Apply destination/successor fence. Browser selection/edit draft composition and other settings paths remain separate audit work; all new execution remains deferred.
 
 The later unvalidated [background Apply Members follow-up](BACKGROUND_MEMBERSHIP_APPLY.md) moves the production membership sub-editor transaction onto prepared workers. It preserves the deliberate member-only publication boundary and unrelated private Properties ID/seed input. Other child-editor/settings workflows and complete integration/acceptance remain pending; all new execution stays deferred.
+
+
+The later [ready direct Apply follow-up](READY_DIRECT_APPLY.md) separates delivered readiness from current-control acceptance, adds ready-frame cancellation and collapse suspension, and extends the deferred native/independent replay. All implementation and execution remain uncompiled/untested under the owner pause.

@@ -910,6 +910,7 @@ public final class Desktop extends Application {
       return;
     }
     if (!visible) {
+      projectSettings.suspendActions();
       applicationSettings.suspendActions();
       debugSettings.suspendActions();
       suspendUserSettingsActions(null);
