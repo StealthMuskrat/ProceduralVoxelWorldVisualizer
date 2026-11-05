@@ -75,6 +75,7 @@ class BackgroundMetadataApplyTest {
         delivery.run(); delivery.run();
         assertTrue(apply.ready());
         assertSame(active, s.metadata);
+        worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
         assertTrue(apply.accept());
         assertFalse(apply.accept());
         assertEquals("Custom", s.metadata.controls.get("noise").label);

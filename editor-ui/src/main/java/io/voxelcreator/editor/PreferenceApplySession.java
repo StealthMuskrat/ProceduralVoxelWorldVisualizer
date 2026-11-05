@@ -18,7 +18,7 @@ final class PreferenceApplySession implements AutoCloseable {
   private BooleanSupplier input;
   private FutureTask<Void> task;
   private Object token = new Object();
-  private boolean running, ready, closed, stale;
+  private boolean running, ready, admitted, closed, stale;
   private long version;
   private String message = "";
 
@@ -61,8 +61,8 @@ final class PreferenceApplySession implements AutoCloseable {
 
   void start(UserConfig.PreferenceRequest request, BooleanSupplier input) {
     if (closed || running) return;
-    retire();
-    Object work = token;
+    Object work = retire();
+    if (closed || work != token || running) return;
     try {
       this.request = Objects.requireNonNull(request);
       this.input = Objects.requireNonNull(input);
@@ -98,6 +98,7 @@ final class PreferenceApplySession implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
+      if (owns(work)) admitted = true;
     } catch (Throwable failure) {
       fail(work, failure);
     }
@@ -131,7 +132,8 @@ final class PreferenceApplySession implements AutoCloseable {
       boolean valid = !check || current(work);
       if (!owns(work)) return;
       if (!valid) {
-        cancel();
+        Object invalidated = retire();
+        if (closed || invalidated != token) return;
         stale = true;
         message = saving ? "Preferences changed; saving the latest active values."
             : "Preferences or private input changed. Review and Apply again; Revert if required.";
@@ -152,13 +154,19 @@ final class PreferenceApplySession implements AutoCloseable {
     Object work = token;
     if (shownVersion != version) return false;
     refresh();
-    if (!owns(work) || !ready || shownVersion != version) return false;
+    if (!owns(work) || !ready || !admitted || shownVersion != version) return false;
     Payload payload = null;
     try {
       var captured = request;
       if (!current(work) || !owns(work)) return false;
+      var completed = BackgroundFailure.completed(task);
+      if (!owns(work) || request != captured || completed == null) return false;
+      if (completed.failure() != null) {
+        fail(work, completed.failure());
+        return false;
+      }
       payload = handoff.take();
-      // Once accepted, the finishing worker no longer owns cancellation authority.
+      // The complete worker no longer needs observation during atomic publication.
       task = null;
       if (payload == null) throw new IllegalStateException("Preference preparation is unavailable");
       if (payload.failure != null) {
@@ -202,36 +210,43 @@ final class PreferenceApplySession implements AutoCloseable {
 
   void cancel() {
     if (!running || closed) return;
-    retire();
+    Object cancelled = retire();
+    if (closed || cancelled != token) return;
     message = saving ? "Preference save cancelled."
         : "Preference Apply cancelled. Private input is preserved.";
   }
 
-  private void retire() {
+  /** Return the identity reserved before cleanup, which may itself admit a successor. */
+  private Object retire() {
     var previous = task;
-    token = new Object();
+    Object retired = new Object();
+    token = retired;
     version++;
     task = null;
     request = null;
     input = null;
-    running = ready = stale = false;
+    running = ready = admitted = stale = false;
     handoff.invalidate();
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   private void fail(Object work, Throwable failure) {
     if (closed || work != token) return;
-    retire();
-    message =
+    Object failed = retire();
+    if (closed || failed != token) return;
+    String feedback =
         StatusBarText.bounded(
             (saving ? "Preference Save failed: " : "Preference Apply failed: ")
                 + BackgroundFailure.describe(failure)
                 + (saving ? ". Retry Save Preferences explicitly."
                     : ". Retry Apply explicitly or Revert the private form."),
             3072);
+    if (closed || failed != token) return;
+    message = feedback;
     report(message);
   }
 

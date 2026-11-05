@@ -46,6 +46,7 @@ class PreferenceSaveSessionTest {
       saves.request(true); var completion = ui.poll(10, TimeUnit.SECONDS); assertNotNull(completion);
       assertNotSame(owner, writer.get()); completion.run(); completion.run();
       assertEquals("previous", Files.readString(file())); assertTrue(saves.pending());
+      worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
       saves.frame(); completion.run(); saves.frame();
       assertFalse(saves.pending()); assertEquals(List.of("Preferences saved"), notifications);
       assertSame(appearance, user.appearance); assertSame(input, user.input);

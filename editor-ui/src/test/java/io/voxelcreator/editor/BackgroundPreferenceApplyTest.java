@@ -120,6 +120,7 @@ class BackgroundPreferenceApplyTest {
       assertNotSame(caller, entered.get()); assertEquals(before, ProjectIO.JSON.valueToTree(user));
       assertEquals("previous", Files.readString(target)); delivery.run(); delivery.run();
       assertTrue(work.ready()); assertEquals("previous", Files.readString(target));
+      worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
       assertTrue(work.accept()); assertFalse(work.accept());
       assertEquals(256, user.performance.cacheMiB);
       assertEquals(ProjectIO.JSON.valueToTree(user), ProjectIO.JSON.readTree(target.toFile()));

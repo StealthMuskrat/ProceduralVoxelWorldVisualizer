@@ -16,7 +16,7 @@ final class MetadataApplySession implements AutoCloseable {
   private MetadataEditSession.Request request;
   private FutureTask<Void> task;
   private Object token = new Object();
-  private boolean running, ready, closed;
+  private boolean running, ready, admitted, closed;
   private long version;
   private String message = "";
 
@@ -57,8 +57,8 @@ final class MetadataApplySession implements AutoCloseable {
 
   void start(MetadataEditSession session, Path target) {
     if (closed || running) return;
-    retire();
-    Object work = token;
+    Object work = retire();
+    if (closed || work != token || running) return;
     try {
       var shown = displayed.get();
       if (closed || work != token || running) return;
@@ -94,6 +94,7 @@ final class MetadataApplySession implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
+      if (owns(work)) admitted = true;
     } catch (Throwable failure) {
       fail(work, failure);
     }
@@ -124,7 +125,8 @@ final class MetadataApplySession implements AutoCloseable {
       boolean valid = current(work);
       if (!owns(work)) return;
       if (!valid) {
-        cancel();
+        Object invalidated = retire();
+        if (closed || invalidated != token) return;
         message = "Profile or input changed. Apply the current profile explicitly.";
         return;
       }
@@ -143,15 +145,21 @@ final class MetadataApplySession implements AutoCloseable {
     Object work = token;
     if (shownVersion != version) return false;
     refresh();
-    if (!owns(work) || !ready || shownVersion != version) return false;
+    if (!owns(work) || !ready || !admitted || shownVersion != version) return false;
     Payload payload = null;
     try {
       var captured = request;
       if (!current(work) || !owns(work)) return false;
       var shown = displayed.get();
       if (!owns(work) || request != captured) return false;
+      var completed = BackgroundFailure.completed(task);
+      if (!owns(work) || request != captured || completed == null) return false;
+      if (completed.failure() != null) {
+        fail(work, completed.failure());
+        return false;
+      }
       payload = handoff.take();
-      // Once accepted, the finishing worker no longer owns cancellation authority.
+      // The complete worker no longer needs observation during atomic publication.
       task = null;
       if (payload == null) throw new IllegalStateException("Profile preparation is unavailable");
       if (payload.failure != null) {
@@ -191,33 +199,40 @@ final class MetadataApplySession implements AutoCloseable {
 
   void cancel() {
     if (!running || closed) return;
-    retire();
+    Object cancelled = retire();
+    if (closed || cancelled != token) return;
     message = "Profile Apply cancelled. Your private profile is preserved.";
   }
 
-  private void retire() {
+  /** Return the identity reserved before cleanup, which may itself admit a successor. */
+  private Object retire() {
     var previous = task;
-    token = new Object();
+    Object retired = new Object();
+    token = retired;
     version++;
     task = null;
     request = null;
-    running = ready = false;
+    running = ready = admitted = false;
     handoff.invalidate();
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   private void fail(Object work, Throwable failure) {
     if (closed || work != token) return;
-    retire();
-    message =
+    Object failed = retire();
+    if (closed || failed != token) return;
+    String feedback =
         StatusBarText.bounded(
             "Profile Apply failed: "
                 + BackgroundFailure.describe(failure)
                 + ". Retry Apply explicitly or Revert Profile.",
             3072);
+    if (closed || failed != token) return;
+    message = feedback;
     report("APPLICATION_PROFILE_APPLY_FAILED", message);
   }
 

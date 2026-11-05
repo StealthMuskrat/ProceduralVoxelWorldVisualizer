@@ -13,6 +13,7 @@ final class PreferenceSaveSession implements AutoCloseable {
   private final Consumer<String> saved, errors;
   private UserConfig.PreferenceRequest source, failed;
   private boolean requested, explicit, closed, captureFailed;
+  private Object token = new Object();
   private String captureMessage = "";
 
   PreferenceSaveSession(UserConfig user, Path file, Executor executor,
@@ -26,67 +27,90 @@ final class PreferenceSaveSession implements AutoCloseable {
 
   void request(boolean manual) {
     if (closed) return;
+    Object attempt = token;
     if (requested) {
       work.refresh();
+      if (!owns(attempt)) return;
       if (work.stale()) {
         explicit |= manual;
         startLatest();
         return;
       }
-      if (work.running()) {
+      boolean running = work.running();
+      if (!owns(attempt)) return;
+      if (running) {
         explicit |= manual;
         return;
       }
       // A UI-delivered failure may precede a Save click in the same frame. That click is
       // an explicit retry, not a promotion of the already failed request.
       rejected();
+      attempt = token;
     }
     // A periodic tick is not an unchanged failure retry. Manual Save always permits retry.
     try {
       if (!manual && (captureFailed || failed != null && failed.current(user))) return;
     } catch (Throwable failure) {
-      captureFailure(failure);
+      captureFailure(attempt, failure);
       return;
     }
+    if (closed || attempt != token) return;
     requested = true;
     explicit = manual;
     startLatest();
   }
 
   private void startLatest() {
+    if (closed) return;
+    token = new Object();
+    Object attempt = token;
     try {
-      source = user.requestSave();
+      var captured = user.requestSave();
+      if (closed || attempt != token) return;
+      source = captured;
       captureFailed = false;
       captureMessage = "";
       work.start(source, () -> true);
     } catch (Throwable failure) {
-      captureFailure(failure);
+      captureFailure(attempt, failure);
     }
   }
 
-  private void captureFailure(Throwable failure) {
+  private void captureFailure(Object attempt, Throwable failure) {
+    if (closed || attempt != token) return;
+    token = new Object();
+    Object failedAttempt = token;
     source = null;
     requested = explicit = false;
     captureFailed = true;
-    captureMessage = "Preference Save failed: " + BackgroundFailure.describe(failure)
+    String feedback = "Preference Save failed: " + BackgroundFailure.describe(failure)
         + ". Retry Save Preferences explicitly.";
+    if (closed || failedAttempt != token) return;
+    captureMessage = feedback;
     report(captureMessage);
   }
 
   /** After all same-frame controls/workspace capture: UI delivery alone never replaces the file. */
   void frame() {
     if (closed || !requested) return;
+    Object attempt = token;
     work.refresh();
+    if (!owns(attempt)) return;
     if (work.stale()) {
       startLatest();
       return;
     }
-    if (!work.running()) {
+    boolean running = work.running();
+    if (!owns(attempt)) return;
+    if (!running) {
       rejected();
       return;
     }
-    if (work.accept()) {
+    boolean accepted = work.accept();
+    if (!owns(attempt)) return;
+    if (accepted) {
       boolean notify = explicit;
+      token = new Object();
       requested = explicit = false;
       source = failed = null;
       // Consumption precedes notification, including a throwing/reentrant status callback.
@@ -99,10 +123,18 @@ final class PreferenceSaveSession implements AutoCloseable {
         }
       }
     } else if (work.stale()) startLatest();
-    else if (!work.running()) rejected();
+    else {
+      running = work.running();
+      if (owns(attempt) && !running) rejected();
+    }
+  }
+
+  private boolean owns(Object attempt) {
+    return !closed && requested && attempt == token;
   }
 
   private void rejected() {
+    token = new Object();
     failed = source;
     source = null;
     requested = explicit = false;
@@ -139,6 +171,7 @@ final class PreferenceSaveSession implements AutoCloseable {
   public void close() {
     if (closed) return;
     closed = true;
+    token = new Object();
     requested = explicit = false;
     source = failed = null;
     work.close();
