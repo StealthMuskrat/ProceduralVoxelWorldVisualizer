@@ -91,6 +91,7 @@ class BackgroundNoiseEditTest {
         assertEquals(version, edit.version());
         assertEquals(NoiseEditSession.Phase.RUNNING, edit.phase());
         assertNull(edit.preview());
+        worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
         edit.acceptPrepared();
         assertTrue(edit.ready());
         assertFalse(edit.preview().valid());

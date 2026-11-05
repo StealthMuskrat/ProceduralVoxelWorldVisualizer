@@ -41,7 +41,7 @@ final class NoiseEditSession implements AutoCloseable {
   private record Prepared(NoiseAuthoring.Plan value, Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery;
-  private boolean preparedReady;
+  private boolean preparedReady, admitted;
   private Object token = new Object();
   private long version;
   private Phase phase;
@@ -186,7 +186,8 @@ final class NoiseEditSession implements AutoCloseable {
   }
 
   private void schedule() {
-    retire();
+    Object request = retire();
+    if (closed || request != token || task != null) return;
     phase = Phase.RUNNING;
     message =
         "Checking the structural edit in the background. Cancel or Escape keeps Properties"
@@ -194,7 +195,6 @@ final class NoiseEditSession implements AutoCloseable {
             + (plan == null
                 ? ""
                 : " Previous preview issues remain visible until checking finishes.");
-    Object request = token;
     var desired = new Request(action, target, resolution, replacement);
     try {
       long handed = ++delivery;
@@ -216,6 +216,7 @@ final class NoiseEditSession implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
+      if (owns(request)) admitted = true;
     } catch (Throwable failure) {
       fail(request, failure);
     }
@@ -227,9 +228,7 @@ final class NoiseEditSession implements AutoCloseable {
 
   private void delivered(Object request, long handed) {
     if (!owns(request) || delivery != handed || preparedReady) return;
-    refresh();
-    if (!owns(request)) return;
-    // Keep observing the task: an inline readiness handoff may still throw before returning.
+    // A receipt does not prove complete posting or successful executor admission.
     preparedReady = true;
   }
 
@@ -241,8 +240,14 @@ final class NoiseEditSession implements AutoCloseable {
   void acceptPrepared(BooleanSupplier shown) {
     Object request = token;
     refresh();
-    if (!owns(request) || !preparedReady) return;
+    if (!owns(request) || !preparedReady || !admitted) return;
     Objects.requireNonNull(shown);
+    var completed = BackgroundFailure.completed(task);
+    if (!owns(request) || completed == null) return;
+    if (completed.failure() != null) {
+      fail(request, completed.failure());
+      return;
+    }
     var value = handoff.take();
     if (value == null) {
       fail(request, new IllegalStateException("Noise edit preview preparation unavailable"));
@@ -270,13 +275,13 @@ final class NoiseEditSession implements AutoCloseable {
       fail(request, rejected);
       return;
     }
-    // Accepted results must not interrupt a worker finishing its delivery call.
-    task = null;
+    // Retire the complete task with its request before installing the private preview.
     if (failure != null) {
       fail(request, failure);
       return;
     }
-    retire();
+    Object adopted = retire();
+    if (closed || adopted != token) return;
     plan = Objects.requireNonNull(completed);
     phase = Phase.READY;
     message = "";
@@ -284,33 +289,39 @@ final class NoiseEditSession implements AutoCloseable {
 
   private void refresh() {
     if (phase != Phase.RUNNING || closed) return;
+    Object request = token;
     try {
       if (!current()) {
         stale();
         return;
       }
       var completion = BackgroundFailure.completed(task);
-      if (completion != null && completion.failure() != null) fail(token, completion.failure());
+      if (owns(request) && completion != null && completion.failure() != null)
+        fail(request, completion.failure());
     } catch (Throwable failure) {
-      fail(token, failure);
+      fail(request, failure);
     }
   }
 
   private void stale() {
     if (closed || phase == Phase.STALE) return;
-    retire();
     phase = Phase.STALE;
+    Object invalidated = retire();
+    if (closed || invalidated != token) return;
     message = "Draft or project changed. Cancel and reopen the structural edit.";
   }
 
   private void fail(Object request, Throwable failure) {
     if (request != token || closed) return;
-    retire();
     phase = Phase.FAILED;
-    message =
+    Object failed = retire();
+    if (closed || failed != token) return;
+    String feedback =
         "Noise edit preview failed: "
             + BackgroundFailure.describe(failure)
             + ". Retry preview or Cancel.";
+    if (closed || failed != token) return;
+    message = feedback;
     try {
       state.error("NOISE_EDIT_PREVIEW_FAILED", EditorEvents.Subsystem.APPLICATION, message);
     } catch (Throwable ignored) {
@@ -318,17 +329,19 @@ final class NoiseEditSession implements AutoCloseable {
     }
   }
 
-  private void retire() {
+  private Object retire() {
     var previous = task;
-    token = new Object();
+    Object retired = new Object();
+    token = retired;
     version++;
     task = null;
-    preparedReady = false;
+    preparedReady = admitted = false;
     handoff.advance(++delivery);
     if (previous != null) {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   /** Publication is private to Properties; the caller handles focus only after this is consumed. */
