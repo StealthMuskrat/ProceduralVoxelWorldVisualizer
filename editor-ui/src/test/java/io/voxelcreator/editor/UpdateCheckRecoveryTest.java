@@ -306,7 +306,7 @@ class UpdateCheckRecoveryTest {
   }
 
   @Test
-  void obsoleteExecutorFaultAfterReentrantReplacementCannotCancelTheNewRequest() {
+  void executorFailureReporterCanStartAReplacementThatWaitsForCompleteHandoff() {
     var owner = new AtomicReference<UpdateCheckSession>();
     var submissions = new AtomicInteger();
     var fetches = new AtomicInteger();
@@ -335,15 +335,17 @@ class UpdateCheckRecoveryTest {
       assertEquals(UpdateCheckSession.Phase.RUNNING, session.view().phase());
       assertTrue(session.view().message().contains("Checking"));
       workers.removeFirst().run();
+      assertEquals(UpdateCheckSession.Phase.RUNNING, session.view().phase());
+      session.acceptPrepared();
       assertEquals(UpdateCheckSession.Phase.READY, session.view().phase());
       assertEquals(2, fetches.get());
       assertEquals(1, errors.size());
-      assertFalse(errors.getFirst().contains("obsolete-executor"));
+      assertTrue(errors.getFirst().contains("obsolete-executor"));
     }
   }
 
   @Test
-  void aPosterFaultAfterSuccessfulUiPublicationCannotRollBackTheReviewedResult() {
+  void posterFaultAfterInlineAcceptanceAttemptCannotExposeAnUnfinishedResult() {
     var owner = new AtomicReference<UpdateCheckSession>();
     try (var session =
         new UpdateCheckSession(
@@ -360,17 +362,17 @@ class UpdateCheckRecoveryTest {
       owner.set(session);
       session.start();
       workers.removeFirst().run();
-      var reviewed = session.view().result();
-      assertNotNull(reviewed);
-      assertEquals(UpdateCheckSession.Phase.READY, session.view().phase());
-      assertSame(reviewed, session.view().result());
-      assertTrue(errors.isEmpty());
+      session.acceptPrepared();
+      assertNull(session.view().result());
+      assertEquals(UpdateCheckSession.Phase.FAILED, session.view().phase());
+      assertEquals(1, errors.size());
+      assertTrue(errors.getFirst().contains("after-publication"));
       assertTrue(workers.isEmpty());
     }
   }
 
   @Test
-  void executorRejectionAfterInlineTerminalPublicationCannotReplaceItsResultOrReportTwice() {
+  void executorRejectionAfterInlineAcceptanceCannotPublishOrReportTwice() {
     for (boolean failedFetch : new boolean[] {false, true}) {
       errors.clear();
       var owner = new AtomicReference<UpdateCheckSession>();
@@ -390,13 +392,11 @@ class UpdateCheckRecoveryTest {
               errors::add)) {
         owner.set(session);
         assertFalse(session.start());
-        assertEquals(
-            failedFetch ? UpdateCheckSession.Phase.FAILED : UpdateCheckSession.Phase.READY,
-            session.view().phase());
-        assertEquals(failedFetch ? 1 : 0, errors.size());
-        if (failedFetch) assertTrue(errors.getFirst().contains("published-fetch-failure"));
-        else assertNotNull(session.view().result());
-        assertFalse(session.view().message().contains("after-execution"));
+        session.acceptPrepared();
+        assertEquals(UpdateCheckSession.Phase.FAILED, session.view().phase());
+        assertNull(session.view().result());
+        assertEquals(1, errors.size());
+        assertTrue(errors.getFirst().contains("after-execution"));
       }
     }
   }

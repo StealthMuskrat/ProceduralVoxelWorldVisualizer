@@ -190,14 +190,15 @@ class ReadyValidationTest {
   }
 
   @Test
-  void acceptedPublicationSurvivesAnExecutorFaultAfterItsExplicitOwnerAcceptance() {
+  void inlineAcceptanceCannotPublishBeforeExecutorAdmissionReturnsSuccessfully() {
     try (var s = state()) {
       var holder = new ProjectValidationSession[1]; var reports = new ArrayList<String>();
       try (var validation = new ProjectValidationSession(s, task -> { task.run(); throw new AssertionError("late executor"); },
           callback -> { callback.run(); holder[0].acceptPrepared(); }, p -> List.of(), reports::add)) {
         holder[0] = validation; validation.start(); validation.acceptPrepared();
-        assertEquals(ProjectValidationSession.Phase.READY, validation.view().phase()); assertTrue(s.issues.isEmpty());
-        assertTrue(reports.isEmpty());
+        assertEquals(ProjectValidationSession.Phase.FAILED, validation.view().phase());
+        assertEquals(List.of(BEFORE), s.issues); assertEquals(1, reports.size());
+        assertTrue(reports.getFirst().contains("late executor"));
       }
     }
   }

@@ -33,7 +33,7 @@ final class ProjectValidationSession implements AutoCloseable {
   private record Prepared(List<Diagnostic> issues, Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery;
-  private boolean preparedReady;
+  private boolean preparedReady, admitted;
   private Owner owner;
 
   private static final class Owner {
@@ -126,7 +126,8 @@ final class ProjectValidationSession implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
-      return true;
+      if (request == token && phase == Phase.RUNNING) admitted = true;
+      return request == token && phase == Phase.RUNNING;
     } catch (Throwable rejected) {
       fail(request, rejected);
       return false;
@@ -135,9 +136,7 @@ final class ProjectValidationSession implements AutoCloseable {
 
   private void delivered(Object request, long handed) {
     if (request != token || phase != Phase.RUNNING || delivery != handed || preparedReady) return;
-    refresh();
-    if (request != token || phase != Phase.RUNNING) return;
-    // Keep observing handoff completion: an inline delivery may still throw before returning.
+    // Delivery is only a receipt. Admission and complete worker return are checked on acceptance.
     preparedReady = true;
   }
 
@@ -145,7 +144,12 @@ final class ProjectValidationSession implements AutoCloseable {
   void acceptPrepared() {
     Object request = token;
     refresh();
-    if (request != token || phase != Phase.RUNNING || !preparedReady) return;
+    if (request != token || phase != Phase.RUNNING || !preparedReady || !admitted) return;
+    var completed = BackgroundFailure.completed(task);
+    if (request != token
+        || phase != Phase.RUNNING
+        || completed == null
+        || completed.failure() != null) return;
     var value = handoff.take();
     if (value == null) {
       fail(request, new IllegalStateException("Project validation result unavailable"));
@@ -195,21 +199,11 @@ final class ProjectValidationSession implements AutoCloseable {
       return;
     }
     if (phase == Phase.READY) return;
-    var observed = task;
-    if (observed == null || !observed.isDone()) return;
     Object request = token;
-    try {
-      // Successful workers await queued readiness and owner acceptance. Exceptional handoff is
-      // surfaced here, even when no callback could reach the queue.
-      observed.get();
-    } catch (CancellationException cancelled) {
-      cancel();
-    } catch (ExecutionException failed) {
-      fail(request, failed.getCause() == null ? failed : failed.getCause());
-    } catch (InterruptedException interrupted) {
-      Thread.currentThread().interrupt();
-      fail(request, interrupted);
-    }
+    var completed = BackgroundFailure.completed(task);
+    if (request != token || phase != Phase.RUNNING || completed == null) return;
+    if (completed.failure() instanceof CancellationException) cancel();
+    else if (completed.failure() != null) fail(request, completed.failure());
   }
 
   void cancel() {
@@ -230,7 +224,7 @@ final class ProjectValidationSession implements AutoCloseable {
   private void release() {
     token = new Object();
     task = null;
-    preparedReady = false;
+    preparedReady = admitted = false;
     handoff.advance(++delivery);
     owner = null;
   }
@@ -248,6 +242,7 @@ final class ProjectValidationSession implements AutoCloseable {
     if (request != token || phase == Phase.CLOSED) return;
     retire();
     phase = Phase.FAILED;
+    Object failed = token;
     String detail;
     try {
       detail = failure.getMessage();
@@ -256,7 +251,9 @@ final class ProjectValidationSession implements AutoCloseable {
     }
     if (detail == null || detail.isBlank()) detail = failure.getClass().getSimpleName();
     if (detail.isBlank()) detail = failure.getClass().getName();
-    message = "Project validation failed: " + StatusBarText.clip(detail, 1024);
+    String feedback = "Project validation failed: " + StatusBarText.clip(detail, 1024);
+    if (failed != token || phase != Phase.FAILED) return;
+    message = feedback;
     try {
       errors.accept(message);
     } catch (Throwable ignored) {
@@ -267,8 +264,8 @@ final class ProjectValidationSession implements AutoCloseable {
   @Override
   public void close() {
     if (phase == Phase.CLOSED) return;
-    retire();
     phase = Phase.CLOSED;
+    retire();
     handoff.close();
     message = "Validation workspace closed.";
   }

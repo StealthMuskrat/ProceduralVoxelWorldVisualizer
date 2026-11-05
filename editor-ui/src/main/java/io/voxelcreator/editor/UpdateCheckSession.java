@@ -66,7 +66,7 @@ final class UpdateCheckSession implements AutoCloseable {
       UpdateTrust.Values configuration, UpdateChecker.Release release, Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery;
-  private boolean preparedReady;
+  private boolean preparedReady, admitted;
   private Result result;
   private boolean opening;
 
@@ -131,6 +131,7 @@ final class UpdateCheckSession implements AutoCloseable {
             });
     try {
       executor.execute(task);
+      if (request == token && phase == Phase.RUNNING) admitted = true;
     } catch (Throwable rejected) {
       if (request == token && phase == Phase.RUNNING) {
         invalidate();
@@ -138,14 +139,12 @@ final class UpdateCheckSession implements AutoCloseable {
       }
       return false;
     }
-    return true;
+    return request == token && phase == Phase.RUNNING;
   }
 
   private void delivered(Object request, long handed) {
     if (request != token || phase != Phase.RUNNING || delivery != handed || preparedReady) return;
-    refresh();
-    if (request != token || phase != Phase.RUNNING) return;
-    // Keep observing the task: inline readiness may precede a handoff failure.
+    // Delivery is only a receipt. Admission and complete worker return are checked on acceptance.
     preparedReady = true;
   }
 
@@ -153,7 +152,12 @@ final class UpdateCheckSession implements AutoCloseable {
   void acceptPrepared() {
     Object request = token;
     refresh();
-    if (request != token || phase != Phase.RUNNING || !preparedReady) return;
+    if (request != token || phase != Phase.RUNNING || !preparedReady || !admitted) return;
+    var completed = BackgroundFailure.completed(task);
+    if (request != token
+        || phase != Phase.RUNNING
+        || completed == null
+        || completed.failure() != null) return;
     var value = handoff.take();
     if (value == null) {
       failure(new IllegalStateException("Update check result unavailable"));
@@ -212,21 +216,13 @@ final class UpdateCheckSession implements AutoCloseable {
   }
 
   private void observeTaskFailure() {
-    var observed = task;
-    if (observed == null || !observed.isDone()) return;
-    try {
-      // A normal task waits for queued readiness and owner acceptance. Only exceptional task exit
-      // (for example a rejected UI handoff) is recovered here, on the UI thread.
-      observed.get();
-    } catch (CancellationException cancelled) {
-      cancel();
-    } catch (ExecutionException failed) {
+    Object request = token;
+    var completed = BackgroundFailure.completed(task);
+    if (request != token || phase != Phase.RUNNING || completed == null) return;
+    if (completed.failure() instanceof CancellationException) cancel();
+    else if (completed.failure() != null) {
       invalidate();
-      failure(failed.getCause() == null ? failed : failed.getCause());
-    } catch (InterruptedException interrupted) {
-      Thread.currentThread().interrupt();
-      invalidate();
-      failure(interrupted);
+      failure(completed.failure());
     }
   }
 
@@ -268,7 +264,7 @@ final class UpdateCheckSession implements AutoCloseable {
 
   private void release() {
     task = null;
-    preparedReady = false;
+    preparedReady = admitted = false;
     handoff.advance(++delivery);
   }
 
@@ -276,7 +272,9 @@ final class UpdateCheckSession implements AutoCloseable {
     release();
     result = null;
     phase = Phase.FAILED;
+    Object failed = token;
     String primary = "Update check failed: " + describe(error);
+    if (failed != token || phase != Phase.FAILED) return;
     message = primary;
     Object request = token;
     String reported = report(errors, primary);
@@ -308,8 +306,8 @@ final class UpdateCheckSession implements AutoCloseable {
   @Override
   public void close() {
     if (phase != Phase.CLOSED) {
-      invalidate();
       phase = Phase.CLOSED;
+      invalidate();
       handoff.close();
       message = "Update checker closed";
     }
