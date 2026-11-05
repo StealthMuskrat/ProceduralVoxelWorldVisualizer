@@ -24,7 +24,7 @@ final class ResourceExportWritingProbe {
   static void run(Path out) throws Exception {
     Files.createDirectories(out);
     var cases = new ArrayList<Map<String, Object>>();
-    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close")) {
+    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close", "ready-cancel", "ready-escape", "ready-close", "ready-failure-cancel")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       var target = directory.resolve("selection 资源.pvresources.json");
@@ -89,6 +89,7 @@ final class ResourceExportWritingProbe {
                       } catch (InterruptedException ignored) {
                         /* Non-cooperative provider boundary. */
                       }
+                    if (mode.equals("ready-failure-cancel")) throw new IOException("held staging failure");
                   }
 
                   public void replace(Path temp, Path destination) throws IOException {
@@ -166,7 +167,21 @@ final class ResourceExportWritingProbe {
             require(
                 Files.readString(target).equals(originalTarget),
                 "Worker published before UI delivery");
-            if (mode.equals("cancel")) click(dialog.control("cancel"));
+            if (mode.startsWith("ready-")) {
+              var request = dialog.exportRequestToken();
+              if (!mode.equals("ready-escape") && !mode.equals("ready-close")) hold(dialog.control("cancel"));
+              ui.remove().run();
+              require(dialog.pending() && dialog.exportRunning() && !source.closed()
+                  && request == dialog.exportRequestToken() && dialog.error().isEmpty()
+                  && replacements.get() == 0 && Files.readString(target).equals(originalTarget),
+                  "Ready staging replaced destination, closed review or changed Cancel authority");
+              if (mode.equals("ready-escape")) {
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+              } else if (mode.equals("ready-close")) { dialog.close(); frames(3); }
+              else { ImGui.getIO().addMouseButtonEvent(0, false); frames(3); }
+              require(!dialog.pending() && replacements.get() == 0, "Ready retirement replaced destination or retained modal");
+            } else if (mode.equals("cancel")) click(dialog.control("cancel"));
             else if (mode.equals("raw")) state.project().project.seed = 18;
             else if (mode.equals("close")) dialog.close();
           }
@@ -250,7 +265,9 @@ final class ResourceExportWritingProbe {
                   "privateRetained",
                   true,
                   "originalBytesRetained",
-                  true));
+                  true,
+                  "readyRetired",
+                  mode.startsWith("ready-")));
         } finally {
           release.countDown();
         }
@@ -300,6 +317,12 @@ final class ResourceExportWritingProbe {
 
   private static void frames(int count) {
     for (int i = 0; i < count; i++) frame();
+  }
+
+  private static void hold(float[] at) {
+    require(at != null, "Missing ready Export Cancel control");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(float[] at) {

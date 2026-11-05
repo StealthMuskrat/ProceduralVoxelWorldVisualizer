@@ -11,7 +11,7 @@ public final class BackgroundExportConsumer {
   public static void main(String[] args) throws Exception {
     var out = Path.of(args[0]);
     long fields = 0, cells = 0;
-    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close")) {
+    for (String mode : List.of("success", "cancel", "escape", "raw", "retry", "close", "ready-cancel", "ready-escape", "ready-close", "ready-failure-cancel")) {
       var directory = out.resolve(mode);
       var sourceFile = directory.resolve("source-after.json");
       var targetFile = directory.resolve("selection 资源.pvresources.json");
@@ -91,13 +91,13 @@ public final class BackgroundExportConsumer {
               && Arrays.equals(targetBytes, Files.readAllBytes(targetFile)),
           "Replay changed saved bytes");
     }
-    require(fields == 252 && cells == 3528, "Unexpected background export replay dimensions");
+    require(fields == 420 && cells == 5880, "Unexpected background export replay dimensions");
     ExportPlanningConsumer.run(out.resolveSibling("planning"));
     Files.writeString(
         out.resolve("engine-replay.json"),
         ProjectIO.JSON.writeValueAsString(
             Map.of("formatVersion", 1, "fields", fields, "cells", cells, "roots", List.of(2, 4))));
-    System.out.println("BACKGROUND_EXPORT_ENGINE_ONLY_PASS 252 exact fields / 3528 EMPTY cells");
+    System.out.println("BACKGROUND_EXPORT_ENGINE_ONLY_PASS 420 exact fields / 5880 EMPTY cells");
   }
 
   private static void require(boolean value, String message) {

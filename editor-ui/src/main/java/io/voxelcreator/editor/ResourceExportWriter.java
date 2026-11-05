@@ -40,17 +40,21 @@ final class ResourceExportWriter implements AutoCloseable {
   private ResourceExportSession.Preview preview;
   private BooleanSupplier gate;
   private FutureTask<Void> task;
-  private boolean publishing, closeRequested;
+  private boolean publishing, closeRequested, preparedReady;
+  private String targetText;
 
   private final class Payload implements AutoCloseable {
     final ResourcePackageFiles.Prepared prepared;
+    final Throwable failure;
 
-    Payload(ResourcePackageFiles.Prepared prepared) {
+    Payload(ResourcePackageFiles.Prepared prepared, Throwable failure) {
       this.prepared = prepared;
+      this.failure = failure;
     }
 
     @Override
     public void close() {
+      if (prepared == null) return;
       try {
         prepared.close();
       } catch (Throwable failure) {
@@ -85,6 +89,10 @@ final class ResourceExportWriter implements AutoCloseable {
     return new View(phase, message);
   }
 
+  Object requestToken() {
+    return token;
+  }
+
   boolean publishing() {
     return publishing;
   }
@@ -103,6 +111,7 @@ final class ResourceExportWriter implements AutoCloseable {
       this.preview = Objects.requireNonNull(preview);
       this.gate = Objects.requireNonNull(gate);
       Path target = ResourcePackageFiles.location(location);
+      targetText = location;
       authority = new ProjectFileOwner(state);
       Path activeProject = state.document.path();
       var resources = source.exportSnapshot(preview);
@@ -114,15 +123,16 @@ final class ResourceExportWriter implements AutoCloseable {
       task =
           new FutureTask<>(
               () -> {
+                ResourcePackageFiles.Prepared prepared = null;
                 Throwable failure = null;
                 try {
-                  var prepared = preparation.prepare(target, resources, activeProject);
-                  if (!handoff.publish(delivery, new Payload(prepared))) return null;
+                  prepared =
+                      Objects.requireNonNull(preparation.prepare(target, resources, activeProject));
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var rejected = failure;
-                ui.accept(() -> publish(request, delivery, rejected));
+                if (!handoff.publish(delivery, new Payload(prepared, failure))) return null;
+                ui.accept(() -> delivered(request, delivery));
                 return null;
               });
       executor.execute(task);
@@ -164,35 +174,70 @@ final class ResourceExportWriter implements AutoCloseable {
     }
   }
 
-  private void publish(Object request, long delivery, Throwable failure) {
-    if (!owns(request) || !handoff.current(delivery)) return;
+  private void delivered(Object request, long delivery) {
+    if (!owns(request) || !handoff.current(delivery) || preparedReady) return;
     refresh();
     if (!owns(request)) return;
+    // Keep observing the task: an inline readiness handoff can still fail before returning.
+    preparedReady = true;
+  }
+
+  void acceptPrepared() {
+    acceptPrepared(targetText, () -> true);
+  }
+
+  /** Current path controls decide before this request may replace the destination. */
+  void acceptPrepared(String displayed, BooleanSupplier shown) {
+    Object request = token;
+    refresh();
+    if (!owns(request) || !preparedReady) return;
+    if (!Objects.equals(targetText, displayed)) {
+      stale();
+      return;
+    }
+    Objects.requireNonNull(shown);
     var payload = handoff.take();
+    publish(request, payload, shown);
+  }
+
+  private boolean current(Object request, BooleanSupplier shown) {
+    if (!owns(request)) return false;
+    boolean accepted = current();
+    if (!owns(request) || !accepted) return false;
+    boolean visible = shown.getAsBoolean();
+    return visible
+        && owns(request)
+        && authority.valuesCurrent(state)
+        && source.current()
+        && source.preview() == preview;
+  }
+
+  private void publish(Object request, Payload payload, BooleanSupplier shown) {
     try {
-      boolean accepted = current();
+      boolean accepted = current(request, shown);
       if (!owns(request)) return;
-      if (!accepted || !authority.valuesCurrent(state)) {
-        stale();
-        return;
-      }
-      if (failure instanceof CancellationException) {
-        cancel();
-        return;
-      }
-      if (failure != null) {
-        fail(request, failure);
-        return;
-      }
-      boolean unavailable = blocked.getAsBoolean();
-      if (!owns(request)) return;
-      accepted = current();
-      if (!owns(request)) return;
-      if (unavailable || !accepted || !authority.valuesCurrent(state)) {
+      if (!accepted) {
         stale();
         return;
       }
       if (payload == null) throw new IllegalStateException("Export preparation was not delivered");
+      if (payload.failure instanceof CancellationException) {
+        cancel();
+        return;
+      }
+      if (payload.failure != null) {
+        fail(request, payload.failure);
+        return;
+      }
+      boolean unavailable = blocked.getAsBoolean();
+      if (!owns(request)) return;
+      accepted = current(request, shown);
+      if (!owns(request)) return;
+      if (unavailable || !accepted) {
+        stale();
+        return;
+      }
+      Objects.requireNonNull(payload.prepared);
       Object completed = new Object();
       publishing = true;
       source.publishPrepared(preview, payload.prepared);
@@ -234,6 +279,8 @@ final class ResourceExportWriter implements AutoCloseable {
     source = null;
     preview = null;
     gate = null;
+    targetText = null;
+    preparedReady = false;
   }
 
   private void retire() {

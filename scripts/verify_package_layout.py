@@ -85,12 +85,13 @@ project_schema = json.loads((Path(__file__).resolve().parent.parent / 'schema/pr
 project_validator = jsonschema.Draft202012Validator(project_schema, format_checker=jsonschema.FormatChecker())
 loading = json.loads((background / 'background-export.json').read_text())
 assert loading['formatVersion'] == 1 and loading['physicalInputVerified'] is False
-assert [c['mode'] for c in loading['cases']] == ['success', 'cancel', 'escape', 'raw', 'retry', 'close']
+assert [c['mode'] for c in loading['cases']] == ['success', 'cancel', 'escape', 'raw', 'retry', 'close', 'ready-cancel', 'ready-escape', 'ready-close', 'ready-failure-cancel']
 for case in loading['cases']:
     mode = case['mode']
     published = mode in ['success', 'retry']
     assert case['published'] is published and case['responsiveFrames'] == 12
     assert case['privateRetained'] is True and case['originalBytesRetained'] is True
+    assert case['readyRetired'] is mode.startswith('ready-')
     assert case['writes'] == (2 if mode == 'retry' else 1)
     assert case['replacements'] == (2 if mode == 'retry' else 1 if mode == 'success' else 0)
     assert case['deletions'] == (0 if mode == 'success' else 1)
@@ -113,8 +114,8 @@ for case in loading['cases']:
         assert (folder / 'selection 资源.pvresources.json').read_bytes() == (folder / 'prior-package.pvresources.json').read_bytes()
     assert not list(folder.glob('.voxel-package-*'))
 replay = json.loads((background / 'engine-replay.json').read_text())
-assert replay == {'formatVersion': 1, 'fields': 252, 'cells': 3528, 'roots': [2, 4]}
-print('BACKGROUND_EXPORT_INDEPENDENT_PASS staged publication / preserved sources and prior packages / 252 fields / 3528 EMPTY cells')
+assert replay == {'formatVersion': 1, 'fields': 420, 'cells': 5880, 'roots': [2, 4]}
+print('BACKGROUND_EXPORT_INDEPENDENT_PASS staged publication / preserved sources and prior packages / 420 fields / 5880 EMPTY cells')
 
 # Deferred background catalog/closure preparation and actual fresh Included publication.
 planning = out / 'planning'

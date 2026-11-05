@@ -58,7 +58,7 @@ class BackgroundResourceExportTest {
   }
 
   @Test
-  void workerStagesAnOwnedReviewedPayloadAndOnlyUiDeliveryCanReplace() throws Exception {
+  void workerStagesAnOwnedReviewedPayloadAndOnlyCurrentAcceptanceCanReplace() throws Exception {
     try (var state = state();
         var workers = Executors.newSingleThreadExecutor()) {
       var source = reviewed(state);
@@ -86,7 +86,13 @@ class BackgroundResourceExportTest {
         assertEquals("prior", Files.readString(target));
         assertFalse(source.closed());
         assertEquals(ResourceExportWriter.Phase.RUNNING, writer.view().phase());
+        var request = writer.requestToken();
         completion.run();
+        assertSame(request, writer.requestToken());
+        assertEquals(ResourceExportWriter.Phase.RUNNING, writer.view().phase());
+        assertEquals("prior", Files.readString(target));
+        assertFalse(source.closed());
+        writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.READY, writer.view().phase());
         assertTrue(source.closed());
         assertTrue(authority.valuesCurrent(state));
@@ -133,6 +139,7 @@ class BackgroundResourceExportTest {
           writer.cancel();
           while (!workers.tasks.isEmpty()) workers.run();
           while (!ui.isEmpty()) ui.removeFirst().run();
+          writer.acceptPrepared();
           assertEquals(ResourceExportWriter.Phase.CANCELLED, writer.view().phase());
           assertEquals("prior", Files.readString(target));
           assertFalse(source.closed());
@@ -228,6 +235,7 @@ class BackgroundResourceExportTest {
           }
           var after = new ProjectFileOwner(state);
           ui.removeFirst().run();
+          writer.acceptPrepared();
           assertEquals(ResourceExportWriter.Phase.STALE, writer.view().phase());
           assertTrue(after.valuesCurrent(state));
           assertEquals("prior", Files.readString(target));
@@ -250,6 +258,7 @@ class BackgroundResourceExportTest {
         state.document.save(target);
         byte[] bytes = Files.readAllBytes(target);
         ui.removeFirst().run();
+        writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.STALE, writer.view().phase());
         assertArrayEquals(bytes, Files.readAllBytes(target));
         assertTrue(new ProjectIO().load(target).success());
@@ -290,6 +299,7 @@ class BackgroundResourceExportTest {
         assertTrue(writer.start(target.toString(), source, preview, () -> true));
         workers.run();
         ui.removeFirst().run();
+        writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.FAILED, writer.view().phase());
         assertTrue(source.canExport());
         assertSame(preview, source.preview());
@@ -298,6 +308,7 @@ class BackgroundResourceExportTest {
         assertTrue(writer.start(target.toString(), source, preview, () -> true));
         workers.run();
         ui.removeFirst().run();
+        writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.READY, writer.view().phase());
         assertTrue(source.closed());
         assertEquals("field", files.read(target).noise2D.getFirst().id);
@@ -366,6 +377,7 @@ class BackgroundResourceExportTest {
           if (future) ((Future<?>) workers.tasks.getFirst()).cancel(true);
           workers.run();
           while (!ui.isEmpty()) ui.removeFirst().run();
+          writer.acceptPrepared();
           assertEquals(ResourceExportWriter.Phase.CANCELLED, writer.view().phase());
           assertEquals("prior", Files.readString(target));
           assertTrue(source.canExport());
@@ -392,6 +404,7 @@ class BackgroundResourceExportTest {
         old.run();
         assertEquals("prior", Files.readString(target));
         ui.removeFirst().run();
+        writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.READY, writer.view().phase());
         old.run();
         assertTrue(source.closed());
@@ -434,6 +447,7 @@ class BackgroundResourceExportTest {
         assertEquals(ResourceExportWriter.Phase.RUNNING, writer.view().phase());
         workers.run();
         ui.removeFirst().run();
+        writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.READY, writer.view().phase());
         noTemporaryFiles();
       }
@@ -457,6 +471,7 @@ class BackgroundResourceExportTest {
         workers.run();
         blocked.set(true);
         ui.removeFirst().run();
+        writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.STALE, writer.view().phase());
         assertEquals("prior", Files.readString(target));
         noTemporaryFiles();
@@ -466,6 +481,7 @@ class BackgroundResourceExportTest {
         writer.close();
         writer.close();
         ui.removeFirst().run();
+        writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.CLOSED, writer.view().phase());
         assertFalse(writer.start(target.toString(), source, source.preview(), () -> true));
         assertFalse(source.closed());
@@ -509,12 +525,14 @@ class BackgroundResourceExportTest {
         workers.run();
         assertDoesNotThrow(writer::cancel);
         ui.removeFirst().run();
+        writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.CANCELLED, writer.view().phase());
         assertEquals("prior", Files.readString(target));
         assertTrue(source.canExport());
         assertTrue(writer.start(target.toString(), source, source.preview(), () -> true));
         workers.run();
         ui.removeFirst().run();
+        writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.READY, writer.view().phase());
         noTemporaryFiles();
       }

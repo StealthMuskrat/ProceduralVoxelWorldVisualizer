@@ -412,6 +412,7 @@ class ExportPreviewPlanningTest {
         s.markShown(s.preview());
         assertTrue(writer.start(target.toString(), s, s.preview(), () -> true));
         deliver(workers, ui);
+        writer.acceptPrepared();
         assertEquals(ResourceExportWriter.Phase.READY, writer.view().phase());
         assertEquals(1, files.read(target).noise2D.size());
       }

@@ -168,7 +168,11 @@ final class HelpDefinitions {
                   + " retain the path and reviewed selection for explicit retry; a changed source"
                   + " requires Reload and another Included review. Export cannot overwrite the"
                   + " active project file, including a new Save As path. Exporting does not apply"
-                  + " Properties drafts, save the project or change its Undo history."),
+                  + " Properties drafts, save the project or change its Undo history. Delivery alone"
+                  + " never replaces the destination. Current File Location Cancel or Escape runs"
+                  + " before accepting ready staging or preparation failure. A changed displayed"
+                  + " path or a reopened dialog requires fresh staging. Export finishes without"
+                  + " another confirmation after its Included review."),
           new Guide(
               "help.resource-import",
               "Preparing and reviewing a resource import",

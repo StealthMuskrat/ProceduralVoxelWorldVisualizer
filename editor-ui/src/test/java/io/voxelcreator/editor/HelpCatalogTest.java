@@ -7,6 +7,22 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void exportHelpExplainsReadyCancellationBeforeDestinationReplacement() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.resource-export");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Delivery alone never replaces the destination"));
+    assertTrue(text.contains("Current File Location Cancel or Escape runs before accepting ready staging or preparation failure"));
+    assertTrue(text.contains("changed displayed path or a reopened dialog requires fresh staging"));
+    assertTrue(text.contains("Export finishes without another confirmation after its Included review"));
+    assertTrue(catalog.search("export ready staging").contains(topic));
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Export"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void importPlanningHelpKeepsReadyCancellationAndFreshRowReviewDistinct() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

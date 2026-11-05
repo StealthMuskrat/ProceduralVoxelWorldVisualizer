@@ -206,6 +206,7 @@ final class ResourcePackageDialog implements AutoCloseable {
     }
     var opening = capture(frame);
     var importWork = importRequestToken();
+    var exportWork = exportRequestToken();
     boolean unavailable;
     try {
       unavailable = blocked.getAsBoolean();
@@ -311,6 +312,7 @@ final class ResourcePackageDialog implements AutoCloseable {
     }
     if (command != null) dispatch(decision, command, frame);
     acceptImport(opening, importWork);
+    acceptExport(opening, exportWork);
     if (delivery.version() == opening.ticket().version() && !pending) closePopup();
   }
 
@@ -426,6 +428,17 @@ final class ResourcePackageDialog implements AutoCloseable {
         || !shown.action().equals("Import") || loader.requestToken() != request) return;
     loader.acceptPrepared(path.get(), () -> current(shown));
     if (owns(shown)) pollImport();
+  }
+
+  Object exportRequestToken() {
+    return writer == null ? null : writer.requestToken();
+  }
+
+  void acceptExport(Decision shown, Object request) {
+    if (writer == null || !exportObserved || !owns(shown)
+        || !shown.action().equals("Export") || writer.requestToken() != request) return;
+    writer.acceptPrepared(path.get(), () -> current(shown));
+    if (owns(shown)) pollExport();
   }
 
   boolean exportRunning() {
