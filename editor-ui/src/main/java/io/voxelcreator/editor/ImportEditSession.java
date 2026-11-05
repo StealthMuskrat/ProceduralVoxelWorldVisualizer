@@ -73,6 +73,10 @@ final class ImportEditSession {
   private int issueCount;
   private Object applyToken = new Object();
   private FutureTask<Void> applyTask;
+  private record PreparedApply(DocumentSession.PreparedEdit value, Throwable failure) {}
+  private final PreviewMailbox<PreparedApply> applyHandoff = new PreviewMailbox<>();
+  private long applyDelivery, applyVersion;
+  private boolean applyReady;
   private ProjectFileOwner applyOwner;
   private ResourceImport.Plan applyPlan;
   private List<Diagnostic> diagnosticOwner, diagnosticValues;
@@ -408,6 +412,10 @@ final class ImportEditSession {
     return applyPhase;
   }
 
+  long applyVersion() {
+    return applyVersion;
+  }
+
   String applyMessage() {
     refreshApply();
     return applyMessage;
@@ -440,6 +448,8 @@ final class ImportEditSession {
       applyMessage =
           "Preparing Import validation and Undo history in the background. Cancel or Escape keeps"
               + " the project unchanged.";
+      long handed = ++applyDelivery;
+      applyHandoff.advance(handed);
       applyTask =
           new FutureTask<>(
               () -> {
@@ -450,9 +460,8 @@ final class ImportEditSession {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var value = prepared;
-                var rejected = failure;
-                ui.accept(() -> publishApply(ticket, value, rejected));
+                if (!applyHandoff.publish(handed, new PreparedApply(prepared, failure))) return null;
+                ui.accept(() -> deliveredApply(ticket, handed));
                 return null;
               });
       executor.execute(applyTask);
@@ -465,6 +474,27 @@ final class ImportEditSession {
 
   private boolean ownsApply(Object ticket) {
     return ticket == applyToken && applying && !closed;
+  }
+
+  private void deliveredApply(Object ticket, long handed) {
+    if (!ownsApply(ticket) || applyDelivery != handed || applyReady) return;
+    refreshApply();
+    if (!ownsApply(ticket)) return;
+    applyTask = null;
+    applyReady = true;
+  }
+
+  /** The shown review handles current Cancel/Escape before committing this exact Import. */
+  void acceptPrepared() {
+    Object ticket = applyToken;
+    refreshApply();
+    if (!ownsApply(ticket) || !applyReady) return;
+    var value = applyHandoff.take();
+    if (value == null) {
+      failApply(ticket, new IllegalStateException("Import preparation unavailable"));
+      return;
+    }
+    publishApply(ticket, value.value(), value.failure());
   }
 
   private boolean applyCurrent(boolean values) {
@@ -518,6 +548,7 @@ final class ImportEditSession {
       retireApply();
       applyPhase = ApplyPhase.APPLIED;
       closed = true;
+      applyHandoff.close();
       shown = null;
       applyMessage =
           "Resources imported. Private Properties input is unchanged; saving remains explicit.";
@@ -579,6 +610,9 @@ final class ImportEditSession {
     var previous = applyTask;
     applyToken = new Object();
     applyTask = null;
+    applyReady = false;
+    applyHandoff.advance(++applyDelivery);
+    applyVersion++;
     applyOwner = null;
     applyPlan = null;
     diagnosticOwner = diagnosticValues = null;
@@ -593,6 +627,7 @@ final class ImportEditSession {
   void cancel() {
     if (closed || !cancellable()) return;
     retireApply();
+    applyHandoff.close();
     applyPhase = ApplyPhase.CANCELLED;
     applyMessage = "Import cancelled. The project is unchanged.";
     retirePlanning();

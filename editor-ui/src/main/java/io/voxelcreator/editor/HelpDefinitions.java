@@ -189,7 +189,12 @@ final class HelpDefinitions {
                   + " preparation and discards the review. Failure keeps the choices for explicit"
                   + " Import retry. Changed document, diagnostics or private input rejects old"
                   + " work. A successful Import commits one undoable transaction. Private"
-                  + " Properties input stays separate, and saving the project remains explicit."),
+                  + " Properties input stays separate, and saving the project remains explicit."
+                  + " Delivery alone never commits or closes the review. Current Cancel/Escape"
+                  + " runs before accepting a ready result, including rejected or failed"
+                  + " preparation. The original Import action finishes without another"
+                  + " confirmation. Cancellation retains separate private Properties input;"
+                  + " reopening Import requires a new review."),
           new Guide(
               "help.project-open",
               "Opening a project",

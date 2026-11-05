@@ -170,6 +170,7 @@ final class ResourceImportPanel implements AutoCloseable {
       return;
     }
     var opening = capture(frame);
+    long applyWork = opening.owner().applyVersion();
     boolean unavailable;
     try {
       unavailable = blocked.getAsBoolean();
@@ -324,6 +325,8 @@ final class ResourceImportPanel implements AutoCloseable {
       ImGui.endPopup();
     }
     if (command != null) dispatch(decision, command, frame);
+    if (owns(opening) && opening.owner().applyVersion() == applyWork)
+      opening.owner().acceptPrepared();
     if (delivery.version() == opening.ticket().version() && !pending()) closePopup();
   }
 

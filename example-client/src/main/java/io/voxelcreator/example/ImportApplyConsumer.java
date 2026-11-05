@@ -12,7 +12,7 @@ final class ImportApplyConsumer {
   static void run(Path out) throws Exception {
     var receipt = ProjectIO.JSON.readTree(out.resolve("import-apply-native.json").toFile());
     require(
-        receipt.path("formatVersion").asInt() == 1 && receipt.path("cases").size() == 7,
+        receipt.path("formatVersion").asInt() == 1 && receipt.path("cases").size() == 12,
         "Import Apply receipt format");
     var observed = new LinkedHashSet<String>();
     for (var entry : receipt.path("cases")) {
@@ -25,6 +25,8 @@ final class ImportApplyConsumer {
           entry.path("imported").asBoolean()
               == List.of("success", "retry", "rejected").contains(mode),
           "Import Apply outcome");
+      require(entry.path("readyRetired").asBoolean() == mode.startsWith("ready-"),
+          "Import Apply ready cancellation receipt");
       for (String key :
           List.of(
               "privateRetained",
@@ -35,11 +37,11 @@ final class ImportApplyConsumer {
     }
     require(
         observed.equals(
-            Set.of("success", "cancel", "escape", "retry", "rejected", "stale", "close")),
+            Set.of("success", "cancel", "escape", "retry", "rejected", "stale", "close", "ready-cancel", "ready-escape", "ready-close", "ready-rejected-cancel", "ready-failure-cancel")),
         "Missing Import Apply cases");
     int samples = 0, cells = 0;
     for (String mode :
-        List.of("success", "cancel", "escape", "retry", "rejected", "stale", "close")) {
+        List.of("success", "cancel", "escape", "retry", "rejected", "stale", "close", "ready-cancel", "ready-escape", "ready-close", "ready-rejected-cancel", "ready-failure-cancel")) {
       var directory = out.resolve(mode);
       var beforeFile = directory.resolve("before.json");
       var afterFile = directory.resolve("after.json");
@@ -131,7 +133,7 @@ final class ImportApplyConsumer {
               && Arrays.equals(afterBytes, Files.readAllBytes(afterFile)),
           "Replay changed saved bytes");
     }
-    require(samples == 651 && cells == 4116, "Import Apply replay dimensions");
+    require(samples == 1071 && cells == 7056, "Import Apply replay dimensions");
     Files.writeString(
         out.resolve("engine-replay.json"),
         ProjectIO.JSON.writeValueAsString(

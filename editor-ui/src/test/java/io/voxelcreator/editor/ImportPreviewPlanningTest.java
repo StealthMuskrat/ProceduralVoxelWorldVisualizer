@@ -110,6 +110,9 @@ class ImportPreviewPlanningTest {
       var importCompletion = ui.poll(10, TimeUnit.SECONDS);
       assertNotNull(importCompletion);
       importCompletion.run();
+      assertTrue(s.busy());
+      assertFalse(s.closed());
+      s.acceptPrepared();
       assertTrue(s.closed());
       assertEquals(3, state.project().noise2D.size());
       assertEquals("private", ((Noise) state.draft).id);
@@ -357,6 +360,7 @@ class ImportPreviewPlanningTest {
       s.markShown(s.preview());
       assertEquals(ImportEditSession.Result.STARTED, s.apply());
       deliver(worker, ui);
+      s.acceptPrepared();
       assertTrue(s.closed());
       assertEquals(.5, state.project().noise2D.get(1).algorithm.parameters.get("value"));
     }

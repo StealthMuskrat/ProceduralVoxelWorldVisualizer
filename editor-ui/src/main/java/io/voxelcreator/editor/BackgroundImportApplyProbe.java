@@ -18,7 +18,7 @@ final class BackgroundImportApplyProbe {
     Files.createDirectories(out);
     var cases = new ArrayList<Map<String, Object>>();
     for (String mode :
-        List.of("success", "cancel", "escape", "retry", "rejected", "stale", "close")) {
+        List.of("success", "cancel", "escape", "retry", "rejected", "stale", "close", "ready-cancel", "ready-escape", "ready-close", "ready-rejected-cancel", "ready-failure-cancel")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       try (var state = new EditorState(new UserConfig(), false)) {
@@ -43,7 +43,7 @@ final class BackgroundImportApplyProbe {
         var tasks = new ArrayDeque<Runnable>();
         var ui = new ArrayDeque<Runnable>();
         var rejectQueue = new AtomicBoolean();
-        var rejectCandidate = new AtomicBoolean(mode.equals("rejected"));
+        var rejectCandidate = new AtomicBoolean(mode.equals("rejected") || mode.equals("ready-rejected-cancel"));
         var entered = new AtomicReference<Thread>();
         var caller = Thread.currentThread();
         panel =
@@ -67,6 +67,7 @@ final class BackgroundImportApplyProbe {
         state.document.setValidator(
             p -> {
               entered.set(Thread.currentThread());
+              if (mode.equals("ready-failure-cancel")) throw new AssertionError("held Import worker failure");
               return rejectCandidate.get()
                   ? List.of(
                       Diagnostic.error("NATIVE_IMPORT_REJECT", "/fixture", "Correct and retry"))
@@ -104,16 +105,35 @@ final class BackgroundImportApplyProbe {
         require(
             session.busy() && state.project().noise2D.size() == 2 && ui.size() == 1,
             "Import skipped held UI delivery");
-        if (mode.equals("cancel")) click(panel.control("cancel"));
-        else if (mode.equals("escape")) {
-          ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
-          frame();
-          ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
-          frames(3);
-        } else if (mode.equals("close")) panel.close();
-        else if (mode.equals("stale")) ((Noise) state.draft).id = "new-private";
-        ui.remove().run();
-        frames(2);
+        if (mode.startsWith("ready-")) {
+          long work = session.applyVersion();
+          if (!mode.equals("ready-escape") && !mode.equals("ready-close")) hold(panel.control("cancel"));
+          ui.remove().run();
+          require(session.busy() && session.applyVersion() == work && panel.pending()
+              && session.applyPhase() == ImportEditSession.ApplyPhase.RUNNING
+              && state.draft == draft && state.project().noise2D.size() == 2
+              && session.preview().rows().getFirst().targetUuid().equals(target),
+              "Ready Import delivery committed or changed cancellation/copy authority");
+          if (mode.equals("ready-escape")) {
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true); frame();
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+          } else if (mode.equals("ready-close")) { panel.close(); frames(3); }
+          else { ImGui.getIO().addMouseButtonEvent(0, false); frames(3); }
+          require(session.closed() && !panel.pending()
+              && session.applyPhase() == ImportEditSession.ApplyPhase.CANCELLED,
+              "Ready Import cancellation lost to final publication or feedback");
+        } else {
+          if (mode.equals("cancel")) click(panel.control("cancel"));
+          else if (mode.equals("escape")) {
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+            frame();
+            ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+            frames(3);
+          } else if (mode.equals("close")) panel.close();
+          else if (mode.equals("stale")) ((Noise) state.draft).id = "new-private";
+          ui.remove().run();
+          frames(2);
+        }
         if (mode.equals("rejected")) {
           require(
               session.applyPhase() == ImportEditSession.ApplyPhase.REJECTED
@@ -177,7 +197,9 @@ final class BackgroundImportApplyProbe {
                 "copyIdentityRetained",
                 true,
                 "originalBytesRetained",
-                true));
+                true,
+                "readyRetired",
+                mode.startsWith("ready-")));
         panel.close();
       }
     }
@@ -198,6 +220,12 @@ final class BackgroundImportApplyProbe {
 
   private static void finish(EditorState state, ArrayDeque<Runnable> tasks) throws Exception {
     state.background.submit(tasks.remove()).get(10, TimeUnit.SECONDS);
+  }
+
+  private static void hold(float[] at) {
+    require(at != null, "Import Cancel control missing");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(float[] at) {

@@ -7,6 +7,23 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void importHelpExplainsReadyCancellationAndRetainedSeparatePrivateInput() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.resource-import");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Delivery alone never commits or closes the review"));
+    assertTrue(text.contains("Current Cancel/Escape runs before accepting a ready result"));
+    assertTrue(text.contains("including rejected or failed preparation"));
+    assertTrue(text.contains("without another confirmation"));
+    assertTrue(text.contains("Cancellation retains separate private Properties input"));
+    assertTrue(catalog.search("import ready cancellation").contains(topic));
+    assertEquals(topic.id(), HelpDefinitions.menuTopic("Import"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void commandHistoryHelpExplainsReadyCancellationAndDistinctDraftDecisions() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

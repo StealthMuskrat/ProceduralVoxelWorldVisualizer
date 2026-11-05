@@ -67,13 +67,14 @@ class BackgroundImportApplyTest {
     return edit;
   }
 
-  static void deliver(Workers worker, Queue<Runnable> ui) {
+  static void deliver(Workers worker, Queue<Runnable> ui, ImportEditSession edit) {
     worker.run();
     ui.remove().run();
+    edit.acceptPrepared();
   }
 
   @Test
-  void actualWorkerPreparesValidationButOnlyUiDeliveryCommitsOneOwnedTransaction()
+  void actualWorkerPreparesValidationButOnlyOwnerAcceptanceCommitsOneOwnedTransaction()
       throws Exception {
     try (var s = state();
         var worker = Executors.newSingleThreadExecutor()) {
@@ -104,6 +105,11 @@ class BackgroundImportApplyTest {
       }
       completion.run();
       completion.run();
+      assertTrue(edit.busy());
+      assertFalse(edit.closed());
+      assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
+      assertEquals(history, s.document.historyBytes());
+      edit.acceptPrepared();
       assertTrue(edit.closed());
       assertEquals(ImportEditSession.ApplyPhase.APPLIED, edit.applyPhase());
       assertEquals(revision + 1, s.revision);
@@ -148,7 +154,7 @@ class BackgroundImportApplyTest {
       }
       worker.reject = false;
       assertEquals(ImportEditSession.Result.STARTED, edit.apply());
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertTrue(edit.closed());
       assertSame(plan, edit.preview());
       assertEquals(id, s.project().noise2D.getLast().uuid);
@@ -181,7 +187,10 @@ class BackgroundImportApplyTest {
         edit.markShown(edit.preview());
         edit.apply();
         worker.run();
-        if (!ui.isEmpty()) ui.remove().run();
+        if (!ui.isEmpty()) {
+          ui.remove().run();
+          edit.acceptPrepared();
+        }
         assertFalse(edit.busy());
         assertEquals(ImportEditSession.ApplyPhase.FAILED, edit.applyPhase());
         assertTrue(edit.canApply());
@@ -192,7 +201,7 @@ class BackgroundImportApplyTest {
                 .count());
         fail.set(false);
         edit.apply();
-        deliver(worker, ui);
+        deliver(worker, ui, edit);
         assertTrue(edit.closed());
         assertEquals(3, s.project().noise2D.size());
       }
@@ -209,7 +218,7 @@ class BackgroundImportApplyTest {
       assertFalse(edit.busy());
       assertEquals(ImportEditSession.ApplyPhase.FAILED, edit.applyPhase());
       edit.apply();
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertTrue(edit.closed());
     }
   }
@@ -227,7 +236,7 @@ class BackgroundImportApplyTest {
       s.document.setValidator(p -> issues);
       var before = ProjectIO.JSON.valueToTree(s.project());
       edit.apply();
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertEquals(ImportEditSession.ApplyPhase.REJECTED, edit.applyPhase());
       assertEquals(300, edit.issueCount());
       assertEquals(256, edit.applyIssues().size());
@@ -237,7 +246,7 @@ class BackgroundImportApplyTest {
       assertTrue(edit.canApply());
       s.document.setValidator(NoiseCompiler::validate);
       edit.apply();
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertTrue(edit.closed());
       assertEquals(0, edit.issueCount());
     }
@@ -278,7 +287,7 @@ class BackgroundImportApplyTest {
       next.apply();
       old.run();
       assertTrue(next.busy());
-      deliver(worker, ui);
+      deliver(worker, ui, next);
       assertTrue(next.closed());
       assertEquals(3, s.project().noise2D.size());
     }
@@ -301,6 +310,7 @@ class BackgroundImportApplyTest {
         }
         var current = ProjectIO.JSON.valueToTree(s.draft);
         ui.remove().run();
+        edit.acceptPrepared();
         assertEquals(ImportEditSession.ApplyPhase.STALE, edit.applyPhase());
         assertEquals(2, s.project().noise2D.size());
         assertEquals(current, ProjectIO.JSON.valueToTree(s.draft));
@@ -329,6 +339,7 @@ class BackgroundImportApplyTest {
         var values = List.copyOf(s.issues);
         String scope = s.validationScope;
         ui.remove().run();
+        edit.acceptPrepared();
         assertEquals(ImportEditSession.ApplyPhase.STALE, edit.applyPhase());
         assertEquals(values, s.issues);
         assertEquals(scope, s.validationScope);
@@ -346,15 +357,16 @@ class BackgroundImportApplyTest {
       worker.run();
       s.project().project.seed = 18;
       ui.remove().run();
+      edit.acceptPrepared();
       assertEquals(ImportEditSession.ApplyPhase.STALE, edit.applyPhase());
       assertFalse(edit.current());
       assertEquals(ImportEditSession.Result.STALE, edit.apply());
       edit.reload();
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertFalse(edit.canApply());
       edit.markShown(edit.preview());
       edit.apply();
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertTrue(edit.closed());
       assertEquals(18, s.project().project.seed);
     }
@@ -377,6 +389,7 @@ class BackgroundImportApplyTest {
         }
         var current = ProjectIO.JSON.valueToTree(s.project());
         ui.remove().run();
+        edit.acceptPrepared();
         assertEquals(ImportEditSession.ApplyPhase.STALE, edit.applyPhase());
         assertEquals(current, ProjectIO.JSON.valueToTree(s.project()));
       }
@@ -397,6 +410,7 @@ class BackgroundImportApplyTest {
         else s.newSession();
         var current = ProjectIO.JSON.valueToTree(s.project());
         ui.remove().run();
+        edit.acceptPrepared();
         assertEquals(ImportEditSession.ApplyPhase.STALE, edit.applyPhase());
         assertFalse(edit.canReload());
         assertEquals(current, ProjectIO.JSON.valueToTree(s.project()));
@@ -433,6 +447,7 @@ class BackgroundImportApplyTest {
                   });
         }
         ui.remove().run();
+        edit.acceptPrepared();
         assertEquals(2, s.project().noise2D.size());
         assertFalse(edit.busy());
         assertEquals(
@@ -459,14 +474,14 @@ class BackgroundImportApplyTest {
       incoming.noise2D.add(0, noise("shared", .25));
       var edit = new ImportEditSession(s, incoming, worker, ui::add, () -> false);
       edit.choose(incoming.noise2D.getFirst().uuid, ResourceImport.Choice.REUSE);
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       edit.choose(incoming.noise2D.getLast().uuid, ResourceImport.Choice.SKIP);
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       edit.markShown(edit.preview());
       var before = ProjectIO.JSON.valueToTree(s.project());
       long history = s.document.historyBytes();
       edit.apply();
-      deliver(worker, ui);
+      deliver(worker, ui, edit);
       assertTrue(edit.closed());
       assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
       assertEquals(history, s.document.historyBytes());

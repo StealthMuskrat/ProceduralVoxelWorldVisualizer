@@ -109,12 +109,13 @@ print('IMPORT_PLANNING_INDEPENDENT_PASS six review lifetimes / complete saved mo
 apply = out / 'apply'
 apply_report = json.loads((apply / 'import-apply-native.json').read_text())
 assert apply_report['formatVersion'] == 1 and apply_report['physicalInputVerified'] is False
-modes = {'success', 'cancel', 'escape', 'retry', 'rejected', 'stale', 'close'}
+modes = {'success', 'cancel', 'escape', 'retry', 'rejected', 'stale', 'close', 'ready-cancel', 'ready-escape', 'ready-close', 'ready-rejected-cancel', 'ready-failure-cancel'}
 assert len(apply_report['cases']) == len(modes)
 assert {case['mode'] for case in apply_report['cases']} == modes
 for case in apply_report['cases']:
     mode = case['mode']; imported = mode in {'success', 'retry', 'rejected'}
     assert case['imported'] is imported
+    assert case['readyRetired'] is mode.startswith('ready-')
     assert case['queuedFrames'] >= 12 and case['heldFrames'] >= 12
     assert all(case[key] is True for key in [
         'privateRetained', 'preferencesRetained', 'copyIdentityRetained', 'originalBytesRetained'])
@@ -138,5 +139,5 @@ for case in apply_report['cases']:
         for project in [before, after]: project['project'].pop('rootOrder', None)
     assert before == after
 assert json.loads((apply / 'engine-replay.json').read_text()) == dict(
-    formatVersion=1, fields=651, cells=4116, roots=[2, 4])
-print('IMPORT_APPLY_INDEPENDENT_PASS seven final-Import lifetimes / exact saved models / 651 fields / 4116 EMPTY cells')
+    formatVersion=1, fields=1071, cells=7056, roots=[2, 4])
+print('IMPORT_APPLY_INDEPENDENT_PASS twelve final-Import lifetimes / exact saved models / 1071 fields / 7056 EMPTY cells')

@@ -31,3 +31,6 @@ Fifteen `BackgroundImportApplyTest` definitions cover real worker/held UI delive
 The nested engine-only `ImportApplyConsumer` strictly reloads fourteen before/after projects and seven incoming fixtures. Independent expectations compare complete original definitions and metadata, the copied .75 definition/identity/order, **651 exact .125/.25/.75 field observations** and **4,116 signed EMPTY World cells** at roots 2/4. The existing Python workspace replay additionally defines 21 schema validations and full saved-model/receipt checks. Existing manual-only Linux/Windows invocations and artifact directories reach these additions without a new trigger or dispatch.
 
 None of these tests, scenarios, consumers or replays ran. Broader integration, stress/performance, physical keyboard/docking/DPI/platform/Windows 11 behavior and final independent artifact/release acceptance remain outstanding.
+
+
+Follow-up: [ready final Import cancellation](READY_IMPORT_APPLY.md) separates delivered CPU readiness from publication, processes current review Cancel/Escape before acceptance and retires prepared results independently of queued callbacks. Expanded definitions remain uncompiled/untested.
