@@ -34,7 +34,7 @@ final class PropertiesApplySession implements AutoCloseable {
   private record Prepared(DocumentSession.PreparedEdit value, Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery, version;
-  private boolean ready;
+  private boolean ready, admitted;
 
   PropertiesApplySession(
       EditorState state, Executor executor, Consumer<Runnable> ui, BooleanSupplier blocked) {
@@ -72,7 +72,7 @@ final class PropertiesApplySession implements AutoCloseable {
       scope = state.validationScope;
       phase = Phase.RUNNING;
       boolean unavailable = blocked.getAsBoolean();
-      if (request != token || phase == Phase.CLOSED) return false;
+      if (!owns(request)) return false;
       if (unavailable || !owner.valuesCurrent(state)) {
         stale();
         return false;
@@ -97,7 +97,8 @@ final class PropertiesApplySession implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
-      return true;
+      if (owns(request)) admitted = true;
+      return owns(request);
     } catch (Throwable failure) {
       fail(request, failure);
       return false;
@@ -114,22 +115,27 @@ final class PropertiesApplySession implements AutoCloseable {
 
   private void delivered(Object request, long handed) {
     if (!owns(request) || delivery != handed || ready) return;
-    refresh();
-    if (!owns(request)) return;
-    task = null;
+    // A receipt is not proof that posting or executor admission returned successfully.
     ready = true;
   }
 
   /** The visible footer and child editors decide current-frame cancellation before acceptance. */
   void acceptPrepared() {
+    Object request = token;
     refresh();
-    if (phase != Phase.RUNNING || !ready) return;
-    var value = handoff.take();
-    if (value == null) {
-      fail(token, new IllegalStateException("Properties Apply preparation unavailable"));
+    if (!owns(request) || !ready || !admitted) return;
+    var completion = BackgroundFailure.completed(task);
+    if (!owns(request) || completion == null) return;
+    if (completion.failure() != null) {
+      fail(request, completion.failure());
       return;
     }
-    publish(token, value.value(), value.failure());
+    var value = handoff.take();
+    if (value == null) {
+      fail(request, new IllegalStateException("Properties Apply preparation unavailable"));
+      return;
+    }
+    publish(request, value.value(), value.failure());
   }
 
   private boolean diagnosticsCurrent() {
@@ -194,15 +200,17 @@ final class PropertiesApplySession implements AutoCloseable {
 
   private void refresh() {
     if (phase != Phase.RUNNING) return;
+    Object request = token;
     try {
       if (!owner.current(state) || !diagnosticsCurrent() || !issueValues.equals(state.issues)) {
         stale();
         return;
       }
       var completion = BackgroundFailure.completed(task);
-      if (completion != null && completion.failure() != null) fail(token, completion.failure());
+      if (owns(request) && completion != null && completion.failure() != null)
+        fail(request, completion.failure());
     } catch (Throwable failure) {
-      fail(token, failure);
+      fail(request, failure);
     }
   }
 
@@ -225,10 +233,13 @@ final class PropertiesApplySession implements AutoCloseable {
     if (request != token || phase == Phase.CLOSED) return;
     retire();
     phase = Phase.FAILED;
-    message =
+    Object failed = token;
+    String feedback =
         "Properties Apply failed: "
             + BackgroundFailure.describe(failure)
             + ". The edit remains private; Apply again to retry.";
+    if (failed != token || phase != Phase.FAILED) return;
+    message = feedback;
     report("PROPERTIES_APPLY_FAILED", message);
   }
 
@@ -244,7 +255,7 @@ final class PropertiesApplySession implements AutoCloseable {
     var previous = task;
     token = new Object();
     task = null;
-    ready = false;
+    ready = admitted = false;
     handoff.advance(++delivery);
     version++;
     owner = null;
@@ -259,8 +270,8 @@ final class PropertiesApplySession implements AutoCloseable {
   @Override
   public void close() {
     if (phase == Phase.CLOSED) return;
-    retire();
     phase = Phase.CLOSED;
+    retire();
     handoff.close();
     message = "Properties Apply closed.";
   }

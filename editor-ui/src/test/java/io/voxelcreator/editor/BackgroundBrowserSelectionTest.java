@@ -105,6 +105,7 @@ class BackgroundBrowserSelectionTest {
       assertTrue(selection.pending());
       assertSame(draft, s.draft);
       assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
+      worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
       selection.acceptPrepared();
       assertEquals(List.of(SELECTED), done);
       assertFalse(selection.pending());

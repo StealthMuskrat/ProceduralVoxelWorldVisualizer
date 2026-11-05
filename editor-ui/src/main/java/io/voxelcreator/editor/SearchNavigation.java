@@ -41,7 +41,7 @@ public final class SearchNavigation implements AutoCloseable {
   private record Prepared(DocumentSession.PreparedEdit value, Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery;
-  private boolean ready;
+  private boolean ready, admitted;
   private BooleanSupplier workBefore, workAfter;
   private boolean admitting, disposed;
   private long workVersion;
@@ -258,6 +258,7 @@ public final class SearchNavigation implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
+      if (owns(token, intent, target)) admitted = true;
       return Result.NEEDS_DECISION;
     } catch (Throwable failure) {
       fail(token, failure);
@@ -277,22 +278,33 @@ public final class SearchNavigation implements AutoCloseable {
 
   private void delivered(Object token, long intent, EditorEvents.Target target, long handed) {
     if (!owns(token, intent, target) || delivery != handed || ready) return;
-    refresh();
-    if (!owns(token, intent, target)) return;
-    task = null;
+    // Retain the task until acceptance can observe its entire handoff completing normally.
     ready = true;
   }
 
   /** Owner calls only after its modal processes this frame's Cancel/Escape controls. */
   void acceptPrepared() {
+    Object token = workToken;
+    long intent = version;
+    var target = pending;
     refresh();
-    if (!ready || disposed || pending == null) return;
-    var value = handoff.take();
-    if (value == null) {
-      fail(workToken, new IllegalStateException("Navigation Apply preparation unavailable"));
+    if (!owns(token, intent, target)
+        || !ready
+        || !admitted
+        || admitting
+        || target == null) return;
+    var done = BackgroundFailure.completed(task);
+    if (!owns(token, intent, target) || done == null) return;
+    if (done.failure() != null) {
+      fail(token, done.failure());
       return;
     }
-    publish(workToken, version, pending, value.value(), value.failure(), workBefore, workAfter);
+    var value = handoff.take();
+    if (value == null) {
+      fail(token, new IllegalStateException("Navigation Apply preparation unavailable"));
+      return;
+    }
+    publish(token, intent, target, value.value(), value.failure(), workBefore, workAfter);
   }
 
   private boolean feedbackCurrent() {
@@ -383,25 +395,32 @@ public final class SearchNavigation implements AutoCloseable {
 
   private void refresh() {
     if ((task == null && !ready) || disposed) return;
+    Object token = workToken;
+    long intent = version;
+    var target = pending;
     try {
       if (!workOwner.current(state) || !feedbackCurrent()) {
         stale(pending);
         return;
       }
       var done = BackgroundFailure.completed(task);
-      if (done != null && done.failure() != null) fail(workToken, done.failure());
+      if (owns(token, intent, target) && done != null && done.failure() != null)
+        fail(token, done.failure());
     } catch (Throwable failure) {
-      fail(workToken, failure);
+      fail(token, failure);
     }
   }
 
   private void fail(Object token, Throwable failure) {
     if (token != workToken || disposed) return;
     retireWork();
-    progress =
+    Object failed = workToken;
+    String feedback =
         "Apply preparation failed: "
             + BackgroundFailure.describe(failure)
             + ". The draft remains private; Apply again to retry, or Cancel.";
+    if (failed != workToken || disposed) return;
+    progress = feedback;
     report("NAVIGATION_APPLY_FAILED", progress);
   }
 
@@ -418,7 +437,7 @@ public final class SearchNavigation implements AutoCloseable {
     workToken = new Object();
     workVersion++;
     task = null;
-    ready = false;
+    ready = admitted = false;
     handoff.advance(++delivery);
     workBefore = workAfter = null;
     admitting = false;

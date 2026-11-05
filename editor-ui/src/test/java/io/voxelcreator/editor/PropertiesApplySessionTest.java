@@ -83,6 +83,7 @@ class PropertiesApplySessionTest {
         assertTrue(apply.running());
         assertSame(draft, state.draft);
         assertEquals(before, ProjectIO.JSON.valueToTree(state.project()));
+        workers.submit(() -> {}).get(10, TimeUnit.SECONDS);
         apply.acceptPrepared();
         assertEquals(PropertiesApplySession.Phase.APPLIED, apply.view().phase());
         assertEquals(.625, state.project().noise2D.getFirst().algorithm.parameters.get("value"));

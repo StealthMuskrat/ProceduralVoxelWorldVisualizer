@@ -132,6 +132,7 @@ class BackgroundNavigationTest {
       assertTrue(nav.pending());
       assertSame(draft, s.draft);
       assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
+      executor.submit(() -> {}).get(10, TimeUnit.SECONDS);
       nav.acceptPrepared();
       assertFalse(nav.pending());
       assertEquals(destination.resource(), s.selected);

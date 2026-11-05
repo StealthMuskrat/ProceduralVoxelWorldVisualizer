@@ -37,7 +37,7 @@ final class ResourceSelectionSession implements AutoCloseable {
   private record Prepared(DocumentSession.PreparedEdit value, Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery;
-  private boolean ready;
+  private boolean ready, admitted;
   private boolean admitting, disposed;
   private long workVersion;
   private String progress = "";
@@ -301,6 +301,7 @@ final class ResourceSelectionSession implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
+      if (owns(token, plan)) admitted = true;
       return Result.NEEDS_DECISION;
     } catch (Throwable failure) {
       fail(token, failure);
@@ -316,22 +317,33 @@ final class ResourceSelectionSession implements AutoCloseable {
 
   private void delivered(Object token, Plan plan, long handed) {
     if (!owns(token, plan) || delivery != handed || ready) return;
-    refresh();
-    if (!owns(token, plan)) return;
-    task = null;
+    // Retain the task until acceptance can observe its entire handoff completing normally.
     ready = true;
   }
 
   /** Owner calls only after its modal processes this frame's Cancel/Escape controls. */
   void acceptPrepared() {
+    Object token = workToken;
+    var plan = pending;
     refresh();
-    if (!ready || disposed || pending == null || installing) return;
-    var value = handoff.take();
-    if (value == null) {
-      fail(workToken, new IllegalStateException("Resource selection Apply preparation unavailable"));
+    if (!owns(token, plan)
+        || !ready
+        || !admitted
+        || admitting
+        || plan == null
+        || installing) return;
+    var done = BackgroundFailure.completed(task);
+    if (!owns(token, plan) || done == null) return;
+    if (done.failure() != null) {
+      fail(token, done.failure());
       return;
     }
-    publish(workToken, pending, value.value(), value.failure());
+    var value = handoff.take();
+    if (value == null) {
+      fail(token, new IllegalStateException("Resource selection Apply preparation unavailable"));
+      return;
+    }
+    publish(token, plan, value.value(), value.failure());
   }
 
   private boolean feedbackCurrent() {
@@ -427,25 +439,30 @@ final class ResourceSelectionSession implements AutoCloseable {
 
   private void refresh() {
     if ((task == null && !ready) || disposed) return;
+    Object token = workToken;
+    var plan = pending;
     try {
       if (!workOwner.current(state) || !feedbackCurrent()) {
         stale();
         return;
       }
       var done = BackgroundFailure.completed(task);
-      if (done != null && done.failure() != null) fail(workToken, done.failure());
+      if (owns(token, plan) && done != null && done.failure() != null) fail(token, done.failure());
     } catch (Throwable failure) {
-      fail(workToken, failure);
+      fail(token, failure);
     }
   }
 
   private void fail(Object token, Throwable failure) {
     if (token != workToken || disposed) return;
     retireWork();
-    progress =
+    Object failed = workToken;
+    String feedback =
         "Resource selection Apply failed: "
             + BackgroundFailure.describe(failure)
             + ". The draft and selection are retained; Apply again to retry, or Cancel.";
+    if (failed != workToken || disposed) return;
+    progress = feedback;
     reportFailure("RESOURCE_SELECTION_APPLY_FAILED", progress);
   }
 
@@ -462,7 +479,7 @@ final class ResourceSelectionSession implements AutoCloseable {
     workToken = new Object();
     workVersion++;
     task = null;
-    ready = false;
+    ready = admitted = false;
     handoff.advance(++delivery);
     admitting = false;
     workOwner = null;
