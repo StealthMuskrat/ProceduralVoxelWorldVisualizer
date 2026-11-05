@@ -25,3 +25,5 @@ PreviewWorkerRecoveryProbe extends the existing PreviewAdmissionProbe manual pat
 Nested reports/fixtures feed added assertions in the existing deferred preview-admission checker. Earlier queue admission, generator selection, renderer fallback, camera and independent headless replay definitions remain. Workflow commands/triggers are unchanged; no dispatch occurred. These are source definitions, not passing evidence.
 
 Only source inspection, Java formatting and git diff --check accompany the batch. Full execution, stress/performance, native/platform/hardware and final acceptance/release remain pending. Main remains the sole branch.
+
+The unvalidated [complete viewport-worker follow-up](COMPLETED_VIEWPORT_WORKERS.md) additionally keeps prepared payloads private until normal worker return. It strengthens the existing six FINISH scenarios with twelve drawing frames while the worker is held after preparation, preserving the fourteen-case receipt/checker/replay shape. Three mailbox definitions gain pending-state assertions. No compiler, tests, probe, consumer, checker or workflow ran; the observed baseline and all acceptance gates remain unchanged.

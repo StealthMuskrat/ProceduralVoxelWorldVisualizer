@@ -765,6 +765,14 @@ public final class Viewports implements AutoCloseable {
     views[kind].workerGate.set(new WorkerGate(entered, release));
   }
 
+  void probePreviewWorkerFinishGate(int kind, CountDownLatch entered, CountDownLatch release) {
+    views[kind].workerFinishGate.set(new WorkerGate(entered, release));
+  }
+
+  boolean probePreviewPayloadPending(int kind) {
+    return views[kind].ready.pending() || views[kind].setup.pending();
+  }
+
   void probePreviewWorkerFailure(int kind, String point, Error failure) {
     var v = views[kind];
     switch (point) {
@@ -978,7 +986,8 @@ public final class Viewports implements AutoCloseable {
     RenderPressure pressure = new RenderPressure();
     Future<?> compiler;
     long compilerVersion;
-    final AtomicReference<WorkerGate> workerGate = new AtomicReference<>();
+    final AtomicReference<WorkerGate> workerGate = new AtomicReference<>(),
+        workerFinishGate = new AtomicReference<>();
     final AtomicReference<Error> workerStartFailure = new AtomicReference<>(),
         workerBodyFailure = new AtomicReference<>(),
         workerFinishFailure = new AtomicReference<>();
@@ -2197,7 +2206,8 @@ public final class Viewports implements AutoCloseable {
       else stopStream(v);
     }
     reconcilePreviewJob(v);
-    Preview ready = v.ready.take();
+    // A published CPU payload is private until its complete worker has returned normally.
+    Preview ready = v.job == null ? v.ready.take() : null;
     if (ready != null && ready.epoch == v.epoch && (!streaming || volumeStreaming) && source) {
       v.activeJob = false;
       v.volumeWorkingBytes = 0;
@@ -2903,7 +2913,7 @@ public final class Viewports implements AutoCloseable {
                         noise,
                         "Camera-relative volume sampling",
                         outcome);
-                  workerFailure(v.workerFinishFailure);
+                  workerFinish(v);
                 }
               });
     } catch (RejectedExecutionException full) {
@@ -2989,21 +2999,27 @@ public final class Viewports implements AutoCloseable {
 
   private void reconcileSourceCompiler(View v, String key) {
     if (v.compiler != null && key.equals(v.requestedKey) && v.setup.current(v.compilerVersion)) {
-      var completion = BackgroundFailure.completed(v.compiler);
+      var observed = v.compiler;
+      long version = v.compilerVersion;
+      var completion = BackgroundFailure.completed(observed);
+      if (!ownsSourceCompiler(v, observed, version, key)) return;
       if (completion != null) {
+        String failure =
+            completion.failure() == null ? null : BackgroundFailure.describe(completion.failure());
+        if (!ownsSourceCompiler(v, observed, version, key)) return;
         v.compiler = null;
-        if (completion.failure() != null)
-          v.setup.publish(
-              v.compilerVersion,
-              new SceneSetup(
-                  v.compilerVersion,
-                  key,
-                  null,
-                  null,
-                  BackgroundFailure.describe(completion.failure()),
-                  null));
+        if (failure != null)
+          v.setup.publish(version, new SceneSetup(version, key, null, null, failure, null));
       }
     }
+  }
+
+  private boolean ownsSourceCompiler(View v, Future<?> observed, long version, String key) {
+    return !closed
+        && v.compiler == observed
+        && v.compilerVersion == version
+        && key.equals(v.requestedKey)
+        && v.setup.current(version);
   }
 
   private boolean stream(View v) {
@@ -3061,7 +3077,7 @@ public final class Viewports implements AutoCloseable {
                               id, key, null, null, BackgroundFailure.describe(failure), null);
                     }
                     v.setup.publish(id, result);
-                    workerFailure(v.workerFinishFailure);
+                    workerFinish(v);
                   });
           v.message = "Compiling streaming source...";
         } catch (RejectedExecutionException full) {
@@ -3078,7 +3094,7 @@ public final class Viewports implements AutoCloseable {
       } else v.message = v.pressure.message();
     }
     reconcileSourceCompiler(v, key);
-    SceneSetup setup = v.setup.take();
+    SceneSetup setup = v.compiler == null ? v.setup.take() : null;
     if (setup != null) {
       v.compiler = null;
       if (!setup.key.equals(key)) {
@@ -3401,7 +3417,16 @@ public final class Viewports implements AutoCloseable {
   private record WorkerGate(CountDownLatch entered, CountDownLatch release) {}
 
   private static void workerBegin(View v) {
-    var gate = v.workerGate.getAndSet(null);
+    workerAwait(v.workerGate.getAndSet(null));
+    workerFailure(v.workerStartFailure);
+  }
+
+  private static void workerFinish(View v) {
+    workerAwait(v.workerFinishGate.getAndSet(null));
+    workerFailure(v.workerFinishFailure);
+  }
+
+  private static void workerAwait(WorkerGate gate) {
     if (gate != null) {
       gate.entered().countDown();
       try {
@@ -3412,7 +3437,6 @@ public final class Viewports implements AutoCloseable {
         throw new CancellationException("Preview worker gate interrupted");
       }
     }
-    workerFailure(v.workerStartFailure);
   }
 
   private static void workerFailure(AtomicReference<Error> point) {
@@ -3421,8 +3445,10 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void reconcilePreviewJob(View v) {
-    var completion = BackgroundFailure.completed(v.job);
-    if (completion == null) return;
+    var observed = v.job;
+    long epoch = v.epoch;
+    var completion = BackgroundFailure.completed(observed);
+    if (closed || v.job != observed || v.epoch != epoch || completion == null) return;
     v.job = null;
     if (completion.failure() != null) previewJobFailed(v, completion.failure());
   }
@@ -3818,7 +3844,7 @@ public final class Viewports implements AutoCloseable {
                         noise,
                         "Fixed preview / " + (kind == 2 ? stageMode : mode),
                         outcome);
-                  workerFailure(v.workerFinishFailure);
+                  workerFinish(v);
                 }
               });
     } catch (RejectedExecutionException e) {
@@ -4384,6 +4410,7 @@ public final class Viewports implements AutoCloseable {
       probeInspectorEscapedFailure.set(null);
       for (var v : views) {
         v.workerGate.set(null);
+        v.workerFinishGate.set(null);
         v.workerStartFailure.set(null);
         v.workerBodyFailure.set(null);
         v.workerFinishFailure.set(null);

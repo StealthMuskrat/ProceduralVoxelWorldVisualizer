@@ -68,18 +68,47 @@ final class PreviewWorkerRecoveryProbe {
                     };
             var entered = new CountDownLatch(1);
             var release = new CountDownLatch(1);
+            var finished = new CountDownLatch(1);
+            var finishRelease = new CountDownLatch(1);
             views.probePreviewWorkerGate(kind, entered, release);
+            if (point.equals("FINISH"))
+              views.probePreviewWorkerFinishGate(kind, finished, finishRelease);
             views.probePreviewWorkerFailure(kind, point, failure);
-            views.probePreviewRegenerate(kind);
             try {
-              until(
-                  () ->
-                      views.probePreviewCpuSubmitted(kind) || views.probePreviewWorkerFailed(kind));
-              require(entered.await(5, TimeUnit.SECONDS), "Preview worker did not reach its gate");
+              views.probePreviewRegenerate(kind);
+              try {
+                until(
+                    () ->
+                        views.probePreviewCpuSubmitted(kind) || views.probePreviewWorkerFailed(kind));
+                require(entered.await(5, TimeUnit.SECONDS), "Preview worker did not reach its gate");
+              } finally {
+                release.countDown();
+              }
+              if (point.equals("FINISH")) {
+                // Keep drawing with a complete private payload and an unfinished worker.
+                withoutFrames(() -> finished.getCount() == 0);
+                require(views.probePreviewPayloadPending(kind), "Missing held preview payload");
+                for (int held = 0; held < 12; held++) {
+                  frame();
+                  require(
+                      views.probePreviewCpuSubmitted(kind) && views.probePreviewPayloadPending(kind),
+                      "Unfinished worker lost its private payload or terminal observation");
+                  require(
+                      views.probeAcceptedPreviewEpoch(kind) == accepted
+                          && views.probeAcceptedScene(kind) == scene,
+                      "Prepared preview replaced the display before complete worker return");
+                  if (volumeTexture != 0)
+                    require(
+                        views.probeVolumeResidentTexture() == volumeTexture
+                            && !views.probeVolumeStatistics().pending(),
+                        "Unfinished volume worker started replacing the resident texture");
+                }
+              }
             } finally {
               release.countDown();
+              finishRelease.countDown();
             }
-            // Leave complete mailbox results untouched until the executor has captured FINISH.
+            // Observe the late FINISH fault before accepting any replacement.
             withoutFrames(
                 () ->
                     state.background.getActiveCount() == 0

@@ -9,8 +9,11 @@ class PreviewMailboxTest {
   @Test
   void latestVersionOwnsSlotEvenAfterItWasConsumed() {
     var box = new PreviewMailbox<String>();
+    assertFalse(box.pending());
     assertTrue(box.publish(0, "initial"));
+    assertTrue(box.pending());
     assertEquals("initial", box.take());
+    assertFalse(box.pending());
     assertNull(box.take());
     box.advance(1);
     assertFalse(box.publish(0, "obsolete success"));
@@ -27,7 +30,9 @@ class PreviewMailboxTest {
     var box = new PreviewMailbox<Object>();
     var token = box.token(0);
     box.publish(0, new Object());
+    assertTrue(box.pending());
     box.advance(1);
+    assertFalse(box.pending());
     assertTrue(token.isCancelled());
     assertNull(box.take());
     assertFalse(box.token(1).isCancelled());
@@ -41,7 +46,9 @@ class PreviewMailboxTest {
     var box = new PreviewMailbox<String>();
     var token = box.token(0);
     box.publish(0, "ready");
+    assertTrue(box.pending());
     box.close();
+    assertFalse(box.pending());
     assertNull(box.take());
     assertFalse(box.publish(0, "late"));
     assertTrue(token.isCancelled());

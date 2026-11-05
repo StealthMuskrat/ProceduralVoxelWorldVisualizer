@@ -27,6 +27,10 @@ final class PreviewMailbox<T> implements AutoCloseable {
     return true;
   }
 
+  synchronized boolean pending() {
+    return ready != null;
+  }
+
   synchronized T take() {
     var value = ready;
     ready = null;
