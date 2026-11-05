@@ -1,0 +1,29 @@
+# Safe, single-observation region failure details
+
+Development implementation on main; **uncompiled and untested** under the owner's testing pause. No compiler, Gradle, JUnit, native probe, schema/Python checker, independent consumer, packaging, real update request or GitHub workflow ran. The observed baseline remains **922 tests / 120 suites**. Native/Windows 11 and final release acceptance remain pending; no A01–A36 gate advances.
+
+## Reporting cannot replace an observed per-chunk failure
+
+WorldContext recorded a per-chunk failure count, then called the observed cause's getMessage separately for its RegionSummary detail and engine diagnostic. A host RuntimeException whose message accessor threw could escape the reporting boundary and turn CONTINUE into an exceptional coordinator failure. A mutable accessor could also give the summary and diagnostic different descriptions. Unchecked cause access on a CompletionException envelope had the same reporting risk, and individual retained descriptions were unbounded despite the existing 1,024-detail list cap.
+
+The engine now safely observes one envelope cause, then computes one description shared by the retained detail and diagnostic. Unreadable/null/blank descriptions use the failure class name; anonymous classes use their full name. Unreadable cause access retains the original envelope for description. Text is bounded to 2,048 UTF-16 units, including an ellipsis, without splitting a surrogate pair. The formatter never calls host toString and never mutates the failure, cause or suppressed list. Direct Error normalization now supplies an explicit null wrapper message, preserving its cause without invoking host toString/getMessage merely to construct that envelope. Queue-overload diagnostic text uses the same safe description boundary.
+
+The per-chunk failed count is still recorded once. Summary detail capping, failure chunk/phase, CONTINUE/FAIL_FAST behavior, no automatic retry of consumer side effects, cancellation, immutable completed chunks and request/region-slot cleanup retain their existing policies. Descriptions are still observed after the 1,024-detail cap so each later diagnostic has its own single frozen text. A message callback that explicitly cancels its stream retains that ordinary cancellation effect without a second description callback.
+
+This follow-up guards the engine's failure-description and direct normalization boundaries. Delivery invocation, acknowledgement observation and existing runtime/cancellation/cause control flow remain unchanged. Blocking host code is not isolated or interrupted by formatting. Public record/method shapes, request defaults, project/archive/package/schema/registry formats and deterministic chunk/field/voxel semantics are unchanged. RegionSummary documents the engine-produced text bound. Engine/model/storage retain their editor/native independence.
+
+## Deferred module definitions
+
+Four FailureDetailsTest definitions cover exact ordinary text and one message call, unreadable/null/blank fallback without host toString, exact-limit/oversized Unicode text with intact surrogate pairs and unmodified failures, and single-level cause observation with an unreadable accessor retaining its original envelope.
+
+Six RegionFailureDetailsTest definitions use actual region coordinators. They cover mutable descriptions shared by summary/diagnostic across both policies, both orders and direct/enveloped acknowledgement forms; unreadable RuntimeException/Error messages preserving counts and usable successor generation; null/blank/oversized detail; unreadable envelope causes plus throwing diagnostic listeners; cancellation from description with one delivery attempt; and 1,100 failures producing exactly 1,100 message reads/diagnostics while retaining 1,024 matching summary details. Generated snapshots remain immutable EMPTY chunks in those module fixtures. All ten definitions remain uncompiled/untested.
+
+## Independent engine-client replay
+
+The existing DeliveryErrorConsumer adds a separate public-API failureDetails replay using only the engine JAR. Roots 2/4, both orders, both policies, direct/enveloped acknowledged RuntimeExceptions and mutable/unreadable/long descriptions define **48 cases and 48 message reads**. Each detail must match its one diagnostic, retain exact chunk/DELIVERY ownership and preserve the expected completed/failed/cancelled partition without a repeated consumer call. The unreadable case has a hand-specified class fallback; long text has an independently constructed 2,047-character-plus-ellipsis expectation.
+
+Across these additional cases, **96 retained attempted-delivery chunks define 3,456 exact signed-position cells, including 960 stone cells**, with the same Y-clipped constant .75 fixture. Retained cells are checked after their engines/contexts close. The original 32 cases, 64 retained chunks, 2,304 cells/640 stone cells and 21 exact field samples remain unchanged. Complete authoring JSON must remain unchanged and the existing project fixture is reused.
+
+The existing delivery-errors.json report gains a nested failureDetails object with the new dimensions. ConsumerStageConsumer already invokes DeliveryErrorConsumer and the manual-only independent-client command already compiles all example sources; no workflow trigger/command or native receipt changes are required. No compiler, consumer, checker or workflow ran and no report was generated. Existing native cases and other independent replay dimensions remain unchanged.
+
+Source review, git whitespace/content checks and repository metadata review are the available checks. Host callback/diagnostic costs, broader required-feature and failure-boundary audit, full runtime/concurrency/native/Windows 11 and final release acceptance remain outstanding. This follow-up does not certify repository-wide completion or unusable-VM recovery.

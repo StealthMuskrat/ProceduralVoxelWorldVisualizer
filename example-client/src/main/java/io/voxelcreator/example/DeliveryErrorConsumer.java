@@ -8,6 +8,7 @@ import java.lang.reflect.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Deferred independent engine-JAR replay of synchronous/stage Error delivery-policy parity. */
 public final class DeliveryErrorConsumer {
@@ -139,6 +140,7 @@ public final class DeliveryErrorConsumer {
             && solid == 640
             && fields == 21,
         "Unexpected delivery-error replay dimensions");
+    var failureDetails = failureDetails(compiled);
     require(
         before.equals(ProjectIO.JSON.writeValueAsString(project)),
         "Delivery errors changed authoring data");
@@ -164,8 +166,59 @@ public final class DeliveryErrorConsumer {
                 "fields",
                 fields,
                 "roots",
-                List.of(2, 4))));
+                List.of(2, 4),
+                "failureDetails",
+                failureDetails)));
     System.out.println("DELIVERY_ERROR_CONSUMER_PASS");
+  }
+
+  /** Separate public-API replay of description ownership; no internal formatter is imported. */
+  private static Map<String, Object> failureDetails(CompiledProject compiled) throws Exception {
+    var retained = new ArrayList<VoxelChunk>(); long cases = 0, reads = 0;
+    for (int root : new int[] {2, 4}) for (var order : RegionRequest.DeliveryOrder.values())
+      for (var policy : RegionRequest.FailurePolicy.values()) for (boolean acknowledged : new boolean[] {false, true})
+        for (String mode : List.of("MUTABLE", "UNREADABLE", "LONG"))
+          try (var engine = new NoiseGeneratorEngine(2, 32, 16L << 20);
+              var world = engine.openWorld(compiled, new WorldOptions(null, root, WorldOptions.CachePolicy.NO_CACHE, 0))) {
+            var messages = new AtomicInteger(); var events = new CopyOnWriteArrayList<Diagnostic>(); engine.addDiagnosticListener(events::add);
+            var failure = new RuntimeException() {
+              public String getMessage() {
+                int call = messages.incrementAndGet();
+                if (mode.equals("UNREADABLE")) throw new AssertionError("message reader");
+                return mode.equals("MUTABLE") ? "message-" + call : "雪".repeat(3000);
+              }
+            };
+            var attempted = new ArrayList<VoxelChunk>(); var positions = new HashSet<ChunkPos>();
+            var bounds = new RegionBounds(new BlockPos(-root, -root, -root), new BlockPos(2 * root - 1, -1, -1));
+            var task = world.streamRegion(new RegionRequest(bounds, policy, order, 2), chunk -> {
+              require(positions.add(chunk.position()), "Description recovery retried a consumer"); attempted.add(chunk);
+              if (attempted.size() == 1) {
+                if (acknowledged) return CompletableFuture.failedFuture(new CompletionException("host envelope", failure));
+                throw failure;
+              }
+              return CompletableFuture.completedFuture(null);
+            });
+            var summary = task.completion().get(3, TimeUnit.SECONDS); boolean continuing = policy == RegionRequest.FailurePolicy.CONTINUE;
+            require(summary.progress().equals(new TaskProgress(continuing ? "COMPLETED_WITH_ERRORS" : "CANCELLED", 0, continuing ? 2 : 0, 1, continuing ? 0 : 2)),
+                "Failure description changed delivery policy/counts");
+            require(attempted.size() == (continuing ? 3 : 1) && summary.failures().size() == 1, "Wrong description delivery/detail counts");
+            String expected = mode.equals("MUTABLE") ? "message-1" : mode.equals("UNREADABLE") ? failure.getClass().getName() : "雪".repeat(2047) + "…";
+            var detail = summary.failures().getFirst();
+            var reported = events.stream().filter(d -> d.code().equals("CHUNK_DELIVERY_FAILED")).toList();
+            require(messages.get() == 1 && detail.message().equals(expected) && reported.size() == 1 && reported.getFirst().message().equals(expected),
+                "Summary and diagnostic did not share one bounded original description");
+            require(detail.phase().equals("DELIVERY") && detail.chunk().equals(attempted.getFirst().position()), "Description lost failure ownership");
+            require(task.progress().equals(summary.progress()) && world.inFlightChunks() == 0 && failure.getSuppressed().length == 0,
+                "Failure description changed task cleanup or host failure");
+            retained.addAll(attempted); reads += messages.get(); cases++;
+          }
+    long cells = 0, solid = 0;
+    for (var chunk : retained) for (int z = 0; z < chunk.size(); z++) for (int y = 0; y < chunk.size(); y++) for (int x = 0; x < chunk.size(); x++) {
+      int wy = chunk.position().y() * chunk.size() + y, expected = wy >= -1 && wy <= 2 ? 1 : 0;
+      require(chunk.getVoxelTypeId(x, y, z) == expected, "Description recovery invalidated retained generated cells"); cells++; if (expected == 1) solid++;
+    }
+    require(cases == 48 && reads == 48 && retained.size() == 96 && cells == 3456 && solid == 960, "Unexpected description replay dimensions");
+    return Map.of("cases", cases, "messageReads", reads, "retainedChunks", retained.size(), "retainedCells", cells, "solidCells", solid, "roots", List.of(2, 4));
   }
 
   @SuppressWarnings("unchecked")

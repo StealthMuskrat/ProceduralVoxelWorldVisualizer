@@ -16,5 +16,9 @@ public record RegionSummary(
     failures = List.copyOf(failures);
   }
 
+  /**
+   * Engine-produced details share one readable description, at most 2048 UTF-16 units, with
+   * diagnostics.
+   */
   public record ChunkFailure(ChunkPos chunk, String phase, String message) {}
 }

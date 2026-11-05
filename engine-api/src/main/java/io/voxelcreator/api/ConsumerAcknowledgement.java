@@ -14,9 +14,10 @@ final class ConsumerAcknowledgement {
     } catch (Throwable failure) {
       // Keep cancellation/runtime control flow intact. Errors (or sneaky checked host faults)
       // otherwise bypass the per-chunk Exception handler, unlike the same failed stage's join.
+      // An explicit wrapper message avoids invoking host toString/getMessage during construction.
       throw failure instanceof RuntimeException runtime
           ? runtime
-          : new CompletionException(failure);
+          : new CompletionException(null, failure);
     }
   }
 

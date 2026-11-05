@@ -293,7 +293,7 @@ public final class WorldContext implements AutoCloseable {
         }
       } catch (RejectedExecutionException rejected) {
         flight.fail(rejected);
-        engine.report("QUEUE_OVERLOAD", rejected.getMessage());
+        engine.report("QUEUE_OVERLOAD", FailureDetails.describe(rejected));
       }
     } else if (!async) {
       engine.workers.remove(flight);
@@ -830,11 +830,11 @@ public final class WorldContext implements AutoCloseable {
     void recordFailure(ChunkPos pos, String phase, Throwable e) {
       failed++;
       progress = counts("RUNNING", 0);
-      Throwable cause = e instanceof CompletionException && e.getCause() != null ? e.getCause() : e;
+      String detail = FailureDetails.describe(FailureDetails.cause(e));
       if (failures.size() < 1024)
         failures.add(
-            new RegionSummary.ChunkFailure(pos, phase, String.valueOf(cause.getMessage())));
-      engine.report("CHUNK_" + phase + "_FAILED", String.valueOf(cause.getMessage()));
+            new RegionSummary.ChunkFailure(pos, phase, detail));
+      engine.report("CHUNK_" + phase + "_FAILED", detail);
     }
   }
 }
