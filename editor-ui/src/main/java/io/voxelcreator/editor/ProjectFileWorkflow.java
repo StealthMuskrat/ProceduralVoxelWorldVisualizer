@@ -48,16 +48,16 @@ final class ProjectFileWorkflow implements AutoCloseable {
   private record OpenResult(DocumentSession.PreparedOpen value, Throwable failure) {}
   private final PreviewMailbox<OpenResult> openHandoff = new PreviewMailbox<>();
   private long openDelivery;
-  private boolean openReady;
+  private boolean openReady, openAdmitted;
   private String openText;
   private record DraftResult(DocumentSession.PreparedEdit value, Throwable failure) {}
   private final PreviewMailbox<DraftResult> draftHandoff = new PreviewMailbox<>();
   private long draftDelivery;
-  private boolean draftReady;
+  private boolean draftReady, draftAdmitted;
   private java.util.List<Diagnostic> draftIssues, draftIssueValues;
   private String draftScope;
   private final OwnedPreviewMailbox<SavePayload> saveHandoff = new OwnedPreviewMailbox<>();
-  private boolean saveReady;
+  private boolean saveReady, saveAdmitted;
   private String saveText;
 
   private final class SavePayload implements AutoCloseable {
@@ -285,6 +285,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
         return null;
       });
       executor.execute(draftTask);
+      if (ownsDraft(attempt)) draftAdmitted = true;
     } catch (Throwable failure) {
       failedDraft(attempt, failure);
     }
@@ -311,20 +312,27 @@ final class ProjectFileWorkflow implements AutoCloseable {
     }
   }
 
+  private boolean ownsDraft(long attempt) {
+    return !closed && generation == attempt && phase == Phase.APPLYING;
+  }
+
   private void deliveredDraft(long attempt, long delivery) {
-    if (closed || generation != attempt || phase != Phase.APPLYING
-        || draftDelivery != delivery || draftReady) return;
-    refreshDraftApply();
-    if (generation != attempt || phase != Phase.APPLYING) return;
-    draftTask = null;
+    if (!ownsDraft(attempt) || draftDelivery != delivery || draftReady) return;
+    // A receipt does not prove posting or executor admission completed successfully.
     draftReady = true;
   }
 
   /** The modal processes Cancel/Escape before accepting a delivered draft transaction. */
   void acceptDraft() {
-    refreshDraftApply();
-    if (phase != Phase.APPLYING || !draftReady || closed) return;
     long attempt = generation;
+    refreshDraftApply();
+    if (!ownsDraft(attempt) || !draftReady || !draftAdmitted) return;
+    var completed = BackgroundFailure.completed(draftTask);
+    if (!ownsDraft(attempt) || completed == null) return;
+    if (completed.failure() != null) {
+      failedDraft(attempt, completed.failure());
+      return;
+    }
     var result = draftHandoff.take();
     try {
       if (!current()) return;
@@ -393,13 +401,18 @@ final class ProjectFileWorkflow implements AutoCloseable {
     releaseDraft();
     generation++;
     phase = Phase.DRAFT;
-    report("PROJECT_DRAFT_APPLY_FAILED", "Apply Draft failed; retry explicitly or cancel: ", failure, generation);
+    reportPreparation(
+        "PROJECT_DRAFT_APPLY_FAILED",
+        "Apply Draft failed; retry explicitly or cancel: ",
+        failure,
+        generation,
+        1024);
   }
 
   private void releaseDraft() {
     var previous = draftTask;
     draftTask = null;
-    draftReady = false;
+    draftReady = draftAdmitted = false;
     draftIssues = draftIssueValues = null;
     draftScope = null;
     draftHandoff.advance(++draftDelivery);
@@ -514,6 +527,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
                 return null;
               });
       executor.execute(openTask);
+      if (ownsOpen(attempt)) openAdmitted = true;
     } catch (Throwable failure) {
       failedOpen(attempt, failure);
     }
@@ -541,9 +555,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
 
   private void deliveredOpen(long attempt, long handed) {
     if (!ownsOpen(attempt) || openDelivery != handed || openReady) return;
-    refreshOpen();
-    if (!ownsOpen(attempt)) return;
-    // Keep observing the task until acceptance; an inline handoff can still fail afterward.
+    // A receipt does not prove posting or executor admission completed successfully.
     openReady = true;
   }
 
@@ -555,12 +567,18 @@ final class ProjectFileWorkflow implements AutoCloseable {
   void acceptOpen(String displayed, BooleanSupplier shown) {
     long attempt = generation;
     refreshOpen();
-    if (!ownsOpen(attempt) || !openReady) return;
+    if (!ownsOpen(attempt) || !openReady || !openAdmitted) return;
     if (!Objects.equals(openText, displayed)) {
       stale(attempt, "");
       return;
     }
     Objects.requireNonNull(shown);
+    var completed = BackgroundFailure.completed(openTask);
+    if (!ownsOpen(attempt) || completed == null) return;
+    if (completed.failure() != null) {
+      failedOpen(attempt, completed.failure());
+      return;
+    }
     var value = openHandoff.take();
     if (value == null) {
       failedOpen(attempt, new IllegalStateException("Project Open preparation unavailable"));
@@ -583,7 +601,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
     if (!ownsOpen(attempt)) return;
     try {
       if (!openCurrent(attempt, shown)) return;
-      // Accepted results must not interrupt a worker finishing its delivery call.
+      // The complete worker no longer needs observation during final publication.
       openTask = null;
       if (failure != null) {
         failedOpen(attempt, failure);
@@ -632,13 +650,13 @@ final class ProjectFileWorkflow implements AutoCloseable {
     // Retry remains an explicit path decision; no predecessor transition can survive failure.
     pending = null;
     phase = Phase.OPEN;
-    report("PROJECT_OPEN_FAILED", "OPEN failed: ", failure, generation, 8192);
+    reportPreparation("PROJECT_OPEN_FAILED", "OPEN failed: ", failure, generation, 8192);
   }
 
   private void releaseOpen() {
     var old = openTask;
     openTask = null;
-    openReady = false;
+    openReady = openAdmitted = false;
     openText = null;
     openHandoff.advance(++openDelivery);
     if (old != null) {
@@ -701,6 +719,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
                 return null;
               });
       executor.execute(saveTask);
+      if (ownsSave(attempt)) saveAdmitted = true;
     } catch (Throwable failure) {
       failedSave(attempt, failure);
     }
@@ -728,9 +747,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
 
   private void deliveredSave(long attempt, long handoff) {
     if (!ownsSave(attempt) || !saveHandoff.current(handoff) || saveReady) return;
-    refreshSave();
-    if (!ownsSave(attempt)) return;
-    // An inline readiness handoff can still throw; retain task observation until acceptance.
+    // A receipt does not prove posting or executor admission completed successfully.
     saveReady = true;
   }
 
@@ -742,12 +759,18 @@ final class ProjectFileWorkflow implements AutoCloseable {
   void acceptSave(String displayed, BooleanSupplier shown) {
     long attempt = generation;
     refreshSave();
-    if (!ownsSave(attempt) || !saveReady) return;
+    if (!ownsSave(attempt) || !saveReady || !saveAdmitted) return;
     if (!Objects.equals(saveText, displayed)) {
       stale(attempt, "");
       return;
     }
     Objects.requireNonNull(shown);
+    var completed = BackgroundFailure.completed(saveTask);
+    if (!ownsSave(attempt) || completed == null) return;
+    if (completed.failure() != null) {
+      failedSave(attempt, completed.failure());
+      return;
+    }
     var payload = saveHandoff.take();
     publishSave(attempt, payload, shown);
   }
@@ -765,7 +788,7 @@ final class ProjectFileWorkflow implements AutoCloseable {
     var authority = owner;
     try {
       if (!saveCurrent(attempt, shown)) return;
-      // Accepted results must not interrupt a worker finishing its delivery call.
+      // The complete worker no longer needs observation during final replacement.
       saveTask = null;
       if (payload == null) throw new IllegalStateException("Save preparation was not delivered");
       if (payload.failure != null) {
@@ -821,13 +844,13 @@ final class ProjectFileWorkflow implements AutoCloseable {
     transition = false;
     phase = Phase.SAVE;
     owner = new ProjectFileOwner(state);
-    report("PROJECT_SAVE_FAILED", "SAVE failed: ", failure, generation, 8192);
+    reportPreparation("PROJECT_SAVE_FAILED", "SAVE failed: ", failure, generation, 8192);
   }
 
   private void releaseSave() {
     var old = saveTask;
     saveTask = null;
-    saveReady = false;
+    saveReady = saveAdmitted = false;
     saveText = null;
     saveHandoff.invalidate();
     if (old != null) {
@@ -939,6 +962,15 @@ final class ProjectFileWorkflow implements AutoCloseable {
 
   private void report(String code, String prefix, Throwable failure, long attempt) {
     report(code, prefix, failure, attempt, 1024);
+  }
+
+  /** Preparation feedback cannot follow a message getter into a replacement/closed request. */
+  private void reportPreparation(
+      String code, String prefix, Throwable failure, long attempt, int limit) {
+    String message = StatusBarText.clip(prefix + BackgroundFailure.describe(failure), limit);
+    if (closed || generation != attempt) return;
+    error = message;
+    state.error(code, EditorEvents.Subsystem.PROJECT, message);
   }
 
   private void report(String code, String prefix, Throwable failure, long attempt, int limit) {

@@ -59,6 +59,7 @@ class BackgroundTransitionDraftTest {
         assertNotSame(owner, called.get()); completion.run(); completion.run();
         assertEquals(Phase.APPLYING, files.phase()); assertSame(draft, s.draft);
         assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
+        worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
         files.acceptDraft(); files.acceptDraft(); completion.run();
         assertEquals(Phase.GUARD, files.phase()); assertEquals(revision + 1, s.revision);
         assertEquals(.625, s.project().noise2D.getFirst().algorithm.parameters.get("value"));

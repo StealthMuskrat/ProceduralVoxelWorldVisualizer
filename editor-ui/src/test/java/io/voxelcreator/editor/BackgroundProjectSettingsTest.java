@@ -104,6 +104,7 @@ class BackgroundProjectSettingsTest {
       assertFalse(s.closed());
       assertTrue(s.applying());
       assertEquals(5, state.project().project.seed);
+      worker.submit(() -> {}).get(10, TimeUnit.SECONDS);
       s.acceptPrepared(shown(s));
       assertTrue(s.closed());
       assertEquals(17, state.project().project.seed);

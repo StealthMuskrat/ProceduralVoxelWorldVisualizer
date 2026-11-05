@@ -30,7 +30,7 @@ final class ProjectSettingsSession {
   private record Prepared(DocumentSession.PreparedEdit value, Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery;
-  private boolean ready;
+  private boolean ready, admitted;
   private Map<String, String> workValues;
   private boolean admitting;
   private long workVersion;
@@ -286,6 +286,7 @@ final class ProjectSettingsSession {
                 return null;
               });
       executor.execute(task);
+      if (owns(token)) admitted = true;
     } catch (Throwable failure) {
       failWork(token, failure);
     } finally {
@@ -299,23 +300,29 @@ final class ProjectSettingsSession {
 
   private void delivered(Object token, long handed) {
     if (!owns(token) || delivery != handed || ready) return;
-    refresh();
-    if (!owns(token)) return;
-    task = null;
+    // Readiness is only a receipt; retain full worker and executor observation until acceptance.
     ready = true;
   }
 
   /** The panel decides Cancel/Reload and verifies exact displayed fields before publication. */
   boolean acceptPrepared(Map<String, String> displayed) {
-    refresh();
-    if (!ready || closed) return false;
     Object token = workToken;
+    refresh();
+    if (!owns(token) || !ready || !admitted || admitting) return false;
     try {
-      if (!workValues.equals(text) || !workValues.equals(displayed))
+      var values = workValues;
+      if (!values.equals(text) || !values.equals(displayed))
         throw new IllegalStateException("Displayed Project Settings changed; review the fields and Apply again");
+      if (!owns(token) || workValues != values) return false;
+      var completion = BackgroundFailure.completed(task);
+      if (!owns(token) || workValues != values || completion == null) return false;
+      if (completion.failure() != null) {
+        failWork(token, completion.failure());
+        return false;
+      }
       var value = handoff.take();
       if (value == null) throw new IllegalStateException("Project Settings preparation unavailable");
-      publish(token, workValues, value.value(), value.failure());
+      publish(token, values, value.value(), value.failure());
       return closed;
     } catch (Throwable failure) {
       failWork(token, failure);
@@ -394,16 +401,17 @@ final class ProjectSettingsSession {
 
   void refresh() {
     if ((task == null && !ready) || closed) return;
+    Object token = workToken;
     try {
       if (!current(editor) || !feedbackCurrent()) {
         staleWork();
         return;
       }
       var completion = BackgroundFailure.completed(task);
-      if (completion != null && completion.failure() != null)
-        failWork(workToken, completion.failure());
+      if (owns(token) && completion != null && completion.failure() != null)
+        failWork(token, completion.failure());
     } catch (Throwable failure) {
-      failWork(workToken, failure);
+      failWork(token, failure);
     }
   }
 
@@ -423,9 +431,12 @@ final class ProjectSettingsSession {
   private void failWork(Object token, Throwable failure) {
     if (token != workToken || closed) return;
     retireWork();
+    Object failed = workToken;
+    String detail = BackgroundFailure.describe(failure);
+    if (closed || failed != workToken) return;
     applyIssues = List.of();
     issueCount = 0;
-    applyFailure = BackgroundFailure.describe(failure);
+    applyFailure = detail;
     progress =
         "Project Settings Apply failed. The text is preserved; Apply again to retry or Cancel.";
     try {
@@ -440,7 +451,7 @@ final class ProjectSettingsSession {
     workToken = new Object();
     workVersion++;
     task = null;
-    ready = false;
+    ready = admitted = false;
     workValues = null;
     handoff.advance(++delivery);
     admitting = false;
@@ -453,8 +464,8 @@ final class ProjectSettingsSession {
   }
 
   void cancel() {
-    retireWork();
     closed = true;
+    retireWork();
     handoff.close();
     applyIssues = List.of();
     issueCount = 0;
