@@ -98,13 +98,14 @@ class BackgroundNavigationTest {
     return nav;
   }
 
-  static void deliver(Workers worker, Queue<Runnable> ui) {
+  static void deliver(Workers worker, Queue<Runnable> ui, Runnable accept) {
     worker.run();
     ui.remove().run();
+    accept.run();
   }
 
   @Test
-  void actualWorkerValidationWaitsForOwnerDeliveryThenNavigatesWithOneUndoRedo() throws Exception {
+  void actualWorkerValidationWaitsForOwnerAcceptanceThenNavigatesWithOneUndoRedo() throws Exception {
     try (var s = state();
         var executor = Executors.newSingleThreadExecutor()) {
       var ui = new LinkedBlockingQueue<Runnable>();
@@ -128,6 +129,10 @@ class BackgroundNavigationTest {
       assertSame(draft, s.draft);
       assertEquals(.125, s.project().noise2D.getFirst().algorithm.parameters.get("value"));
       callback.run();
+      assertTrue(nav.pending());
+      assertSame(draft, s.draft);
+      assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
+      nav.acceptPrepared();
       assertFalse(nav.pending());
       assertEquals(destination.resource(), s.selected);
       assertEquals(List.of(new Completion(destination, Result.NAVIGATED, true)), completed);
@@ -174,7 +179,7 @@ class BackgroundNavigationTest {
       s.document.setValidator(p -> diagnostics);
       var nav = nav(s, worker, ui, done);
       nav.decide(Decision.APPLY);
-      deliver(worker, ui);
+      deliver(worker, ui, nav::acceptPrepared);
       assertTrue(nav.pending());
       assertFalse(nav.preparing());
       assertEquals(1, s.issues.size());
@@ -183,7 +188,7 @@ class BackgroundNavigationTest {
       assertTrue(done.isEmpty());
       s.document.setValidator(NoiseCompiler::validate);
       nav.decide(Decision.APPLY);
-      deliver(worker, ui);
+      deliver(worker, ui, nav::acceptPrepared);
       assertFalse(nav.pending());
       assertEquals(1, done.size());
       assertTrue(done.getFirst().applied());
@@ -202,7 +207,7 @@ class BackgroundNavigationTest {
       assertEquals(Result.NEEDS_DECISION, nav.decide(Decision.DISCARD));
       assertEquals(1, worker.tasks.size());
       assertEquals(version, nav.workVersion());
-      deliver(worker, ui);
+      deliver(worker, ui, nav::acceptPrepared);
       assertFalse(nav.pending());
     }
   }
@@ -225,6 +230,7 @@ class BackgroundNavigationTest {
         var values = ProjectIO.JSON.valueToTree(s.project());
         var draft = s.draft;
         ui.remove().run();
+        nav.acceptPrepared();
         assertFalse(nav.pending());
         assertSame(draft, s.draft);
         assertEquals(values, ProjectIO.JSON.valueToTree(s.project()));
@@ -253,6 +259,7 @@ class BackgroundNavigationTest {
         else assertTrue(s.document.open(path).isEmpty());
         var values = ProjectIO.JSON.valueToTree(s.project());
         ui.remove().run();
+        nav.acceptPrepared();
         assertFalse(nav.pending());
         assertEquals(values, ProjectIO.JSON.valueToTree(s.project()));
       }
@@ -276,6 +283,7 @@ class BackgroundNavigationTest {
         }
         var values = ProjectIO.JSON.valueToTree(s.project());
         ui.remove().run();
+        nav.acceptPrepared();
         assertEquals(values, ProjectIO.JSON.valueToTree(s.project()));
         assertTrue(done.isEmpty());
         assertEquals(mode == 2, nav.pending());
@@ -314,7 +322,7 @@ class BackgroundNavigationTest {
         if (mode == 2) worker.run();
         fail.set(false);
         nav.decide(Decision.APPLY);
-        deliver(worker, ui);
+        deliver(worker, ui, nav::acceptPrepared);
         assertFalse(nav.pending());
         assertEquals(.625, s.project().noise2D.getFirst().algorithm.parameters.get("value"));
       }
@@ -332,7 +340,7 @@ class BackgroundNavigationTest {
           });
       var nav = nav(s, worker, ui, new ArrayList<>());
       nav.decide(Decision.APPLY);
-      deliver(worker, ui);
+      deliver(worker, ui, nav::acceptPrepared);
       assertTrue(nav.pending());
       assertFalse(nav.preparing());
       assertSame(draft, s.draft);
@@ -354,6 +362,7 @@ class BackgroundNavigationTest {
       var newer = List.of(Diagnostic.error("NEWER", "/fixture", "New result"));
       s.issues = newer;
       ui.remove().run();
+      nav.acceptPrepared();
       assertSame(newer, s.issues);
       assertFalse(nav.pending());
       assertEquals(.125, s.project().noise2D.getFirst().algorithm.parameters.get("value"));
@@ -379,7 +388,7 @@ class BackgroundNavigationTest {
               return true;
             },
             () -> true);
-        if (mode > 0) deliver(worker, ui);
+        if (mode > 0) deliver(worker, ui, nav::acceptPrepared);
         else assertTrue(worker.tasks.isEmpty());
         assertEquals(
             mode == 2 ? .625 : .125,
@@ -406,7 +415,7 @@ class BackgroundNavigationTest {
               if (action == 2) ((Noise) s.draft).id = "new-private";
               return action == 2;
             });
-        deliver(worker, ui);
+        deliver(worker, ui, nav::acceptPrepared);
         assertFalse(nav.pending());
         assertEquals(source, s.selected);
         assertEquals(revision + 1, s.revision);
@@ -434,7 +443,7 @@ class BackgroundNavigationTest {
             assertEquals(Result.NEEDS_DECISION, nav.request(destination));
             return true;
           });
-      deliver(worker, ui);
+      deliver(worker, ui, nav::acceptPrepared);
       assertTrue(nav.pending());
       assertEquals(destination, nav.target());
       assertTrue(done.isEmpty());
@@ -460,7 +469,7 @@ class BackgroundNavigationTest {
               });
       nav.request(target(s, 1));
       nav.decide(Decision.APPLY);
-      deliver(worker, ui);
+      deliver(worker, ui, nav::acceptPrepared);
       assertFalse(nav.pending());
       assertEquals(.125, old.sample(-3, 2));
       assertEquals(.625, new CompiledProject(s.project()).noise2D("source", 0).sample(-3, 2));
@@ -469,7 +478,7 @@ class BackgroundNavigationTest {
   }
 
   @Test
-  void guardedSourceCompletionInvokesItsCurrentRevealerOnceAfterDelivery() {
+  void guardedSourceCompletionInvokesItsCurrentRevealerOnceAfterAcceptance() {
     try (var s = state();
         var properties = new PropertyPanel(s)) {
       var worker = new Workers();
@@ -489,7 +498,7 @@ class BackgroundNavigationTest {
       guard.decide(Decision.APPLY);
       assertTrue(guard.preparing());
       assertEquals(0, reveals.get());
-      deliver(worker, ui);
+      deliver(worker, ui, guard::acceptPrepared);
       assertEquals(1, reveals.get());
       assertFalse(guard.pending());
       guard.close();
@@ -508,7 +517,7 @@ class BackgroundNavigationTest {
         assertTrue(properties.searchBlocked());
         assertEquals(Result.NEEDS_DECISION, properties.decideReferenceNavigation(Decision.APPLY));
         assertEquals(source, s.selected);
-        deliver(worker, ui);
+        deliver(worker, ui, properties::probeAcceptReferenceNavigation);
         assertEquals(destination, s.selected);
         assertFalse(properties.searchBlocked());
         assertEquals(.625, s.project().noise2D.getFirst().algorithm.parameters.get("value"));

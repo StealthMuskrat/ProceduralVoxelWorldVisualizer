@@ -7,6 +7,23 @@ import org.junit.jupiter.api.Test;
 
 class HelpCatalogTest {
   @Test
+  void guardedApplyHelpExplainsReadyCancellationAndOneOriginalAction() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var topic = catalog.topic("help.ready-navigation-apply");
+    var text = topic.copyText(catalog);
+    assertTrue(text.contains("Cancel or Escape before accepting a ready result"));
+    assertTrue(text.contains("does not require another Apply click"));
+    assertTrue(text.contains("Only the work shown by that dialog may complete"));
+    assertTrue(text.contains("later reveal failure cannot replay it"));
+    assertTrue(catalog.search("navigation prepared cancel").contains(topic));
+    assertTrue(catalog.topic("help.find").related().contains(topic.id()));
+    assertTrue(catalog.topic("help.resource-session").related().contains(topic.id()));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void transitionDraftHelpExplainsReadyCancellationAndSeparateSaveDecision() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

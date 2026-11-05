@@ -17,7 +17,7 @@ public final class BackgroundBrowserSelectionConsumer {
     int snapshots = 0, fields = 0, cells = 0;
     for (String mode :
         List.of(
-            "single", "range", "empty", "manager", "cancel", "escape", "retry", "raw", "close")) {
+            "single", "range", "empty", "manager", "cancel", "escape", "retry", "raw", "close", "ready-cancel", "ready-escape")) {
       var directory = out.resolve(mode);
       var before = new ProjectLoader().load(directory.resolve("before.json"));
       require(before.success(), "Browser baseline rejected");
@@ -49,7 +49,7 @@ public final class BackgroundBrowserSelectionConsumer {
         require(Arrays.equals(bytes, Files.readAllBytes(file)), "Browser replay wrote saved bytes");
       }
     }
-    require(snapshots == 28 && fields == 1764 && cells == 8232, "Browser replay dimensions");
+    require(snapshots == 32 && fields == 2016 && cells == 9408, "Browser replay dimensions");
     Files.writeString(
         out.resolve("engine-replay.json"),
         ProjectIO.JSON.writeValueAsString(
@@ -65,7 +65,7 @@ public final class BackgroundBrowserSelectionConsumer {
                 "roots",
                 List.of(2, 4))));
     System.out.println(
-        "BACKGROUND_BROWSER_SELECTION_ENGINE_ONLY_PASS 28 saved states / 1764 fields / 8232 EMPTY"
+        "BACKGROUND_BROWSER_SELECTION_ENGINE_ONLY_PASS 32 saved states / 2016 fields / 9408 EMPTY"
             + " cells");
   }
 

@@ -2252,6 +2252,10 @@ public final class PropertyPanel implements AutoCloseable {
         this::decideReferenceNavigation);
   }
 
+  void probeAcceptReferenceNavigation() {
+    referenceNavigation.acceptPrepared();
+  }
+
   SearchNavigation.Result decideReferenceNavigation(SearchNavigation.Decision decision) {
     if (!referenceNavigation.pending()) return SearchNavigation.Result.UNAVAILABLE;
     var target = referenceNavigation.target();

@@ -18,8 +18,8 @@ public final class BackgroundNavigationConsumer {
     for (String route : List.of("source", "find", "reference")) {
       for (String mode :
           route.equals("source")
-              ? List.of("success", "cancel", "escape", "retry", "stale", "after-stale", "close")
-              : List.of("success", "cancel")) {
+              ? List.of("success", "cancel", "escape", "retry", "stale", "after-stale", "close", "ready-cancel", "ready-escape")
+              : List.of("success", "cancel", "ready-cancel", "ready-escape")) {
         var directory = out.resolve(route + "-" + mode);
         var before = new ProjectLoader().load(directory.resolve("before.json"));
         require(before.success(), "Navigation baseline rejected");
@@ -51,7 +51,7 @@ public final class BackgroundNavigationConsumer {
         }
       }
     }
-    require(snapshots == 32 && fields == 1344 && cells == 9408, "Navigation replay dimensions");
+    require(snapshots == 44 && fields == 1848 && cells == 12936, "Navigation replay dimensions");
     Files.writeString(
         out.resolve("engine-replay.json"),
         ProjectIO.JSON.writeValueAsString(
@@ -67,7 +67,7 @@ public final class BackgroundNavigationConsumer {
                 "roots",
                 List.of(2, 4))));
     System.out.println(
-        "BACKGROUND_NAVIGATION_ENGINE_ONLY_PASS 32 saved states / 1344 fields / 9408 EMPTY cells");
+        "BACKGROUND_NAVIGATION_ENGINE_ONLY_PASS 44 saved states / 1848 fields / 12936 EMPTY cells");
   }
 
   private static int[] observe(ProjectData project, double expected) {

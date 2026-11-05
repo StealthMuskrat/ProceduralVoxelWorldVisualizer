@@ -310,6 +310,19 @@ final class HelpDefinitions {
                   + " Save Preferences persists active preferences only and never applies"
                   + " private scale, theme or resource input."),
           new Guide(
+              "help.ready-navigation-apply",
+              "Cancelling prepared navigation and resource selection",
+              "Source links, Find, property references and browser selections keep Apply pending"
+                  + " after background preparation is delivered. The decision dialog processes"
+                  + " Cancel or Escape before accepting a ready result on that frame. Cancellation"
+                  + " keeps the source selection, committed project and private draft. A ready"
+                  + " result does not require another Apply click; it completes from the original"
+                  + " action when current. Only the work shown by that dialog may complete. Newer"
+                  + " raw input, active values, validation results or source ownership retire old"
+                  + " authority. Failures retain explicit retry. Accepted Apply commits one Undo"
+                  + " step before current navigation or selection; later reveal failure cannot"
+                  + " replay it. Project Save and user preferences remain separate."),
+          new Guide(
               "help.transition-draft-apply",
               "Apply Properties before New, Open or Exit",
               "New, Open and Exit first protect unapplied Properties input. Apply Draft prepares"
@@ -591,7 +604,7 @@ final class HelpDefinitions {
               List.of("noise", "layers", "help.project-save", "diagnostics")),
           Map.entry(
               "help.resource-session",
-              List.of("save", "help.project-open", "help.project-save", "help.resource-actions")),
+              List.of("save", "help.project-open", "help.project-save", "help.resource-actions", "help.ready-navigation-apply")),
           Map.entry(
               "help.resource-actions",
               List.of(
@@ -649,7 +662,8 @@ final class HelpDefinitions {
           Map.entry(
               "help.noise-edits",
               List.of("noise", "processing", "help.properties-apply", "diagnostics")),
-          Map.entry("help.find", List.of("diagnostics", "noise", "help.trace", "help.pins")),
+          Map.entry("help.find", List.of("diagnostics", "noise", "help.trace", "help.pins", "help.ready-navigation-apply")),
+          Map.entry("help.ready-navigation-apply", List.of("help.find", "help.resource-session", "help.properties-apply")),
           Map.entry(
               "help.pins",
               List.of("noise", "processing", "help.find", "save", "help.scalar-readouts")),

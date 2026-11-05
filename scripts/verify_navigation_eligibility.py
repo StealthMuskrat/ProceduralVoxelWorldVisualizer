@@ -62,8 +62,8 @@ validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.Fo
 background_report = json.loads((background / 'background-navigation.json').read_text(encoding='utf-8'))
 assert background_report['formatVersion'] == 1 and background_report['physicalInputVerified'] is False
 routes = [(route, mode) for route in ('source', 'find', 'reference')
-          for mode in (['success', 'cancel', 'escape', 'retry', 'stale', 'after-stale', 'close']
-                       if route == 'source' else ['success', 'cancel'])]
+          for mode in (['success', 'cancel', 'escape', 'retry', 'stale', 'after-stale', 'close', 'ready-cancel', 'ready-escape']
+                       if route == 'source' else ['success', 'cancel', 'ready-cancel', 'ready-escape'])]
 assert [(case['route'], case['mode']) for case in background_report['cases']] == routes
 snapshots = 0
 for case in background_report['cases']:
@@ -72,6 +72,7 @@ for case in background_report['cases']:
     assert case['applied'] is applied and case['oneUndoRedo'] is applied
     assert case['navigated'] is (applied and mode != 'after-stale')
     assert case['responsiveFrames'] == 12
+    assert case['readyFrameCancellation'] is mode.startswith('ready-')
     assert all(case[key] is True for key in ('privateUntilPublication', 'preferencesRetained', 'originalBytesRetained'))
     directory = background / (route + '-' + mode)
     baseline = json.loads((directory / 'before.json').read_text(encoding='utf-8'))
@@ -87,6 +88,6 @@ for case in background_report['cases']:
         expected_project['noise2D'][0]['algorithm']['parameters']['value'] = .625 if applied and name in ('after', 'redone') else .125
         assert saved == expected_project
         snapshots += 1
-assert snapshots == 32
-assert json.loads((background / 'engine-replay.json').read_text(encoding='utf-8')) == dict(formatVersion=1, snapshots=32, fields=1344, cells=9408, roots=[2, 4])
+assert snapshots == 44
+assert json.loads((background / 'engine-replay.json').read_text(encoding='utf-8')) == dict(formatVersion=1, snapshots=44, fields=1848, cells=12936, roots=[2, 4])
 print('Find/reference eligibility and background source/Find/reference Apply, exact saved states, Undo/Redo and independent engine replay PASS')

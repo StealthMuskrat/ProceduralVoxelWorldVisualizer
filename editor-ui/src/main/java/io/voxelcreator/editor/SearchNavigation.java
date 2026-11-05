@@ -38,6 +38,11 @@ public final class SearchNavigation implements AutoCloseable {
   private final Consumer<Completion> completion;
   private Object workToken = new Object();
   private FutureTask<Void> task;
+  private record Prepared(DocumentSession.PreparedEdit value, Throwable failure) {}
+  private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
+  private long delivery;
+  private boolean ready;
+  private BooleanSupplier workBefore, workAfter;
   private boolean admitting, disposed;
   private long workVersion;
   private String progress = "";
@@ -71,7 +76,7 @@ public final class SearchNavigation implements AutoCloseable {
 
   boolean preparing() {
     refresh();
-    return task != null || admitting;
+    return task != null || ready || admitting;
   }
 
   long workVersion() {
@@ -135,7 +140,7 @@ public final class SearchNavigation implements AutoCloseable {
       clear();
       return Result.CANCELLED;
     }
-    if (task != null || admitting) return Result.NEEDS_DECISION;
+    if (task != null || ready || admitting) return Result.NEEDS_DECISION;
     long owner = version;
     Object gate = workToken;
     if (executor != null) admitting = true;
@@ -234,6 +239,10 @@ public final class SearchNavigation implements AutoCloseable {
               + " active. Cancel or Escape keeps the draft and stays at the source.";
       var target = pending;
       long intent = version;
+      workBefore = beforeDecision;
+      workAfter = afterApply;
+      long handed = ++delivery;
+      handoff.advance(handed);
       task =
           new FutureTask<>(
               () -> {
@@ -244,12 +253,8 @@ public final class SearchNavigation implements AutoCloseable {
                 } catch (Throwable rejected) {
                   failure = rejected;
                 }
-                var value = prepared;
-                var rejected = failure;
-                ui.accept(
-                    () ->
-                        publish(
-                            token, intent, target, value, rejected, beforeDecision, afterApply));
+                if (!handoff.publish(handed, new Prepared(prepared, failure))) return null;
+                ui.accept(() -> delivered(token, intent, target, handed));
                 return null;
               });
       executor.execute(task);
@@ -267,7 +272,27 @@ public final class SearchNavigation implements AutoCloseable {
         && token == workToken
         && version == intent
         && pending == target
-        && task != null;
+        && (task != null || ready);
+  }
+
+  private void delivered(Object token, long intent, EditorEvents.Target target, long handed) {
+    if (!owns(token, intent, target) || delivery != handed || ready) return;
+    refresh();
+    if (!owns(token, intent, target)) return;
+    task = null;
+    ready = true;
+  }
+
+  /** Owner calls only after its modal processes this frame's Cancel/Escape controls. */
+  void acceptPrepared() {
+    refresh();
+    if (!ready || disposed || pending == null) return;
+    var value = handoff.take();
+    if (value == null) {
+      fail(workToken, new IllegalStateException("Navigation Apply preparation unavailable"));
+      return;
+    }
+    publish(workToken, version, pending, value.value(), value.failure(), workBefore, workAfter);
   }
 
   private boolean feedbackCurrent() {
@@ -357,7 +382,7 @@ public final class SearchNavigation implements AutoCloseable {
   }
 
   private void refresh() {
-    if (task == null || disposed) return;
+    if ((task == null && !ready) || disposed) return;
     try {
       if (!workOwner.current(state) || !feedbackCurrent()) {
         stale(pending);
@@ -393,6 +418,9 @@ public final class SearchNavigation implements AutoCloseable {
     workToken = new Object();
     workVersion++;
     task = null;
+    ready = false;
+    handoff.advance(++delivery);
+    workBefore = workAfter = null;
     admitting = false;
     workOwner = null;
     sharedIssues = sharedValues = null;
@@ -407,5 +435,6 @@ public final class SearchNavigation implements AutoCloseable {
   public void close() {
     disposed = true;
     clear();
+    handoff.close();
   }
 }

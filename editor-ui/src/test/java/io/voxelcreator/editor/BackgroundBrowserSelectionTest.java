@@ -68,13 +68,14 @@ class BackgroundBrowserSelectionTest {
     return new ResourceSelectionSession(s, () -> {}, worker, ui::add, () -> false, done::add);
   }
 
-  static void deliver(Workers worker, Queue<Runnable> ui) {
+  static void deliver(Workers worker, Queue<Runnable> ui, ResourceSelectionSession selection) {
     worker.run();
     ui.remove().run();
+    selection.acceptPrepared();
   }
 
   @Test
-  void actualWorkerValidationWaitsForOwnerDeliveryBeforeOneEditAndSelection() throws Exception {
+  void actualWorkerValidationWaitsForOwnerAcceptanceBeforeOneEditAndSelection() throws Exception {
     try (var s = state();
         var worker = Executors.newSingleThreadExecutor()) {
       var ui = new LinkedBlockingQueue<Runnable>();
@@ -101,6 +102,10 @@ class BackgroundBrowserSelectionTest {
       assertEquals(source, s.selected);
       assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
       callback.run();
+      assertTrue(selection.pending());
+      assertSame(draft, s.draft);
+      assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
+      selection.acceptPrepared();
       assertEquals(List.of(SELECTED), done);
       assertFalse(selection.pending());
       assertEquals(target, s.selected);
@@ -136,7 +141,7 @@ class BackgroundBrowserSelectionTest {
         ids.clear();
         selection.decide(APPLY);
         assertEquals(id(s, 0), s.selected);
-        deliver(worker, ui);
+        deliver(worker, ui, selection);
         assertEquals(active, s.selected);
         assertEquals(expected, List.copyOf(s.multiSelection));
         assertEquals(.625, s.project().noise2D.getFirst().algorithm.parameters.get("value"));
@@ -153,7 +158,7 @@ class BackgroundBrowserSelectionTest {
       var selection = session(s, worker, ui, new ArrayList<>());
       assertEquals(NEEDS_DECISION, selection.click(id(s, 2), false));
       selection.decide(APPLY);
-      deliver(worker, ui);
+      deliver(worker, ui, selection);
       assertEquals(id(s, 2), s.selected);
       assertEquals(.625, s.project().noise2D.getFirst().algorithm.parameters.get("value"));
       assertEquals(.125, s.project().noise2D.get(1).algorithm.parameters.get("value"));
@@ -192,7 +197,7 @@ class BackgroundBrowserSelectionTest {
         var selection = session(s, worker, ui, new ArrayList<>());
         selection.click(id(s, 1), false);
         selection.decide(APPLY);
-        deliver(worker, ui);
+        deliver(worker, ui, selection);
         assertTrue(selection.pending());
         assertFalse(selection.preparing());
         issues.clear();
@@ -202,7 +207,7 @@ class BackgroundBrowserSelectionTest {
         if (discard) assertEquals(SELECTED, selection.decide(DISCARD));
         else {
           selection.decide(APPLY);
-          deliver(worker, ui);
+          deliver(worker, ui, selection);
         }
         assertEquals(id(s, 1), s.selected);
         assertEquals(
@@ -225,7 +230,7 @@ class BackgroundBrowserSelectionTest {
       assertEquals(UNAVAILABLE, selection.click(id(s, 2), false));
       assertEquals(1, worker.tasks.size());
       assertEquals(work, selection.workVersion());
-      deliver(worker, ui);
+      deliver(worker, ui, selection);
       assertEquals(id(s, 1), s.selected);
     }
   }
@@ -250,6 +255,7 @@ class BackgroundBrowserSelectionTest {
         var draft = s.draft;
         var ids = List.copyOf(s.multiSelection);
         ui.remove().run();
+        selection.acceptPrepared();
         assertEquals(List.of(UNAVAILABLE), done);
         assertSame(draft, s.draft);
         assertEquals(ids, List.copyOf(s.multiSelection));
@@ -279,6 +285,7 @@ class BackgroundBrowserSelectionTest {
         var values = ProjectIO.JSON.valueToTree(s.project());
         var draft = s.draft;
         ui.remove().run();
+        selection.acceptPrepared();
         assertFalse(selection.pending());
         assertSame(draft, s.draft);
         assertEquals(values, ProjectIO.JSON.valueToTree(s.project()));
@@ -303,6 +310,7 @@ class BackgroundBrowserSelectionTest {
           selection.click(id(s, 2), false);
         }
         ui.remove().run();
+        selection.acceptPrepared();
         assertTrue(done.isEmpty());
         assertEquals(id(s, 0), s.selected);
         assertEquals(mode == 2, selection.pending());
@@ -341,7 +349,7 @@ class BackgroundBrowserSelectionTest {
                 value -> {});
         selection.click(id(s, 1), false);
         selection.decide(APPLY);
-        if (mode == 0) deliver(worker, ui);
+        if (mode == 0) deliver(worker, ui, selection);
         else if (mode == 2) worker.run();
         else if (mode == 3) ((Future<?>) worker.tasks.getFirst()).cancel(false);
         assertFalse(selection.preparing());
@@ -351,7 +359,7 @@ class BackgroundBrowserSelectionTest {
         if (mode == 3) worker.run();
         fail.set(false);
         selection.decide(APPLY);
-        deliver(worker, ui);
+        deliver(worker, ui, selection);
         assertEquals(id(s, 1), s.selected);
       }
   }
@@ -368,6 +376,7 @@ class BackgroundBrowserSelectionTest {
       var newer = List.of(Diagnostic.error("NEWER", "/fixture", "New result"));
       s.issues = newer;
       ui.remove().run();
+      selection.acceptPrepared();
       assertSame(newer, s.issues);
       assertEquals(id(s, 0), s.selected);
       assertFalse(selection.pending());
@@ -402,7 +411,7 @@ class BackgroundBrowserSelectionTest {
         holder[0] = selection;
         selection.click(id(s, 1), false);
         selection.decide(APPLY);
-        if (mode == 1 || mode == 2) deliver(worker, ui);
+        if (mode == 1 || mode == 2) deliver(worker, ui, selection);
         else assertTrue(worker.tasks.isEmpty());
         assertEquals(mode == 2 ? id(s, 1) : id(s, 0), s.selected);
         if (mode == 3) {
@@ -438,7 +447,7 @@ class BackgroundBrowserSelectionTest {
       var selection = session(s, worker, ui, done);
       selection.click(target, false);
       selection.decide(APPLY);
-      deliver(worker, ui);
+      deliver(worker, ui, selection);
       assertEquals(List.of(UNAVAILABLE), done);
       assertFalse(selection.pending());
       assertEquals(layer.uuid, s.selected);
@@ -473,7 +482,7 @@ class BackgroundBrowserSelectionTest {
       holder[0] = selection;
       selection.click(id(s, 1), false);
       selection.decide(APPLY);
-      deliver(worker, ui);
+      deliver(worker, ui, selection);
       assertEquals(List.of(UNAVAILABLE), done);
       assertEquals(id(s, 1), s.selected);
       assertEquals(revision + 1, s.revision);
@@ -500,7 +509,7 @@ class BackgroundBrowserSelectionTest {
       var selection = session(s, worker, ui, new ArrayList<>());
       selection.click(id(s, 1), false);
       selection.decide(APPLY);
-      deliver(worker, ui);
+      deliver(worker, ui, selection);
       assertEquals(id(s, 1), s.selected);
       assertTrue(s.document.canRedo());
       assertEquals(bytes, s.document.historyBytes());

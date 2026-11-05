@@ -142,6 +142,10 @@ public final class GuardedNavigation implements AutoCloseable {
           "Source link became stale. The private draft is preserved; request a current link.";
   }
 
+  void acceptPrepared() {
+    if (!closed) navigation.acceptPrepared();
+  }
+
   boolean preparing() {
     return navigation.preparing();
   }

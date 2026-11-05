@@ -753,6 +753,8 @@ public final class ResourcePanel implements AutoCloseable {
       selectionGuard.open(title);
       selectionPrompt = false;
     }
+    boolean preparing = selection.preparing();
+    long work = selection.workVersion();
     selectionGuard.draw(
         title,
         () -> {
@@ -784,8 +786,12 @@ public final class ResourcePanel implements AutoCloseable {
                   : SearchNavigation.Result.UNAVAILABLE;
         },
         "Apply did not complete. Cancel to correct the draft, or choose Discard.",
-        selection.preparing(),
-        selection.workVersion());
+        preparing,
+        work,
+        () -> {
+          if (selection.workVersion() == work) selection.acceptPrepared();
+          return !selection.pending();
+        });
   }
 
   ResourceSelectionSession.Result decideSelection(SearchNavigation.Decision decision) {

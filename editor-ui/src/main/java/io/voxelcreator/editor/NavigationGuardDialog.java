@@ -3,6 +3,7 @@ package io.voxelcreator.editor;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import java.util.*;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
 /**
@@ -89,7 +90,11 @@ final class NavigationGuardDialog {
         decide,
         "Apply did not complete. Review the private draft or choose Discard/Cancel.",
         preparing,
-        work);
+        work,
+        () -> {
+          if (navigation.workVersion() == work) navigation.acceptPrepared();
+          return !navigation.pending();
+        });
   }
 
   void draw(
@@ -99,8 +104,19 @@ final class NavigationGuardDialog {
       String rejected,
       boolean preparing,
       long work) {
-    draw(
-        title, explanation, decide, rejected, preparing, work, "APPLY", "Preparing Apply...", true);
+    draw(title, explanation, decide, rejected, preparing, work, () -> false);
+  }
+
+  void draw(
+      String title,
+      Runnable explanation,
+      Function<SearchNavigation.Decision, SearchNavigation.Result> decide,
+      String rejected,
+      boolean preparing,
+      long work,
+      BooleanSupplier finishReady) {
+    draw(title, explanation, decide, rejected, preparing, work,
+        "APPLY", "Preparing Apply...", true, finishReady);
   }
 
   void draw(
@@ -113,6 +129,21 @@ final class NavigationGuardDialog {
       String applyLabel,
       String preparingLabel,
       boolean allowDiscard) {
+    draw(title, explanation, decide, rejected, preparing, work,
+        applyLabel, preparingLabel, allowDiscard, () -> false);
+  }
+
+  private void draw(
+      String title,
+      Runnable explanation,
+      Function<SearchNavigation.Decision, SearchNavigation.Result> decide,
+      String rejected,
+      boolean preparing,
+      long work,
+      String applyLabel,
+      String preparingLabel,
+      boolean allowDiscard,
+      BooleanSupplier finishReady) {
     int frame = ImGui.getFrameCount();
     if (drawnFrame == frame) return;
     drawnFrame = frame;
@@ -177,7 +208,13 @@ final class NavigationGuardDialog {
         revealMessage = true;
       } else {
         close(title);
+        return;
       }
+    }
+    // Delivery only marks readiness. Cancellation and reentrant dialog ownership win first.
+    if (decisions.owns(ticket)) {
+      boolean finished = finishReady.getAsBoolean();
+      if (finished && decisions.owns(ticket)) close(title);
     }
   }
 

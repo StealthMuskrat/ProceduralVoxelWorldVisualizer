@@ -26,8 +26,8 @@ final class BackgroundNavigationProbe {
       route = kind;
       for (String mode :
           kind.equals("source")
-              ? List.of("success", "cancel", "escape", "retry", "stale", "after-stale", "close")
-              : List.of("success", "cancel")) {
+              ? List.of("success", "cancel", "escape", "retry", "stale", "after-stale", "close", "ready-cancel", "ready-escape")
+              : List.of("success", "cancel", "ready-cancel", "ready-escape")) {
         var directory = out.resolve(kind + "-" + mode);
         Files.createDirectories(directory);
         try (var editor = new EditorState(new UserConfig(), false)) {
@@ -139,16 +139,28 @@ final class BackgroundNavigationProbe {
             require(
                 pending() && state.draft == draft,
                 "Worker published navigation before owner delivery");
-            if (mode.equals("cancel")) click(button("CANCEL"));
-            else if (mode.equals("escape")) {
-              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
-              frame();
-              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+            if (mode.startsWith("ready-")) {
+              if (mode.equals("ready-cancel")) hold(button("CANCEL"));
+              ui.remove().run();
+              require(pending() && state.draft == draft && editing.equals(state.selected)
+                  && dialog().requestVersion() == work
+                  && state.project().noise2D.getFirst().algorithm.parameters.get("value") == .125,
+                  "Ready delivery committed or changed Cancel identity before modal input");
+              if (mode.equals("ready-cancel")) ImGui.getIO().addMouseButtonEvent(0, false);
+              else ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+              frame(); ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+            } else {
+              if (mode.equals("cancel")) click(button("CANCEL"));
+              else if (mode.equals("escape")) {
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+                frame();
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+                frames(3);
+              } else if (mode.equals("stale")) fresh.set(false);
+              else if (mode.equals("close")) source.close();
+              ui.remove().run();
               frames(3);
-            } else if (mode.equals("stale")) fresh.set(false);
-            else if (mode.equals("close")) source.close();
-            ui.remove().run();
-            frames(3);
+            }
             if (mode.equals("retry")) {
               require(
                   pending() && state.draft == draft && source.progress().contains("failed"),
@@ -217,7 +229,9 @@ final class BackgroundNavigationProbe {
                     "preferencesRetained",
                     true,
                     "originalBytesRetained",
-                    true));
+                    true,
+                    "readyFrameCancellation",
+                    mode.startsWith("ready-")));
           } finally {
             source.close();
             find.close();
@@ -249,15 +263,14 @@ final class BackgroundNavigationProbe {
     return dialog().button(name);
   }
 
-  private static void click(float[] at) {
+  private static void hold(float[] at) {
     require(at != null, "Navigation control missing");
     var io = ImGui.getIO();
-    io.addMousePosEvent(at[0], at[1]);
-    frame();
-    io.addMouseButtonEvent(0, true);
-    frame();
-    io.addMouseButtonEvent(0, false);
-    frames(3);
+    io.addMousePosEvent(at[0], at[1]); frame(); io.addMouseButtonEvent(0, true); frame();
+  }
+
+  private static void click(float[] at) {
+    hold(at); ImGui.getIO().addMouseButtonEvent(0, false); frames(3);
   }
 
   private static void frames(int count) {

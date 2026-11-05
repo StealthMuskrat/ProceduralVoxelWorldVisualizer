@@ -19,7 +19,7 @@ final class BackgroundBrowserSelectionProbe {
     var cases = new ArrayList<Map<String, Object>>();
     for (String mode :
         List.of(
-            "single", "range", "empty", "manager", "cancel", "escape", "retry", "raw", "close")) {
+            "single", "range", "empty", "manager", "cancel", "escape", "retry", "raw", "close", "ready-cancel", "ready-escape")) {
       var directory = out.resolve(mode);
       Files.createDirectories(directory);
       try (var state = new EditorState(new UserConfig(), false)) {
@@ -98,17 +98,29 @@ final class BackgroundBrowserSelectionProbe {
             require(
                 selection.preparing() && state.draft == draft && a.equals(state.selected),
                 "Worker published before UI delivery");
-            if (mode.equals("cancel")) click(resources.probeSelectionButton("CANCEL"));
-            else if (mode.equals("escape")) {
-              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
-              frame();
-              ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+            if (mode.startsWith("ready-")) {
+              if (mode.equals("ready-cancel")) hold(resources.probeSelectionButton("CANCEL"));
+              ui.remove().run();
+              require(selection.preparing() && selection.pending() && state.draft == draft
+                  && a.equals(state.selected) && resources.selectionGuard.requestVersion() == work
+                  && state.project().noise2D.getFirst().algorithm.parameters.get("value") == .125,
+                  "Ready selection committed or changed Cancel identity before modal input");
+              if (mode.equals("ready-cancel")) ImGui.getIO().addMouseButtonEvent(0, false);
+              else ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+              frame(); ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false); frames(3);
+            } else {
+              if (mode.equals("cancel")) click(resources.probeSelectionButton("CANCEL"));
+              else if (mode.equals("escape")) {
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, true);
+                frame();
+                ImGui.getIO().addKeyEvent(ImGuiKey.Escape, false);
+                frames(3);
+              } else if (mode.equals("raw"))
+                state.project().noise2D.getLast().algorithm.parameters.put("value", .75);
+              else if (mode.equals("close")) resources.close();
+              ui.remove().run();
               frames(3);
-            } else if (mode.equals("raw"))
-              state.project().noise2D.getLast().algorithm.parameters.put("value", .75);
-            else if (mode.equals("close")) resources.close();
-            ui.remove().run();
-            frames(3);
+            }
             if (mode.equals("retry")) {
               require(
                   selection.pending()
@@ -196,7 +208,9 @@ final class BackgroundBrowserSelectionProbe {
                     "preferencesRetained",
                     true,
                     "originalBytesRetained",
-                    true));
+                    true,
+                    "readyFrameCancellation",
+                    mode.startsWith("ready-")));
           } finally {
             resources.close();
             frames(2);
@@ -216,6 +230,12 @@ final class BackgroundBrowserSelectionProbe {
     click(resources.probeSelectionRow(id));
     ImGui.getIO().addKeyEvent(modifier, false);
     frames(3);
+  }
+
+  private static void hold(float[] at) {
+    require(at != null, "Selection control missing");
+    var io = ImGui.getIO(); io.addMousePosEvent(at[0], at[1]); frame();
+    io.addMouseButtonEvent(0, true); frame();
   }
 
   private static void click(float[] at) {
