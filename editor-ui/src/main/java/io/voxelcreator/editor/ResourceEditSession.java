@@ -40,7 +40,7 @@ final class ResourceEditSession implements AutoCloseable {
       Throwable failure) {}
   private final PreviewMailbox<Prepared> handoff = new PreviewMailbox<>();
   private long delivery;
-  private boolean ready;
+  private boolean ready, admitted;
   private boolean admitting, disposed, privateDecision, applyingDraft;
   private long workVersion;
   private String progress = "";
@@ -108,7 +108,9 @@ final class ResourceEditSession implements AutoCloseable {
   }
 
   Result request(String label, ResourceBrowserEdits.Edit edit) {
-    if (disposed || executing || pending()) return Result.UNAVAILABLE;
+    if (disposed || executing) return Result.UNAVAILABLE;
+    boolean waiting = pending();
+    if (disposed || executing || waiting) return Result.UNAVAILABLE;
     Objects.requireNonNull(label);
     this.label = label.length() > 240 ? label.substring(0, 239) + "…" : label;
     this.edit = Objects.requireNonNull(edit);
@@ -204,12 +206,13 @@ final class ResourceEditSession implements AutoCloseable {
 
   void clear() {
     if (executing) return;
-    retire();
+    Object cleared = retire();
+    if (cleared != workToken) return;
     progress = "";
   }
 
-  private void retire() {
-    retireWork();
+  private Object retire() {
+    // Release old gesture metadata before cancellation may admit another complete request.
     edit = null;
     label = "";
     context = null;
@@ -219,12 +222,13 @@ final class ResourceEditSession implements AutoCloseable {
     selected = null;
     requestOwner = null;
     privateDecision = false;
+    return retireWork();
   }
 
   private Result prepare(boolean applyDraft) {
-    retireWork();
+    Object token = retireWork();
+    if (disposed || token != workToken || edit == null || task != null) return Result.UNAVAILABLE;
     applyingDraft = applyDraft;
-    Object token = workToken;
     admitting = true;
     try {
       var acceptedEdit = edit;
@@ -268,6 +272,7 @@ final class ResourceEditSession implements AutoCloseable {
                 return null;
               });
       executor.execute(task);
+      if (owns(token, acceptedEdit)) admitted = true;
       return Result.NEEDS_DECISION;
     } catch (Throwable failure) {
       fail(token, failure);
@@ -283,9 +288,7 @@ final class ResourceEditSession implements AutoCloseable {
 
   private void delivered(Object token, long handed) {
     if (!owns(token, edit) || edit == null || delivery != handed || ready) return;
-    refresh();
-    if (!owns(token, edit) || edit == null) return;
-    task = null;
+    // A receipt does not prove complete posting or successful executor admission.
     ready = true;
   }
 
@@ -294,7 +297,14 @@ final class ResourceEditSession implements AutoCloseable {
     Object token = workToken;
     var acceptedEdit = edit;
     refresh();
-    if (!owns(token, acceptedEdit) || !ready || edit == null || executing) return;
+    if (!owns(token, acceptedEdit) || !ready || !admitted || admitting || edit == null || executing)
+      return;
+    var completed = BackgroundFailure.completed(task);
+    if (!owns(token, acceptedEdit) || completed == null) return;
+    if (completed.failure() != null) {
+      fail(token, completed.failure());
+      return;
+    }
     var value = handoff.take();
     if (value == null) {
       fail(token, new IllegalStateException("Resource action preparation unavailable"));
@@ -337,7 +347,8 @@ final class ResourceEditSession implements AutoCloseable {
       }
       if (!prepared.success()) {
         var diagnostics = prepared.diagnostics();
-        retireWork();
+        Object rejected = retireWork();
+        if (disposed || rejected != workToken) return;
         progress =
             "The draft or resource action was rejected. Private input remains active; retry"
                 + " explicitly, choose Discard if available, or Cancel before correcting the"
@@ -389,7 +400,8 @@ final class ResourceEditSession implements AutoCloseable {
   }
 
   private void stale() {
-    retire();
+    Object invalidated = retire();
+    if (disposed || invalidated != workToken) return;
     progress =
         "Resource action became stale. Current project, selection and private input are retained;"
             + " request the action again.";
@@ -398,25 +410,31 @@ final class ResourceEditSession implements AutoCloseable {
 
   private void refresh() {
     if ((task == null && !ready) || disposed) return;
+    Object token = workToken;
+    var acceptedEdit = edit;
     try {
       if (!workOwner.current(state) || !feedbackCurrent()) {
         stale();
         return;
       }
       var done = BackgroundFailure.completed(task);
-      if (done != null && done.failure() != null) fail(workToken, done.failure());
+      if (owns(token, acceptedEdit) && done != null && done.failure() != null)
+        fail(token, done.failure());
     } catch (Throwable failure) {
-      fail(workToken, failure);
+      fail(token, failure);
     }
   }
 
   private void fail(Object token, Throwable failure) {
     if (token != workToken || disposed) return;
-    retireWork();
-    progress =
+    Object failed = retireWork();
+    if (disposed || failed != workToken) return;
+    String feedback =
         "Resource action preparation failed: "
             + BackgroundFailure.describe(failure)
             + ". Private input is retained; retry explicitly or Cancel.";
+    if (disposed || failed != workToken) return;
+    progress = feedback;
     reportFailure("RESOURCE_EDIT_PREPARE_FAILED", progress);
   }
 
@@ -428,12 +446,13 @@ final class ResourceEditSession implements AutoCloseable {
     }
   }
 
-  private void retireWork() {
+  private Object retireWork() {
     var previous = task;
-    workToken = new Object();
+    Object retired = new Object();
+    workToken = retired;
     workVersion++;
     task = null;
-    ready = false;
+    ready = admitted = false;
     handoff.advance(++delivery);
     admitting = false;
     applyingDraft = false;
@@ -444,6 +463,7 @@ final class ResourceEditSession implements AutoCloseable {
       previous.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(previous);
     }
+    return retired;
   }
 
   @Override

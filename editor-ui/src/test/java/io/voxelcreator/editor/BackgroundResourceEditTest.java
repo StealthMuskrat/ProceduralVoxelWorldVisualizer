@@ -116,6 +116,7 @@ class BackgroundResourceEditTest {
       assertSame(draft, s.draft);
       assertEquals(before, ProjectIO.JSON.valueToTree(s.project()));
       assertTrue(done.isEmpty());
+      executor.submit(() -> {}).get(10, TimeUnit.SECONDS);
       edits.acceptPrepared();
       assertEquals(List.of(APPLIED), done);
       assertFalse(edits.pending());
