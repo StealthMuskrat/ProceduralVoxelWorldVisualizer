@@ -5,7 +5,12 @@ import io.voxelcreator.model.*;
 import java.util.*;
 
 public final class ProjectCompiler {
+  /** Diagnostic ownership is independent of caller lists and retained compiled snapshots. */
   public record CompileResult(CompiledProject compiled, List<Diagnostic> diagnostics) {
+    public CompileResult {
+      diagnostics = List.copyOf(diagnostics);
+    }
+
     public boolean success() {
       return compiled != null;
     }

@@ -15,12 +15,26 @@ public final class Validator {
     try {
       v.project(p);
     } catch (RuntimeException e) {
-      v.error(
-          "INVALID_STRUCTURE",
-          "/",
-          e.getMessage() == null ? "Null or malformed value" : e.getMessage());
+      v.error("INVALID_STRUCTURE", "/", structuralMessage(e));
+      // This candidate already failed traversal. Enrichment serializes it and may repeat the
+      // failing host access; retain the diagnostics already collected without another traversal.
+      return List.copyOf(v.errors);
     }
     return DiagnosticLocations.enrich(p, v.errors);
+  }
+
+  private static String structuralMessage(RuntimeException failure) {
+    String message;
+    try {
+      message = failure.getMessage();
+    } catch (Throwable unreadable) {
+      message = null;
+    }
+    if (message == null || message.isBlank()) return "Null or malformed value";
+    if (message.length() <= 2048) return message;
+    int end = 2047;
+    if (Character.isHighSurrogate(message.charAt(end - 1))) end--;
+    return message.substring(0, end) + "…";
   }
 
   private void error(String code, String path, String message) {

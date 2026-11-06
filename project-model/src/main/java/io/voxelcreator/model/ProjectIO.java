@@ -27,7 +27,12 @@ public final class ProjectIO {
     this.files = Objects.requireNonNull(files);
   }
 
+  /** Owns immutable diagnostics; a successfully loaded project remains the editable candidate. */
   public record LoadResult(ProjectData project, List<Diagnostic> diagnostics) {
+    public LoadResult {
+      diagnostics = List.copyOf(diagnostics);
+    }
+
     public boolean success() {
       return project != null && diagnostics.isEmpty();
     }

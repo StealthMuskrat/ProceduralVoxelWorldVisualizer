@@ -162,6 +162,7 @@ public final class ProjectParseConsumer {
     dependencyReplay(out.resolve("dependency-cycles"));
     transferReplay(out.resolve("indexed-transfer"));
     folderReplay(out.resolve("folder-validation"));
+    ValidationFailureConsumer.run(out.resolve("validation-failures"));
     System.out.println("PROJECT_PARSE_CONSUMER_PASS");
   }
 
