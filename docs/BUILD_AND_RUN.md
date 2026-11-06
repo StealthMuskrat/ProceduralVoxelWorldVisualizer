@@ -18,6 +18,8 @@ java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxe
 
 On Windows the classpath separator is `;`. This consumer uses only the engine JAR, not editor/render modules.
 
+The unvalidated [standalone Gradle consumer](../example-client/standalone/README.md) provides a separate build with only the engine JAR as a file dependency. Its own settings prevent including the repository's editor/render projects. From a checkout, supply the documented engine-JAR and source paths; extracted distributions include build.gradle, settings.gradle and instructions beside the existing Java sources. The precompile artifact-boundary check and all compilation/run/package commands remain deferred under the testing pause. Track remaining work in [W05-C01](REMAINING_WORK.md#confirmed-gap-and-source-change).
+
 The explicit `--smoke` application argument creates test resources, saves and reloads a test project, visits all three engine-backed tabs, writes screenshots and exits after 480 frames. It must print THREE_ENGINE_VIEWPORTS_PASS and DESKTOP_SMOKE_COMPLETED. Normal startup creates no resources. Smoke evidence is not a substitute for every interactive acceptance scenario.
 
 The `voxel.configDir` system property overrides the independent preference directory for testing. The normal directory is `.procedural-voxel-creator` under the user home. Projects save only on explicit commands; there is no autosave or recent-project history.

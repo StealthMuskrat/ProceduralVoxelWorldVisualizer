@@ -16,6 +16,7 @@ ARCHIVE_NAME = STAGE_NAME + "-Windows-x64.zip"
 REPORT_MODULES = (
     "project-model", "engine-core", "engine-api", "voxel-storage", "editor-render", "editor-ui"
 )
+EXAMPLE_SUPPORT_FILES = ("build.gradle", "settings.gradle", "README.md")
 EXAMPLE_COMMAND = (
     '@echo off\r\nsetlocal\r\npushd "%~dp0" || exit /b 1\r\n'
     'if not exist classes mkdir classes\r\n'
@@ -120,6 +121,8 @@ def assemble(root: Path, runtime: Path, notices: Path | None, stage: Path) -> No
         raise ValueError("Independent engine example sources are required")
     for source in sources:
         copy_file(source, example / source.name)
+    for name in EXAMPLE_SUPPORT_FILES:
+        copy_file(root / "example-client/standalone" / name, example / name)
     (example / "run.cmd").write_bytes(EXAMPLE_COMMAND)
     for module in REPORT_MODULES:
         reports = root / module / "build/test-results/test"

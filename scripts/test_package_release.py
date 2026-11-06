@@ -29,6 +29,9 @@ class PackageReleaseTest(unittest.TestCase):
             "docs/A.txt": b"uppercase\n",
             "fixtures/example.json": b"{}\n",
             "example-client/src/main/java/io/voxelcreator/example/Example.java": b"class Example {}\n",
+            "example-client/standalone/build.gradle": b"standalone-build\n",
+            "example-client/standalone/settings.gradle": b"standalone-settings\n",
+            "example-client/standalone/README.md": b"standalone-instructions\n",
             "gradlew": b"#!/bin/sh\n",
         }.items():
             target = self.root / name
@@ -129,6 +132,54 @@ class PackageReleaseTest(unittest.TestCase):
         stage = self.output / packaging.STAGE_NAME
         self.assertEqual(b"observed-report", (stage / "test-reports/project-model/TEST-owned.xml").read_bytes())
         self.assertEqual(b"observed-frame", (stage / "test-reports/native-smoke/nested/frame.png").read_bytes())
+
+    def test_standalone_example_support_is_copied_exactly_beside_its_java_sources(self):
+        archive = self.build()
+        relative = Path("examples/independent-engine-client")
+        stage = self.output / packaging.STAGE_NAME
+        with zipfile.ZipFile(archive) as package:
+            for name in ("build.gradle", "settings.gradle", "README.md"):
+                expected = (self.root / "example-client/standalone" / name).read_bytes()
+                self.assertEqual(expected, (stage / relative / name).read_bytes())
+                member = f"{packaging.STAGE_NAME}/{relative.as_posix()}/{name}"
+                self.assertEqual(expected, package.read(member))
+        self.assertEqual(b"class Example {}\n", (stage / relative / "Example.java").read_bytes())
+
+    def test_each_missing_example_support_file_preserves_previous_outputs(self):
+        self.build()
+        before = self.snapshot()
+        for name in ("build.gradle", "settings.gradle", "README.md"):
+            source = self.root / "example-client/standalone" / name
+            content = source.read_bytes()
+            source.unlink()
+            try:
+                with self.assertRaises(ValueError):
+                    self.build()
+                self.assertEqual(before, self.snapshot(), name)
+            finally:
+                source.write_bytes(content)
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "Symbolic links unavailable")
+    def test_symlinked_example_support_is_rejected_before_replacing_outputs(self):
+        self.build()
+        before = self.snapshot()
+        source = self.root / "example-client/standalone/build.gradle"
+        content = source.read_bytes()
+        source.unlink()
+        outside = self.base / "outside.gradle"
+        outside.write_bytes(b"outside-build\n")
+        try:
+            try:
+                source.symlink_to(outside)
+            except OSError as unavailable:
+                self.skipTest(f"Symbolic links unavailable: {unavailable}")
+            with self.assertRaises(ValueError):
+                self.build()
+            self.assertEqual(before, self.snapshot())
+        finally:
+            if source.is_symlink():
+                source.unlink()
+            source.write_bytes(content)
 
     def test_missing_input_keeps_all_previous_outputs(self):
         self.build()

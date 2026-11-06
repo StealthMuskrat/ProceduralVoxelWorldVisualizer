@@ -23,6 +23,8 @@ try (var engine = new NoiseGeneratorEngine();
 
 See `example-client/src/main/java/io/voxelcreator/example/Example.java` for a complete runnable consumer, including cancellation and archive IO. Engine and contexts implement AutoCloseable. A context owns its seed, cache, futures and region tasks. Completed snapshots survive eviction and closure.
 
+The unvalidated [standalone Gradle build](../example-client/standalone/README.md) compiles that existing consumer against only a supplied engine JAR, independently of the repository's Gradle projects. The distribution now includes its build/settings/instructions beside the Java sources. An artifact check rejects known editor/native packages before compilation; actual compilation and independent runtime evidence remain pending in [W05-C01](REMAINING_WORK.md#confirmed-gap-and-source-change). Public engine signatures and evaluation semantics are unchanged.
+
 Coordinates and region bounds are signed int; region corners and project Y limits are inclusive. Roots are exactly 2,4,8,16,32,64,128,256, default 64. Negative chunk addressing uses floorDiv/floorMod. Region streaming delivers complete intersecting chunks and reports requested and Y-clipped effective bounds.
 
 Callbacks run on a separate region coordinator, never a generation worker. A callback's CompletionStage holds in-flight capacity until acknowledged. Cancellation stops scheduling and discards incomplete generation. Consumer failures are delivery failures and are never retried automatically. Failure detail retention is capped at 1024 entries; failure counts remain exact. Collection is a bounded convenience; streaming is the primary large-region interface.

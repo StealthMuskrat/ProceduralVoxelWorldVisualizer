@@ -1,0 +1,43 @@
+plugins { id 'application' }
+
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+application { mainClass = 'io.voxelcreator.example.Example' }
+
+// The distribution places this project beside its flat Java example sources. A source checkout
+// supplies the two paths explicitly; neither form includes the repository's Gradle projects.
+def engineArtifact = file(providers.gradleProperty('engineJar')
+        .getOrElse('../../jars/noise-generator-engine.jar'))
+sourceSets.main.java {
+    setSrcDirs([providers.gradleProperty('exampleSources').getOrElse('.')])
+    include '*.java', 'io/voxelcreator/example/*.java'
+}
+dependencies { implementation files(engineArtifact) }
+
+tasks.register('verifyEngineArtifact') {
+    group = 'verification'
+    description = 'Check the supplied engine JAR for the public API and known editor/native classes.'
+    doLast {
+        if (!engineArtifact.isFile())
+            throw new GradleException('Engine JAR not found: ' + engineArtifact
+                    + '. Supply -PengineJar=<path> or build the release JAR first.')
+        new java.util.zip.ZipFile(engineArtifact).withCloseable { archive ->
+            if (archive.getEntry('io/voxelcreator/api/NoiseGeneratorEngine.class') == null)
+                throw new GradleException('The supplied JAR does not contain NoiseGeneratorEngine.')
+            def forbidden = ['io/voxelcreator/editor/', 'io/voxelcreator/render/',
+                    'imgui/', 'org/lwjgl/', 'org/joml/']
+            def nativeEntry = archive.entries().find { entry ->
+                forbidden.any { prefix -> entry.name.startsWith(prefix) }
+            }
+            if (nativeEntry != null)
+                throw new GradleException('Expected the headless engine JAR; found editor/native entry: '
+                        + nativeEntry.name)
+        }
+    }
+}
+tasks.withType(JavaCompile).configureEach {
+    dependsOn tasks.named('verifyEngineArtifact')
+    options.encoding = 'UTF-8'
+}
+tasks.named('run', JavaExec) {
+    args file(providers.gradleProperty('exampleOutput').getOrElse('build/example-output')).absolutePath
+}

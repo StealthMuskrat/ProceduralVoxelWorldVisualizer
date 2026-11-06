@@ -6,6 +6,8 @@ A native Java 25 procedural-noise and voxel-world editor, with a separately usab
 
 This is a **development implementation** of the supplied specification, not a completed A01–A36 release. See [acceptance status](docs/REQUIREMENTS_AND_TESTS.md) for verified behavior and outstanding work.
 
+The [remaining-work register](docs/REMAINING_WORK.md) separates eight specification source audits from current-revision validation, Windows 11 acceptance and final release delivery. All remain open. The new [standalone engine consumer](example-client/standalone/README.md) supplies an independent Gradle build and distribution instructions; it is uncompiled/untested under the testing pause.
+
 `main` contains the complete current project. Development-stage branches are temporary and are deleted after integration into main. GitHub testing remains paused until development is complete; the workflow is manual-only. Earlier development-branch references in batch notes describe where those changes were originally authored.
 
 ## Build and run

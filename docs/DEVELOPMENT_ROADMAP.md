@@ -15,6 +15,8 @@ The remaining sequence is:
 
 The [acceptance matrix](REQUIREMENTS_AND_TESTS.md) remains authoritative for observed evidence and pending scope. The new development batches are uncompiled/untested, and the project is not being declared fully developed or release-ready here. Resume final execution only when the owner's development-phase condition is met or the owner changes it.
 
+Use the [remaining-work register](REMAINING_WORK.md) as the consolidated queue: W01–W08 reconcile the numbered specification in eight bounded source audits; V01–V04 track current-revision validation, cross-system/performance evidence, Windows 11 acceptance and final delivery. Audit closure requires a checked leaf inventory and concrete child-gap dispositions. All eight source audits and four final gates remain open. The first confirmed gap, W05-C01, now has a standalone engine-JAR Gradle consumer and release assembly support; its build, packaging and independent runtime checks are deferred.
+
 Implementation audit follow-up: [initial noise algorithm choice](NOISE_CREATION_CHOICES.md) closes the missing optional creation selector in 5.2.2, using the existing registry/profile/compiler path. Source implementation and deferred coverage do not advance acceptance status.
 
 Numeric-control audit follow-up: the [viewport numeric controls](VIEWPORT_CONTROL_PANES.md) now pair all existing view numeric inputs with contextual sliders and preserve exact text entry. The broader Properties/shared numeric-control audit and five-place display versus exact editing presentation remain outstanding; this scoped implementation does not certify universal Tree 4 conformance.
