@@ -1,6 +1,8 @@
 package io.voxelcreator.editor;
 
 import io.voxelcreator.model.Diagnostic;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.*;
 import java.util.*;
 
@@ -8,6 +10,9 @@ import java.util.*;
  * Thread-safe bounded grouped history. Worker publication never allocates a UI callback per event.
  */
 public final class EditorEvents {
+  private static final int CODE_LIMIT = 96, MESSAGE_LIMIT = 8192;
+  private static final int PARAMETER_LIMIT = 256, POINTER_LIMIT = 2048;
+
   public enum Subsystem {
     APPLICATION,
     PROJECT,
@@ -31,9 +36,17 @@ public final class EditorEvents {
           project,
           d.sourceUuid(),
           d.itemUuid(),
-          clip(DiagnosticNavigation.parameter(d), 256),
-          clip(p, 2048),
+          DiagnosticNavigation.parameter(d),
+          p,
           d.sourceUuid() == null && (p.startsWith("/project") || p.equals("/formatVersion")));
+    }
+
+    /** Retained history may reveal the resource, but never a fabricated truncated control key. */
+    private Target retained() {
+      if (parameter != null && parameter.length() > PARAMETER_LIMIT
+          || pointer != null && pointer.length() > POINTER_LIMIT)
+        return new Target(project, resource, null, null, "", false);
+      return this;
     }
   }
 
@@ -145,28 +158,12 @@ public final class EditorEvents {
       boolean actionRequired) {
     Objects.requireNonNull(severity);
     Objects.requireNonNull(subsystem);
-    code = clip(Objects.requireNonNullElse(code, "UNSPECIFIED"), 96);
+    code = Objects.requireNonNullElse(code, "UNSPECIFIED");
     message = Objects.requireNonNullElse(message, "No details supplied");
-    String fingerprint;
-    try {
-      fingerprint =
-          HexFormat.of()
-              .formatHex(
-                  java.security.MessageDigest.getInstance("SHA-256")
-                      .digest(message.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-    } catch (java.security.NoSuchAlgorithmException impossible) {
-      throw new AssertionError(impossible);
-    }
-    message = clip(message, 8192);
-    if (target != null)
-      target =
-          new Target(
-              target.project,
-              target.resource,
-              target.control,
-              clip(target.parameter, 256),
-              clip(target.pointer, 2048),
-              target.settings);
+    String fingerprint = fingerprint(code, message, target);
+    code = clip(code, CODE_LIMIT);
+    message = clip(message, MESSAGE_LIMIT);
+    if (target != null) target = target.retained();
     Key key = new Key(code, severity, subsystem, message, target, fingerprint);
     Entry old = entries.remove(key);
     Instant now = clock.instant();
@@ -318,9 +315,44 @@ public final class EditorEvents {
     return view().counts();
   }
 
+  private static String fingerprint(String code, String message, Target target) {
+    try {
+      var digest = MessageDigest.getInstance("SHA-256");
+      part(digest, code);
+      part(digest, message);
+      digest.update((byte) (target == null ? 0 : 1));
+      if (target != null) {
+        part(digest, target.project == null ? null : target.project.toString());
+        part(digest, target.resource == null ? null : target.resource.toString());
+        part(digest, target.control == null ? null : target.control.toString());
+        part(digest, target.parameter);
+        part(digest, target.pointer);
+        digest.update((byte) (target.settings ? 1 : 0));
+      }
+      return HexFormat.of().formatHex(digest.digest());
+    } catch (NoSuchAlgorithmException impossible) {
+      throw new AssertionError(impossible);
+    }
+  }
+
+  /** Length framing preserves field boundaries/nulls; raw UTF-16 units preserve lone surrogates. */
+  private static void part(MessageDigest digest, String value) {
+    int length = value == null ? -1 : value.length();
+    for (int shift = 24; shift >= 0; shift -= 8) digest.update((byte) (length >>> shift));
+    if (value == null) return;
+    for (int i = 0; i < value.length(); i++) {
+      char unit = value.charAt(i);
+      digest.update((byte) (unit >>> 8));
+      digest.update((byte) unit);
+    }
+  }
+
   private static String clip(String value, int limit) {
-    return value == null
-        ? null
-        : value.length() <= limit ? value : value.substring(0, limit - 1) + "…";
+    if (value == null || value.length() <= limit) return value;
+    int end = limit - 1;
+    if (end > 0
+        && Character.isHighSurrogate(value.charAt(end - 1))
+        && Character.isLowSurrogate(value.charAt(end))) end--;
+    return value.substring(0, end) + "…";
   }
 }
