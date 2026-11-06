@@ -20,18 +20,22 @@ public final class DiagnosticLocations {
   private static final Set<String> CONTROLS =
       Set.of("processing", "coordinateTransforms", "sharedParameters", "points");
 
+  /**
+   * Captures non-null diagnostic rows before reading the candidate. Missing context is inferred
+   * only when pointer-resolved identities agree with every supplied resource/control identity.
+   */
   public static List<Diagnostic> enrich(ProjectData project, List<Diagnostic> diagnostics) {
-    if (diagnostics.isEmpty()) return List.of();
+    var owned = List.copyOf(diagnostics);
+    if (owned.isEmpty()) return owned;
     try {
       JsonNode root = ProjectIO.JSON.valueToTree(project);
-      return diagnostics.stream().map(d -> enrich(root, d)).toList();
+      return owned.stream().map(d -> enrich(root, d)).toList();
     } catch (RuntimeException malformed) {
-      return List.copyOf(diagnostics);
+      return owned;
     }
   }
 
   private static Diagnostic enrich(JsonNode root, Diagnostic d) {
-    if (d == null) return null;
     String path = Objects.requireNonNullElse(d.jsonPointer(), "");
     String[] tokens = path.split("/", -1);
     JsonNode node = root;
@@ -50,13 +54,13 @@ public final class DiagnosticLocations {
                     ? List.of("noise2D", "noise3D")
                     : List.of("voxelGroups", "voxelSets"),
                 id);
-        owner = id;
+        owner = node == null ? null : id;
         collection = "";
       } else if (node != null && node.isArray()) {
         JsonNode next = null;
         try {
           int index = Integer.parseInt(token);
-          if (index >= 0) next = node.get(index);
+          if (index >= 0 && Integer.toString(index).equals(token)) next = node.get(index);
         } catch (NumberFormatException ignored) {
           UUID id = uuid(token);
           if (id != null)
@@ -86,14 +90,19 @@ public final class DiagnosticLocations {
       if (!last.isBlank() && uuid(last) == null && !last.matches("[0-9]+"))
         parameter = last.replace("~1", "/").replace("~0", "~");
     }
+    // An explicit identity is authority, not permission to combine it with a different pointer
+    // target. Only fill missing context when every supplied identity agrees with that target.
+    boolean matching =
+        (d.sourceUuid() == null || d.sourceUuid().equals(owner))
+            && (d.itemUuid() == null || d.itemUuid().equals(control));
     return new Diagnostic(
         d.code(),
         d.severity(),
         d.message(),
         d.jsonPointer(),
-        d.sourceUuid() != null ? d.sourceUuid() : owner,
-        d.itemUuid() != null ? d.itemUuid() : control,
-        parameter);
+        d.sourceUuid() != null ? d.sourceUuid() : matching ? owner : null,
+        d.itemUuid() != null ? d.itemUuid() : matching ? control : null,
+        d.parameterKey() != null ? d.parameterKey() : matching ? parameter : null);
   }
 
   private static JsonNode find(JsonNode root, List<String> collections, UUID uuid) {
@@ -106,7 +115,8 @@ public final class DiagnosticLocations {
 
   private static UUID uuid(String value) {
     try {
-      return UUID.fromString(value);
+      var parsed = UUID.fromString(value);
+      return parsed.toString().equalsIgnoreCase(value) ? parsed : null;
     } catch (RuntimeException ignored) {
       return null;
     }

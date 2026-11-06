@@ -163,6 +163,7 @@ public final class ProjectParseConsumer {
     transferReplay(out.resolve("indexed-transfer"));
     folderReplay(out.resolve("folder-validation"));
     ValidationFailureConsumer.run(out.resolve("validation-failures"));
+    DiagnosticContextConsumer.run(out.resolve("diagnostic-context"));
     System.out.println("PROJECT_PARSE_CONSUMER_PASS");
   }
 
