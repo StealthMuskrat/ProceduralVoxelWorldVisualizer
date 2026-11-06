@@ -25,7 +25,7 @@ public final class DiagnosticNavigation {
   static String parameter(Diagnostic diagnostic) {
     String parameter = diagnostic.parameterKey();
     if (canonical(parameter)) return parameter;
-    String[] tokens = tokens(diagnostic.jsonPointer());
+    String[] tokens = DiagnosticPaths.tokens(diagnostic.jsonPointer());
     if (inputPath(tokens, diagnostic.sourceUuid(), diagnostic.itemUuid())) {
       String name = decode(tokens[6]);
       // Older structural rows carry either the port name or its serialized binding leaf.
@@ -42,9 +42,9 @@ public final class DiagnosticNavigation {
   static String controlParameter(EditorEvents.Target target) {
     String parameter = target.parameter();
     if (canonical(parameter)) return parameter;
-    String[] tokens = tokens(target.pointer());
+    String[] tokens = DiagnosticPaths.tokens(target.pointer());
     // Only a noise resource's immediate collections can contribute a control leaf.
-    if (tokens.length >= 6 && noisePath(tokens, target.resource())) {
+    if (tokens.length >= 6 && DiagnosticPaths.noisePath(tokens, target.resource())) {
       if (target.control() == null
           && tokens[3].equals("algorithm")
           && tokens[4].equals("parameters")
@@ -52,7 +52,7 @@ public final class DiagnosticNavigation {
         String key = decode(tokens[5]);
         if (parameter == null || parameter.equals(key)) return "algorithm/parameters/" + key;
       }
-      if (controlPath(tokens, target.resource(), target.control())
+      if (DiagnosticPaths.controlPath(tokens, target.resource(), target.control())
           && ITEMS.contains(tokens[3])
           && tokens.length >= 7
           && tokens[5].equals("parameters")
@@ -61,7 +61,7 @@ public final class DiagnosticNavigation {
         if (parameter == null || parameter.equals(key))
           return "parameters/" + key + component(tokens, 7);
       }
-      if (controlPath(tokens, target.resource(), target.control())
+      if (DiagnosticPaths.controlPath(tokens, target.resource(), target.control())
           && tokens[3].equals("sharedParameters")
           && tokens[5].equals("value")
           && valuePath(tokens, 6)
@@ -80,38 +80,11 @@ public final class DiagnosticNavigation {
             || parameter.startsWith("algorithm/parameters/"));
   }
 
-  private static String[] tokens(String pointer) {
-    return Objects.requireNonNullElse(pointer, "").split("/", -1);
-  }
-
-  private static boolean noisePath(String[] tokens, UUID resource) {
-    return tokens.length >= 4
-        && tokens[0].isEmpty()
-        && Set.of("noise2D", "noise3D", "noise").contains(tokens[1])
-        && identity(tokens[2], resource);
-  }
-
-  private static boolean controlPath(String[] tokens, UUID resource, UUID control) {
-    return tokens.length >= 5 && noisePath(tokens, resource) && identity(tokens[4], control);
-  }
-
   private static boolean inputPath(String[] tokens, UUID resource, UUID control) {
     return tokens.length >= 7
-        && controlPath(tokens, resource, control)
+        && DiagnosticPaths.controlPath(tokens, resource, control)
         && ITEMS.contains(tokens[3])
         && tokens[5].equals("inputs");
-  }
-
-  /** Historical indices describe syntax only; full UUID tokens must agree with explicit authority. */
-  private static boolean identity(String token, UUID expected) {
-    if (expected == null) return false;
-    if (expected.toString().equalsIgnoreCase(token)) return true;
-    try {
-      int index = Integer.parseInt(token);
-      return index >= 0 && Integer.toString(index).equals(token);
-    } catch (NumberFormatException ignored) {
-      return false;
-    }
   }
 
   private static boolean valuePath(String[] tokens, int end) {
@@ -136,7 +109,7 @@ public final class DiagnosticNavigation {
 
   /** Resolve only the exact named binding's serialized leaf, never a historical array index. */
   static String bindingField(EditorEvents.Target target, String name, Binding binding) {
-    String[] tokens = tokens(target.pointer());
+    String[] tokens = DiagnosticPaths.tokens(target.pointer());
     String field = null;
     if (Objects.equals(target.parameter(), "inputs/" + name)
         && inputPath(tokens, target.resource(), target.control())

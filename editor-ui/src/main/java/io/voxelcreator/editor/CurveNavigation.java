@@ -31,10 +31,11 @@ final class CurveNavigation {
       }
       if (!owns) continue;
       String key = Objects.requireNonNullElse(target.parameter(), "");
-      String[] tokens = Objects.requireNonNullElse(target.pointer(), "").split("/", -1);
+      boolean explicitParent = key.equals("parameters/curve");
+      String[] tokens = DiagnosticPaths.tokens(target.pointer());
       boolean curvePath =
           tokens.length >= 7
-              && Set.of("noise2D", "noise3D", "noise").contains(tokens[1])
+              && DiagnosticPaths.controlPath(tokens, noise.uuid, item.uuid)
               && Set.of("processing", "control").contains(tokens[3])
               && tokens[5].equals("parameters")
               && tokens[6].equals("curve");
@@ -46,11 +47,12 @@ final class CurveNavigation {
       if (allowed.contains(key)) return new Route(item, point, key);
       boolean generic = Set.of("", "curve", "parameters/curve").contains(key);
       if (!generic) return null;
-      if (curvePath && tokens.length >= 8) {
+      if (!explicitParent && curvePath && tokens.length >= 8) {
         // A point UUID is already required; the historical index below is never resolved.
         if (point != null
             && tokens.length == 10
             && tokens[7].equals("points")
+            && DiagnosticPaths.identity(tokens[8], point)
             && POINT_FIELDS.contains(tokens[9])) key = tokens[9];
         else if (point == null && tokens.length == 8 && CURVE_FIELDS.contains(tokens[7]))
           key = tokens[7];

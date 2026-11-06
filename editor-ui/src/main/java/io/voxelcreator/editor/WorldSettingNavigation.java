@@ -32,23 +32,20 @@ final class WorldSettingNavigation {
   static Route resolve(Object draft, Layer containing, EditorEvents.Target target) {
     if (!(draft instanceof Layer || draft instanceof Operation)
         || target == null
-        || target.control() != null) return null;
+        || target.settings()
+        || target.control() != null
+        || target.resource() == null
+        || !target.resource().equals(((Identity) draft).uuid)) return null;
     String parameter = Objects.requireNonNullElse(target.parameter(), "");
     String logical = null;
     for (String prefix : List.of("settings/", "defaults/", "overrides/"))
       if (parameter.startsWith(prefix)) logical = parameter.substring(prefix.length());
-    if (logical == null && SettingsResolver.PROPERTIES.contains(parameter)) logical = parameter;
-    String[] pointer = Objects.requireNonNullElse(target.pointer(), "").split("/", -1);
-    // The owning resource UUID was resolved before this route. Only consume its settings suffix.
-    int root = -1;
-    if (pointer.length >= 6 && pointer[1].equals("worldGenerator") && pointer[2].equals("layers")) {
-      if (draft instanceof Layer && pointer[4].equals("defaults")) root = 5;
-      if (draft instanceof Operation
-          && pointer.length >= 8
-          && pointer[4].equals("operations")
-          && pointer[6].equals("overrides")) root = 7;
-    }
-    if (root >= 0
+    boolean qualified = logical != null;
+    if (!qualified && SettingsResolver.PROPERTIES.contains(parameter)) logical = parameter;
+    String[] pointer = DiagnosticPaths.tokens(target.pointer());
+    int root = settingsRoot(pointer, draft, containing);
+    if (!qualified
+        && root >= 0
         && (logical == null && parameter.isEmpty()
             || parameter.equals(pointer[pointer.length - 1])
             || logical != null && logical.equals(pointer[root]))) {
@@ -130,5 +127,23 @@ final class WorldSettingNavigation {
         parts.length > 1
             ? "The collection or unsupported leaf is shown without selecting a historical row."
             : "");
+  }
+
+  private static int settingsRoot(String[] pointer, Object draft, Layer containing) {
+    if (pointer.length < 6
+        || !pointer[0].isEmpty()
+        || !pointer[1].equals("worldGenerator")
+        || !pointer[2].equals("layers")) return -1;
+    if (draft instanceof Layer layer
+        && DiagnosticPaths.identity(pointer[3], layer.uuid)
+        && pointer[4].equals("defaults")) return 5;
+    if (draft instanceof Operation operation
+        && containing != null
+        && pointer.length >= 8
+        && DiagnosticPaths.identity(pointer[3], containing.uuid)
+        && pointer[4].equals("operations")
+        && DiagnosticPaths.identity(pointer[5], operation.uuid)
+        && pointer[6].equals("overrides")) return 7;
+    return -1;
   }
 }

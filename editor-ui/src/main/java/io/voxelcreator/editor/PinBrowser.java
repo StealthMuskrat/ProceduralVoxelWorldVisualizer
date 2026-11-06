@@ -204,10 +204,9 @@ final class PinBrowser {
     if (Set.of("pin", "pin/label", "pin/group").contains(key))
       return key.equals("pin/group") ? "pin/group" : "pin/label";
     if (target.control() == null && key.equals("pinnedControls")) return "pins";
-    String[] path = Objects.requireNonNullElse(target.pointer(), "").split("/", -1);
+    String[] path = DiagnosticPaths.tokens(target.pointer());
     if (target.control() == null
-        && path.length >= 4
-        && Set.of("noise2D", "noise3D", "noise").contains(path[1])
+        && DiagnosticPaths.noisePath(path, target.resource())
         && path[3].equals("pinnedControls")
         && Set.of("", "label", "group", "targetUuid", "control").contains(key)) return "pins";
     return null;

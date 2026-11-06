@@ -11,12 +11,13 @@ class WorldSettingNavigationTest {
   private final Layer layer = new Layer();
   private final Operation operation = new Operation();
 
-  private EditorEvents.Target target(String parameter, String path) {
-    return new EditorEvents.Target(UUID.randomUUID(), layer.uuid, null, parameter, path, false);
+  private EditorEvents.Target target(Object draft, String parameter, String path) {
+    UUID resource = draft instanceof Identity identity ? identity.uuid : layer.uuid;
+    return new EditorEvents.Target(UUID.randomUUID(), resource, null, parameter, path, false);
   }
 
   private WorldSettingNavigation.Route route(Object draft, String parameter, String path) {
-    return WorldSettingNavigation.resolve(draft, layer, target(parameter, path));
+    return WorldSettingNavigation.resolve(draft, layer, target(draft, parameter, path));
   }
 
   @Test
