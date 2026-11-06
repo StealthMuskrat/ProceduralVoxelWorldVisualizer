@@ -165,8 +165,10 @@ public final class EditorEvents {
     message = clip(message, MESSAGE_LIMIT);
     if (target != null) target = target.retained();
     Key key = new Key(code, severity, subsystem, message, target, fingerprint);
+    // A caller-supplied clock can fail or publish reentrantly. Observe it before any mutation,
+    // then resolve the latest group so a callback's publication/acknowledgement stays authoritative.
+    Instant now = Objects.requireNonNull(clock.instant(), "Event clock returned no timestamp");
     Entry old = entries.remove(key);
-    Instant now = clock.instant();
     Entry next =
         new Entry(
             old == null ? nextId++ : old.id,

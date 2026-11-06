@@ -8,6 +8,8 @@ EditorEvents is thread-safe. It retains at most 1,000 groups by default, configu
 
 The unvalidated [bounded event-identity follow-up](DIAGNOSTIC_EVENT_IDENTITY.md) extends that fingerprint to the original code/message and complete target before presentation changes. Current diagnostic targets keep exact keys/paths. Historical targets exceeding either field bound retain only project/resource context, without a fabricated truncated control or settings action. Display clipping preserves existing surrogate pairs. Ten new editor definitions remain uncompiled/untested; native receipts, independent replay and the observed baseline do not advance.
 
+The unvalidated [timestamp publication follow-up](DIAGNOSTIC_EVENT_IDENTITY.md#timestamp-observation-and-publication-ownership--unvalidated) observes a non-null clock value before removing any group or consuming an ID. Clock faults preserve the outer store state, and successful publication uses the latest group after any nested publication, acknowledgement or eviction. Eight new editor definitions remain uncompiled/untested, with unchanged native/independent replay and acceptance status.
+
 Engine diagnostic listeners publish directly into the bounded store and one coalesced status slot. They do not enqueue an additional native UI callback for every diagnostic. Rendering, file IO and validation use stable subsystem/code routing where context is available. Legacy generic information notices continue to use APPLICATION_MESSAGE. Engine events without a known project identity retain their details but do not offer a potentially incorrect source-navigation action.
 
 ## Validation and source navigation
