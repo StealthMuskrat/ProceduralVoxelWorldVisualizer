@@ -26,3 +26,5 @@ Only source inspection, Java formatting and git diff --check accompany these def
 
 
 Follow-up: [ready validation ownership](READY_PROJECT_VALIDATION.md) separates delivered CPU readiness from diagnostic/failure publication, handles visible current controls first and preserves explicitly requested hidden/collapsed completion. Expanded definitions remain uncompiled/untested.
+
+The unvalidated [manual-check retirement follow-up](COMPLETED_MANUAL_CHECKS.md#retirement-and-source-capture-follow-up--unvalidated) gives validation terminal phases and source capture reserved request ownership across cancellation/model-read callbacks. Cleanup-created retries and closure retain their own snapshot, readiness and feedback. Nine new cross-owner regression definitions remain uncompiled/untested; existing native receipts, independent arithmetic replay and acceptance status remain unchanged.

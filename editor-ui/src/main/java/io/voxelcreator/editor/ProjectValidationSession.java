@@ -102,11 +102,13 @@ final class ProjectValidationSession implements AutoCloseable {
   boolean start() {
     refresh();
     if (phase == Phase.CLOSED || phase == Phase.RUNNING) return false;
-    retire();
-    Object request = token;
+    Object request = retire();
+    if (request != token || phase == Phase.CLOSED || phase == Phase.RUNNING) return false;
     try {
       var snapshot = ProjectIO.copy(state.project());
-      owner = new Owner(state, ProjectIO.JSON.valueToTree(snapshot));
+      var captured = new Owner(state, ProjectIO.JSON.valueToTree(snapshot));
+      if (request != token || phase == Phase.CLOSED || phase == Phase.RUNNING) return false;
+      owner = captured;
       phase = Phase.RUNNING;
       message = "Validating a committed snapshot in the background. Previous results remain below.";
       long handed = ++delivery;
@@ -208,41 +210,47 @@ final class ProjectValidationSession implements AutoCloseable {
 
   void cancel() {
     if (phase != Phase.RUNNING) return;
-    retire();
     phase = Phase.CANCELLED;
+    Object cancelled = retire();
+    if (cancelled != token || phase != Phase.CANCELLED) return;
     message = "Validation cancelled. Previous results are retained; validate again when ready.";
   }
 
   private void stale() {
-    retire();
     phase = Phase.STALE;
+    Object invalidated = retire();
+    if (invalidated != token || phase != Phase.STALE) return;
     message =
         "Project or diagnostic results changed. Validate again to check the current committed"
             + " project.";
   }
 
-  private void release() {
-    token = new Object();
+  private Object release() {
+    Object released = new Object();
+    token = released;
     task = null;
     preparedReady = admitted = false;
     handoff.advance(++delivery);
     owner = null;
+    return released;
   }
 
-  private void retire() {
+  private Object retire() {
     var old = task;
-    release();
+    // Return this reserved identity, never a successor installed by cancellation callbacks.
+    Object retired = release();
     if (old != null) {
       old.cancel(true);
       if (executor instanceof ThreadPoolExecutor pool) pool.remove(old);
     }
+    return retired;
   }
 
   private void fail(Object request, Throwable failure) {
     if (request != token || phase == Phase.CLOSED) return;
-    retire();
     phase = Phase.FAILED;
-    Object failed = token;
+    Object failed = retire();
+    if (failed != token || phase != Phase.FAILED) return;
     String detail;
     try {
       detail = failure.getMessage();

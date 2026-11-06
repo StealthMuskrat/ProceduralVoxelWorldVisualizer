@@ -98,21 +98,24 @@ final class UpdateCheckSession implements AutoCloseable {
   boolean start() {
     refresh();
     if (phase == Phase.CLOSED || phase == Phase.RUNNING) return false;
-    invalidate();
+    Object request = invalidate();
+    if (request != token || phase == Phase.CLOSED || phase == Phase.RUNNING) return false;
     final UpdateTrust.Values configuration;
+    final Applied captured;
     try {
-      applied = Applied.from(user);
-      configuration = UpdateTrust.parse(applied.endpoint(), String.join("\n", applied.origins()));
+      captured = Applied.from(user);
+      configuration = UpdateTrust.parse(captured.endpoint(), String.join("\n", captured.origins()));
       if (configuration.endpoint().isEmpty())
         throw new IllegalStateException(
             "Configure and apply a trusted HTTPS metadata endpoint first");
     } catch (RuntimeException invalid) {
-      failure(invalid);
+      failure(request, invalid);
       return false;
     }
+    if (request != token || phase == Phase.CLOSED || phase == Phase.RUNNING) return false;
+    applied = captured;
     phase = Phase.RUNNING;
     message = "Checking the applied metadata endpoint…";
-    Object request = token;
     long handed = ++delivery;
     handoff.advance(handed);
     task =
@@ -134,8 +137,7 @@ final class UpdateCheckSession implements AutoCloseable {
       if (request == token && phase == Phase.RUNNING) admitted = true;
     } catch (Throwable rejected) {
       if (request == token && phase == Phase.RUNNING) {
-        invalidate();
-        failure(rejected);
+        failure(request, rejected);
       }
       return false;
     }
@@ -160,7 +162,7 @@ final class UpdateCheckSession implements AutoCloseable {
         || completed.failure() != null) return;
     var value = handoff.take();
     if (value == null) {
-      failure(new IllegalStateException("Update check result unavailable"));
+      failure(request, new IllegalStateException("Update check result unavailable"));
       return;
     }
     publish(request, value.configuration(), value.release(), value.failure());
@@ -175,7 +177,7 @@ final class UpdateCheckSession implements AutoCloseable {
     refresh();
     if (request != token || phase != Phase.RUNNING) return;
     if (rejected != null) {
-      failure(rejected);
+      failure(request, rejected);
       return;
     }
     try {
@@ -196,21 +198,24 @@ final class UpdateCheckSession implements AutoCloseable {
             case OLDER -> "The configured feed offers an older version: " + release.version();
           };
     } catch (RuntimeException invalid) {
-      failure(invalid);
+      failure(request, invalid);
     }
   }
 
   void refresh() {
     if (phase != Phase.RUNNING && phase != Phase.READY) return;
+    Object request = token;
     boolean current;
     try {
       current = applied.equals(Applied.from(user));
     } catch (RuntimeException invalid) {
       current = false;
     }
+    if (request != token || (phase != Phase.RUNNING && phase != Phase.READY)) return;
     if (!current) {
-      invalidate();
       phase = Phase.STALE;
+      Object invalidated = invalidate();
+      if (invalidated != token || phase != Phase.STALE) return;
       message = "Applied update settings changed. Check again to use the new settings.";
     } else if (phase == Phase.RUNNING) observeTaskFailure();
   }
@@ -221,8 +226,7 @@ final class UpdateCheckSession implements AutoCloseable {
     if (request != token || phase != Phase.RUNNING || completed == null) return;
     if (completed.failure() instanceof CancellationException) cancel();
     else if (completed.failure() != null) {
-      invalidate();
-      failure(completed.failure());
+      failure(request, completed.failure());
     }
   }
 
@@ -250,16 +254,21 @@ final class UpdateCheckSession implements AutoCloseable {
 
   void cancel() {
     if (phase == Phase.CLOSED || phase == Phase.IDLE || phase == Phase.CANCELLED) return;
-    invalidate();
     phase = Phase.CANCELLED;
+    Object cancelled = invalidate();
+    if (cancelled != token || phase != Phase.CANCELLED) return;
     message = "Update check cancelled. Check again when ready.";
   }
 
-  private void invalidate() {
-    token = new Object();
+  private Object invalidate() {
+    // Detach the old request before cancellation can start or close another one.
+    Object invalidated = new Object();
+    token = invalidated;
+    var previous = task;
     result = null;
-    if (task != null) task.cancel(true);
     release();
+    if (previous != null) previous.cancel(true);
+    return invalidated;
   }
 
   private void release() {
@@ -268,17 +277,16 @@ final class UpdateCheckSession implements AutoCloseable {
     handoff.advance(++delivery);
   }
 
-  private void failure(Throwable error) {
-    release();
-    result = null;
+  private void failure(Object request, Throwable error) {
+    if (request != token || phase == Phase.CLOSED) return;
     phase = Phase.FAILED;
-    Object failed = token;
+    Object failed = invalidate();
+    if (failed != token || phase != Phase.FAILED) return;
     String primary = "Update check failed: " + describe(error);
     if (failed != token || phase != Phase.FAILED) return;
     message = primary;
-    Object request = token;
     String reported = report(errors, primary);
-    if (request == token && phase == Phase.FAILED && message.equals(primary)) message = reported;
+    if (failed == token && phase == Phase.FAILED && message.equals(primary)) message = reported;
   }
 
   static String report(Consumer<String> errors, String primary) {

@@ -32,3 +32,5 @@ The subsequent unvalidated [manual update recovery follow-up](UPDATE_CHECK_RECOV
 
 
 Follow-up: [ready manual update decisions](READY_UPDATE_CHECKS.md) separates delivered metadata/failures from publication, handles current Cancel/Escape/close first and preserves explicit completion while collapsed. Expanded definitions remain uncompiled/untested; transport and manual-link policies remain.
+
+The unvalidated [manual-check retirement follow-up](COMPLETED_MANUAL_CHECKS.md#retirement-and-source-capture-follow-up--unvalidated) detaches old task/readiness/mailbox state before cancellation and guards start, applied-source reads and terminal feedback with the original reserved identity. Cleanup-created ready retries and closure cannot be overwritten by an older request. Nine cross-owner regression definitions use local fake release metadata and remain uncompiled/untested; transport/trust policy, reviewed links, native receipts and independent engine replay remain unchanged.
