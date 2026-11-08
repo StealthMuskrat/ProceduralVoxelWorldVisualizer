@@ -169,6 +169,9 @@ public final class SceneGpuRenderer implements AutoCloseable {
     return pending != null;
   }
 
+  /** Exact staged receipt, retained across partial advances until completion or retirement. */
+  public ChunkScene.Upload pendingUpload() { return pending; }
+
   public boolean stage(ChunkScene.Upload upload) {
     if (closed) throw new IllegalStateException("Renderer closed");
     if (upload.epoch() != epoch) throw new IllegalArgumentException("Obsolete scene upload");

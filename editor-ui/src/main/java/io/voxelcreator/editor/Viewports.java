@@ -992,6 +992,7 @@ public final class Viewports implements AutoCloseable {
         failedKey = "";
     ChunkScene scene;
     Object sceneFailureOwner, sceneAdoptionOwner;
+    final SceneUploadPump sceneUploads = new SceneUploadPump();
     RenderPressure pressure = new RenderPressure();
     final SourceCompilerTask<SceneSetup> compiler = new SourceCompilerTask<>();
     final AtomicReference<WorkerGate> workerGate = new AtomicReference<>(),
@@ -3398,55 +3399,63 @@ public final class Viewports implements AutoCloseable {
       }
     }
     if (v.scene != null) {
+      if (v.sceneUploads.busy()) return true;
       var scene = v.scene;
       var renderer = v.gl;
       long epoch = v.epoch;
       long compiler = v.compiler.generation();
-      v.scene.configure(sceneConfig(v, v.scene.points()));
-      Vector3d center = v.camera.flying ? v.camera.position : v.camera.focus;
-      v.scene.tick(center, v.camera.eye(), 4);
-      if (!ownsStreamScene(v, key, scene, epoch, renderer)) return true;
+      Object adoption = v.sceneAdoptionOwner;
+      java.util.function.BooleanSupplier cpuCurrent =
+          () -> v.sceneAdoptionOwner == adoption
+              && ownsStreamScene(v, key, scene, epoch, renderer) && v.compiler.current(compiler);
+      java.util.function.BooleanSupplier frameCurrent = cpuCurrent;
+      if (!cpuCurrent.getAsBoolean()) return true;
+      scene.configure(sceneConfig(v, scene.points()));
+      if (!cpuCurrent.getAsBoolean()) return true;
+      Vector3d center = new Vector3d(v.camera.flying ? v.camera.position : v.camera.focus);
+      scene.tick(center, v.camera.eye(), 4);
+      if (!cpuCurrent.getAsBoolean()) return true;
       try {
-        boolean resized = v.gpuBudget != sceneGpuBudget(v);
-        var gpu = v.gl.scene(v.scene.epoch(), sceneGpuBudget(v));
+        int gpuBudget = sceneGpuBudget(v);
+        boolean resized = v.gpuBudget != gpuBudget;
+        var gpu = renderer.scene(scene.epoch(), gpuBudget);
+        long activation = renderer.sceneVersion();
+        java.util.function.BooleanSupplier activeFrame =
+            () -> cpuCurrent.getAsBoolean() && renderer.sceneCurrent(gpu, activation);
+        frameCurrent = activeFrame;
+        if (!activeFrame.getAsBoolean()) return true;
         if (resized) {
-          v.scene.invalidateUploads();
-          v.gpuBudget = sceneGpuBudget(v);
+          scene.invalidateUploads();
+          if (!activeFrame.getAsBoolean()) return true;
+          v.gpuBudget = gpuBudget;
         }
         if (admissionProbe && probeRendererFrameFailure.compareAndSet(true, false))
           throw new IllegalStateException("Injected streaming renderer frame failure");
         gpu.beginFrame();
-        for (var removed : v.scene.removed()) gpu.remove(removed);
+        if (!activeFrame.getAsBoolean()) return true;
+        for (var removed : scene.removed()) {
+          if (!activeFrame.getAsBoolean()) return true;
+          gpu.remove(removed);
+          if (!activeFrame.getAsBoolean()) return true;
+        }
         int budget = state.user.performance.uploadKiB * 1024;
         long before = gpu.statistics().uploadedBytes();
+        if (!activeFrame.getAsBoolean()) return true;
         var uploadProfile = state.engine.profiler().scope(0, state.project().project.uuid, null);
+        if (!activeFrame.getAsBoolean()) return true;
         long uploadStamp = uploadProfile == null ? 0 : uploadProfile.begin();
         var uploadOutcome = Profiler.Outcome.FAILED;
         try {
-          int maintenance = gpu.advanceCompaction(budget);
-          int uploadBudget = budget - maintenance;
-          for (int batch = 0;
-              batch < 4
-                  && !gpu.compacting()
-                  && gpu.statistics().uploadedBytes() - before < uploadBudget;
-              batch++) {
-            if (!gpu.pending()) {
-              var uploads = v.scene.uploads(1, uploadBudget);
-              if (uploads.isEmpty()) break;
-              if (gpu.contains(uploads.getFirst())) {
-                v.scene.uploaded(uploads.getFirst());
-                continue;
-              }
-              if (!gpu.stage(uploads.getFirst())) {
-                if (!gpu.compacting()) v.scene.reject();
-                break;
-              }
-            }
-            var completed =
-                gpu.advance((int) (uploadBudget - (gpu.statistics().uploadedBytes() - before)));
-            if (completed != null) v.scene.uploaded(completed);
-            else break;
-          }
+          if (!activeFrame.getAsBoolean()) return true;
+          if (!v.sceneUploads.run(scene, activeFrame, new SceneUploadPump.Backend() {
+            public long uploadedBytes() { return gpu.statistics().uploadedBytes(); }
+            public int compact(int bytes) { return gpu.advanceCompaction(bytes); }
+            public boolean compacting() { return gpu.compacting(); }
+            public ChunkScene.Upload pending() { return gpu.pendingUpload(); }
+            public boolean contains(ChunkScene.Upload upload) { return gpu.contains(upload); }
+            public boolean stage(ChunkScene.Upload upload) { return gpu.stage(upload); }
+            public ChunkScene.Upload advance(int bytes) { return gpu.advance(bytes); }
+          }, budget)) return true;
           uploadOutcome = Profiler.Outcome.SUCCESS;
         } finally {
           if (uploadStamp != 0) {
@@ -3469,14 +3478,15 @@ public final class Viewports implements AutoCloseable {
                 "Arena relocation bytes per frame");
           }
         }
+        if (!activeFrame.getAsBoolean()) return true;
         v.origin.set(
             Math.floor(center.x / 32) * 32,
             Math.floor(center.y / 32) * 32,
             Math.floor(center.z / 32) * 32);
         var view = state.user.visualization;
-        v.gl.sceneView(
+        renderer.sceneView(
             v.origin,
-            v.scene.displaySet(),
+            scene.displaySet(),
             view.indirectDrawing,
             view.ambientOcclusion,
             view.fog
@@ -3484,22 +3494,24 @@ public final class Viewports implements AutoCloseable {
                     (v.camera.distance
                         + (v.pressure.radius(state.user.performance.renderDistance) + 1) * 32)
                 : 0);
+        if (!activeFrame.getAsBoolean()) return true;
         if (gpu.hasData()) {
           v.image = false;
           v.completed = true;
           v.streamingObserved = true;
           v.completedModes.add(v.kind == 2 ? v.stageMode : v.mode);
         }
-        var cpu = v.scene.statistics();
+        var cpu = scene.statistics();
         v.frameMillis = v.frameMillis * .9 + ImGui.getIO().getDeltaTime() * 1000 * .1;
         v.pressure.observe(
             now,
             (cpu.cpuBytes() + cpu.reserved())
                 / ((double) state.user.performance.sceneCpuMiB * 1024 * 1024),
-            (gpu.statistics().gpuBytes() + v.gl.shadowStatistics().bytes())
+            (gpu.statistics().gpuBytes() + renderer.shadowStatistics().bytes())
                 / ((double) state.user.performance.sceneGpuMiB * 1024 * 1024),
             v.frameMillis,
-            v.scene.rejected());
+            scene.rejected());
+        if (!activeFrame.getAsBoolean()) return true;
         if (!v.compiler.pending())
           v.message =
               (v.activeSceneKey.equals(key)
@@ -3518,6 +3530,7 @@ public final class Viewports implements AutoCloseable {
                           + " bytes remain"
                       : "");
       } catch (RuntimeException gpu) {
+        if (!frameCurrent.getAsBoolean()) return true;
         return !rendererFallback(v, key, scene, epoch, renderer, compiler, gpu, false);
       }
     }
