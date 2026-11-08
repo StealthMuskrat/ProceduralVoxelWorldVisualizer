@@ -14,6 +14,8 @@ This change covers the outer structural catch, not every model/compiler/JSON mes
 
 ## Result diagnostics belong to their result
 
+The later [compiled snapshot admission follow-up](COMPILATION_SNAPSHOT_OWNERSHIP.md) keeps this validation-first malformed-input path and adds full validation of the candidate actually retained by CompiledProject. It does not serialize or retraverse a caller rejected by the structural catch. Its five module and independent consumer definitions are also uncompiled/untested.
+
 ProjectIO.LoadResult and ProjectCompiler.CompileResult now copy diagnostics with List.copyOf in their compact constructors. A caller changing the original list can no longer rewrite a retained result or change LoadResult.success through that list. Returned diagnostics are immutable, and null lists/elements reject immediately with NullPointerException. Diagnostic values are existing immutable records.
 
 The loaded ProjectData remains the same editable candidate; it is not deep-copied or frozen by LoadResult. CompileResult retains the same compiled snapshot identity. Existing success predicates and component/method signatures remain unchanged; no additional project/diagnostic consistency rule is introduced. Project/archive/schema/registry formats, deterministic field/voxel arithmetic, native dependencies and UI/preferences behavior remain unchanged.

@@ -13,9 +13,42 @@ public final class CompiledProject {
   private final VoxelRegistry registry;
 
   public CompiledProject(ProjectData data) {
+    this(prepare(data));
+  }
+
+  /** Opaque owned candidate: compiler entry points cannot access or recopy its editable model. */
+  static final class Prepared {
+    private final ProjectData snapshot;
+    private final List<Diagnostic> diagnostics;
+
+    private Prepared(ProjectData snapshot, List<Diagnostic> diagnostics) {
+      this.snapshot = snapshot;
+      this.diagnostics = List.copyOf(diagnostics);
+    }
+
+    List<Diagnostic> diagnostics() {
+      return diagnostics;
+    }
+  }
+
+  static Prepared prepare(ProjectData data) {
+    // Preserve validation-first malformed-input diagnostics and avoid copying a failed traversal.
     var issues = NoiseCompiler.validate(data);
-    if (!issues.isEmpty()) throw new IllegalArgumentException(issues.toString());
-    snapshot = ProjectIO.copy(data);
+    if (!issues.isEmpty()) return new Prepared(null, issues);
+    var owned = ProjectIO.copy(data);
+    // Caller validation does not prove that serialization captured the same valid definition.
+    issues = NoiseCompiler.validate(owned);
+    return new Prepared(issues.isEmpty() ? owned : null, issues);
+  }
+
+  static CompiledProject accept(Prepared prepared) {
+    return new CompiledProject(prepared);
+  }
+
+  private CompiledProject(Prepared prepared) {
+    if (!prepared.diagnostics.isEmpty())
+      throw new IllegalArgumentException(prepared.diagnostics.toString());
+    snapshot = Objects.requireNonNull(prepared.snapshot);
     registry = new VoxelRegistry(snapshot.voxelTypes);
   }
 

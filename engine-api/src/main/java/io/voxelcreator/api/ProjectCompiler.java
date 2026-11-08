@@ -1,6 +1,5 @@
 package io.voxelcreator.api;
 
-import io.voxelcreator.core.NoiseCompiler;
 import io.voxelcreator.model.*;
 import java.util.*;
 
@@ -17,9 +16,10 @@ public final class ProjectCompiler {
   }
 
   public CompileResult compileWorld(ProjectData editable) {
-    var issues = NoiseCompiler.validate(editable);
+    var prepared = CompiledProject.prepare(editable);
+    var issues = prepared.diagnostics();
     return issues.isEmpty()
-        ? new CompileResult(new CompiledProject(editable), List.of())
+        ? new CompileResult(CompiledProject.accept(prepared), List.of())
         : new CompileResult(null, issues);
   }
 
