@@ -28,6 +28,8 @@ final class ResourceImportPanel implements AutoCloseable {
     APPLY,
     RELOAD,
     RETRY,
+    UNDO,
+    REDO,
     VALIDATION,
     RESOURCES,
     FILTERS,
@@ -38,13 +40,14 @@ final class ResourceImportPanel implements AutoCloseable {
       NavigationDecisionScope.Ticket ticket,
       ImportEditSession owner,
       ResourceImport.Plan preview,
-      ResourceReviewContext context) {}
+      ResourceReviewContext context,
+      long choices) {}
 
   private final ImString filter = new ImString(256);
   private final UiFields fields = new UiFields();
   private String kind = "All", resolution = "All", message = "", section = "Resources";
   private final ImportRows projection = new ImportRows();
-  final SettingsPageChrome chrome = new SettingsPageChrome(4, 4);
+  final SettingsPageChrome chrome = new SettingsPageChrome(4, 4, 2);
   private final Map<String, float[]> controls = new HashMap<>();
   private final Map<UUID, float[]> rowControls = new HashMap<>();
   private final Map<UUID, Integer> rowIds = new LinkedHashMap<>();
@@ -261,7 +264,9 @@ final class ResourceImportPanel implements AutoCloseable {
                     + " (including dependent exclusion)");
             ImGui.textWrapped(
                 "Import appends or reuses committed resources in one undoable edit. Unapplied"
-                    + " Properties input remains private. Cancel discards these import choices.");
+                    + " Properties input remains private. Undo Choice/Redo Choice restore local"
+                    + " resolutions and require a fresh Resources review. Reload starts new local"
+                    + " history. Cancel discards these import choices and history.");
             if (!session.current() && !session.planning() && !session.busy()) {
               ImGui.textWrapped(
                   "The destination changed. Reload to retain choices and review a fresh"
@@ -310,7 +315,22 @@ final class ResourceImportPanel implements AutoCloseable {
         boolean resources = action("resources", "Resources", true);
         boolean filters = action("filters", "Filters", true);
         boolean issues = action("issues", "Issues", true);
+        ImGui.pushID("import-history:" + session.choiceVersion());
+        boolean undo = action("undo", "Undo Choice", session.canUndo() && !unavailable);
+        boolean redo = action("redo", "Redo Choice", session.canRedo() && !unavailable);
+        ImGui.popID();
+        String shortcut =
+            PrivateHistoryShortcuts.match(
+                state.user.input.shortcuts,
+                !unavailable
+                    && session.current()
+                    && ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows),
+                ImGui.getIO().getWantTextInput() || ImGui.isAnyItemActive(),
+                ShortcutKeys.modifiers(),
+                key -> ImGui.isKeyPressed(ShortcutKeys.code(key), false));
         if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) command = Command.CANCEL;
+        else if (undo || Objects.equals(shortcut, "Undo")) command = Command.UNDO;
+        else if (redo || Objects.equals(shortcut, "Redo")) command = Command.REDO;
         else if (reload) command = Command.RELOAD;
         else if (retry) command = Command.RETRY;
         else if (apply) command = Command.APPLY;
@@ -339,7 +359,11 @@ final class ResourceImportPanel implements AutoCloseable {
 
   Decision capture(int frame) {
     return new Decision(
-        delivery.capture(frame), session, session.preview(), ResourceReviewContext.capture(state));
+        delivery.capture(frame),
+        session,
+        session.preview(),
+        ResourceReviewContext.capture(state),
+        session.choiceVersion());
   }
 
   private boolean owns(Decision decision) {
@@ -383,8 +407,15 @@ final class ResourceImportPanel implements AutoCloseable {
       if (!owns(decision)) return;
       if (unavailable
           || !decision.context().current(state)
-          || session.preview() != decision.preview()) return;
-      if (command == Command.RELOAD) {
+          || session.preview() != decision.preview()
+          || session.choiceVersion() != decision.choices()) return;
+      if (command == Command.UNDO || command == Command.REDO) {
+        if (!session.current()) return;
+        if (command == Command.UNDO ? session.undo() : session.redo()) {
+          resetRows();
+          message = "";
+        }
+      } else if (command == Command.RELOAD) {
         if (session.planning() || !session.canReload()) return;
         session.reload();
         resetRows();

@@ -60,6 +60,9 @@ final class ImportEditSession {
   private ResourceImport.Session model;
   private ResourceImport.Plan visible, shown;
   private Map<UUID, ResourceImport.Choice> choices = Map.of();
+  private record ChoiceEdit(UUID resource, ResourceImport.Choice before, ResourceImport.Choice after) {}
+  private final Deque<ChoiceEdit> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
+  private long choiceVersion;
   private boolean closed, forcedStale, applying;
   private final Executor executor;
   private final Consumer<Runnable> ui;
@@ -199,18 +202,81 @@ final class ImportEditSession {
     if (!current()) throw new IllegalStateException("Reload the changed import destination first");
     if (choice == null) throw new IllegalArgumentException("Choose a resolution");
     var previous = choice(id);
+    var fork = choiceFork(id, choice); // Validate even an unchanged/default choice.
+    if (previous != choice)
+      updateChoices(
+          fork,
+          () -> {
+            undo.push(new ChoiceEdit(id, previous, choice));
+            redo.clear();
+            while (undo.size() > 100) undo.removeLast();
+            choiceVersion++;
+          });
+  }
+
+  private ResourceImport.Session choiceFork(UUID id, ResourceImport.Choice choice) {
     var next = new LinkedHashMap<>(choices);
     if (choice == ResourceImport.Choice.COPY) next.remove(id);
     else next.put(id, choice);
-    var fork = model.withChoices(next); // Validate even an unchanged/default choice.
+    var fork = model.withChoices(next);
     fork.choose(id, choice);
-    if (previous != choice) {
+    return fork;
+  }
+
+  private void updateChoices(ResourceImport.Session fork, Runnable accepted) {
+    if (executor == null) {
+      install(fork); // A failed synchronous preview must not consume history or choices.
+      accepted.run();
+    } else {
       choices = fork.choices();
       shown = null;
       clearIssues();
-      if (executor == null) install(fork);
-      else schedule(false, fork);
+      accepted.run();
+      schedule(false, fork);
     }
+  }
+
+  boolean canUndo() {
+    return current() && !undo.isEmpty();
+  }
+
+  boolean canRedo() {
+    return current() && !redo.isEmpty();
+  }
+
+  boolean undo() {
+    return moveHistory(false);
+  }
+
+  boolean redo() {
+    return moveHistory(true);
+  }
+
+  private boolean moveHistory(boolean forward) {
+    if (!current()) throw new IllegalStateException("Reload the changed import destination first");
+    var from = forward ? redo : undo;
+    var to = forward ? undo : redo;
+    if (from.isEmpty()) return false;
+    var step = from.peek();
+    var fork = choiceFork(step.resource(), forward ? step.after() : step.before());
+    updateChoices(
+        fork,
+        () -> {
+          from.pop();
+          to.push(step);
+          choiceVersion++;
+        });
+    return true;
+  }
+
+  long choiceVersion() {
+    return choiceVersion;
+  }
+
+  private void clearHistory() {
+    undo.clear();
+    redo.clear();
+    choiceVersion++;
   }
 
   void reload() {
@@ -220,7 +286,11 @@ final class ImportEditSession {
       var next = new ResourceImport.Session(state.project(), incoming);
       choices.forEach(next::choose);
       install(next);
-    } else schedule(true, null);
+      clearHistory();
+    } else {
+      clearHistory();
+      schedule(true, null);
+    }
   }
 
   Object planningToken() {
@@ -464,6 +534,7 @@ final class ImportEditSession {
         return Result.REJECTED;
       }
       closed = true;
+      clearHistory();
       shown = null;
       return Result.APPLIED;
     } finally {
@@ -617,6 +688,7 @@ final class ImportEditSession {
       }
       applyPhase = ApplyPhase.APPLIED;
       closed = true;
+      clearHistory();
       retireApply();
       applyHandoff.close();
       planningHandoff.close();
@@ -706,6 +778,7 @@ final class ImportEditSession {
   void cancel() {
     if (closed || !cancellable()) return;
     closed = true;
+    clearHistory();
     retireApply();
     applyHandoff.close();
     applyPhase = ApplyPhase.CANCELLED;

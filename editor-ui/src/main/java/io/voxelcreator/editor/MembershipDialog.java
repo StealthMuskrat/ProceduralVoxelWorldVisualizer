@@ -133,7 +133,7 @@ public final class MembershipDialog implements AutoCloseable {
     ImGui.popID();
     ImGui.popID();
     String shortcut =
-        MembershipShortcuts.match(
+        PrivateHistoryShortcuts.match(
             state.user.input.shortcuts,
             current && ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows),
             ImGui.getIO().getWantTextInput() || ImGui.isAnyItemActive(),
