@@ -19,7 +19,7 @@ public final class ResourcePanel implements AutoCloseable {
   final PanelDockControls docking = new PanelDockControls("Resources");
   private final EditorState state;
   private final PropertyPanel properties;
-  private final ImString filter = new ImString(256), name = new ImString(256);
+  private final ImString filter = new ImString(256), name = TextBuffers.editable("", 256);
   private String createKind = "noise2D", createRoot = "noise2D";
   private UUID createParent, placementLayer;
   private boolean createPending = false;
@@ -45,7 +45,7 @@ public final class ResourcePanel implements AutoCloseable {
 
   private UUID deleteId;
   private UUID replacement, renameId;
-  private final ImString renameText = new ImString(256);
+  private final ImString renameText = TextBuffers.editable("", 256);
   private boolean renameFocus;
   private float[] renameInput;
   private int renameNativeId;

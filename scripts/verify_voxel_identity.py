@@ -48,4 +48,17 @@ for i in range(3):
         assert b['x'] - 1 <= a['x'] and b['y'] - 1 <= a['y']
         assert a['x'] + a['width'] <= b['x'] + b['width'] + 1
         assert a['y'] + a['height'] <= b['y'] + b['height'] + 1
-print('Voxel identity independent PASS; six native layouts, 2051 exact dependents, complete UUID-preserving rename/Undo/Redo/project/preferences replay')
+long_ids = ['a' * 257, 'x' * 255 + 'é界😀', 'é界😀' * 2049]
+inline_suffix = '-inline-' + 'z' * 300
+properties_suffix = '-properties-' + '😀' * 80
+for i, original in enumerate(long_ids):
+    inline_id = original + inline_suffix
+    properties_id = inline_id + properties_suffix
+    for phase, expected_id in [('before', original), ('unchanged', original),
+                               ('inline', inline_id), ('inline-undone', original),
+                               ('inline-redone', inline_id), ('properties', properties_id),
+                               ('properties-undone', inline_id), ('properties-redone', properties_id)]:
+        expected = copy.deepcopy(before)
+        expected['voxelTypes'][0]['id'] = expected_id
+        assert read(f'long-{i}-{phase}') == expected, (i, phase)
+print('Voxel identity independent PASS; six native layouts, 2051 exact dependents, three long-ID cases/24 whole-project readbacks, UUID-preserving rename/Undo/Redo/project/preferences replay')
