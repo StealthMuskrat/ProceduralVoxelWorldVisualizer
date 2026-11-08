@@ -26,7 +26,12 @@ public final class GlViewport implements AutoCloseable {
   private VolumeTextureUpload volumeUpload;
   private final VolumeDisplayGate volumeDisplay = new VolumeDisplayGate();
   private boolean closed;
-  private SceneGpuRenderer sceneRenderer;
+  private final SceneRendererOwner<SceneGpuRenderer> sceneOwner =
+      new SceneRendererOwner<>(new SceneRendererOwner.Backend<>() {
+        public SceneGpuRenderer create(int bytes) { return new SceneGpuRenderer(bytes); }
+        public void epoch(SceneGpuRenderer renderer, long epoch) { renderer.epoch(epoch); }
+        public void close(SceneGpuRenderer renderer) { renderer.close(); }
+      });
   private GpuTimerQueries gpuTimer;
 
   public record ShadowStatistics(
@@ -101,11 +106,11 @@ public final class GlViewport implements AutoCloseable {
       return null;
     }
     try {
-      if (!sceneActive && !meshBoundsChecked) {
+      if (!sceneOwner.active() && !meshBoundsChecked) {
         meshBounds = DirectionalShadow.bounds(mesh);
         meshBoundsChecked = true;
       }
-      var bounds = sceneActive ? sceneRenderer.shadowBounds(sceneOrigin, sceneWanted) : meshBounds;
+      var bounds = sceneOwner.active() ? sceneOwner.renderer().shadowBounds(sceneOrigin, sceneWanted) : meshBounds;
       if (bounds == null) {
         releaseShadows();
         shadowState = "UNAVAILABLE";
@@ -113,7 +118,7 @@ public final class GlViewport implements AutoCloseable {
         return null;
       }
       int resolution = DirectionalShadow.resolution(shadowResolution, shadowBudget);
-      long geometry = sceneActive ? sceneRenderer.statistics().capacityBytes() : mesh.bytes();
+      long geometry = sceneOwner.active() ? sceneOwner.renderer().statistics().capacityBytes() : mesh.bytes();
       if (resolution == 0 || DirectionalShadow.bytes(resolution) > shadowBudget - geometry) {
         releaseShadows();
         shadowState = "BUDGET";
@@ -127,8 +132,8 @@ public final class GlViewport implements AutoCloseable {
           shadowMap.render(
               projection,
               (depthProgram, matrix) -> {
-                if (sceneActive)
-                  return sceneRenderer.renderShadow(depthProgram, matrix, sceneOrigin, sceneWanted);
+                if (sceneOwner.active())
+                  return sceneOwner.renderer().renderShadow(depthProgram, matrix, sceneOrigin, sceneWanted);
                 glUseProgram(depthProgram);
                 glUniformMatrix4fv(
                     glGetUniformLocation(depthProgram, "matrix"), false, matrix.get(new float[16]));
@@ -153,31 +158,23 @@ public final class GlViewport implements AutoCloseable {
     }
   }
 
-  private int sceneBudget;
-  private boolean sceneActive, sceneIndirect = true, sceneAo = true;
+  private boolean sceneIndirect = true, sceneAo = true;
   private float sceneFog;
   private org.joml.Vector3d sceneOrigin = new org.joml.Vector3d();
   private java.util.Set<io.voxelcreator.storage.ChunkPos> sceneWanted = java.util.Set.of();
   private PaletteTextureUpload paletteUpload;
 
   public SceneGpuRenderer scene(long epoch, int bytes) {
-    clearVolume();
-    retainFrame = false;
-    if (sceneRenderer == null || sceneBudget != bytes) {
-      if (sceneRenderer != null) sceneRenderer.close();
-      sceneRenderer = null;
-      sceneRenderer = new SceneGpuRenderer(bytes);
-      sceneBudget = bytes;
-    }
-    sceneRenderer.epoch(epoch);
-    sceneActive = true;
-    image = false;
-    volume = false;
-    return sceneRenderer;
+    if (closed) throw new IllegalStateException("Viewport closed");
+    return sceneOwner.activate(epoch, bytes, this::clearVolume, renderer -> {
+      retainFrame = false;
+      image = false;
+      volume = false;
+    });
   }
 
   public SceneGpuRenderer sceneRenderer() {
-    return sceneRenderer;
+    return sceneOwner.renderer();
   }
 
   public void sceneView(
@@ -194,17 +191,14 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void sceneDisabled() {
-    sceneActive = false;
+    sceneOwner.disable();
   }
 
   /**
    * Release hidden streaming resources when the viewport has no live source. Render thread only.
    */
   public void releaseScene() {
-    var previous = sceneRenderer;
-    sceneRenderer = null;
-    sceneActive = false;
-    sceneBudget = 0;
+    var previous = sceneOwner.detach();
     sceneWanted = java.util.Set.of();
     var previousShadow = detachShadows();
     if (previous == null && previousShadow == null) return;
@@ -402,7 +396,7 @@ public final class GlViewport implements AutoCloseable {
     clearVolume();
     retainFrame = false;
     image = true;
-    sceneActive = false;
+    sceneOwner.disable();
     volume = false;
     width = height = 0;
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -419,7 +413,7 @@ public final class GlViewport implements AutoCloseable {
     clearVolume();
     retainFrame = false;
     image = false;
-    sceneActive = false;
+    sceneOwner.disable();
     volume = false;
     mesh = next;
     meshBounds = null;
@@ -461,7 +455,7 @@ public final class GlViewport implements AutoCloseable {
     }
     volumeDisplay.staged(deferDisplay);
     // Once its arena is retired, keep a previous streamed framebuffer through cancellation/failure.
-    if (sceneActive) retainFrame = true;
+    if (sceneOwner.active()) retainFrame = true;
     releaseScene();
     return true;
   }
@@ -476,7 +470,7 @@ public final class GlViewport implements AutoCloseable {
         retainFrame = false;
         image = false;
         volume = true;
-        sceneActive = false;
+        sceneOwner.disable();
       }
     }
   }
@@ -586,10 +580,11 @@ public final class GlViewport implements AutoCloseable {
       String label) {
     if (gpuTimer != null) gpuTimer.synchronize(scope);
     if (retainFrame
+        || sceneOwner.transitioning()
         || volumeDisplay.blocked()
         || volumeUpload.statistics().pending()
         || image
-        || sceneActive && !sceneRenderer.hasData()) return;
+        || sceneOwner.active() && !sceneOwner.renderer().hasData()) return;
     if (scope != null && gpuTimer == null) gpuTimer = new GpuTimerQueries(new GlTimestampQueries());
     long token = gpuTimer == null ? 0 : gpuTimer.begin(scope, label);
     boolean success = false;
@@ -649,8 +644,8 @@ public final class GlViewport implements AutoCloseable {
     glViewport(0, 0, w, h);
     glClearColor(.055f, .075f, .1f, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    if (sceneActive) {
-      sceneRenderer.render(
+    if (sceneOwner.active()) {
+      sceneOwner.renderer().render(
           matrix,
           sceneOrigin,
           32,
@@ -792,10 +787,11 @@ public final class GlViewport implements AutoCloseable {
   public void close() {
     if (closed) return;
     closed = true;
+    var previousScene = sceneOwner.closeOwner();
     try {
       releaseShadows();
       if (gpuTimer != null) gpuTimer.close();
-      if (sceneRenderer != null) sceneRenderer.close();
+      if (previousScene != null) previousScene.close();
       if (volumeUpload != null) volumeUpload.close();
     } finally {
       volumeDisplay.clear();

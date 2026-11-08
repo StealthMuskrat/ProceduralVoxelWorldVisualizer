@@ -109,8 +109,11 @@ public final class SceneGpuRenderer implements AutoCloseable {
       glVertexAttribPointer(3, 1, GL_UNSIGNED_BYTE, true, 16, 9);
       glBindVertexArray(0);
       glBindBuffer(GL_ARRAY_BUFFER, 0);
-    } catch (RuntimeException failure) {
-      close();
+    } catch (RuntimeException | Error failure) {
+      try { close(); }
+      catch (RuntimeException | Error ignored) {
+        // Failed-constructor cleanup cannot replace the original allocation/link fault.
+      }
       throw failure;
     }
   }
