@@ -57,6 +57,9 @@ class VolumePreviewFailureTest {
     }
     void fail(String reason) { fail(() -> reason); }
     void fail(Supplier<String> reason) {
+      fail(reason, "VOLUME_UPLOAD_FAILED");
+    }
+    void fail(Supplier<String> reason, String code) {
       Object owner = new Object(); long request = epoch;
       VolumePreviewFailure.fail(new VolumePreviewFailure.Owner() {
         public void settle() {
@@ -70,7 +73,7 @@ class VolumePreviewFailureTest {
           events.add(new Event(code, detail)); if (onReport != null) onReport.accept(code);
           if (reportingFault != null) raise(reportingFault);
         }
-      }, upload::cancel, reason);
+      }, upload::cancel, reason, code);
     }
     void settled() { assertNull(pending); assertEquals(0, working); assertFalse(active); assertFalse(dirty); assertFalse(force); assertTrue(failed); }
     void successor() {
@@ -194,6 +197,21 @@ class VolumePreviewFailureTest {
       m.fail("GPU limit"); assertEquals(List.of(new Event("VOLUME_UPLOAD_FAILED", "GPU limit")), m.events);
       assertEquals("Sampling successor", m.message); assertEquals(duringReport ? 0 : 1, reads.get()); assertEquals(0, texts.get());
       m.finishSuccessor();
+    }
+  }
+
+  @Test
+  void failedAcceptanceHasItsOwnDiagnosticAndDoesNotCancelTheCommittedTexture() {
+    for (boolean error : new boolean[] {false, true}) try (var m = new Model()) {
+      var reads = new AtomicInteger(); var texts = new AtomicInteger();
+      var primary = fault(error, reads, texts, () -> {}, "palette setup");
+      m.upload.advance(104); assertEquals(2, m.upload.statistics().version());
+      m.fail(() -> BackgroundFailure.describe(primary), "VOLUME_ACCEPTANCE_FAILED"); m.settled();
+      assertEquals(List.of(new Event("VOLUME_ACCEPTANCE_FAILED", "palette setup")), m.events);
+      assertEquals("Failed: palette setup", m.message); assertSame(OLD, m.accepted);
+      assertEquals(2, m.upload.resident().texture()); assertEquals(List.of(1), m.memory.deletes);
+      assertArrayEquals(values(3, 100), m.memory.textures.get(2)); assertFalse(m.upload.statistics().pending());
+      assertEquals(1, reads.get()); assertEquals(0, texts.get()); assertEquals(0, primary.getSuppressed().length);
     }
   }
 

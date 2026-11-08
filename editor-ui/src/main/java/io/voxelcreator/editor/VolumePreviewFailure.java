@@ -14,6 +14,10 @@ final class VolumePreviewFailure {
   }
 
   static void fail(Owner owner, Runnable cancel, Supplier<String> reason) {
+    fail(owner, cancel, reason, "VOLUME_UPLOAD_FAILED");
+  }
+
+  static void fail(Owner owner, Runnable cancel, Supplier<String> reason, String code) {
     owner.settle();
     Throwable cleanup = null;
     try {
@@ -25,7 +29,7 @@ final class VolumePreviewFailure {
     String detail = reason.get();
     if (!owner.current()) return;
     owner.feedback(detail);
-    report(owner, "VOLUME_UPLOAD_FAILED", detail);
+    report(owner, code, detail);
     if (cleanup != null && owner.current()) {
       String cleanupDetail = BackgroundFailure.describe(cleanup);
       report(owner, "VOLUME_UPLOAD_CLEANUP_FAILED", cleanupDetail);

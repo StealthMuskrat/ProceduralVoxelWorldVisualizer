@@ -24,6 +24,7 @@ public final class GlViewport implements AutoCloseable {
   }
 
   private VolumeTextureUpload volumeUpload;
+  private final VolumeDisplayGate volumeDisplay = new VolumeDisplayGate();
   private boolean closed;
   private SceneGpuRenderer sceneRenderer;
   private GpuTimerQueries gpuTimer;
@@ -154,7 +155,7 @@ public final class GlViewport implements AutoCloseable {
   private PaletteTextureUpload paletteUpload;
 
   public SceneGpuRenderer scene(long epoch, int bytes) {
-    volumeUpload.clear();
+    clearVolume();
     retainFrame = false;
     if (sceneRenderer == null || sceneBudget != bytes) {
       if (sceneRenderer != null) sceneRenderer.close();
@@ -388,7 +389,7 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void setImage(int w, int h, int[] rgba) {
-    volumeUpload.clear();
+    clearVolume();
     retainFrame = false;
     image = true;
     sceneActive = false;
@@ -405,7 +406,7 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void setMesh(Mesh next) {
-    volumeUpload.clear();
+    clearVolume();
     retainFrame = false;
     image = false;
     sceneActive = false;
@@ -436,7 +437,19 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public boolean stageVolume(VolumeData data, long gpuBudget, VolumeTextureUpload.Region region) {
-    if (!volumeUpload.stage(data, gpuBudget, region)) return false;
+    return stageVolume(data, gpuBudget, region, false);
+  }
+
+  /** With deferred display, a complete texture retains the old framebuffer until metadata accepts. */
+  public boolean stageVolume(
+      VolumeData data, long gpuBudget, VolumeTextureUpload.Region region, boolean deferDisplay) {
+    try {
+      if (!volumeUpload.stage(data, gpuBudget, region)) return false;
+    } catch (RuntimeException | Error failure) {
+      if (!volumeUpload.statistics().pending()) volumeDisplay.cancel();
+      throw failure;
+    }
+    volumeDisplay.staged(deferDisplay);
     // Once its arena is retired, keep a previous streamed framebuffer through cancellation/failure.
     if (sceneActive) retainFrame = true;
     releaseScene();
@@ -449,6 +462,7 @@ public final class GlViewport implements AutoCloseable {
       return volumeUpload.advance(byteBudget);
     } finally {
       if (volumeUpload.statistics().version() != version) {
+        volumeDisplay.committed(volumeUpload.statistics().version());
         retainFrame = false;
         image = false;
         volume = true;
@@ -462,12 +476,32 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void cancelVolume() {
+    volumeDisplay.cancel();
     volumeUpload.cancel();
   }
 
   public void releaseVolume() {
-    volumeUpload.clear();
+    clearVolume();
+  }
+
+  private void clearVolume() {
+    volumeDisplay.clear();
     volume = false;
+    volumeUpload.clear();
+  }
+
+  public boolean volumeDisplayPending() {
+    return volumeDisplay.blocked();
+  }
+
+  /** Only the completed resident's exact version can release deferred presentation. */
+  public boolean acceptVolumeDisplay(long version) {
+    var stats = volumeUpload.statistics();
+    return !closed
+        && !stats.pending()
+        && volumeUpload.resident() != null
+        && stats.version() == version
+        && volumeDisplay.accept(version);
   }
 
   public VolumeTextureUpload.Statistics volumeStatistics() {
@@ -542,6 +576,7 @@ public final class GlViewport implements AutoCloseable {
       String label) {
     if (gpuTimer != null) gpuTimer.synchronize(scope);
     if (retainFrame
+        || volumeDisplay.blocked()
         || volumeUpload.statistics().pending()
         || image
         || sceneActive && !sceneRenderer.hasData()) return;
@@ -753,6 +788,7 @@ public final class GlViewport implements AutoCloseable {
       if (sceneRenderer != null) sceneRenderer.close();
       if (volumeUpload != null) volumeUpload.close();
     } finally {
+      volumeDisplay.clear();
       if (program != 0) glDeleteProgram(program);
       if (volumeProgram != 0) glDeleteProgram(volumeProgram);
       if (volumeCopyRead != 0) glDeleteFramebuffers(volumeCopyRead);
