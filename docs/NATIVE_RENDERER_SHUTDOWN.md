@@ -1,0 +1,27 @@
+# Native renderer shutdown and typed retirement
+
+W06-C20 reconstructs native owner retirement for 1.4.1/14.1.5 and stale display ownership in 15.5.3. The restored GlViewport close stopped later children after a child fault, and its finally block stopped later GL deletions after a deletion fault. SceneGpuRenderer similarly stopped on the first deletion. Both retained integer names after closure. This reconstruction follows [workspace recovery](WORKSPACE_RECOVERY.md); it does not recover the original missing commit identity.
+
+## Captured retirement
+
+RenderCleanup.deferred clones and validates callback identities, then consumes its pending plan before invoking the first callback. RuntimeException/Error failures do not skip later callbacks. The first failure is rethrown by identity after all attempts, without inspecting text or adding suppressed failures. Repeated or nested execution does nothing, including after an ambiguous native effect.
+
+RenderRetirement captures children and immutable typed handles, preserving order. Zero names are ignored; equal nonzero names are coalesced only within the same namespace. Programs, framebuffers, buffers, vertex arrays, textures and renderbuffers remain independent even when their numeric names coincide. Negative Java ints retain their unsigned GL-name bit patterns. GlHandleDeletion dispatches each kind to its matching GL deletion function. These helpers are render-thread owned, with no synchronization or background deletion queue.
+
+## Root and scene owners
+
+GlViewport marks itself closed and closes fixed-upload admission before capturing its scene, shadow, timer and volume uploader. Scene/shadow/timer ownership is detached before cleanup callbacks. It captures ten root slots: two programs, two volume-copy framebuffers, one buffer, one vertex array, two textures, one renderbuffer and the display framebuffer. Every root name becomes zero before callbacks; size/display/mesh/wanted metadata is cleared. Four captured child closes run before typed root deletion, and every sibling is attempted even when an earlier child or handle throws.
+
+SceneGpuRenderer marks itself closed, captures its program, three buffers and vertex array, and zeros all names. Pending upload/compaction, resident/retiring/picking maps, counters and CPU scratch references are cleared before cleanup. Arena reset and all five typed handle deletions are independent attempts. A partial constructor can retire zero/uninitialized names without deleting them. Existing constructor-primary handling remains: root construction retains its prior cleanup suppression policy, while scene allocation/epoch ownership preserves its original failure through failed candidate retirement.
+
+Public work entry points reject closed owners before native work. Scene lookup/typed retirement and display acceptance return false or null as appropriate; cancel/release/disable/repeated close paths become harmless after closure. Root texture lookup returns zero, collected timings are empty, and CPU statistics remain available. The closed root hides volume residency before its captured uploader is closed, preventing an earlier sibling callback from observing a usable resident through the root. This is logical detachment, not evidence that a driver physically freed a resource.
+
+An ambiguous deletion is attempted once. Blind retry could delete a successor that reused the same numeric name. A before-effect failure can therefore leave physical residue; this batch does not certify driver reclamation or introduce a retry service. The plan and fixed inventories add bounded small allocations whose runtime overhead is unmeasured.
+
+## Deferred definitions and review limits
+
+Eight RenderRetirementTest definitions cover all fourteen root child/handle positions, before/after RuntimeException/Error effects, shared/distinct unreadable failures, namespace collisions, zero/signed/duplicate names, nested/repeated execution, reused names, caller-array mutation, empty/partial plans and constructor/epoch primary priority. Real SceneRendererOwner, ArenaAllocator and VolumeTextureUpload instances exercise logical closure, independent 0/16-byte offsets, 48/64-byte accounting, exact eight scalar texels, partial candidate transfer and candidate/resident deletion order. Native owner fields, guards and GL dispatch are source-traced; these CPU models do not execute GL deletion or certify framebuffer/native behavior.
+
+All additions remain **uncompiled and untested** under the owner's pause. No compiler, Gradle, JUnit, native probe, consumer, Python/schema/packaging checker, package, update request or workflow ran. Source/content review and git whitespace/metadata checks are the available review. The last observed baseline remains **922 tests / 120 suites**; no A01–A36, Windows 11 or release gate advances. Public signatures, headless boundaries, deterministic math, packed data, configured budgets and authored formats are unchanged.
+
+Next recover C21 two-phase UI peer shutdown, followed by C22 timer/shadow internals and C23–C27 shadow/frame/host/copy/candidate ownership. This root plan does not restore those internals, complete in-flight frame/timing/state transactions, close palette cache ownership or prove full parent preview/palette/profiler/display acceptance. Physical streaming state, retained physical display and wider caller/document/control/resource/performance/platform/release audits remain open.
