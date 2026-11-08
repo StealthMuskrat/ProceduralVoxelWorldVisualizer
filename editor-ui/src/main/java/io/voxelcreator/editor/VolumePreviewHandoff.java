@@ -54,7 +54,22 @@ final class VolumePreviewHandoff {
     return first;
   }
 
-  /** Reports at most one observation fault without granting it preview publication authority. */
+  /** A committed retirement warning belongs only to the still-current accepted preview. */
+  static void reportRetirement(
+      RuntimeException failure,
+      BooleanSupplier current,
+      Consumer<String> feedback,
+      Consumer<String> report) {
+    reportObservation(
+        failure,
+        current,
+        detail -> {
+          feedback.accept(detail);
+          if (current.getAsBoolean()) report.accept(detail);
+        });
+  }
+
+  /** Reports at most one fault without granting it preview publication authority. */
   static void reportObservation(Throwable failure, BooleanSupplier current, Consumer<String> report) {
     if (failure == null || !current.getAsBoolean()) return;
     String detail = BackgroundFailure.describe(failure);
@@ -62,7 +77,7 @@ final class VolumePreviewHandoff {
     try {
       report.accept(detail);
     } catch (RuntimeException | Error ignored) {
-      // Profiling and its diagnostics remain optional even when notification storage is unavailable.
+      // Diagnostic delivery cannot change the already established preview outcome.
     }
   }
 }
