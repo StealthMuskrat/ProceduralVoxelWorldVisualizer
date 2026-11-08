@@ -125,6 +125,102 @@ class VolumePreviewHandoffTest {
   }
 
   @Test
+  void optionalMeasurementFaultsCannotChangePartialOrCompletePublication() {
+    for (boolean error : new boolean[] {false, true}) for (int mask = 0; mask < 8; mask++) try (var f = new Fixture()) {
+      var reads = new AtomicInteger(); var calls = new int[3]; int failures = mask;
+      Throwable[] faults = {fault(error, reads), fault(!error, reads), fault(error, reads)};
+      Runnable[] measurements = new Runnable[3];
+      for (int i = 0; i < 3; i++) {
+        int index = i;
+        measurements[i] = () -> { calls[index]++; if ((failures & (1 << index)) != 0) fail(faults[index]); };
+      }
+      f.stage();
+      for (int budget : new int[] {20, 88}) {
+        Throwable observed;
+        try { assertNull(f.advance(budget)); }
+        finally { observed = VolumePreviewHandoff.observe(measurements); }
+        assertSame(mask == 0 ? null : faults[Integer.numberOfTrailingZeros(mask)], observed);
+        assertArrayEquals(budget == 20 ? new int[] {1, 1, 1} : new int[] {2, 2, 2}, calls);
+        assertSame(budget == 20 ? OLD : NEXT, f.accepted.get()); assertEquals(budget == 20 ? 0 : 1, f.publications);
+      }
+      assertEquals(140, f.upload.statistics().uploadedBytes()); assertEquals(88, f.upload.statistics().lastBytes());
+      assertArrayEquals(values(3, 1000), f.memory.textures.get(2)); assertEquals(0, reads.get());
+      for (var failure : faults) assertEquals(0, failure.getSuppressed().length);
+    }
+  }
+
+  @Test
+  void measurementFinalizationCannotReplaceAnOriginalTransferFailure() {
+    for (boolean error : new boolean[] {false, true}) for (boolean observerError : new boolean[] {false, true}) try (var f = new Fixture()) {
+      var reads = new AtomicInteger(); var primary = fault(error, reads); var observation = fault(observerError, reads);
+      var observed = new AtomicReference<Throwable>(); var attempts = new AtomicInteger(); f.stage(); f.memory.writeFault = primary;
+      assertSame(primary, assertThrows(Throwable.class, () -> {
+        try { f.advance(108); }
+        finally { observed.set(VolumePreviewHandoff.observe(
+            () -> { attempts.incrementAndGet(); fail(observation); },
+            attempts::incrementAndGet, attempts::incrementAndGet)); }
+      }));
+      assertSame(observation, observed.get()); assertEquals(3, attempts.get()); assertSame(OLD, f.accepted.get()); assertEquals(0, f.publications);
+      assertEquals(1, f.upload.statistics().version()); assertFalse(f.upload.statistics().pending());
+      assertArrayEquals(values(2, 0), f.memory.textures.get(1)); assertEquals(List.of(2), f.memory.deletes);
+      assertEquals(0, reads.get()); assertEquals(0, primary.getSuppressed().length); assertEquals(0, observation.getSuppressed().length);
+    }
+  }
+
+  @Test
+  void committedRetirementOutcomeIsIndependentOfMeasurementFailures() {
+    for (boolean error : new boolean[] {false, true}) for (boolean after : new boolean[] {false, true}) try (var f = new Fixture()) {
+      var reads = new AtomicInteger(); var primary = fault(error, reads); var observation = fault(!error, reads);
+      var observed = new AtomicReference<Throwable>(); f.stage(); f.memory.retirementFault = primary; f.memory.releaseFirst = after;
+      java.util.function.Supplier<RuntimeException> advance = () -> {
+        try { return f.advance(108); }
+        finally { observed.set(VolumePreviewHandoff.observe(() -> fail(observation))); }
+      };
+      if (error) assertSame(primary, assertThrows(Throwable.class, advance::get));
+      else assertSame(primary, advance.get());
+      assertSame(observation, observed.get()); assertSame(NEXT, f.accepted.get()); assertEquals(1, f.publications);
+      assertEquals(108, f.upload.statistics().lastBytes()); assertArrayEquals(values(3, 1000), f.memory.textures.get(2));
+      assertEquals(after ? Set.of(2) : Set.of(1, 2), f.memory.textures.keySet());
+      assertEquals(0, reads.get()); assertEquals(0, primary.getSuppressed().length); assertEquals(0, observation.getSuppressed().length);
+    }
+  }
+
+  @Test
+  void observationDiagnosticsAreGuardedAndDeliveryFaultsCannotChangeAcceptedData() {
+    for (boolean error : new boolean[] {false, true}) try (var f = new Fixture()) {
+      var reads = new AtomicInteger(); var reportingReads = new AtomicInteger(); var attempts = new AtomicInteger();
+      var description = new AtomicReference<String>();
+      var observation = fault(error, reads); var reporting = fault(!error, reportingReads); f.stage(); f.advance(108);
+      VolumePreviewHandoff.reportObservation(observation, () -> true, detail -> {
+        attempts.incrementAndGet(); description.set(detail); fail(reporting);
+      });
+      assertEquals(1, attempts.get()); assertEquals(1, reads.get()); assertEquals(0, reportingReads.get());
+      assertEquals(observation.getClass().getName(), description.get());
+      assertSame(NEXT, f.accepted.get()); assertEquals(1, f.publications); assertFalse(f.upload.statistics().pending());
+      assertArrayEquals(values(3, 1000), f.memory.textures.get(2)); assertEquals(List.of(1), f.memory.deletes);
+      assertEquals(0, observation.getSuppressed().length); assertEquals(0, reporting.getSuppressed().length);
+    }
+  }
+
+  @Test
+  void obsoleteOrReentrantObservationTextCannotDeliverToANewRequest() {
+    try (var f = new Fixture()) {
+      var epoch = new AtomicLong(7); var reads = new AtomicInteger(); var reports = new AtomicInteger();
+      var observation = new IllegalStateException() {
+        public String getMessage() { reads.incrementAndGet(); epoch.incrementAndGet(); return "obsolete"; }
+        public String toString() { throw new AssertionError("text reader"); }
+      };
+      f.stage(); f.advance(108);
+      VolumePreviewHandoff.reportObservation(observation, () -> epoch.get() == 6, detail -> reports.incrementAndGet());
+      assertEquals(0, reads.get());
+      VolumePreviewHandoff.reportObservation(observation, () -> epoch.get() == 7, detail -> reports.incrementAndGet());
+      assertEquals(1, reads.get()); assertEquals(0, reports.get());
+      VolumePreviewHandoff.reportObservation(null, () -> { throw new AssertionError("null fault guard"); }, detail -> reports.incrementAndGet());
+      assertSame(NEXT, f.accepted.get()); assertEquals(1, f.publications); assertArrayEquals(values(3, 1000), f.memory.textures.get(2));
+    }
+  }
+
+  @Test
   void publicationFaultsNeverReplaceAnObservedRetirementCauseOrSelfSuppress() {
     for (boolean error : new boolean[] {false, true}) for (int mode = 0; mode < 3; mode++) try (var f = new Fixture()) {
       var reads = new AtomicInteger(); var primary = fault(error, reads);

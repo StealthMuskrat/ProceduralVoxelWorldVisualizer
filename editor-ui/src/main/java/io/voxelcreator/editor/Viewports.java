@@ -2243,6 +2243,8 @@ public final class Viewports implements AutoCloseable {
     }
     if (v.pendingVolume != null) {
       RuntimeException retirementFailure = null;
+      Throwable observationFailure = null;
+      long observationEpoch = v.epoch;
       try {
         var stats = v.gl.volumeStatistics();
         if (stats.activeBytes() + stats.pendingBytes()
@@ -2257,8 +2259,14 @@ public final class Viewports implements AutoCloseable {
           if (volumeStreaming) v.volumeRejected = true;
           volumeUploadFailed(v, "Volume upload exceeds CPU MiB; raise CPU MiB and Regenerate");
         } else {
-          var profile = state.engine.profiler().scope(0, state.project().project.uuid, null);
-          long stamp = profile == null ? 0 : profile.begin();
+          Profiler.Scope profile = null;
+          long stamp = 0;
+          try {
+            profile = state.engine.profiler().scope(0, state.project().project.uuid, null);
+            stamp = profile == null ? 0 : profile.begin();
+          } catch (RuntimeException | Error failure) {
+            observationFailure = failure;
+          }
           var outcome = Profiler.Outcome.FAILED;
           try {
             retirementFailure =
@@ -2274,18 +2282,32 @@ public final class Viewports implements AutoCloseable {
             outcome = Profiler.Outcome.SUCCESS;
           } finally {
             if (stamp != 0) {
-              profile.finish(
-                  stamp, Profiler.Kind.UPLOAD_CPU, v.noise, "Volume texture upload", outcome);
-              profile.gauge(
-                  Profiler.Kind.UPLOAD_BYTES,
-                  Profiler.Unit.BYTES,
-                  v.gl.volumeStatistics().lastHostBytes(),
-                  "Volume host upload bytes per frame");
-              profile.gauge(
-                  Profiler.Kind.UPLOAD_BYTES,
-                  Profiler.Unit.BYTES,
-                  v.gl.volumeStatistics().lastCopiedBytes(),
-                  "Volume resident copy bytes per frame");
+              try {
+                var capturedProfile = profile;
+                long capturedStamp = stamp;
+                var capturedOutcome = outcome;
+                var failure =
+                    VolumePreviewHandoff.observe(
+                        () ->
+                            capturedProfile.finish(
+                                capturedStamp, Profiler.Kind.UPLOAD_CPU, v.noise,
+                                "Volume texture upload", capturedOutcome),
+                        () ->
+                            capturedProfile.gauge(
+                                Profiler.Kind.UPLOAD_BYTES,
+                                Profiler.Unit.BYTES,
+                                v.gl.volumeStatistics().lastHostBytes(),
+                                "Volume host upload bytes per frame"),
+                        () ->
+                            capturedProfile.gauge(
+                                Profiler.Kind.UPLOAD_BYTES,
+                                Profiler.Unit.BYTES,
+                                v.gl.volumeStatistics().lastCopiedBytes(),
+                                "Volume resident copy bytes per frame"));
+                if (observationFailure == null) observationFailure = failure;
+              } catch (RuntimeException | Error failure) {
+                if (observationFailure == null) observationFailure = failure;
+              }
             }
           }
           if (v.gl.volumeStatistics().pending())
@@ -2307,6 +2329,11 @@ public final class Viewports implements AutoCloseable {
         v.message = "Volume ready; previous texture cleanup failed: " + detail;
         state.error("VOLUME_RETIREMENT_FAILED", EditorEvents.Subsystem.RENDERING, detail);
       }
+      if (observationFailure != null)
+        VolumePreviewHandoff.reportObservation(
+            observationFailure,
+            () -> !closed && v.epoch == observationEpoch,
+            detail -> state.error("VOLUME_PROFILING_FAILED", EditorEvents.Subsystem.RENDERING, detail));
     }
     if (source
         && !streaming
