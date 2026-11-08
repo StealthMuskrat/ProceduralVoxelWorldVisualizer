@@ -22,7 +22,7 @@ final class CameraGeometryProbe {
       var palette = new int[256];
       Arrays.fill(palette, 0xff0000ff);
       view.setPalette(palette);
-      view.setMesh(MeshBuilder.greedy(8, (x, y, z) -> x == 2 && y == 1 && z == 3 ? 1 : 0));
+      FixedUploadProbe.run(view, MeshBuilder.greedy(8, (x, y, z) -> x == 2 && y == 1 && z == 3 ? 1 : 0));
       for (int offset : new int[] {0, 2_000_000_000, -2_000_000_000})
         for (double[] angle : new double[][] {{0, 0}, {Math.PI / 2, .6}, {-1.1, -.7}})
           for (boolean pan : new boolean[] {false, true})

@@ -10,6 +10,7 @@ import org.lwjgl.BufferUtils;
 /** All methods belong exclusively to the render thread. CPU work never touches OpenGL. */
 public final class GlViewport implements AutoCloseable {
   private int texture, framebuffer, depth, width, height, vao, vbo, program, palette;
+  private final ViewportUpload uploads = new ViewportUpload();
   private Mesh mesh = new Mesh(new float[0], false);
   private boolean image = false, volume = false, retainFrame;
   private int volumeProgram, volumeCopyRead, volumeCopyDraw;
@@ -166,6 +167,7 @@ public final class GlViewport implements AutoCloseable {
 
   public SceneGpuRenderer scene(long epoch, int bytes) {
     if (closed) throw new IllegalStateException("Viewport closed");
+    uploads.invalidate();
     return sceneOwner.activate(epoch, bytes, this::clearVolume, renderer -> {
       retainFrame = false;
       image = false;
@@ -191,6 +193,7 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void sceneDisabled() {
+    uploads.invalidate();
     sceneOwner.disable();
   }
 
@@ -382,6 +385,8 @@ public final class GlViewport implements AutoCloseable {
 
   /** Retire accepted and incomplete data at a document boundary; keep reusable device objects. */
   public void clearPreview() {
+    requireOpen();
+    uploads.invalidate();
     if (gpuTimer != null) {
       gpuTimer.close();
       gpuTimer = null;
@@ -393,41 +398,86 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void setImage(int w, int h, int[] rgba) {
-    clearVolume();
-    retainFrame = false;
-    image = true;
-    sceneOwner.disable();
-    volume = false;
-    width = height = 0;
-    glBindTexture(GL_TEXTURE_2D, texture);
-    IntBuffer b = BufferUtils.createIntBuffer(rgba.length);
-    b.put(rgba).flip();
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, b);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    releaseScene();
+    requireOpen();
+    uploads.requireIdle();
+    var owned = ViewportUploadData.image(w, h, rgba);
+    IntBuffer pixels = BufferUtils.createIntBuffer(owned.length);
+    pixels.put(owned).flip();
+    uploads.run(this::requireOpen, current -> {
+      int maximum = glGetInteger(GL_MAX_TEXTURE_SIZE);
+      current.run();
+      if (w > maximum || h > maximum)
+        throw new IllegalArgumentException("Image exceeds device texture limit");
+      var state = TextureUploadState.capture(new GlTextureUploadState(GL_TEXTURE_2D));
+      state.run(current, () -> {
+        uploadCommand(current, () -> glBindTexture(GL_TEXTURE_2D, texture));
+        uploadCommand(current, () -> glTexImage2D(
+            GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels));
+        uploadCommand(current, () -> glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+        uploadCommand(current, () -> glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+        int error = glGetError();
+        current.run();
+        if (error != GL_NO_ERROR) throw new IllegalStateException("Image upload GL error " + error);
+        return null;
+      }, () -> {});
+    }, this::retireUploadPredecessors, () -> {
+      retainFrame = false;
+      image = true;
+      volume = false;
+      invalidateFrame();
+    }, this::invalidateFrame);
   }
 
   public void setMesh(Mesh next) {
-    clearVolume();
-    retainFrame = false;
-    image = false;
-    sceneOwner.disable();
+    requireOpen();
+    uploads.requireIdle();
+    var owned = ViewportUploadData.mesh(next);
+    uploads.run(this::requireOpen, current -> {
+      var state = MeshUploadState.capture(new GlMeshUploadState());
+      state.run(current, () -> {
+        uploadCommand(current, () -> glBindVertexArray(vao));
+        uploadCommand(current, () -> glBindBuffer(GL_ARRAY_BUFFER, vbo));
+        uploadCommand(current, () -> glBufferData(GL_ARRAY_BUFFER, owned.vertices(), GL_STATIC_DRAW));
+        for (int a = 0; a < 3; a++) {
+          int attribute = a;
+          uploadCommand(current, () -> glEnableVertexAttribArray(attribute));
+          uploadCommand(current, () -> glVertexAttribPointer(attribute, attribute == 2 ? 1 : 3,
+              GL_FLOAT, false, 28, attribute == 0 ? 0 : attribute == 1 ? 12 : 24));
+        }
+        int error = glGetError();
+        current.run();
+        if (error != GL_NO_ERROR) throw new IllegalStateException("Mesh upload GL error " + error);
+      });
+    }, this::retireUploadPredecessors, () -> {
+      retainFrame = false;
+      image = volume = false;
+      mesh = owned;
+      meshBounds = null;
+      meshBoundsChecked = false;
+      invalidateFrame();
+    }, this::invalidateFrame);
+  }
+
+  private void retireUploadPredecessors() {
+    // Detach peers before volume deletion can install a successor representation via callbacks.
+    var previousScene = sceneOwner.detach();
+    sceneWanted = java.util.Set.of();
+    var previousShadow = detachShadows();
+    volumeDisplay.clear();
     volume = false;
-    mesh = next;
-    meshBounds = null;
-    meshBoundsChecked = false;
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, next.vertices(), GL_STATIC_DRAW);
-    for (int a = 0; a < 3; a++) {
-      glEnableVertexAttribArray(a);
-      glVertexAttribPointer(a, a == 2 ? 1 : 3, GL_FLOAT, false, 28, a == 0 ? 0 : a == 1 ? 12 : 24);
-    }
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    releaseScene();
+    RenderCleanup.run(volumeUpload::clear,
+        () -> { if (previousShadow != null) previousShadow.close(); },
+        () -> { if (previousScene != null) previousScene.close(); });
+  }
+
+  private static void uploadCommand(Runnable current, Runnable command) {
+    current.run(); command.run(); current.run();
+  }
+
+  private void invalidateFrame() { width = height = 0; }
+
+  private void requireOpen() {
+    if (closed) throw new IllegalStateException("Viewport closed");
   }
 
   /** Synchronous compatibility entry point; editor previews use stage/advanceVolume. */
@@ -453,6 +503,7 @@ public final class GlViewport implements AutoCloseable {
       if (!volumeUpload.statistics().pending()) volumeDisplay.cancel();
       throw failure;
     }
+    uploads.invalidate();
     volumeDisplay.staged(deferDisplay);
     // Once its arena is retired, keep a previous streamed framebuffer through cancellation/failure.
     if (sceneOwner.active()) retainFrame = true;
@@ -466,6 +517,7 @@ public final class GlViewport implements AutoCloseable {
       return volumeUpload.advance(byteBudget);
     } finally {
       if (volumeUpload.statistics().version() != version) {
+        uploads.invalidate();
         volumeDisplay.committed(volumeUpload.statistics().version());
         retainFrame = false;
         image = false;
@@ -480,11 +532,13 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void cancelVolume() {
+    uploads.invalidate();
     volumeDisplay.cancel();
     volumeUpload.cancel();
   }
 
   public void releaseVolume() {
+    uploads.invalidate();
     clearVolume();
   }
 
@@ -578,6 +632,8 @@ public final class GlViewport implements AutoCloseable {
       float alpha,
       Profiler.Scope scope,
       String label) {
+    requireOpen();
+    if (uploads.busy()) throw new IllegalStateException("Viewport upload already active");
     if (gpuTimer != null) gpuTimer.synchronize(scope);
     if (retainFrame
         || sceneOwner.transitioning()
@@ -787,6 +843,7 @@ public final class GlViewport implements AutoCloseable {
   public void close() {
     if (closed) return;
     closed = true;
+    uploads.close();
     var previousScene = sceneOwner.closeOwner();
     try {
       releaseShadows();
