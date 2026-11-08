@@ -43,15 +43,7 @@ final class VolumePreviewHandoff {
 
   /** Optional measurements are attempted independently and cannot replace the upload outcome. */
   static Throwable observe(Runnable... measurements) {
-    Throwable first = null;
-    for (var measurement : measurements) {
-      try {
-        measurement.run();
-      } catch (RuntimeException | Error failure) {
-        if (first == null) first = failure;
-      }
-    }
-    return first;
+    return PreviewNotifications.attempt(measurements);
   }
 
   /** A committed retirement warning belongs only to the still-current accepted preview. */
@@ -71,13 +63,6 @@ final class VolumePreviewHandoff {
 
   /** Reports at most one fault without granting it preview publication authority. */
   static void reportObservation(Throwable failure, BooleanSupplier current, Consumer<String> report) {
-    if (failure == null || !current.getAsBoolean()) return;
-    String detail = BackgroundFailure.describe(failure);
-    if (!current.getAsBoolean()) return;
-    try {
-      report.accept(detail);
-    } catch (RuntimeException | Error ignored) {
-      // Diagnostic delivery cannot change the already established preview outcome.
-    }
+    PreviewNotifications.report(failure, current, report);
   }
 }
