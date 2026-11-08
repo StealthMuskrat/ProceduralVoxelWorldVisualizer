@@ -38,4 +38,4 @@ These IDs are retained to avoid confusing previously discussed work with the cur
 - [ ] Continue streaming state, parent preview/palette/profiler acceptance, retained physical display, other owners/callers/document/controls and W01–W08 source audits.
 - [ ] After implementation and the owner's testing pause ends, compile and execute the current source and complete V01–V04 validation/delivery gates.
 
-Reconstructed source remains **uncompiled and untested**. The last observed baseline is still **922 tests / 120 suites**; no A01–A36, Windows 11 or release evidence advances. Only source/Git content, metadata and whitespace review is available. Publication remains pending; the remote branch was not refreshed or modified during recovery.
+Reconstructed source remains **uncompiled and untested**. The last observed baseline is still **922 tests / 120 suites**; no A01–A36, Windows 11 or release evidence advances. Only source/Git content, metadata and whitespace review is available. The original recovery did not refresh or modify the remote branch. The owner now authorizes publication of completed main batches under AGENTS.md; verify the remote head after each push.
