@@ -3,6 +3,7 @@ import json
 import math
 from pathlib import Path
 import sys
+import uuid
 
 out = Path(sys.argv[1])
 report = json.loads((out / 'expression-layout-native.json').read_text(encoding='utf-8'))
@@ -16,6 +17,19 @@ for key in ('internalMultilineFontVerified', 'physicalDpiVerified', 'physicalDet
 assert report['acceptedStages'] == 3 and report['finalPrivateText'] == 'x+'
 assert len(report['cases']) == 6
 assert [case['scenario'] for case in report['cases']] == list(range(6))
+scope = str(uuid.UUID(report['cases'][0]['scope']))
+assert all(case['scope'] == scope for case in report['cases'])
+history = report['nativeHistory']
+assert len(history) == 5
+assert {case['mode'] for case in history} == {'cancel', 'escape', 'close', 'session-cancel', 'stage'}
+history_ids, history_scopes = [], []
+for case in history:
+    assert case['source'] == case['restored'] == 'x+bias'
+    assert case['stages'] == (1 if case['mode'] == 'stage' else 0)
+    history_ids.extend([case['oldWidgetId'], case['newWidgetId']])
+    history_scopes.extend([str(uuid.UUID(case['oldScope'])), str(uuid.UUID(case['newScope']))])
+assert len(set(history_ids)) == len(history_ids) == 10 and all(history_ids)
+assert len(set(history_scopes)) == len(history_scopes) == 10 and scope not in history_scopes
 globals_, scales = (1, .5, 1, 2.5, 2.5, 1), (1, 1, 1, 1, 2.5, 1)
 
 
@@ -35,6 +49,7 @@ for case in report['cases']:
     if widget is None:
         widget = case['widgetId']
     assert case['widgetId'] == widget and widget != 0
+    assert widget not in history_ids
     modal, body, actions = case['modal'], case['body'], case['actions']
     contains(case['work'], modal)
     contains(modal, body)
@@ -63,4 +78,4 @@ assert noise['id'] == 'formula' and noise['outputBinding']['itemUuid'] == item['
 assert item['kind'] == 'EXPRESSION' and item['parameters']['expression'] == 'x+bias'
 assert item['inputs']['bias']['sourceKind'] == item['inputs']['é']['sourceKind'] == 'Constant'
 assert item['inputs']['bias']['value'] == 2 and item['inputs']['é']['value'] == 0
-print('Expanded expression persistent geometry, Unicode range ownership and unchanged committed formula PASS')
+print('Expanded expression persistent geometry, Unicode ranges, five native history lifetimes and unchanged committed formula PASS')

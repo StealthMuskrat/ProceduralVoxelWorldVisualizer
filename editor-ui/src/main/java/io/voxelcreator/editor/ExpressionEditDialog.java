@@ -91,32 +91,38 @@ public final class ExpressionEditDialog implements AutoCloseable {
         state.project(), state.draft, session.feedbackSelectionOwner(), session.text());
     ImGui.textWrapped("Expression text");
     lineHeight = ImGui.getTextLineHeightWithSpacing();
-    editorWidgetId = ImGui.getID("##expression-expanded");
-    boolean focus = focusEditor || selection.pending();
-    if (focus) ImGui.setKeyboardFocusHere();
-    if (ImGui.inputTextMultiline(
-        "##expression-expanded",
-        text,
-        Math.max(1, ImGui.getContentRegionAvailX()),
-        ExpressionEditorLayout.editor(chrome.body().height(), ImGui.getTextLineHeightWithSpacing()),
-        ImGuiInputTextFlags.CallbackAlways,
-        selection)) {
-      error = "";
-      try {
-        session.edit(text.get());
-        feedback = session.feedback(state);
-      } catch (RuntimeException invalid) {
-        error = message(invalid);
-        feedback = null;
+    // Native cursor/Undo state belongs to this opening, even when a successor has identical text.
+    ImGui.pushID(actionScope);
+    try {
+      editorWidgetId = ImGui.getID("##expression-expanded");
+      boolean focus = focusEditor || selection.pending();
+      if (focus) ImGui.setKeyboardFocusHere();
+      if (ImGui.inputTextMultiline(
+          "##expression-expanded",
+          text,
+          Math.max(1, ImGui.getContentRegionAvailX()),
+          ExpressionEditorLayout.editor(chrome.body().height(), ImGui.getTextLineHeightWithSpacing()),
+          ImGuiInputTextFlags.CallbackAlways,
+          selection)) {
+        error = "";
+        try {
+          session.edit(text.get());
+          feedback = session.feedback(state);
+        } catch (RuntimeException invalid) {
+          error = message(invalid);
+          feedback = null;
+        }
+        selection.context(
+            state.project(), state.draft, session.feedbackSelectionOwner(), session.text());
       }
-      selection.context(
-          state.project(), state.draft, session.feedbackSelectionOwner(), session.text());
-    }
-    editorBounds = PopupLayout.itemBounds();
-    controlRect("text");
-    if (focus) {
-      ImGui.setScrollHereY(.2f);
-      if (ImGui.isItemActive() || ImGui.isItemFocused()) focusEditor = false;
+      editorBounds = PopupLayout.itemBounds();
+      controlRect("text");
+      if (focus) {
+        ImGui.setScrollHereY(.2f);
+        if (ImGui.isItemActive() || ImGui.isItemFocused()) focusEditor = false;
+      }
+    } finally {
+      ImGui.popID();
     }
     ImGui.textWrapped(
         text.get().length() + " / " + ExpressionEditSession.MAX_CHARACTERS + " UTF-16 characters");

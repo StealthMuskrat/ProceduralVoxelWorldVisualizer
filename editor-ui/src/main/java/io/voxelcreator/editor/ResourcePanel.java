@@ -46,6 +46,7 @@ public final class ResourcePanel implements AutoCloseable {
   private UUID deleteId;
   private UUID replacement, renameId;
   private final ImString renameText = TextBuffers.editable("", 256);
+  private String renameScope = "";
   private boolean renameFocus;
   private float[] renameInput;
   private int renameNativeId;
@@ -675,13 +676,14 @@ public final class ResourcePanel implements AutoCloseable {
     var e = ResourceGraph.find(state.project(), id);
     if (e == null) return;
     renameId = id;
+    renameScope = UUID.randomUUID().toString();
     renameText.set(e.resource().id);
     renameFocus = true;
     renameError = "";
   }
 
   private void inlineRename(Identity resource) {
-    ImGui.pushID("rename" + resource.uuid);
+    ImGui.pushID("rename" + resource.uuid + ":" + renameScope);
     if (renameFocus) {
       ImGui.setKeyboardFocusHere();
       renameFocus = false;

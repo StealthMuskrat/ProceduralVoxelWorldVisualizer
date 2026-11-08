@@ -183,6 +183,7 @@ public final class VoxelIdentityProbe {
         save(out, "inline-redone");
         require(inline.equals(ProjectIO.JSON.valueToTree(state.project())), "Inline Redo differed");
         frames(4);
+        renameHistory(out, stone);
         longIds(out, stone);
         state.user.save(out.resolve("preferences.json"));
         Files.writeString(
@@ -216,6 +217,60 @@ public final class VoxelIdentityProbe {
     } finally {
       ImGui.destroyContext();
     }
+  }
+
+  private static void renameHistory(Path out, UUID type) throws Exception {
+    var before = ProjectIO.JSON.valueToTree(state.project());
+    long history = state.document.historyBytes();
+    String source = state.project().voxelTypes.getFirst().id;
+    var receipts = new ArrayList<Map<String, Object>>();
+    for (String mode : List.of("escape", "enter")) {
+      resources.probeVoxelRename(type);
+      frames(4);
+      int oldId = resources.probeRenameNativeId();
+      appendAt(resources.probeVoxelRenameInput(), "-draft");
+      restoreRename(source, ImGuiKey.Z);
+      restoreRename(source + "-draft", ImGuiKey.Y);
+      restoreRename(source, ImGuiKey.Z);
+      require(resources.probeRenameNativeId() == oldId, "Rename text ID changed within its opening");
+      int close = mode.equals("escape") ? ImGuiKey.Escape : ImGuiKey.Enter;
+      key(close, true);
+      key(close, false);
+      frames(4);
+      require(resources.probeVoxelRenameInput() == null, "Rename predecessor did not close");
+      resources.probeVoxelRename(type);
+      frames(4);
+      int newId = resources.probeRenameNativeId();
+      require(oldId != newId && oldId != 0 && newId != 0, "Rename reused its native history ID");
+      renameHistoryKey(ImGuiKey.Y);
+      require(resources.voxelIdentity.proposed().equals(source), "Rename revived a discarded native Redo");
+      renameHistoryKey(ImGuiKey.Z);
+      require(resources.voxelIdentity.proposed().equals(source), "Rename revived discarded text");
+      receipts.add(Map.of("mode", mode, "oldWidgetId", oldId, "newWidgetId", newId,
+          "source", source, "restored", resources.voxelIdentity.proposed()));
+      key(ImGuiKey.Escape, true);
+      key(ImGuiKey.Escape, false);
+      frames(3);
+      require(before.equals(ProjectIO.JSON.valueToTree(state.project()))
+              && history == state.document.historyBytes(), "Native rename history published a change");
+    }
+    save(out, "rename-history-after");
+    Files.writeString(out.resolve("rename-native-history.json"), ProjectIO.JSON.writeValueAsString(
+        Map.of("formatVersion", 1, "cases", receipts)));
+  }
+
+  private static void restoreRename(String expected, int key) {
+    for (int i = 0; i < 8 && !resources.voxelIdentity.proposed().equals(expected); i++)
+      renameHistoryKey(key);
+    require(resources.voxelIdentity.proposed().equals(expected), "Native rename history lost exact text");
+  }
+
+  private static void renameHistoryKey(int code) {
+    key(ImGuiKey.ModCtrl, true);
+    key(code, true);
+    key(code, false);
+    key(ImGuiKey.ModCtrl, false);
+    frames(3);
   }
 
   private static void longIds(Path out, UUID type) throws Exception {
