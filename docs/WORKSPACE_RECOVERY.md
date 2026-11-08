@@ -13,8 +13,8 @@ Read-only recovery checked branch refs, all reflogs, known e70a5ee/63e359c objec
 | W06-C19 | Retained/versioned scene removals | Reconstructed in source with bounded retained receipts, exact acknowledgement, version-gated GPU remove/reset, thirteen deferred CPU definitions and native probe cases; see SCENE_REMOVAL_OWNERSHIP.md |
 | W06-C20, e7cd11e | Native renderer shutdown/typed retirement | Reconstructed in source with detached root/scene handles, independent once-only typed retirement, closed guards and eight deferred CPU definitions; see NATIVE_RENDERER_SHUTDOWN.md |
 | W06-C21, a5be076 | Two-phase UI peer shutdown | Reconstructed in source with detached UI/compiler/Inspector/scene/renderer/cursor owners, independent once-only cleanup and ten deferred CPU definitions; see UI_PEER_SHUTDOWN.md |
-| W06-C22, b88a27b | Timer/shadow retirement | Missing; recover/reimplement |
-| W06-C23, 3e190f2 | Shadow allocation/raster state transactions | Missing; only the generic transaction dependency needed by C28 is reconstructed here |
+| W06-C22, b88a27b | Timer/shadow retirement | Reconstructed in source with terminal/captured query and shadow ownership, independent typed retirement, callback guards, eleven deferred CPU definitions and updated native probe definitions; see TIMER_SHADOW_RETIREMENT.md |
+| W06-C23, 3e190f2 | Shadow allocation/raster state transactions | Reconstructed in source with private candidate acceptance, twelve allocation/fifteen raster restores, callback guards, eleven deferred CPU definitions and native/checker definitions; see SHADOW_STATE_TRANSACTIONS.md |
 | W06-C24, 1693696 | Viewport frame state/size/timing acceptance | Missing; C28 uses the older width/height cache directly |
 | W06-C25, 7cf5c2d | Palette/host-volume state/cache ownership | Missing; only the texture-state dependencies needed by C28 are reconstructed here, used by image upload |
 | W06-C26, 63e359c | Overlap-copy framebuffer ownership | Missing; recover/reimplement |
@@ -32,8 +32,10 @@ These IDs are retained to avoid confusing previously discussed work with the cur
 - [x] Reconstruct C19 retained/versioned removal delivery, bounded reset recovery and native typed retirement integration.
 - [x] Reconstruct C20 native renderer shutdown, typed once-only retirement, independent child/handle attempts and closed-owner guards.
 - [x] Reconstruct C21 two-phase UI peer shutdown, sealed publication/job owners, independent cleanup and original failure preservation.
-- [ ] Recover/reimplement C22–C27 integration and definitions, beginning with timer/shadow retirement.
+- [x] Reconstruct C22 timer/shadow retirement, terminal guards, callback ownership, query namespaces and independent first-failure cleanup.
+- [x] Reconstruct C23 shadow candidate/caller-state acceptance, independent allocation/raster restoration tails, closed/recursive guards and deferred definitions.
+- [ ] Recover/reimplement C24–C27 integration and definitions, beginning with frame state/size/timing acceptance.
 - [ ] Continue streaming state, parent preview/palette/profiler acceptance, retained physical display, other owners/callers/document/controls and W01–W08 source audits.
 - [ ] After implementation and the owner's testing pause ends, compile and execute the current source and complete V01–V04 validation/delivery gates.
 
-Reconstructed source remains **uncompiled and untested**. The last observed baseline is still **922 tests / 120 suites**; no A01–A36, Windows 11 or release evidence advances. Only source/Git content, metadata and whitespace review is available. Publication remains pending; the remote branch was not refreshed or modified during recovery.
+Reconstructed source remains **uncompiled and untested**. The last observed baseline is still **922 tests / 120 suites**; no A01–A36, Windows 11 or release evidence advances. Only source/Git content, metadata and whitespace review is available. The original recovery did not refresh or modify the remote branch. The owner now authorizes publication of completed main batches under AGENTS.md; verify the remote head after each push.

@@ -5,7 +5,7 @@ import java.util.function.Consumer;
 
 /** Captured native names retire once, coalescing duplicates only within the same GL namespace. */
 final class RenderRetirement implements Runnable {
-  enum Kind { PROGRAM, FRAMEBUFFER, BUFFER, VERTEX_ARRAY, TEXTURE, RENDERBUFFER }
+  enum Kind { PROGRAM, FRAMEBUFFER, BUFFER, VERTEX_ARRAY, TEXTURE, RENDERBUFFER, QUERY }
   record Handle(Kind kind, int id) {
     Handle { Objects.requireNonNull(kind); }
   }

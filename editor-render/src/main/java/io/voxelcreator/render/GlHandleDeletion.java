@@ -14,6 +14,7 @@ final class GlHandleDeletion {
       case VERTEX_ARRAY -> glDeleteVertexArrays(handle.id());
       case TEXTURE -> glDeleteTextures(handle.id());
       case RENDERBUFFER -> glDeleteRenderbuffers(handle.id());
+      case QUERY -> glDeleteQueries(handle.id());
     }
   }
 }

@@ -150,13 +150,14 @@ public final class GlViewport implements AutoCloseable {
       shadowState = "READY";
       shadowDetail = "Directional depth map / 3 x 3 PCF / " + resolution + " pixels";
       return new GlShadowMap.Sampling(shadowMap.texture(), resolution, projection);
-    } catch (RuntimeException failure) {
-      releaseShadows();
+    } catch (RuntimeException | Error failure) {
+      var previous = detachShadows();
+      try { if (previous != null) previous.close(); }
+      catch (RuntimeException | Error ignored) { /* Preserve the original shadow work outcome. */ }
+      if (failure instanceof Error error) throw error;
+      if (closed) return null;
       shadowState = "FAILED";
-      shadowFailure =
-          java.util.Objects.requireNonNullElse(
-              failure.getMessage(), failure.getClass().getSimpleName());
-      if (shadowFailure.length() > 1024) shadowFailure = shadowFailure.substring(0, 1024);
+      shadowFailure = "Shadow rendering or resource cleanup failed";
       shadowDetail = "Shadows suspended: " + shadowFailure + ". Retry in User Settings.";
       return null;
     }
@@ -404,8 +405,9 @@ public final class GlViewport implements AutoCloseable {
     requireOpen();
     uploads.invalidate();
     if (gpuTimer != null) {
-      gpuTimer.close();
+      var previous = gpuTimer;
       gpuTimer = null;
+      previous.close();
     }
     setImage(1, 1, new int[] {0});
     setMesh(new Mesh(new float[0], false));

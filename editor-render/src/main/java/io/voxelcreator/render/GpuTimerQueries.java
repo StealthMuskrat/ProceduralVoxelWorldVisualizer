@@ -70,7 +70,8 @@ public final class GpuTimerQueries implements AutoCloseable {
   private Slot active;
   private State state = State.IDLE;
   private int bits;
-  private boolean enabled, checked;
+  private boolean enabled, checked, busy;
+  private long generation;
   private long sequence, submitted, recorded, skipped, discarded, last;
   private String detail = "Start a capture to measure GPU draws";
 
@@ -91,36 +92,54 @@ public final class GpuTimerQueries implements AutoCloseable {
 
   /** Old captures are reclaimed before any result can enter a replacement capture. */
   public void synchronize(Profiler.Scope scope) {
-    if (state == State.CLOSED) return;
-    if (scope == null || !scope.recording()) {
-      if (enabled) release();
+    if (busy || state == State.CLOSED) return;
+    busy = true;
+    try { synchronizeCapture(scope); }
+    catch (RuntimeException | Error failure) { fail(failure); }
+    finally { busy = false; }
+  }
+
+  private void synchronizeCapture(Profiler.Scope scope) {
+    long opening = generation;
+    boolean recording = scope != null && scope.recording();
+    if (!current(opening)) return;
+    if (!recording) {
+      boolean release = enabled;
       enabled = false;
       if (state != State.FAILED && state != State.UNAVAILABLE) {
         state = State.IDLE;
         detail = "Capture off; unfinished GPU measurements discarded";
       }
+      if (release) release();
       return;
     }
     if (!scope.captureId().equals(owner)) {
-      release();
       owner = scope.captureId();
       checked = false;
       bits = 0;
       submitted = recorded = skipped = discarded = last = 0;
       state = State.IDLE;
       detail = "Waiting for a 3D viewport draw";
+      enabled = true;
+      release(false);
+      return;
     }
     enabled = true;
   }
 
   /** Zero means render normally without a timer (disabled, unsupported, nested, or ring full). */
   public long begin(Profiler.Scope scope, String label) {
-    synchronize(scope);
-    if (!enabled || state == State.CLOSED || state == State.FAILED || state == State.UNAVAILABLE)
-      return 0;
+    if (busy || state == State.CLOSED) return 0;
+    busy = true;
     try {
+      synchronizeCapture(scope);
+      if (!enabled || state == State.CLOSED || state == State.FAILED || state == State.UNAVAILABLE)
+        return 0;
+      long opening = generation;
       if (!checked) {
-        bits = backend.counterBits();
+        int width = backend.counterBits();
+        if (!current(opening)) return 0;
+        bits = width;
         checked = true;
       }
       if (bits < 30 || bits > 64) {
@@ -145,75 +164,119 @@ public final class GpuTimerQueries implements AutoCloseable {
         return 0;
       }
       long stamp = scope.begin();
-      if (stamp == 0) return 0;
-      if (slot.start == 0) slot.start = create();
-      if (slot.end == 0) slot.end = create();
+      if (!current(opening) || stamp == 0) return 0;
+      if (slot.start == 0) {
+        int name = create(opening);
+        if (!current(opening)) return 0;
+        slot.start = name;
+      }
+      if (slot.end == 0) {
+        int name = create(opening);
+        if (!current(opening)) return 0;
+        slot.end = name;
+      }
       slot.scope = scope;
       slot.stamp = stamp;
       slot.label = bounded(label);
       slot.sequence = ++sequence;
-      slot.issued = nanos.getAsLong();
+      long issued = nanos.getAsLong();
+      if (!current(opening)) return 0;
+      slot.issued = issued;
       slot.ended = false;
       active = slot;
       backend.timestamp(slot.start);
+      if (!current(opening)) return 0;
       submitted++;
       return slot.sequence;
-    } catch (RuntimeException failure) {
+    } catch (RuntimeException | Error failure) {
       fail(failure);
       return 0;
+    } finally {
+      busy = false;
     }
   }
 
-  private int create() {
+  private int create(long opening) {
     int query = backend.create();
+    if (!current(opening)) {
+      retire(query, 0);
+      return 0;
+    }
     if (query == 0) throw new IllegalStateException("GPU query allocation failed");
     return query;
   }
 
   public void end(long token, boolean success) {
-    if (token == 0 || active == null || token != active.sequence) return;
+    if (busy || state == State.CLOSED || token == 0 || active == null || token != active.sequence) return;
+    busy = true;
+    long opening = generation;
+    var slot = active;
     try {
-      backend.timestamp(active.end);
-      active.outcome = success ? Profiler.Outcome.MEASURED : Profiler.Outcome.FAILED;
-      active.ended = true;
+      backend.timestamp(slot.end);
+      if (!current(opening)) return;
+      slot.outcome = success ? Profiler.Outcome.MEASURED : Profiler.Outcome.FAILED;
+      slot.ended = true;
       active = null;
-    } catch (RuntimeException failure) {
+    } catch (RuntimeException | Error failure) {
       fail(failure);
+    } finally {
+      busy = false;
     }
   }
 
   /** Each pending pair is checked at most once; unavailable query results are never read. */
   public List<Measurement> poll(Profiler.Scope current) {
-    synchronize(current);
-    if (!enabled || state != State.READY) return List.of();
+    if (busy || state == State.CLOSED) return List.of();
+    busy = true;
     var results = new ArrayList<Measurement>(CAPACITY);
     try {
-      long now = nanos.getAsLong(), maximum = maximumAge();
+      synchronizeCapture(current);
+      if (!enabled || state != State.READY) return List.of();
+      long opening = generation;
+      long now = nanos.getAsLong();
+      if (!current(opening)) return List.of();
+      long maximum = maximumAge();
       for (var slot : slots) {
         if (slot.scope == null || !slot.ended) continue;
         long age = now - slot.issued;
         if (age < 0 || age >= maximum) {
           discard(slot);
+          if (!current(opening)) return List.of();
           continue;
         }
-        if (!backend.available(slot.start) || !backend.available(slot.end)) continue;
-        long start = backend.result(slot.start), end = backend.result(slot.end);
+        boolean startReady = backend.available(slot.start);
+        if (!current(opening)) return List.of();
+        if (!startReady) continue;
+        boolean endReady = backend.available(slot.end);
+        if (!current(opening)) return List.of();
+        if (!endReady) continue;
+        long start = backend.result(slot.start);
+        if (!current(opening)) return List.of();
+        long end = backend.result(slot.end);
+        if (!current(opening)) return List.of();
         long elapsed = end - start;
         if (bits < 64) elapsed &= (1L << bits) - 1;
         if (elapsed < 0 || elapsed >= maximum) {
           discard(slot);
+          if (!current(opening)) return List.of();
           continue;
         }
-        boolean accepted =
-            slot.scope.recordDuration(
-                slot.stamp, Profiler.Kind.GPU_DRAW, null, slot.label, elapsed, slot.outcome);
+        var scope = slot.scope;
+        long stamp = slot.stamp, token = slot.sequence;
+        String label = slot.label;
+        var outcome = slot.outcome;
+        var capture = owner;
+        int width = bits;
+        clear(slot);
+        boolean accepted = scope.recordDuration(stamp, Profiler.Kind.GPU_DRAW, null, label, elapsed, outcome);
+        if (!current(opening)) return List.of();
         results.add(
             new Measurement(
-                slot.sequence,
-                owner,
-                slot.stamp - 1,
-                slot.label,
-                bits,
+                token,
+                capture,
+                stamp - 1,
+                label,
+                width,
                 Long.toUnsignedString(start, 16),
                 Long.toUnsignedString(end, 16),
                 elapsed,
@@ -222,12 +285,13 @@ public final class GpuTimerQueries implements AutoCloseable {
           recorded++;
           last = elapsed;
         } else discarded++;
-        clear(slot);
       }
-    } catch (RuntimeException failure) {
+    } catch (RuntimeException | Error failure) {
       fail(failure);
+    } finally {
+      busy = false;
     }
-    return List.copyOf(results);
+    return state == State.CLOSED ? List.of() : List.copyOf(results);
   }
 
   private long maximumAge() {
@@ -240,18 +304,7 @@ public final class GpuTimerQueries implements AutoCloseable {
     int start = slot.start, end = slot.end;
     slot.start = slot.end = 0;
     clear(slot);
-    RuntimeException failure = null;
-    try {
-      delete(start);
-    } catch (RuntimeException problem) {
-      failure = problem;
-    }
-    try {
-      delete(end);
-    } catch (RuntimeException problem) {
-      if (failure == null) failure = problem;
-    }
-    if (failure != null) throw failure;
+    retire(start, end);
   }
 
   private static void clear(Slot slot) {
@@ -262,34 +315,43 @@ public final class GpuTimerQueries implements AutoCloseable {
     slot.outcome = null;
   }
 
-  private void delete(int query) {
-    if (query != 0) backend.delete(query);
+  private void retire(int start, int end) {
+    new RenderRetirement(h -> backend.delete(h.id()), new RenderRetirement.Handle[] {
+      new RenderRetirement.Handle(RenderRetirement.Kind.QUERY, start),
+      new RenderRetirement.Handle(RenderRetirement.Kind.QUERY, end)
+    }).run();
   }
 
   private void release() {
+    release(true);
+  }
+
+  private void release(boolean countDiscarded) {
+    generation++;
     active = null;
+    var handles = new ArrayList<RenderRetirement.Handle>(2 * CAPACITY);
     for (var slot : slots) {
-      if (slot.scope != null) discarded++;
+      if (countDiscarded && slot.scope != null) discarded++;
       int start = slot.start, end = slot.end;
       slot.start = slot.end = 0;
       clear(slot);
-      try {
-        delete(start);
-      } catch (RuntimeException ignored) {
-        /* Context teardown owns failure. */
-      }
-      try {
-        delete(end);
-      } catch (RuntimeException ignored) {
-        /* Try every other owned name too. */
-      }
+      handles.add(new RenderRetirement.Handle(RenderRetirement.Kind.QUERY, start));
+      handles.add(new RenderRetirement.Handle(RenderRetirement.Kind.QUERY, end));
     }
+    new RenderRetirement(h -> backend.delete(h.id()), handles.toArray(RenderRetirement.Handle[]::new)).run();
   }
 
-  private void fail(RuntimeException failure) {
-    release();
-    state = State.FAILED;
-    detail = "GPU measurement suspended until the next capture: " + bounded(failure.getMessage());
+  private boolean current(long opening) { return state != State.CLOSED && generation == opening; }
+
+  private void fail(Throwable failure) {
+    if (state != State.CLOSED) {
+      enabled = false;
+      state = State.FAILED;
+      detail = "GPU measurement suspended until the next capture";
+      try { release(); }
+      catch (RuntimeException | Error ignored) { /* The original work failure retains priority. */ }
+    }
+    if (failure instanceof Error error) throw error;
   }
 
   public Statistics statistics() {
@@ -311,9 +373,9 @@ public final class GpuTimerQueries implements AutoCloseable {
   @Override
   public void close() {
     if (state == State.CLOSED) return;
-    release();
     enabled = false;
     state = State.CLOSED;
     detail = "GPU queries closed";
+    release();
   }
 }
