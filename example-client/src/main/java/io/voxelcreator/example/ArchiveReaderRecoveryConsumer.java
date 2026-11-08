@@ -174,6 +174,7 @@ public final class ArchiveReaderRecoveryConsumer {
                 rejectedPayloads,
                 closedReads));
     ArchiveCancellationConsumer.run(out.resolve("cancellation"));
+    SnapshotPublicationConsumer.run(out.resolve("snapshot-publication"));
     System.out.println("ARCHIVE_READER_RECOVERY_CONSUMER_PASS");
   }
 
