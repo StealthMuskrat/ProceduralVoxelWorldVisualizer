@@ -111,7 +111,7 @@ public final class ChunkScene implements AutoCloseable {
     DisplayLod displayedLod;
     long displayedVersion;
     PackedMesh mesh;
-    long version, jobId, meshSignature, lastUsed, reservation;
+    long version, minimumUploadVersion, jobId, meshSignature, lastUsed, reservation;
     int targetLod = -1;
     boolean working, dirty = true, uploaded, displayed, failed;
     CancellationToken token;
@@ -569,6 +569,7 @@ public final class ChunkScene implements AutoCloseable {
         generated++;
         entry.dirty = true;
       } else {
+        boolean firstMesh = entry.mesh == null;
         cpuBytes -= meshBytes(entry);
         entry.mesh = result.mesh;
         entry.lod = result.lod;
@@ -577,6 +578,8 @@ public final class ChunkScene implements AutoCloseable {
         entry.dirty = false;
         entry.uploaded = false;
         entry.version = ++sequence;
+        // A new mesh lifetime cannot inherit acknowledgements retained from a retired mesh.
+        if (firstMesh) entry.minimumUploadVersion = entry.version;
         meshes++;
       }
     }
@@ -746,10 +749,18 @@ public final class ChunkScene implements AutoCloseable {
     return List.copyOf(result);
   }
 
+  /**
+   * Commits completed GPU acknowledgement metadata only within this entry's eligible version
+   * range. Retired, future and non-advancing receipts leave displayed ownership unchanged.
+   */
   public void uploaded(Upload upload) {
     if (closed || upload.epoch != epoch) return;
     Entry entry = entries.get(upload.position);
-    if (entry != null && upload.version >= entry.displayedVersion) {
+    if (entry != null
+        && entry.mesh != null
+        && upload.version >= entry.minimumUploadVersion
+        && upload.version <= entry.version
+        && upload.version > entry.displayedVersion) {
       cpuBytes -= meshBytes(entry);
       entry.displayed = true;
       entry.displayedLod = upload.cells;
@@ -801,6 +812,7 @@ public final class ChunkScene implements AutoCloseable {
         });
   }
 
+  /** Retires prior upload receipts while retaining CPU payloads for fresh-version uploads. */
   public void invalidateUploads() {
     for (var entry : entries.values()) {
       cpuBytes -= meshBytes(entry);
@@ -808,6 +820,8 @@ public final class ChunkScene implements AutoCloseable {
       entry.displayed = false;
       entry.displayedLod = null;
       entry.displayedVersion = 0;
+      // GPU replacement retires earlier acknowledgements even when the CPU mesh is reusable.
+      entry.minimumUploadVersion = entry.version = ++sequence;
       entry.dirty = true;
       cpuBytes += meshBytes(entry);
     }
