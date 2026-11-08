@@ -119,6 +119,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
   }
 
   public void epoch(long value) {
+    requireOpen();
     if (value == epoch) return;
     resetResidency();
     epoch = value;
@@ -163,6 +164,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
   }
 
   public void beginFrame() {
+    requireOpen();
     uploaded = relocated = 0;
     if (compactionRequested && pending == null && compaction == null) startCompaction();
   }
@@ -173,6 +175,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
   private ByteBuffer scratch;
 
   public boolean contains(ChunkScene.Upload upload) {
+    if (closed) return false;
     var entry = resident.get(upload.position());
     return upload.epoch() == epoch
         && entry != null
@@ -188,7 +191,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
   public ChunkScene.Upload pendingUpload() { return pending; }
 
   public boolean stage(ChunkScene.Upload upload) {
-    if (closed) throw new IllegalStateException("Renderer closed");
+    requireOpen();
     if (upload.epoch() != epoch) throw new IllegalArgumentException("Obsolete scene upload");
     if (pending != null || compaction != null) return false;
     if (compactionRequested && startCompaction()) return false;
@@ -206,6 +209,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
   }
 
   public ChunkScene.Upload advance(int budget) {
+    requireOpen();
     if (budget < 0) throw new IllegalArgumentException("Negative upload budget");
     if (pending == null) return null;
     int bytes = Math.min(budget, pending.mesh().byteSize() - progress);
@@ -247,6 +251,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
   }
 
   public void remove(ChunkPos position) {
+    if (closed) return;
     drawnVersions.remove(position);
     drawnLevels.remove(position);
     if (compaction != null) {
@@ -297,7 +302,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
 
   /** Explicit requests defer until an existing upload is published. No duplicate GPU arena. */
   public boolean requestCompaction() {
-    if (closed) throw new IllegalStateException("Renderer closed");
+    requireOpen();
     if (compaction != null) return false;
     if (pending != null) {
       compactionRequested = true;
@@ -325,6 +330,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
    * geometry.
    */
   public int advanceCompaction(int byteBudget) {
+    requireOpen();
     if (byteBudget < 0) throw new IllegalArgumentException("Negative compaction budget");
     int moved = 0;
     while (compaction != null) {
@@ -414,6 +420,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
   /** A separate depth pass never changes camera draw/picking metadata or upload counters. */
   public int renderShadow(
       int depthProgram, Matrix4f matrix, Vector3d origin, Set<ChunkPos> wanted) {
+    requireOpen();
     int count = 0;
     glUseProgram(depthProgram);
     glUniformMatrix4fv(
@@ -480,6 +487,7 @@ public final class SceneGpuRenderer implements AutoCloseable {
       boolean ao,
       float fogDistance,
       GlShadowMap.Sampling shadow) {
+    requireOpen();
     visible = culled = draws = 0;
     drawnVersions.clear();
     drawnLevels.clear();
@@ -608,9 +616,21 @@ void main(){vec3 base=texelFetch(palette,ivec2(int(type)%paletteWidth,int(type)/
         "chunkOffset");
   }
 
+  private void requireOpen() {
+    if (closed) throw new IllegalStateException("Renderer closed");
+  }
+
   public void close() {
     if (closed) return;
     closed = true;
+    var handles = new RenderRetirement.Handle[] {
+      new RenderRetirement.Handle(RenderRetirement.Kind.PROGRAM, program),
+      new RenderRetirement.Handle(RenderRetirement.Kind.BUFFER, vbo),
+      new RenderRetirement.Handle(RenderRetirement.Kind.BUFFER, origins),
+      new RenderRetirement.Handle(RenderRetirement.Kind.BUFFER, commands),
+      new RenderRetirement.Handle(RenderRetirement.Kind.VERTEX_ARRAY, vao)
+    };
+    program = vbo = origins = commands = vao = 0;
     compaction = null;
     compactionRequested = false;
     retiring.clear();
@@ -619,13 +639,11 @@ void main(){vec3 base=texelFetch(palette,ivec2(int(type)%paletteWidth,int(type)/
     drawnLevels.clear();
     pending = null;
     pendingSlice = null;
-    arena.reset();
+    progress = visible = culled = draws = 0;
+    uploaded = relocated = 0;
+    indirect = false;
     relocationScratch = null;
     scratch = null;
-    glDeleteProgram(program);
-    glDeleteBuffers(vbo);
-    glDeleteBuffers(origins);
-    glDeleteBuffers(commands);
-    glDeleteVertexArrays(vao);
+    new RenderRetirement(GlHandleDeletion::delete, handles, arena::reset).run();
   }
 }

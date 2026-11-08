@@ -17,6 +17,7 @@ public final class GlViewport implements AutoCloseable {
   private VolumeLight.Settings volumeLight = new VolumeLight.Settings(false, 16);
 
   public void volumeLighting(boolean enabled, int steps) {
+    requireOpen();
     volumeLight = new VolumeLight.Settings(enabled, steps);
   }
 
@@ -47,6 +48,7 @@ public final class GlViewport implements AutoCloseable {
   private String shadowState = "DISABLED", shadowDetail = "Shadows disabled", shadowFailure = "";
 
   public void shadowAppearance(boolean enabled, int resolution, long gpuBudget) {
+    requireOpen();
     if (!DirectionalShadow.validResolution(resolution) || gpuBudget < 0)
       throw new IllegalArgumentException("Invalid shadow settings");
     if (shadows != enabled || shadowResolution != resolution || shadowBudget != gpuBudget)
@@ -62,6 +64,7 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void retryShadows() {
+    requireOpen();
     releaseShadows();
     shadowFailure = "";
     shadowState = "WAITING";
@@ -192,6 +195,7 @@ public final class GlViewport implements AutoCloseable {
       boolean indirect,
       boolean ao,
       float fog) {
+    requireOpen();
     sceneOrigin.set(origin);
     sceneWanted = wanted;
     sceneIndirect = indirect;
@@ -200,6 +204,7 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void sceneDisabled() {
+    if (closed) return;
     uploads.invalidate();
     sceneOwner.disable();
   }
@@ -208,6 +213,7 @@ public final class GlViewport implements AutoCloseable {
    * Release hidden streaming resources when the viewport has no live source. Render thread only.
    */
   public void releaseScene() {
+    if (closed) return;
     var previous = sceneOwner.detach();
     sceneWanted = java.util.Set.of();
     var previousShadow = detachShadows();
@@ -237,6 +243,7 @@ public final class GlViewport implements AutoCloseable {
                 }
 
                 public int allocate(GridExtent shape) {
+                  requireOpen();
                   if (shape.maximum() > glGetInteger(GL_MAX_3D_TEXTURE_SIZE))
                     throw new IllegalArgumentException("Volume exceeds device texture limit");
                   int id = glGenTextures();
@@ -275,6 +282,7 @@ public final class GlViewport implements AutoCloseable {
 
                 public void write(
                     int id, int x, int y, int z, int w, int h, int d, FloatBuffer values) {
+                  requireOpen();
                   glBindTexture(GL_TEXTURE_3D, id);
                   int alignment = glGetInteger(GL_UNPACK_ALIGNMENT);
                   int swap = glGetInteger(GL_UNPACK_SWAP_BYTES);
@@ -325,6 +333,7 @@ public final class GlViewport implements AutoCloseable {
                     int dz,
                     int w,
                     int h) {
+                  requireOpen();
                   if (volumeCopyRead == 0) volumeCopyRead = glGenFramebuffers();
                   if (volumeCopyDraw == 0) volumeCopyDraw = glGenFramebuffers();
                   int read = glGetInteger(GL_READ_FRAMEBUFFER_BINDING),
@@ -504,6 +513,7 @@ public final class GlViewport implements AutoCloseable {
   /** With deferred display, a complete texture retains the old framebuffer until metadata accepts. */
   public boolean stageVolume(
       VolumeData data, long gpuBudget, VolumeTextureUpload.Region region, boolean deferDisplay) {
+    requireOpen();
     try {
       if (!volumeUpload.stage(data, gpuBudget, region)) return false;
     } catch (RuntimeException | Error failure) {
@@ -519,6 +529,7 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public int advanceVolume(int byteBudget) {
+    requireOpen();
     long version = volumeUpload.statistics().version();
     try {
       return volumeUpload.advance(byteBudget);
@@ -535,16 +546,18 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public VolumeTextureUpload.Resident volumeResident() {
-    return volumeUpload.resident();
+    return closed ? null : volumeUpload.resident();
   }
 
   public void cancelVolume() {
+    if (closed) return;
     uploads.invalidate();
     volumeDisplay.cancel();
     volumeUpload.cancel();
   }
 
   public void releaseVolume() {
+    if (closed) return;
     uploads.invalidate();
     clearVolume();
   }
@@ -556,14 +569,14 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public boolean volumeDisplayPending() {
-    return volumeDisplay.blocked();
+    return !closed && volumeDisplay.blocked();
   }
 
   /** Only the completed resident's exact version can release deferred presentation. */
   public boolean acceptVolumeDisplay(long version) {
+    if (closed) return false;
     var stats = volumeUpload.statistics();
-    return !closed
-        && !stats.pending()
+    return !stats.pending()
         && volumeUpload.resident() != null
         && stats.version() == version
         && volumeDisplay.accept(version);
@@ -575,14 +588,17 @@ public final class GlViewport implements AutoCloseable {
 
   public void volumeAppearance(
       double min, double max, double opacity, double threshold, int steps) {
+    requireOpen();
     volumeSettings = new VolumeTransfer.Settings(min, max, opacity, threshold, steps);
   }
 
   public void setPalette(int[] colors) {
+    requireOpen();
     paletteUpload.set(colors, glGetInteger(GL_MAX_TEXTURE_SIZE));
   }
 
   private void writePalette(int width, int height, IntBuffer pixels) {
+    requireOpen();
     int binding = glGetInteger(GL_TEXTURE_BINDING_2D);
     int unpack = glGetInteger(GL_PIXEL_UNPACK_BUFFER_BINDING);
     int alignment = glGetInteger(GL_UNPACK_ALIGNMENT), swap = glGetInteger(GL_UNPACK_SWAP_BYTES);
@@ -619,7 +635,7 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public java.util.List<GpuTimerQueries.Measurement> collectGpuTimings(Profiler.Scope scope) {
-    return gpuTimer == null ? java.util.List.of() : gpuTimer.poll(scope);
+    return closed || gpuTimer == null ? java.util.List.of() : gpuTimer.poll(scope);
   }
 
   public GpuTimerQueries.Statistics gpuTimingStatistics() {
@@ -642,6 +658,7 @@ public final class GlViewport implements AutoCloseable {
     requireOpen();
     if (uploads.busy()) throw new IllegalStateException("Viewport upload already active");
     if (gpuTimer != null) gpuTimer.synchronize(scope);
+    requireOpen();
     if (retainFrame
         || sceneOwner.transitioning()
         || volumeDisplay.blocked()
@@ -652,6 +669,7 @@ public final class GlViewport implements AutoCloseable {
     long token = gpuTimer == null ? 0 : gpuTimer.begin(scope, label);
     boolean success = false;
     try {
+      requireOpen();
       renderCommands(w, h, matrix, unlit, alpha);
       success = true;
     } finally {
@@ -852,23 +870,36 @@ public final class GlViewport implements AutoCloseable {
     closed = true;
     uploads.close();
     var previousScene = sceneOwner.closeOwner();
-    try {
-      releaseShadows();
-      if (gpuTimer != null) gpuTimer.close();
-      if (previousScene != null) previousScene.close();
-      if (volumeUpload != null) volumeUpload.close();
-    } finally {
-      volumeDisplay.clear();
-      if (program != 0) glDeleteProgram(program);
-      if (volumeProgram != 0) glDeleteProgram(volumeProgram);
-      if (volumeCopyRead != 0) glDeleteFramebuffers(volumeCopyRead);
-      if (volumeCopyDraw != 0) glDeleteFramebuffers(volumeCopyDraw);
-      if (vbo != 0) glDeleteBuffers(vbo);
-      if (vao != 0) glDeleteVertexArrays(vao);
-      if (texture != 0) glDeleteTextures(texture);
-      if (palette != 0) glDeleteTextures(palette);
-      if (depth != 0) glDeleteRenderbuffers(depth);
-      if (framebuffer != 0) glDeleteFramebuffers(framebuffer);
-    }
+    var previousShadow = detachShadows();
+    var previousTimer = gpuTimer;
+    gpuTimer = null;
+    // Keep the uploader's CPU statistics available, but hide its resident through the closed root.
+    var previousVolume = volumeUpload;
+    var handles = new RenderRetirement.Handle[] {
+      new RenderRetirement.Handle(RenderRetirement.Kind.PROGRAM, program),
+      new RenderRetirement.Handle(RenderRetirement.Kind.PROGRAM, volumeProgram),
+      new RenderRetirement.Handle(RenderRetirement.Kind.FRAMEBUFFER, volumeCopyRead),
+      new RenderRetirement.Handle(RenderRetirement.Kind.FRAMEBUFFER, volumeCopyDraw),
+      new RenderRetirement.Handle(RenderRetirement.Kind.BUFFER, vbo),
+      new RenderRetirement.Handle(RenderRetirement.Kind.VERTEX_ARRAY, vao),
+      new RenderRetirement.Handle(RenderRetirement.Kind.TEXTURE, texture),
+      new RenderRetirement.Handle(RenderRetirement.Kind.TEXTURE, palette),
+      new RenderRetirement.Handle(RenderRetirement.Kind.RENDERBUFFER, depth),
+      new RenderRetirement.Handle(RenderRetirement.Kind.FRAMEBUFFER, framebuffer)
+    };
+    program = volumeProgram = volumeCopyRead = volumeCopyDraw = vbo = vao = 0;
+    texture = palette = depth = framebuffer = 0;
+    invalidateFrame();
+    image = volume = retainFrame = false;
+    mesh = new Mesh(new float[0], false);
+    meshBounds = null;
+    meshBoundsChecked = false;
+    sceneWanted = java.util.Set.of();
+    volumeDisplay.clear();
+    new RenderRetirement(GlHandleDeletion::delete, handles,
+        () -> { if (previousShadow != null) previousShadow.close(); },
+        () -> { if (previousTimer != null) previousTimer.close(); },
+        () -> { if (previousScene != null) previousScene.close(); },
+        () -> { if (previousVolume != null) previousVolume.close(); }).run();
   }
 }
