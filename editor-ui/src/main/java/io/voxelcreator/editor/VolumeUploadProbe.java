@@ -273,6 +273,11 @@ final class VolumeUploadProbe {
                 && views.probeVolumeStatistics().version() == complete,
             "GPU rejection published a candidate");
         require(
+            views.probePreviewWorkerFailed(1)
+                && Boolean.FALSE.equals(views.probeDocumentViews().get(1).get("pendingVolume"))
+                && Boolean.FALSE.equals(views.probeDocumentViews().get(1).get("force")),
+            "GPU rejection retained UI worker/upload ownership");
+        require(
             views.probeVolumeOrigin().equals(new Vector3d(-24)), "Rejected request changed origin");
         state.user.performance.sceneGpuMiB = 32;
         views.probeVolume(empty, 32, 48);
