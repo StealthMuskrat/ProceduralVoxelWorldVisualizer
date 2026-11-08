@@ -88,6 +88,7 @@ public final class RegionCompletionConsumer {
     require(observations == 1024 && retainedObservations == 72, "Unexpected replay dimensions");
     RegionProgressConsumer.replay(compiled, out);
     CollectionFailureConsumer.run(compiled, out.resolve("collection-failures"));
+    RegionPartitionConsumer.run(out.resolve("partitions"));
     require(
         original.equals(ProjectIO.JSON.writeValueAsString(project)),
         "Runtime ownership mutated authoring data");
