@@ -991,7 +991,7 @@ public final class Viewports implements AutoCloseable {
         activeSceneKey = "",
         failedKey = "";
     ChunkScene scene;
-    Object sceneFailureOwner;
+    Object sceneFailureOwner, sceneAdoptionOwner;
     RenderPressure pressure = new RenderPressure();
     final SourceCompilerTask<SceneSetup> compiler = new SourceCompilerTask<>();
     final AtomicReference<WorkerGate> workerGate = new AtomicReference<>(),
@@ -3098,6 +3098,7 @@ public final class Viewports implements AutoCloseable {
 
           public void settle() {
             v.sceneFailureOwner = owner;
+            v.sceneAdoptionOwner = null;
             v.scene = null;
             v.gpuBudget = 0;
             v.activeSceneKey = "";
@@ -3159,6 +3160,7 @@ public final class Viewports implements AutoCloseable {
     boolean hadWork = previousScene != null || v.compiler.pending();
     v.scene = null;
     v.sceneFailureOwner = null;
+    v.sceneAdoptionOwner = null;
     String key = closed ? "" : sceneKey(v);
     var retired = v.compiler.stop();
     var cleanup = PreviewNotifications.attempt(
@@ -3306,29 +3308,64 @@ public final class Viewports implements AutoCloseable {
             "Streaming source failed: " + setup.error);
         return true;
       } else {
-        v.failedPreview = false;
-        v.failedKey = "";
-        v.streamFallback = false;
-        if (v.scene != null) v.scene.close();
-        UUID profileProject = state.project().project.uuid;
-        v.scene =
-            new ChunkScene(
-                setup.source,
-                state.background,
-                sceneConfig(v, v.mode.equals("Point Cloud")),
-                v.pressure,
-                position -> state.engine.profiler().scope(0, profileProject, position));
-        v.sceneFailureOwner = null;
-        v.activeSceneKey = key;
-        v.force = false;
-        v.dirty = false;
-        v.completed = false;
-        var scene = v.scene;
+        var previous = v.scene;
         var renderer = v.gl;
         long epoch = v.epoch;
         long compiler = v.compiler.generation();
+        Object owner = new Object();
+        v.sceneAdoptionOwner = owner;
+        java.util.function.BooleanSupplier opening =
+            () -> !closed && v.epoch == epoch && v.gl == renderer && v.compiler.current(compiler)
+                && key.equals(sceneKey(v)) && usesStreaming(v);
+        var adopted = SceneAdoption.adopt(setup.source, previous, new SceneAdoption.Owner<ChunkScene>() {
+          public boolean eligible() {
+            return opening.getAsBoolean() && v.sceneAdoptionOwner == owner && v.scene == previous;
+          }
+
+          public void failed() {
+            v.sceneAdoptionOwner = owner;
+            v.failedKey = key;
+            v.streamFallback = false;
+            v.failedPreview = true;
+            v.force = false;
+            v.dirty = true;
+            v.message = "Scene setup failed; previous display retained; Regenerate to retry";
+          }
+
+          public void publish(ChunkScene scene) {
+            v.scene = scene;
+            v.sceneFailureOwner = null;
+            v.failedPreview = false;
+            v.failedKey = "";
+            v.streamFallback = false;
+            v.activeSceneKey = key;
+            v.force = v.dirty = false;
+            v.completed = false;
+          }
+        }, source -> {
+          UUID profileProject = state.project().project.uuid;
+          return new ChunkScene(source, state.background,
+              sceneConfig(v, v.mode.equals("Point Cloud")), v.pressure,
+              position -> state.engine.profiler().scope(0, profileProject, position));
+        });
+        var scene = adopted.scene();
+        if (scene == null) {
+          java.util.function.BooleanSupplier current =
+              () -> opening.getAsBoolean() && v.sceneAdoptionOwner == owner && v.scene == previous
+                  && v.failedPreview && !v.streamFallback && v.dirty && !v.force && key.equals(v.failedKey);
+          PreviewNotifications.report(adopted.failure(), current,
+              detail -> state.error("STREAM_SCENE_FAILED", EditorEvents.Subsystem.RENDERING, detail));
+          PreviewNotifications.report(adopted.cleanup(), current,
+              detail -> state.error("STREAM_SCENE_CLEANUP_FAILED", EditorEvents.Subsystem.RENDERING, detail));
+          if (adopted.failure() instanceof Error error) throw error;
+          return true;
+        }
+        java.util.function.BooleanSupplier current =
+            () -> v.sceneAdoptionOwner == owner && ownsStreamScene(v, key, scene, epoch, renderer)
+                && v.compiler.current(compiler);
+        if (!current.getAsBoolean()) return true;
         try {
-          v.gl.scene(v.scene.epoch(), sceneGpuBudget(v));
+          renderer.scene(scene.epoch(), sceneGpuBudget(v));
           if (admissionProbe && probeRendererStartupFailure.compareAndSet(true, false))
             throw new IllegalStateException("Injected streaming renderer startup failure");
           v.gpuBudget = sceneGpuBudget(v);
@@ -3342,6 +3379,9 @@ public final class Viewports implements AutoCloseable {
         } catch (RuntimeException gpu) {
           return !rendererFallback(v, key, scene, epoch, renderer, compiler, gpu, true);
         }
+        PreviewNotifications.report(adopted.cleanup(), current,
+            detail -> state.error("STREAM_SCENE_RETIRE_FAILED", EditorEvents.Subsystem.RENDERING, detail));
+        if (!current.getAsBoolean()) return true;
       }
     }
     if (v.scene != null) {
@@ -3680,6 +3720,7 @@ public final class Viewports implements AutoCloseable {
     var renderer = v.gl;
     v.job = null;
     v.sceneFailureOwner = null;
+    v.sceneAdoptionOwner = null;
     v.volumeFailureOwner = null;
     v.pendingVolume = null;
     v.volumeWorkingBytes = 0;
