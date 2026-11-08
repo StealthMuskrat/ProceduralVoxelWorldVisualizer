@@ -3,9 +3,9 @@ package io.voxelcreator.editor;
 import java.util.*;
 import java.util.function.Predicate;
 
-/** The membership modal owns existing Undo/Redo bindings while no native input owns the keys. */
-final class MembershipShortcuts {
-  private MembershipShortcuts() {}
+/** A focused private modal owns existing Undo/Redo bindings while native input keeps its keys. */
+final class PrivateHistoryShortcuts {
+  private PrivateHistoryShortcuts() {}
 
   static String match(
       Map<String, String> bindings,

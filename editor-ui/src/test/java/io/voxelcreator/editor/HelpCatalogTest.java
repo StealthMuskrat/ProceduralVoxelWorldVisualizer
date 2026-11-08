@@ -134,6 +134,9 @@ class HelpCatalogTest {
     assertTrue(text.contains("Current review Cancel or Escape runs before accepting a ready preview or rebuild failure"));
     assertTrue(text.contains("Accepted replacement rows must be displayed before Import"));
     assertTrue(text.contains("keeping COPY identities"));
+    assertTrue(text.contains("Undo Choice and Redo Choice restore local resolutions"));
+    assertTrue(text.contains("Restored choices need Resources review again"));
+    assertTrue(text.contains("Choice history is locked during final Import preparation"));
     assertTrue(catalog.search("reload ready preview").contains(topic));
     assertEquals(topic.id(), HelpDefinitions.menuTopic("Import"));
     assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));

@@ -110,6 +110,24 @@ public final class ResourceReviewLayoutProbe {
         var session = imports.session();
         session.choose(incoming.noise2D.getFirst().uuid, ResourceImport.Choice.REUSE);
         frames(5);
+        click(imports.control("undo"));
+        require(
+            session.choice(incoming.noise2D.getFirst().uuid) == ResourceImport.Choice.COPY
+                && !session.canApply(),
+            "Import choice Undo did not require Resources review");
+        click(imports.control("redo"));
+        historyKey(ImGuiKey.Z);
+        require(
+            session.choice(incoming.noise2D.getFirst().uuid) == ResourceImport.Choice.COPY,
+            "Import keyboard Undo escaped its private modal");
+        historyKey(ImGuiKey.Y);
+        require(
+            session.choice(incoming.noise2D.getFirst().uuid) == ResourceImport.Choice.REUSE
+                && before.equals(ProjectIO.JSON.valueToTree(state.project()))
+                && state.draft == noiseDraft && noiseDraft.id.equals("private-noise")
+                && state.seedInputs.text("seedOffset").equals("-")
+                && revision == state.revision && history == state.document.historyBytes(),
+            "Import choice history changed project or separate private input");
         require(!session.canApply(), "Filters acknowledged a changed resource plan");
         click(imports.control("apply"));
         click(imports.control("issues"));
@@ -276,6 +294,7 @@ public final class ResourceReviewLayoutProbe {
                     Map.entry("cancelBeforeApply", true),
                     Map.entry("filteredBulkSelection", true),
                     Map.entry("localMembershipHistory", true),
+                    Map.entry("localImportHistory", true),
                     Map.entry("rejectedMembershipRetained", true),
                     Map.entry("membershipOnlyRetry", true),
                     Map.entry("oneUndoRedo", true),

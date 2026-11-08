@@ -9,17 +9,17 @@ class MembershipShortcutsTest {
   @Test
   void localCommandsFollowTheExistingBindingsAndExactModifiers() {
     var bindings = new HashMap<>(Shortcuts.defaults());
-    assertEquals("Undo", MembershipShortcuts.match(bindings, true, false, Shortcuts.CTRL, "Z"::equals));
-    assertEquals("Redo", MembershipShortcuts.match(bindings, true, false, Shortcuts.CTRL, "Y"::equals));
+    assertEquals("Undo", PrivateHistoryShortcuts.match(bindings, true, false, Shortcuts.CTRL, "Z"::equals));
+    assertEquals("Redo", PrivateHistoryShortcuts.match(bindings, true, false, Shortcuts.CTRL, "Y"::equals));
     bindings.put("Undo", "Alt+U");
     bindings.put("Redo", "Super+Shift+R");
-    assertEquals("Undo", MembershipShortcuts.match(bindings, true, false, Shortcuts.ALT, "U"::equals));
+    assertEquals("Undo", PrivateHistoryShortcuts.match(bindings, true, false, Shortcuts.ALT, "U"::equals));
     assertEquals(
         "Redo",
-        MembershipShortcuts.match(bindings, true, false, Shortcuts.SUPER | Shortcuts.SHIFT, "R"::equals));
-    assertNull(MembershipShortcuts.match(bindings, true, false, Shortcuts.CTRL, "Z"::equals));
+        PrivateHistoryShortcuts.match(bindings, true, false, Shortcuts.SUPER | Shortcuts.SHIFT, "R"::equals));
+    assertNull(PrivateHistoryShortcuts.match(bindings, true, false, Shortcuts.CTRL, "Z"::equals));
     assertNull(
-        MembershipShortcuts.match(
+        PrivateHistoryShortcuts.match(
             bindings, true, false, Shortcuts.ALT | Shortcuts.SHIFT, "U"::equals));
   }
 
@@ -27,19 +27,19 @@ class MembershipShortcutsTest {
   void unfocusedOrEditingInputsRetainTheirKeysAndInvalidOrUnboundActionsDoNotMatch() {
     var bindings = new HashMap<>(Shortcuts.defaults());
     assertNull(
-        MembershipShortcuts.match(
+        PrivateHistoryShortcuts.match(
             bindings, false, false, Shortcuts.CTRL, k -> {
               throw new AssertionError();
             }));
     assertNull(
-        MembershipShortcuts.match(
+        PrivateHistoryShortcuts.match(
             bindings, true, true, Shortcuts.CTRL, k -> {
               throw new AssertionError();
             }));
     bindings.put("Undo", "not-a-key");
     bindings.put("Redo", "");
-    assertNull(MembershipShortcuts.match(bindings, true, false, Shortcuts.CTRL, k -> true));
+    assertNull(PrivateHistoryShortcuts.match(bindings, true, false, Shortcuts.CTRL, k -> true));
     bindings.put("Redo", "Ctrl+Y");
-    assertEquals("Redo", MembershipShortcuts.match(bindings, true, false, Shortcuts.CTRL, "Y"::equals));
+    assertEquals("Redo", PrivateHistoryShortcuts.match(bindings, true, false, Shortcuts.CTRL, "Y"::equals));
   }
 }
