@@ -204,6 +204,7 @@ public final class CancellationOwnershipConsumer {
     ChunkSubscriberOwnershipConsumer.run(out.resolve("chunk-subscribers"));
     CancellationPollConsumer.run(out.resolve("parent-polls"));
     WorldOperationCancellationConsumer.run(out.resolve("world-operations"));
+    AbandonmentRecheckConsumer.run(out.resolve("abandonment-recheck"));
     System.out.println("CANCELLATION_OWNERSHIP_CONSUMER_PASS");
   }
 
