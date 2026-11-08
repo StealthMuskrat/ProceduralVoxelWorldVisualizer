@@ -44,6 +44,7 @@ final class SourceCompilerTask<T extends AutoCloseable> implements AutoCloseable
   }
 
   Ticket ticket() { return ticket; }
+  long generation() { return generation; }
   Future<?> future() { return future; }
   String key() { return ticket == null ? "" : ticket.key; }
   boolean pending() { return awaitingAttachment || future != null; }
