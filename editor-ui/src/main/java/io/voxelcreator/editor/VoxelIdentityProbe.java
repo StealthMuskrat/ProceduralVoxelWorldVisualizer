@@ -183,6 +183,7 @@ public final class VoxelIdentityProbe {
         save(out, "inline-redone");
         require(inline.equals(ProjectIO.JSON.valueToTree(state.project())), "Inline Redo differed");
         frames(4);
+        longIds(out, stone);
         state.user.save(out.resolve("preferences.json"));
         Files.writeString(
             out.resolve("voxel-identity-native.json"),
@@ -210,11 +211,89 @@ public final class VoxelIdentityProbe {
                     false)));
         System.out.println(
             "VOXEL_IDENTITY_NATIVE_PASS cached clipped review / exact reference routes / private"
-                + " preservation / Properties-inline rename / Undo / duplicate / Escape");
+                + " preservation / Properties-inline rename / Undo / duplicate / Escape / long IDs");
       }
     } finally {
       ImGui.destroyContext();
     }
+  }
+
+  private static void longIds(Path out, UUID type) throws Exception {
+    String[] ids = {"a".repeat(257), "x".repeat(255) + "é界😀", "é界😀".repeat(2049)};
+    String inlineSuffix = "-inline-" + "z".repeat(300);
+    String propertiesSuffix = "-properties-" + "😀".repeat(80);
+    for (int i = 0; i < ids.length; i++) {
+      String id = ids[i], prefix = "long-" + i + "-";
+      require(state.change(p -> p.voxelTypes.getFirst().id = id), "Long ID fixture rejected");
+      state.refreshDraft();
+      properties.probeBodyScroll(0);
+      frames(5);
+      var before = ProjectIO.JSON.valueToTree(state.project());
+      long history = state.document.historyBytes();
+      save(out, prefix + "before");
+      resources.probeVoxelRename(type);
+      frames(4);
+      require(resources.probeVoxelRenameInput() != null, "Long ID rename input absent");
+      key(ImGuiKey.Enter, true);
+      key(ImGuiKey.Enter, false);
+      frames(4);
+      require(
+          before.equals(ProjectIO.JSON.valueToTree(state.project()))
+              && state.document.historyBytes() == history
+              && resources.probeVoxelRenameInput() == null,
+          "Accepting an unchanged long ID truncated it or created history");
+      save(out, prefix + "unchanged");
+      resources.probeVoxelRename(type);
+      frames(4);
+      appendAt(resources.probeVoxelRenameInput(), inlineSuffix);
+      require(
+          before.equals(ProjectIO.JSON.valueToTree(state.project())), "Inline text published early");
+      key(ImGuiKey.Enter, true);
+      key(ImGuiKey.Enter, false);
+      frames(4);
+      require(
+          state.project().voxelTypes.getFirst().id.equals(id + inlineSuffix), "Long inline ID clipped");
+      save(out, prefix + "inline");
+      historyRoundTrip(out, prefix + "inline");
+      properties.probeBodyScroll(0);
+      frames(5);
+      appendAt(properties.probeIdentityInput(), propertiesSuffix);
+      require(
+          state.project().voxelTypes.getFirst().id.equals(id + inlineSuffix)
+              && ((VoxelType) state.draft).id.equals(id + inlineSuffix + propertiesSuffix),
+          "Long Properties text clipped or published early");
+      click(properties.probeAction("apply"));
+      frames(4);
+      require(
+          state.project().voxelTypes.getFirst().id.equals(id + inlineSuffix + propertiesSuffix),
+          "Long Properties ID clipped on Apply");
+      save(out, prefix + "properties");
+      historyRoundTrip(out, prefix + "properties");
+    }
+  }
+
+  private static void historyRoundTrip(Path out, String prefix) throws Exception {
+    var applied = ProjectIO.JSON.valueToTree(state.project());
+    state.document.undo();
+    state.revision++;
+    state.refreshDraft();
+    save(out, prefix + "-undone");
+    state.document.redo();
+    state.revision++;
+    state.refreshDraft();
+    save(out, prefix + "-redone");
+    require(applied.equals(ProjectIO.JSON.valueToTree(state.project())), "Long ID Redo differed");
+    frames(4);
+  }
+
+  private static void appendAt(float[] point, String text) {
+    click(point);
+    key(ImGuiKey.ModCtrl, true);
+    key(ImGuiKey.End, true);
+    key(ImGuiKey.End, false);
+    key(ImGuiKey.ModCtrl, false);
+    ImGui.getIO().addInputCharactersUTF8(text);
+    frames(3);
   }
 
   private static void fixture(ProjectData p) {

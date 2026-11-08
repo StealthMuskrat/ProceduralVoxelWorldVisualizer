@@ -46,9 +46,10 @@ public final class UiFields {
         texts.computeIfAbsent(
             ImGui.getID(label) + label,
             k ->
-                new ImString(
-                    value == null ? "" : value,
-                    callback == null ? 16384 : 4 * ExpressionEditSession.MAX_CHARACTERS + 1));
+                callback == null
+                    ? TextBuffers.editable(value, 16384)
+                    : new ImString(
+                        value == null ? "" : value, 4 * ExpressionEditSession.MAX_CHARACTERS + 1));
     boolean edited =
         callback == null
             ? ImGui.inputText(label, b)
