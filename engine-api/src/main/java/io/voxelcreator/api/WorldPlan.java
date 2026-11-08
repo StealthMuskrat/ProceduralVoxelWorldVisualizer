@@ -288,16 +288,16 @@ final class WorldPlan {
   }
 
   int sample(int x, int y, int z) {
-    return sample(x, y, z, null, Integer.MAX_VALUE, null, 0, null, null);
+    return sample(x, y, z, null, Integer.MAX_VALUE, null, 0, null, null, null);
   }
 
   int stageSample(int x, int y, int z, int stage) {
-    return sample(x, y, z, null, stage, null, 0, null, null);
+    return sample(x, y, z, null, stage, null, 0, null, null, null);
   }
 
   GenerationTrace trace(BlockPos p) {
     var trace = new ArrayList<GenerationTrace.Step>();
-    int result = sample(p.x(), p.y(), p.z(), trace, Integer.MAX_VALUE, null, 0, null, null);
+    int result = sample(p.x(), p.y(), p.z(), trace, Integer.MAX_VALUE, null, 0, null, null, null);
     return new GenerationTrace(p, result, List.copyOf(trace));
   }
 
@@ -364,6 +364,7 @@ final class WorldPlan {
     long bottom = (long) pos.y() * size, top = bottom + size - 1;
     double[][] fields = new double[Math.min(limit, operations.size())][];
     for (int i = 0; i < fields.length; i++) {
+      token.throwIfCancelled();
       Op op = operations.get(i);
       // Prefetch may evaluate a field only if a cell could pass the same effective Y guard as
       // sample(). Intersect all three intervals together, including disjoint project/settings.
@@ -413,7 +414,7 @@ final class WorldPlan {
         size,
         (x, y, z) -> {
           token.throwIfCancelled();
-          return sample(ox + x, oy + y, oz + z, null, limit, fields, z * size + x, profile, work);
+          return sample(ox + x, oy + y, oz + z, null, limit, fields, z * size + x, profile, work, token);
         });
   }
 
@@ -481,13 +482,16 @@ final class WorldPlan {
       double[][] cached,
       int at,
       Profiler.Scope profile,
-      Profiler.WorkBatch work) {
+      Profiler.WorkBatch work,
+      CancellationToken token) {
     if (y < minY || y > maxY) return 0;
     int state = 0;
     int index = 0;
     int traceRemaining = 1024;
     for (Op op : operations) {
       if (index >= limit) break;
+      // Generation owns a cooperative scope; direct point/trace replay has no request token.
+      if (token != null) token.throwIfCancelled();
       long profileStamp = profile == null ? 0 : profile.beginOperation();
       long workStamp = work == null ? 0 : work.begin();
       var profileOutcome = Profiler.Outcome.FAILED;

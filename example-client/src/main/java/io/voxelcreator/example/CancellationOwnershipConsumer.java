@@ -203,6 +203,7 @@ public final class CancellationOwnershipConsumer {
                 List.of(2, 4))));
     ChunkSubscriberOwnershipConsumer.run(out.resolve("chunk-subscribers"));
     CancellationPollConsumer.run(out.resolve("parent-polls"));
+    WorldOperationCancellationConsumer.run(out.resolve("world-operations"));
     System.out.println("CANCELLATION_OWNERSHIP_CONSUMER_PASS");
   }
 
