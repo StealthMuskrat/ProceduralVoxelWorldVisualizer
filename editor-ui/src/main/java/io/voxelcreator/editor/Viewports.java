@@ -1013,6 +1013,7 @@ public final class Viewports implements AutoCloseable {
     final PreviewMailbox<Preview> ready = new PreviewMailbox<>();
     final PreviewAdmission admission = new PreviewAdmission();
     Preview pendingVolume;
+    Object volumeFailureOwner;
     final VolumeWindows volumeWindows = new VolumeWindows();
     ProjectData volumeSnapshot;
     UUID volumeNoise;
@@ -2232,7 +2233,10 @@ public final class Viewports implements AutoCloseable {
               v.activeJob = true;
             }
           } catch (RuntimeException failure) {
-            volumeUploadFailed(v, failure.getMessage());
+            volumeUploadFailed(v, () -> BackgroundFailure.describe(failure));
+          } catch (Error failure) {
+            volumeUploadFailed(v, () -> BackgroundFailure.describe(failure));
+            throw failure;
           }
         } else acceptPreview(v, ready);
       }
@@ -2291,7 +2295,12 @@ public final class Viewports implements AutoCloseable {
                     + " bytes remaining; previous display retained";
         }
       } catch (RuntimeException failure) {
-        volumeUploadFailed(v, failure.getMessage());
+        volumeUploadFailed(v, () -> BackgroundFailure.describe(failure));
+      } catch (Error failure) {
+        // A retirement Error after commit already accepted its metadata in VolumePreviewHandoff.
+        if (v.pendingVolume != null)
+          volumeUploadFailed(v, () -> BackgroundFailure.describe(failure));
+        throw failure;
       }
       if (retirementFailure != null) {
         String detail = BackgroundFailure.describe(retirementFailure);
@@ -2660,17 +2669,52 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void volumeUploadFailed(View v, String detail) {
-    v.gl.cancelVolume();
-    v.pendingVolume = null;
-    v.volumeWorkingBytes = 0;
-    v.activeJob = false;
-    v.failedPreview = true;
-    v.message =
-        "Volume upload failed: " + detail + "; previous display retained; Regenerate to retry";
-    state.error("VOLUME_UPLOAD_FAILED", EditorEvents.Subsystem.RENDERING, detail);
+    volumeUploadFailed(v, () -> detail);
+  }
+
+  private void volumeUploadFailed(View v, java.util.function.Supplier<String> reason) {
+    Object ticket = new Object();
+    long epoch = v.epoch;
+    VolumePreviewFailure.fail(
+        new VolumePreviewFailure.Owner() {
+          public void settle() {
+            v.volumeFailureOwner = ticket;
+            v.pendingVolume = null;
+            v.volumeWorkingBytes = 0;
+            v.activeJob = false;
+            v.dirty = v.force = false;
+            v.failedPreview = true;
+            v.message = "Volume upload failed; previous display retained; Regenerate to retry";
+          }
+
+          public boolean current() {
+            return !closed
+                && v.epoch == epoch
+                && v.volumeFailureOwner == ticket
+                && v.pendingVolume == null
+                && !v.activeJob
+                && !v.dirty
+                && !v.force
+                && v.failedPreview;
+          }
+
+          public void feedback(String detail) {
+            v.message =
+                "Volume upload failed: "
+                    + detail
+                    + "; previous display retained; Regenerate to retry";
+          }
+
+          public void report(String code, String detail) {
+            state.error(code, EditorEvents.Subsystem.RENDERING, detail);
+          }
+        },
+        v.gl::cancelVolume,
+        reason);
   }
 
   private void acceptPreview(View v, Preview ready) {
+    v.volumeFailureOwner = null;
     if (rectangularProbe && v.kind == 1 && ready.mesh != null)
       rectangularReceipt =
           Map.of(
@@ -3485,6 +3529,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void mark(View v) {
+    v.volumeFailureOwner = null;
     v.pendingVolume = null;
     v.volumeWorkingBytes = 0;
     v.volumeRejected = false;
