@@ -3594,20 +3594,28 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void previewJobFailed(View v, Throwable failure) {
-    if (v.job != null) v.job.cancel(true);
+    var previousJob = v.job;
+    var renderer = v.gl;
     v.job = null;
     v.epoch++;
     v.ready.advance(v.epoch);
-    if (v.kind == 2) pickViewChanged();
-    if (v.pendingVolume != null) v.gl.cancelVolume();
+    v.volumeFailureOwner = null;
     v.pendingVolume = null;
     v.volumeWorkingBytes = 0;
     v.activeJob = false;
     v.dirty = v.force = false;
     v.failedPreview = true;
     v.message = "Preview worker failed; previous display retained; Regenerate to retry";
-    state.error(
-        "PREVIEW_FAILED", EditorEvents.Subsystem.RENDERING, BackgroundFailure.describe(failure));
+    var pick = retirePreviewPick(v);
+    long epoch = v.epoch;
+    var cleanup = cancelPreviewWork(renderer, previousJob, pick);
+    java.util.function.BooleanSupplier current =
+        () -> !closed && v.epoch == epoch && v.gl == renderer && v.job == null
+            && !v.activeJob && v.failedPreview && !v.dirty && !v.force;
+    PreviewNotifications.report(failure, current,
+        detail -> state.error("PREVIEW_FAILED", EditorEvents.Subsystem.RENDERING, detail));
+    PreviewNotifications.report(cleanup, current,
+        detail -> state.error("PREVIEW_CANCEL_FAILED", EditorEvents.Subsystem.RENDERING, detail));
   }
 
   private void publish(View v, Preview result) {
@@ -3615,25 +3623,49 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void mark(View v) {
+    var previousJob = v.job;
+    var renderer = v.gl;
+    v.job = null;
     v.volumeFailureOwner = null;
     v.pendingVolume = null;
     v.volumeWorkingBytes = 0;
     v.volumeRejected = false;
     v.volumeRequestTag = "";
-    if (v.gl != null) v.gl.cancelVolume();
-    if (v.kind == 2) {
-      pickViewChanged();
-      v.pickedBookmark = null;
-    }
     v.dirty = true;
     v.admission.changed();
     v.failedPreview = false;
     v.epoch++;
     v.ready.advance(v.epoch);
-    if (v.job != null) v.job.cancel(true);
-    v.job = null;
-    state.background.purge();
     v.activeJob = false;
+    var pick = retirePreviewPick(v);
+    long epoch = v.epoch;
+    var cleanup = cancelPreviewWork(renderer, previousJob, pick);
+    PreviewNotifications.report(cleanup,
+        () -> !closed && v.epoch == epoch && v.gl == renderer && v.job == null
+            && !v.activeJob && v.dirty && !v.failedPreview,
+        detail -> state.error("PREVIEW_CANCEL_FAILED", EditorEvents.Subsystem.RENDERING, detail));
+  }
+
+  private InspectorTask.Ticket retirePreviewPick(View v) {
+    if (v.kind != 2) return null;
+    traceRequests.viewChanged();
+    v.pickedBookmark = null;
+    return inspectorTask.pending() && inspectorTask.request().viewBound() ? inspectorTask.ticket() : null;
+  }
+
+  private Throwable cancelPreviewWork(GlViewport renderer, Future<?> job, InspectorTask.Ticket pick) {
+    return PreviewNotifications.attempt(
+        () -> {
+          if (renderer != null) renderer.cancelVolume();
+        },
+        () -> {
+          if (job != null) job.cancel(true);
+        },
+        () -> {
+          if (pick != null && inspectorTask.current(pick))
+            cancelInspectorTask("View changed; pick canceled.", false);
+        },
+        () -> state.background.purge());
   }
 
   private static boolean rectangularPreview(View v) {
@@ -4235,15 +4267,16 @@ public final class Viewports implements AutoCloseable {
 
   private void cancelInspectorTask(String feedback, boolean invalidate) {
     inspectorRetry = inspectorPendingRetry = null;
-    inspectorTask.cancel();
     inspectorTaskValid = null;
     inspectorSource = null;
     inspectorPendingDisplayed = Map.of();
     inspectorPickOwner = null;
-    state.background.purge();
     if (invalidate) traceRequests.cancelCurrent();
     inspectorTaskFeedback = feedback;
     if (!feedback.isEmpty()) state.status = feedback;
+    var failure = PreviewNotifications.attempt(inspectorTask::cancel, () -> state.background.purge());
+    if (failure instanceof RuntimeException runtime) throw runtime;
+    if (failure instanceof Error error) throw error;
   }
 
   private void beginInspectorTask(
