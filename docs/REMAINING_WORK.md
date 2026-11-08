@@ -1,6 +1,6 @@
 # Remaining implementation, validation and delivery work
 
-Current source checkpoint: the preceding local main commit is b5c005f; its publication remains pending, with the last observed GitHub main at 6f76999. The standalone consumer, membership/Import local history and independent World Editor selection are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
+Current source checkpoint: the preceding local main commit is b4937db; its publication remains pending, with the last observed GitHub main at 6f76999. The standalone consumer, membership/Import/Export local history and independent World Editor selection are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
 
 The principal implementation tracks below cover specification Trees 0–22 exactly once. They are a finite audit queue, not eight claims of missing features or a completion percentage. Each track must reconcile its applicable numbered leaves with source and deferred verification, record concrete gaps as child items, and close those gaps before its source audit can be marked complete. Many features already have implementation and earlier evidence. Pending execution is recorded separately and cannot be treated as missing source or passing evidence.
 
@@ -46,10 +46,17 @@ The first W01 slice traced the existing resource browser, clipboard and membersh
 | 3.3.1 | Source reviewed: ResourcePanel resets clipboard on the document lifetime token, including same-UUID replacement; ordinary edits/history retain the session clipboard. | Execute reopen/close and pending-command transitions. |
 | 3.3.2–3.3.5 | Source reviewed: captured copy subtree, internal UUID remapping, collision-safe names and live UUID-preserving cut/move pass through one owned project transaction. | Execute complete copy/folder/cut/rejection scenarios. |
 | 3.3.6 | Source reviewed: application command suppression preserves native text clipboard ownership; project resource clipboard is separate. | Physical system clipboard/input verification remains pending. |
+| 3.4.1 | Source reviewed: ExportTree/ResourceExportPanel expose explicit checkboxes, folder/layer context, included badges and exact dependency coverage; Included alone acknowledges the current frozen preview. | Execute all tree/closure/gesture combinations and representative package-size cases. |
+| 3.4.2 | Source reviewed: ResourceImport plan rows show conflict, compatibility, incoming/existing/target UUID/ID and COPY/REUSE/SKIP resolution in the owned review. | Execute the full conflict/type/namespace matrix. |
+| 3.4.3 | Source reviewed: ResourceImport forks retain COPY mappings, validate the complete candidate and publish through one DocumentSession transaction; stale/failed/cancelled work has no authority. | Execute whole-payload/identity/failure/concurrency cases for the current revision. |
+| 3.4.4 | Source reviewed: ResourcePackageFiles requires the version-1 portable envelope, distinct from ProjectIO's project entry and voxel-storage archives; Import appends resources without replacing the active project. | Execute cross-format rejection and payload round trips. |
+| 3.4.5 | Source reviewed: portable voxel/group JSON passes structural, color/member/UUID and full candidate validation before publication. | Execute the full voxel/group/color/member/conflict matrix. |
+| 3.4.6 | Source reviewed: semantic compatibility gates REUSE, reverse dependency closure propagates SKIP, COPY remaps identities/collisions, and the candidate preserves existing definitions. | Execute every resolution/dependency/namespace combination and independent replay. |
 | 3.5.3, membership editor only | Confirmed missing local history; implemented as W01-C01 below. | Compile/execute deferred checks and audit every other temporary editor. |
 | 3.5.3, Import choices only | Confirmed missing resolution history; implemented as W01-C03 below. | Compile/execute deferred history/planning/review cases and continue other temporary editors. |
+| 3.5.3, Export selection only | Confirmed missing local selection history; implemented as W01-C04 below. | Compile/execute deferred selection/review/publication cases and continue other temporary editors. |
 
-Identity/namespace helpers and existing protected-root/move guards were inspected as supporting paths; they do not yet close the full 3.1/3.2 inventories. The 2.6 lifecycle paths above have source dispositions without runtime closure; detailed diagnostic callers and startup/config boundaries still need reconciliation. W01 remains open for Trees 0–2, remaining hierarchy/docking leaves, the complete 3.4 import/export inventory and remaining 3.5 history/temporary editors. Continue with startup/config boundaries, portable-package leaves and remaining temporary editors before marking any parent audit complete.
+Identity/namespace helpers and existing protected-root/move guards were inspected as supporting paths; they do not yet close the full 3.1/3.2 inventories. The 2.6 lifecycle and 3.4 portable-package paths above have source dispositions without runtime closure; detailed diagnostic callers and startup/config boundaries still need reconciliation. W01 remains open for Trees 0–2, remaining identity/hierarchy/docking leaves and remaining 3.5 history/temporary editors. Continue with startup/config boundaries and the remaining leaf inventories before marking any parent audit complete.
 
 ## Confirmed gaps and source changes
 
@@ -78,7 +85,16 @@ This source change closes only the independent-selection gap. Other World presen
 - [ ] Compile and execute history, Import/shortcut suites and the updated 30-case native/readback scenario.
 - [ ] Verify remapped shortcuts, text/focus ownership and required Windows 11/DPI/physical input.
 
-This closes Import's local-choice-history source gap only. Export, other temporary editors, remaining portable-package leaves and all execution/delivery gates remain open.
+This closes Import's local-choice-history source gap only. Other temporary editors and all execution/delivery gates remain open; Export's source change and portable-package dispositions are recorded in this follow-up.
+
+**W01-C04 — local Export selection history (3.5.3, 3.4.1): implementation added, execution pending.** [Export selection history](EXPORT_SELECTION_HISTORY.md) records bounded explicit-UUID deltas, restores the owning selection set, rebuilds dependency coverage and requires fresh Included review. History supersedes queued/ready planning, preserves missing UUIDs explicitly, and starts a new baseline on Reload. The package dialog locks history during file staging/publication. Cancel/reset and successful export consume it; failure retains it. Export does not create a project transaction.
+
+- [x] Add bounded selection deltas, no-op/Redo/review rules, planner ownership and closure/reload disposal.
+- [x] Add version-owned modal/standalone actions, shared bindings, ten unit definitions and expanded existing native/independent-reader definitions.
+- [ ] Compile and execute history, Export/shortcut/Help suites and updated package/hierarchy/lifetime native/readback scenarios.
+- [ ] Verify remapped shortcuts, text/focus ownership and Windows 11/DPI/physical input.
+
+This closes Export's selection-history source gap only. The all-dialog audit, remaining W01 inventory and all execution/delivery gates remain open.
 
 **W05-C01 — standalone build-tool consumer (13.8.2, 13.8.3, 22.8.3): implementation added, execution pending.** The release assembler copied Java consumers and generated run.cmd, but supplied no independent Gradle project. [The standalone consumer](../example-client/standalone/README.md) now has its own settings/build, one engine-JAR file dependency, Java 25 toolchain and the existing Example entry point. Explicit source/JAR properties support a checkout; default paths support the extracted distribution. A precompile check requires the engine API and rejects known editor/render/native packages. Release assembly includes these exact support files beside the existing Java sources, using the same safe file-copy and deterministic manifest/archive path.
 

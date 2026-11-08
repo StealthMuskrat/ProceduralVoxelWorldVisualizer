@@ -17,7 +17,7 @@ final class ResourcePackageDialog implements AutoCloseable {
   private final ResourcePackageFiles files;
   private final BooleanSupplier blocked;
   final DialogLayout layout;
-  private final SettingsPageChrome exportChrome = new SettingsPageChrome(4, 3);
+  private final SettingsPageChrome exportChrome = new SettingsPageChrome(4, 3, 2);
   private final SettingsPageChrome importChrome = new SettingsPageChrome(2);
   private final ImString path = new ImString(4096);
   private final Map<String, float[]> controls = new LinkedHashMap<>();
@@ -36,6 +36,8 @@ final class ResourcePackageDialog implements AutoCloseable {
     SUBMIT,
     RELOAD,
     REMOVE,
+    UNDO,
+    REDO,
     CHOICES,
     INCLUDED,
     LOCATION
@@ -48,7 +50,8 @@ final class ResourcePackageDialog implements AutoCloseable {
       ExportEditSession owner,
       ResourceExportSession.Preview preview,
       Set<UUID> selected,
-      ResourceReviewContext context) {}
+      ResourceReviewContext context,
+      long selectionVersion) {}
 
   static ResourcePackageDialog background(
       EditorState state,
@@ -279,6 +282,8 @@ final class ResourcePackageDialog implements AutoCloseable {
                 !packageRunning() && !unavailable && owned && (!export || resources.canExport()));
         boolean cancel = button(chrome, "cancel", "Cancel", true);
         boolean reload = false, remove = false, choices = false, included = false, location = false;
+        boolean undo = false, redo = false;
+        String shortcut = null;
         if (export) {
           reload =
               button(
@@ -295,9 +300,20 @@ final class ResourcePackageDialog implements AutoCloseable {
           choices = button(chrome, "choices", "Choices", !packageRunning());
           included = button(chrome, "included", "Included", !packageRunning());
           location = button(chrome, "location", "Path / Issues", !packageRunning());
+          ImGui.pushID(view.historyScope());
+          undo =
+              button(chrome, "undo", "Undo Selection",
+                  !packageRunning() && !unavailable && owned && view.canUndo());
+          redo =
+              button(chrome, "redo", "Redo Selection",
+                  !packageRunning() && !unavailable && owned && view.canRedo());
+          ImGui.popID();
+          shortcut = view.historyShortcut(!packageRunning() && !unavailable && owned);
         }
         // Escape owns the whole decision frame even when a native release also submits.
         if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) command = Command.CANCEL;
+        else if (undo || Objects.equals(shortcut, "Undo")) command = Command.UNDO;
+        else if (redo || Objects.equals(shortcut, "Redo")) command = Command.REDO;
         else if (reload) command = Command.RELOAD;
         else if (remove) command = Command.REMOVE;
         else if (submit) command = Command.SUBMIT;
@@ -326,7 +342,8 @@ final class ResourcePackageDialog implements AutoCloseable {
         exportOwner,
         exportOwner == null ? null : exportOwner.preview(),
         exportOwner == null ? Set.of() : exportOwner.selected(),
-        ResourceReviewContext.capture(state));
+        ResourceReviewContext.capture(state),
+        exportOwner == null ? -1 : exportOwner.selectionVersion());
   }
 
   private boolean owns(Decision decision) {
@@ -344,6 +361,7 @@ final class ResourcePackageDialog implements AutoCloseable {
         && (!decision.action().equals("Export")
             || resources.exportView().session() == decision.owner()
                 && decision.owner().preview() == decision.preview()
+                && decision.owner().selectionVersion() == decision.selectionVersion()
                 && resources.exportSelection.equals(decision.selected()));
   }
 
@@ -370,6 +388,11 @@ final class ResourcePackageDialog implements AutoCloseable {
       boolean unavailable = blocked.getAsBoolean();
       if (unavailable || !current(decision)) return;
       var view = resources.exportView();
+      if (command == Command.UNDO || command == Command.REDO) {
+        if (!decision.action().equals("Export")) return;
+        if (command == Command.UNDO ? view.undo() : view.redo()) error = "";
+        return;
+      }
       if (command == Command.RELOAD) {
         view.reload();
         error = "";

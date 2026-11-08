@@ -20,6 +20,8 @@ final class ExportEditSession {
   private ResourceExportSession model;
   private ResourceExportSession.Preview preview, shown;
   private Set<UUID> selected = Set.of();
+  private final ExportSelectionHistory history = new ExportSelectionHistory();
+  private long selectionVersion;
   private boolean closed, forcedStale, writing;
   private int unavailable;
   private final Executor executor;
@@ -114,12 +116,53 @@ final class ExportEditSession {
     if (!current()) throw new IllegalStateException("Reload the changed export source first");
     if (selected.equals(selection)) return;
     var ids = Set.copyOf(selection);
+    history.record(selected, ids);
     selected = ids;
+    selectionVersion++;
+    selectionChanged();
+  }
+
+  private void selectionChanged() {
     shown = null;
     if (executor == null) {
       preview = null;
       prepare();
     } else schedule();
+  }
+
+  boolean canUndo() {
+    return current() && history.canUndo();
+  }
+
+  boolean canRedo() {
+    return current() && history.canRedo();
+  }
+
+  boolean undo() {
+    return moveHistory(false);
+  }
+
+  boolean redo() {
+    return moveHistory(true);
+  }
+
+  private boolean moveHistory(boolean forward) {
+    if (!current()) throw new IllegalStateException("Reload the changed export source first");
+    var next = history.move(selected, forward);
+    if (next == null) return false;
+    selected = next;
+    selectionVersion++;
+    selectionChanged();
+    return true;
+  }
+
+  long selectionVersion() {
+    return selectionVersion;
+  }
+
+  private void clearHistory() {
+    history.clear();
+    selectionVersion++;
   }
 
   private void prepare() {
@@ -145,6 +188,7 @@ final class ExportEditSession {
     sourceValue = value;
     frozen = snapshot;
     selected = ids;
+    clearHistory();
     shown = null;
     forcedStale = false;
     if (executor == null) {
@@ -428,6 +472,7 @@ final class ExportEditSession {
     try {
       prepared.publish(state.document::path);
       closed = true;
+      clearHistory();
       handoff.close();
       shown = null;
     } finally {
@@ -457,6 +502,7 @@ final class ExportEditSession {
     try {
       files.writeGuarded(destination, preview.resources(), state.document::path);
       closed = true;
+      clearHistory();
       handoff.close();
       shown = null;
     } finally {
@@ -467,6 +513,7 @@ final class ExportEditSession {
   void cancel() {
     if (writing) return;
     closed = true;
+    clearHistory();
     retirePlanning();
     handoff.close();
     shown = null;

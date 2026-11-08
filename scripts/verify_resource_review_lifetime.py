@@ -38,9 +38,11 @@ for row in report['cases']:
     phase, i = row['phase'], row['scenario']
     assert row['globalScale'] == (1, .5, 1, 2.5, 2.5, 1)[i]
     assert row['windowScale'] == (1, 1, 1, 1, 2.5, 1)[i]
-    keys = ({'apply', 'cancel', 'reload', 'validation', 'resources', 'filters', 'issues'}
+    keys = ({'apply', 'cancel', 'reload', 'validation', 'retry', 'resources', 'filters', 'issues',
+             'undo', 'redo'}
             if phase.startswith('import') else
-            {'submit', 'cancel', 'reload', 'remove-unavailable', 'choices', 'included', 'location'})
+            {'submit', 'cancel', 'reload', 'remove-unavailable', 'choices', 'included', 'location',
+             'undo', 'redo'})
     assert set(row['actions']) == set(row['ids']) == keys
     assert all(value != 0 for value in row['ids'].values())
     ids.setdefault(phase, row['ids'])

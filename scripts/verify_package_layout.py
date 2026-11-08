@@ -10,7 +10,7 @@ report = json.loads((out / 'package-layout-native.json').read_text(encoding='utf
 assert report['formatVersion'] == 1 and report['fontSource'] == 'user-scale-fixture'
 for key in ('exactIncludedReview', 'cachedQueriesAndClosure', 'pendingRetargetBlocked',
             'externalResetBlocked', 'activeProjectProtected', 'failedStageRetained', 'successfulRetryConsumed',
-            'cancelBeforeIo', 'reloadReviewRequired', 'explicitMissingRemoval',
+            'cancelBeforeIo', 'reloadReviewRequired', 'explicitMissingRemoval', 'localExportHistory',
             'foreignReloadBlocked', 'malformedImportRetained', 'importHandoffOnly', 'privateStatePreserved'):
     assert report[key] is True, key
 assert report['stageAttempts'] == 2
@@ -36,7 +36,8 @@ for case in report['cases']:
     assert case['globalScale'] == globals_[i] and case['windowScale'] == windows[i]
     contains(case['work'], case['modal']); contains(case['modal'], case['body'])
     rows = (('submit', 'cancel'),) if form == 'Import-Path' else (
-        ('submit', 'cancel', 'reload', 'remove-unavailable'), ('choices', 'included', 'location'))
+        ('submit', 'cancel', 'reload', 'remove-unavailable'), ('choices', 'included', 'location'),
+        ('undo', 'redo'))
     actions = case['actions']
     assert set(actions) == {key for row in rows for key in row}
     last_bottom = case['body']['y'] + case['body']['height']

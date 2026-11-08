@@ -1,6 +1,7 @@
 package io.voxelcreator.editor;
 
 import imgui.*;
+import imgui.flag.ImGuiFocusedFlags;
 import imgui.type.*;
 import io.voxelcreator.model.*;
 import java.io.IOException;
@@ -25,9 +26,10 @@ public final class ResourceExportPanel {
   private boolean selectedOnly, revealPage;
   private String message = "", section = "Choices";
   private int submitted, includedRows;
+  private long openingVersion;
   private final Map<String, float[]> controls = new LinkedHashMap<>();
   private final Map<UUID, Integer> rowIds = new LinkedHashMap<>();
-  final SettingsPageChrome chrome = new SettingsPageChrome(3, 2);
+  final SettingsPageChrome chrome = new SettingsPageChrome(3, 2, 2);
   private DialogBounds.Rect listBounds;
   private float rowStride, rowFrame, rowLine, rowGap;
 
@@ -50,7 +52,10 @@ public final class ResourceExportPanel {
   }
 
   void open() {
-    if (edit == null) edit = new ExportEditSession(state, selected, executor, ui, blocked);
+    if (edit == null) {
+      edit = new ExportEditSession(state, selected, executor, ui, blocked);
+      openingVersion++;
+    }
   }
 
   public ResourceExportSession prepare() {
@@ -69,6 +74,55 @@ public final class ResourceExportPanel {
 
   boolean busy() {
     return edit != null && edit.busy();
+  }
+
+  boolean canUndo() {
+    return edit != null && selected.equals(edit.selected()) && edit.canUndo();
+  }
+
+  boolean canRedo() {
+    return edit != null && selected.equals(edit.selected()) && edit.canRedo();
+  }
+
+  boolean undo() {
+    return moveHistory(false);
+  }
+
+  boolean redo() {
+    return moveHistory(true);
+  }
+
+  private boolean moveHistory(boolean forward) {
+    var owner = edit;
+    if (owner == null || !selected.equals(owner.selected()))
+      throw new IllegalStateException("Review the current export selection first");
+    var before = owner.selected();
+    try {
+      return forward ? owner.redo() : owner.undo();
+    } finally {
+      if (edit == owner && !before.equals(owner.selected())) {
+        selected.clear();
+        selected.addAll(owner.selected());
+        coveragePreview = null;
+        coverage = Set.of();
+        message = "";
+        revealPage = true;
+      }
+    }
+  }
+
+  String historyScope() {
+    return "export-history:" + openingVersion + ":" + (edit == null ? -1 : edit.selectionVersion());
+  }
+
+  String historyShortcut(boolean enabled) {
+    return PrivateHistoryShortcuts.match(
+        state.user.input.shortcuts,
+        enabled && ShortcutKeys.popup() && current()
+            && ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows),
+        ImGui.getIO().getWantTextInput() || ImGui.isAnyItemActive(),
+        ShortcutKeys.modifiers(),
+        key -> ImGui.isKeyPressed(ShortcutKeys.code(key), false));
   }
 
   boolean canReload() {
@@ -143,16 +197,29 @@ public final class ResourceExportPanel {
     boolean issues = action("issues", "Issues", true);
     boolean reload = action("reload", reloadLabel(), canReload());
     boolean remove = action("remove-unavailable", "Remove Missing", canRemoveUnavailable());
-    if (reload) {
-      try {
-        reload();
-      } catch (RuntimeException failure) {
-        fail(failure);
-      }
-    } else if (remove) removeUnavailable();
-    else if (choices) page("Choices");
-    else if (included) page("Included");
-    else if (issues) page("Issues");
+    boolean unavailable;
+    try {
+      unavailable = blocked.getAsBoolean();
+    } catch (RuntimeException failure) {
+      fail(failure);
+      unavailable = true;
+    }
+    ImGui.pushID(historyScope());
+    boolean undo = action("undo", "Undo Selection", !unavailable && canUndo());
+    boolean redo = action("redo", "Redo Selection", !unavailable && canRedo());
+    ImGui.popID();
+    String shortcut = historyShortcut(!unavailable);
+    try {
+      if (undo || Objects.equals(shortcut, "Undo")) undo();
+      else if (redo || Objects.equals(shortcut, "Redo")) redo();
+      else if (reload) reload();
+      else if (remove) removeUnavailable();
+      else if (choices) page("Choices");
+      else if (included) page("Included");
+      else if (issues) page("Issues");
+    } catch (RuntimeException failure) {
+      fail(failure);
+    }
     acceptPlanning(owner, request, () -> true);
   }
 
@@ -363,6 +430,10 @@ public final class ResourceExportPanel {
         "Export uses committed resources. Unapplied Properties input remains private. Visit"
             + " Included after changing the selection or reloading the source, then choose an"
             + " explicit output path.");
+    ImGui.textWrapped(
+        "Undo Selection and Redo Selection restore explicit choices and rebuild coverage. Review"
+            + " Included again afterward. Reload starts new local history; Cancel or a successful"
+            + " export discards it. Project history and private Properties input stay separate.");
     ImGui.textWrapped(
         "Search and Selected Only temporarily reveal ancestors. Clear these filters to change their"
             + " expansion.");
