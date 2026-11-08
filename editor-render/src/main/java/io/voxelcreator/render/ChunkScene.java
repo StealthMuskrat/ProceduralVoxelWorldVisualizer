@@ -71,6 +71,21 @@ public final class ChunkScene implements AutoCloseable {
 
   public record Pick(BlockPos position, boolean displayProxy) {}
 
+  /** Retires only this scene's GPU versions at or below the captured watermark. */
+  public record Removal(long epoch, ChunkPos position, long version) {
+    public Removal {
+      Objects.requireNonNull(position);
+      if (version < 0) throw new IllegalArgumentException("Negative removal watermark");
+    }
+  }
+
+  /** Bounded overflow/shrink recovery; identity, rather than record equality, acknowledges it. */
+  public record RemovalReset(long epoch, long version) {
+    public RemovalReset {
+      if (version < 0) throw new IllegalArgumentException("Negative reset watermark");
+    }
+  }
+
   public record Statistics(
       int resident,
       int wanted,
@@ -95,7 +110,7 @@ public final class ChunkScene implements AutoCloseable {
   private final Set<ChunkPos> wanted = new LinkedHashSet<>(),
       loadWindow = new HashSet<>(),
       required = new HashSet<>();
-  private final ArrayDeque<ChunkPos> removed = new ArrayDeque<>();
+  private final SceneRemovals removals;
   public final RenderPressure pressure;
   private long sequence, frame, cpuBytes, reserved, generated, meshes, discarded;
   private int active;
@@ -155,6 +170,7 @@ public final class ChunkScene implements AutoCloseable {
     this.executor = Objects.requireNonNull(executor);
     this.config = config;
     this.pressure = Objects.requireNonNull(pressure);
+    removals = new SceneRemovals(epoch, config.dataChunks);
   }
 
   public boolean points() {
@@ -169,6 +185,7 @@ public final class ChunkScene implements AutoCloseable {
     if (value.size != config.size || value.points != config.points)
       throw new IllegalArgumentException("New scene required for changed source layout");
     config = value;
+    removals.limit(value.dataChunks, sequence);
   }
 
   public boolean rejected() {
@@ -672,7 +689,7 @@ public final class ChunkScene implements AutoCloseable {
           e.displayed = false;
           e.uploaded = false;
           e.dirty = true;
-          removed.add(e.position);
+          recordRemoval(e.position);
           cpuBytes -= meshBytes(e);
           e.mesh = null;
           e.lod = e.displayedLod = null;
@@ -696,7 +713,7 @@ public final class ChunkScene implements AutoCloseable {
         if (!idle(entry, id) || !evictable(entry)) continue;
         if (entry.data != null) cpuBytes -= entry.data.bytes();
         cpuBytes -= meshBytes(entry);
-        removed.add(entry.position);
+        recordRemoval(entry.position);
         entries.remove(entry.position, entry);
       }
     }
@@ -721,7 +738,7 @@ public final class ChunkScene implements AutoCloseable {
         if (!idle(entry, id) || required.contains(entry.position)) continue;
         if (entry.data != null) cpuBytes -= entry.data.bytes();
         cpuBytes -= meshBytes(entry);
-        removed.add(entry.position);
+        recordRemoval(entry.position);
         entries.remove(entry.position, entry);
         reclaim--;
       }
@@ -825,12 +842,22 @@ public final class ChunkScene implements AutoCloseable {
       entry.dirty = true;
       cpuBytes += meshBytes(entry);
     }
+    removals.uploadsInvalidated();
   }
 
+  private void recordRemoval(ChunkPos position) { removals.offer(position, ++sequence); }
+
+  public List<Removal> pendingRemovals() { return removals.pending(); }
+  public RemovalReset pendingRemovalReset() { return removals.reset(); }
+  public boolean hasPendingRemovals() { return removals.hasPending(); }
+  public boolean acknowledgeRemoval(Removal removal) { return removals.acknowledge(removal); }
+
+  /** A current reset can acknowledge only after invalidateUploads has retired old CPU receipts. */
+  public boolean acknowledgeRemovalReset(RemovalReset reset) { return removals.acknowledge(reset); }
+
+  /** Legacy destructive delivery; throws while a full reset is required. */
   public List<ChunkPos> removed() {
-    var result = new ArrayList<ChunkPos>();
-    while (!removed.isEmpty()) result.add(removed.removeFirst());
-    return result;
+    return removals.drainPositions();
   }
 
   public void reject() {
@@ -840,6 +867,7 @@ public final class ChunkScene implements AutoCloseable {
   public void close() {
     if (closed) return;
     closed = true;
+    removals.close();
     ready.close();
     for (var entry : new ArrayList<>(entries.values())) cancel(entry);
     entries.clear();

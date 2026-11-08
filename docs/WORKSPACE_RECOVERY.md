@@ -10,7 +10,7 @@ Read-only recovery checked branch refs, all reflogs, known e70a5ee/63e359c objec
 | --- | --- | --- |
 | W06-C17 | Captured frame upload acknowledgements | Reconstructed in source: activation/pending receipts, captured UI frame/pump and fourteen new deferred definitions; see SCENE_FRAME_UPLOADS.md |
 | W06-C18 | Optional streaming upload observation isolation | Reconstructed in source with independent work/observation outcomes and eleven real-scene/public-profiler deferred definitions; see SCENE_UPLOAD_OBSERVATION.md |
-| W06-C19 | Retained/versioned scene removals | Missing; recover/reimplement |
+| W06-C19 | Retained/versioned scene removals | Reconstructed in source with bounded retained receipts, exact acknowledgement, version-gated GPU remove/reset, thirteen deferred CPU definitions and native probe cases; see SCENE_REMOVAL_OWNERSHIP.md |
 | W06-C20, e7cd11e | Native renderer shutdown/typed retirement | Missing; recover/reimplement |
 | W06-C21, a5be076 | Two-phase UI peer shutdown | Missing; recover/reimplement |
 | W06-C22, b88a27b | Timer/shadow retirement | Missing; recover/reimplement |
@@ -29,7 +29,8 @@ These IDs are retained to avoid confusing previously discussed work with the cur
 - [x] Reconstruct C28 image/mesh input, binding/unpack restoration, logical acceptance and deferred definitions without depending on absent frame/retirement helpers.
 - [x] Reconstruct C17 captured frame upload acknowledgement and activation/pending provenance without claiming native execution or the original commit identity.
 - [x] Reconstruct C18 optional streaming observation isolation, captured counters/finalization and guarded post-settlement diagnostics.
-- [ ] Recover/reimplement C19–C27 integration and definitions, beginning with retained/versioned removal delivery.
+- [x] Reconstruct C19 retained/versioned removal delivery, bounded reset recovery and native typed retirement integration.
+- [ ] Recover/reimplement C20–C27 integration and definitions, beginning with native renderer shutdown/typed retirement.
 - [ ] Continue streaming state, parent preview/palette/profiler acceptance, retained physical display, other owners/callers/document/controls and W01–W08 source audits.
 - [ ] After implementation and the owner's testing pause ends, compile and execute the current source and complete V01–V04 validation/delivery gates.
 

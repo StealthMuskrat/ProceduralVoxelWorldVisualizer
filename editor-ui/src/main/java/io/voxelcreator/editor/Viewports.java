@@ -994,6 +994,7 @@ public final class Viewports implements AutoCloseable {
     Object sceneFailureOwner, sceneAdoptionOwner;
     final SceneUploadPump sceneUploads = new SceneUploadPump();
     final SceneUploadObservation sceneObservations = new SceneUploadObservation();
+    final SceneRemovalPump sceneRemovals = new SceneRemovalPump();
     RenderPressure pressure = new RenderPressure();
     final SourceCompilerTask<SceneSetup> compiler = new SourceCompilerTask<>();
     final AtomicReference<WorkerGate> workerGate = new AtomicReference<>(),
@@ -3400,7 +3401,7 @@ public final class Viewports implements AutoCloseable {
       }
     }
     if (v.scene != null) {
-      if (v.sceneUploads.busy() || v.sceneObservations.busy()) return true;
+      if (v.sceneUploads.busy() || v.sceneObservations.busy() || v.sceneRemovals.busy()) return true;
       var scene = v.scene;
       var renderer = v.gl;
       long epoch = v.epoch;
@@ -3435,11 +3436,10 @@ public final class Viewports implements AutoCloseable {
           throw new IllegalStateException("Injected streaming renderer frame failure");
         gpu.beginFrame();
         if (!activeFrame.getAsBoolean()) return true;
-        for (var removed : scene.removed()) {
-          if (!activeFrame.getAsBoolean()) return true;
-          gpu.remove(removed);
-          if (!activeFrame.getAsBoolean()) return true;
-        }
+        if (!v.sceneRemovals.run(scene, activeFrame, new SceneRemovalPump.Backend() {
+          public boolean remove(ChunkScene.Removal removal) { return gpu.remove(removal); }
+          public boolean reset(ChunkScene.RemovalReset reset) { return gpu.resetScene(reset); }
+        })) return true;
         int budget = state.user.performance.uploadKiB * 1024;
         var observed = v.sceneObservations.run(activeFrame,
             () -> SceneUploadObservation.profiler(

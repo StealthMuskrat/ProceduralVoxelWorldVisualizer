@@ -109,6 +109,7 @@ public final class StreamingRenderProbe {
         if (gpu.pickingVersions().containsKey(empty) || gpu.pickingVersions().size() != 2)
           throw new AssertionError("Empty allocation entered the picking coverage");
         verifyCompaction(view, matrix, origin);
+        verifyRemovalReceipts(view, matrix, origin);
         System.out.println(
             "STREAMING_RENDER_NATIVE_PASS packed / budgeted upload / culling / palette / indirect="
                 + GL.getCapabilities().OpenGL43);
@@ -125,6 +126,64 @@ public final class StreamingRenderProbe {
       if (window != 0) glfwDestroyWindow(window);
       glfwTerminate();
     }
+  }
+
+  private static void verifyRemovalReceipts(GlViewport view, org.joml.Matrix4f matrix, Vector3d origin) {
+    var position = new ChunkPos(0, 0, 0);
+    var mesh = cube(1);
+    var gpu = view.scene(23, 4096);
+    long activation = view.sceneVersion();
+    var old = new ChunkScene.Upload(23, position, 3, mesh);
+    upload(gpu, old);
+    byte[] expected = renderRead(view, matrix, origin, Set.of(position), false);
+    if (gpu.remove(new ChunkScene.Removal(24, position, Long.MAX_VALUE))
+        || !gpu.remove(new ChunkScene.Removal(23, position, 2)) || !gpu.contains(old)
+        || !gpu.pickingVersions().equals(Map.of(position, 3L)))
+      throw new AssertionError("Foreign/older removal touched current geometry/picking");
+    if (!gpu.remove(new ChunkScene.Removal(23, position, 3)) || gpu.hasData()
+        || !gpu.pickingVersions().isEmpty())
+      throw new AssertionError("Current removal failed to retire its version");
+    var resident = new ChunkScene.Upload(23, position, 7, mesh);
+    var pending = new ChunkScene.Upload(23, position, 9, mesh);
+    upload(gpu, resident);
+    if (!gpu.stage(pending) || gpu.advance(16) != null)
+      throw new AssertionError("Removal partial upload fixture");
+    if (!gpu.remove(new ChunkScene.Removal(23, position, 7))
+        || gpu.pendingUpload() != pending || gpu.statistics().gpuBytes() != mesh.byteSize())
+      throw new AssertionError("Old resident removal cancelled its newer pending upload");
+    while (gpu.pending()) gpu.advance(1024);
+    if (!gpu.remove(new ChunkScene.Removal(23, position, 7)) || !gpu.contains(pending)
+        || !Arrays.equals(expected, renderRead(view, matrix, origin, Set.of(position), false)))
+      throw new AssertionError("Removal replay touched the newer resident");
+    if (!gpu.requestCompaction()) throw new AssertionError("Removal compaction fixture did not move");
+    gpu.remove(new ChunkScene.Removal(23, position, 7));
+    if (gpu.statistics().retiring() != 0) throw new AssertionError("Old removal retired newer compacting geometry");
+    gpu.remove(new ChunkScene.Removal(23, position, 9));
+    if (gpu.statistics().retiring() != 1 || gpu.contains(pending))
+      throw new AssertionError("Current compacting removal was not retained");
+    for (int frame = 0; gpu.compacting(); frame++) {
+      if (frame > 100 || gpu.advanceCompaction(48) <= 0)
+        throw new AssertionError("Removal compaction retirement failed to finish");
+    }
+    if (gpu.statistics().gpuBytes() != 0 || gpu.hasData())
+      throw new AssertionError("Compaction retained retired storage");
+    upload(gpu, new ChunkScene.Upload(23, position, 11, mesh));
+    var partial = new ChunkScene.Upload(23, position, 13, mesh);
+    if (!gpu.stage(partial) || gpu.advance(16) != null || !gpu.requestCompaction())
+      throw new AssertionError("Removal reset partial/maintenance fixture");
+    if (gpu.resetScene(new ChunkScene.RemovalReset(24, 14)) || gpu.pendingUpload() != partial)
+      throw new AssertionError("Foreign reset changed pending geometry");
+    if (!gpu.resetScene(new ChunkScene.RemovalReset(23, 14)) || gpu.hasData() || gpu.pending()
+        || gpu.compacting() || gpu.statistics().compactionRequested()
+        || gpu.statistics().gpuBytes() != 0 || gpu.statistics().freeBytes() != 4096
+        || !gpu.pickingVersions().isEmpty() || !view.sceneCurrent(gpu, activation))
+      throw new AssertionError("Removal reset did not preserve an empty current allocation");
+    var fresh = new ChunkScene.Upload(23, position, 17, mesh);
+    upload(gpu, fresh);
+    if (!gpu.contains(fresh)
+        || !Arrays.equals(expected, renderRead(view, matrix, origin, Set.of(position), false))
+        || !gpu.pickingVersions().equals(Map.of(position, 17L)) || glGetError() != GL_NO_ERROR)
+      throw new AssertionError("Removal reset exact framebuffer/version recovery");
   }
 
   private static void verifyCompaction(GlViewport view, org.joml.Matrix4f matrix, Vector3d origin) {
