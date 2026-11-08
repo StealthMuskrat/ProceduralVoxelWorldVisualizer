@@ -173,6 +173,7 @@ public final class ArchiveReaderRecoveryConsumer {
                 rejectedHeaders,
                 rejectedPayloads,
                 closedReads));
+    ArchiveCancellationConsumer.run(out.resolve("cancellation"));
     System.out.println("ARCHIVE_READER_RECOVERY_CONSUMER_PASS");
   }
 

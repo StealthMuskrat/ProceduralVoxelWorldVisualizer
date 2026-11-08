@@ -4,6 +4,7 @@ import io.voxelcreator.model.ResourceIds;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.CancellationException;
 import java.util.zip.*;
 
 /**
@@ -389,6 +390,10 @@ public final class VoxelArchive {
       return e != null && e.length > 0;
     }
 
+    /**
+     * Decoding interruption propagates CancellationException without clearing the interrupt flag.
+     * No partial chunk is returned; an open reader can retry after the caller clears interruption.
+     */
     public synchronized Optional<VoxelChunk> read(ChunkPos pos) throws IOException {
       if (closed) throw new IOException("Reader closed");
       var e = index.get(pos);
@@ -426,6 +431,9 @@ public final class VoxelArchive {
           throw new IOException("Trailing or truncated compressed chunk data");
         if (!missing.isEmpty()) throw new IOException("Unresolved semantic IDs: " + missing);
         return Optional.of(chunk);
+      } catch (CancellationException cancelled) {
+        // A cooperative decoder checkpoint is withdrawal, not evidence of corrupt archive bytes.
+        throw cancelled;
       } catch (RuntimeException ex) {
         throw new IOException("Corrupt archive chunk " + pos, ex);
       } finally {
