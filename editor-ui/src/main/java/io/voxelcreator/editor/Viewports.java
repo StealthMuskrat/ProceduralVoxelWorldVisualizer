@@ -90,6 +90,7 @@ public final class Viewports implements AutoCloseable {
       new java.util.concurrent.atomic.AtomicBoolean();
   private final java.util.concurrent.atomic.AtomicBoolean probeStreamCompileFailure =
       new java.util.concurrent.atomic.AtomicBoolean();
+  private final AtomicReference<RuntimeException> probeVolumeSetupFailure = new AtomicReference<>();
   private final Map<String, float[]> admissionControls = new HashMap<>();
 
   private record PickView(
@@ -597,6 +598,14 @@ public final class Viewports implements AutoCloseable {
     return views[1].message;
   }
 
+  boolean probeVolumeDisplayPending() {
+    return views[1].gl.volumeDisplayPending();
+  }
+
+  void probeFailNextVolumeSetup(RuntimeException failure) {
+    probeVolumeSetupFailure.set(failure);
+  }
+
   void probeVolumeStream(UUID noise, int side, double x, double y, double z) {
     probeVolume(noise, side, x);
     var v = views[1];
@@ -1014,6 +1023,7 @@ public final class Viewports implements AutoCloseable {
     final PreviewAdmission admission = new PreviewAdmission();
     Preview pendingVolume;
     Object volumeFailureOwner;
+    boolean volumeHeldImage, volumeHeldCompleted;
     final VolumeWindows volumeWindows = new VolumeWindows();
     ProjectData volumeSnapshot;
     UUID volumeNoise;
@@ -2181,6 +2191,7 @@ public final class Viewports implements AutoCloseable {
                 + volumePressureMessage(v));
       var resident = v.gl.volumeResident();
       if (resident != null
+          && !v.gl.volumeDisplayPending()
           && plan != null
           && (resident.extentX() != plan.side()
               || resident.extentY() != plan.side()
@@ -2222,13 +2233,18 @@ public final class Viewports implements AutoCloseable {
             if (!v.gl.stageVolume(
                 ready.volume,
                 (long) state.user.performance.sceneGpuMiB << 20,
-                ready.volumeRegion)) {
+                ready.volumeRegion,
+                true)) {
               if (volumeStreaming) v.volumeRejected = true;
               volumeUploadFailed(
                   v,
                   "Volume replacement exceeds GPU MiB; previous display retained; reduce extent or"
                       + " raise GPU MiB, then Regenerate");
             } else {
+              if (!v.gl.volumeDisplayPending()) {
+                v.volumeHeldImage = v.image;
+                v.volumeHeldCompleted = v.completed;
+              }
               v.pendingVolume = ready;
               v.activeJob = true;
             }
@@ -2322,8 +2338,8 @@ public final class Viewports implements AutoCloseable {
       } catch (RuntimeException failure) {
         volumeUploadFailed(v, () -> BackgroundFailure.describe(failure));
       } catch (Error failure) {
-        // A retirement Error after commit already accepted its metadata in VolumePreviewHandoff.
-        if (v.pendingVolume != null)
+        // Healthy retirement already confirmed metadata; failed setup keeps its display gated.
+        if (v.pendingVolume != null || v.gl.volumeDisplayPending())
           volumeUploadFailed(v, () -> BackgroundFailure.describe(failure));
         throw failure;
       }
@@ -2340,6 +2356,7 @@ public final class Viewports implements AutoCloseable {
                     && !v.activeJob
                     && v.pendingVolume == null
                     && v.gl != null
+                    && !v.gl.volumeDisplayPending()
                     && v.gl.volumeResident() != null
                     && v.gl.volumeStatistics().version() == committedVersion,
             detail -> v.message = "Volume ready; previous texture cleanup failed: " + detail,
@@ -2388,6 +2405,22 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void drawSurface(View v) {
+    if (v.gl.volumeDisplayPending()) {
+      flightImageVisible = sliceImageVisible = noiseImageVisible = false;
+      v.flight.pause();
+      v.orbit.reset();
+      v.imageInput.reset();
+      v.sliceInput.reset();
+      v.imageContext.reset();
+      if (v.volumeHeldCompleted) {
+        float w = Math.max(1, ImGui.getContentRegionAvailX());
+        float h = Math.max(1, ImGui.getContentRegionAvailY()
+            - 2 * (ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacingY()));
+        ImGui.image(v.gl.texture(), w, h, 0, v.volumeHeldImage ? 0 : 1, 1, v.volumeHeldImage ? 1 : 0);
+      }
+      ImGui.textWrapped("Display setup incomplete. Regenerate to retry; hover and navigation are paused.");
+      return;
+    }
     boolean histogram = v.kind == 0 && v.mode.equals("Histogram") && v.raw != null;
     boolean samples = v.kind == 0 || v.kind == 1 && v.mode.equals("Slices");
     var region =
@@ -2718,6 +2751,11 @@ public final class Viewports implements AutoCloseable {
   private void volumeUploadFailed(View v, java.util.function.Supplier<String> reason) {
     Object ticket = new Object();
     long epoch = v.epoch;
+    boolean setup = v.gl.volumeDisplayPending();
+    String label = setup ? "Volume display setup failed" : "Volume upload failed";
+    String retained =
+        setup ? (v.volumeHeldCompleted ? "; previous image retained" : "") : "; previous display retained";
+    String retry = retained + "; Regenerate to retry";
     VolumePreviewFailure.fail(
         new VolumePreviewFailure.Owner() {
           public void settle() {
@@ -2727,7 +2765,7 @@ public final class Viewports implements AutoCloseable {
             v.activeJob = false;
             v.dirty = v.force = false;
             v.failedPreview = true;
-            v.message = "Volume upload failed; previous display retained; Regenerate to retry";
+            v.message = label + retry;
           }
 
           public boolean current() {
@@ -2742,10 +2780,7 @@ public final class Viewports implements AutoCloseable {
           }
 
           public void feedback(String detail) {
-            v.message =
-                "Volume upload failed: "
-                    + detail
-                    + "; previous display retained; Regenerate to retry";
+            v.message = label + ": " + detail + retry;
           }
 
           public void report(String code, String detail) {
@@ -2753,13 +2788,28 @@ public final class Viewports implements AutoCloseable {
           }
         },
         v.gl::cancelVolume,
-        reason);
+        reason,
+        setup ? "VOLUME_ACCEPTANCE_FAILED" : "VOLUME_UPLOAD_FAILED");
   }
 
   private void acceptPreview(View v, Preview ready) {
     v.volumeFailureOwner = null;
+    long volumeVersion = ready.volume == null ? 0 : v.gl.volumeStatistics().version();
+    var sourcePalette =
+        v.kind == 2
+            ? Objects.requireNonNull(ready.worldPalette, "World preview source palette").refresh(state.project())
+            : null;
+    var colors = sourcePalette == null ? ready.palette : sourcePalette.colors();
+    var bounds = v.kind == 2 ? VoxelRaycast.Bounds.cube(ready.origin, ready.width) : null;
+    String completedMode =
+        v.kind == 2 ? v.stageMode : v.mode + (v.mode.equals("Slices") ? " " + v.slicePlane.name() : "");
+    String message = v.streamFallback ? "Ready (fixed fallback; Regenerate retries streaming)" : "Ready";
+    if (ready.volumeWindowStatistics != null
+        && !v.volumeSourceKey.equals(fingerprint(v) + "|" + v.noise + "|" + v.rebuildSerial))
+      message = "Ready (manual source retained; Regenerate to update)";
+    Map<String, Object> rectangle = null;
     if (rectangularProbe && v.kind == 1 && ready.mesh != null)
-      rectangularReceipt =
+      rectangle =
           Map.of(
               "mode",
               v.mode,
@@ -2778,27 +2828,21 @@ public final class Viewports implements AutoCloseable {
           ready.width,
           ready.sliceView == null ? ready.width : ready.sliceView.height(),
           ready.image);
-      v.image = true;
-    } else {
-      if (ready.volume == null) v.gl.setMesh(ready.mesh);
-      v.image = false;
+    } else if (ready.volume == null) v.gl.setMesh(ready.mesh);
+    if (ready.volume != null) {
+      var injected = probeVolumeSetupFailure.getAndSet(null);
+      if (injected != null) throw injected;
     }
+    v.gl.setPalette(colors);
+    if (rectangle != null) rectangularReceipt = rectangle;
+    v.image = ready.image != null;
     if (v.kind == 1) v.displayedSlice = ready.sliceView;
-    v.completedModes.add(
-        v.kind == 2
-            ? v.stageMode
-            : v.mode + (v.mode.equals("Slices") ? " " + v.slicePlane.name() : ""));
+    v.completedModes.add(completedMode);
     v.displayedVolumeWindow = ready.volumeWindowStatistics;
     v.volumeWorkingBytes = 0;
     v.origin.set(ready.origin);
-    v.fixedPickBounds = v.kind == 2 ? VoxelRaycast.Bounds.cube(ready.origin, ready.width) : null;
-    if (v.kind == 2) {
-      var palette =
-          Objects.requireNonNull(ready.worldPalette, "World preview source palette")
-              .refresh(state.project());
-      v.gl.setPalette(palette.colors());
-      v.worldPalette = palette;
-    } else v.gl.setPalette(ready.palette);
+    v.fixedPickBounds = bounds;
+    if (v.kind == 2) v.worldPalette = sourcePalette;
     v.raw = ready.raw;
     if (v.kind == 0) {
       v.imageStatistics = ready.imageStatistics;
@@ -2808,12 +2852,11 @@ public final class Viewports implements AutoCloseable {
     v.sampleStatus = "Hover preview for coordinates";
     v.sampleDetails = "";
     v.histogram = ready.histogram;
-    v.message = v.streamFallback ? "Ready (fixed fallback; Regenerate retries streaming)" : "Ready";
-    if (ready.volumeWindowStatistics != null
-        && !v.volumeSourceKey.equals(fingerprint(v) + "|" + v.noise + "|" + v.rebuildSerial))
-      v.message = "Ready (manual source retained; Regenerate to update)";
+    v.message = message;
     v.acceptedPreviewEpoch = ready.epoch;
     v.completed = true;
+    if (ready.volume != null && !v.gl.acceptVolumeDisplay(volumeVersion))
+      throw new IllegalStateException("Volume display acceptance is obsolete");
   }
 
   private void stopVolumeStream(View v) {
@@ -4506,6 +4549,7 @@ public final class Viewports implements AutoCloseable {
       inspectorRetry = inspectorPendingRetry = null;
       probeInspectorCaughtFailure.set(null);
       probeInspectorEscapedFailure.set(null);
+      probeVolumeSetupFailure.set(null);
       for (var v : views) {
         v.workerGate.set(null);
         v.workerFinishGate.set(null);

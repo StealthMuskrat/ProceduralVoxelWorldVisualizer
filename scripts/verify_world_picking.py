@@ -446,6 +446,22 @@ assert 0 < vu['uiMaxBytes'] <= 16384
 assert vu['uiVersions'] == [1, 2, 3]
 assert vu['paletteQueuedErrorRetries'] == 2
 assert vu['paletteUnpackRestored']
+deferred = vu['deferredDisplay']
+assert deferred['versions'] == [1, 2, 3] and len(deferred['heldHash']) == 64
+assert all(deferred[k] for k in ['paletteFailure', 'cancelHeld', 'staleRejected', 'confirmed'])
+held_transmittance = math.exp(-.1 * 4)
+held_pixel = [255 * (1 - held_transmittance + held_transmittance * .055),
+              255 * held_transmittance * .075, 255 * held_transmittance * .1, 255]
+assert len(deferred['initialPixel']) == 4 and all(abs(a-b) <= 2 for a, b in zip(deferred['initialPixel'], held_pixel))
+background = [255 * .055, 255 * .075, 255 * .1, 255]
+assert len(deferred['pixel']) == 4 and all(abs(a-b) <= 2 for a, b in zip(deferred['pixel'], background))
+acceptance = vu['uiAcceptance']
+assert acceptance['versions'] == [4, 5, 6]
+assert acceptance['heldOrigin'] == [-24, -24, -24] and acceptance['acceptedOrigin'] == [32, 32, 32]
+assert all(acceptance[k] for k in ['frameRetained', 'metadataRetained', 'explicitRetry'])
+assert len(acceptance['heldPixel']) == 4 and len(acceptance['pixel']) == 4
+assert acceptance['heldPixel'] != acceptance['pixel']
+assert all(abs(a-b) <= 2 for a, b in zip(acceptance['pixel'], background))
 assert vu['uiOrigins'] == [[0, 0, 0], [-24, -24, -24], [32, 32, 32]]
 assert all(vu[k] for k in ['unpackRestored', 'rejectionRetained', 'cancelRetained', 'closed',
                           'uiCanceled', 'uiGpuRejected', 'viewOnly', 'sceneTransitionRetained'])

@@ -208,6 +208,7 @@ final class VolumeUploadProbe {
         "Close retained volume resources");
     require(!glIsTexture(activeId), "Closed resident texture leaked");
     report.put("closed", true);
+    report.put("deferredDisplay", deferredDisplay());
 
     glfwShowWindow(window);
     glfwFocusWindow(window);
@@ -298,6 +299,50 @@ final class VolumeUploadProbe {
         report.put("uiCanceled", true);
         report.put("uiGpuRejected", true);
         report.put("viewOnly", true);
+        views.probeVolume(filled, 16, -16);
+        until(() -> views.probeNoiseReady(1));
+        var heldPixel = views.probeSurfacePixel();
+        var heldOrigin = views.probeVolumeOrigin();
+        long heldVersion = views.probeVolumeStatistics().version();
+        long heldEpoch = views.probeAcceptedPreviewEpoch(1);
+        views.probeFailNextVolumeSetup(new IllegalStateException("Injected volume setup failure"));
+        views.probeVolume(empty, 32, 48);
+        until(() -> views.probeVolumeMessage().contains("display setup failed"));
+        long failedVersion = views.probeVolumeStatistics().version();
+        require(
+            views.probeVolumeDisplayPending()
+                && !views.probeVolumeStatistics().pending()
+                && views.probePreviewWorkerFailed(1)
+                && views.probeAcceptedPreviewEpoch(1) == heldEpoch
+                && heldOrigin.equals(new Vector3d(-24))
+                && views.probeVolumeOrigin().equals(heldOrigin)
+                && heldPixel.equals(views.probeSurfacePixel()),
+            "Failed display setup changed retained frame/metadata or stranded UI ownership");
+        long failedSubmission = views.probeSubmissionStamp(1);
+        frame(); frame();
+        require(
+            views.probeVolumeDisplayPending()
+                && views.probeSubmissionStamp(1) == failedSubmission
+                && views.probeVolumeStatistics().version() == failedVersion,
+            "Failed display setup retried without an explicit request");
+        views.probeVolumeRegenerate();
+        until(() -> views.probeNoiseReady(1));
+        var acceptedOrigin = views.probeVolumeOrigin();
+        require(
+            !views.probeVolumeDisplayPending()
+                && acceptedOrigin.equals(new Vector3d(32))
+                && !heldPixel.equals(views.probeSurfacePixel()),
+            "Explicit retry failed to confirm the replacement display");
+        require(
+            before.equals(ProjectIO.JSON.valueToTree(state.project()))
+                && revision == state.revision && history == state.document.historyBytes(),
+            "Display acceptance failure/retry changed project/history");
+        report.put("uiAcceptance", Map.of(
+            "versions", List.of(heldVersion, failedVersion, views.probeVolumeStatistics().version()),
+            "heldOrigin", List.of(heldOrigin.x, heldOrigin.y, heldOrigin.z),
+            "acceptedOrigin", List.of(acceptedOrigin.x, acceptedOrigin.y, acceptedOrigin.z),
+            "heldPixel", heldPixel, "pixel", views.probeSurfacePixel(),
+            "frameRetained", true, "metadataRetained", true, "explicitRetry", true));
         new ProjectIO().save(out.resolve("volume-upload-project.json"), state.project());
       } finally {
         views.close();
@@ -311,6 +356,38 @@ final class VolumeUploadProbe {
         "VOLUME_UPLOAD_NATIVE_PASS bounded texture replacement / exact texels / retained"
             + " framebuffer / unpack state / admission-cancel-retry / production metadata ownership"
             + " / view-only");
+  }
+
+  private static Map<String, Object> deferredDisplay() throws Exception {
+    try (var gl = new GlViewport()) {
+      int[] red = new int[256], green = new int[256];
+      Arrays.fill(red, 0xff0000ff); Arrays.fill(green, 0xff00ff00);
+      gl.setPalette(red); gl.setVolume(VolumeData.sample(4, 0, 0, 0, (x, y, z) -> 1));
+      gl.volumeAppearance(0, 1, .1, 0, 256);
+      var camera = new Camera(); camera.flying = true; camera.position.set(2, 2, 10); camera.yaw = camera.pitch = 0;
+      var matrix = camera.matrix(1, new Vector3d()); gl.render(65, 65, matrix, true, 1);
+      var held = read(gl, 65); var initialPixel = pixel(held, 65);
+      var empty = VolumeData.sample(4, 0, 0, 0, (x, y, z) -> 0);
+      require(gl.stageVolume(empty, 512, null, true), "Deferred display admission"); gl.advanceVolume(256);
+      long failedVersion = gl.volumeStatistics().version();
+      require(gl.volumeDisplayPending() && !gl.acceptVolumeDisplay(failedVersion + 1), "Premature display confirmation");
+      glEnable(-1); boolean failed = false;
+      try { gl.setPalette(green); }
+      catch (IllegalStateException expected) { require(expected.getMessage().startsWith("Palette upload GL error"), "Palette setup classification"); failed = true; }
+      require(failed && glGetError() == GL_NO_ERROR, "Controlled palette setup failure missing");
+      gl.cancelVolume(); gl.render(97, 97, matrix, true, 1);
+      require(gl.volumeDisplayPending() && Arrays.equals(held, read(gl, 65)), "Failed setup/cancel changed held framebuffer");
+      require(gl.stageVolume(empty, 512, null, true), "Deferred display retry admission"); gl.advanceVolume(256);
+      long version = gl.volumeStatistics().version(); gl.render(97, 97, matrix, true, 1);
+      require(Arrays.equals(held, read(gl, 65)) && !gl.acceptVolumeDisplay(failedVersion), "Obsolete receipt released framebuffer");
+      gl.setPalette(green); require(gl.acceptVolumeDisplay(version), "Current display confirmation rejected");
+      require(!gl.acceptVolumeDisplay(version), "Repeated confirmation accepted"); gl.render(65, 65, matrix, true, 1);
+      var acceptedPixel = pixel(read(gl, 65), 65);
+      require(!gl.volumeDisplayPending() && !Arrays.equals(held, read(gl, 65)), "Confirmation did not release framebuffer");
+      return Map.of("versions", List.of(1L, failedVersion, version), "heldHash", hash(held),
+          "initialPixel", initialPixel, "pixel", acceptedPixel, "paletteFailure", true,
+          "cancelHeld", true, "staleRejected", true, "confirmed", true);
+    }
   }
 
   private static boolean paletteState(int texture, int pbo) {
@@ -351,8 +428,10 @@ final class VolumeUploadProbe {
   }
 
   private static byte[] read(GlViewport view, int side) {
-    var buffer = BufferUtils.createByteBuffer(side * side * 4);
     glBindTexture(GL_TEXTURE_2D, view.texture());
+    require(glGetTexLevelParameteri(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH) == side
+        && glGetTexLevelParameteri(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT) == side, "Framebuffer dimensions changed");
+    var buffer = BufferUtils.createByteBuffer(side * side * 4);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
     byte[] bytes = new byte[buffer.remaining()];
     buffer.get(bytes);
