@@ -81,7 +81,7 @@ class RenderRetirementTest {
     var deleted = new ArrayList<RenderRetirement.Handle>();
     var plan = new RenderRetirement(deleted::add, names.toArray(RenderRetirement.Handle[]::new));
     plan.run(); plan.run();
-    assertEquals(7, deleted.size());
+    assertEquals(8, deleted.size());
     for (var kind : RenderRetirement.Kind.values()) assertTrue(deleted.contains(handle(kind, 7)));
     assertEquals(handle(RenderRetirement.Kind.TEXTURE, -7), deleted.getLast());
   }

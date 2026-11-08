@@ -13,30 +13,32 @@ public final class GlShadowMap implements AutoCloseable {
 
   public record Sampling(int texture, int resolution, DirectionalShadow.Projection projection) {}
 
-  private int texture, framebuffer, program, resolution;
+  private final ShadowResources resources = new ShadowResources(GlHandleDeletion::delete);
 
   public int texture() {
-    return texture;
+    return resources.texture;
   }
 
   public int framebuffer() {
-    return framebuffer;
+    return resources.framebuffer;
   }
 
   public long bytes() {
-    return DirectionalShadow.bytes(resolution);
+    return DirectionalShadow.bytes(resources.resolution);
   }
 
   public int resolution() {
-    return resolution;
+    return resources.resolution;
   }
 
   public void allocate(int size) {
+    resources.requireOpen();
     DirectionalShadow.bytes(size);
     if (size == 0) throw new IllegalArgumentException("Empty shadow map");
-    if (size == resolution) return;
+    if (size == resources.resolution) return;
     // Retire before replacement: never hold two complete shadow maps.
-    close();
+    resources.release();
+    resources.requireOpen();
     if (size > glGetInteger(GL_MAX_TEXTURE_SIZE))
       throw new IllegalStateException("Shadow map exceeds device texture limit");
     int active = glGetInteger(GL_ACTIVE_TEXTURE),
@@ -45,10 +47,10 @@ public final class GlShadowMap implements AutoCloseable {
     int read = glGetInteger(GL_READ_FRAMEBUFFER_BINDING),
         draw = glGetInteger(GL_DRAW_FRAMEBUFFER_BINDING);
     try {
-      texture = glGenTextures();
-      framebuffer = glGenFramebuffers();
+      resources.texture = glGenTextures();
+      resources.framebuffer = glGenFramebuffers();
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-      glBindTexture(GL_TEXTURE_2D, texture);
+      glBindTexture(GL_TEXTURE_2D, resources.texture);
       glTexImage2D(
           GL_TEXTURE_2D,
           0,
@@ -64,16 +66,17 @@ public final class GlShadowMap implements AutoCloseable {
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
-      glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texture, 0);
+      glBindFramebuffer(GL_FRAMEBUFFER, resources.framebuffer);
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, resources.texture, 0);
       glDrawBuffer(GL_NONE);
       glReadBuffer(GL_NONE);
       if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         throw new IllegalStateException("Incomplete shadow framebuffer");
-      program = link();
-      resolution = size;
-    } catch (RuntimeException failure) {
-      close();
+      resources.program = link();
+      resources.resolution = size;
+    } catch (RuntimeException | Error failure) {
+      try { resources.release(); }
+      catch (RuntimeException | Error ignored) { /* Allocation keeps its original primary. */ }
       throw failure;
     } finally {
       glBindFramebuffer(GL_READ_FRAMEBUFFER, read);
@@ -86,7 +89,8 @@ public final class GlShadowMap implements AutoCloseable {
 
   /** Restore every raster state changed by the depth pass, including split read/draw FBOs. */
   public int render(DirectionalShadow.Projection projection, Draw drawCommands) {
-    if (program == 0) throw new IllegalStateException("Shadow map not allocated");
+    resources.requireOpen();
+    if (resources.program == 0) throw new IllegalStateException("Shadow map not allocated");
     int read = glGetInteger(GL_READ_FRAMEBUFFER_BINDING),
         draw = glGetInteger(GL_DRAW_FRAMEBUFFER_BINDING);
     int currentProgram = glGetInteger(GL_CURRENT_PROGRAM),
@@ -106,8 +110,8 @@ public final class GlShadowMap implements AutoCloseable {
     float[] attribute = new float[4];
     glGetVertexAttribfv(4, GL_CURRENT_VERTEX_ATTRIB, attribute);
     try {
-      glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-      glViewport(0, 0, resolution, resolution);
+      glBindFramebuffer(GL_FRAMEBUFFER, resources.framebuffer);
+      glViewport(0, 0, resources.resolution, resources.resolution);
       glEnable(GL_DEPTH_TEST);
       glDepthMask(true);
       glDepthFunc(GL_LESS);
@@ -118,7 +122,9 @@ public final class GlShadowMap implements AutoCloseable {
       glDisable(GL_POLYGON_OFFSET_FILL);
       glDisable(GL_RASTERIZER_DISCARD);
       glClear(GL_DEPTH_BUFFER_BIT);
-      return drawCommands.render(program, projection.matrix());
+      int count = drawCommands.render(resources.program, projection.matrix());
+      resources.requireOpen();
+      return count;
     } finally {
       glBindVertexArray(vao);
       glVertexAttrib4f(4, attribute[0], attribute[1], attribute[2], attribute[3]);
@@ -194,9 +200,6 @@ float shadowVisibility(vec3 normal){
 
   @Override
   public void close() {
-    if (texture != 0) glDeleteTextures(texture);
-    if (framebuffer != 0) glDeleteFramebuffers(framebuffer);
-    if (program != 0) glDeleteProgram(program);
-    texture = framebuffer = program = resolution = 0;
+    resources.close();
   }
 }

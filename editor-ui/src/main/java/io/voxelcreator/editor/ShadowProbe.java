@@ -300,12 +300,23 @@ final class ShadowProbe {
               && glIsEnabled(GL_POLYGON_OFFSET_FILL)
               && glIsEnabled(GL_RASTERIZER_DISCARD),
           "Raster state ownership");
-      map.close();
-      require(
-          !glIsTexture(oldTexture) && !glIsFramebuffer(oldFramebuffer),
-          "Depth objects survived close");
       map.allocate(1024);
+      require(
+          (map.texture() == oldTexture || !glIsTexture(oldTexture))
+              && (map.framebuffer() == oldFramebuffer || !glIsFramebuffer(oldFramebuffer)),
+          "Depth objects survived resize retirement");
       require(map.bytes() == 4 << 20, "Depth replacement accounting");
+      int replacementTexture = map.texture(), replacementFramebuffer = map.framebuffer();
+      map.close();
+      require(!glIsTexture(replacementTexture) && !glIsFramebuffer(replacementFramebuffer),
+          "Depth objects survived terminal close");
+      require(map.texture() == 0 && map.framebuffer() == 0 && map.resolution() == 0 && map.bytes() == 0,
+          "Closed shadow metadata retained native names");
+      try {
+        map.allocate(512);
+        throw new AssertionError("Closed shadow owner reopened");
+      } catch (IllegalStateException expected) { /* Admission must reject before native work. */ }
+      map.close();
     } finally {
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
       glBindVertexArray(0);

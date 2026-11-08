@@ -187,6 +187,17 @@ final class GpuTimingProbe {
             "Driver timestamp pair missing");
         queries.close();
         require(names.stream().noneMatch(q -> glIsQuery(q)), "Driver query names survived close");
+        require(queries.statistics().state() == GpuTimerQueries.State.CLOSED
+                && queries.statistics().allocatedQueries() == 0 && queries.statistics().pending() == 0,
+            "Closed timer retained query ownership");
+        int allocated = names.size();
+        queries.synchronize(scope);
+        require(queries.begin(scope, "closed") == 0 && queries.poll(scope).isEmpty(),
+            "Closed timer accepted work");
+        queries.end(token, true);
+        queries.close();
+        require(names.size() == allocated && names.stream().noneMatch(q -> glIsQuery(q)),
+            "Closed timer revived driver names");
       }
       report.put("driverNamesDeleted", true);
     } else report.put("driverNamesDeleted", true);
