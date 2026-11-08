@@ -29,6 +29,7 @@ public final class Desktop extends Application {
   private boolean contextOwned;
   private PropertyPanel properties;
   private ResourcePanel resources;
+  private WorldEditorPanel worldEditor;
   private Viewports views;
   private DiagnosticsPanel diagnostics;
   private ProfilePanel captures;
@@ -311,6 +312,13 @@ public final class Desktop extends Application {
     properties.findReferences = resources.findReferences;
     sourceNavigation = GuardedNavigation.background(state, properties);
     lifecycle.own(sourceNavigation::close);
+    worldEditor =
+        new WorldEditorPanel(
+            state,
+            (target, fresh) -> sourceNavigation.request(target, fresh),
+            resources.findReferences,
+            this::packageInteractionBlocked);
+    worldEditor.docking.defaults(this::resetDockLayout);
     diagnostics =
         new DiagnosticsPanel(
             state,
@@ -487,9 +495,11 @@ public final class Desktop extends Application {
           WorkspaceDocking.defaults(dock, chrome.dock().width(), chrome.dock().height());
           resources.docking.reset();
           properties.docking.reset();
+          worldEditor.docking.reset();
         });
     resources.draw();
     properties.draw();
+    worldEditor.draw();
     views.draw();
     sourceNavigation.draw();
     auxiliary();
@@ -800,6 +810,7 @@ public final class Desktop extends Application {
         ImGui.endMenu();
       }
       if (UiScale.beginMenu("View")) {
+        if (helpMenuItem("World Editor", "World Editor", "", true)) worldEditor.reveal();
         if (helpMenuItem("Find", "Find", binding("Find"), true)) command("Find");
         if (helpMenuItem(
             "FindReferences", "Find References", binding("FindReferences"), state.selected != null))
@@ -990,6 +1001,7 @@ public final class Desktop extends Application {
     workspaceLayout.reset(state.user.workspace);
     resources.docking.reset();
     properties.docking.reset();
+    worldEditor.docking.reset();
   }
 
   private void captureVisibility() {

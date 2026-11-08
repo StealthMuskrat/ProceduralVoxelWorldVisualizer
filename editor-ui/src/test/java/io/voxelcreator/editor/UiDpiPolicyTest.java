@@ -136,7 +136,7 @@ class UiDpiPolicyTest {
     assertEquals(.5f, registry.get("minimumContentScale"));
     assertEquals(8f, registry.get("maximumContentScale"));
     assertEquals(4, registry.get("fontRasterDensity"));
-    assertEquals(19, ((List<?>) registry.get("windows")).size());
+    assertEquals(20, ((List<?>) registry.get("windows")).size());
     assertEquals(13, UiFontAtlas.LOGICAL_SIZE);
     assertEquals(16L << 20, UiFontAtlas.MAXIMUM_BYTES);
   }

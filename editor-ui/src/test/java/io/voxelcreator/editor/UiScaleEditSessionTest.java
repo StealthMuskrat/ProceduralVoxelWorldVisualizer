@@ -15,8 +15,8 @@ class UiScaleEditSessionTest {
 
   @Test
   void catalogIsUniqueImmutableAndInheritsGlobalWithoutMaterializingWindowEntries() {
-    assertEquals(19, UiScalePreferences.WINDOWS.size());
-    assertEquals(19, new HashSet<>(UiScalePreferences.WINDOWS).size());
+    assertEquals(20, UiScalePreferences.WINDOWS.size());
+    assertEquals(20, new HashSet<>(UiScalePreferences.WINDOWS).size());
     assertThrows(UnsupportedOperationException.class, () -> UiScalePreferences.WINDOWS.clear());
     var user = new UserConfig();
     user.appearance.globalScale = 1.25f;

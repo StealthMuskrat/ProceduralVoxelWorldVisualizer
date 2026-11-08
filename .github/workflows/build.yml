@@ -450,6 +450,8 @@ jobs:
           java -cp build/independent:build/release/jars/noise-generator-engine.jar io.voxelcreator.example.WorldNumericConsumer build/world-numeric
           python scripts/verify_world_numeric.py build/world-numeric
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldListProbe build/world-list
+          java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldEditorProbe build/world-editor
+          python scripts/verify_world_editor.py build/world-editor
       - name: Curve diagnostic control focus workflow
         run: |
           java --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.CurveFocusProbe build/curve-focus
@@ -658,6 +660,7 @@ jobs:
             build/world-setting-focus/
             build/world-numeric/
             build/world-list/
+            build/world-editor/
             build/curve-focus/
             build/curve-gesture/
             build/curve-point/
@@ -1492,6 +1495,10 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldListProbe build/world-list
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & build/windows-runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -cp build/release/jars/ProceduralVoxelCreator.jar io.voxelcreator.editor.WorldEditorProbe build/world-editor
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/verify_world_editor.py build/world-editor
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Windows curve diagnostic control focus workflow
         shell: pwsh
         run: |
@@ -1785,6 +1792,7 @@ jobs:
             build/world-setting-focus/
             build/world-numeric/
             build/world-list/
+            build/world-editor/
             build/curve-focus/
             build/curve-gesture/
             build/curve-point/
