@@ -167,6 +167,7 @@ public final class ProjectParseConsumer {
     CompilationSnapshotConsumer.run(out.resolve("compilation-snapshots"));
     WorldCompilationConsumer.run(out.resolve("world-compilation"));
     CoordinateBoundaryConsumer.run(out.resolve("coordinate-boundaries"));
+    SamplerLookupConsumer.run(out.resolve("sampler-lookup"));
     System.out.println("PROJECT_PARSE_CONSUMER_PASS");
   }
 

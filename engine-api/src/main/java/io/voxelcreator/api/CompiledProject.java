@@ -72,31 +72,59 @@ public final class CompiledProject {
     return registry;
   }
 
+  /**
+   * Compiles the 2D resource identified by its stable UUID for this seed.
+   *
+   * @throws IllegalArgumentException if uuid is null, unknown or identifies a 3D resource
+   */
   public NoiseSampler2D noise2D(UUID uuid, long seed) {
-    var c = new NoiseCompiler(snapshot, seed);
     var n = find(uuid);
     if (n.dimension != 2) throw new IllegalArgumentException("Expected 2D resource");
+    var c = new NoiseCompiler(snapshot, seed);
     var f = c.compile(uuid);
     return (x, z) -> f.sample(x, 0, z);
   }
 
+  /**
+   * Compiles the 3D resource identified by its stable UUID for this seed.
+   *
+   * @throws IllegalArgumentException if uuid is null, unknown or identifies a 2D resource
+   */
   public NoiseSampler3D noise3D(UUID uuid, long seed) {
-    var c = new NoiseCompiler(snapshot, seed);
     var n = find(uuid);
     if (n.dimension != 3) throw new IllegalArgumentException("Expected 3D resource");
+    var c = new NoiseCompiler(snapshot, seed);
     var f = c.compile(uuid);
     return f::sample;
   }
 
+  /**
+   * Resolves an exact, case-sensitive visible ID in the 2D namespace to its stable UUID.
+   *
+   * @throws IllegalArgumentException if id is null or no 2D resource has that exact ID
+   */
   public NoiseSampler2D noise2D(String id, long seed) {
     return noise2D(
-        snapshot.noise2D.stream().filter(n -> n.id.equals(id)).findFirst().orElseThrow().uuid,
+        snapshot.noise2D.stream()
+            .filter(n -> n.id.equals(id))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Unknown 2D noise " + id))
+            .uuid,
         seed);
   }
 
+  /**
+   * Resolves an exact, case-sensitive visible ID in the 3D namespace to its stable UUID.
+   *
+   * @throws IllegalArgumentException if id is null or no 3D resource has that exact ID
+   */
   public NoiseSampler3D noise3D(String id, long seed) {
     return noise3D(
-        snapshot.noise3D.stream().filter(n -> n.id.equals(id)).findFirst().orElseThrow().uuid,
+        snapshot.noise3D.stream()
+            .filter(n -> n.id.equals(id))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Unknown 3D noise " + id))
+            .uuid,
         seed);
   }
 
