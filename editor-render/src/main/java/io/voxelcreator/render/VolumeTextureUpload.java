@@ -276,6 +276,8 @@ public final class VolumeTextureUpload implements AutoCloseable {
 
   /**
    * Host and GPU-copy destination writes share the supplied byte budget, including partial rows.
+   * A previous-texture deletion fault occurs after publication; version/resident still describe the
+   * complete replacement in that case.
    */
   public int advance(int byteBudget) {
     ensureOpen();
@@ -329,17 +331,6 @@ public final class VolumeTextureUpload implements AutoCloseable {
           operation++;
         }
       }
-      if (operation == plan.size()) {
-        var previous = active;
-        active = candidate;
-        candidate = null;
-        data = null;
-        plan = List.of();
-        cursor = operation = offset = 0;
-        version++;
-        if (previous != null) backend.delete(previous.texture());
-      }
-      return lastBytes;
     } catch (RuntimeException | Error failure) {
       int written = lastBytes, reused = lastCopied;
       try {
@@ -352,6 +343,18 @@ public final class VolumeTextureUpload implements AutoCloseable {
       }
       throw failure;
     }
+    if (operation == plan.size()) {
+      var previous = active;
+      active = candidate;
+      candidate = null;
+      data = null;
+      plan = List.of();
+      cursor = operation = offset = 0;
+      version++;
+      // Retirement cannot roll back publication or cancel work created by its backend callback.
+      delete(previous);
+    }
+    return lastBytes;
   }
 
   public Resident resident() {
