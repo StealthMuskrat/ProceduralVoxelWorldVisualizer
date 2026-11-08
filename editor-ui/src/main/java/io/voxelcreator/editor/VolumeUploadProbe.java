@@ -63,6 +63,37 @@ final class VolumeUploadProbe {
       glPixelStorei(GL_UNPACK_SKIP_ROWS, 2);
       glPixelStorei(GL_UNPACK_SKIP_IMAGES, 3);
       glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_TRUE);
+      // Queue a controlled GL error for the write's completion check, then retry the same palette.
+      // A failed attempt must not populate the cache; this does not simulate a driver allocation fault.
+      var replacementPalette = palette.clone();
+      replacementPalette[0] = 0xff00ff00;
+      int activeUnit = glGetInteger(GL_ACTIVE_TEXTURE);
+      glActiveTexture(GL_TEXTURE3);
+      int previousBinding = glGetInteger(GL_TEXTURE_BINDING_2D);
+      glBindTexture(GL_TEXTURE_2D, viewport.texture());
+      int paletteRetries = 0;
+      try {
+        for (int attempt = 0; attempt < 2; attempt++) {
+          glEnable(-1);
+          boolean failed = false;
+          try {
+            viewport.setPalette(replacementPalette);
+          } catch (IllegalStateException expectedFailure) {
+            require(expectedFailure.getMessage().startsWith("Palette upload GL error"), "Palette fault classification");
+            failed = true;
+          }
+          require(failed, "Failed palette cached an identical retry");
+          paletteRetries++;
+          require(glGetError() == GL_NO_ERROR, "Controlled palette error not consumed");
+          require(paletteState(viewport.texture(), pbo), "Failed palette changed unpack/texture state");
+        }
+        viewport.setPalette(replacementPalette);
+        require(paletteState(viewport.texture(), pbo), "Successful palette changed unpack/texture state");
+        require(glGetError() == GL_NO_ERROR, "Palette upload with foreign unpack state failed");
+      } finally {
+        glBindTexture(GL_TEXTURE_2D, previousBinding);
+        glActiveTexture(activeUnit);
+      }
       require(viewport.stageVolume(field, bytes + 256), "Exact volume admission");
       var writes = new ArrayList<Integer>();
       long version = viewport.volumeStatistics().version();
@@ -97,6 +128,7 @@ final class VolumeUploadProbe {
       glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
       glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
       glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
+      viewport.setPalette(palette);
       require(!glIsTexture(activeId), "Replaced texture leaked");
       var resident = viewport.volumeResident();
       var texels = BufferUtils.createFloatBuffer(17 * 17 * 17);
@@ -164,6 +196,8 @@ final class VolumeUploadProbe {
       report.put("transmittance", t);
       report.put("retainedHash", hash(retained));
       report.put("unpackRestored", true);
+      report.put("paletteUnpackRestored", true);
+      report.put("paletteQueuedErrorRetries", paletteRetries);
       report.put("rejectionRetained", true);
       report.put("cancelRetained", true);
     } finally {
@@ -272,6 +306,19 @@ final class VolumeUploadProbe {
         "VOLUME_UPLOAD_NATIVE_PASS bounded texture replacement / exact texels / retained"
             + " framebuffer / unpack state / admission-cancel-retry / production metadata ownership"
             + " / view-only");
+  }
+
+  private static boolean paletteState(int texture, int pbo) {
+    return glGetInteger(GL_ACTIVE_TEXTURE) == GL_TEXTURE3
+        && glGetInteger(GL_TEXTURE_BINDING_2D) == texture
+        && glGetInteger(GL_PIXEL_UNPACK_BUFFER_BINDING) == pbo
+        && glGetInteger(GL_UNPACK_ALIGNMENT) == 8
+        && glGetInteger(GL_UNPACK_ROW_LENGTH) == 19
+        && glGetInteger(GL_UNPACK_IMAGE_HEIGHT) == 23
+        && glGetInteger(GL_UNPACK_SKIP_PIXELS) == 1
+        && glGetInteger(GL_UNPACK_SKIP_ROWS) == 2
+        && glGetInteger(GL_UNPACK_SKIP_IMAGES) == 3
+        && glGetInteger(GL_UNPACK_SWAP_BYTES) == GL_TRUE;
   }
 
   private static void until(BooleanSupplier done) {
