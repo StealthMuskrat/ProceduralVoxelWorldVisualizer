@@ -170,6 +170,7 @@ public final class WorldCompilationConsumer {
         "healthyWorlds", worlds, "traces", traces, "fieldAndDrawPairs", fields, "cancelledRequests", cancelled,
         "failedSamples", failures, "retainedFinalChunks", finals.size(), "retainedFinalCells", finalCells,
         "retainedStageSnapshots", stages.size(), "retainedStageCells", stageCells, "roots", List.of(2, 4))));
+    ColumnPrefetchConsumer.run(out.resolve("column-prefetch"));
     System.out.println("WORLD_COMPILATION_CONSUMER_PASS");
   }
   private static void bits(double expected, double actual) {
