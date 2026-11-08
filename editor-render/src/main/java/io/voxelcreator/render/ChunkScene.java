@@ -91,7 +91,7 @@ public final class ChunkScene implements AutoCloseable {
   private final ExecutorService executor;
   private Config config;
   private final LinkedHashMap<ChunkPos, Entry> entries = new LinkedHashMap<>();
-  private final ConcurrentLinkedQueue<Result> ready = new ConcurrentLinkedQueue<>();
+  private final SceneResultMailbox<Result> ready = new SceneResultMailbox<>();
   private final Set<ChunkPos> wanted = new LinkedHashSet<>(),
       loadWindow = new HashSet<>(),
       required = new HashSet<>();
@@ -367,9 +367,9 @@ public final class ChunkScene implements AutoCloseable {
                       || data.surface() != surfaces)
                     throw new IllegalArgumentException("Source returned a mismatched chunk");
                   token.throwIfCancelled();
-                  ready.add(new Result(entry.position, id, data, null, null, 0, null));
+                  ready.offer(new Result(entry.position, id, data, null, null, 0, null));
                 } catch (Throwable error) {
-                  ready.add(new Result(entry.position, id, null, null, null, 0, error));
+                  ready.offer(new Result(entry.position, id, null, null, null, 0, error));
                 }
               });
       if (owns(entry, id)) entry.future = submitted;
@@ -451,7 +451,7 @@ public final class ChunkScene implements AutoCloseable {
                         "Streaming mesh / LOD " + level,
                         outcome);
                 }
-                ready.add(completion);
+                ready.offer(completion);
               });
       if (owns(entry, id)) entry.future = submitted;
       else submitted.cancel(true);
@@ -790,11 +790,11 @@ public final class ChunkScene implements AutoCloseable {
   public void close() {
     if (closed) return;
     closed = true;
+    ready.close();
     for (var entry : entries.values()) cancel(entry);
     entries.clear();
     wanted.clear();
     loadWindow.clear();
-    ready.clear();
     try {
       source.close();
     } catch (Exception ignored) {

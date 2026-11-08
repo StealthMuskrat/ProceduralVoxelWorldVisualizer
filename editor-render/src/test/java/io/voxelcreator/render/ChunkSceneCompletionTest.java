@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.*;
 import org.joml.Vector3d;
 import org.junit.jupiter.api.Test;
 
-/** Deferred CPU-scene completion, terminal failure and reservation ownership definitions. */
+/** Deferred CPU-scene completion, terminal failure, closure and reservation ownership definitions. */
 class ChunkSceneCompletionTest {
   private static final long TIMEOUT = 10;
   private static final class Workers extends AbstractExecutorService {
@@ -95,6 +95,34 @@ class ChunkSceneCompletionTest {
       while (true) try { assertTrue(latch.await(Math.max(0, end - System.nanoTime()), TimeUnit.NANOSECONDS)); return; }
       catch (InterruptedException cancelled) { interrupted = true; }
     } finally { if (interrupted) Thread.currentThread().interrupt(); }
+  }
+
+  @Test
+  void aLateSourceReceiptCannotReviveAClosedSceneOrCloseTheSharedExecutor() throws Exception {
+    var entered = new CountDownLatch(1); var release = new CountDownLatch(1); var closes = new AtomicInteger();
+    var retained = new AtomicReference<VoxelChunk>();
+    var source = new ChunkScene.Source() {
+      public SceneChunk load(ChunkPos position, CancellationToken token) {
+        var chunk = VoxelChunk.uniform(position, 4, 1); retained.set(chunk); entered.countDown();
+        await(release); // Deliberately returns after cancellation; close does not preempt host work.
+        return SceneChunk.exact(chunk);
+      }
+      public void close() { closes.incrementAndGet(); }
+    };
+    try (var workers = Executors.newSingleThreadExecutor();
+        var scene = new ChunkScene(source, workers, new ChunkScene.Config(4, 0, 0, 2, 1, 1, 64L << 20, false, 125))) {
+      scene.tick(new Vector3d(1), new Vector3d(1), 8);
+      try {
+        assertTrue(entered.await(TIMEOUT, TimeUnit.SECONDS)); scene.close(); scene.close(); assertEquals(1, closes.get());
+      } finally { release.countDown(); }
+      workers.submit(() -> {}).get(TIMEOUT, TimeUnit.SECONDS);
+      for (int i = 0; i < 12; i++) scene.tick(new Vector3d(1), new Vector3d(1), 8);
+      assertEquals(0, scene.statistics().resident()); assertEquals(0, scene.statistics().activeJobs());
+      assertEquals(0, scene.statistics().reserved()); assertEquals(0, scene.statistics().cpuBytes());
+      assertTrue(scene.uploads(8, 1 << 20).isEmpty()); assertFalse(scene.hasDisplay());
+      for (int z = 0; z < 4; z++) for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++) assertEquals(1, retained.get().getVoxelTypeId(x, y, z));
+    }
+    assertEquals(1, closes.get());
   }
 
   @Test
