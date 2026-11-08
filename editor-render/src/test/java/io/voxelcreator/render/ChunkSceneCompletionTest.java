@@ -17,12 +17,18 @@ class ChunkSceneCompletionTest {
     final Queue<Runnable> tasks = new ArrayDeque<>();
     final List<Future<?>> futures = new ArrayList<>();
     volatile Runnable afterBody;
+    volatile java.util.function.Consumer<Future<?>> cancelAction;
+    volatile Error cancelFailure;
     Error admission;
     boolean inline, stopped;
     int readFault;
     protected <T> RunnableFuture<T> newTaskFor(Runnable body, T result) {
       final int fault = readFault;
       var future = new FutureTask<T>(() -> { body.run(); var after = afterBody; if (after != null) after.run(); return result; }) {
+        public boolean cancel(boolean interrupt) {
+          var action = cancelAction; var failure = cancelFailure; boolean accepted = super.cancel(interrupt);
+          if (action != null) action.accept(this); if (failure != null) throw failure; return accepted;
+        }
         public boolean isDone() { if (fault == 1) throw new AssertionError("status"); return fault > 1 || super.isDone(); }
         public T get() throws InterruptedException, ExecutionException {
           if (fault == 2) throw new AssertionError("read"); if (fault == 3) throw new InterruptedException("read"); return super.get();
@@ -39,7 +45,8 @@ class ChunkSceneCompletionTest {
     void run() { tasks.remove().run(); }
     public void shutdown() { shutdownNow(); }
     public List<Runnable> shutdownNow() {
-      stopped = true; var queued = new ArrayList<>(tasks); tasks.clear(); futures.forEach(f -> f.cancel(true)); return queued;
+      stopped = true; cancelAction = null; cancelFailure = null;
+      var queued = new ArrayList<>(tasks); tasks.clear(); futures.forEach(f -> f.cancel(true)); return queued;
     }
     public boolean isShutdown() { return stopped; }
     public boolean isTerminated() { return stopped; }
@@ -50,7 +57,8 @@ class ChunkSceneCompletionTest {
     final Workers workers = new Workers();
     final RenderPressure pressure = new RenderPressure();
     final AtomicReference<Error> profileFailure = new AtomicReference<>(), sourceFailure = new AtomicReference<>();
-    final AtomicInteger calls = new AtomicInteger(), profiles = new AtomicInteger();
+    final AtomicInteger calls = new AtomicInteger(), profiles = new AtomicInteger(), sourceCloses = new AtomicInteger();
+    java.util.function.Consumer<CancellationToken> loaded;
     final ChunkScene scene;
     final boolean surface;
     final Vector3d center = new Vector3d(1), eye = new Vector3d(1);
@@ -61,10 +69,12 @@ class ChunkSceneCompletionTest {
       var source = new ChunkScene.Source() {
         public boolean surfaces() { return surface; }
         public SceneChunk load(ChunkPos position, CancellationToken token) {
-          calls.incrementAndGet(); var failure = sourceFailure.get(); if (failure != null) throw failure;
+          calls.incrementAndGet(); var setup = loaded; if (setup != null) setup.accept(token);
+          var failure = sourceFailure.get(); if (failure != null) throw failure;
           return surface ? SceneChunk.isosurface(position, 4, token, (x, y, z) -> x - 1.25, 0)
               : SceneChunk.exact(VoxelChunk.uniform(position, 4, 1));
         }
+        public void close() { sourceCloses.incrementAndGet(); }
       };
       scene = new ChunkScene(source, workers, new ChunkScene.Config(4, 0, 0, 2, 1, 2, 64L << 20, kind == 1, 125), pressure,
           position -> { profiles.incrementAndGet(); var failure = profileFailure.get(); if (failure != null) throw failure; return null; });
@@ -95,6 +105,91 @@ class ChunkSceneCompletionTest {
       while (true) try { assertTrue(latch.await(Math.max(0, end - System.nanoTime()), TimeUnit.NANOSECONDS)); return; }
       catch (InterruptedException cancelled) { interrupted = true; }
     } finally { if (interrupted) Thread.currentThread().interrupt(); }
+  }
+
+  private static Error unreadableCancellation(AtomicInteger reads) {
+    return new AssertionError() {
+      public String getMessage() { reads.incrementAndGet(); throw new AssertionError("message reader"); }
+      public String toString() { reads.incrementAndGet(); throw new AssertionError("text reader"); }
+    };
+  }
+
+  @Test
+  void tokenListenerClosingDuringCameraEvictionCannotDoubleSettleOrInvalidateTraversal() {
+    for (int kind = 0; kind < 3; kind++) try (var form = new Form(kind)) {
+      form.loaded = token -> token.onCancel(form.scene::close);
+      form.tick(); form.workers.run(); form.pressure.pause(); form.center.set(1000); form.eye.set(1000);
+      assertDoesNotThrow(() -> form.scene.tick(form.center, form.eye, 0));
+      form.noReservation(); assertEquals(0, form.scene.statistics().resident()); assertEquals(0, form.scene.statistics().cpuBytes());
+      assertEquals(1, form.sourceCloses.get()); assertTrue(form.scene.uploads(8, 1 << 20).isEmpty());
+    }
+  }
+
+  @Test
+  void throwingTokenAndFutureNotificationsCannotStrandOtherJobsOrSourceClosure() {
+    try (var form = new Form(0, true)) {
+      var reads = new AtomicInteger(); var events = new ArrayList<String>();
+      var tokenFault = unreadableCancellation(reads); var futureFault = unreadableCancellation(reads);
+      form.loaded = token -> { int index = form.calls.get() - 1; token.onCancel(() -> { events.add("token-" + index); throw tokenFault; }); };
+      form.workers.cancelAction = future -> events.add("future-" + form.workers.futures.indexOf(future));
+      form.workers.cancelFailure = futureFault;
+      form.tick(); assertEquals(2, form.scene.statistics().activeJobs()); form.workers.run(); form.workers.run();
+      assertDoesNotThrow(form.scene::close); form.noReservation();
+      assertEquals(List.of("token-0", "future-0", "token-1", "future-1"), events);
+      assertEquals(1, form.sourceCloses.get()); assertEquals(0, form.scene.statistics().resident()); assertEquals(0, form.scene.statistics().cpuBytes());
+      assertEquals(0, reads.get()); assertEquals(0, tokenFault.getSuppressed().length); assertEquals(0, futureFault.getSuppressed().length);
+    }
+  }
+
+  @Test
+  void terminalDataAndMeshFaultsKeepPriorityWhenCancellationNotificationsAlsoFail() {
+    for (int kind = 0; kind < 3; kind++) for (boolean mesh : new boolean[] {false, true}) try (var form = new Form(kind)) {
+      var reads = new AtomicInteger(); var attempts = new AtomicInteger(); var tokenFault = unreadableCancellation(reads); var futureFault = unreadableCancellation(reads);
+      if (mesh) form.meshQueued(); else form.loaded = token -> token.onCancel(() -> { form.noReservation(); throw tokenFault; });
+      if (!mesh) form.tick();
+      long bytes = form.scene.statistics().cpuBytes(); var primary = new AssertionError("primary terminal");
+      form.workers.afterBody = () -> { throw primary; };
+      form.workers.cancelAction = future -> { form.noReservation(); attempts.incrementAndGet(); };
+      form.workers.cancelFailure = futureFault; form.workers.run();
+      form.pressure.observe(8_000_000_000L, 1, 0, 0, true); // Defer new data without hiding failure feedback.
+      assertDoesNotThrow(form::tick); form.noReservation();
+      assertTrue(form.scene.statistics().status().contains("primary terminal")); assertEquals(bytes, form.scene.statistics().cpuBytes());
+      assertEquals(1, attempts.get()); assertEquals(0, reads.get()); assertEquals(0, primary.getSuppressed().length);
+      assertEquals(0, tokenFault.getSuppressed().length); assertEquals(0, futureFault.getSuppressed().length);
+    }
+  }
+
+  @Test
+  void inlineAdmissionFaultSettlesBeforeNotifyingTheRegisteredSourceListener() {
+    for (int kind = 0; kind < 3; kind++) for (boolean mesh : new boolean[] {false, true}) try (var form = new Form(kind)) {
+      var reads = new AtomicInteger(); var notifications = new AtomicInteger(); var secondary = unreadableCancellation(reads);
+      if (mesh) { form.settle(); form.eye.set(1000); }
+      else form.loaded = token -> token.onCancel(() -> { form.noReservation(); notifications.incrementAndGet(); throw secondary; });
+      long generated = form.scene.statistics().generated(), meshes = form.scene.statistics().meshes(), bytes = form.scene.statistics().cpuBytes();
+      var primary = new AssertionError("primary admission"); form.workers.inline = true; form.workers.admission = primary;
+      form.workers.afterBody = () -> form.pressure.observe(8_000_000_000L, 1, 0, 0, true);
+      assertDoesNotThrow(form::tick); form.noReservation();
+      assertTrue(form.scene.statistics().status().contains("primary admission")); assertEquals(mesh ? 0 : 1, notifications.get());
+      assertEquals(generated, form.scene.statistics().generated()); assertEquals(meshes, form.scene.statistics().meshes()); assertEquals(bytes, form.scene.statistics().cpuBytes());
+      assertEquals(0, reads.get()); assertEquals(0, primary.getSuppressed().length); assertEquals(0, secondary.getSuppressed().length);
+    }
+  }
+
+  @Test
+  void futureCancellationCanAdmitASameEntrySuccessorWithoutOldEvictionRemovingIt() {
+    try (var form = new Form(2)) {
+      form.tick(); form.workers.run(); var reentered = new AtomicBoolean();
+      form.workers.cancelAction = future -> {
+        if (reentered.compareAndSet(false, true)) {
+          form.noReservation(); form.center.set(1); form.eye.set(1); form.scene.tick(form.center, form.eye, 0);
+        }
+      };
+      form.center.set(1000); form.eye.set(1000); assertDoesNotThrow(() -> form.scene.tick(form.center, form.eye, 0));
+      assertTrue(reentered.get()); assertEquals(2, form.workers.futures.size()); assertFalse(form.workers.futures.getLast().isCancelled());
+      assertEquals(1, form.scene.statistics().activeJobs()); assertTrue(form.scene.statistics().reserved() > 0);
+      form.workers.run(); form.pressure.pause(); form.tick(); form.noReservation();
+      assertEquals(1, form.scene.statistics().generated()); assertEquals(1, form.scene.statistics().resident()); assertEquals(0, form.sourceCloses.get());
+    }
   }
 
   @Test

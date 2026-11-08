@@ -208,7 +208,9 @@ public final class ChunkScene implements AutoCloseable {
     drain(completions);
     if (closed) return;
     plan();
+    if (closed) return;
     evict();
+    if (closed) return;
     if (pressure.paused()) {
       status = pressure.message();
       return;
@@ -324,8 +326,11 @@ public final class ChunkScene implements AutoCloseable {
               if (p != null) loadWindow.add(p);
             }
     // A reduced preload window never removes the halo required by current visible meshes.
-    for (var entry : entries.values())
-      if (entry.working && !loadWindow.contains(entry.position)) cancel(entry);
+    for (var entry : new ArrayList<>(entries.values())) {
+      if (closed) return;
+      if (entries.get(entry.position) == entry && entry.working && !loadWindow.contains(entry.position))
+        cancel(entry);
+    }
   }
 
   private int chunk(double value) {
@@ -376,14 +381,15 @@ public final class ChunkScene implements AutoCloseable {
       else submitted.cancel(true);
     } catch (RejectedExecutionException full) {
       if (!owns(entry, id)) return;
-      token.cancel();
       finish(entry);
+      cancelSignals(token, null);
+      if (!idle(entry, id)) return;
       rejected = true;
       status = "Background queue is full";
     } catch (Throwable failure) {
       if (!owns(entry, id)) return;
-      token.cancel();
       finish(entry);
+      cancelSignals(token, null);
       failed(entry, id, failure);
     }
   }
@@ -457,14 +463,15 @@ public final class ChunkScene implements AutoCloseable {
       else submitted.cancel(true);
     } catch (RejectedExecutionException full) {
       if (!owns(entry, id)) return;
-      token.cancel();
       finish(entry);
+      cancelSignals(token, null);
+      if (!idle(entry, id)) return;
       rejected = true;
       status = "Background queue is full";
     } catch (Throwable failure) {
       if (!owns(entry, id)) return;
-      token.cancel();
       finish(entry);
+      cancelSignals(token, null);
       failed(entry, id, failure);
     }
   }
@@ -482,6 +489,10 @@ public final class ChunkScene implements AutoCloseable {
     return !closed && entries.get(entry.position) == entry && entry.working && entry.jobId == id;
   }
 
+  private boolean idle(Entry entry, long id) {
+    return !closed && entries.get(entry.position) == entry && !entry.working && entry.jobId == id;
+  }
+
   private void finish(Entry entry) {
     entry.working = false;
     active--;
@@ -492,14 +503,32 @@ public final class ChunkScene implements AutoCloseable {
     entry.prepared = null;
   }
 
-  private void cancel(Entry entry) {
-    if (!entry.working) return;
+  private static Throwable cancelSignals(CancellationToken token, Future<?> future) {
+    // The caller has already detached ownership. Attempt both host notifications without
+    // formatting or mutating their failures; an observed primary fault keeps priority.
+    Throwable failure = null;
+    try {
+      token.cancel();
+    } catch (Throwable rejected) {
+      failure = rejected;
+    }
+    try {
+      if (future != null) future.cancel(true);
+    } catch (Throwable rejected) {
+      if (failure == null) failure = rejected;
+    }
+    return failure;
+  }
+
+  private long cancel(Entry entry) {
+    if (!entry.working) return entry.jobId;
     var token = entry.token;
     var future = entry.future;
-    entry.jobId = ++sequence;
-    token.cancel();
+    long id = entry.jobId = ++sequence;
     finish(entry);
-    if (future != null) future.cancel(true);
+    var failure = cancelSignals(token, future);
+    if (failure != null && !closed) failed(entry, id, failure);
+    return id;
   }
 
   private void drain(int limit) {
@@ -529,8 +558,7 @@ public final class ChunkScene implements AutoCloseable {
       var failure = terminal.failure != null ? terminal.failure : result.error;
       if (failure != null) {
         if (terminal.failure != null) {
-          token.cancel();
-          observed.cancel(true);
+          cancelSignals(token, observed);
         }
         failed(entry, id, failure);
         continue;
@@ -586,8 +614,7 @@ public final class ChunkScene implements AutoCloseable {
       int end = Character.isHighSurrogate(detail.charAt(2046)) ? 2046 : 2047;
       detail = detail.substring(0, end) + "…";
     }
-    if (closed || entries.get(entry.position) != entry || entry.jobId != id || entry.working)
-      return;
+    if (!idle(entry, id)) return;
     lastError = detail;
     if (failure instanceof RejectedExecutionException || failure instanceof OutOfMemoryError)
       rejected = true;
@@ -652,17 +679,22 @@ public final class ChunkScene implements AutoCloseable {
     return Set.copyOf(result);
   }
 
+  private boolean evictable(Entry entry) {
+    return !loadWindow.contains(entry.position)
+        || cpuBytes > config.cpuBytes && !wanted.contains(entry.position);
+  }
+
   private void evict() {
-    var iterator = entries.entrySet().iterator();
-    while (iterator.hasNext()) {
-      var entry = iterator.next().getValue();
-      if (!loadWindow.contains(entry.position)
-          || cpuBytes > config.cpuBytes && !wanted.contains(entry.position)) {
-        cancel(entry);
+    for (var entry : new ArrayList<>(entries.values())) {
+      if (entries.get(entry.position) != entry) continue;
+      if (evictable(entry)) {
+        long id = cancel(entry);
+        if (closed) return;
+        if (!idle(entry, id) || !evictable(entry)) continue;
         if (entry.data != null) cpuBytes -= entry.data.bytes();
         cpuBytes -= meshBytes(entry);
         removed.add(entry.position);
-        iterator.remove();
+        entries.remove(entry.position, entry);
       }
     }
     int missing = (int) required.stream().filter(p -> !entries.containsKey(p)).count();
@@ -679,12 +711,16 @@ public final class ChunkScene implements AutoCloseable {
                               .reversed()))
               .toList();
       for (var entry : optional) {
-        if (reclaim-- <= 0) break;
-        cancel(entry);
+        if (reclaim <= 0) break;
+        if (required.contains(entry.position) || entries.get(entry.position) != entry) continue;
+        long id = cancel(entry);
+        if (closed) return;
+        if (!idle(entry, id) || required.contains(entry.position)) continue;
         if (entry.data != null) cpuBytes -= entry.data.bytes();
         cpuBytes -= meshBytes(entry);
         removed.add(entry.position);
-        entries.remove(entry.position);
+        entries.remove(entry.position, entry);
+        reclaim--;
       }
     }
   }
@@ -791,7 +827,7 @@ public final class ChunkScene implements AutoCloseable {
     if (closed) return;
     closed = true;
     ready.close();
-    for (var entry : entries.values()) cancel(entry);
+    for (var entry : new ArrayList<>(entries.values())) cancel(entry);
     entries.clear();
     wanted.clear();
     loadWindow.clear();
