@@ -1063,6 +1063,8 @@ public final class Viewports implements AutoCloseable {
     }
   }
 
+  private record ScenePresentation(int budget, WorldPreviewPalette palette, int[] colors) {}
+
   public record StreamingStatistics(
       long cpuBytes,
       long reserved,
@@ -3365,18 +3367,29 @@ public final class Viewports implements AutoCloseable {
                 && v.compiler.current(compiler);
         if (!current.getAsBoolean()) return true;
         try {
-          renderer.scene(scene.epoch(), sceneGpuBudget(v));
-          if (admissionProbe && probeRendererStartupFailure.compareAndSet(true, false))
-            throw new IllegalStateException("Injected streaming renderer startup failure");
-          v.gpuBudget = sceneGpuBudget(v);
-          var palette =
-              v.kind == 2
-                  ? Objects.requireNonNull(setup.worldPalette, "World streaming source palette")
-                      .refresh(state.project())
-                  : null;
-          v.gl.setPalette(palette == null ? setup.palette : palette.colors());
-          v.worldPalette = palette;
+          if (!SceneStartup.apply(current,
+              () -> {
+                int budget = sceneGpuBudget(v);
+                var palette = v.kind == 2
+                    ? Objects.requireNonNull(setup.worldPalette, "World streaming source palette")
+                        .refresh(state.project())
+                    : null;
+                int[] colors = palette == null
+                    ? Objects.requireNonNull(setup.palette, "Streaming source palette") : palette.colors();
+                return new ScenePresentation(budget, palette, colors);
+              },
+              prepared -> {
+                renderer.scene(scene.epoch(), prepared.budget);
+                if (admissionProbe && probeRendererStartupFailure.compareAndSet(true, false))
+                  throw new IllegalStateException("Injected streaming renderer startup failure");
+              },
+              prepared -> renderer.setPalette(prepared.colors),
+              prepared -> {
+                v.gpuBudget = prepared.budget;
+                v.worldPalette = prepared.palette;
+              })) return true;
         } catch (RuntimeException gpu) {
+          if (!current.getAsBoolean()) return true;
           return !rendererFallback(v, key, scene, epoch, renderer, compiler, gpu, true);
         }
         PreviewNotifications.report(adopted.cleanup(), current,
