@@ -873,7 +873,8 @@ public final class PropertyPanel implements AutoCloseable {
               };
           contextHelp.item("help.membership-apply");
           ImGui.textWrapped(
-              "Membership editing offers a temporary searchable selection with Apply/Cancel.");
+              "Membership editing offers a temporary searchable selection with local Undo/Redo"
+                  + " and Apply/Cancel.");
         } else if (state.draft instanceof Folder folder) {
           ImGui.text("Organizational folder: " + folder.rootKind);
           ImGui.textWrapped(

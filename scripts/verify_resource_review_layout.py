@@ -8,7 +8,7 @@ out = Path(sys.argv[1])
 report = json.loads((out / 'resource-review-layout-native.json').read_text(encoding='utf-8'))
 assert report['formatVersion'] == 1 and report['fontSource'] == 'user-scale-fixture'
 for key in ('cachedImportScroll', 'hiddenPagesDoNotReview', 'blockedImportPreserved',
-            'cancelBeforeApply', 'filteredBulkSelection', 'rejectedMembershipRetained',
+            'cancelBeforeApply', 'filteredBulkSelection', 'localMembershipHistory', 'rejectedMembershipRetained',
             'membershipOnlyRetry', 'oneUndoRedo', 'staleMembershipBlocked', 'privateInputPreserved'):
     assert report[key] is True, key
 for key in ('physicalDpiVerified', 'physicalDetachedVerified',
@@ -19,7 +19,8 @@ assert len(report['cases']) == 30
 assert {(c['scenario'], c['form']) for c in report['cases']} == {(i, f) for i in range(6) for f in forms}
 globals_, windows = (1, .5, 1, 2.5, 2.5, 1), (1, 1, 1, 1, 2.5, 1)
 orders = {'import': (('apply', 'cancel', 'reload', 'validation'), ('resources', 'filters', 'issues')),
-          'membership': (('apply', 'cancel', 'section'), ('select', 'clear', 'selected-only'))}
+          'membership': (('apply', 'cancel', 'section'), ('select', 'clear', 'selected-only'),
+                         ('undo', 'redo'))}
 identities = {}
 import_openings = set()
 

@@ -21,7 +21,8 @@ assert len(report['cases']) == 18
 assert {(c['scenario'], c['form']) for c in report['cases']} == {(i, f) for i in range(6) for f in forms}
 globals_, scales = (1, .5, 1, 2.5, 2.5, 1), (1, 1, 1, 1, 2.5, 1)
 rows = {'Expression': (('stage', 'cancel'), ('selectError',)),
-        'Membership': (('apply', 'cancel', 'section'), ('select', 'clear', 'selected-only')),
+        'Membership': (('apply', 'cancel', 'section'), ('select', 'clear', 'selected-only'),
+                       ('undo', 'redo')),
         'Curve': (('apply',), ('cancel',))}
 identities = {}
 

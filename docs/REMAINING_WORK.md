@@ -1,6 +1,6 @@
 # Remaining implementation, validation and delivery work
 
-Current source checkpoint: the preceding main commit is 44b013d. This register and the standalone-consumer addition are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
+Current source checkpoint: the preceding main commit is 6f76999. The standalone-consumer addition and local membership history are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
 
 The principal implementation tracks below cover specification Trees 0–22 exactly once. They are a finite audit queue, not eight claims of missing features or a completion percentage. Each track must reconcile its applicable numbered leaves with source and deferred verification, record concrete gaps as child items, and close those gaps before its source audit can be marked complete. Many features already have implementation and earlier evidence. Pending execution is recorded separately and cannot be treated as missing source or passing evidence.
 
@@ -28,7 +28,32 @@ The principal implementation tracks below cover specification Trees 0–22 exact
 
 An audit closes only with a checked leaf inventory and a recorded disposition for each applicable leaf. These eight source-audit boxes remain open. A deferred test definition alone does not close a missing implementation; an unexecuted source audit does not certify runtime behavior. Avoid creating additional feature scope from a general limitation paragraph when the numbered specification does not require it.
 
-## Confirmed gap and source change
+## W01 resource-workflow audit progress
+
+The first W01 slice traced the existing resource browser, clipboard and membership editor. “Source reviewed” records inspected implementation paths, not passing evidence or closure of the encompassing specification tree.
+
+| Leaves | Source disposition | Remaining work |
+| --- | --- | --- |
+| 3.2.4 | Source reviewed: ResourcePanel context actions, inline F2 rename, hierarchy/drop/reorder entry points and ResourceBrowserEdits transaction handoff are present. | Execute real gestures and recovery cases when validation resumes. |
+| 3.2.5 | Source reviewed: sibling-scope selection guards and consolidated Properties summary are present. | Execute selection transitions and separate World Editor reconciliation (3.2.6). |
+| 3.2.8 | Source reviewed: subtree dependents, Cancel/replacement review and validated atomic delete are present. | Execute dependency/replacement cases; retain all-dependents inventory in the broader audit. |
+| 3.3.1 | Source reviewed: ResourcePanel resets clipboard on the document lifetime token, including same-UUID replacement; ordinary edits/history retain the session clipboard. | Execute reopen/close and pending-command transitions. |
+| 3.3.2–3.3.5 | Source reviewed: captured copy subtree, internal UUID remapping, collision-safe names and live UUID-preserving cut/move pass through one owned project transaction. | Execute complete copy/folder/cut/rejection scenarios. |
+| 3.3.6 | Source reviewed: application command suppression preserves native text clipboard ownership; project resource clipboard is separate. | Physical system clipboard/input verification remains pending. |
+| 3.5.3, membership editor only | Confirmed missing local history; implemented as W01-C01 below. | Compile/execute deferred checks and audit every other temporary editor. |
+
+Identity/namespace helpers and existing protected-root/move guards were inspected as supporting paths; they do not yet close the full 3.1/3.2 inventories. W01 remains open for Trees 0–2, remaining hierarchy/docking/World Editor leaves, 3.4 import/export, and the rest of 3.5 history/temporary editors. Continue with project lifecycle boundaries and the independent World Editor selection before marking any parent audit complete.
+
+## Confirmed gaps and source changes
+
+**W01-C01 — membership-local Undo/Redo (3.5.3, 9.4.3): implementation added, execution pending.** The searchable membership modal had private Apply/Cancel choices but no local history. [Local membership history](MEMBERSHIP_LOCAL_HISTORY.md) now records ordered add/remove deltas, groups bulk actions, provides persistent Undo/Redo and follows existing remapped chords while text/widgets retain their keys. A local history change cancels pending Apply; Apply/Cancel disposes of that history. Final Apply remains one member-only project transaction and preserves separate private Properties input.
+
+- [x] Implement bounded local deltas, exact order restoration, no-op/Redo behavior and owner/closure checks.
+- [x] Add modal actions/shortcut routing and deferred unit/native/independent-reader definitions.
+- [ ] Compile and execute the ten new unit definitions, existing membership suites and 30-/18-case native/readback scenarios.
+- [ ] Verify text/focus ownership, remapped shortcuts and physical input at required Windows 11/DPI layouts.
+
+This source change closes only the membership-specific gap; it does not close W01, the all-dialog requirement or an acceptance gate.
 
 **W05-C01 — standalone build-tool consumer (13.8.2, 13.8.3, 22.8.3): implementation added, execution pending.** The release assembler copied Java consumers and generated run.cmd, but supplied no independent Gradle project. [The standalone consumer](../example-client/standalone/README.md) now has its own settings/build, one engine-JAR file dependency, Java 25 toolchain and the existing Example entry point. Explicit source/JAR properties support a checkout; default paths support the extracted distribution. A precompile check requires the engine API and rejects known editor/render/native packages. Release assembly includes these exact support files beside the existing Java sources, using the same safe file-copy and deterministic manifest/archive path.
 
@@ -54,4 +79,4 @@ Three new PackageReleaseTest definitions cover exact standalone support bytes in
 - [ ] V03 Windows 11 and full interactive acceptance complete.
 - [ ] V04 final verified release package and notice review complete.
 
-The owner's current testing pause remains in force. No compiler, Gradle, JUnit, native probe, consumer, Python/schema/packaging checker, packaging operation, update request or workflow ran for this register/addition. Source review and git whitespace/content/metadata checks are the available verification. The implementation is not being declared fully developed or release-ready; next development should reconcile W01's project/resource workflows against their numbered leaves and record concrete child gaps here.
+The owner's current testing pause remains in force. No compiler, Gradle, JUnit, native probe, consumer, Python/schema/packaging checker, packaging operation, update request or workflow ran for these additions. Source review and git whitespace/content/metadata checks are the available verification. The implementation is not being declared fully developed or release-ready; next development should continue the W01 leaf inventory above and record concrete child gaps here.

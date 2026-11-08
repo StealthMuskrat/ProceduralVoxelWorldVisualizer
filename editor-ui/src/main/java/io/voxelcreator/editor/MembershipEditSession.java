@@ -19,6 +19,7 @@ public final class MembershipEditSession implements AutoCloseable {
   private final JsonNode activeBase, draftBase;
   private final List<UUID> values;
   private final Set<UUID> selected;
+  private final MembershipHistory history = new MembershipHistory();
   private long revision;
   private boolean closed;
   private List<Diagnostic> applyIssues = List.of();
@@ -89,26 +90,66 @@ public final class MembershipEditSession implements AutoCloseable {
   public void set(UUID id, boolean include) {
     requireOpen();
     Objects.requireNonNull(id);
+    if (selected.contains(id) == include) return;
+    var before = values();
+    setMember(id, include);
+    record(before);
+  }
+
+  private void setMember(UUID id, boolean include) {
     if (include) {
-      if (selected.add(id)) {
-        values.add(id);
-        revision++;
-        changed();
-      }
+      if (selected.add(id)) values.add(id);
     } else if (selected.remove(id)) {
       values.removeIf(id::equals);
-      revision++;
-      changed();
     }
   }
 
   public void setVisible(List<ResourceTreeIndex.Node> visible, boolean include) {
     requireOpen();
-    for (var node : visible) {
+    var owned = List.copyOf(visible);
+    for (var node : owned) {
       if (!node.kind().equals("voxel"))
         throw new IllegalArgumentException("Membership accepts voxel types only");
+      Objects.requireNonNull(node.uuid());
     }
-    for (var node : visible) set(node.uuid(), include);
+    var before = values();
+    for (var node : owned) setMember(node.uuid(), include);
+    if (!before.equals(values)) record(before);
+  }
+
+  private void record(List<UUID> before) {
+    history.record(before, values);
+    revision++;
+    changed();
+  }
+
+  public boolean canUndo() {
+    return currentOwner(editor) && history.canUndo();
+  }
+
+  public boolean canRedo() {
+    return currentOwner(editor) && history.canRedo();
+  }
+
+  public boolean undo() {
+    return moveHistory(false);
+  }
+
+  public boolean redo() {
+    return moveHistory(true);
+  }
+
+  private boolean moveHistory(boolean forward) {
+    requireOpen();
+    if (!currentOwner(editor))
+      throw new IllegalStateException("Membership owner changed; Cancel and reopen the editor");
+    boolean moved = forward ? history.redo(values) : history.undo(values);
+    if (!moved) return false;
+    selected.clear();
+    selected.addAll(values);
+    revision++;
+    changed();
+    return true;
   }
 
   public boolean apply(EditorState state) {
@@ -143,6 +184,7 @@ public final class MembershipEditSession implements AutoCloseable {
     if (result.applied()) {
       draft.voxelTypeUuids = new ArrayList<>(candidate);
       closed = true;
+      history.clear();
       applyIssues = List.of();
       issueCount = 0;
     } else {
@@ -180,6 +222,7 @@ public final class MembershipEditSession implements AutoCloseable {
   public void cancel() {
     if (closed) return;
     closed = true;
+    history.clear();
     retireWork();
     handoff.close();
     applyIssues = List.of();
@@ -352,6 +395,7 @@ public final class MembershipEditSession implements AutoCloseable {
       editor.document.applyEdit(prepared);
       applied = true;
       closed = true;
+      history.clear();
       retireWork();
       handoff.close();
       editor.revision++;

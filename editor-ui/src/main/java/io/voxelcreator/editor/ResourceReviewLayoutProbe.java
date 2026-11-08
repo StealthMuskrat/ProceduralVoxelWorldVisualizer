@@ -164,6 +164,20 @@ public final class ResourceReviewLayoutProbe {
         type("type-00299");
         click(members.control(last.toString()));
         require(members.session().count() == 2, "Native checkbox failed to stage a member");
+        click(members.control("undo"));
+        require(members.session().count() == 1, "Local membership Undo missed checkbox edit");
+        click(members.control("redo"));
+        require(members.session().count() == 2, "Local membership Redo missed checkbox edit");
+        historyKey(ImGuiKey.Z);
+        require(members.session().count() == 1, "Membership keyboard Undo escaped its modal");
+        historyKey(ImGuiKey.Y);
+        require(
+            members.session().count() == 2
+                && before.equals(ProjectIO.JSON.valueToTree(state.project()))
+                && state.revision == revision
+                && state.document.historyBytes() == history
+                && memberDraft.id.equals("private-membership"),
+            "Local membership history changed project or separate Properties input");
         releaseWithEscape(members.control("apply"));
         require(
             memberDone
@@ -185,6 +199,14 @@ public final class ResourceReviewLayoutProbe {
         require(
             members.session().count() == 1 && members.submitted() == 0,
             "Selected-only Clear did not remove just the matching member");
+        click(members.control("undo"));
+        require(
+            members.session().count() == 2 && members.submitted() == 1,
+            "Local bulk Undo did not restore selected-only rows");
+        click(members.control("redo"));
+        require(
+            members.session().count() == 1 && members.submitted() == 0,
+            "Local bulk Redo did not restore selected-only rows");
         click(members.control("selected-only"));
         click(members.control("select"));
         long appliedRevision = state.revision, appliedHistory = state.document.historyBytes();
@@ -253,6 +275,7 @@ public final class ResourceReviewLayoutProbe {
                     Map.entry("blockedImportPreserved", true),
                     Map.entry("cancelBeforeApply", true),
                     Map.entry("filteredBulkSelection", true),
+                    Map.entry("localMembershipHistory", true),
                     Map.entry("rejectedMembershipRetained", true),
                     Map.entry("membershipOnlyRetry", true),
                     Map.entry("oneUndoRedo", true),
@@ -376,6 +399,16 @@ public final class ResourceReviewLayoutProbe {
     io.addKeyEvent(ImGuiKey.Escape, true);
     frame();
     io.addKeyEvent(ImGuiKey.Escape, false);
+    frames(4);
+  }
+
+  private static void historyKey(int key) {
+    var io = ImGui.getIO();
+    io.addKeyEvent(ImGuiKey.ModCtrl, true);
+    io.addKeyEvent(key, true);
+    frame();
+    io.addKeyEvent(key, false);
+    io.addKeyEvent(ImGuiKey.ModCtrl, false);
     frames(4);
   }
 
