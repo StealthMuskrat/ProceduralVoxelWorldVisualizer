@@ -15,7 +15,7 @@ assert not project['bookmarks']['noise3D'] and not project['bookmarks']['world']
 assert not project['noise2D'] and not project['noise3D'] and not project['worldGenerator']['layers']
 report = json.loads((out / 'bookmark-input-native.json').read_text())
 assert report['formatVersion'] == 1 and report['navigationCount'] == 2
-for key in ['invalidTeleportRetained', 'overflowBookmarkRetained', 'tabOwned', 'exactEndpoints', 'callbackRetained', 'oneUndoRedo']:
+for key in ['invalidTeleportRetained', 'overflowBookmarkRetained', 'tabOwned', 'exactEndpoints', 'callbackRetained', 'oneUndoRedo', 'localFieldHistory']:
     assert report[key] is True
 for key in ['displayedOverflowBlocked', 'sameUuidReopenRejected', 'renameSourcePreserved',
             'boundedRetryDetails', 'runtimeDetailsCleared', 'privateInputsPreserved',

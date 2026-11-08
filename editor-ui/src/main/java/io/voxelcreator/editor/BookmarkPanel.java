@@ -21,7 +21,7 @@ public final class BookmarkPanel {
 
   private final EditorState state;
   final DialogLayout layout;
-  final SettingsPageChrome chrome = new SettingsPageChrome(2, 2);
+  final SettingsPageChrome chrome = new SettingsPageChrome(2, 2, 2);
   final SettingsActionScope actionScope = new SettingsActionScope();
   private final Map<String, Integer> fieldIds = new LinkedHashMap<>();
   private boolean revealBody, revealFeedback;
@@ -403,7 +403,11 @@ public final class BookmarkPanel {
     var document = state.document.sessionToken();
     long eligibility = owner.current() ? 1 : 0;
     long request = actionScope.synchronize(document, owner, eligibility);
-    if (!layout.begin("Bookmark Coordinates")) return;
+    if (!layout.begin("Bookmark Coordinates")) {
+      owner.finishEdit();
+      return;
+    }
+    boolean[] activeEdit = {false};
     fieldIds.clear();
     chrome.begin("bookmark-body");
     if (revealBody) {
@@ -419,11 +423,15 @@ public final class BookmarkPanel {
       fieldIds.put("Name", ImGui.getID("##name"));
       if (ImGui.inputText("##name", name, ImGuiInputTextFlags.AutoSelectAll)) {
         try {
-          owner.editName(name.get());
+          owner.editName(name.get(), "Name:text");
           error = "";
         } catch (RuntimeException failure) {
           error = message(failure);
         }
+      }
+      if (ImGui.isItemActive()) {
+        activeEdit[0] = true;
+        owner.focusEdit("Name:text");
       }
       record("Name");
       reveal("Name");
@@ -436,26 +444,35 @@ public final class BookmarkPanel {
         boolean focus =
             axis.equals(revealField)
                 || !owner.named() && ImGui.isWindowAppearing() && axis.equals("X");
+        boolean[] textPart = {false};
+        var control = coordinateInputs.computeIfAbsent(axis, ignored -> new CoordinateInput());
         var row =
-            coordinateInputs
-                .computeIfAbsent(axis, ignored -> new CoordinateInput())
-                .draw(
-                    axis,
-                    "##" + axis,
-                    Math.max(1, ImGui.getContentRegionAvailX()),
-                    buffer,
-                    owner.text(axis),
-                    text -> {
-                      try {
-                        owner.edit(axis, text);
-                        error = "";
-                      } catch (RuntimeException failure) {
-                        error = message(failure);
-                      }
-                    },
-                    () -> {
-                      if (focus) ImGui.setKeyboardFocusHere();
-                    });
+            control.draw(
+                axis,
+                "##" + axis,
+                Math.max(1, ImGui.getContentRegionAvailX()),
+                buffer,
+                owner.text(axis),
+                text -> {
+                  try {
+                    owner.edit(axis, text, axis + (textPart[0] ? ":text" : ":slider"));
+                    error = "";
+                  } catch (RuntimeException failure) {
+                    error = message(failure);
+                  }
+                },
+                () -> {
+                  textPart[0] = true;
+                  if (focus) ImGui.setKeyboardFocusHere();
+                });
+        if (control.sliderActive()) {
+          activeEdit[0] = true;
+          owner.focusEdit(axis + ":slider");
+        }
+        if (ImGui.isItemActive()) {
+          activeEdit[0] = true;
+          owner.focusEdit(axis + ":text");
+        }
         fieldIds.put(axis, row.inputId());
         coordinateRows.put(axis, row);
         record(axis);
@@ -463,6 +480,8 @@ public final class BookmarkPanel {
       }
     }
     ImGui.popID();
+    if (!activeEdit[0] || !ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
+      owner.finishEdit();
     boolean current = owner.current();
     ImGui.separator();
     ImGui.textWrapped("Attempt feedback");
@@ -497,17 +516,52 @@ public final class BookmarkPanel {
     record("Show Fields");
     boolean feedback = chrome.identifiedAction("feedback", "Show Feedback");
     record("Show Feedback");
+    long inputVersion = owner.inputVersion();
+    ImGui.pushID("bookmark-input:" + inputVersion);
+    ImGui.beginDisabled(!owner.canUndo());
+    boolean undo = chrome.identifiedAction("undo", "Undo Fields");
+    record("Undo Fields");
+    ImGui.endDisabled();
+    ImGui.beginDisabled(!owner.canRedo());
+    boolean redo = chrome.identifiedAction("redo", "Redo Fields");
+    record("Redo Fields");
+    ImGui.endDisabled();
     ImGui.popID();
+    ImGui.popID();
+    String shortcut =
+        PrivateHistoryShortcuts.match(
+            state.user.input.shortcuts,
+            current && ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows),
+            ImGui.getIO().getWantTextInput() || ImGui.isAnyItemActive(),
+            ShortcutKeys.modifiers(),
+            key -> ImGui.isKeyPressed(ShortcutKeys.code(key), false));
     if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) close(owner);
     else if (session == owner
         && actionScope.current(state.document.sessionToken(), owner, owner.current() ? 1 : 0)) {
-      if (fields) {
+      if (undo || redo || shortcut != null) {
+        boolean forward = !undo && (redo || Objects.equals(shortcut, "Redo"));
+        if (inputVersion == owner.inputVersion() && (forward ? owner.redo() : owner.undo()))
+          historyMoved(owner);
+      } else if (fields) {
         revealBody = true;
         revealField = owner.named() ? "Name" : "X";
       } else if (feedback) revealFeedback = true;
       else if (apply && current) apply(owner);
     }
     ImGui.endPopup();
+  }
+
+  private void historyMoved(BookmarkEditSession owner) {
+    if (session != owner) return;
+    name.set(owner.name());
+    for (var axis : owner.axes()) coordinateBuffers.get(axis).set(owner.text(axis));
+    coordinateInputs.clear();
+    coordinateRows.clear();
+    actionScope.release();
+    error = "";
+    revealFeedback = false;
+    revealBody = true;
+    revealField = null;
   }
 
   private void reveal(String field) {

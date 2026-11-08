@@ -21,6 +21,8 @@ final class BookmarkEditSession {
   private final JsonNode targetBase;
   private final CoordinateText input;
   private String name;
+  private final TextEditHistory history = new TextEditHistory();
+  private long inputVersion;
   private final int nameLimit;
   private boolean closed, applying;
   private ProjectChangeResult result = NO_RESULT;
@@ -110,23 +112,81 @@ final class BookmarkEditSession {
   }
 
   void editName(String value) {
+    editName(value, null);
+  }
+
+  void editName(String value, String gesture) {
     requireOpen();
     if (applying) throw new IllegalStateException("Bookmark action is already running");
     if (draft == null) throw new IllegalStateException("Teleport has no name field");
     if (Objects.requireNonNull(value).length() > nameLimit)
       throw new IllegalArgumentException("Bookmark name text limit " + nameLimit);
     if (!name.equals(value)) {
+      history.record("Name", name, value, gesture);
       name = value;
-      result = NO_RESULT;
+      changed();
     }
   }
 
   void edit(String axis, String value) {
+    edit(axis, value, null);
+  }
+
+  void edit(String axis, String value, String gesture) {
     requireOpen();
     if (applying) throw new IllegalStateException("Bookmark action is already running");
     String previous = text(axis);
     input.edit(axis, value);
-    if (!previous.equals(value)) result = NO_RESULT;
+    if (!previous.equals(value)) {
+      history.record(axis, previous, value, gesture);
+      changed();
+    }
+  }
+
+  private void changed() {
+    inputVersion++;
+    result = NO_RESULT;
+  }
+
+  long inputVersion() {
+    return inputVersion;
+  }
+
+  void focusEdit(String gesture) {
+    history.focus(gesture);
+  }
+
+  void finishEdit() {
+    history.finish();
+  }
+
+  boolean canUndo() {
+    return !applying && current() && history.canUndo();
+  }
+
+  boolean canRedo() {
+    return !applying && current() && history.canRedo();
+  }
+
+  boolean undo() {
+    return moveHistory(false);
+  }
+
+  boolean redo() {
+    return moveHistory(true);
+  }
+
+  private boolean moveHistory(boolean forward) {
+    requireOpen();
+    if (applying || !current())
+      throw new IllegalStateException("Bookmark action changed or is running; history is unavailable");
+    var change = history.move(forward);
+    if (change == null) return false;
+    String value = forward ? change.after() : change.before();
+    if (change.field().equals("Name")) name = value;
+    else input.edit(change.field(), value);
+    changed();
+    return true;
   }
 
   boolean current() {
@@ -148,6 +208,7 @@ final class BookmarkEditSession {
     if (!current())
       throw new IllegalStateException(
           "Document or bookmark changed; Cancel and reopen this dialog");
+    history.finish();
     if (draft != null && !Objects.equals(name, displayedName))
       throw new IllegalStateException("Displayed name differs from the private bookmark input");
     if (draft == null && displayedName != null)
@@ -170,13 +231,17 @@ final class BookmarkEditSession {
         }
         result = NO_RESULT;
         closed = true;
+        history.clear();
         return true;
       }
       draft.name(name);
       if (draft.adding()) draft.coordinates(coordinates);
       draft.checkCurrent(state.project());
       result = state.changeResult(draft::applyTo);
-      if (result.applied()) closed = true;
+      if (result.applied()) {
+        closed = true;
+        history.clear();
+      }
       return result.applied();
     } finally {
       applying = false;
@@ -185,6 +250,7 @@ final class BookmarkEditSession {
 
   void cancel() {
     closed = true;
+    history.clear();
     result = NO_RESULT;
   }
 

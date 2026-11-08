@@ -42,6 +42,7 @@ public final class BookmarkInputProbe {
                     current.put(tab, coordinates);
                   }
                 });
+        localHistory(state);
         var before = ProjectIO.JSON.valueToTree(state.project());
         var user = ProjectIO.JSON.valueToTree(state.user);
         panel.openTeleport(Tab.WORLD);
@@ -140,6 +141,7 @@ public final class BookmarkInputProbe {
                     Map.entry("exactEndpoints", true),
                     Map.entry("callbackRetained", true),
                     Map.entry("oneUndoRedo", true),
+                    Map.entry("localFieldHistory", true),
                     Map.entry("navigationCount", navigations[0]),
                     Map.entry("displayedOverflowBlocked", true),
                     Map.entry("sameUuidReopenRejected", true),
@@ -152,7 +154,7 @@ public final class BookmarkInputProbe {
                     Map.entry("navigationErrorLogged", true))));
         System.out.println(
             "BOOKMARK_INPUT_NATIVE_PASS raw signs / overflow / tab ownership / exact endpoints /"
-                + " callback correction / one Undo-Redo");
+                + " callback correction / one Undo-Redo / local field history");
       }
     } finally {
       ImGui.destroyContext();
@@ -161,6 +163,60 @@ public final class BookmarkInputProbe {
 
   private static boolean popupOpen;
   private static boolean toolbar;
+
+  private static void localHistory(EditorState state) {
+    var before = ProjectIO.JSON.valueToTree(state.project());
+    var user = ProjectIO.JSON.valueToTree(state.user);
+    long revision = state.revision, history = state.document.historyBytes();
+    panel.openAdd(Tab.NOISE_2D, new Coordinates(-3, null, -7));
+    frames(4);
+    String originalName = panel.rawText("Name");
+    text("Name", "l");
+    for (String character : List.of("o", "c", "a", "l")) {
+      ImGui.getIO().addInputCharactersUTF8(character);
+      frames(2);
+    }
+    text("X", "-");
+    text("X", "+0017");
+    click("Undo Fields");
+    require(panel.rawText("X").equals("-3") && panel.rawText("Name").equals("local"),
+        "Local coordinate typing did not coalesce");
+    click("Redo Fields");
+    require(panel.rawText("X").equals("+0017"), "Local raw Redo normalized the input");
+    click("Undo Fields");
+    historyKey(ImGuiKey.Z);
+    require(panel.rawText("Name").equals(originalName), "Local name typing did not coalesce");
+    historyKey(ImGuiKey.Y);
+    require(panel.rawText("Name").equals("local"), "Local history shortcut lost the name");
+    click("Redo Fields");
+    require(panel.rawText("X").equals("+0017"), "Field history order changed");
+    click("Cancel");
+    panel.openTeleport(Tab.WORLD);
+    frames(4);
+    text("X", "-");
+    text("Y", "009");
+    click("Undo Fields");
+    require(panel.rawText("Y").equals("2"), "Teleport Y history mismatch");
+    click("Undo Fields");
+    require(panel.rawText("X").equals("1"), "Teleport X history mismatch");
+    click("Redo Fields");
+    require(panel.rawText("X").equals("-"), "Teleport invalid raw history lost");
+    click("Cancel");
+    require(before.equals(ProjectIO.JSON.valueToTree(state.project()))
+            && user.equals(ProjectIO.JSON.valueToTree(state.user))
+            && revision == state.revision && history == state.document.historyBytes(),
+        "Local bookmark history changed its parent state");
+  }
+
+  private static void historyKey(int key) {
+    var io = ImGui.getIO();
+    io.addKeyEvent(ImGuiKey.ModCtrl, true);
+    io.addKeyEvent(key, true);
+    frame();
+    io.addKeyEvent(key, false);
+    io.addKeyEvent(ImGuiKey.ModCtrl, false);
+    frames(4);
+  }
 
   private static void ownershipRecovery(Path out) throws Exception {
     Files.createDirectories(out);

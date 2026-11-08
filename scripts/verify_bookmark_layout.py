@@ -40,10 +40,10 @@ for case in report['cases']:
     contains(case['work'], case['modal'])
     contains(case['modal'], case['body'])
     boxes = case['actions']
-    assert set(boxes) == set(case['ids']) == {'apply', 'cancel', 'fields', 'feedback'}
-    assert len(set(case['ids'].values())) == 4 and all(case['ids'].values())
+    assert set(boxes) == set(case['ids']) == {'apply', 'cancel', 'fields', 'feedback', 'undo', 'redo'}
+    assert len(set(case['ids'].values())) == 6 and all(case['ids'].values())
     previous_bottom = case['body']['y'] + case['body']['height']
-    for row in (('apply', 'cancel'), ('fields', 'feedback')):
+    for row in (('apply', 'cancel'), ('fields', 'feedback'), ('undo', 'redo')):
         for key in row:
             contains(case['modal'], boxes[key])
             assert boxes[key]['y'] >= previous_bottom - .1
