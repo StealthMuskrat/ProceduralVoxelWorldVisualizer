@@ -340,6 +340,9 @@ class HelpCatalogTest {
     assertTrue(text.contains("Retry preview"));
     assertTrue(text.contains("Apply Resolved Edit"));
     assertTrue(text.contains("raw seed text"));
+    assertTrue(text.contains("Undo Choice and Redo Choice restore private"));
+    assertTrue(text.contains("native text Undo keeps its input"));
+    assertTrue(text.contains("Apply or Cancel discards local choice history"));
     assertTrue(catalog.search("noise structural background").contains(topic));
     assertTrue(topic.related().contains("help.properties-apply"));
     assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));

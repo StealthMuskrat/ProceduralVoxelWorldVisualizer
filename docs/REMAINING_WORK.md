@@ -1,6 +1,6 @@
 # Remaining implementation, validation and delivery work
 
-Current source checkpoint: the preceding local main commit is 31f9b92; its publication remains pending, with the last observed GitHub main at 6f76999. The standalone consumer, private workflow history (including bookmark forms), independent World Editor selection and ID text-preservation follow-up are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
+Current source checkpoint: the preceding local main commit is 4f38d25; its publication remains pending, with the last observed GitHub main at 6f76999. The standalone consumer, private workflow history (including bookmark forms and noise dependency choices), independent World Editor selection and ID text-preservation follow-up are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
 
 The principal implementation tracks below cover specification Trees 0–22 exactly once. They are a finite audit queue, not eight claims of missing features or a completion percentage. Each track must reconcile its applicable numbered leaves with source and deferred verification, record concrete gaps as child items, and close those gaps before its source audit can be marked complete. Many features already have implementation and earlier evidence. Pending execution is recorded separately and cannot be treated as missing source or passing evidence.
 
@@ -75,6 +75,7 @@ The first W01 slice traced the existing resource browser, clipboard and membersh
 | 3.5.3, Export selection only | Confirmed missing local selection history; implemented as W01-C04 below. | Compile/execute deferred selection/review/publication cases and continue other temporary editors. |
 | 3.5.3, Project Settings only | Confirmed missing local raw-input history; implemented as W01-C05 below. | Compile/execute deferred gesture/history/Apply cases and continue other temporary editors. |
 | 3.5.3, bookmark forms only | Confirmed missing cross-field raw-input history; implemented as W01-C07 below. | Compile/execute deferred Add/Rename/Teleport history and native/layout cases; continue other temporary editors. |
+| 3.5.3, noise dependency choices only | Confirmed missing local resolution/replacement history; implemented as W01-C08 below. | Compile/execute deferred choice/history/worker/decision and native/layout cases; continue other temporary editors. |
 | 3.5.1, 3.5.4, 3.5.6 | Source reviewed: DocumentSession retains ProjectDelta value/splice changes with bounded history; dirty state compares the explicit saved checkpoint to current authoring values. ProjectData and portable payloads do not serialize DocumentSession/local stacks. | Execute current-revision delta/dirty/save/Undo/Redo/payload checks and finish 3.5.2/3.5.5 gesture/navigation caller inventory. |
 
 Configuration/startup, lifecycle, format, identity/hierarchy/docking, clipboard and the listed history paths have source dispositions without new runtime evidence. W01 remains open for the complete Tree 0/1 authority/ownership inventory, wider diagnostic caller reconciliation, 3.5.2/3.5.5 gesture/navigation callers and remaining temporary editors. Detailed control/engine/render functionality retains its respective W02–W08 audit. Continue these remaining leaf inventories before marking any parent audit complete.
@@ -149,6 +150,13 @@ Three new PackageReleaseTest definitions cover exact standalone support bytes in
 - [x] Add private session actions, persistent version-owned controls, six session definitions, shared-budget/Help definitions and expanded native/layout/readback definitions.
 - [ ] Compile and execute bookmark/shared-history/Help suites and the updated input/60-case layout scenarios.
 - [ ] Verify actual slider grouping, remapped keys, physical clipboard/input and Windows 11/DPI interaction.
+
+**W01-C08 — noise dependency-resolution choice history (3.5.3, 6.1.5): implementation added, execution pending.** [Noise choice history](NOISE_RESOLUTION_HISTORY.md) restores bounded resolution/replacement deltas, rebuilds private previews, supersedes queued/ready work and requires explicit resolved staging. Choice/work-owned controls and existing remapped modal bindings preserve native input; Cancel/Escape retains priority. Synchronous planner failure/reentrancy cannot consume or overwrite newer history. Apply/Cancel/closure disposes of history; Properties Apply remains the parent project transaction.
+
+- [x] Add 100-step local pair deltas, no-op/Redo/retry rules, preview supersession and synchronous planning ownership.
+- [x] Add persistent version-owned actions/picking, seven unit definitions and expanded Help/native/layout/readback definitions.
+- [ ] Compile and execute history/session/ready/Help suites and the existing expanded 30-case form/12-case background scenarios.
+- [ ] Verify remapped bindings, replacement-picker transitions, physical input and Windows 11/DPI interaction.
 
 ## Validation and delivery queue
 

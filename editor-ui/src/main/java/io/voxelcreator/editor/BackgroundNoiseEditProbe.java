@@ -144,6 +144,30 @@ final class BackgroundNoiseEditProbe {
         frames(3);
         boolean staged = List.of("automatic", "resolve", "retry").contains(mode);
         if (mode.equals("resolve")) {
+          click(dialog.control("undo"));
+          require(edit.resolution() == Resolution.REJECT && !edit.canStage(),
+              "Native resolution Undo did not supersede checking");
+          finish(s, tasks);
+          ui.remove().run();
+          frames(3);
+          require(edit.ready() && !edit.canStage() && !edit.closed(),
+              "Native resolution Undo adopted the wrong preview");
+          click(dialog.control("redo"));
+          finish(s, tasks);
+          ui.remove().run();
+          frames(3);
+          historyKey(ImGuiKey.Z);
+          require(edit.resolution() == Resolution.REJECT && !edit.canStage(),
+              "Focused modal did not own resolution Undo");
+          finish(s, tasks);
+          ui.remove().run();
+          frames(3);
+          historyKey(ImGuiKey.Y);
+          require(edit.resolution() == Resolution.INLINE_PARAMETER && !edit.canStage(),
+              "Focused modal did not own resolution Redo");
+          finish(s, tasks);
+          ui.remove().run();
+          frames(3);
           require(
               !edit.closed() && edit.canStage() && draft.sharedParameters.size() == 2,
               "Resolution did not wait for explicit Apply");
@@ -204,7 +228,9 @@ final class BackgroundNoiseEditProbe {
                 "originalBytesRetained",
                 true,
                 "readyRetired",
-                mode.startsWith("ready-")));
+                mode.startsWith("ready-"),
+                "localChoiceHistory",
+                mode.equals("resolve")));
         panel.close();
         frames(2);
       }
@@ -213,6 +239,16 @@ final class BackgroundNoiseEditProbe {
         out.resolve("noise-edit-native.json"),
         ProjectIO.JSON.writeValueAsString(
             Map.of("formatVersion", 1, "cases", cases, "physicalInputVerified", false)));
+  }
+
+  private static void historyKey(int key) {
+    var io = ImGui.getIO();
+    io.addKeyEvent(ImGuiKey.ModCtrl, true);
+    io.addKeyEvent(key, true);
+    frame();
+    io.addKeyEvent(key, false);
+    io.addKeyEvent(ImGuiKey.ModCtrl, false);
+    frames(3);
   }
 
   private static void finish(EditorState s, ArrayDeque<Runnable> tasks) throws Exception {

@@ -71,6 +71,12 @@ public final class ResourceFormsLayoutProbe {
           frames(8);
           cases.add(receipt(i, globals[i], scales[i]));
           noise.choose(Resolution.REJECT, null);
+          click(noise.control("undo"));
+          require(noise.session().resolution() == Resolution.INLINE_PARAMETER
+                  && noise.session().canStage(), "Native resolution Undo did not rebuild its preview");
+          click(noise.control("redo"));
+          require(noise.session().resolution() == Resolution.REJECT
+                  && !noise.session().canStage(), "Native resolution Redo lost its invalid choice");
           click(noise.control("issues"));
           cases.add(receipt(i, globals[i], scales[i]));
           click(control("cancel"));
@@ -233,6 +239,7 @@ public final class ResourceFormsLayoutProbe {
                     Map.entry("rejectedCreateRetained", true),
                     Map.entry("replacementFiltered", true),
                     Map.entry("privateNoiseStage", true),
+                    Map.entry("localNoiseChoiceHistory", true),
                     Map.entry("oneUndoRedoPerEdit", true),
                     Map.entry("callbacks", callbacks),
                     Map.entry("physicalDpiVerified", false),

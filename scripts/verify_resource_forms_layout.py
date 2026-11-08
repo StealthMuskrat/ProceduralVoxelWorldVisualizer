@@ -10,7 +10,8 @@ out = Path(sys.argv[1])
 report = json.loads((out / 'resource-forms-layout-native.json').read_text(encoding='utf-8'))
 assert report['formatVersion'] == 1 and report['fontSource'] == 'user-scale-fixture'
 for key in ('cancelBeforeMutation', 'heldRequestsScoped', 'staleOwnersBlocked',
-            'rejectedCreateRetained', 'replacementFiltered', 'privateNoiseStage', 'oneUndoRedoPerEdit'):
+            'rejectedCreateRetained', 'replacementFiltered', 'privateNoiseStage', 'oneUndoRedoPerEdit',
+            'localNoiseChoiceHistory'):
     assert report[key] is True, key
 assert report['callbacks'] == 1
 for key in ('physicalDpiVerified', 'physicalDetachedVerified', 'gpuFontTextureVerified'):
@@ -37,7 +38,7 @@ for case in report['cases']:
     contains(case['work'], case['modal'])
     contains(case['modal'], case['body'])
     noise = form in ('Resolution', 'Issues')
-    rows = (('apply', 'cancel'), ('resolution', 'issues')) if noise else (('primary', 'cancel'),)
+    rows = (('apply', 'cancel'), ('resolution', 'issues'), ('undo', 'redo')) if noise else (('primary', 'cancel'),)
     boxes = case['actions']
     assert set(boxes) == {key for row in rows for key in row}
     previous_bottom = case['body']['y'] + case['body']['height']
