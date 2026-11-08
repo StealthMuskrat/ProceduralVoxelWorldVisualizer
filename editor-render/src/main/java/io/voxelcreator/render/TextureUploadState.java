@@ -26,12 +26,24 @@ final class TextureUploadState {
     for (var item : Item.values()) values[item.ordinal()] = backend.read(item);
     return new TextureUploadState(backend, values);
   }
+  TextureUploadState withoutBinding(int retired) {
+    if (retired == 0 || captured[Item.BINDING.ordinal()] != retired) return this;
+    var values = captured.clone();
+    values[Item.BINDING.ordinal()] = 0;
+    return new TextureUploadState(backend, values);
+  }
   <T> T run(Runnable validate, Supplier<T> body, Runnable rollback) {
+    return run(validate, body, rollback, new Runnable[0]);
+  }
+  <T> T run(Runnable validate, Supplier<T> body, Runnable rollback, Runnable... beforeRestoration) {
+    var extra = beforeRestoration.clone();
+    for (var restore : extra) Objects.requireNonNull(restore);
     var items = Item.values();
-    var restores = new Runnable[items.length];
+    var restores = new Runnable[extra.length + items.length];
+    System.arraycopy(extra, 0, restores, 0, extra.length);
     for (var item : items) {
       int value = captured[item.ordinal()];
-      restores[item.ordinal()] = () -> backend.write(item, value);
+      restores[extra.length + item.ordinal()] = () -> backend.write(item, value);
     }
     T result = RenderTransaction.run(() -> {
       validate.run();

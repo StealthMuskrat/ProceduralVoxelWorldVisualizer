@@ -237,6 +237,13 @@ final class ShadowProbe {
     glBindTexture(GL_TEXTURE_2D, texture);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
     glBufferData(GL_PIXEL_UNPACK_BUFFER, 16, GL_STREAM_DRAW);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 8);
+    glPixelStorei(GL_UNPACK_SWAP_BYTES, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 7);
+    glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 9);
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS, 2);
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, 3);
+    glPixelStorei(GL_UNPACK_SKIP_IMAGES, 4);
     glBindVertexArray(vao);
     glVertexAttrib4f(4, 1, 2, 3, 4);
     glViewport(2, 3, 37, 41);
@@ -253,14 +260,30 @@ final class ShadowProbe {
     int oldTexture, oldFramebuffer;
     try (var map = new GlShadowMap()) {
       map.allocate(512);
+      require(map.bytes() == 1 << 20, "Depth allocation accounting");
+      shadowAllocationState(pbo, texture, read, draw);
+      int retained = map.texture();
+      try { map.allocate(256); throw new AssertionError("Invalid shadow size accepted"); }
+      catch (IllegalArgumentException expected) { /* Preflight retains the previous allocation. */ }
+      require(map.texture() == retained && map.resolution() == 512, "Preflight retired accepted depth");
+      glBindTexture(-1, 0);
+      try { map.allocate(1024); throw new AssertionError("Queued allocation error accepted"); }
+      catch (IllegalStateException expected) { /* Completion must reject after restoring caller state. */ }
+      require(map.texture() == 0 && map.framebuffer() == 0 && map.bytes() == 0, "Failed candidate was published");
+      shadowAllocationState(pbo, texture, read, draw);
+      map.allocate(512);
       oldTexture = map.texture();
       oldFramebuffer = map.framebuffer();
-      require(map.bytes() == 1 << 20, "Depth allocation accounting");
-      require(
-          glGetInteger(GL_PIXEL_UNPACK_BUFFER_BINDING) == pbo
-              && glGetInteger(GL_TEXTURE_BINDING_2D) == texture
-              && glGetInteger(GL_ACTIVE_TEXTURE) == GL_TEXTURE2,
-          "Allocation texture/PBO ownership");
+      shadowAllocationState(pbo, texture, read, draw);
+      glBindTexture(-1, 0);
+      try {
+        map.render(DirectionalShadow.projection(new DirectionalShadow.Bounds(0, 0, 0, 32, 32, 32), 512),
+            (program, matrix) -> 3);
+        throw new AssertionError("Queued depth pass error accepted");
+      } catch (IllegalStateException expected) { /* A result requires normal completion after restoration. */ }
+      shadowAllocationState(pbo, texture, read, draw);
+      require(map.render(DirectionalShadow.projection(new DirectionalShadow.Bounds(0, 0, 0, 32, 32, 32), 512),
+          (program, matrix) -> 3) == 3, "Healthy depth pass retry rejected");
       try {
         map.render(
             DirectionalShadow.projection(new DirectionalShadow.Bounds(0, 0, 0, 32, 32, 32), 512),
@@ -321,6 +344,13 @@ final class ShadowProbe {
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
       glBindVertexArray(0);
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+      glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+      glPixelStorei(GL_UNPACK_SWAP_BYTES, 0);
+      glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+      glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+      glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+      glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+      glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
       glBindTexture(GL_TEXTURE_2D, 0);
       glActiveTexture(GL_TEXTURE0);
       glDepthMask(true);
@@ -340,6 +370,19 @@ final class ShadowProbe {
     }
     report.put("stateRestoredAfterFailure", true);
     report.put("driverObjectsDeleted", true);
+    report.put("allocationAndRasterErrorsRejected", true);
+  }
+
+  private static void shadowAllocationState(int pbo, int texture, int read, int draw) {
+    require(glGetInteger(GL_ACTIVE_TEXTURE) == GL_TEXTURE2 && glGetInteger(GL_TEXTURE_BINDING_2D) == texture
+            && glGetInteger(GL_PIXEL_UNPACK_BUFFER_BINDING) == pbo
+            && glGetInteger(GL_READ_FRAMEBUFFER_BINDING) == read && glGetInteger(GL_DRAW_FRAMEBUFFER_BINDING) == draw,
+        "Shadow allocation binding ownership");
+    require(glGetInteger(GL_UNPACK_ALIGNMENT) == 8 && glGetInteger(GL_UNPACK_SWAP_BYTES) == 1
+            && glGetInteger(GL_UNPACK_ROW_LENGTH) == 7 && glGetInteger(GL_UNPACK_IMAGE_HEIGHT) == 9
+            && glGetInteger(GL_UNPACK_SKIP_PIXELS) == 2 && glGetInteger(GL_UNPACK_SKIP_ROWS) == 3
+            && glGetInteger(GL_UNPACK_SKIP_IMAGES) == 4,
+        "Shadow allocation unpack ownership");
   }
 
   private static void production(Path out, long handle, Map<String, Object> report)

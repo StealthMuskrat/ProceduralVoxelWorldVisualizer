@@ -21,6 +21,7 @@ def verify(root):
     assert report['relocatedBytes'] > 0 and 0 < report['compactionSteps'] < 1000
     assert report['cameraDraws'] == 1 and report['shadowDraws'] == 2
     assert all(report[k] for k in ('disabledCleanup', 'stateRestoredAfterFailure', 'driverObjectsDeleted', 'colorTextureBindingRestored'))
+    assert report['allocationAndRasterErrorsRejected']
     assert report['negativeOrigin'] == [-16_777_217 * 32, -9 * 32, -16_777_219 * 32]
     frames = {f['name']: f for f in report['frames']}
     expected_names = {'fixed-off', 'fixed-shadow', 'fixed-unlit', 'stream-ground',

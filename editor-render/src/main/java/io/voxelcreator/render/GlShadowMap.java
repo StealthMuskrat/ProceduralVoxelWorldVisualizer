@@ -3,6 +3,7 @@ package io.voxelcreator.render;
 import static org.lwjgl.opengl.GL33.*;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import org.joml.Matrix4f;
 
 /** One render-thread-owned depth texture. Optional shadows never require a newer GL context. */
@@ -13,7 +14,8 @@ public final class GlShadowMap implements AutoCloseable {
 
   public record Sampling(int texture, int resolution, DirectionalShadow.Projection projection) {}
 
-  private final ShadowResources resources = new ShadowResources(GlHandleDeletion::delete);
+  private final ShadowMapWork work = new ShadowMapWork(GlHandleDeletion::delete);
+  private final ShadowResources resources = work.resources;
 
   public int texture() {
     return resources.texture;
@@ -32,25 +34,16 @@ public final class GlShadowMap implements AutoCloseable {
   }
 
   public void allocate(int size) {
-    resources.requireOpen();
-    DirectionalShadow.bytes(size);
-    if (size == 0) throw new IllegalArgumentException("Empty shadow map");
-    if (size == resources.resolution) return;
-    // Retire before replacement: never hold two complete shadow maps.
-    resources.release();
-    resources.requireOpen();
-    if (size > glGetInteger(GL_MAX_TEXTURE_SIZE))
-      throw new IllegalStateException("Shadow map exceeds device texture limit");
-    int active = glGetInteger(GL_ACTIVE_TEXTURE),
-        binding = glGetInteger(GL_TEXTURE_BINDING_2D),
-        unpack = glGetInteger(GL_PIXEL_UNPACK_BUFFER_BINDING);
-    int read = glGetInteger(GL_READ_FRAMEBUFFER_BINDING),
-        draw = glGetInteger(GL_DRAW_FRAMEBUFFER_BINDING);
-    try {
-      resources.texture = glGenTextures();
-      resources.framebuffer = glGenFramebuffers();
+    work.allocate(size, () -> glGetInteger(GL_MAX_TEXTURE_SIZE),
+        () -> ShadowAllocationState.capture(new GlShadowAllocationState()), ALLOCATION);
+  }
+
+  private static final ShadowMapWork.Allocation ALLOCATION = new ShadowMapWork.Allocation() {
+    public int texture() { return glGenTextures(); }
+    public int framebuffer() { return glGenFramebuffers(); }
+    public void storage(int texture, int framebuffer, int size) {
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-      glBindTexture(GL_TEXTURE_2D, resources.texture);
+      glBindTexture(GL_TEXTURE_2D, texture);
       glTexImage2D(
           GL_TEXTURE_2D,
           0,
@@ -66,87 +59,28 @@ public final class GlShadowMap implements AutoCloseable {
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
-      glBindFramebuffer(GL_FRAMEBUFFER, resources.framebuffer);
-      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, resources.texture, 0);
+      glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texture, 0);
       glDrawBuffer(GL_NONE);
       glReadBuffer(GL_NONE);
       if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         throw new IllegalStateException("Incomplete shadow framebuffer");
-      resources.program = link();
-      resources.resolution = size;
-    } catch (RuntimeException | Error failure) {
-      try { resources.release(); }
-      catch (RuntimeException | Error ignored) { /* Allocation keeps its original primary. */ }
-      throw failure;
-    } finally {
-      glBindFramebuffer(GL_READ_FRAMEBUFFER, read);
-      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw);
-      glBindTexture(GL_TEXTURE_2D, binding);
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, unpack);
-      glActiveTexture(active);
     }
-  }
+    public int program() { return link(); }
+    public void complete() {
+      if (glGetError() != GL_NO_ERROR) throw new IllegalStateException("Shadow allocation failed");
+    }
+  };
 
   /** Restore every raster state changed by the depth pass, including split read/draw FBOs. */
   public int render(DirectionalShadow.Projection projection, Draw drawCommands) {
-    resources.requireOpen();
-    if (resources.program == 0) throw new IllegalStateException("Shadow map not allocated");
-    int read = glGetInteger(GL_READ_FRAMEBUFFER_BINDING),
-        draw = glGetInteger(GL_DRAW_FRAMEBUFFER_BINDING);
-    int currentProgram = glGetInteger(GL_CURRENT_PROGRAM),
-        vao = glGetInteger(GL_VERTEX_ARRAY_BINDING),
-        depthFunc = glGetInteger(GL_DEPTH_FUNC);
-    int[] viewport = new int[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    boolean depthTest = glIsEnabled(GL_DEPTH_TEST),
-        cull = glIsEnabled(GL_CULL_FACE),
-        scissor = glIsEnabled(GL_SCISSOR_TEST),
-        offset = glIsEnabled(GL_POLYGON_OFFSET_FILL),
-        discard = glIsEnabled(GL_RASTERIZER_DISCARD),
-        mask = glGetBoolean(GL_DEPTH_WRITEMASK);
-    double clear = glGetDouble(GL_DEPTH_CLEAR_VALUE);
-    double[] range = new double[2];
-    glGetDoublev(GL_DEPTH_RANGE, range);
-    float[] attribute = new float[4];
-    glGetVertexAttribfv(4, GL_CURRENT_VERTEX_ATTRIB, attribute);
-    try {
-      glBindFramebuffer(GL_FRAMEBUFFER, resources.framebuffer);
-      glViewport(0, 0, resources.resolution, resources.resolution);
-      glEnable(GL_DEPTH_TEST);
-      glDepthMask(true);
-      glDepthFunc(GL_LESS);
-      glClearDepth(1);
-      glDepthRange(0, 1);
-      glDisable(GL_CULL_FACE);
-      glDisable(GL_SCISSOR_TEST);
-      glDisable(GL_POLYGON_OFFSET_FILL);
-      glDisable(GL_RASTERIZER_DISCARD);
-      glClear(GL_DEPTH_BUFFER_BIT);
-      int count = drawCommands.render(resources.program, projection.matrix());
-      resources.requireOpen();
-      return count;
-    } finally {
-      glBindVertexArray(vao);
-      glVertexAttrib4f(4, attribute[0], attribute[1], attribute[2], attribute[3]);
-      glUseProgram(currentProgram);
-      glDepthMask(mask);
-      glDepthFunc(depthFunc);
-      glClearDepth(clear);
-      glDepthRange(range[0], range[1]);
-      enable(GL_DEPTH_TEST, depthTest);
-      enable(GL_CULL_FACE, cull);
-      enable(GL_SCISSOR_TEST, scissor);
-      enable(GL_POLYGON_OFFSET_FILL, offset);
-      enable(GL_RASTERIZER_DISCARD, discard);
-      glBindFramebuffer(GL_READ_FRAMEBUFFER, read);
-      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw);
-      glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-    }
-  }
-
-  private static void enable(int capability, boolean value) {
-    if (value) glEnable(capability);
-    else glDisable(capability);
+    work.requireIdle();
+    Objects.requireNonNull(projection);
+    Objects.requireNonNull(drawCommands);
+    return work.render(() -> ShadowRasterState.capture(new GlShadowRasterState()),
+        program -> drawCommands.render(program, projection.matrix()), () -> {
+      if (glGetError() != GL_NO_ERROR) throw new IllegalStateException("Shadow raster failed");
+    });
   }
 
   /** Caller owns texture unit 3 binding for the duration of the color pass. */
@@ -200,6 +134,6 @@ float shadowVisibility(vec3 normal){
 
   @Override
   public void close() {
-    resources.close();
+    work.close();
   }
 }
