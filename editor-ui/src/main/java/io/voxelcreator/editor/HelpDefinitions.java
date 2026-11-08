@@ -166,7 +166,13 @@ final class HelpDefinitions {
                   + " first, then runs and validates the resource action as one Undo step. Deleting"
                   + " a resource cannot hide its invalid private draft. Discard releases private"
                   + " input only after the action publishes successfully. Changed document, input,"
-                  + " history, checkpoint or policy rejects old work. Saving stays explicit."),
+                  + " history, checkpoint or policy rejects old work. Saving stays explicit."
+                  + " Create, Add Noise Generator and Delete Resource keep local Undo Fields and"
+                  + " Redo Fields for their ID/algorithm, placement and replacement choices."
+                  + " Continuous ID typing is one local action. Outside active inputs, the focused"
+                  + " form uses configured Undo/Redo bindings; native text Undo keeps its input."
+                  + " History never submits an action. Cancel or handing off the explicit action"
+                  + " discards that form's local history."),
           new Guide(
               "help.project-save",
               "Saving a project",

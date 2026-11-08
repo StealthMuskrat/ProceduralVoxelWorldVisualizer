@@ -1,6 +1,6 @@
 # Remaining implementation, validation and delivery work
 
-Current source checkpoint: the preceding local main commit is 02a2aae; its publication remains pending, with the last observed GitHub main at 6f76999. The standalone consumer, private workflow/native text history, independent World Editor selection and ID text-preservation follow-up are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
+Current source checkpoint: the preceding local main commit is b439534; its publication remains pending, with the last observed GitHub main at 6f76999. The standalone consumer, private workflow/native text/resource-form history, independent World Editor selection and ID text-preservation follow-up are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
 
 The principal implementation tracks below cover specification Trees 0–22 exactly once. They are a finite audit queue, not eight claims of missing features or a completion percentage. Each track must reconcile its applicable numbered leaves with source and deferred verification, record concrete gaps as child items, and close those gaps before its source audit can be marked complete. Many features already have implementation and earlier evidence. Pending execution is recorded separately and cannot be treated as missing source or passing evidence.
 
@@ -77,6 +77,7 @@ The first W01 slice traced the existing resource browser, clipboard and membersh
 | 3.5.3, bookmark forms only | Confirmed missing cross-field raw-input history; implemented as W01-C07 below. | Compile/execute deferred Add/Rename/Teleport history and native/layout cases; continue other temporary editors. |
 | 3.5.3, noise dependency choices only | Confirmed missing local resolution/replacement history; implemented as W01-C08 below. | Compile/execute deferred choice/history/worker/decision and native/layout cases; continue other temporary editors. |
 | 3.5.3, expanded expression/F2 native text | Source reviewed: native text supplies local Undo/Redo, but its input identity was reused across openings. Per-opening text scopes implement W01-C09 below. | Execute same-text close/reopen history, same-opening reflow, error selection and existing publication/lifetime suites. |
+| 3.5.3, browser forms | Confirmed missing ID/algorithm/placement/replacement history; implemented across Create/Add Noise Generator/Delete as W01-C10 below. | Execute private history/ownership, primary handoff, picker and native/layout definitions. |
 | 3.5.2/3.5.3, curve gesture history only | Source reviewed: CurveEditSession has bounded local curve states, gesture begin/preview/end/cancel and Undo/Redo; CurveDialog coordinates pointer/numeric gesture cancellation and private publication. | Execute pointer/numeric/native history definitions; finish broader control/navigation caller reconciliation in W01/W03. |
 | 3.5.1, 3.5.4, 3.5.6 | Source reviewed: DocumentSession retains ProjectDelta value/splice changes with bounded history; dirty state compares the explicit saved checkpoint to current authoring values. ProjectData and portable payloads do not serialize DocumentSession/local stacks. | Execute current-revision delta/dirty/save/Undo/Redo/payload checks and finish 3.5.2/3.5.5 gesture/navigation caller inventory. |
 
@@ -166,6 +167,13 @@ Three new PackageReleaseTest definitions cover exact standalone support bytes in
 - [x] Correct the six-case layout definition to reflow one opening; add five expression/two rename lifetime definitions and independent identity/text/full-project readback expectations.
 - [ ] Compile and execute expanded-expression, identity, pane-lifetime and native/readback definitions.
 - [ ] Verify physical Undo/Redo/IME/clipboard, detached/DPI layouts and Windows 11 interaction.
+
+**W01-C10 — private browser-form history (3.5.3, 3.2.4, 3.2.8): implementation added, execution pending.** [Resource form history](RESOURCE_FORM_HISTORY.md) adds bounded exact ID/algorithm and placement/replacement deltas, grouped typing and persistent history controls. Restoration resets input/picker scope and feedback; version-owned primary/history controls reject equal-value round trips. Cancel/reset/panel closure and accepted/pending handoff consume history. Explicit actions retain the existing Properties guard and project transaction.
+
+- [x] Add shared bounded history to all three form owners, exact restoration and current/closed/ticket guards.
+- [x] Add native controls/modal bindings, seven unit definitions and expanded Help/30-case form/12-case creation/readback definitions.
+- [ ] Compile and execute form/shared-history/creation/Help/transaction suites and expanded native/readback cases.
+- [ ] Verify picker/filter ownership, remapped/physical input and Windows 11/DPI interaction.
 
 ## Validation and delivery queue
 

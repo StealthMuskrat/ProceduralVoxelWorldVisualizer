@@ -404,6 +404,9 @@ class HelpCatalogTest {
     assertTrue(text.contains("Retry Action"));
     assertTrue(text.contains("Cancel or Escape"));
     assertTrue(text.contains("a resource cannot hide its invalid private draft"));
+    assertTrue(text.contains("local Undo Fields and Redo Fields"));
+    assertTrue(text.contains("History never submits an action"));
+    assertTrue(text.contains("native text Undo keeps its input"));
     assertTrue(catalog.search("resource actions background").contains(topic));
     assertTrue(catalog.topic("help.resource-session").related().contains(topic.id()));
     assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));

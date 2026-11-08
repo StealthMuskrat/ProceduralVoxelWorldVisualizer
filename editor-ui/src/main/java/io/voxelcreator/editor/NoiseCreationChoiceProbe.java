@@ -94,6 +94,10 @@ public final class NoiseCreationChoiceProbe {
         click(picker.buttonCenter());
         click(picker.noneCenter());
         require(resources.probeCreationAlgorithm() == null, "Creation default was not restored");
+        click(action("undo"));
+        require("GRADIENT_Y".equals(resources.probeCreationAlgorithm()), "Algorithm Undo lost its explicit choice");
+        click(action("redo"));
+        require(resources.probeCreationAlgorithm() == null, "Algorithm Redo did not restore the live default choice");
         click(action("primary"));
         require(
             state.project().noise2D.getFirst().algorithm.key.equals("CONSTANT"),
@@ -159,6 +163,8 @@ public final class NoiseCreationChoiceProbe {
                     "preparedDefinitionRetained",
                     true,
                     "oneUndoRedo",
+                    true,
+                    "localFormHistory",
                     true,
                     "physicalDpiVerified",
                     false)));
