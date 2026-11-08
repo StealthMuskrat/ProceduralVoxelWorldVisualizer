@@ -165,6 +165,7 @@ public final class ProjectParseConsumer {
     ValidationFailureConsumer.run(out.resolve("validation-failures"));
     DiagnosticContextConsumer.run(out.resolve("diagnostic-context"));
     CompilationSnapshotConsumer.run(out.resolve("compilation-snapshots"));
+    WorldCompilationConsumer.run(out.resolve("world-compilation"));
     System.out.println("PROJECT_PARSE_CONSUMER_PASS");
   }
 

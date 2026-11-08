@@ -54,8 +54,8 @@ final class WorldPlan {
   private final Map<UUID, Integer> fieldDimensions;
 
   WorldPlan(ProjectData p, VoxelRegistry registry, long seed) {
-    // CompiledProject supplies its private immutable source snapshot. Keep one source, not one
-    // compiler/project copy per operation.
+    // CompiledProject supplies its private immutable source snapshot. Compilers below are shared
+    // only within this construction and only for the same effective seed.
     source = p;
     this.registry = registry;
     var dimensions = new HashMap<UUID, Integer>();
@@ -65,6 +65,7 @@ final class WorldPlan {
     minY = p.project.minY;
     maxY = p.project.maxY;
     var compiled = new ArrayList<Op>();
+    var fieldCompilers = new HashMap<Long, NoiseCompiler>();
     var stageList = new ArrayList<GenerationStage>();
     var memberships = new HashMap<UUID, Set<Integer>>();
     for (var set : p.voxelSets) {
@@ -90,7 +91,9 @@ final class WorldPlan {
         if (!layer.enabled || !op.enabled) continue;
         Settings s = SettingsResolver.resolve(layer, op);
         long opSeed = s.seedOffset == 0 ? seed : CoordinateHash.mix(seed ^ s.seedOffset);
-        var compiler = new NoiseCompiler(p, opSeed);
+        // Sampling/interpretation settings remain placement-owned; canonical fields depend on
+        // the fixed source and effective seed, not placement identity or sampling transforms.
+        var compiler = fieldCompilers.computeIfAbsent(opSeed, key -> new NoiseCompiler(p, key));
         var noise =
             java.util.stream.Stream.concat(p.noise2D.stream(), p.noise3D.stream())
                 .filter(n -> n.uuid.equals(op.noiseGeneratorUuid))
