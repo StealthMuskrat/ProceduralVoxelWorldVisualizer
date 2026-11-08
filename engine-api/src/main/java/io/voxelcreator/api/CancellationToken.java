@@ -96,8 +96,15 @@ public final class CancellationToken {
     return () -> {};
   }
 
+  /**
+   * Polls the parent once when not already explicitly cancelled. Explicit cancellation
+   * during a normally returning parent poll wins over its false result. Parent observations are
+   * not latched and do not drain listeners; parent failures retain their propagation.
+   */
   public boolean isCancelled() {
-    return cancelled.get() || parent.getAsBoolean();
+    if (cancelled.get()) return true;
+    boolean inherited = parent.getAsBoolean();
+    return inherited || cancelled.get();
   }
 
   public void throwIfCancelled() {
