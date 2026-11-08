@@ -37,7 +37,7 @@ final class UpdateTrustPanel implements AutoCloseable {
   }
 
   static UpdateTrustPanel background(EditorState state, Path file, Consumer<String> errors) {
-    return new UpdateTrustPanel(state.user, file, errors, state.background, state.uiQueue::offer);
+    return new UpdateTrustPanel(state.user, file, errors, state.background, state::postUi);
   }
 
   UpdateTrustPanel(UserConfig user, Path file, Consumer<String> errors,

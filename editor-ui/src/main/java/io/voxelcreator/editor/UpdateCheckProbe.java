@@ -64,7 +64,7 @@ public final class UpdateCheckProbe {
                 user,
                 "0.1.0",
                 workers::add,
-                state.uiQueue::offer,
+                state::postUi,
                 (endpoint, origins) -> {
                   fetched++;
                   return next;

@@ -46,7 +46,7 @@ public final class InputSettingsPanel implements AutoCloseable {
 
   static InputSettingsPanel background(EditorState state, Consumer<String> errors) {
     return new InputSettingsPanel(state.user, UserConfig.directory().resolve("user-config.json"),
-        errors, state.background, state.uiQueue::offer);
+        errors, state.background, state::postUi);
   }
 
   InputSettingsPanel(UserConfig user, Path file, Consumer<String> errors,

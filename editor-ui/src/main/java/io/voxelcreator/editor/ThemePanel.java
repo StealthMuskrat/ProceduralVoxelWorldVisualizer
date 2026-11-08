@@ -58,7 +58,7 @@ public final class ThemePanel {
 
   static ThemePanel background(EditorState state, Consumer<String> errors) {
     return new ThemePanel(state.user, UserConfig.directory().resolve("user-config.json"),
-        errors, state.background, state.uiQueue::offer);
+        errors, state.background, state::postUi);
   }
 
   ThemePanel(UserConfig user, Path file, Consumer<String> errors,

@@ -27,7 +27,9 @@ public final class EditorState implements AutoCloseable {
           new ArrayBlockingQueue<>(8),
           Thread.ofPlatform().daemon(true).name("editor-preview-", 0).factory(),
           new ThreadPoolExecutor.AbortPolicy());
-  public final ConcurrentLinkedQueue<Runnable> uiQueue = new ConcurrentLinkedQueue<>();
+  private final UiDispatchQueue uiDispatch = new UiDispatchQueue();
+  public final Queue<Runnable> uiQueue = uiDispatch;
+  private boolean drainingUi;
   final ProjectValidationSession committedValidation;
   public long revision = 0;
   public UUID selected;
@@ -417,10 +419,24 @@ public final class EditorState implements AutoCloseable {
   }
 
   public void drain() {
-    for (Runnable r; (r = uiQueue.poll()) != null; ) r.run();
-    committedValidation.refresh();
-    String latest = eventStatus.getAndSet(null);
-    if (latest != null) status = latest;
+    if (drainingUi || uiDispatch.closed()) return;
+    drainingUi = true;
+    try {
+      uiDispatch.drain(
+          failure -> error("EDITOR_UI_CALLBACK_FAILED", EditorEvents.Subsystem.APPLICATION,
+              "Editor UI callback failed: " + BackgroundFailure.describe(failure)));
+      if (uiDispatch.closed()) return;
+      committedValidation.refresh();
+      String latest = eventStatus.getAndSet(null);
+      if (latest != null) status = latest;
+    } finally {
+      drainingUi = false;
+    }
+  }
+
+  /** Strict nonblocking posting: rejection must reach the request's existing failure observer. */
+  public void postUi(Runnable callback) {
+    uiDispatch.post(callback);
   }
 
   @Override
@@ -429,6 +445,7 @@ public final class EditorState implements AutoCloseable {
   }
 
   void close(boolean savePreferences) {
+    uiDispatch.close();
     voxelIdentities.clear();
     traces.clear();
     committedValidation.close();

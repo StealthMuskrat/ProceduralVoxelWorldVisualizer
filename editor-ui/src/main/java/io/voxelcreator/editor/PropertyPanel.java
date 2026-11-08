@@ -642,7 +642,7 @@ public final class PropertyPanel implements AutoCloseable {
   }
 
   static PropertyPanel background(EditorState state) {
-    return new PropertyPanel(state, state.background, state.uiQueue::offer);
+    return new PropertyPanel(state, state.background, state::postUi);
   }
 
   PropertyPanel(EditorState s, Executor executor, Consumer<Runnable> ui) {

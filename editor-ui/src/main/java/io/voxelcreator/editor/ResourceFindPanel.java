@@ -61,7 +61,7 @@ public final class ResourceFindPanel implements AutoCloseable {
 
   static ResourceFindPanel background(EditorState state, PropertyPanel properties) {
     return new ResourceFindPanel(
-        state, properties, System::nanoTime, state.background, state.uiQueue::offer, true);
+        state, properties, System::nanoTime, state.background, state::postUi, true);
   }
 
   ResourceFindPanel(

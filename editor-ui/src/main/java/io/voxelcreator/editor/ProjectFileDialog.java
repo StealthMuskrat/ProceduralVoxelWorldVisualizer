@@ -49,7 +49,7 @@ final class ProjectFileDialog {
    */
   static ProjectFileDialog background(
       EditorState state, Runnable replaced, Runnable exit, BooleanSupplier blocked) {
-    return background(state, replaced, exit, blocked, state.background, state.uiQueue::offer);
+    return background(state, replaced, exit, blocked, state.background, state::postUi);
   }
 
   static ProjectFileDialog background(

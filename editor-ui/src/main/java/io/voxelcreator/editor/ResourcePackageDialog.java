@@ -66,7 +66,7 @@ final class ResourcePackageDialog implements AutoCloseable {
         blocked,
         files,
         state.background,
-        state.uiQueue::offer,
+        state::postUi,
         (source, destination) -> ImportEditSession.prepare(destination, files.read(source)));
   }
 

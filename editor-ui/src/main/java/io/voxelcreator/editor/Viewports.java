@@ -4006,7 +4006,7 @@ public final class Viewports implements AutoCloseable {
     if (inspectorTask.request() != request) return;
     var ticket = inspectorTask.ticket();
     var target = inspectorTask;
-    var callbacks = state.uiQueue;
+    java.util.function.Consumer<Runnable> callbacks = state::postUi;
     inspectorPickOwner = v;
     try {
       ProjectData p = ProjectIO.copy(state.project());
@@ -4058,7 +4058,7 @@ public final class Viewports implements AutoCloseable {
                   completed = InspectorTask.Result.failed(failure);
                 }
                 if (target.publish(ticket, completed))
-                  callbacks.offer(() -> target.delivered(ticket));
+                  callbacks.accept(() -> target.delivered(ticket));
               }));
     } catch (Throwable failure) {
       prepareInspectorFailure(ticket, failure);
@@ -4260,7 +4260,7 @@ public final class Viewports implements AutoCloseable {
     if (inspectorTask.request() != request) return;
     var ticket = inspectorTask.ticket();
     var target = inspectorTask;
-    var callbacks = state.uiQueue;
+    java.util.function.Consumer<Runnable> callbacks = state::postUi;
     try {
       var p = ProjectIO.copy(state.project());
       var source = InspectorSource.capture(state, p);
@@ -4284,7 +4284,7 @@ public final class Viewports implements AutoCloseable {
                   completed = InspectorTask.Result.failed(failure);
                 }
                 if (target.publish(ticket, completed))
-                  callbacks.offer(() -> target.delivered(ticket));
+                  callbacks.accept(() -> target.delivered(ticket));
               }));
     } catch (Throwable failure) {
       prepareInspectorFailure(ticket, failure);

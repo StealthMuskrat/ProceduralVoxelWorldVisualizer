@@ -204,7 +204,7 @@ public final class Desktop extends Application {
     preferenceSaves =
         new PreferenceSaveSession(
             state.user, UserConfig.directory().resolve("user-config.json"),
-            state.background, state.uiQueue::offer, message -> state.status = message,
+            state.background, state::postUi, message -> state.status = message,
             message -> state.error("PREFERENCE_SAVE_FAILED", EditorEvents.Subsystem.APPLICATION, message));
     lifecycle.own(preferenceSaves::close);
     inputSettings =
@@ -226,7 +226,7 @@ public final class Desktop extends Application {
                 state.user,
                 APPLICATION_VERSION,
                 state.background,
-                state.uiQueue::offer,
+                state::postUi,
                 UpdateChecker::check,
                 message ->
                     state.error(
@@ -288,7 +288,7 @@ public final class Desktop extends Application {
             state,
             properties,
             state.background,
-            state.uiQueue::offer,
+            state::postUi,
             this::packageInteractionBlocked);
     lifecycle.own(resources::close);
     resources.docking.defaults(this::resetDockLayout);
@@ -362,7 +362,7 @@ public final class Desktop extends Application {
             this::packageInteractionBlocked,
             () -> validation.set(true),
             state.background,
-            state.uiQueue::offer);
+            state::postUi);
     lifecycle.own(imports::close);
     packageDialog =
         ResourcePackageDialog.background(

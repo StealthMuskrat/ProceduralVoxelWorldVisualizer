@@ -72,7 +72,7 @@ public final class ProfilePanel implements AutoCloseable {
   }
 
   static ProfilePanel background(EditorState state, Consumer<EditorEvents.Target> navigate) {
-    return new ProfilePanel(state, navigate, state.background, state.uiQueue::offer, new ProfileExportFiles());
+    return new ProfilePanel(state, navigate, state.background, state::postUi, new ProfileExportFiles());
   }
 
   ProfilePanel(EditorState state, Consumer<EditorEvents.Target> navigate,

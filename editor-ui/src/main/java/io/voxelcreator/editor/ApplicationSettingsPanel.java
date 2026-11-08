@@ -54,7 +54,7 @@ public final class ApplicationSettingsPanel implements AutoCloseable {
   }
 
   static ApplicationSettingsPanel background(EditorState state) {
-    return new ApplicationSettingsPanel(state, state.background, state.uiQueue::offer);
+    return new ApplicationSettingsPanel(state, state.background, state::postUi);
   }
 
   ApplicationSettingsPanel(EditorState state, Executor executor, Consumer<Runnable> ui) {
