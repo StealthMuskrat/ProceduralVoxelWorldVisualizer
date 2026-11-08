@@ -991,6 +991,7 @@ public final class Viewports implements AutoCloseable {
         activeSceneKey = "",
         failedKey = "";
     ChunkScene scene;
+    Object sceneFailureOwner;
     RenderPressure pressure = new RenderPressure();
     final SourceCompilerTask<SceneSetup> compiler = new SourceCompilerTask<>();
     final AtomicReference<WorkerGate> workerGate = new AtomicReference<>(),
@@ -3079,16 +3080,48 @@ public final class Viewports implements AutoCloseable {
     return wantsStreaming(v) && !(v.streamFallback && sceneKey(v).equals(v.failedKey));
   }
 
-  private void rendererFallback(View v, String key) {
-    if (v.scene != null) v.scene.close();
-    v.scene = null;
-    v.gl.releaseScene();
-    v.gpuBudget = 0;
-    v.activeSceneKey = "";
-    v.failedKey = key;
-    v.streamFallback = true;
-    v.failedPreview = false;
-    v.dirty = true;
+  private boolean ownsStreamScene(
+      View v, String key, ChunkScene scene, long epoch, GlViewport renderer) {
+    return !closed && scene != null && v.scene == scene && v.epoch == epoch
+        && v.gl == renderer && key.equals(sceneKey(v)) && usesStreaming(v);
+  }
+
+  private boolean rendererFallback(
+      View v, String key, ChunkScene scene, long epoch, GlViewport renderer,
+      long compiler, Throwable failure, boolean startup) {
+    Object owner = new Object();
+    return ScenePreviewFallback.fail(
+        new ScenePreviewFallback.Owner() {
+          public boolean eligible() {
+            return ownsStreamScene(v, key, scene, epoch, renderer) && v.compiler.current(compiler);
+          }
+
+          public void settle() {
+            v.sceneFailureOwner = owner;
+            v.scene = null;
+            v.gpuBudget = 0;
+            v.activeSceneKey = "";
+            v.failedKey = key;
+            v.streamFallback = true;
+            v.failedPreview = false;
+            v.dirty = true;
+            v.message = "Streaming renderer unavailable; using fixed preview";
+          }
+
+          public boolean current() {
+            return !closed && v.sceneFailureOwner == owner && v.epoch == epoch
+                && v.gl == renderer && v.compiler.current(compiler) && v.scene == null
+                && v.activeSceneKey.isEmpty() && v.gpuBudget == 0 && v.streamFallback
+                && !v.failedPreview && v.dirty && key.equals(v.failedKey) && key.equals(sceneKey(v));
+          }
+        },
+        renderer::releaseScene, scene::close, failure,
+        detail -> {
+          if (startup) state.notify("Error", "Streaming renderer unavailable; using fixed preview: " + detail);
+          else state.error("STREAM_RENDER_FAILED", EditorEvents.Subsystem.RENDERING,
+              "Streaming stopped; fixed preview retained: " + detail);
+        },
+        detail -> state.error("STREAM_RENDER_CLEANUP_FAILED", EditorEvents.Subsystem.RENDERING, detail));
   }
 
   private ChunkScene.Config sceneConfig(View v, boolean points) {
@@ -3125,6 +3158,7 @@ public final class Viewports implements AutoCloseable {
     var previousScene = v.scene;
     boolean hadWork = previousScene != null || v.compiler.pending();
     v.scene = null;
+    v.sceneFailureOwner = null;
     String key = closed ? "" : sceneKey(v);
     var retired = v.compiler.stop();
     var cleanup = PreviewNotifications.attempt(
@@ -3284,10 +3318,15 @@ public final class Viewports implements AutoCloseable {
                 sceneConfig(v, v.mode.equals("Point Cloud")),
                 v.pressure,
                 position -> state.engine.profiler().scope(0, profileProject, position));
+        v.sceneFailureOwner = null;
         v.activeSceneKey = key;
         v.force = false;
         v.dirty = false;
         v.completed = false;
+        var scene = v.scene;
+        var renderer = v.gl;
+        long epoch = v.epoch;
+        long compiler = v.compiler.generation();
         try {
           v.gl.scene(v.scene.epoch(), sceneGpuBudget(v));
           if (admissionProbe && probeRendererStartupFailure.compareAndSet(true, false))
@@ -3301,17 +3340,19 @@ public final class Viewports implements AutoCloseable {
           v.gl.setPalette(palette == null ? setup.palette : palette.colors());
           v.worldPalette = palette;
         } catch (RuntimeException gpu) {
-          rendererFallback(v, key);
-          state.notify(
-              "Error", "Streaming renderer unavailable; using fixed preview: " + gpu.getMessage());
-          return false;
+          return !rendererFallback(v, key, scene, epoch, renderer, compiler, gpu, true);
         }
       }
     }
     if (v.scene != null) {
+      var scene = v.scene;
+      var renderer = v.gl;
+      long epoch = v.epoch;
+      long compiler = v.compiler.generation();
       v.scene.configure(sceneConfig(v, v.scene.points()));
       Vector3d center = v.camera.flying ? v.camera.position : v.camera.focus;
       v.scene.tick(center, v.camera.eye(), 4);
+      if (!ownsStreamScene(v, key, scene, epoch, renderer)) return true;
       try {
         boolean resized = v.gpuBudget != sceneGpuBudget(v);
         var gpu = v.gl.scene(v.scene.epoch(), sceneGpuBudget(v));
@@ -3424,12 +3465,7 @@ public final class Viewports implements AutoCloseable {
                           + " bytes remain"
                       : "");
       } catch (RuntimeException gpu) {
-        rendererFallback(v, key);
-        state.error(
-            "STREAM_RENDER_FAILED",
-            EditorEvents.Subsystem.RENDERING,
-            "Streaming stopped; fixed preview retained: " + gpu.getMessage());
-        return false;
+        return !rendererFallback(v, key, scene, epoch, renderer, compiler, gpu, false);
       }
     }
     if (v.pressure.paused()) {
@@ -3643,6 +3679,7 @@ public final class Viewports implements AutoCloseable {
     var previousJob = v.job;
     var renderer = v.gl;
     v.job = null;
+    v.sceneFailureOwner = null;
     v.volumeFailureOwner = null;
     v.pendingVolume = null;
     v.volumeWorkingBytes = 0;

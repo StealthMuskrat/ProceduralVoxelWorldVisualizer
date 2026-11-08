@@ -63,13 +63,19 @@ public final class GlViewport implements AutoCloseable {
   }
 
   private void releaseShadows() {
-    if (shadowMap != null) shadowMap.close();
+    var previous = detachShadows();
+    if (previous != null) previous.close();
+  }
+
+  private GlShadowMap detachShadows() {
+    var previous = shadowMap;
     shadowMap = null;
     shadowDraws = 0;
     if (shadowState.equals("READY")) {
       shadowState = "WAITING";
       shadowDetail = "Waiting for complete triangle geometry";
     }
+    return previous;
   }
 
   public ShadowStatistics shadowStatistics() {
@@ -195,12 +201,16 @@ public final class GlViewport implements AutoCloseable {
    * Release hidden streaming resources when the viewport has no live source. Render thread only.
    */
   public void releaseScene() {
-    releaseShadows();
-    sceneActive = false;
-    if (sceneRenderer != null) sceneRenderer.close();
+    var previous = sceneRenderer;
     sceneRenderer = null;
+    sceneActive = false;
     sceneBudget = 0;
     sceneWanted = java.util.Set.of();
+    var previousShadow = detachShadows();
+    if (previous == null && previousShadow == null) return;
+    RenderCleanup.run(
+        () -> { if (previousShadow != null) previousShadow.close(); },
+        () -> { if (previous != null) previous.close(); });
   }
 
   private VolumeTransfer.Settings volumeSettings = new VolumeTransfer.Settings(-1, 1, .12, 0, 192);
