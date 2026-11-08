@@ -864,19 +864,35 @@ public final class ChunkScene implements AutoCloseable {
     rejected = true;
   }
 
-  public void close() {
-    if (closed) return;
+  /** Seals worker publication now; the caller must run the returned once-only cleanup on the UI thread. */
+  public Runnable retireForClose() {
+    if (closed) return RenderCleanup.deferred();
     closed = true;
     removals.close();
     ready.close();
-    for (var entry : new ArrayList<>(entries.values())) cancel(entry);
+    var cleanup = new ArrayList<Runnable>();
+    for (var entry : entries.values()) {
+      if (!entry.working) continue;
+      var token = entry.token;
+      var future = entry.future;
+      entry.jobId = ++sequence;
+      finish(entry);
+      cleanup.add(() -> cancelSignals(token, future));
+    }
     entries.clear();
     wanted.clear();
     loadWindow.clear();
-    try {
-      source.close();
-    } catch (Exception ignored) {
-    }
+    required.clear();
+    active = 0;
     cpuBytes = reserved = 0;
+    cleanup.add(() -> {
+      try { source.close(); }
+      catch (Exception ignored) { /* Preserve the existing source-close policy. */ }
+    });
+    return RenderCleanup.deferred(cleanup.toArray(Runnable[]::new));
+  }
+
+  public void close() {
+    retireForClose().run();
   }
 }

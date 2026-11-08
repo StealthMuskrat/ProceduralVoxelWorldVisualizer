@@ -70,12 +70,16 @@ final class RendererStartup<T> implements AutoCloseable {
     }
   }
 
-  @Override
-  public void close() {
-    if (closed) return;
+  Runnable retireForClose() {
+    if (closed) return UiShutdown.once();
     closed = true;
     T accepted = value;
     value = null;
-    if (accepted != null) dispose.accept(accepted);
+    return UiShutdown.once(() -> { if (accepted != null) dispose.accept(accepted); });
+  }
+
+  @Override
+  public void close() {
+    retireForClose().run();
   }
 }

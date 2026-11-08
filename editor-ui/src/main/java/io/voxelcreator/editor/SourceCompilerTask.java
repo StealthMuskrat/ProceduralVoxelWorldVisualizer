@@ -89,19 +89,18 @@ final class SourceCompilerTask<T extends AutoCloseable> implements AutoCloseable
   T take() { return current(ticket) && !pending() ? handoff.take() : null; }
 
   void finish(Ticket owner) {
-    if (current(owner) && !pending()) retire(false);
+    if (current(owner) && !pending()) retire();
   }
 
-  Retirement stop() { return retire(false); }
+  Retirement stop() { return retire(); }
 
-  private Retirement retire(boolean closing) {
+  private Retirement retire() {
     var previous = future;
     ticket = null;
     future = null;
     awaitingAttachment = false;
     long retired = ++generation;
-    if (closing) handoff.close();
-    else handoff.invalidate();
+    handoff.invalidate();
     return new Retirement(retired, cancel(previous));
   }
 
@@ -109,11 +108,19 @@ final class SourceCompilerTask<T extends AutoCloseable> implements AutoCloseable
     return PreviewNotifications.attempt(() -> { if (previous != null) previous.cancel(true); });
   }
 
-  public void close() {
-    if (closed) return;
+  Runnable retireForClose() {
+    if (closed) return UiShutdown.once();
     closed = true;
-    var failure = retire(true).cancellation();
-    if (failure instanceof RuntimeException runtime) throw runtime;
-    if (failure instanceof Error error) throw error;
+    var previous = future;
+    ticket = null;
+    future = null;
+    awaitingAttachment = false;
+    generation++;
+    var source = handoff.retireForClose();
+    return UiShutdown.once(source, () -> UiShutdown.rethrow(cancel(previous)));
+  }
+
+  public void close() {
+    retireForClose().run();
   }
 }

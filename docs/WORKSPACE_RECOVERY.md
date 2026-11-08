@@ -12,7 +12,7 @@ Read-only recovery checked branch refs, all reflogs, known e70a5ee/63e359c objec
 | W06-C18 | Optional streaming upload observation isolation | Reconstructed in source with independent work/observation outcomes and eleven real-scene/public-profiler deferred definitions; see SCENE_UPLOAD_OBSERVATION.md |
 | W06-C19 | Retained/versioned scene removals | Reconstructed in source with bounded retained receipts, exact acknowledgement, version-gated GPU remove/reset, thirteen deferred CPU definitions and native probe cases; see SCENE_REMOVAL_OWNERSHIP.md |
 | W06-C20, e7cd11e | Native renderer shutdown/typed retirement | Reconstructed in source with detached root/scene handles, independent once-only typed retirement, closed guards and eight deferred CPU definitions; see NATIVE_RENDERER_SHUTDOWN.md |
-| W06-C21, a5be076 | Two-phase UI peer shutdown | Missing; recover/reimplement |
+| W06-C21, a5be076 | Two-phase UI peer shutdown | Reconstructed in source with detached UI/compiler/Inspector/scene/renderer/cursor owners, independent once-only cleanup and ten deferred CPU definitions; see UI_PEER_SHUTDOWN.md |
 | W06-C22, b88a27b | Timer/shadow retirement | Missing; recover/reimplement |
 | W06-C23, 3e190f2 | Shadow allocation/raster state transactions | Missing; only the generic transaction dependency needed by C28 is reconstructed here |
 | W06-C24, 1693696 | Viewport frame state/size/timing acceptance | Missing; C28 uses the older width/height cache directly |
@@ -31,7 +31,8 @@ These IDs are retained to avoid confusing previously discussed work with the cur
 - [x] Reconstruct C18 optional streaming observation isolation, captured counters/finalization and guarded post-settlement diagnostics.
 - [x] Reconstruct C19 retained/versioned removal delivery, bounded reset recovery and native typed retirement integration.
 - [x] Reconstruct C20 native renderer shutdown, typed once-only retirement, independent child/handle attempts and closed-owner guards.
-- [ ] Recover/reimplement C21–C27 integration and definitions, beginning with two-phase UI peer shutdown.
+- [x] Reconstruct C21 two-phase UI peer shutdown, sealed publication/job owners, independent cleanup and original failure preservation.
+- [ ] Recover/reimplement C22–C27 integration and definitions, beginning with timer/shadow retirement.
 - [ ] Continue streaming state, parent preview/palette/profiler acceptance, retained physical display, other owners/callers/document/controls and W01–W08 source audits.
 - [ ] After implementation and the owner's testing pause ends, compile and execute the current source and complete V01–V04 validation/delivery gates.
 

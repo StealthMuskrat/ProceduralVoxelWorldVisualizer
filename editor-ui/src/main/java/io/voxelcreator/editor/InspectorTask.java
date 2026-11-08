@@ -179,9 +179,21 @@ final class InspectorTask implements AutoCloseable {
     return retired;
   }
 
-  public void close() {
+  Runnable retireForClose() {
+    if (closed) return UiShutdown.once();
     closed = true;
-    cancel();
+    var previous = future;
+    ticket = null;
+    future = null;
+    request = null;
+    coordinate = null;
+    delivered = false;
+    generation++;
     handoff.close();
+    return UiShutdown.once(() -> { if (previous != null) previous.cancel(true); });
+  }
+
+  public void close() {
+    retireForClose().run();
   }
 }
