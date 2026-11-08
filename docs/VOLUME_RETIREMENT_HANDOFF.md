@@ -24,6 +24,8 @@ Two added VolumeTextureCleanupTest definitions cover completed GPU-copy retireme
 
 The CPU metadata record exercises the production handoff helper, not native GlViewport flags or the actual editor palette/hover widgets. Source review traces those callers to finally and acceptPreview; native representation transitions, framebuffer/readback, real hover/palette/epoch behavior and platform recovery still require execution. Existing VolumeUploadProbe/VolumeOverlapProbe and scene/pressure definitions retain their scopes; no native probe has run or gained a passing claim.
 
+Unvalidated [W06-C08 observation isolation](VOLUME_UPLOAD_OBSERVATION.md) subsequently separates optional profiling failures from this committed/upload-failure decision. Its five additional CPU definitions retain all five original handoff definitions above. Independent acceptance faults and retirement diagnostic reentry/delivery remain open.
+
 ## Status
 
 All additions remain **uncompiled and untested** under the owner's testing pause. No compiler, Gradle, tests, native probe, consumer, checker, package, update request or workflow ran. Source review and Git whitespace/content checks provide no runtime evidence. Baseline remains **922 tests / 120 suites**; no A01–A36, Windows 11 or release gate advances. Public signatures, headless dependency boundaries, encoding/math, budgets, schemas, registries and authored formats remain unchanged. Wider renderer/caller/scheduling/resource/pressure/performance and native/release audits remain open, including independent failures during editor acceptance or profiling/reporting. The small handoff callbacks have no measured allocation/latency result. Source remains on local main with publication pending.
