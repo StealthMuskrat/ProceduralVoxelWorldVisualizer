@@ -1,6 +1,6 @@
 # Remaining implementation, validation and delivery work
 
-Current source checkpoint: the preceding local main commit is b4937db; its publication remains pending, with the last observed GitHub main at 6f76999. The standalone consumer, membership/Import/Export local history and independent World Editor selection are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
+Current source checkpoint: the preceding local main commit is 0860bb1; its publication remains pending, with the last observed GitHub main at 6f76999. The standalone consumer, private workflow history and independent World Editor selection are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
 
 The principal implementation tracks below cover specification Trees 0–22 exactly once. They are a finite audit queue, not eight claims of missing features or a completion percentage. Each track must reconcile its applicable numbered leaves with source and deferred verification, record concrete gaps as child items, and close those gaps before its source audit can be marked complete. Many features already have implementation and earlier evidence. Pending execution is recorded separately and cannot be treated as missing source or passing evidence.
 
@@ -34,6 +34,12 @@ The first W01 slice traced the existing resource browser, clipboard and membersh
 
 | Leaves | Source disposition | Remaining work |
 | --- | --- | --- |
+| 1.3.8 | Source reviewed: Gradle module dependencies flow from editor/render toward API/core/storage/model; source import scan found no reverse editor/render imports in the four headless modules. | Compile independent artifacts and execute dependency/notice isolation checks when validation resumes. |
+| 2.1.1–2.1.3 | Source reviewed: ProjectData is the authored UUID/ordered-resource/world/bookmark document; explicit ProjectIO/DocumentSession writes exclude editor preferences, local histories and generated/runtime objects. | Execute schema/save/Undo and complete project-boundary scenarios. |
+| 2.2.1–2.2.4 | Source reviewed: UserConfig owns layout/theme/scales, input/editor/visualization/performance preferences; Desktop exposes all six User Settings categories and saves preferences through its separate writer. | Execute full preference persistence/private-project invariance and platform layout scenarios. |
+| 2.3.1–2.3.4 | Source reviewed: AppMetadata owns presentation and future-item defaults; strict read/validation rejects incompatible metadata and load falls back to built-ins. CreationRegistry signatures/ranges/options remain authoritative; defaults apply through editor creation. | Finish per-control coverage in W02/W03/W07 and execute malformed-metadata/future-item/unchanged-engine scenarios. |
+| 2.4.1–2.4.5 | Source reviewed: settings menu/pages and compact status access reach the existing project/app/user/profiler owners; Project Settings publishes only seed/bounds transactionally and display/profiler links share their backing owners. | Execute all entry points and follow the remaining temporary-editor audit, including C05 below. |
+| 2.5.1–2.5.4 | Source reviewed: Desktop initializes services hidden, then EditorPresentation requires a complete first frame before showing it. New ProjectData starts with no user resources; protected roots and default/persisted theme/docking are presented without automatic recent-project reopening. Explicit launch-file/smoke paths remain separate. | Execute startup, empty-world, first-frame, preference/fallback and real Windows 11 launch scenarios. |
 | 2.6.1–2.6.2 | Source reviewed: Desktop File actions route to project/package workflows; Save uses the remappable Ctrl+S binding and DocumentSession checkpoint tracking. | Execute menu/remap/dirty-state scenarios for the current revision. |
 | 2.6.3 | Source reviewed: draft decisions precede Save/Don't Save/Cancel; New/Open/Exit and GLFW close share the workflow. Failed required Save clears the pending transition; retry is standalone Save. | Execute the complete transition/physical window-close matrix. |
 | 2.6.4 | Source reviewed: owned Save prepares ProjectIO sibling staging, flushes and publishes through its atomic writer after exact owner checks. | Execute I/O/failure/durability/platform cases. |
@@ -55,8 +61,9 @@ The first W01 slice traced the existing resource browser, clipboard and membersh
 | 3.5.3, membership editor only | Confirmed missing local history; implemented as W01-C01 below. | Compile/execute deferred checks and audit every other temporary editor. |
 | 3.5.3, Import choices only | Confirmed missing resolution history; implemented as W01-C03 below. | Compile/execute deferred history/planning/review cases and continue other temporary editors. |
 | 3.5.3, Export selection only | Confirmed missing local selection history; implemented as W01-C04 below. | Compile/execute deferred selection/review/publication cases and continue other temporary editors. |
+| 3.5.3, Project Settings only | Confirmed missing local raw-input history; implemented as W01-C05 below. | Compile/execute deferred gesture/history/Apply cases and continue other temporary editors. |
 
-Identity/namespace helpers and existing protected-root/move guards were inspected as supporting paths; they do not yet close the full 3.1/3.2 inventories. The 2.6 lifecycle and 3.4 portable-package paths above have source dispositions without runtime closure; detailed diagnostic callers and startup/config boundaries still need reconciliation. W01 remains open for Trees 0–2, remaining identity/hierarchy/docking leaves and remaining 3.5 history/temporary editors. Continue with startup/config boundaries and the remaining leaf inventories before marking any parent audit complete.
+Identity/namespace helpers and existing protected-root/move guards were inspected as supporting paths; they do not yet close the full 3.1/3.2 inventories. Configuration/startup, lifecycle and portable-package paths above have source dispositions without runtime closure. W01 remains open for the complete Tree 0/1 authority/ownership inventory, remaining 2.7/2.8 format and diagnostic caller reconciliation, identity/hierarchy/docking leaves and remaining 3.5 history/temporary editors. Detailed control/engine/render functionality retains its respective W02–W08 audit. Continue these remaining leaf inventories before marking any parent audit complete.
 
 ## Confirmed gaps and source changes
 
@@ -95,6 +102,15 @@ This closes Import's local-choice-history source gap only. Other temporary edito
 - [ ] Verify remapped shortcuts, text/focus ownership and Windows 11/DPI/physical input.
 
 This closes Export's selection-history source gap only. The all-dialog audit, remaining W01 inventory and all execution/delivery gates remain open.
+
+**W01-C05 — Project Settings local raw-input history (3.5.3, 2.4.2): implementation added, execution pending.** [Project Settings history](PROJECT_SETTINGS_LOCAL_HISTORY.md) retains bounded exact raw-field deltas, coalesces continuous typing/slider gestures and exposes Undo Settings/Redo Settings. Restoration synchronizes native buffers/controllers, clears local feedback and retires pending Apply. Final Apply remains one metadata-only project transaction; closure/reload consumes local history and stale owners cannot use it. Native text Undo and Document shortcut routing retain their existing ownership.
+
+- [x] Add bounded raw history, gesture/control boundaries, net-zero/Redo/cache rules and lifecycle/Apply ownership.
+- [x] Add persistent version-owned actions, eight unit definitions and expanded existing native/readback/Help definitions.
+- [ ] Compile and execute local history, Project Settings/Help suites and updated 24-/12-case native/readback scenarios.
+- [ ] Verify actual text/drag/focus behavior and Windows 11/DPI/physical input.
+
+This closes Project Settings' history source gap only. Other temporary editors, remaining W01 leaves and all execution/delivery gates remain open.
 
 **W05-C01 — standalone build-tool consumer (13.8.2, 13.8.3, 22.8.3): implementation added, execution pending.** The release assembler copied Java consumers and generated run.cmd, but supplied no independent Gradle project. [The standalone consumer](../example-client/standalone/README.md) now has its own settings/build, one engine-JAR file dependency, Java 25 toolchain and the existing Example entry point. Explicit source/JAR properties support a checkout; default paths support the extracted distribution. A precompile check requires the engine API and rejects known editor/render/native packages. Release assembly includes these exact support files beside the existing Java sources, using the same safe file-copy and deterministic manifest/archive path.
 

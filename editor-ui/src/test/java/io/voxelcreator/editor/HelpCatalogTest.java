@@ -443,6 +443,9 @@ class HelpCatalogTest {
     var topic = catalog.topic("help.project-settings");
     var text = topic.copyText(catalog);
     assertTrue(text.contains("Undo delta in the background"));
+    assertTrue(text.contains("Undo Settings and Redo Settings restore local raw text"));
+    assertTrue(text.contains("one local action; changing controls ends that action"));
+    assertTrue(text.contains("Text-field Undo stays with the native input"));
     assertTrue(text.contains("Cancel or Escape"));
     assertTrue(text.contains("Separate private Properties edits"));
     assertTrue(text.contains("Apply does not save the project"));

@@ -18,6 +18,8 @@ final class ProjectSettingsSession {
   private final long baseSeed;
   private final int baseMinY, baseMaxY;
   private final Map<String, String> text = new LinkedHashMap<>();
+  private final ProjectSettingsHistory history = new ProjectSettingsHistory();
+  private long inputVersion;
   private List<Diagnostic> cached, applyIssues = List.of();
   private int issueCount;
   private String applyFailure = "";
@@ -68,22 +70,69 @@ final class ProjectSettingsSession {
   }
 
   void edit(String field, String value) {
+    edit(field, value, null);
+  }
+
+  void edit(String field, String value, String gesture) {
     if (closed) throw new IllegalStateException("Project Settings is closed");
     text(field);
     if (Objects.requireNonNull(value).length() > MAX_CHARACTERS)
       throw new IllegalArgumentException("Project setting text limit " + MAX_CHARACTERS);
     if (text.get(field).equals(value)) return;
+    history.record(field, text.get(field), value, gesture);
+    text.put(field, value);
+    changed();
+  }
+
+  private void changed() {
+    inputVersion++;
     if (task != null || ready || admitting) {
       retireWork();
       progress =
           "Pending Apply cancelled because the settings were edited. Review the new text and Apply"
               + " again.";
     }
-    text.put(field, value);
     cached = null;
     applyIssues = List.of();
     issueCount = 0;
     applyFailure = "";
+  }
+
+  void focusEdit(String gesture) {
+    history.focus(gesture);
+  }
+
+  void finishEdit() {
+    history.finish();
+  }
+
+  long inputVersion() {
+    return inputVersion;
+  }
+
+  boolean canUndo() {
+    return current(editor) && history.canUndo();
+  }
+
+  boolean canRedo() {
+    return current(editor) && history.canRedo();
+  }
+
+  boolean undo() {
+    return moveHistory(false);
+  }
+
+  boolean redo() {
+    return moveHistory(true);
+  }
+
+  private boolean moveHistory(boolean forward) {
+    if (!current(editor)) throw new IllegalStateException("Reload the changed Project Settings first");
+    var change = history.move(forward);
+    if (change == null) return false;
+    text.put(change.field(), forward ? change.after() : change.before());
+    changed();
+    return true;
   }
 
   boolean current(EditorState state) {
@@ -205,6 +254,7 @@ final class ProjectSettingsSession {
       throw new IllegalStateException(
           "The project changed. Discard and reload Project Settings before applying.");
     }
+    finishEdit();
     var problems = validate();
     if (!problems.isEmpty()) {
       applyIssues = problems;
@@ -236,6 +286,7 @@ final class ProjectSettingsSession {
       return false;
     }
     closed = true;
+    history.clear();
     return true;
   }
 
@@ -387,6 +438,7 @@ final class ProjectSettingsSession {
       editor.document.applyEdit(prepared);
       retireWork();
       closed = true;
+      history.clear();
       handoff.close();
       progress = "Project Settings applied.";
       editor.revision++;
@@ -465,6 +517,7 @@ final class ProjectSettingsSession {
 
   void cancel() {
     closed = true;
+    history.clear();
     retireWork();
     handoff.close();
     applyIssues = List.of();

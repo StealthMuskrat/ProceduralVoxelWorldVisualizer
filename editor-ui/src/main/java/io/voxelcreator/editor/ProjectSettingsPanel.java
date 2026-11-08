@@ -22,7 +22,7 @@ public final class ProjectSettingsPanel implements AutoCloseable {
   private ExactLongInput.Row seedRow;
   private final Map<String, float[]> controls = new HashMap<>();
   private final PropertyFocus focus = new PropertyFocus();
-  final SettingsPageChrome layout = new SettingsPageChrome(4);
+  final SettingsPageChrome layout = new SettingsPageChrome(4, 2);
   private final Map<String, Integer> fieldIds = new LinkedHashMap<>();
   private final Map<String, DialogBounds.Rect> inputBounds = new LinkedHashMap<>();
   private boolean focusWindow;
@@ -144,7 +144,9 @@ public final class ProjectSettingsPanel implements AutoCloseable {
     }
     ImGui.textWrapped(
         "Apply validates these values against the complete current project. Changes remain private"
-            + " until Apply; saving is explicit.");
+            + " until Apply; saving is explicit. Undo Settings/Redo Settings restore local raw"
+            + " input. Typing and slider gestures each form one action.");
+    boolean[] activeEdit = {false};
     for (var field : ProjectSettingsSession.FIELDS) {
       boolean targeted = focus.matches(null, field);
       boolean submitted = targeted && focus.submit();
@@ -157,14 +159,20 @@ public final class ProjectSettingsPanel implements AutoCloseable {
       ImGui.textWrapped(label);
       String id = "###project-setting-" + field;
       fieldIds.put(field, ImGui.getID(id));
+      boolean[] textPart = {false};
       Runnable activate =
           () -> {
+            textPart[0] = true;
             if (submitted) ImGui.setKeyboardFocusHere();
           };
       float width = Math.max(1, ImGui.getContentRegionAvailX());
       boolean[] inputFocused = {false};
       java.util.function.IntConsumer describe =
           nativeId -> {
+            if (ImGui.isItemActive()) {
+              activeEdit[0] = true;
+              session.focusEdit(field + (textPart[0] ? ":text" : ":slider"));
+            }
             if (nativeId == fieldIds.get(field))
               inputFocused[0] = ImGui.isItemActive() || ImGui.isItemFocused();
             guidance.integer(
@@ -184,7 +192,7 @@ public final class ProjectSettingsPanel implements AutoCloseable {
                 session.text(field),
                 null,
                 current,
-                value -> edit(field, value),
+                value -> edit(field, value, field + (textPart[0] ? ":text" : ":slider")),
                 activate,
                 describe);
       else
@@ -199,7 +207,7 @@ public final class ProjectSettingsPanel implements AutoCloseable {
                     buffers.get(field),
                     session.text(field),
                     current,
-                    value -> edit(field, value),
+                    value -> edit(field, value, field + (textPart[0] ? ":text" : ":slider")),
                     activate,
                     describe));
       var bounds = field.equals("seed") ? seedRow.input() : boundRows.get(field).input();
@@ -212,6 +220,8 @@ public final class ProjectSettingsPanel implements AutoCloseable {
             || ImGui.isKeyPressed(ImGuiKey.Escape, false)) focus.cancel();
       }
     }
+    if (!activeEdit[0] || !ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
+      session.finishEdit();
     var problems = session.validate();
     for (var problem : problems) ImGui.textWrapped("! " + problem.message());
     if (problems.isEmpty() && session.issueCount() > 0) {
@@ -253,6 +263,16 @@ public final class ProjectSettingsPanel implements AutoCloseable {
     boolean problem = layout.identifiedAction("problem", "Show Problem");
     control("problem");
     ImGui.endDisabled();
+    ImGui.pushID("project-input:" + session.inputVersion());
+    ImGui.beginDisabled(!session.canUndo());
+    boolean undo = layout.identifiedAction("undo", "Undo Settings");
+    control("undo");
+    ImGui.endDisabled();
+    ImGui.beginDisabled(!session.canRedo());
+    boolean redo = layout.identifiedAction("redo", "Redo Settings");
+    control("redo");
+    ImGui.endDisabled();
+    ImGui.popID();
     ImGui.popID();
     boolean done = false;
     if (!actionScope.current(state.project(), session, state.revision)) return false;
@@ -262,7 +282,19 @@ public final class ProjectSettingsPanel implements AutoCloseable {
     if (cancel || escape) done = true;
     else if (work != session.workVersion()) return false;
     else if (reload && !current) reload();
-    else if (problem && firstProblem != null && current)
+    else if (undo || redo) {
+      if (undo ? owner.undo() : owner.redo()) {
+        if (session != owner) return false;
+        for (var field : ProjectSettingsSession.FIELDS) buffers.get(field).set(owner.text(field));
+        seedInput = new ExactLongInput();
+        boundInputs.clear();
+        boundRows.clear();
+        focus.cancel();
+        message = "";
+        revealFeedback = false;
+        actionScope.release();
+      }
+    } else if (problem && firstProblem != null && current)
       focus.request(
           new EditorEvents.Target(state.project().project.uuid, null, null, firstProblem, "", true),
           session);
@@ -292,15 +324,18 @@ public final class ProjectSettingsPanel implements AutoCloseable {
 
   void suspendActions() {
     actionScope.release();
-    if (session != null) session.suspendApply();
+    if (session != null) {
+      session.finishEdit();
+      session.suspendApply();
+    }
   }
 
-  private void edit(String field, String value) {
+  private void edit(String field, String value, String gesture) {
     if (value.length() > ProjectSettingsSession.MAX_CHARACTERS) {
       buffers.get(field).set(session.text(field));
       message = "Project setting text limit " + ProjectSettingsSession.MAX_CHARACTERS;
     } else {
-      session.edit(field, value);
+      session.edit(field, value, gesture);
       message = "";
     }
   }

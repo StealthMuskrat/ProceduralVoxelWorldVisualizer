@@ -84,6 +84,32 @@ public final class GeneralSettingsLayoutProbe {
         projectType("minY", "+0002");
         projectType("maxY", "-0003");
         var raw = text();
+        click("undo");
+        require(
+            project.text("maxY").equals(Integer.toString(state.project().project.maxY)),
+            "Local Undo did not coalesce the complete typed field");
+        click("redo");
+        require(text().equals(raw), "Local Redo normalized or lost raw Project Settings text");
+        var slider = project.boundRows().get("maxY").slider();
+        var io = ImGui.getIO();
+        io.addMousePosEvent(slider.x() + slider.width() * .5f, slider.y() + slider.height() / 2);
+        frame();
+        io.addMouseButtonEvent(0, true);
+        frame();
+        for (float fraction : new float[] {.6f, .7f, .8f}) {
+          io.addMousePosEvent(slider.x() + slider.width() * fraction, slider.y() + slider.height() / 2);
+          frames(2);
+        }
+        io.addMouseButtonEvent(0, false);
+        frames(3);
+        require(!project.text("maxY").equals(raw.get("maxY")), "Native bounds slider did not edit");
+        click("undo");
+        require(
+            text().equals(raw) && before.equals(ProjectIO.JSON.valueToTree(state.project()))
+                && state.revision == revision && state.document.historyBytes() == history
+                && state.draft == privateDraft && privateDraft.id.equals("private")
+                && state.seedInputs.text("seedOffset").equals("-"),
+            "One slider Undo lost raw text or mutated project/Properties ownership");
         var feedback = project.feedback();
         show("editor");
         click("auto");
@@ -323,6 +349,7 @@ public final class GeneralSettingsLayoutProbe {
                     Map.entry("ordinarySaveRetry", true),
                     Map.entry("projectRejectionRetry", true),
                     Map.entry("projectUndoRedo", true),
+                    Map.entry("localProjectSettingsHistory", true),
                     Map.entry("staleReloadCancel", true),
                     Map.entry("privatePropertiesPreserved", true),
                     Map.entry("runtimeOwnerPreserved", true),
@@ -406,8 +433,10 @@ public final class GeneralSettingsLayoutProbe {
     io.addKeyEvent(ImGuiKey.ModCtrl, false);
     io.addKeyEvent(ImGuiKey.A, false);
     frame();
-    io.addInputCharactersUTF8(value);
-    frame();
+    for (int i = 0; i < value.length(); i++) {
+      io.addInputCharactersUTF8(value.substring(i, i + 1));
+      frame();
+    }
     io.addKeyEvent(ImGuiKey.Enter, true);
     frame();
     io.addKeyEvent(ImGuiKey.Enter, false);

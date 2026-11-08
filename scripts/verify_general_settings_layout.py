@@ -8,7 +8,7 @@ out = Path(sys.argv[1])
 report = json.loads((out / 'general-settings-layout-native.json').read_text(encoding='utf-8'))
 assert report['formatVersion'] == 1 and report['fontSource'] == 'user-scale-fixture'
 for key in ('ordinarySaveExcludedProjectDraft', 'ordinarySaveRetry', 'projectRejectionRetry',
-            'projectUndoRedo', 'staleReloadCancel', 'privatePropertiesPreserved', 'runtimeOwnerPreserved'):
+            'projectUndoRedo', 'localProjectSettingsHistory', 'staleReloadCancel', 'privatePropertiesPreserved', 'runtimeOwnerPreserved'):
     assert report[key] is True, key
 for key in ('physicalDpiVerified', 'physicalDetachedVerified', 'gpuFontTextureVerified'):
     assert report[key] is False, key
@@ -23,7 +23,7 @@ assert {(c['scenario'], c['form']) for c in report['cases']} == {
 sizes = ((1400, 1200), (360, 640), (360, 640), (360, 640), (720, 640), (1000, 300))
 global_scales = (1, .5, 1, 2.5, 2.5, 1)
 window_scales = (1, 1, 1, 1, 2.5, 1)
-orders = {'project': ('apply', 'cancel', 'reload', 'problem'), 'editor': ('save',),
+orders = {'project': ('apply', 'cancel', 'reload', 'problem', 'undo', 'redo'), 'editor': ('save',),
           'visualization': ('save', 'limits', 'retry'), 'debug': ('capture', 'profiler')}
 fields = {'project': {'seed', 'minY', 'maxY'}, 'editor': {'auto', 'rate', 'rate-text'}, 'debug': set(),
           'visualization': {'grid', 'unlit', 'streaming', 'ao', 'fog', 'shadows', 'resolution',
@@ -55,9 +55,14 @@ for case in report['cases']:
     for action in actions.values():
         contains(case['window'], action)
         assert action['y'] >= case['body']['y'] + case['body']['height'] - .02
-    for left, right in zip(orders[form], orders[form][1:]):
-        assert abs(actions[left]['y'] - actions[right]['y']) <= .02
-        assert actions[left]['x'] + actions[left]['width'] <= actions[right]['x'] + .02
+    rows = (orders[form][:4], orders[form][4:]) if form == 'project' else (orders[form],)
+    bottom = case['body']['y'] + case['body']['height']
+    for row in rows:
+        assert all(actions[key]['y'] >= bottom - .02 for key in row)
+        for left, right in zip(row, row[1:]):
+            assert abs(actions[left]['y'] - actions[right]['y']) <= .02
+            assert actions[left]['x'] + actions[left]['width'] <= actions[right]['x'] + .02
+        bottom = max(actions[key]['y'] + actions[key]['height'] for key in row)
     assert set(case['ids']) == fields[form] and set(case['inputs']) == fields[form]
     if form not in ids:
         ids[form] = case['ids']
