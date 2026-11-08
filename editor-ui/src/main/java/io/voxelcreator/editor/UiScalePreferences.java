@@ -11,6 +11,7 @@ public final class UiScalePreferences {
   public static final List<String> WINDOWS =
       List.of(
           "Resources",
+          "World Editor",
           "Properties",
           "Visualizers",
           "Find",

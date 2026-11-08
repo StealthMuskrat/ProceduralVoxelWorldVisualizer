@@ -60,7 +60,7 @@ final class PanelDockControls {
       control("defaults");
       if (ImGui.isItemHovered())
         UiScale.tooltip(
-            "Restore the default docking layout for Resources, Properties and Visualizers");
+            "Restore the default docking layout for Resources, World Editor, Properties and Visualizers");
     } else ImGui.textDisabled("Drag the title bar to dock this panel");
   }
 

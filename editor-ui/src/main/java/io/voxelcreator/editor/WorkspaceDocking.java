@@ -20,6 +20,7 @@ final class WorkspaceDocking {
     ImInt left = new ImInt(), right = new ImInt(), center = new ImInt();
     imgui.internal.ImGui.dockBuilderSplitNode(dock, ImGuiDir.Left, .19f, left, center);
     imgui.internal.ImGui.dockBuilderSplitNode(center.get(), ImGuiDir.Right, .31f, right, center);
+    imgui.internal.ImGui.dockBuilderDockWindow("World Editor", left.get());
     imgui.internal.ImGui.dockBuilderDockWindow("Resources", left.get());
     imgui.internal.ImGui.dockBuilderDockWindow("Properties", right.get());
     imgui.internal.ImGui.dockBuilderDockWindow("Visualizers", center.get());

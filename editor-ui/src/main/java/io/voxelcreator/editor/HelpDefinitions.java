@@ -139,6 +139,19 @@ final class HelpDefinitions {
                   + " Voxel sets participate in World predicates; groups organize resources. Apply"
                   + " Members does not save the project or preferences."),
           new Guide(
+              "help.world-selection",
+              "Independent World Editor selection",
+              "View > World Editor focuses the dockable execution list. Layers and their nested"
+                  + " placements appear in execution order, independent of organizational folders."
+                  + " Search IDs, UUIDs or referenced noise resources. Ctrl toggles sibling layers"
+                  + " or placements within one layer; Shift selects a visible range. Multiple"
+                  + " items show a summary without mixed-field batch editing. Selection here does"
+                  + " not replace Resources selection, private Properties input or project history."
+                  + " Select one item and choose Edit Properties for the existing Apply/Discard/Cancel"
+                  + " navigation guard, or Find References. Create, enable, move, duplicate, delete"
+                  + " and Add Noise Generator actions remain available in Resources; property edits"
+                  + " remain in Properties. Replacing the project clears this temporary selection."),
+          new Guide(
               "help.resource-actions",
               "Resource actions with private Properties",
               "Create, Rename, Duplicate, Paste, Move, ordering, placement insertion and Delete"
@@ -891,6 +904,7 @@ final class HelpDefinitions {
       case "Profiler", "Debug & Profiling" -> "profiler";
       case "Settings", "User Settings" -> "help.appearance";
       case "Voxel Manager" -> "help.voxel-identities";
+      case "World Editor" -> "help.world-selection";
       case "Themes" -> "themes";
       case "Center Main Window", "Reset Dock Layout" -> "help.workspace";
       case "Project Settings" -> "help.project-settings";
