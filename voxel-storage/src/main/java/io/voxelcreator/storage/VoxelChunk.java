@@ -55,6 +55,7 @@ public final class VoxelChunk {
         p, size, type == 0 ? 0 : -1, new int[0], type == 0 ? new int[] {0} : new int[] {0, type});
   }
 
+  /** Builds private staged storage; interruption is checked before final snapshot construction. */
   public static VoxelChunk generate(ChunkPos p, int size, Sampler sampler) {
     validateSize(size);
     Objects.requireNonNull(p);
@@ -403,6 +404,8 @@ public final class VoxelChunk {
     }
 
     VoxelChunk finish(ChunkPos p, int size, int root) {
+      // The final sampler/mapping callback can interrupt after the last node-entry checkpoint.
+      checkpoint();
       // All nonuniform children remain reachable; uniform coalescence allocates no child nodes.
       return new VoxelChunk(
           p,
@@ -472,6 +475,7 @@ public final class VoxelChunk {
 
   /**
    * Reads legacy and packed trees; all decoded values are repacked into private compact storage.
+   * Interruption is checked again after mapping, before final snapshot construction.
    */
   public static VoxelChunk readTree(ChunkPos p, int size, DataInput in, IntUnaryOperator map)
       throws IOException {
