@@ -199,7 +199,7 @@ public final class Viewports implements AutoCloseable {
     var gpu = v.gl.sceneRenderer();
     return usesStreaming(v)
         && v.activeSceneKey.equals(sceneKey(v))
-        && v.compiler == null
+        && !v.compiler.pending()
         && v.scene != null
         && gpu != null
         && v.scene.statistics().activeJobs() == 0
@@ -779,7 +779,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   boolean probePreviewPayloadPending(int kind) {
-    return views[kind].ready.pending() || views[kind].setup.pending();
+    return views[kind].ready.pending() || views[kind].compiler.pendingResult();
   }
 
   void probePreviewWorkerFailure(int kind, String point, Error failure) {
@@ -794,7 +794,7 @@ public final class Viewports implements AutoCloseable {
 
   boolean probePreviewWorkerFailed(int kind) {
     var v = views[kind];
-    return v.failedPreview && !v.activeJob && v.compiler == null && v.job == null;
+    return v.failedPreview && !v.activeJob && !v.compiler.pending() && v.job == null;
   }
 
   long probeAcceptedPreviewEpoch(int kind) {
@@ -806,7 +806,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   boolean probePreviewCpuSubmitted(int kind) {
-    return views[kind].job != null || views[kind].compiler != null;
+    return views[kind].job != null || views[kind].compiler.pending();
   }
 
   boolean probePreviewCurrent(int kind) {
@@ -814,7 +814,7 @@ public final class Viewports implements AutoCloseable {
     if (usesStreaming(v) && !v.mode.equals("Volume"))
       return v.scene != null
           && v.activeSceneKey.equals(sceneKey(v))
-          && v.compiler == null
+          && !v.compiler.pending()
           && !v.failedPreview
           && v.scene.statistics().generated() > 0;
     return probeNoiseReady(kind);
@@ -857,7 +857,7 @@ public final class Viewports implements AutoCloseable {
   }
 
   boolean probeWorldSetupPending() {
-    return views[2].setup.pending();
+    return views[2].compiler.pendingResult();
   }
 
   java.util.List<Map<String, Object>> probeDocumentViews() {
@@ -900,8 +900,8 @@ public final class Viewports implements AutoCloseable {
   boolean probeStream3DReleased() {
     var v = views[1];
     return v.scene == null
-        && v.compiler == null
-        && !v.setup.pending()
+        && !v.compiler.pending()
+        && !v.compiler.pendingResult()
         && v.gl.sceneRenderer() == null;
   }
 
@@ -988,19 +988,16 @@ public final class Viewports implements AutoCloseable {
     long keyRevision = -1, rebuildSerial = 0;
     String geometryKey = "",
         fingerprint = "",
-        requestedKey = "",
         activeSceneKey = "",
         failedKey = "";
     ChunkScene scene;
     RenderPressure pressure = new RenderPressure();
-    Future<?> compiler;
-    long compilerVersion;
+    final SourceCompilerTask<SceneSetup> compiler = new SourceCompilerTask<>();
     final AtomicReference<WorkerGate> workerGate = new AtomicReference<>(),
         workerFinishGate = new AtomicReference<>();
     final AtomicReference<Error> workerStartFailure = new AtomicReference<>(),
         workerBodyFailure = new AtomicReference<>(),
         workerFinishFailure = new AtomicReference<>();
-    final OwnedPreviewMailbox<SceneSetup> setup = new OwnedPreviewMailbox<>();
     int gpuBudget;
     String reportedShadowFailure = "";
     boolean streamingObserved, streamFallback;
@@ -1871,7 +1868,7 @@ public final class Viewports implements AutoCloseable {
             v.keyNoise = null;
             v.keyRevision = -1;
             v.revision = -1;
-            v.geometryKey = v.fingerprint = v.requestedKey = v.activeSceneKey = v.failedKey = "";
+            v.geometryKey = v.fingerprint = v.activeSceneKey = v.failedKey = "";
             v.reportedShadowFailure = "";
             v.streamingObserved = v.streamFallback = false;
             v.raw = null;
@@ -3125,41 +3122,49 @@ public final class Viewports implements AutoCloseable {
   }
 
   private void stopStream(View v) {
-    v.setup.invalidate();
-    if (v.compiler != null) {
-      v.compiler.cancel(true);
-      v.compiler = null;
-    }
-    if (v.scene != null) {
-      v.scene.close();
-      v.scene = null;
-    }
-    v.requestedKey = "";
+    var previousScene = v.scene;
+    boolean hadWork = previousScene != null || v.compiler.pending();
+    v.scene = null;
+    String key = closed ? "" : sceneKey(v);
+    var retired = v.compiler.stop();
+    var cleanup = PreviewNotifications.attempt(
+        () -> { if (previousScene != null) previousScene.close(); },
+        () -> { if (hadWork) state.background.purge(); });
+    reportSourceCancellation(v, key, retired.generation(),
+        retired.cancellation() == null ? cleanup : retired.cancellation());
+  }
+
+  private void reportSourceCancellation(View v, String key, long generation, Throwable failure) {
+    PreviewNotifications.report(failure,
+        () -> !closed && v.compiler.current(generation) && key.equals(sceneKey(v)),
+        detail -> state.error("STREAM_CANCEL_FAILED", EditorEvents.Subsystem.RENDERING, detail));
   }
 
   private void reconcileSourceCompiler(View v, String key) {
-    if (v.compiler != null && key.equals(v.requestedKey) && v.setup.current(v.compilerVersion)) {
-      var observed = v.compiler;
-      long version = v.compilerVersion;
+    var owner = v.compiler.ticket();
+    if (owner != null && v.compiler.pending() && key.equals(owner.key)) {
+      var observed = v.compiler.future();
       var completion = BackgroundFailure.completed(observed);
-      if (!ownsSourceCompiler(v, observed, version, key)) return;
+      if (!ownsSourceCompiler(v, owner, observed, key)) return;
       if (completion != null) {
         String failure =
             completion.failure() == null ? null : BackgroundFailure.describe(completion.failure());
-        if (!ownsSourceCompiler(v, observed, version, key)) return;
-        v.compiler = null;
+        if (!ownsSourceCompiler(v, owner, observed, key)) return;
+        v.compiler.complete(owner, observed);
         if (failure != null)
-          v.setup.publish(version, new SceneSetup(version, key, null, null, failure, null));
+          v.compiler.publish(owner, new SceneSetup(owner.version, key, null, null, failure, null));
       }
     }
   }
 
-  private boolean ownsSourceCompiler(View v, Future<?> observed, long version, String key) {
+  private boolean ownsSourceCompiler(
+      View v, SourceCompilerTask.Ticket owner, Future<?> observed, String key) {
     return !closed
-        && v.compiler == observed
-        && v.compilerVersion == version
-        && key.equals(v.requestedKey)
-        && v.setup.current(version);
+        && v.compiler.current(owner)
+        && v.compiler.future() == observed
+        && key.equals(owner.key)
+        && key.equals(sceneKey(v))
+        && usesStreaming(v);
   }
 
   private boolean stream(View v) {
@@ -3167,29 +3172,32 @@ public final class Viewports implements AutoCloseable {
     if (v.kind == 1 && v.noise == null) return true;
     String key = sceneKey(v);
     reconcileSourceCompiler(v, key);
+    if (closed || !key.equals(sceneKey(v)) || !usesStreaming(v)) return true;
     if (key.equals(v.failedKey)) return !v.streamFallback;
     long now = System.nanoTime();
     if ((v.scene == null || !v.activeSceneKey.equals(key))
-        && !v.requestedKey.equals(key)
+        && !v.compiler.key().equals(key)
         && (state.user.editor.autoRegenerate || v.force || v.lastSubmit == 0)
         && now - v.lastSubmit > 1_000_000_000L / state.user.editor.opportunitiesPerSecond) {
       if (v.pressure.acceptExpensive() && !v.pressure.paused()) {
-        if (v.compiler != null) v.compiler.cancel(true);
-        v.compiler = null;
-        long id = v.setup.begin();
-        v.compilerVersion = id;
+        v.lastSubmit = now;
+        var opening = v.compiler.begin(key);
+        var owner = opening.ticket();
+        if (owner == null) return true;
+        reportSourceCancellation(v, key, owner.generation, opening.cancellation());
+        if (!ownsSourceCompiler(v, owner, null, key)) return true;
+        long id = owner.version;
         int kind = v.kind;
         UUID noise = v.noise, stage = v.stage;
         double threshold = v.threshold;
         String mode = v.stageMode, representation = v.mode;
-        v.requestedKey = key;
-        v.lastSubmit = now;
         try {
           var snapshot = ProjectIO.copy(state.project());
-          v.compiler =
+          if (!ownsSourceCompiler(v, owner, null, key)) return true;
+          var submitted =
               state.background.submit(
                   () -> {
-                    if (!v.setup.current(id)) return;
+                    if (!v.compiler.eligible(owner)) return;
                     workerBegin(v);
                     SceneSetup result;
                     try {
@@ -3216,37 +3224,47 @@ public final class Viewports implements AutoCloseable {
                           new SceneSetup(
                               id, key, null, null, BackgroundFailure.describe(failure), null);
                     }
-                    v.setup.publish(id, result);
+                    v.compiler.publish(owner, result);
                     workerFinish(v);
                   });
+          var cancellation = v.compiler.attach(owner, submitted);
+          reportSourceCancellation(v, key, owner.generation, cancellation);
+          if (!ownsSourceCompiler(v, owner, submitted, key)) return true;
           v.message = "Compiling streaming source...";
         } catch (RejectedExecutionException full) {
-          v.requestedKey = "";
+          if (!ownsSourceCompiler(v, owner, null, key)) return true;
           v.message = "Background queue full; retrying when capacity returns";
+          var retired = v.compiler.stop();
+          reportSourceCancellation(v, key, retired.generation(), retired.cancellation());
         } catch (Throwable failure) {
-          v.compiler = null;
-          long rejected = v.setup.begin();
-          v.compilerVersion = rejected;
-          v.setup.publish(
-              rejected,
-              new SceneSetup(rejected, key, null, null, BackgroundFailure.describe(failure), null));
+          if (!ownsSourceCompiler(v, owner, null, key)) return true;
+          var rejected = v.compiler.begin(key);
+          var rejectedOwner = rejected.ticket();
+          if (rejectedOwner == null) return true;
+          reportSourceCancellation(v, key, rejectedOwner.generation, rejected.cancellation());
+          if (!ownsSourceCompiler(v, rejectedOwner, null, key)) return true;
+          String detail = BackgroundFailure.describe(failure);
+          if (!ownsSourceCompiler(v, rejectedOwner, null, key)) return true;
+          v.compiler.noSubmission(rejectedOwner);
+          v.compiler.publish(rejectedOwner,
+              new SceneSetup(rejectedOwner.version, key, null, null, detail, null));
         }
       } else v.message = v.pressure.message();
     }
     reconcileSourceCompiler(v, key);
-    SceneSetup setup = v.compiler == null ? v.setup.take() : null;
+    if (closed || !key.equals(sceneKey(v)) || !usesStreaming(v)) return true;
+    var accepted = v.compiler.ticket();
+    SceneSetup setup = v.compiler.take();
     if (setup != null) {
-      v.compiler = null;
+      v.compiler.finish(accepted);
       if (!setup.key.equals(key)) {
         if (setup.source != null) setup.source.close();
-        v.requestedKey = "";
       } else if (setup.error != null) {
         v.failedKey = key;
         v.streamFallback = false;
         v.failedPreview = true;
         v.force = false;
         v.message = "Source compilation failed; previous display retained; Regenerate to retry";
-        v.requestedKey = "";
         v.dirty = true;
         state.error(
             "STREAM_SOURCE_FAILED",
@@ -3267,7 +3285,6 @@ public final class Viewports implements AutoCloseable {
                 v.pressure,
                 position -> state.engine.profiler().scope(0, profileProject, position));
         v.activeSceneKey = key;
-        v.requestedKey = "";
         v.force = false;
         v.dirty = false;
         v.completed = false;
@@ -3389,7 +3406,7 @@ public final class Viewports implements AutoCloseable {
                 / ((double) state.user.performance.sceneGpuMiB * 1024 * 1024),
             v.frameMillis,
             v.scene.rejected());
-        if (v.compiler == null)
+        if (!v.compiler.pending())
           v.message =
               (v.activeSceneKey.equals(key)
                       ? cpu.status()
@@ -4591,7 +4608,7 @@ public final class Viewports implements AutoCloseable {
         v.workerFinishFailure.set(null);
         release(v);
         v.ready.close();
-        v.setup.close();
+        v.compiler.close();
         if (v.job != null) v.job.cancel(true);
         state.background.purge();
         stopStream(v);
