@@ -375,9 +375,13 @@ public final class WorldContext implements AutoCloseable {
           waiter.future.completeExceptionally(failure);
         }
       }
-      if (!inactive) return false;
       synchronized (inFlight) {
-        if (!waiters.equals(snapshot)) return false;
+        // Retirement or closure can finish while a host parent poll is running. An empty
+        // owner no longer needs work, even when that stale poll returned false. A healthy
+        // admitted peer still wins over an inactive or changed snapshot.
+        if (!closed.get()
+            && !waiters.isEmpty()
+            && (!inactive || !waiters.equals(snapshot))) return false;
         inFlight.remove(position, this);
         return true;
       }
