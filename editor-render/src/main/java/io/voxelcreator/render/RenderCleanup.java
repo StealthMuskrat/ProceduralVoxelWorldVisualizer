@@ -10,14 +10,17 @@ final class RenderCleanup {
   static Runnable deferred(Runnable... callbacks) {
     var captured = callbacks.clone();
     for (var callback : captured) Objects.requireNonNull(callback);
-    return new Runnable() {
-      private Runnable[] pending = captured;
-      public void run() {
-        var attempts = pending;
-        pending = null;
-        if (attempts != null) RenderCleanup.run(attempts);
-      }
-    };
+    return new Deferred(captured);
+  }
+
+  private static final class Deferred implements Runnable {
+    private Runnable[] pending;
+    Deferred(Runnable[] callbacks) { pending = callbacks; }
+    public void run() {
+      var attempts = pending;
+      pending = null;
+      if (attempts != null) RenderCleanup.run(attempts);
+    }
   }
 
   static void run(Runnable... callbacks) {

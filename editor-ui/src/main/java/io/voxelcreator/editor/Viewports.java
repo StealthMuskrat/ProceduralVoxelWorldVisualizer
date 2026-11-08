@@ -16,6 +16,7 @@ import io.voxelcreator.storage.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
+import java.util.function.Supplier;
 import org.joml.Vector3d;
 
 public final class Viewports implements AutoCloseable {
@@ -1520,16 +1521,9 @@ public final class Viewports implements AutoCloseable {
         initializeRenderer(v, false);
       }
     } catch (RuntimeException | Error failure) {
-      for (var v : views)
-        try {
-          v.renderer.close();
-        } catch (RuntimeException | Error cleanup) {
-          failure.addSuppressed(cleanup);
-        }
-      try {
-        flightCursor.close();
-      } catch (RuntimeException | Error cleanup) {
-        failure.addSuppressed(cleanup);
+      try { close(); }
+      catch (RuntimeException | Error ignored) {
+        // Every peer is retired; cleanup cannot replace or mutate the startup primary.
       }
       throw failure;
     }
@@ -4675,51 +4669,82 @@ public final class Viewports implements AutoCloseable {
         inspectorRetry);
   }
 
+  private Runnable retireInspectorForClose() {
+    traceRequests.close();
+    inspectorTaskValid = null;
+    inspectorSource = null;
+    inspectorPendingDisplayed = Map.of();
+    inspectorPickOwner = null;
+    inspectorRetry = inspectorPendingRetry = null;
+    inspectorTaskFeedback = inspectorPickHint = "";
+    traceSnapshot = null;
+    observedPickView = null;
+    probeInspectorCaughtFailure.set(null);
+    probeInspectorEscapedFailure.set(null);
+    probeVolumeSetupFailure.set(null);
+    return inspectorTask.retireForClose();
+  }
+
+  private Runnable retireViewForClose(View v) {
+    var job = v.job;
+    var scene = v.scene;
+    v.job = null;
+    v.scene = null;
+    v.gl = null;
+    v.epoch++;
+    v.ready.close();
+    v.sceneFailureOwner = v.sceneAdoptionOwner = v.volumeFailureOwner = null;
+    v.pendingVolume = null;
+    v.volumeSnapshot = null;
+    v.volumeNoise = null;
+    v.volumeSourceKey = v.volumeRequestTag = v.activeSceneKey = "";
+    v.displayedVolumeWindow = null;
+    v.volumeWorkingBytes = 0;
+    v.activeJob = v.dirty = v.force = v.volumeRejected = false;
+    v.volumeHeldImage = v.volumeHeldCompleted = v.completed = v.image = false;
+    v.displayedImage = null;
+    v.displayedSlice = null;
+    v.fixedPickBounds = null;
+    v.raw = null;
+    v.colors = null;
+    v.hoverSampler = null;
+    v.worldPalette = null;
+    v.pickedBookmark = null;
+    v.workerGate.set(null);
+    v.workerFinishGate.set(null);
+    v.workerStartFailure.set(null);
+    v.workerBodyFailure.set(null);
+    v.workerFinishFailure.set(null);
+    v.orbit.reset();
+    v.sliceInput.reset();
+    v.imageContext.reset();
+    v.imageInput.reset();
+    if (v.camera.flying) v.camera.leaveFly();
+    v.flight.exit();
+    return UiShutdown.prepare(List.of(
+        v.compiler::retireForClose,
+        () -> UiShutdown.once(() -> { if (job != null) job.cancel(true); }),
+        () -> scene == null ? null : scene.retireForClose(),
+        v.renderer::retireForClose,
+        () -> { v.imageRows.close(); return null; },
+        () -> { v.volumeWindows.close(); return null; }));
+  }
+
   @Override
   public void close() {
     if (closed) return;
     closed = true;
-    try {
-      bookmarkPanel.cancel();
-      traceRequests.close();
-      inspectorTask.close();
-      inspectorTaskValid = null;
-      inspectorSource = null;
-      inspectorPendingDisplayed = Map.of();
-      inspectorPickOwner = null;
-      inspectorRetry = inspectorPendingRetry = null;
-      probeInspectorCaughtFailure.set(null);
-      probeInspectorEscapedFailure.set(null);
-      probeVolumeSetupFailure.set(null);
-      for (var v : views) {
-        v.workerGate.set(null);
-        v.workerFinishGate.set(null);
-        v.workerStartFailure.set(null);
-        v.workerBodyFailure.set(null);
-        v.workerFinishFailure.set(null);
-        release(v);
-        v.ready.close();
-        v.compiler.close();
-        if (v.job != null) v.job.cancel(true);
-        state.background.purge();
-        stopStream(v);
-        v.imageRows.close();
-        v.volumeWindows.close();
-        v.volumeSnapshot = null;
-        v.pendingVolume = null;
-        try {
-          v.renderer.close();
-        } catch (RuntimeException failure) {
-          state.error(
-              "VIEWPORT_RENDERER_CLOSE_FAILED",
-              EditorEvents.Subsystem.RENDERING,
-              StatusBarText.bounded(
-                  viewName(v.kind) + " renderer cleanup failed: " + failure, 1024));
-        }
-        v.gl = null;
-      }
-    } finally {
-      flightCursor.close();
-    }
+    viewportFocused = flightImageVisible = sliceImageVisible = noiseImageVisible = surfacePressed = false;
+    surfaceWindow = null;
+    drawnView = -1;
+    probeImageHover = null;
+    probeSliceHover = null;
+    var peers = new ArrayList<Supplier<Runnable>>();
+    peers.add(this::retireInspectorForClose);
+    for (var view : views) peers.add(() -> retireViewForClose(view));
+    peers.add(() -> { bookmarkPanel.cancel(); return null; });
+    peers.add(() -> UiShutdown.once(() -> state.background.purge()));
+    peers.add(flightCursor::retireForClose);
+    UiShutdown.prepare(peers).run();
   }
 }

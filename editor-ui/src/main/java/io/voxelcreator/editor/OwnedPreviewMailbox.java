@@ -63,16 +63,20 @@ final class OwnedPreviewMailbox<T extends AutoCloseable> implements AutoCloseabl
     return result;
   }
 
-  public void close() {
+  Runnable retireForClose() {
     T old;
     synchronized (this) {
-      if (closed) return;
+      if (closed) return UiShutdown.once();
       closed = true;
       version++;
       old = ready;
       ready = null;
     }
-    dispose(old);
+    return UiShutdown.once(() -> dispose(old));
+  }
+
+  public void close() {
+    retireForClose().run();
   }
 
   private void dispose(T value) {

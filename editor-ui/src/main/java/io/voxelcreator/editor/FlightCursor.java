@@ -79,10 +79,24 @@ final class FlightCursor implements AutoCloseable {
     }
   }
 
+  Runnable retireForClose() {
+    if (closed) return UiShutdown.once();
+    closed = true;
+    var previous = window;
+    int mode = previousMode;
+    boolean suspension = ownsSuspension;
+    window = null;
+    ownsSuspension = false;
+    return UiShutdown.once(
+        () -> {
+          if (previous != null && backend.live(previous) && backend.mode(previous) == capturedMode)
+            backend.mode(previous, mode);
+        },
+        () -> { if (suspension) backend.cursorUpdatesSuspended(false); });
+  }
+
   @Override
   public void close() {
-    if (closed) return;
-    closed = true;
-    release();
+    retireForClose().run();
   }
 }
