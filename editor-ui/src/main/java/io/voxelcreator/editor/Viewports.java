@@ -2238,6 +2238,7 @@ public final class Viewports implements AutoCloseable {
       }
     }
     if (v.pendingVolume != null) {
+      RuntimeException retirementFailure = null;
       try {
         var stats = v.gl.volumeStatistics();
         if (stats.activeBytes() + stats.pendingBytes()
@@ -2256,7 +2257,16 @@ public final class Viewports implements AutoCloseable {
           long stamp = profile == null ? 0 : profile.begin();
           var outcome = Profiler.Outcome.FAILED;
           try {
-            v.gl.advanceVolume(state.user.performance.uploadKiB * 1024);
+            retirementFailure =
+                VolumePreviewHandoff.advance(
+                    () -> v.gl.advanceVolume(state.user.performance.uploadKiB * 1024),
+                    () -> v.gl.volumeStatistics().version(),
+                    () -> {
+                      var complete = v.pendingVolume;
+                      v.pendingVolume = null;
+                      v.activeJob = false;
+                      acceptPreview(v, complete);
+                    });
             outcome = Profiler.Outcome.SUCCESS;
           } finally {
             if (stamp != 0) {
@@ -2274,12 +2284,7 @@ public final class Viewports implements AutoCloseable {
                   "Volume resident copy bytes per frame");
             }
           }
-          if (!v.gl.volumeStatistics().pending()) {
-            var complete = v.pendingVolume;
-            v.pendingVolume = null;
-            v.activeJob = false;
-            acceptPreview(v, complete);
-          } else
+          if (v.gl.volumeStatistics().pending())
             v.message =
                 "Uploading volume: "
                     + v.gl.volumeStatistics().remainingBytes()
@@ -2287,6 +2292,11 @@ public final class Viewports implements AutoCloseable {
         }
       } catch (RuntimeException failure) {
         volumeUploadFailed(v, failure.getMessage());
+      }
+      if (retirementFailure != null) {
+        String detail = BackgroundFailure.describe(retirementFailure);
+        v.message = "Volume ready; previous texture cleanup failed: " + detail;
+        state.error("VOLUME_RETIREMENT_FAILED", EditorEvents.Subsystem.RENDERING, detail);
       }
     }
     if (source

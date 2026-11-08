@@ -156,6 +156,43 @@ class VolumeTextureCleanupTest {
   }
 
   @Test
+  void retirementFailureAfterCopiesKeepsCommittedTextureAndCounters() {
+    for (boolean error : new boolean[] {false, true}) for (boolean after : new boolean[] {false, true}) {
+      var m = new Memory(); var u = new VolumeTextureUpload(m); var reads = new AtomicInteger(); var failure = fault(error, reads);
+      try {
+        var region = new VolumeTextureUpload.Region("field", 0, 0, 0);
+        u.stage(data(3, 0), 1000, region); u.advance(108); u.stage(data(3, 0), 1000, region);
+        m.deletionFaults.put(1, failure); m.deleteAfter = after;
+        assertSame(failure, assertThrows(Throwable.class, () -> u.advance(108)));
+        assertEquals(2, u.resident().texture()); assertEquals(2, u.statistics().version()); noCandidate(u);
+        assertEquals(108, u.statistics().lastBytes()); assertEquals(108, u.statistics().lastCopiedBytes());
+        assertEquals(216, u.statistics().uploadedBytes()); assertEquals(108, u.statistics().copiedBytes());
+        assertArrayEquals(values(3, 0), m.textures.get(2)); assertEquals(List.of(1), m.deletes);
+        assertEquals(after ? Set.of(2) : Set.of(1, 2), m.textures.keySet()); assertEquals(0, reads.get());
+      } finally { dispose(u, m); }
+    }
+  }
+
+  @Test
+  void failedRetirementCannotCancelASuccessorStagedByItsBackendCallback() {
+    for (boolean error : new boolean[] {false, true}) {
+      var m = new Memory(); var u = new VolumeTextureUpload(m); var reads = new AtomicInteger(); var failure = fault(error, reads);
+      try {
+        u.stage(data(2, 0), 1000); u.advance(32); u.stage(data(3, 1000), 1000);
+        m.deletionFaults.put(1, failure);
+        m.onDelete = texture -> { if (texture == 1) assertTrue(u.stage(data(4, 2000), 1000)); };
+        assertSame(failure, assertThrows(Throwable.class, () -> u.advance(108)));
+        assertEquals(2, u.resident().texture()); assertEquals(2, u.statistics().version());
+        assertTrue(u.statistics().pending()); assertEquals(256, u.statistics().pendingBytes());
+        assertArrayEquals(values(3, 1000), m.textures.get(2)); assertEquals(List.of(1), m.deletes);
+        assertEquals(Set.of(2, 3), m.textures.keySet()); u.advance(256);
+        assertEquals(3, u.resident().texture()); assertEquals(3, u.statistics().version()); noCandidate(u);
+        assertArrayEquals(values(4, 2000), m.textures.get(3)); assertEquals(List.of(1, 2), m.deletes); assertEquals(0, reads.get());
+      } finally { dispose(u, m); }
+    }
+  }
+
+  @Test
   void failedCandidateRetirementStopsReplacementAllocationButAllowsAnExplicitRetry() {
     var m = new Memory(); var u = new VolumeTextureUpload(m); var reads = new AtomicInteger(); var failure = fault(true, reads);
     try {

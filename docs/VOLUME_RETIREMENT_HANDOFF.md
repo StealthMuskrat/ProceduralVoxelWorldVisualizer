@@ -1,0 +1,29 @@
+# Volume retirement and preview handoff — unvalidated
+
+W06-C05 follows the boundary recorded by [texture cleanup ownership](VOLUME_TEXTURE_CLEANUP.md), covering render-thread ownership in 1.4.1/14.1.5 and complete preview publication in 15.5.3. VolumeTextureUpload commits its complete replacement and advances its version before retiring the previous texture. Previously, a failure in that retirement escaped before GlViewport changed its representation flags and before Viewports accepted the matching origin, palette, sampler and hover metadata. The UI could then claim that the previous display was retained while the texture owner already described the replacement.
+
+The uploader now limits its transfer-failure cancellation handler to the transfer loop. Previous-texture retirement remains after commit and propagates the original RuntimeException or Error without cancelling another candidate. This matters if a backend deletion callback stages successor work before throwing: that successor has a new owner and must not be cancelled as though it were the failed upload. Normally returned write/copy counters still describe completed destination operations; a throwing delete does not undo those operations or the committed version.
+
+GlViewport observes version advancement in finally and selects the volume representation even when retirement throws. The editor's private VolumePreviewHandoff observes the same version boundary. No advancement means no metadata acceptance; an advance publishes matching metadata once through the existing acceptPreview path. That path owns accepted origin, palette, raw values, sampler/hover, histogram, window statistics and accepted epoch. A recoverable retirement RuntimeException is returned only after acceptance, then reported outside the upload-failure handler as VOLUME_RETIREMENT_FAILED with “Volume ready; previous texture cleanup failed”. It does not mark the completed preview failed or cancel the committed texture. Diagnostic text uses the existing bounded, guarded BackgroundFailure.describe path.
+
+Errors still propagate after matching metadata acceptance. A pre-publication RuntimeException/Error propagates without acceptance, retaining the previous display. If metadata publication itself throws, it is not classified as a recoverable retirement warning: a lone publication fault propagates, while an already observed upload/retirement fault retains priority with a distinct publication fault suppressed. Identical fault identity is never self-suppressed. This does not make palette upload or the complete editor acceptance callback transactional against its own independent failures.
+
+Backend deletion can fail before or after physical release. The detached previous handle is attempted once, with no rollback to it and no blind deletion retry. A failed-before-release backend may still hold a physical allocation outside the current texture reservation. The diagnostic exposes that failure; this change does not certify driver recovery, reclaim an ambiguously released name or expand the configured texture budget.
+
+## Deferred definitions
+
+Five VolumePreviewHandoffTest definitions run the actual uploader against an independent CPU array backend and an explicit accepted source/origin/side/texture/version record:
+
+- Idle and partial uploads keep old metadata; the final complete version publishes once, and later idle calls do not replay acceptance.
+- Recoverable retirement faults before/after release return their original identity only after matching new metadata and exact replacement samples are visible.
+- Retirement Errors before/after release propagate unchanged after metadata acceptance.
+- Pre-publication write RuntimeException/Error retains the old metadata, version and exact texture samples without publishing.
+- Publication callback failures preserve the observed primary cause, attach a distinct secondary fault and avoid self-suppression.
+
+Two added VolumeTextureCleanupTest definitions cover completed GPU-copy retirement failure and a deletion callback that stages a successor before throwing. Independent x + 10y + 100z + base + 0.25 samples, exact 108-byte copy totals, host totals, retained physical-handle sets and later successor completion define the expectations. Existing six C04 definitions remain; the cleanup class now has eight definitions. No host exception text is read in these CPU ownership paths. Guarded diagnostic formatting intentionally remains an editor reporting operation.
+
+The CPU metadata record exercises the production handoff helper, not native GlViewport flags or the actual editor palette/hover widgets. Source review traces those callers to finally and acceptPreview; native representation transitions, framebuffer/readback, real hover/palette/epoch behavior and platform recovery still require execution. Existing VolumeUploadProbe/VolumeOverlapProbe and scene/pressure definitions retain their scopes; no native probe has run or gained a passing claim.
+
+## Status
+
+All additions remain **uncompiled and untested** under the owner's testing pause. No compiler, Gradle, tests, native probe, consumer, checker, package, update request or workflow ran. Source review and Git whitespace/content checks provide no runtime evidence. Baseline remains **922 tests / 120 suites**; no A01–A36, Windows 11 or release gate advances. Public signatures, headless dependency boundaries, encoding/math, budgets, schemas, registries and authored formats remain unchanged. Wider renderer/caller/scheduling/resource/pressure/performance and native/release audits remain open, including independent failures during editor acceptance or profiling/reporting. The small handoff callbacks have no measured allocation/latency result. Source remains on local main with publication pending.

@@ -444,14 +444,16 @@ public final class GlViewport implements AutoCloseable {
 
   public int advanceVolume(int byteBudget) {
     long version = volumeUpload.statistics().version();
-    int written = volumeUpload.advance(byteBudget);
-    if (volumeUpload.statistics().version() != version) {
-      retainFrame = false;
-      image = false;
-      volume = true;
-      sceneActive = false;
+    try {
+      return volumeUpload.advance(byteBudget);
+    } finally {
+      if (volumeUpload.statistics().version() != version) {
+        retainFrame = false;
+        image = false;
+        volume = true;
+        sceneActive = false;
+      }
     }
-    return written;
   }
 
   public VolumeTextureUpload.Resident volumeResident() {
