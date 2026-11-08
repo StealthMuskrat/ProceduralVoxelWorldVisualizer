@@ -26,7 +26,7 @@ public final class MembershipDialog implements AutoCloseable {
   private long selectedRevision = -1;
   private boolean previousSelectedOnly;
   private int submitted;
-  final SettingsPageChrome chrome = new SettingsPageChrome(3, 3);
+  final SettingsPageChrome chrome = new SettingsPageChrome(3, 3, 2);
   private boolean issuesPage, revealPage;
   private float rowStride;
   private float rowLine, rowFrame, rowGap;
@@ -100,7 +100,8 @@ public final class MembershipDialog implements AutoCloseable {
     } else {
       ImGui.textWrapped(
           "Apply Members commits only membership in one undoable edit. Any drafted resource ID"
-              + " stays in Properties. Cancel discards this temporary selection.");
+              + " stays in Properties. Undo/Redo changes only this temporary selection. Cancel"
+              + " discards its local history.");
       if (!current) ImGui.textWrapped("! Membership owner changed. Cancel and reopen the editor.");
       if (!error.isEmpty()) ImGui.textWrapped("! " + StatusBarText.clip(error, 4096));
       ImGui.textWrapped("Rejected candidate issues: " + session.issueCount());
@@ -127,8 +128,17 @@ public final class MembershipDialog implements AutoCloseable {
     boolean clear = action("clear", "Clear Matching", current && !issuesPage);
     boolean mode =
         action("selected-only", selectedOnly ? "Show All" : "Selected Only", !issuesPage);
+    boolean undo = action("undo", "Undo Members", session.canUndo());
+    boolean redo = action("redo", "Redo Members", session.canRedo());
     ImGui.popID();
     ImGui.popID();
+    String shortcut =
+        MembershipShortcuts.match(
+            state.user.input.shortcuts,
+            current && ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows),
+            ImGui.getIO().getWantTextInput() || ImGui.isAnyItemActive(),
+            ShortcutKeys.modifiers(),
+            key -> ImGui.isKeyPressed(ShortcutKeys.code(key), false));
     boolean done = false;
     if (cancel || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
       session.cancel();
@@ -136,6 +146,10 @@ public final class MembershipDialog implements AutoCloseable {
       ImGui.closeCurrentPopup();
     } else if (work != session.workVersion()) {
       // Choice edits retire footer releases from the previous request.
+    } else if (undo || Objects.equals(shortcut, "Undo")) {
+      if (session.undo()) historyMoved();
+    } else if (redo || Objects.equals(shortcut, "Redo")) {
+      if (session.redo()) historyMoved();
     } else if (select) session.setVisible(displayed, true);
     else if (clear) session.setVisible(displayed, false);
     else if (mode) selectedOnly = !selectedOnly;
@@ -220,6 +234,12 @@ public final class MembershipDialog implements AutoCloseable {
 
   private void showIssues() {
     issuesPage = true;
+    revealPage = true;
+  }
+
+  private void historyMoved() {
+    error = "";
+    issuesPage = false;
     revealPage = true;
   }
 

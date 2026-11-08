@@ -39,3 +39,5 @@ The unvalidated [shared configuration writer](UPDATE_TRUST_AND_PREFERENCE_FILES.
 
 
 The later [background Theme/Binding publication follow-up](BACKGROUND_THEME_AND_BINDINGS.md) moves production preparation off the UI thread, adds Cancel Apply and exact preview/recording ownership, and retains private input for explicit retry. Implementation and deferred definitions remain uncompiled/untested under the owner testing pause.
+
+The unvalidated [membership-local history addition](MEMBERSHIP_LOCAL_HISTORY.md) reuses the configured Undo/Redo chords within the focused membership modal, with exact modifiers, no active text/widget ownership and Cancel/Escape priority. Global dispatch remains suppressed by the popup. No new command ID, conflict scope or preference shape is introduced. Deferred helper/native input definitions cover this context; physical input and full Windows 11 acceptance remain pending.
