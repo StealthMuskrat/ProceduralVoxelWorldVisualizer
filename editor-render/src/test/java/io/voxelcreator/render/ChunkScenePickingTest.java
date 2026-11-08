@@ -46,6 +46,80 @@ class ChunkScenePickingTest {
   }
 
   @Test
+  void invalidatedAcknowledgementCannotRestorePickingBeforeAFreshUpload() throws Exception {
+    try (var workers = Executors.newFixedThreadPool(2); var scene = new ChunkScene(plane(), workers, config())) {
+      var old = awaitUpload(scene, FOCUS, FAR, 0); scene.uploaded(old);
+      var ray = ray(-.5, 2.5, 2.5, 1);
+      assertEquals(new ChunkScene.Pick(new BlockPos(2, 2, 2), true), scene.pick(ray, 10, drawn(old)).orElseThrow());
+      scene.invalidateUploads(); long bytes = scene.statistics().cpuBytes(); scene.uploaded(old);
+      assertTrue(scene.pick(ray, 10, drawn(old)).isEmpty()); assertEquals(bytes, scene.statistics().cpuBytes());
+      var fresh = scene.uploads(8, 1 << 20).stream().filter(u -> u.position().equals(old.position())).findFirst().orElseThrow();
+      assertTrue(fresh.version() > old.version()); assertSame(old.mesh(), fresh.mesh()); assertSame(old.cells(), fresh.cells());
+      scene.uploaded(fresh);
+      assertEquals(new ChunkScene.Pick(new BlockPos(2, 2, 2), true), scene.pick(ray, 10, drawn(fresh)).orElseThrow());
+      scene.uploaded(old); assertTrue(scene.pick(ray, 10, drawn(old)).isEmpty());
+    }
+  }
+
+  @Test
+  void aFutureVersionCannotPoisonTheNextRealAcknowledgement() throws Exception {
+    try (var workers = Executors.newFixedThreadPool(2); var scene = new ChunkScene(plane(), workers, config())) {
+      var actual = awaitUpload(scene, FOCUS, NEAR, 0); long bytes = scene.statistics().cpuBytes();
+      var future = new ChunkScene.Upload(actual.epoch(), actual.position(), Long.MAX_VALUE, actual.mesh(), actual.cells(), actual.level());
+      scene.uploaded(future); var ray = ray(-.5, 2.5, 2.5, 1);
+      assertTrue(scene.pick(ray, 10, drawn(future)).isEmpty()); assertEquals(bytes, scene.statistics().cpuBytes());
+      scene.uploaded(actual);
+      assertEquals(new ChunkScene.Pick(new BlockPos(3, 2, 2), false), scene.pick(ray, 10, drawn(actual)).orElseThrow());
+      scene.uploaded(future); assertTrue(scene.pick(ray, 10, drawn(future)).isEmpty());
+      assertEquals(new ChunkScene.Pick(new BlockPos(3, 2, 2), false), scene.pick(ray, 10, drawn(actual)).orElseThrow());
+    }
+  }
+
+  @Test
+  void equalVersionReplayCannotReplaceDisplayedCellsOrTheirCpuAccounting() throws Exception {
+    try (var workers = Executors.newFixedThreadPool(2); var scene = new ChunkScene(plane(), workers, config())) {
+      var actual = awaitUpload(scene, FOCUS, NEAR, 0); scene.uploaded(actual); long bytes = scene.statistics().cpuBytes();
+      var empty = new DisplayLod(SceneChunk.exact(VoxelChunk.uniform(actual.position(), 8, 0)), 1);
+      var replay = new ChunkScene.Upload(actual.epoch(), actual.position(), actual.version(), actual.mesh(), empty, 1);
+      scene.uploaded(replay);
+      assertEquals(bytes, scene.statistics().cpuBytes());
+      assertEquals(new ChunkScene.Pick(new BlockPos(3, 2, 2), false), scene.pick(ray(-.5, 2.5, 2.5, 1), 10, drawn(actual)).orElseThrow());
+      scene.uploaded(actual);
+      assertEquals(bytes, scene.statistics().cpuBytes());
+      assertEquals(new ChunkScene.Pick(new BlockPos(3, 2, 2), false), scene.pick(ray(-.5, 2.5, 2.5, 1), 10, drawn(actual)).orElseThrow());
+    }
+  }
+
+  @Test
+  void anOlderInFlightCandidateStillCommitsBeforeTheNewerLodCandidate() throws Exception {
+    try (var workers = Executors.newFixedThreadPool(2); var scene = new ChunkScene(plane(), workers, config())) {
+      var fine = awaitUpload(scene, FOCUS, NEAR, 0);
+      var coarse = awaitUpload(scene, FOCUS, FAR, fine.version());
+      assertTrue(coarse.version() > fine.version()); scene.uploaded(fine);
+      var ray = ray(-.5, 2.5, 2.5, 1);
+      assertEquals(new ChunkScene.Pick(new BlockPos(3, 2, 2), false), scene.pick(ray, 10, drawn(fine)).orElseThrow());
+      assertTrue(scene.pick(ray, 10, drawn(coarse)).isEmpty()); scene.uploaded(coarse);
+      assertEquals(new ChunkScene.Pick(new BlockPos(2, 2, 2), true), scene.pick(ray, 10, drawn(coarse)).orElseThrow());
+      scene.uploaded(fine); assertTrue(scene.pick(ray, 10, drawn(fine)).isEmpty());
+    }
+  }
+
+  @Test
+  void aRetiredEntryReceiptCannotAttachToReloadedDataAtTheSameCoordinate() throws Exception {
+    try (var workers = Executors.newFixedThreadPool(2); var scene = new ChunkScene(plane(), workers, config())) {
+      var old = awaitUpload(scene, FOCUS, NEAR, 0);
+      var away = new Vector3d(80.5, 2.5, 2.5);
+      var travelled = awaitUpload(scene, away, away, 0); assertNotEquals(old.position(), travelled.position());
+      var fresh = awaitUpload(scene, FOCUS, NEAR, old.version()); assertEquals(old.position(), fresh.position());
+      assertTrue(fresh.version() > old.version()); long bytes = scene.statistics().cpuBytes(); scene.uploaded(old);
+      var ray = ray(-.5, 2.5, 2.5, 1);
+      assertTrue(scene.pick(ray, 10, drawn(old)).isEmpty()); assertEquals(bytes, scene.statistics().cpuBytes());
+      scene.uploaded(fresh);
+      assertEquals(new ChunkScene.Pick(new BlockPos(3, 2, 2), false), scene.pick(ray, 10, drawn(fresh)).orElseThrow());
+    }
+  }
+
+  @Test
   void requiredHaloCompletesBeforeOptionalPreloadAtTheMinimumChunkLimit() throws Exception {
     try (var workers = Executors.newFixedThreadPool(2);
         var scene = new ChunkScene(solid(), workers, config())) {
