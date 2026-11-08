@@ -8,7 +8,7 @@ Read-only recovery checked branch refs, all reflogs, known e70a5ee/63e359c objec
 
 | Batch | Last recorded scope | State in the restored checkout |
 | --- | --- | --- |
-| W06-C17 | Captured frame upload acknowledgements | Missing; recover/reimplement with definitions and source review |
+| W06-C17 | Captured frame upload acknowledgements | Reconstructed in source: activation/pending receipts, captured UI frame/pump and fourteen new deferred definitions; see SCENE_FRAME_UPLOADS.md |
 | W06-C18 | Optional streaming upload observation isolation | Missing; recover/reimplement |
 | W06-C19 | Retained/versioned scene removals | Missing; recover/reimplement |
 | W06-C20, e7cd11e | Native renderer shutdown/typed retirement | Missing; recover/reimplement |
@@ -27,7 +27,8 @@ These IDs are retained to avoid confusing previously discussed work with the cur
 
 - [x] Preserve the available main history and establish the actual checkpoint before editing.
 - [x] Reconstruct C28 image/mesh input, binding/unpack restoration, logical acceptance and deferred definitions without depending on absent frame/retirement helpers.
-- [ ] Recover/reimplement C17–C27 integration and definitions, beginning with captured frame upload acknowledgement/streaming caller ownership.
+- [x] Reconstruct C17 captured frame upload acknowledgement and activation/pending provenance without claiming native execution or the original commit identity.
+- [ ] Recover/reimplement C18–C27 integration and definitions, beginning with optional streaming observation isolation and retained removal delivery.
 - [ ] Continue streaming state, parent preview/palette/profiler acceptance, retained physical display, other owners/callers/document/controls and W01–W08 source audits.
 - [ ] After implementation and the owner's testing pause ends, compile and execute the current source and complete V01–V04 validation/delivery gates.
 

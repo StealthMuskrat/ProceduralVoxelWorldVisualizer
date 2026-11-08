@@ -253,6 +253,41 @@ class SceneRendererOwnerTest {
   }
 
   @Test
+  void activationReceiptsRevokeSameObjectSameEpochReuseDisableDetachAndClose() {
+    try (var m = new Memory()) {
+      var first = m.activate(7, 32); long opening = m.owner.version();
+      assertTrue(m.owner.current(first, opening));
+      assertFalse(m.owner.current(null, opening));
+      assertSame(first, m.activate(7, 32));
+      assertFalse(m.owner.current(first, opening));
+      long reused = m.owner.version(); assertTrue(m.owner.current(first, reused));
+      m.owner.disable(); assertFalse(m.owner.current(first, reused));
+      assertSame(first, m.activate(7, 32)); long restarted = m.owner.version();
+      assertTrue(m.owner.current(first, restarted));
+      var second = m.activate(7, 64); long replacement = m.owner.version();
+      assertFalse(m.owner.current(first, restarted)); assertTrue(m.owner.current(second, replacement));
+      var detached = m.owner.detach(); assertSame(second, detached);
+      assertFalse(m.owner.current(second, replacement)); m.close(detached);
+      var terminal = m.activate(7, 32); long last = m.owner.version();
+      var closed = m.owner.closeOwner(); assertSame(terminal, closed);
+      assertFalse(m.owner.current(terminal, last)); m.close(closed);
+    }
+  }
+
+  @Test
+  void preparationAndResetCannotExposeAnAcceptedReceiptBeforePublication() {
+    try (var m = new Memory()) {
+      var first = m.activate(1, 32); long previous = m.owner.version();
+      m.resetting = resource -> assertFalse(m.owner.current(resource, m.owner.version()));
+      var selected = m.owner.activate(2, 32, () -> {
+        assertFalse(m.owner.current(first, previous));
+        assertFalse(m.owner.current(first, m.owner.version()));
+      }, resource -> assertTrue(m.owner.current(resource, m.owner.version())));
+      assertSame(first, selected); assertTrue(m.owner.current(first, m.owner.version()));
+    }
+  }
+
+  @Test
   void primaryFailureCleanupCanAdmitANewOwnerEvenWhenThatCleanupAlsoThrows() {
     try (var m = new Memory()) {
       var reads = new AtomicInteger(); var primary = fault(true, reads); var cleanup = fault(false, reads);

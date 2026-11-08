@@ -24,6 +24,10 @@ final class SceneRendererOwner<R> {
   int budget() { return budget; }
   boolean active() { return active; }
   boolean transitioning() { return busy || allocating; }
+  long version() { return generation; }
+  boolean current(R value, long version) {
+    return !closed && renderer == value && generation == version && active && valid && !transitioning();
+  }
 
   R activate(long epoch, int bytes, Runnable prepare, Consumer<R> publish) {
     if (closed) throw new IllegalStateException("Scene renderer owner closed");

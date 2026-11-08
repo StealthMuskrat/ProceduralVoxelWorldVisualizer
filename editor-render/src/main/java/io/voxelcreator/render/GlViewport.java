@@ -179,6 +179,13 @@ public final class GlViewport implements AutoCloseable {
     return sceneOwner.renderer();
   }
 
+  /** Opaque activation receipt; reactivation of the same renderer and epoch also retires it. */
+  public long sceneVersion() { return sceneOwner.version(); }
+
+  public boolean sceneCurrent(SceneGpuRenderer renderer, long version) {
+    return !closed && sceneOwner.current(renderer, version);
+  }
+
   public void sceneView(
       org.joml.Vector3d origin,
       java.util.Set<io.voxelcreator.storage.ChunkPos> wanted,
