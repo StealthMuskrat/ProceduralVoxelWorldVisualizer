@@ -993,6 +993,7 @@ public final class Viewports implements AutoCloseable {
     ChunkScene scene;
     Object sceneFailureOwner, sceneAdoptionOwner;
     final SceneUploadPump sceneUploads = new SceneUploadPump();
+    final SceneUploadObservation sceneObservations = new SceneUploadObservation();
     RenderPressure pressure = new RenderPressure();
     final SourceCompilerTask<SceneSetup> compiler = new SourceCompilerTask<>();
     final AtomicReference<WorkerGate> workerGate = new AtomicReference<>(),
@@ -3399,7 +3400,7 @@ public final class Viewports implements AutoCloseable {
       }
     }
     if (v.scene != null) {
-      if (v.sceneUploads.busy()) return true;
+      if (v.sceneUploads.busy() || v.sceneObservations.busy()) return true;
       var scene = v.scene;
       var renderer = v.gl;
       long epoch = v.epoch;
@@ -3415,6 +3416,7 @@ public final class Viewports implements AutoCloseable {
       Vector3d center = new Vector3d(v.camera.flying ? v.camera.position : v.camera.focus);
       scene.tick(center, v.camera.eye(), 4);
       if (!cpuCurrent.getAsBoolean()) return true;
+      Throwable observationFailure = null;
       try {
         int gpuBudget = sceneGpuBudget(v);
         boolean resized = v.gpuBudget != gpuBudget;
@@ -3439,45 +3441,26 @@ public final class Viewports implements AutoCloseable {
           if (!activeFrame.getAsBoolean()) return true;
         }
         int budget = state.user.performance.uploadKiB * 1024;
-        long before = gpu.statistics().uploadedBytes();
-        if (!activeFrame.getAsBoolean()) return true;
-        var uploadProfile = state.engine.profiler().scope(0, state.project().project.uuid, null);
-        if (!activeFrame.getAsBoolean()) return true;
-        long uploadStamp = uploadProfile == null ? 0 : uploadProfile.begin();
-        var uploadOutcome = Profiler.Outcome.FAILED;
-        try {
-          if (!activeFrame.getAsBoolean()) return true;
-          if (!v.sceneUploads.run(scene, activeFrame, new SceneUploadPump.Backend() {
-            public long uploadedBytes() { return gpu.statistics().uploadedBytes(); }
-            public int compact(int bytes) { return gpu.advanceCompaction(bytes); }
-            public boolean compacting() { return gpu.compacting(); }
-            public ChunkScene.Upload pending() { return gpu.pendingUpload(); }
-            public boolean contains(ChunkScene.Upload upload) { return gpu.contains(upload); }
-            public boolean stage(ChunkScene.Upload upload) { return gpu.stage(upload); }
-            public ChunkScene.Upload advance(int bytes) { return gpu.advance(bytes); }
-          }, budget)) return true;
-          uploadOutcome = Profiler.Outcome.SUCCESS;
-        } finally {
-          if (uploadStamp != 0) {
-            long uploaded = gpu.statistics().uploadedBytes() - before;
-            uploadProfile.finish(
-                uploadStamp,
-                Profiler.Kind.UPLOAD_CPU,
-                null,
-                "Streaming upload and arena maintenance",
-                uploadOutcome);
-            uploadProfile.gauge(
-                Profiler.Kind.UPLOAD_BYTES,
-                Profiler.Unit.BYTES,
-                uploaded,
-                "Streaming upload bytes per frame");
-            uploadProfile.gauge(
-                Profiler.Kind.UPLOAD_BYTES,
-                Profiler.Unit.BYTES,
-                gpu.statistics().relocatedBytes(),
-                "Arena relocation bytes per frame");
-          }
-        }
+        var observed = v.sceneObservations.run(activeFrame,
+            () -> SceneUploadObservation.profiler(
+                state.engine.profiler().scope(0, state.project().project.uuid, null)),
+            () -> {
+              var stats = gpu.statistics();
+              return new SceneUploadObservation.Counters(stats.uploadedBytes(), stats.relocatedBytes());
+            },
+            () -> v.sceneUploads.run(scene, activeFrame, new SceneUploadPump.Backend() {
+              public long uploadedBytes() { return gpu.statistics().uploadedBytes(); }
+              public int compact(int bytes) { return gpu.advanceCompaction(bytes); }
+              public boolean compacting() { return gpu.compacting(); }
+              public ChunkScene.Upload pending() { return gpu.pendingUpload(); }
+              public boolean contains(ChunkScene.Upload upload) { return gpu.contains(upload); }
+              public boolean stage(ChunkScene.Upload upload) { return gpu.stage(upload); }
+              public ChunkScene.Upload advance(int bytes) { return gpu.advance(bytes); }
+            }, budget));
+        observationFailure = observed.observationFailure();
+        if (observed.failure() instanceof RuntimeException failure) throw failure;
+        if (observed.failure() instanceof Error failure) throw failure;
+        if (!observed.completed()) return true;
         if (!activeFrame.getAsBoolean()) return true;
         v.origin.set(
             Math.floor(center.x / 32) * 32,
@@ -3532,7 +3515,11 @@ public final class Viewports implements AutoCloseable {
       } catch (RuntimeException gpu) {
         if (!frameCurrent.getAsBoolean()) return true;
         return !rendererFallback(v, key, scene, epoch, renderer, compiler, gpu, false);
+      } finally {
+        SceneUploadObservation.report(observationFailure, frameCurrent,
+            detail -> state.error("STREAM_PROFILING_FAILED", EditorEvents.Subsystem.RENDERING, detail));
       }
+      if (!frameCurrent.getAsBoolean()) return true;
     }
     if (v.pressure.paused()) {
       resumePanels[v.kind].draw(
