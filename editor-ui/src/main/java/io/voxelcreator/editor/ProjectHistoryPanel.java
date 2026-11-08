@@ -32,7 +32,7 @@ final class ProjectHistoryPanel implements AutoCloseable {
         blocked,
         () -> state.reconcileSelection(state.multiSelection, state.selected),
         state.background,
-        state.uiQueue::offer);
+        state::postUi);
   }
 
   ProjectHistoryPanel(

@@ -39,7 +39,7 @@ public final class ProjectSettingsPanel implements AutoCloseable {
   }
 
   static ProjectSettingsPanel background(EditorState state, BooleanSupplier blocked) {
-    return new ProjectSettingsPanel(state, state.background, state.uiQueue::offer, blocked);
+    return new ProjectSettingsPanel(state, state.background, state::postUi, blocked);
   }
 
   ProjectSettingsPanel(

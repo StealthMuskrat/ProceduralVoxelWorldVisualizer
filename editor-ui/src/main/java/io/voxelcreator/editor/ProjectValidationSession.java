@@ -72,7 +72,7 @@ final class ProjectValidationSession implements AutoCloseable {
     this(
         state,
         state.background,
-        state.uiQueue::offer,
+        state::postUi,
         NoiseCompiler::validate,
         text -> state.error("PROJECT_VALIDATION_FAILED", EditorEvents.Subsystem.PROJECT, text));
   }

@@ -43,7 +43,7 @@ final class PerformancePanel implements AutoCloseable {
   }
 
   static PerformancePanel background(EditorState state, Path file, Consumer<String> errors) {
-    return new PerformancePanel(state, file, errors, state.background, state.uiQueue::offer);
+    return new PerformancePanel(state, file, errors, state.background, state::postUi);
   }
 
   PerformancePanel(EditorState state, Path file, Consumer<String> errors,

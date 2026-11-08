@@ -37,7 +37,7 @@ final class UiScalePanel implements AutoCloseable {
   }
 
   static UiScalePanel background(EditorState state, Path file, Consumer<String> errors) {
-    return new UiScalePanel(state.user, file, errors, state.background, state.uiQueue::offer);
+    return new UiScalePanel(state.user, file, errors, state.background, state::postUi);
   }
 
   UiScalePanel(UserConfig user, Path file, Consumer<String> errors,

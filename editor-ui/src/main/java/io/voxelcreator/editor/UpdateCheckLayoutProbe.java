@@ -76,7 +76,7 @@ public final class UpdateCheckLayoutProbe {
                 state.user,
                 "0.1.0",
                 workers::add,
-                state.uiQueue::offer,
+                state::postUi,
                 (endpoint, origins) -> {
                   fetches++;
                   if (rejectFetch)

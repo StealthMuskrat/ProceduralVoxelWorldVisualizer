@@ -33,7 +33,7 @@ public final class GuardedNavigation implements AutoCloseable {
 
   static GuardedNavigation background(EditorState state, PropertyPanel properties) {
     return new GuardedNavigation(
-        state, properties, properties::revealSearch, state.background, state.uiQueue::offer);
+        state, properties, properties::revealSearch, state.background, state::postUi);
   }
 
   GuardedNavigation(

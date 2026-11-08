@@ -1,6 +1,6 @@
 # Remaining implementation, validation and delivery work
 
-Current source checkpoint: the preceding local main commit is b439534; its publication remains pending, with the last observed GitHub main at 6f76999. The standalone consumer, private workflow/native text/resource-form history, independent World Editor selection and ID text-preservation follow-up are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
+Current source checkpoint: the preceding local main commit is 8c3a0e2; its publication remains pending, with the last observed GitHub main at 6f76999. The standalone consumer, private workflow/native text/resource-form history, independent World Editor selection, ID preservation and bounded UI dispatch are **uncompiled and untested** under the owner's testing pause. The last observed baseline remains **922 tests / 120 suites**. The [A01–A36 acceptance matrix](REQUIREMENTS_AND_TESTS.md) retains its existing evidence; this register does not promote any gate.
 
 The principal implementation tracks below cover specification Trees 0–22 exactly once. They are a finite audit queue, not eight claims of missing features or a completion percentage. Each track must reconcile its applicable numbered leaves with source and deferred verification, record concrete gaps as child items, and close those gaps before its source audit can be marked complete. Many features already have implementation and earlier evidence. Pending execution is recorded separately and cannot be treated as missing source or passing evidence.
 
@@ -35,6 +35,8 @@ The first W01 slice traced the existing resource browser, clipboard and membersh
 | Leaves | Source disposition | Remaining work |
 | --- | --- | --- |
 | 1.3.8 | Source reviewed: Gradle module dependencies flow from editor/render toward API/core/storage/model; source import scan found no reverse editor/render imports in the four headless modules. | Compile independent artifacts and execute dependency/notice isolation checks when validation resumes. |
+| 1.2.6, editor handoff only | Confirmed unbounded callback queue/drain and escaping callback failures; W01-C11 below adds bounded strict posting and per-frame delivery. The existing editor worker executor retains its bounded admission policy. | Execute saturation, healthy-peer/failure/retry and measured frame cases; complete remaining queue/budget inventory in W05/W06. |
+| 1.4.1–1.4.3, inspected ownership paths | Source reviewed: Desktop owns UI/GL drawing and EditorState drains delivery; PreviewMailbox separates prepared worker data from acceptance. CompiledProject copies authoring data, and VoxelChunk.Builder finishes with private copied arrays. | Execute thread/publication/immutability definitions and native teardown; complete remaining worker/render caller inventory in W05/W06. |
 | 2.1.1–2.1.3 | Source reviewed: ProjectData is the authored UUID/ordered-resource/world/bookmark document; explicit ProjectIO/DocumentSession writes exclude editor preferences, local histories and generated/runtime objects. | Execute schema/save/Undo and complete project-boundary scenarios. |
 | 2.2.1–2.2.4 | Source reviewed: UserConfig owns layout/theme/scales, input/editor/visualization/performance preferences; Desktop exposes all six User Settings categories and saves preferences through its separate writer. | Execute full preference persistence/private-project invariance and platform layout scenarios. |
 | 2.3.1–2.3.4 | Source reviewed: AppMetadata owns presentation and future-item defaults; strict read/validation rejects incompatible metadata and load falls back to built-ins. CreationRegistry signatures/ranges/options remain authoritative; defaults apply through editor creation. | Finish per-control coverage in W02/W03/W07 and execute malformed-metadata/future-item/unchanged-engine scenarios. |
@@ -174,6 +176,13 @@ Three new PackageReleaseTest definitions cover exact standalone support bytes in
 - [x] Add native controls/modal bindings, seven unit definitions and expanded Help/30-case form/12-case creation/readback definitions.
 - [ ] Compile and execute form/shared-history/creation/Help/transaction suites and expanded native/readback cases.
 - [ ] Verify picker/filter ownership, remapped/physical input and Windows 11/DPI interaction.
+
+**W01-C11 — bounded UI callback dispatch (1.2.6, 1.4.1, Tree 4): implementation added, execution pending.** [UI dispatch ownership](UI_DISPATCH_OWNERSHIP.md) bounds pending callbacks and initial per-frame FIFO batches, defers nested posts, isolates callback/reporting failures and rejects posting after closure. Production factories and both Inspector paths use strict posting so full/closed queues reach existing request failure observers. Delivery retains current controls/owner publication guards.
+
+- [x] Add bounded dispatch, whole-turn reentry/shutdown guards, bounded failure diagnostics and strict producer wiring.
+- [x] Add four queue/seven editor integration definitions, including validation, unpublished preference cleanup and Inspector retry/acceptance boundaries.
+- [ ] Compile and execute dispatch/worker/request/cleanup suites and inherited native scenarios.
+- [ ] Measure queue/frame behavior and verify all producers, startup/shutdown and Windows 11 interaction.
 
 ## Validation and delivery queue
 
