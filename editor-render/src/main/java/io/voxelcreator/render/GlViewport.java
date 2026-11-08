@@ -146,12 +146,12 @@ public final class GlViewport implements AutoCloseable {
     }
   }
 
-  private int sceneBudget, paletteWidth = 256;
+  private int sceneBudget;
   private boolean sceneActive, sceneIndirect = true, sceneAo = true;
   private float sceneFog;
   private org.joml.Vector3d sceneOrigin = new org.joml.Vector3d();
   private java.util.Set<io.voxelcreator.storage.ChunkPos> sceneWanted = java.util.Set.of();
-  private int[] lastPalette;
+  private PaletteTextureUpload paletteUpload;
 
   public SceneGpuRenderer scene(long epoch, int bytes) {
     volumeUpload.clear();
@@ -212,6 +212,7 @@ public final class GlViewport implements AutoCloseable {
       vao = glGenVertexArrays();
       vbo = glGenBuffers();
       palette = glGenTextures();
+      paletteUpload = new PaletteTextureUpload(this::writePalette);
       program = link();
       volumeUpload =
           new VolumeTextureUpload(
@@ -479,20 +480,43 @@ public final class GlViewport implements AutoCloseable {
   }
 
   public void setPalette(int[] colors) {
-    if (java.util.Arrays.equals(lastPalette, colors)) return;
-    lastPalette = colors.clone();
-    glBindTexture(GL_TEXTURE_2D, palette);
-    paletteWidth = Math.min(glGetInteger(GL_MAX_TEXTURE_SIZE), Math.max(1, colors.length));
-    int rows = (colors.length + paletteWidth - 1) / paletteWidth;
-    IntBuffer data = BufferUtils.createIntBuffer(paletteWidth * rows);
-    data.put(colors);
-    while (data.hasRemaining()) data.put(0);
-    data.flip();
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA8, paletteWidth, rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    paletteUpload.set(colors, glGetInteger(GL_MAX_TEXTURE_SIZE));
+  }
+
+  private void writePalette(int width, int height, IntBuffer pixels) {
+    int binding = glGetInteger(GL_TEXTURE_BINDING_2D);
+    int unpack = glGetInteger(GL_PIXEL_UNPACK_BUFFER_BINDING);
+    int alignment = glGetInteger(GL_UNPACK_ALIGNMENT), swap = glGetInteger(GL_UNPACK_SWAP_BYTES);
+    int row = glGetInteger(GL_UNPACK_ROW_LENGTH), imageHeight = glGetInteger(GL_UNPACK_IMAGE_HEIGHT);
+    int skipX = glGetInteger(GL_UNPACK_SKIP_PIXELS), skipY = glGetInteger(GL_UNPACK_SKIP_ROWS),
+        skipZ = glGetInteger(GL_UNPACK_SKIP_IMAGES);
+    try {
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+      glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+      glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
+      glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+      glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+      glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+      glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+      glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
+      glBindTexture(GL_TEXTURE_2D, palette);
+      glTexImage2D(
+          GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      int error = glGetError();
+      if (error != GL_NO_ERROR) throw new IllegalStateException("Palette upload GL error " + error);
+    } finally {
+      glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
+      glPixelStorei(GL_UNPACK_SWAP_BYTES, swap);
+      glPixelStorei(GL_UNPACK_ROW_LENGTH, row);
+      glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, imageHeight);
+      glPixelStorei(GL_UNPACK_SKIP_PIXELS, skipX);
+      glPixelStorei(GL_UNPACK_SKIP_ROWS, skipY);
+      glPixelStorei(GL_UNPACK_SKIP_IMAGES, skipZ);
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, unpack);
+      glBindTexture(GL_TEXTURE_2D, binding);
+    }
   }
 
   public java.util.List<GpuTimerQueries.Measurement> collectGpuTimings(Profiler.Scope scope) {
@@ -587,7 +611,7 @@ public final class GlViewport implements AutoCloseable {
           32,
           sceneWanted,
           palette,
-          paletteWidth,
+          paletteUpload.width(),
           unlit,
           sceneIndirect,
           sceneAo,
@@ -640,7 +664,7 @@ public final class GlViewport implements AutoCloseable {
       glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D, palette);
       glUniform1i(glGetUniformLocation(program, "palette"), 0);
-      glUniform1i(glGetUniformLocation(program, "paletteWidth"), paletteWidth);
+      glUniform1i(glGetUniformLocation(program, "paletteWidth"), paletteUpload.width());
       glBindVertexArray(vao);
       if (alpha < 1) {
         glEnable(GL_BLEND);

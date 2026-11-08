@@ -444,6 +444,8 @@ assert all(abs(a-b) <= 2 for a, b in zip(vu['pixel'], expected_pixel))
 assert len(vu['retainedHash']) == 64
 assert 0 < vu['uiMaxBytes'] <= 16384
 assert vu['uiVersions'] == [1, 2, 3]
+assert vu['paletteQueuedErrorRetries'] == 2
+assert vu['paletteUnpackRestored']
 assert vu['uiOrigins'] == [[0, 0, 0], [-24, -24, -24], [32, 32, 32]]
 assert all(vu[k] for k in ['unpackRestored', 'rejectionRetained', 'cancelRetained', 'closed',
                           'uiCanceled', 'uiGpuRejected', 'viewOnly', 'sceneTransitionRetained'])

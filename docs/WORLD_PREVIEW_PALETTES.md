@@ -1,6 +1,6 @@
 # Source-owned World preview palettes
 
-Status: **uncompiled and untested** on `codex/development-phase` under the owner testing pause. The validated baseline remains 922 tests / 120 suites. This extends [preview document lifetime](PREVIEW_DOCUMENT_LIFETIME.md) and the existing [streaming renderer](STREAMING_AND_LOD.md). No A01–A36 or production acceptance gate advances.
+Status: **uncompiled and untested** on local `main` under the owner testing pause. The validated baseline remains 922 tests / 120 suites. This extends [preview document lifetime](PREVIEW_DOCUMENT_LIFETIME.md) and the existing [streaming renderer](STREAMING_AND_LOD.md). No A01–A36 or production acceptance gate advances.
 
 A retained World mesh contains runtime type indices from its immutable source snapshot. Those indices can differ from the current project's type order while Auto is off, a replacement is pending or a request has failed. Previously, a later color-only revision could upload the current project's palette by array position onto that older mesh. Reordering/deleting/inserting types could then paint a different type's color onto the retained geometry. A second gap allowed a result compiled before a color edit to restore stale colors when accepted, because color-only edits intentionally keep the geometry request current.
 
@@ -9,6 +9,8 @@ WorldPreviewPalette freezes the source project UUID, ordered voxel-type UUIDs an
 Fixed Preview payloads and streaming SceneSetup handoffs now carry that immutable palette owner. On successful acceptance, Viewports resolves the latest current colors against the incoming source's order. On later authored revisions it refreshes the accepted owner even when the computational identity changed and manual generation is retaining old geometry. It no longer builds a current-order World palette for an accepted older source. Failed/queued requests and ordinary source invalidation retain the accepted palette owner; successful replacement publishes its own mapping. Open/New clears ownership through the existing document-lifetime retirement. Noise palettes and scalar sampling are unchanged.
 
 Colors remain display-only: geometry fingerprints still exclude colors, while type-order changes retain their existing computational invalidation behavior. Palette repaint does not submit a new mesh/chunk job, change the accepted source's runtime IDs, alter exact stored voxels or create an authored edit. Canonical engine/model/storage APIs, project schema, shaders and generation semantics remain unchanged. Existing explicit save, Undo/Redo and private Properties ownership remain authoritative.
+
+Unvalidated W06-C06 additionally gives the render-thread [palette upload cache explicit retry ownership](PALETTE_UPLOAD_OWNERSHIP.md): layout/pixels prepare before backend mutation, successful writes publish lookup width/cache, failed writes invalidate cache eligibility and GL unpack/binding state is restored. UUID resolution and source-order color/ghost mappings above retain their existing expectations. In-place GPU failure effects and transactional preview acceptance remain separate open boundaries.
 
 ## Deferred definitions
 
