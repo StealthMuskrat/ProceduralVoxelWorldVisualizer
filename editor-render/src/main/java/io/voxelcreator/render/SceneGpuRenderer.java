@@ -120,8 +120,22 @@ public final class SceneGpuRenderer implements AutoCloseable {
 
   public void epoch(long value) {
     if (value == epoch) return;
+    resetResidency();
+    epoch = value;
+  }
+
+  /** Full logical reset in the same allocation and epoch, after bounded removal overflow/shrink. */
+  public boolean resetScene(ChunkScene.RemovalReset reset) {
+    Objects.requireNonNull(reset);
+    if (closed || reset.epoch() != epoch) return false;
+    resetResidency();
+    return true;
+  }
+
+  private void resetResidency() {
     pending = null;
     pendingSlice = null;
+    progress = 0;
     compaction = null;
     compactionRequested = false;
     retiring.clear();
@@ -129,8 +143,9 @@ public final class SceneGpuRenderer implements AutoCloseable {
     resident.clear();
     drawnVersions.clear();
     drawnLevels.clear();
-    epoch = value;
     uploaded = relocated = 0;
+    visible = culled = draws = 0;
+    indirect = false;
   }
 
   public boolean hasData() {
@@ -245,6 +260,35 @@ public final class SceneGpuRenderer implements AutoCloseable {
     }
     var old = resident.remove(position);
     if (old != null) arena.release(old.slice);
+  }
+
+  /** Accepted even when already absent; replay cannot remove versions newer than the watermark. */
+  public boolean remove(ChunkScene.Removal removal) {
+    Objects.requireNonNull(removal);
+    if (closed || removal.epoch() != epoch) return false;
+    var position = removal.position();
+    var drawn = drawnVersions.get(position);
+    if (drawn != null && SceneRemovalPolicy.removes(epoch, removal, drawn)) {
+      drawnVersions.remove(position);
+      drawnLevels.remove(position);
+    }
+    if (pending != null && pending.position().equals(position)
+        && SceneRemovalPolicy.removes(epoch, removal, pending.version())) {
+      var slice = pendingSlice;
+      pending = null;
+      pendingSlice = null;
+      progress = 0;
+      arena.release(slice);
+    }
+    var old = resident.get(position);
+    if (old != null && SceneRemovalPolicy.removes(epoch, removal, old.version)) {
+      if (compaction != null) retiring.add(position);
+      else {
+        resident.remove(position);
+        arena.release(old.slice);
+      }
+    }
+    return true;
   }
 
   public boolean compacting() {
