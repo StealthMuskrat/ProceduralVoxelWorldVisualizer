@@ -17,7 +17,7 @@ for key in ('physicalDpiVerified', 'physicalDetachedVerified', 'gpuFontTextureVe
 assert len(report['cases']) == 12
 assert {(c['form'], c['scenario']) for c in report['cases']} == {(f, i) for f in ('Project', 'Application') for i in range(6)}
 globals_, scales = (1, .5, 1, 2.5, 2.5, 1), (1, 1, 1, 1, 2.5, 1)
-keys = {'Project': ('apply', 'cancel', 'reload', 'problem'),
+keys = {'Project': ('apply', 'cancel', 'reload', 'problem', 'undo', 'redo'),
         'Application': ('apply', 'revert', 'builtins', 'invalid-value')}
 identities = {}
 
@@ -37,13 +37,18 @@ for case in report['cases']:
     contains(case['window'], case['body'])
     boxes = case['actions']
     assert set(boxes) == set(case['ids']) == set(keys[form])
-    assert len(set(case['ids'].values())) == 4 and all(case['ids'].values())
+    assert len(set(case['ids'].values())) == len(keys[form]) and all(case['ids'].values())
     for key in keys[form]:
         contains(case['window'], boxes[key])
         assert boxes[key]['y'] >= case['body']['y'] + case['body']['height'] - .1
-    for left, right in zip(keys[form], keys[form][1:]):
-        assert abs(boxes[left]['y'] - boxes[right]['y']) <= .1
-        assert boxes[left]['x'] + boxes[left]['width'] <= boxes[right]['x'] + .1
+    rows = (keys[form][:4], keys[form][4:]) if form == 'Project' else (keys[form],)
+    bottom = case['body']['y'] + case['body']['height']
+    for row in rows:
+        assert all(boxes[key]['y'] >= bottom - .1 for key in row)
+        for left, right in zip(row, row[1:]):
+            assert abs(boxes[left]['y'] - boxes[right]['y']) <= .1
+            assert boxes[left]['x'] + boxes[left]['width'] <= boxes[right]['x'] + .1
+        bottom = max(boxes[key]['y'] + boxes[key]['height'] for key in row)
     assert case['request'] > 0
     identity = (case['request'], case['ids'])
     if form not in identities:
