@@ -57,13 +57,14 @@ public final class ExpressionLayoutProbe {
         int[][] sizes = {{1200, 900}, {360, 640}, {360, 640}, {360, 640}, {720, 640}, {1000, 320}};
         float[] global = {1, .5f, 1, 2.5f, 2.5f, 1}, scale = {1, 1, 1, 1, 2.5f, 1};
         Integer widgetId = null;
+        // Reflow one opening; separate openings must not reuse its native text history.
+        open("é+unknown", false);
         for (int i = 0; i < sizes.length; i++) {
           width = sizes[i][0];
           height = sizes[i][1];
           state.user.appearance.globalScale = global[i];
           state.user.appearance.windowScales.put("Properties", scale[i]);
           var user = ProjectIO.JSON.valueToTree(state.user);
-          open("é+unknown", false);
           frames(10);
           clickTitle();
           dialog.probeScroll(1000000);
@@ -99,6 +100,7 @@ public final class ExpressionLayoutProbe {
           receipt.put("feedback", dialog.feedbackBounds());
           receipt.put("line", dialog.lineHeight());
           receipt.put("widgetId", widgetId);
+          receipt.put("scope", dialog.actionScope());
           receipt.put("selection", range);
           receipt.put("globalScale", global[i]);
           receipt.put("windowScale", scale[i]);
@@ -107,15 +109,16 @@ public final class ExpressionLayoutProbe {
               dialog.bufferText().equals("é+unknown")
                   && ProjectIO.JSON.valueToTree(state.user).equals(user),
               "Reflow changed private text or preferences");
-          click("cancel");
-          require(
-              done && session.closed() && accepted == 0,
-              "Persistent Cancel staged or retained the buffer");
         }
+        click("cancel");
+        require(
+            done && session.closed() && accepted == 0,
+            "Persistent Cancel staged or retained the buffer");
         width = 1200;
         height = 900;
         state.user.appearance.globalScale = 1;
         state.user.appearance.windowScales.clear();
+        var nativeHistory = nativeHistory();
         open("x+9", false);
         frames(8);
         releaseStageWithEscape();
@@ -216,6 +219,7 @@ public final class ExpressionLayoutProbe {
         report.put("formatVersion", 1);
         report.put("fontSource", "user-scale-fixture");
         report.put("cases", cases);
+        report.put("nativeHistory", nativeHistory);
         report.put("acceptedStages", accepted);
         report.put("finalPrivateText", item.parameters.get("expression").asText());
         for (String flag :
@@ -246,6 +250,87 @@ public final class ExpressionLayoutProbe {
     } finally {
       ImGui.destroyContext();
     }
+  }
+
+  private static List<Map<String, Object>> nativeHistory() {
+    var receipts = new ArrayList<Map<String, Object>>();
+    for (String mode : List.of("cancel", "escape", "close", "session-cancel", "stage")) {
+      String source = item.parameters.get("expression").asText();
+      var before = ProjectIO.JSON.valueToTree(draft);
+      int[] stages = {0};
+      openHistory(stages);
+      frames(8);
+      int oldId = dialog.editorWidgetId();
+      String oldScope = dialog.actionScope();
+      click("text");
+      var io = ImGui.getIO();
+      io.addKeyEvent(ImGuiKey.ModCtrl, true);
+      io.addKeyEvent(ImGuiKey.End, true);
+      frame();
+      io.addKeyEvent(ImGuiKey.ModCtrl, false);
+      io.addKeyEvent(ImGuiKey.End, false);
+      frame();
+      io.addInputCharactersUTF8("+9");
+      frames(3);
+      require(dialog.bufferText().equals(source + "+9"), "Native append did not edit this opening");
+      restoreHistory(source, ImGuiKey.Z);
+      restoreHistory(source + "+9", ImGuiKey.Y);
+      restoreHistory(source, ImGuiKey.Z);
+      require(oldId == dialog.editorWidgetId(), "Native text ID changed within its opening");
+      switch (mode) {
+        case "cancel" -> click("cancel");
+        case "escape" -> {
+          io.addKeyEvent(ImGuiKey.Escape, true);
+          frame();
+          io.addKeyEvent(ImGuiKey.Escape, false);
+          frames(3);
+        }
+        case "close" -> { dialog.close(); frames(4); }
+        case "session-cancel" -> { session.cancel(); frames(4); }
+        case "stage" -> click("stage");
+        default -> throw new AssertionError(mode);
+      }
+      require(done && session.closed(), "Native text predecessor did not close");
+      require(stages[0] == (mode.equals("stage") ? 1 : 0), "Unexpected native history staging");
+      openHistory(stages);
+      frames(8);
+      int newId = dialog.editorWidgetId();
+      require(newId != oldId, "A new opening reused its predecessor's text ID");
+      historyKey(ImGuiKey.Y);
+      require(dialog.bufferText().equals(source) && session.text().equals(source),
+          "A fresh opening revived a discarded native Redo");
+      historyKey(ImGuiKey.Z);
+      require(dialog.bufferText().equals(source) && session.text().equals(source),
+          "A fresh opening resurrected discarded native history");
+      receipts.add(Map.of(
+          "mode", mode, "oldWidgetId", oldId, "newWidgetId", newId,
+          "oldScope", oldScope, "newScope", dialog.actionScope(),
+          "source", source, "restored", dialog.bufferText(), "stages", stages[0]));
+      click("cancel");
+      require(before.equals(ProjectIO.JSON.valueToTree(draft)), "Native history changed Properties");
+    }
+    return receipts;
+  }
+
+  private static void openHistory(int[] stages) {
+    session = new ExpressionEditSession(state, draft, item);
+    dialog = new ExpressionEditDialog(state, session, () -> stages[0]++);
+    done = false;
+  }
+
+  private static void restoreHistory(String expected, int key) {
+    for (int i = 0; i < 4 && !dialog.bufferText().equals(expected); i++) historyKey(key);
+    require(dialog.bufferText().equals(expected), "Native expression Undo/Redo lost exact text");
+  }
+
+  private static void historyKey(int key) {
+    var io = ImGui.getIO();
+    io.addKeyEvent(ImGuiKey.ModCtrl, true);
+    io.addKeyEvent(key, true);
+    frame();
+    io.addKeyEvent(key, false);
+    io.addKeyEvent(ImGuiKey.ModCtrl, false);
+    frames(3);
   }
 
   private static void open(String value, boolean failRefresh) {

@@ -1,6 +1,6 @@
 # Expanded expression layout and error recovery
 
-Status: implemented on `codex/development-phase`, **uncompiled and untested** under the owner pause. No build, JUnit/native probe, independent replay or GitHub workflow ran for this batch. The validated baseline remains 922 tests / 120 suites. Full GUI/DPI and Windows 11 acceptance remain pending.
+Status: implemented on local main, **uncompiled and untested** under the owner pause. No build, JUnit/native probe, independent replay or GitHub workflow ran for this batch. The validated baseline remains 922 tests / 120 suites. Full GUI/DPI and Windows 11 acceptance remain pending.
 
 ## Scrolling content and persistent decisions
 
@@ -28,4 +28,4 @@ scripts/verify_expression_layout.py independently describes the geometry, measur
 
 The fixture uses a native ImGui context with synthetic user scale and no GLFW/GL renderer. It does not certify physical keyboard/IME, screen pixels, every clipped-focus path, native internal multiline font inheritance, GPU font upload, detached displays, mixed DPI, every expression control or complete Windows 11 GUI acceptance. These certification flags remain false. Body content can lie outside the current scroll viewport; outer/persistent geometry and an acknowledged range do not certify all content is simultaneously visible.
 
-The unvalidated [private editor decision follow-up](PRIVATE_EDITOR_DECISIONS.md) scopes persistent action IDs to each opening while retaining the established expression/native multiline field and child identities. It closes externally cancelled modal owners, with unchanged text-only staging, error ranges and callback consumption. New native reflow/held-request/closure definitions remain deferred.
+The unvalidated [private editor decision follow-up](PRIVATE_EDITOR_DECISIONS.md) scopes persistent action IDs to each opening and closes externally cancelled modal owners. The subsequent [native text history fix](NATIVE_TEXT_HISTORY_OWNERSHIP.md) also scopes the multiline widget to that opening; scrolling-child/window identities remain stable. The six layout cases now reflow one opening, while five separate native lifetime cases require fresh successor text IDs/history. Existing text-only staging, error ranges and callback consumption retain their contracts. All definitions remain deferred.

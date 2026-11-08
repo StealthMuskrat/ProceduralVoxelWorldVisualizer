@@ -26,6 +26,15 @@ for name, expected_id in [('properties', 'granite'), ('properties-undone', 'ston
     expected['voxelTypes'][0]['id'] = expected_id
     assert read(name) == expected, name
 assert read('preferences-before') == read('preferences')
+assert read('rename-history-after') == read('inline-redone')
+rename_history = read('rename-native-history')
+assert rename_history['formatVersion'] == 1 and len(rename_history['cases']) == 2
+assert {case['mode'] for case in rename_history['cases']} == {'escape', 'enter'}
+rename_ids = []
+for case in rename_history['cases']:
+    assert case['source'] == case['restored'] == 'marble'
+    rename_ids.extend([case['oldWidgetId'], case['newWidgetId']])
+assert len(set(rename_ids)) == len(rename_ids) == 4 and all(rename_ids)
 r = read('voxel-identity-native')
 assert r['formatVersion'] == 1 and r['initialBuilds'] == 1
 assert r['type'] == stone and r['referenceRequests'] == [stone, stone]
