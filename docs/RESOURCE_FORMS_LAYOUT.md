@@ -1,6 +1,6 @@
 # Resource forms and private noise resolution
 
-Status: **uncompiled and untested** on `codex/development-phase` under the owner testing pause. This follows [resource draft decisions](RESOURCE_DECISION_LAYOUT.md), [browser transactions](RESOURCE_BROWSER_TRANSACTIONS.md) and [noise authoring](NOISE_AUTHORING_WORKFLOWS.md). The validated baseline remains 922 tests / 120 suites.
+Status: **uncompiled and untested** on local main under the owner testing pause. This follows [resource draft decisions](RESOURCE_DECISION_LAYOUT.md), [browser transactions](RESOURCE_BROWSER_TRANSACTIONS.md) and [noise authoring](NOISE_AUTHORING_WORKFLOWS.md). The validated baseline remains 922 tests / 120 suites.
 
 Create Resource, Add Noise Generator and Delete Resource now use measured scrolling bodies with persistent primary/Cancel actions. Their existing logical Resources host, titles and preferred bounds remain. The Create ID and placement filter use full available input widths; a rejected Create retains exact text and requests focus for correction. Placement choices use a clipped UUID list and remaining content height instead of a fixed minimum. Delete captures its opening dependent labels and compatible candidates, shows a dependent count, clips the complete read-only dependent list and uses the existing searchable DraftChoicePicker for replacement. Bounded codepoint-safe labels retain full source IDs and references. Long bodies scroll independently of the decision row; a native window too small for its action row still needs resizing.
 
@@ -17,3 +17,5 @@ scripts/verify_resource_forms_layout.py defines independent work/modal/body/foot
 Every creation kind, actual menu/manager/drop route, complete typing/IME/paste/focus/blocker/failure matrix, larger-model latency, physical DPI/detached/GPU behavior and full GUI/Windows 11 acceptance remain pending. This batch completes these four form layouts without claiming A01–A36 or production sign-off.
 
 The unvalidated [initial source choice](NOISE_CREATION_CHOICES.md) adds the optional algorithm picker and source guidance to noise creation inside the existing scrolling body, retaining persistent Create/Cancel actions and owned publication. Other form types keep their existing controls. Native/source definitions remain deferred.
+
+The [unvalidated local resolution-history follow-up](NOISE_RESOLUTION_HISTORY.md) adds a third Undo Choice/Redo Choice row to the noise dialog. The same six Resolution/Issues pairs define actual history restoration and rebuilt validity; the independent reader checks all three rows and localNoiseChoiceHistory in the existing 30-case report. Other forms, saved payloads and engine-consumer arithmetic retain their expectations. All expanded definitions remain uncompiled/untested.

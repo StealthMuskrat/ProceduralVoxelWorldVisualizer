@@ -24,17 +24,17 @@ public final class NoiseEditDialog implements AutoCloseable {
   private final DraftChoicePicker picker;
   private boolean opening = true;
   private String message = "";
-  final SettingsPageChrome chrome = new SettingsPageChrome(2, 2);
+  final SettingsPageChrome chrome = new SettingsPageChrome(2, 2, 2);
   private final String nativeId = UUID.randomUUID().toString();
   private boolean issues, reveal = true, issuesReveal = true;
   private int submitted;
   private boolean automatic;
 
-  record Decision(NoiseEditDialog owner, long work, Plan preview) {}
+  record Decision(NoiseEditDialog owner, long work, long choices, Plan preview) {}
 
   Decision capture() {
     var preview = session.preview();
-    return new Decision(this, session.version(), preview);
+    return new Decision(this, session.version(), session.choiceVersion(), preview);
   }
 
   public NoiseEditDialog(EditorState state, Noise owner, Request request, Consumer<UUID> applied) {
@@ -54,7 +54,9 @@ public final class NoiseEditDialog implements AutoCloseable {
     this.applied = Objects.requireNonNull(applied);
     session = new NoiseEditSession(state, owner, request, executor, ui);
     this.automatic = automatic;
-    picker = new DraftChoicePicker(state, () -> session, () -> session.current() ? 0 : 1);
+    picker =
+        new DraftChoicePicker(
+            state, () -> session, () -> session.current() ? session.choiceVersion() : -1);
     target = request.target();
     action = request.action();
     var index = new NoiseDraftIndex(owner);
@@ -97,6 +99,7 @@ public final class NoiseEditDialog implements AutoCloseable {
     if (!layout.begin(title)) return false;
     Decision shown;
     boolean apply = false, cancel = false, showResolution = false, showIssues = false;
+    boolean undo = false, redo = false;
     try {
       boolean current = session.current() && session.phase() != NoiseEditSession.Phase.STALE;
       shown = capture();
@@ -131,22 +134,67 @@ public final class NoiseEditDialog implements AutoCloseable {
             || ImGui.isKeyPressed(ImGuiKey.Escape, false);
         showResolution = chrome.identifiedAction("resolution", session.canRetry() ? "Retry preview" : "Resolution");
         showIssues = chrome.identifiedAction("issues", "Issues (" + (preview == null ? 0 : preview.diagnostics().size()) + ")");
+        ImGui.pushID("choice:" + session.choiceVersion() + ":work:" + session.version());
+        try {
+          ImGui.beginDisabled(!session.canUndo());
+          undo = chrome.identifiedAction("undo", "Undo Choice");
+          ImGui.endDisabled();
+          ImGui.beginDisabled(!session.canRedo());
+          redo = chrome.identifiedAction("redo", "Redo Choice");
+          ImGui.endDisabled();
+        } finally {
+          ImGui.popID();
+        }
       } finally {
         ImGui.popID();
       }
+      String shortcut =
+          PrivateHistoryShortcuts.match(
+              state.user.input.shortcuts,
+              current && ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows),
+              ImGui.getIO().getWantTextInput() || ImGui.isAnyItemActive(),
+              ShortcutKeys.modifiers(),
+              key -> ImGui.isKeyPressed(ShortcutKeys.code(key), false));
+      undo |= Objects.equals(shortcut, "Undo");
+      redo |= Objects.equals(shortcut, "Redo");
     } finally {
       ImGui.endPopup();
     }
-    boolean closed = decide(shown, apply, cancel, showResolution, showIssues);
+    boolean closed = decide(shown, apply, cancel, showResolution, showIssues, undo, redo);
     if (closed) closePopup(title);
     return closed;
   }
 
   boolean decide(
       Decision shown, boolean apply, boolean cancel, boolean showResolution, boolean showIssues) {
+    return decide(shown, apply, cancel, showResolution, showIssues, false, false);
+  }
+
+  boolean decide(
+      Decision shown,
+      boolean apply,
+      boolean cancel,
+      boolean showResolution,
+      boolean showIssues,
+      boolean undo,
+      boolean redo) {
     if (shown == null || shown.owner() != this || session.closed()) return session.closed();
     if (cancel) {
       session.cancel();
+    } else if (undo || redo) {
+      if (shown.work() == session.version() && shown.choices() == session.choiceVersion()) {
+        try {
+          if (undo ? session.undo() : session.redo()) {
+            automatic = false;
+            fields.clear();
+            message = "";
+            reveal = issuesReveal = true;
+          }
+        } catch (RuntimeException invalid) {
+          message = Objects.requireNonNullElse(invalid.getMessage(), invalid.toString());
+          reveal = true;
+        }
+      }
     } else {
       if (showResolution && session.canRetry()) {
         try {
@@ -162,7 +210,8 @@ public final class NoiseEditDialog implements AutoCloseable {
         issues = true;
         reveal = issuesReveal = true;
       }
-      boolean sameWork = session.version() == shown.work();
+      boolean sameWork =
+          session.version() == shown.work() && session.choiceVersion() == shown.choices();
       if (sameWork) session.acceptPrepared(() -> !session.closed());
       noticeInvalidPreview(session.preview());
       if (sameWork

@@ -32,6 +32,10 @@ final class NoiseEditSession implements AutoCloseable {
   private final UUID target;
   private Resolution resolution;
   private UUID replacement;
+  private record Choice(Resolution resolution, UUID replacement) {}
+  private record Change(Choice before, Choice after) {}
+  private final Deque<Change> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
+  private long choiceVersion;
   private NoiseAuthoring.Plan plan;
   private boolean closed;
   private final Executor executor;
@@ -167,14 +171,76 @@ final class NoiseEditSession implements AutoCloseable {
     requireCurrent();
     Objects.requireNonNull(resolution);
     if (this.resolution == resolution && Objects.equals(this.replacement, replacement)) return;
+    var before = new Choice(this.resolution, this.replacement);
+    var after = new Choice(resolution, replacement);
+    changeChoice(
+        after,
+        () -> {
+          undo.push(new Change(before, after));
+          redo.clear();
+          while (undo.size() > 100) undo.removeLast();
+        });
+  }
+
+  long choiceVersion() {
+    return choiceVersion;
+  }
+
+  boolean canUndo() {
+    return current() && phase != Phase.STALE && !undo.isEmpty();
+  }
+
+  boolean canRedo() {
+    return current() && phase != Phase.STALE && !redo.isEmpty();
+  }
+
+  boolean undo() {
+    return moveHistory(false);
+  }
+
+  boolean redo() {
+    return moveHistory(true);
+  }
+
+  private boolean moveHistory(boolean forward) {
+    requireCurrent();
+    if (phase == Phase.STALE)
+      throw new IllegalStateException("Cancel and reopen the changed structural edit");
+    var from = forward ? redo : undo;
+    var to = forward ? undo : redo;
+    var change = from.peek();
+    if (change == null) return false;
+    changeChoice(forward ? change.after() : change.before(), () -> to.push(from.pop()));
+    return true;
+  }
+
+  /** Synchronous failure leaves choices/history intact; asynchronous failure retains the choice. */
+  private void changeChoice(Choice choice, Runnable history) {
+    long expected = choiceVersion;
+    Object request = token;
+    NoiseAuthoring.Plan next = null;
     if (executor == null) {
-      var next = planner.plan(project, owner, new Request(action, target, resolution, replacement));
-      this.resolution = resolution;
-      this.replacement = replacement;
+      next =
+          Objects.requireNonNull(
+              planner.plan(
+                  project,
+                  owner,
+                  new Request(action, target, choice.resolution(), choice.replacement())));
+      requireCurrent();
+      if (choiceVersion != expected || token != request)
+        throw new IllegalStateException("Noise resolution changed during preview preparation");
+    }
+    // Record before scheduling: scheduler/failure callbacks can admit a newer local choice.
+    history.run();
+    resolution = choice.resolution();
+    replacement = choice.replacement();
+    choiceVersion++;
+    if (executor == null) {
       plan = next;
+      phase = Phase.READY;
+      message = "";
+      version++;
     } else {
-      this.resolution = resolution;
-      this.replacement = replacement;
       schedule();
     }
   }
@@ -352,6 +418,8 @@ final class NoiseEditSession implements AutoCloseable {
     var accepted = plan;
     accepted.applyTo(owner);
     closed = true;
+    undo.clear();
+    redo.clear();
     retire();
     phase = Phase.CLOSED;
     handoff.close();
@@ -361,6 +429,8 @@ final class NoiseEditSession implements AutoCloseable {
   void cancel() {
     if (closed) return;
     closed = true;
+    undo.clear();
+    redo.clear();
     retire();
     phase = Phase.CLOSED;
     handoff.close();

@@ -42,6 +42,7 @@ for case in receipt['cases']:
     mode = case['mode']; staged = mode in {'automatic', 'resolve', 'retry'}
     assert case['staged'] is staged
     assert case['readyRetired'] is mode.startswith('ready-')
+    assert case['localChoiceHistory'] is (mode == 'resolve')
     assert case['queuedFrames'] >= 12 and case['heldFrames'] >= 12
     assert all(case[key] is True for key in ['privateRetained', 'rawRetained', 'preferencesRetained', 'originalBytesRetained'])
     before = json.loads((background / mode / 'before.json').read_text())
