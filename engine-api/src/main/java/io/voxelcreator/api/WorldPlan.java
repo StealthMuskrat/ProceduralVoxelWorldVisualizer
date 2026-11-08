@@ -361,10 +361,15 @@ final class WorldPlan {
       Profiler.Scope profile,
       Profiler.WorkBatch work) {
     int ox = pos.x() * size, oz = pos.z() * size;
+    long bottom = (long) pos.y() * size, top = bottom + size - 1;
     double[][] fields = new double[Math.min(limit, operations.size())][];
     for (int i = 0; i < fields.length; i++) {
       Op op = operations.get(i);
-      if (op.columnCached()) {
+      // Prefetch may evaluate a field only if a cell could pass the same effective Y guard as
+      // sample(). Intersect all three intervals together, including disjoint project/settings.
+      long first = Math.max(bottom, Math.max(minY, op.settings.minY));
+      long last = Math.min(top, Math.min(maxY, op.settings.maxY));
+      if (op.columnCached() && first <= last) {
         long stamp = profile == null ? 0 : profile.begin();
         long workStamp = work == null ? 0 : work.begin();
         var outcome = Profiler.Outcome.FAILED;
