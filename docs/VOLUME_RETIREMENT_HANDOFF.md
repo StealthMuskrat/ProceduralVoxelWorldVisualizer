@@ -24,7 +24,7 @@ Two added VolumeTextureCleanupTest definitions cover completed GPU-copy retireme
 
 The CPU metadata record exercises the production handoff helper, not native GlViewport flags or the actual editor palette/hover widgets. Source review traces those callers to finally and acceptPreview; native representation transitions, framebuffer/readback, real hover/palette/epoch behavior and platform recovery still require execution. Existing VolumeUploadProbe/VolumeOverlapProbe and scene/pressure definitions retain their scopes; no native probe has run or gained a passing claim.
 
-Unvalidated [W06-C08 observation isolation](VOLUME_UPLOAD_OBSERVATION.md) subsequently separates optional profiling failures from this committed/upload-failure decision. Its five additional CPU definitions retain all five original handoff definitions above. Independent acceptance faults and retirement diagnostic reentry/delivery remain open.
+Unvalidated [W06-C08 observation isolation](VOLUME_UPLOAD_OBSERVATION.md) subsequently separates optional profiling failures from this committed/upload-failure decision. Its five additional CPU definitions retain all five original handoff definitions above. [W06-C09 retirement feedback](VOLUME_RETIREMENT_FEEDBACK.md) then guards the warning by accepted epoch/version and contains message/delivery reentry faults, adding five more deferred definitions. Independent acceptance faults and actual native/UI recovery remain open.
 
 ## Status
 

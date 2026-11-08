@@ -37,6 +37,7 @@ class VolumePreviewHandoffTest {
   private record Accepted(String source, int origin, int side, int texture, long version) {}
   private static final Accepted OLD = new Accepted("old", -7, 2, 1, 1);
   private static final Accepted NEXT = new Accepted("new", 11, 3, 2, 2);
+  private static final Accepted NEWER = new Accepted("newer", 23, 4, 3, 3);
 
   private static final class Fixture implements AutoCloseable {
     final Memory memory = new Memory();
@@ -59,6 +60,34 @@ class VolumePreviewHandoffTest {
   private static void fail(Throwable failure) {
     if (failure instanceof RuntimeException runtime) throw runtime;
     throw (Error) failure;
+  }
+
+  private static final class RetirementOwner {
+    final Fixture fixture;
+    final List<String> reports = new ArrayList<>();
+    long epoch = 7;
+    boolean closed;
+    String message = "Ready";
+    RetirementOwner(Fixture fixture) { this.fixture = fixture; }
+    boolean current() {
+      return !closed && epoch == 7 && fixture.upload.resident() != null
+          && fixture.upload.statistics().version() == 2
+          && !fixture.upload.statistics().pending();
+    }
+    void report(RuntimeException failure) {
+      VolumePreviewHandoff.reportRetirement(failure, this::current,
+          detail -> message = "Ready cleanup: " + detail, reports::add);
+    }
+    void change(int mode) {
+      if (mode == 0) { closed = true; fixture.upload.close(); message = "Closed"; }
+      else if (mode == 1) { epoch++; message = "New request"; }
+      else {
+        assertTrue(fixture.upload.stage(data(4, 2000), 1000));
+        assertNull(VolumePreviewHandoff.advance(() -> fixture.upload.advance(256),
+            () -> fixture.upload.statistics().version(), () -> { fixture.publications++; fixture.accepted.set(NEWER); }));
+        message = "Newer ready";
+      }
+    }
   }
   private static Throwable fault(boolean error, AtomicInteger reads) {
     return error ? new AssertionError() {
@@ -217,6 +246,88 @@ class VolumePreviewHandoffTest {
       assertEquals(1, reads.get()); assertEquals(0, reports.get());
       VolumePreviewHandoff.reportObservation(null, () -> { throw new AssertionError("null fault guard"); }, detail -> reports.incrementAndGet());
       assertSame(NEXT, f.accepted.get()); assertEquals(1, f.publications); assertArrayEquals(values(3, 1000), f.memory.textures.get(2));
+    }
+  }
+
+  @Test
+  void currentRetirementWarningRetainsCommittedMetadataAndPhysicalFailureDistinction() {
+    for (boolean after : new boolean[] {false, true}) try (var f = new Fixture()) {
+      var reads = new AtomicInteger(); var failure = (RuntimeException) fault(false, reads); f.stage();
+      f.memory.retirementFault = failure; f.memory.releaseFirst = after; assertSame(failure, f.advance(108));
+      var owner = new RetirementOwner(f); owner.report(failure);
+      assertEquals("Ready cleanup: " + failure.getClass().getName(), owner.message);
+      assertEquals(List.of(failure.getClass().getName()), owner.reports); assertSame(NEXT, f.accepted.get()); assertEquals(1, f.publications);
+      assertEquals(2, f.upload.statistics().version()); assertEquals(108, f.upload.statistics().lastBytes());
+      assertArrayEquals(values(3, 1000), f.memory.textures.get(2)); assertEquals(List.of(1), f.memory.deletes);
+      assertEquals(after ? Set.of(2) : Set.of(1, 2), f.memory.textures.keySet()); assertEquals(1, reads.get());
+      assertEquals(0, failure.getSuppressed().length);
+    }
+  }
+
+  @Test
+  void retirementDiagnosticDeliveryFaultsNeverFailOrCancelTheReadyPreview() {
+    for (boolean error : new boolean[] {false, true}) for (boolean before : new boolean[] {false, true}) try (var f = new Fixture()) {
+      var reads = new AtomicInteger(); var reportingReads = new AtomicInteger(); var attempts = new AtomicInteger();
+      var failure = (RuntimeException) fault(false, reads); var reporting = fault(error, reportingReads); f.stage();
+      f.memory.retirementFault = failure; f.memory.releaseFirst = true; assertSame(failure, f.advance(108));
+      var owner = new RetirementOwner(f);
+      VolumePreviewHandoff.reportRetirement(failure, owner::current, detail -> owner.message = "Ready cleanup: " + detail, detail -> {
+        attempts.incrementAndGet(); if (before) fail(reporting); owner.reports.add(detail); fail(reporting);
+      });
+      assertEquals(1, attempts.get()); assertEquals(before ? List.of() : List.of(failure.getClass().getName()), owner.reports);
+      assertEquals("Ready cleanup: " + failure.getClass().getName(), owner.message); assertSame(NEXT, f.accepted.get());
+      assertEquals(1, f.publications); assertEquals(2, f.upload.statistics().version()); assertFalse(f.upload.statistics().pending());
+      assertArrayEquals(values(3, 1000), f.memory.textures.get(2)); assertEquals(List.of(1), f.memory.deletes);
+      assertEquals(1, reads.get()); assertEquals(0, reportingReads.get());
+      assertEquals(0, failure.getSuppressed().length); assertEquals(0, reporting.getSuppressed().length);
+    }
+  }
+
+  @Test
+  void closedReplacedOrNewerSameEpochOwnersRejectWarningsBeforeReadingText() {
+    for (int mode = 0; mode < 3; mode++) try (var f = new Fixture()) {
+      var reads = new AtomicInteger(); var failure = (RuntimeException) fault(false, reads); f.stage();
+      f.memory.retirementFault = failure; f.memory.releaseFirst = true; assertSame(failure, f.advance(108));
+      var owner = new RetirementOwner(f); owner.change(mode); String message = owner.message; owner.report(failure);
+      assertEquals(message, owner.message); assertTrue(owner.reports.isEmpty()); assertEquals(0, reads.get());
+      if (mode == 2) { assertSame(NEWER, f.accepted.get()); assertEquals(2, f.publications); assertArrayEquals(values(4, 2000), f.memory.textures.get(3)); }
+      else assertSame(NEXT, f.accepted.get());
+    }
+    VolumePreviewHandoff.reportRetirement(null, () -> { throw new AssertionError("null fault guard"); },
+        detail -> { throw new AssertionError("null feedback"); }, detail -> { throw new AssertionError("null report"); });
+  }
+
+  @Test
+  void retirementMessageReentryCannotOverwriteCloseRequestOrSameEpochReplacement() {
+    for (int mode = 0; mode < 3; mode++) for (boolean unreadable : new boolean[] {false, true}) try (var f = new Fixture()) {
+      var reads = new AtomicInteger(); var reading = new AtomicReference<Runnable>();
+      var failure = new IllegalStateException() {
+        public String getMessage() { reads.incrementAndGet(); reading.get().run(); if (unreadable) throw new AssertionError("unreadable"); return "obsolete cleanup"; }
+        public String toString() { throw new AssertionError("text reader"); }
+      };
+      f.stage(); f.memory.retirementFault = failure; f.memory.releaseFirst = true; assertSame(failure, f.advance(108));
+      var owner = new RetirementOwner(f); int transition = mode; reading.set(() -> owner.change(transition)); owner.report(failure);
+      assertEquals(mode == 0 ? "Closed" : mode == 1 ? "New request" : "Newer ready", owner.message);
+      assertTrue(owner.reports.isEmpty()); assertEquals(1, reads.get()); assertEquals(0, failure.getSuppressed().length);
+      if (mode == 2) { assertSame(NEWER, f.accepted.get()); assertArrayEquals(values(4, 2000), f.memory.textures.get(3)); }
+      else assertSame(NEXT, f.accepted.get());
+    }
+  }
+
+  @Test
+  void retirementFeedbackOrReportReentryHasNoLateWriteOntoTheNewRequest() {
+    for (boolean duringFeedback : new boolean[] {false, true}) for (boolean error : new boolean[] {false, true}) try (var f = new Fixture()) {
+      var reads = new AtomicInteger(); var reportReads = new AtomicInteger();
+      var failure = (RuntimeException) fault(false, reads); var reporting = fault(error, reportReads); f.stage();
+      f.memory.retirementFault = failure; f.memory.releaseFirst = true; assertSame(failure, f.advance(108));
+      var owner = new RetirementOwner(f);
+      VolumePreviewHandoff.reportRetirement(failure, owner::current, detail -> {
+        owner.message = "Ready cleanup: " + detail; if (duringFeedback) owner.change(1);
+      }, detail -> { owner.reports.add(detail); owner.change(1); fail(reporting); });
+      assertEquals("New request", owner.message); assertEquals(duringFeedback ? List.of() : List.of(failure.getClass().getName()), owner.reports);
+      assertEquals(1, reads.get()); assertEquals(0, reportReads.get()); assertSame(NEXT, f.accepted.get());
+      assertEquals(0, failure.getSuppressed().length); assertEquals(0, reporting.getSuppressed().length);
+      assertArrayEquals(values(3, 1000), f.memory.textures.get(2)); assertEquals(List.of(1), f.memory.deletes);
     }
   }
 

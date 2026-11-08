@@ -2243,8 +2243,9 @@ public final class Viewports implements AutoCloseable {
     }
     if (v.pendingVolume != null) {
       RuntimeException retirementFailure = null;
+      long retirementVersion = 0;
       Throwable observationFailure = null;
-      long observationEpoch = v.epoch;
+      long uploadEpoch = v.epoch;
       try {
         var stats = v.gl.volumeStatistics();
         if (stats.activeBytes() + stats.pendingBytes()
@@ -2279,6 +2280,8 @@ public final class Viewports implements AutoCloseable {
                       v.activeJob = false;
                       acceptPreview(v, complete);
                     });
+            if (retirementFailure != null)
+              retirementVersion = v.gl.volumeStatistics().version();
             outcome = Profiler.Outcome.SUCCESS;
           } finally {
             if (stamp != 0) {
@@ -2325,14 +2328,27 @@ public final class Viewports implements AutoCloseable {
         throw failure;
       }
       if (retirementFailure != null) {
-        String detail = BackgroundFailure.describe(retirementFailure);
-        v.message = "Volume ready; previous texture cleanup failed: " + detail;
-        state.error("VOLUME_RETIREMENT_FAILED", EditorEvents.Subsystem.RENDERING, detail);
+        long committedVersion = retirementVersion;
+        VolumePreviewHandoff.reportRetirement(
+            retirementFailure,
+            () ->
+                !closed
+                    && v.epoch == uploadEpoch
+                    && v.acceptedPreviewEpoch == uploadEpoch
+                    && v.completed
+                    && !v.failedPreview
+                    && !v.activeJob
+                    && v.pendingVolume == null
+                    && v.gl != null
+                    && v.gl.volumeResident() != null
+                    && v.gl.volumeStatistics().version() == committedVersion,
+            detail -> v.message = "Volume ready; previous texture cleanup failed: " + detail,
+            detail -> state.error("VOLUME_RETIREMENT_FAILED", EditorEvents.Subsystem.RENDERING, detail));
       }
       if (observationFailure != null)
         VolumePreviewHandoff.reportObservation(
             observationFailure,
-            () -> !closed && v.epoch == observationEpoch,
+            () -> !closed && v.epoch == uploadEpoch,
             detail -> state.error("VOLUME_PROFILING_FAILED", EditorEvents.Subsystem.RENDERING, detail));
     }
     if (source
