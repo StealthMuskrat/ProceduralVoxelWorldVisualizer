@@ -99,6 +99,9 @@ class HelpCatalogTest {
     var topic = catalog.topic("help.resource-export");
     var text = topic.copyText(catalog);
     assertTrue(text.contains("Catalog and dependency delivery alone never replaces Included rows"));
+    assertTrue(text.contains("Undo Selection or Redo Selection"));
+    assertTrue(text.contains("history restores explicit choices and rebuilds coverage"));
+    assertTrue(text.contains("history is locked while the package dialog stages or publishes"));
     assertTrue(text.contains("Current checkbox and Cancel/Escape decisions run before accepting a ready preview or preview failure"));
     assertTrue(text.contains("accepted replacement still needs a fresh Included display"));
     assertTrue(text.contains("missing selections remain until explicitly removed"));

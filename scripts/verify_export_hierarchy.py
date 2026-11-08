@@ -70,7 +70,8 @@ for case in report['cases']:
     contains(case['work'], case['modal']); contains(case['modal'], case['body'])
     contains(case['body'], case['list'])
     actions = case['actions']
-    order = (('submit', 'cancel', 'reload', 'remove-unavailable'), ('choices', 'included', 'location'))
+    order = (('submit', 'cancel', 'reload', 'remove-unavailable'), ('choices', 'included', 'location'),
+             ('undo', 'redo'))
     assert set(actions) == {key for row in order for key in row}
     bottom = case['body']['y'] + case['body']['height']
     for row in order:

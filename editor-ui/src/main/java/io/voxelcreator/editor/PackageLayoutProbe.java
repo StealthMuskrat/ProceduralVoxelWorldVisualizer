@@ -129,6 +129,29 @@ public final class PackageLayoutProbe {
         openExport();
         click(dialog.control("included"));
         click(dialog.control("location"));
+        var selectedBeforeHistory = Set.copyOf(resources.exportSelection);
+        click(dialog.control("undo"));
+        require(
+            resources.exportSelection.equals(Set.of(state.project().noise2D.getFirst().uuid))
+                && !resources.canExport(),
+            "Export Undo did not restore explicit selection and invalidate Included review");
+        click(dialog.control("redo"));
+        historyKey(ImGuiKey.Z);
+        require(
+            resources.exportSelection.size() == 1 && !resources.canExport(),
+            "Export keyboard Undo escaped its private selection");
+        historyKey(ImGuiKey.Y);
+        require(
+            resources.exportSelection.equals(selectedBeforeHistory)
+                && !resources.canExport() && stageAttempts == 0
+                && baseline.equals(ProjectIO.JSON.valueToTree(state.project()))
+                && state.draft == draft && draft.id.equals("private-field")
+                && state.seedInputs.text("seedOffset").equals("-")
+                && state.revision == revision && state.document.historyBytes() == history,
+            "Export history wrote files, acknowledged hidden Included rows or changed parent state");
+        click(dialog.control("included"));
+        require(resources.canExport(), "Restored Export did not accept fresh Included review");
+        click(dialog.control("location"));
         var session = resources.exportView().session();
         var preview = session.preview();
         var pathBefore = dialog.pathText();
@@ -291,6 +314,7 @@ public final class PackageLayoutProbe {
                     Map.entry("cancelBeforeIo", true),
                     Map.entry("reloadReviewRequired", true),
                     Map.entry("explicitMissingRemoval", true),
+                    Map.entry("localExportHistory", true),
                     Map.entry("foreignReloadBlocked", true),
                     Map.entry("malformedImportRetained", true),
                     Map.entry("importHandoffOnly", true),
@@ -409,6 +433,16 @@ public final class PackageLayoutProbe {
     io.addKeyEvent(ImGuiKey.Escape, true);
     frame();
     io.addKeyEvent(ImGuiKey.Escape, false);
+    frames(4);
+  }
+
+  private static void historyKey(int key) {
+    var io = ImGui.getIO();
+    io.addKeyEvent(ImGuiKey.ModCtrl, true);
+    io.addKeyEvent(key, true);
+    frame();
+    io.addKeyEvent(key, false);
+    io.addKeyEvent(ImGuiKey.ModCtrl, false);
     frames(4);
   }
 
