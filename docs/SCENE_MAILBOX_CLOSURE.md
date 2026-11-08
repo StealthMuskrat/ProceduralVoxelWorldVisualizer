@@ -1,0 +1,19 @@
+# Closed scene receipt ownership — unvalidated
+
+W06-C01 covers the CPU scene handoff leading to render-thread uploads (1.4.1–1.4.3 and 14.1.3/14.1.5, handoff lifetime only). ChunkScene previously cleared a ConcurrentLinkedQueue during close, but running workers could add receipts after that clear. A retained closed scene could therefore reacquire pending receipt references even though tick would never drain them again. Cancellation checks do not make the check-to-offer handoff atomic, and late error receipts could also refill the queue.
+
+SceneResultMailbox now owns FIFO receipt storage behind one monitor. Offer, poll and close serialize on that monitor. Close marks the mailbox closed and discards pending references; subsequent valid offers return false without retaining the receipt. A racing offer either precedes close and is cleared, or follows close and rejects. No payload callback, text reader, destructor or other host operation runs inside this gate.
+
+ChunkScene routes data success, data error and mesh success/error receipts through the mailbox. Scene close shuts the mailbox before cancelling entries or closing the source. The existing UI-owned closed flag, job/epoch identity, prepared-result plus terminal-Future acceptance, reservation settlement, per-frame drain limit and upload checks retain authority. Previously delivered immutable snapshots remain valid. The scene does not acquire ownership of or shut down its supplied executor.
+
+This fixes shutdown ownership, not a new open-scene capacity policy or a unified priority scheduler. Open-scene receipt admission still relies on the existing scene job, executor and CPU-budget owners. Workers remain cooperatively cancelled and may finish later; their late offers are simply discarded. The added monitor has no measured throughput/latency result. Source/Config/Upload/Statistics shapes, meshes/LOD, exact field/voxel math, headless API/dependencies, schemas, registries and authored/archive formats remain unchanged.
+
+## Deferred definitions
+
+Three SceneResultMailboxTest definitions specify FIFO delivery, pending discard, idempotent closure/null rejection, unchanged delivered chunk cells, three producers held with prepared receipts until after close, zero hostile-payload text calls, and 32 concurrent close rounds with four racing publishers each. Accepted pre-close receipts may be discarded by close; post-close offers must reject and poll must remain empty. These are CPU-only component definitions with no GL context/native operations.
+
+One additional ChunkSceneCompletionTest definition holds an actual source call across scene close while deliberately cooperating only when its latch is released. A shared-executor barrier ensures the late worker body has returned. Source close must run once; repeated closed ticks must leave zero residents/jobs/reserved/CPU bytes and no uploads/display, while the supplied executor stays usable and 64 external immutable voxel cells retain type 1. Existing data/greedy/point/surface completion and native streaming definitions retain their separate geometry/acceptance scope. No duplicate headless engine consumer or native probe is added for this renderer-only component.
+
+## Status
+
+All four additions remain **uncompiled and untested** under the owner's testing pause. No compiler, Gradle, tests, native probe, consumer, checker, package, update request or workflow ran. Source review and Git whitespace/content/metadata checks add no runtime evidence. The observed baseline stays **922 tests / 120 suites** and no A01–A36, Windows 11 or release gate advances. Execute the mailbox/scene/mesh/LOD suites and real native closure/replacement scenarios after validation resumes. W05/W06 queue/caller, renderer/hardware and measured resource/performance audits remain open; publication remains pending on local main.
