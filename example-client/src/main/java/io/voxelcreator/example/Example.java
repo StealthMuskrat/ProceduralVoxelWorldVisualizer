@@ -382,5 +382,6 @@ public final class Example {
       System.out.println(
           "Independent generation priorities / scheduler stats PASS " + engine.schedulerStats());
     }
+    CachePolicyConsumer.run(working.resolve("cache-policy"));
   }
 }
