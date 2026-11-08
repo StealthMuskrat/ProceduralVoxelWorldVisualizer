@@ -202,6 +202,7 @@ public final class CancellationOwnershipConsumer {
                 "roots",
                 List.of(2, 4))));
     ChunkSubscriberOwnershipConsumer.run(out.resolve("chunk-subscribers"));
+    CancellationPollConsumer.run(out.resolve("parent-polls"));
     System.out.println("CANCELLATION_OWNERSHIP_CONSUMER_PASS");
   }
 
