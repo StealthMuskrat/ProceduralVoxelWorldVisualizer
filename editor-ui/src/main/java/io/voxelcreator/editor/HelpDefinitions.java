@@ -557,7 +557,12 @@ final class HelpDefinitions {
                   + COORDINATE_INVALID_TOOLTIP
                   + " Narrow layouts stack the slider and input while keeping the exact field"
                   + " available. Slider movement never starts Trace, Teleport or Apply: choose"
-                  + " that action explicitly. Bookmark edits remain private until Apply; Inspector"
+                  + " that action explicitly. Undo Fields and Redo Fields restore local bookmark"
+                  + " name/coordinate text across fields, including invalid signs and leading zeros."
+                  + " Continuous typing or dragging is one local action; changing controls ends it."
+                  + " Outside active inputs, the focused bookmark dialog uses the configured"
+                  + " Undo/Redo bindings. Text-field Undo stays with the native input. Apply or"
+                  + " Cancel closes that local history. Bookmark edits remain private until Apply; Inspector"
                   + " input remains local navigation/inspection state."),
           new Guide(
               "help.long-inputs",

@@ -19,6 +19,11 @@ final class CoordinateInput {
       CoordinateSlider.Range range) {}
 
   private final CoordinateSlider slider = new CoordinateSlider();
+  private boolean sliderActive;
+
+  boolean sliderActive() {
+    return sliderActive;
+  }
 
   static float minimumTextWidth() {
     float digit = 0;
@@ -81,7 +86,8 @@ final class CoordinateInput {
     } finally {
       ImGui.endDisabled();
     }
-    var proposal = slider.finish(ImGui.isItemActive(), enabled && edited, value[0]);
+    sliderActive = ImGui.isItemActive();
+    var proposal = slider.finish(sliderActive, enabled && edited, value[0]);
     if (proposal.isPresent()) {
       buffer.set(proposal.get());
       edit.accept(proposal.get());

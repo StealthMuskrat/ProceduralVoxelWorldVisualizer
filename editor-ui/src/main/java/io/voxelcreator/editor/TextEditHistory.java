@@ -3,12 +3,17 @@ package io.voxelcreator.editor;
 import java.util.*;
 
 /** Local bounded raw-text deltas; one continuous control gesture is one history action. */
-final class ProjectSettingsHistory {
-  record Change(String field, String before, String after) {}
+final class TextEditHistory {
+  record Change(String field, String before, String after) {
+    long characters() {
+      return (long) before.length() + after.length();
+    }
+  }
 
   private final Deque<Change> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
   private Change pending;
   private String gesture;
+  private long characters;
 
   void record(String field, String before, String after, String group) {
     if (group == null) {
@@ -37,9 +42,13 @@ final class ProjectSettingsHistory {
 
   private void push(Change change) {
     if (change.before().equals(change.after())) return;
-    undo.push(change);
+    for (var discarded : redo) characters -= discarded.characters();
     redo.clear();
-    while (undo.size() > 100) undo.removeLast();
+    undo.push(change);
+    characters += change.characters();
+    // Retain the newest oversized edit, plus at most one unfinished gesture.
+    while (undo.size() > 100 || characters > 65536 && undo.size() > 1)
+      characters -= undo.removeLast().characters();
   }
 
   boolean canUndo() {
@@ -65,5 +74,6 @@ final class ProjectSettingsHistory {
     redo.clear();
     pending = null;
     gesture = null;
+    characters = 0;
   }
 }

@@ -436,6 +436,19 @@ class HelpCatalogTest {
   }
 
   @Test
+  void coordinateHelpExplainsPrivateBookmarkHistoryAndNativeTextOwnership() {
+    var metadata = AppMetadata.defaults();
+    var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);
+    var catalog = new HelpCatalog(metadata);
+    var text = catalog.topic("help.coordinates").copyText(catalog);
+    assertTrue(text.contains("Undo Fields and Redo Fields restore local bookmark"));
+    assertTrue(text.contains("Continuous typing or dragging is one local action"));
+    assertTrue(text.contains("Text-field Undo stays with the native input"));
+    assertTrue(text.contains("Apply or Cancel closes that local history"));
+    assertEquals(before, io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata));
+  }
+
+  @Test
   void projectSettingsHelpExplainsBackgroundInputOwnershipAndSeparateProperties() {
     var metadata = AppMetadata.defaults();
     var before = io.voxelcreator.model.ProjectIO.JSON.valueToTree(metadata);

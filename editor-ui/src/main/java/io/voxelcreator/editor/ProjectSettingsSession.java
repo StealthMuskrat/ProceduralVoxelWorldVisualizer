@@ -18,7 +18,7 @@ final class ProjectSettingsSession {
   private final long baseSeed;
   private final int baseMinY, baseMaxY;
   private final Map<String, String> text = new LinkedHashMap<>();
-  private final ProjectSettingsHistory history = new ProjectSettingsHistory();
+  private final TextEditHistory history = new TextEditHistory();
   private long inputVersion;
   private List<Diagnostic> cached, applyIssues = List.of();
   private int issueCount;

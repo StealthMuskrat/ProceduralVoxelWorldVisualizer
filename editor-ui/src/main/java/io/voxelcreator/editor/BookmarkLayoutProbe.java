@@ -206,9 +206,14 @@ public final class BookmarkLayoutProbe {
                     && before.equals(ProjectIO.JSON.valueToTree(state.project()))
                     && navigations == 0,
                 "Escape lost to bookmark Apply");
-            for (var action : List.of("Apply", "Cancel")) {
+            for (var action : List.of("Apply", "Cancel", "Undo Fields", "Redo Fields")) {
               open(false);
               frames(4);
+              if (action.endsWith("Fields")) {
+                if (form.equals("Teleport")) panel.probeEdit("X", "19");
+                if (action.equals("Redo Fields")) click("Undo Fields");
+                frames(4);
+              }
               long old = panel.actionScope.version();
               press(panel.control(action));
               panel.cancel();
