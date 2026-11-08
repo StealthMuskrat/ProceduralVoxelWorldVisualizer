@@ -24,9 +24,9 @@ public final class ResourcePanel implements AutoCloseable {
   private UUID createParent, placementLayer;
   private boolean createPending = false;
   private ResourceFormOwner createOwner, placementOwner, deleteOwner;
-  final SettingsPageChrome createChrome = new SettingsPageChrome(2),
-      placementChrome = new SettingsPageChrome(2),
-      deleteChrome = new SettingsPageChrome(2);
+  final SettingsPageChrome createChrome = new SettingsPageChrome(2, 2),
+      placementChrome = new SettingsPageChrome(2, 2),
+      deleteChrome = new SettingsPageChrome(2, 2);
   private final DraftChoicePicker deletePicker;
   private final DraftChoicePicker createAlgorithmPicker;
   private String createAlgorithm;
@@ -108,10 +108,10 @@ public final class ResourcePanel implements AutoCloseable {
     documentLifetime = s.document.sessionToken();
     deletePicker =
         new DraftChoicePicker(
-            s, () -> deleteOwner, () -> deleteOwner != null && deleteOwner.current(state) ? 0 : 1);
+            s, () -> deleteOwner, () -> formVersion(deleteOwner));
     createAlgorithmPicker =
         new DraftChoicePicker(
-            s, () -> createOwner, () -> createOwner != null && createOwner.current(state) ? 0 : 1);
+            s, () -> createOwner, () -> formVersion(createOwner));
     this.properties = properties;
     exportPanel = new ResourceExportPanel(s, exportSelection, executor, ui, blocked);
     selection =
@@ -491,13 +491,14 @@ public final class ResourcePanel implements AutoCloseable {
       placementPending = false;
     }
     if (!dialog(title).begin(title)) return;
-    boolean current = placementOwner.current(state);
+    var owner = placementOwner;
+    boolean current = owner.current(state);
     placementChrome.begin("placement-body");
     if (placementReveal) {
       ImGui.setScrollY(0);
       placementReveal = false;
     }
-    ImGui.pushID(placementOwner.nativeId());
+    ImGui.pushID(owner.interactionId());
     staleForm(current);
     ImGui.beginDisabled(!current);
     ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
@@ -508,6 +509,8 @@ public final class ResourcePanel implements AutoCloseable {
       placementListReveal = true;
     }
     ImGui.textWrapped(placementRows.size() + " matching noise generator(s)");
+    var selectedNoise = browser.get(placementNoise);
+    ImGui.textWrapped("Selected: " + (selectedNoise == null ? "None" : StatusBarText.clip(selectedNoise.id(), 512)));
     if (!placementMessage.isEmpty()) ImGui.textWrapped(placementMessage);
     ImGui.popID();
     UiScale.beginChild(
@@ -516,7 +519,7 @@ public final class ResourcePanel implements AutoCloseable {
       ImGui.setScrollY(0);
       placementListReveal = false;
     }
-    ImGui.pushID(placementOwner.nativeId());
+    ImGui.pushID(owner.interactionId());
     var clipper = new ImGuiListClipper();
     try {
       clipper.begin(placementRows.size(), ImGui.getTextLineHeightWithSpacing());
@@ -531,7 +534,7 @@ public final class ResourcePanel implements AutoCloseable {
                   + "]";
           if (ImGui.selectable(
               AppMetadata.uiText(label) + "###" + node.uuid(), node.uuid().equals(placementNoise)))
-            placementNoise = node.uuid();
+            editPlacement(node.uuid());
           PopupLayout.clippedLabel(node.id());
         }
       clipper.end();
@@ -542,18 +545,13 @@ public final class ResourcePanel implements AutoCloseable {
     ImGui.endChild();
     ImGui.endDisabled();
     placementChrome.end();
-    ImGui.pushID(placementOwner.nativeId());
-    ImGui.beginDisabled(!current || placementNoise == null || browser.get(placementLayer) == null);
-    boolean add = placementChrome.identifiedAction("primary", "Add Placement");
-    ImGui.endDisabled();
-    boolean cancel =
-        placementChrome.identifiedAction("cancel", "Cancel")
-            || ImGui.isKeyPressed(ImGuiKey.Escape, false);
-    ImGui.popID();
-    if (cancel) {
+    var decision = formActions(owner, placementChrome, "Add Placement",
+        current && placementNoise != null && browser.get(placementLayer) != null);
+    if (decision.cancel() && placementOwner == owner) {
       closePlacement();
       ImGui.closeCurrentPopup();
-    } else if (add && placementOwner.current(state)) {
+    } else if (decision.history()) restoreForm("Placement", decision);
+    else if (decision.primary() && placementOwner == owner && owner.owns(state, decision.ticket())) {
       var result =
           requestEdit(
               "Add Placement",
@@ -821,6 +819,9 @@ public final class ResourcePanel implements AutoCloseable {
 
   @Override
   public void close() {
+    closeCreate();
+    closePlacement();
+    closeDelete();
     edits.close();
     if (editCommitted != null) editCommitted.clear();
     editCommitted = null;
@@ -1112,14 +1113,18 @@ public final class ResourcePanel implements AutoCloseable {
       dialog(title).open(title);
       createPending = false;
     }
-    if (!dialog(title).begin(title)) return;
+    if (!dialog(title).begin(title)) {
+      createOwner.finishEdit();
+      return;
+    }
+    var owner = createOwner;
     boolean current = createOwner.current(state);
     createChrome.begin("create-body");
     if (createReveal) {
       ImGui.setScrollY(0);
       createReveal = false;
     }
-    ImGui.pushID(createOwner.nativeId());
+    ImGui.pushID(owner.interactionId());
     ImGui.textWrapped("New " + createKind);
     staleForm(current);
     ImGui.beginDisabled(!current);
@@ -1127,7 +1132,13 @@ public final class ResourcePanel implements AutoCloseable {
     ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
     boolean focus = createFocus && current;
     if (focus) ImGui.setKeyboardFocusHere();
-    ImGui.inputText("##resource-id", name);
+    String previousName = name.get();
+    if (ImGui.inputText("##resource-id", name)) {
+      owner.record(state, "id", previousName, name.get(), "id:text");
+      createMessage = "";
+    }
+    if (!ImGui.isItemActive() || !ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
+      owner.finishEdit();
     if (focus) {
       ImGui.setScrollHereY(.25f);
       createFocus = false;
@@ -1153,9 +1164,9 @@ public final class ResourcePanel implements AutoCloseable {
           choices,
           "Creation default: " + state.metadata.option(control, defaultKey),
           value -> {
-            if (createOwner == null || !createOwner.current(state)) return;
+            if (createOwner != owner || !owner.current(state)) return;
             if (value != null) NoiseAlgorithmRegistry.parameters(value, dimension);
-            createAlgorithm = value;
+            editCreateAlgorithm(value);
           });
       ImGui.textWrapped(
           NoiseAlgorithmRegistry.get(createAlgorithm == null ? defaultKey : createAlgorithm)
@@ -1168,18 +1179,12 @@ public final class ResourcePanel implements AutoCloseable {
     if (!createMessage.isEmpty()) ImGui.textWrapped(createMessage);
     ImGui.popID();
     createChrome.end();
-    ImGui.pushID(createOwner.nativeId());
-    ImGui.beginDisabled(!current);
-    boolean create = createChrome.identifiedAction("primary", "Create");
-    ImGui.endDisabled();
-    boolean cancel =
-        createChrome.identifiedAction("cancel", "Cancel")
-            || ImGui.isKeyPressed(ImGuiKey.Escape, false);
-    ImGui.popID();
-    if (cancel) {
+    var decision = formActions(owner, createChrome, "Create", current);
+    if (decision.cancel() && createOwner == owner) {
       closeCreate();
       ImGui.closeCurrentPopup();
-    } else if (create && createOwner.current(state)) {
+    } else if (decision.history()) restoreForm("Create", decision);
+    else if (decision.primary() && createOwner == owner && owner.owns(state, decision.ticket())) {
       var result = createResource(createKind, createRoot, createParent, name.get());
       if (acceptedOrPending(result)) {
         closeCreate();
@@ -1222,6 +1227,99 @@ public final class ResourcePanel implements AutoCloseable {
       ImGui.closeCurrentPopup();
       ImGui.endPopup();
     }
+  }
+
+  private long formVersion(ResourceFormOwner owner) {
+    return owner != null && owner.current(state) ? owner.inputVersion() : -1;
+  }
+
+  private record FormActions(
+      ResourceFormOwner.Ticket ticket, boolean primary, boolean cancel, boolean undo, boolean redo) {
+    boolean history() {
+      return undo || redo;
+    }
+  }
+
+  private FormActions formActions(
+      ResourceFormOwner owner, SettingsPageChrome chrome, String label, boolean eligible) {
+    var ticket = owner.capture();
+    ImGui.pushID(owner.interactionId());
+    ImGui.pushID("form-primary:" + owner.inputVersion());
+    ImGui.beginDisabled(!eligible);
+    boolean primary = chrome.identifiedAction("primary", label);
+    if (chrome == deleteChrome) rememberEditButton("confirmDelete");
+    ImGui.endDisabled();
+    ImGui.popID();
+    boolean cancel = chrome.identifiedAction("cancel", "Cancel")
+        || ImGui.isKeyPressed(ImGuiKey.Escape, false);
+    ImGui.pushID("form-input:" + owner.inputVersion());
+    ImGui.beginDisabled(!owner.canUndo(state));
+    boolean undo = chrome.identifiedAction("undo", "Undo Fields");
+    ImGui.endDisabled();
+    ImGui.beginDisabled(!owner.canRedo(state));
+    boolean redo = chrome.identifiedAction("redo", "Redo Fields");
+    ImGui.endDisabled();
+    ImGui.popID();
+    ImGui.popID();
+    String shortcut = PrivateHistoryShortcuts.match(
+        state.user.input.shortcuts,
+        owner.current(state) && ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows),
+        ImGui.getIO().getWantTextInput() || ImGui.isAnyItemActive(),
+        ShortcutKeys.modifiers(), key -> ImGui.isKeyPressed(ShortcutKeys.code(key), false));
+    return new FormActions(ticket, primary, cancel,
+        undo || Objects.equals(shortcut, "Undo"), redo || Objects.equals(shortcut, "Redo"));
+  }
+
+  private static String optional(Object value) {
+    return value == null ? "" : value.toString();
+  }
+
+  private void editCreateAlgorithm(String value) {
+    createOwner.record(state, "algorithm", optional(createAlgorithm), optional(value), null);
+    createAlgorithm = value;
+    createMessage = "";
+  }
+
+  private void editPlacement(UUID value) {
+    placementOwner.record(state, "noise", optional(placementNoise), optional(value), null);
+    placementNoise = value;
+    placementMessage = "";
+  }
+
+  private void editReplacement(UUID value) {
+    deleteOwner.record(state, "replacement", optional(replacement), optional(value), null);
+    replacement = value;
+    deleteMessage = "";
+  }
+
+  private boolean restoreForm(String form, FormActions decision) {
+    var owner = form.equals("Create") ? createOwner : form.equals("Placement") ? placementOwner : deleteOwner;
+    if (owner == null || owner != decision.ticket().owner()) return false;
+    boolean forward = !decision.undo();
+    var change = owner.move(state, decision.ticket(), forward);
+    if (change == null) return false;
+    String value = forward ? change.after() : change.before();
+    switch (form) {
+      case "Create" -> {
+        if (change.field().equals("id")) name.set(value);
+        else createAlgorithm = value.isEmpty() ? null : value;
+        createMessage = "";
+        createFocus = false;
+        createReveal = true;
+      }
+      case "Placement" -> {
+        placementNoise = value.isEmpty() ? null : UUID.fromString(value);
+        placementMessage = "";
+        placementReveal = placementListReveal = true;
+      }
+      case "Delete" -> {
+        replacement = value.isEmpty() ? null : UUID.fromString(value);
+        deleteMessage = "";
+        deleteReveal = deleteListReveal = true;
+      }
+      default -> throw new IllegalArgumentException(form);
+    }
+    return true;
   }
 
   private static void staleForm(boolean current) {
@@ -1340,13 +1438,14 @@ public final class ResourcePanel implements AutoCloseable {
     }
     if (!ImGui.isPopupOpen(title)) dialog(title).open(title);
     if (!dialog(title).begin(title)) return;
-    boolean current = deleteOwner.current(state);
+    var owner = deleteOwner;
+    boolean current = owner.current(state);
     deleteChrome.begin("delete-body");
     if (deleteReveal) {
       ImGui.setScrollY(0);
       deleteReveal = false;
     }
-    ImGui.pushID(deleteOwner.nativeId());
+    ImGui.pushID(owner.interactionId());
     ImGui.textWrapped(StatusBarText.clip(deleteLabel, 1024));
     staleForm(current);
     if (!deleteDependents.isEmpty()) {
@@ -1358,7 +1457,9 @@ public final class ResourcePanel implements AutoCloseable {
             replacement == null ? null : replacement.toString(),
             deleteChoices,
             null,
-            value -> replacement = UUID.fromString(value));
+            value -> {
+              if (deleteOwner == owner && owner.current(state)) editReplacement(UUID.fromString(value));
+            });
         ImGui.textWrapped("References and deletion commit together as one undoable edit.");
       } else
         ImGui.textWrapped(
@@ -1389,20 +1490,13 @@ public final class ResourcePanel implements AutoCloseable {
     }
     ImGui.endChild();
     deleteChrome.end();
-    ImGui.pushID(deleteOwner.nativeId());
     boolean canDelete = current && (deleteDependents.isEmpty() || replacement != null);
-    ImGui.beginDisabled(!canDelete);
-    boolean delete = deleteChrome.identifiedAction("primary", "Delete");
-    rememberEditButton("confirmDelete");
-    ImGui.endDisabled();
-    boolean cancel =
-        deleteChrome.identifiedAction("cancel", "Cancel")
-            || ImGui.isKeyPressed(ImGuiKey.Escape, false);
-    ImGui.popID();
-    if (cancel) {
+    var decision = formActions(owner, deleteChrome, "Delete", canDelete);
+    if (decision.cancel() && deleteOwner == owner) {
       closeDelete();
       ImGui.closeCurrentPopup();
-    } else if (delete && deleteOwner.current(state)) {
+    } else if (decision.history()) restoreForm("Delete", decision);
+    else if (decision.primary() && deleteOwner == owner && owner.owns(state, decision.ticket())) {
       var result =
           requestEdit(
               "Delete Resource", ResourceBrowserEdits.delete(deleteId, replacement), () -> {});
@@ -1436,15 +1530,34 @@ public final class ResourcePanel implements AutoCloseable {
   }
 
   void probeFormName(String value) {
+    createOwner.record(state, "id", name.get(), value, null);
     name.set(value);
   }
 
   void probePlacement(UUID id) {
-    placementNoise = id;
+    editPlacement(id);
   }
 
   void probeReplacement(UUID id) {
-    replacement = id;
+    editReplacement(id);
+  }
+
+  ResourceFormOwner probeFormOwner(String form) {
+    return form.equals("Create") ? createOwner : form.equals("Placement") ? placementOwner : deleteOwner;
+  }
+
+  boolean probeFormHistory(String form, boolean forward) {
+    var owner = probeFormOwner(form);
+    return owner != null && restoreForm(form, new FormActions(owner.capture(), false, false, !forward, forward));
+  }
+
+  void probeFormAlgorithm(String value) {
+    if (value != null) NoiseAlgorithmRegistry.parameters(value, createKind.equals("noise2D") ? 2 : 3);
+    editCreateAlgorithm(value);
+  }
+
+  String probeFormValue(String form) {
+    return form.equals("Create") ? name.get() : optional(form.equals("Placement") ? placementNoise : replacement);
   }
 
   boolean probeFormOpen(String form) {

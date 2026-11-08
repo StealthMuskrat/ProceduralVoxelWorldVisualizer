@@ -63,6 +63,15 @@ public final class ResourceFormsLayoutProbe {
                   resources.probeFormSubmitted(form) > 0
                       && resources.probeFormSubmitted(form) < (form.equals("Delete") ? 512 : 257),
                   "Dense form rows were not clipped");
+            String selected = resources.probeFormValue(form);
+            click(control("undo"));
+            require(resources.probeFormValue(form).isEmpty(), "Native form Undo lost its baseline");
+            click(control("redo"));
+            require(resources.probeFormValue(form).equals(selected), "Native form Redo changed its choice");
+            formHistoryKey(ImGuiKey.Z);
+            require(resources.probeFormValue(form).isEmpty(), "Modal form Undo shortcut was lost");
+            formHistoryKey(ImGuiKey.Y);
+            require(resources.probeFormValue(form).equals(selected), "Modal form Redo shortcut was lost");
             click(control("cancel"));
             require(!pending(), "Form Cancel retained an owner");
           }
@@ -91,6 +100,36 @@ public final class ResourceFormsLayoutProbe {
                 && state.seedInputs.text("seedOffset").equals("-"),
             "Layout browsing/cancellation changed private or committed state");
         dimensions(1200, 900, 1, 1);
+        form = "Create";
+        openForm(false);
+        frames(5);
+        click(center(resources.probeCreateInput()));
+        for (String character : List.of("n", "a", "m", "e")) {
+          ImGui.getIO().addInputCharactersUTF8(character);
+          frames(2);
+        }
+        click(control("undo"));
+        require(resources.probeFormValue(form).isEmpty(), "Native ID typing did not coalesce");
+        click(control("redo"));
+        require(resources.probeFormValue(form).equals("name"), "Native ID typing Redo lost text");
+        click(control("cancel"));
+        for (String mode : List.of("Create", "Placement", "Delete")) {
+          form = mode;
+          openForm(true);
+          frames(5);
+          int oldPrimary = resources.probeFormChrome(form).actionIds().get("primary");
+          press(control("primary"));
+          require(resources.probeFormHistory(form, false) && resources.probeFormHistory(form, true),
+              "Held-action history fixture did not restore the same values");
+          frame();
+          release();
+          frames(4);
+          require(pending()
+                  && oldPrimary != resources.probeFormChrome(form).actionIds().get("primary")
+                  && before.equals(ProjectIO.JSON.valueToTree(state.project())),
+              "A held primary action survived an equal-value history round trip");
+          click(control("cancel"));
+        }
         for (String mode : List.of("Create", "Placement", "Delete", "Noise")) {
           form = mode;
           if (form.equals("Noise")) openNoise(true, false);
@@ -240,6 +279,7 @@ public final class ResourceFormsLayoutProbe {
                     Map.entry("replacementFiltered", true),
                     Map.entry("privateNoiseStage", true),
                     Map.entry("localNoiseChoiceHistory", true),
+                    Map.entry("localFormHistory", true),
                     Map.entry("oneUndoRedoPerEdit", true),
                     Map.entry("callbacks", callbacks),
                     Map.entry("physicalDpiVerified", false),
@@ -384,6 +424,16 @@ public final class ResourceFormsLayoutProbe {
     state.user.appearance.globalScale = global;
     state.user.appearance.windowScales.put("Resources", scale);
     state.user.appearance.windowScales.put("Properties", scale);
+  }
+
+  private static void formHistoryKey(int key) {
+    var io = ImGui.getIO();
+    io.addKeyEvent(ImGuiKey.ModCtrl, true);
+    io.addKeyEvent(key, true);
+    frame();
+    io.addKeyEvent(key, false);
+    io.addKeyEvent(ImGuiKey.ModCtrl, false);
+    frames(3);
   }
 
   private static void press(float[] at) {

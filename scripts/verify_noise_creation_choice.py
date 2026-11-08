@@ -15,7 +15,7 @@ def read(name):
 
 report = read('noise-creation-choice-native.json')
 assert report['formatVersion'] == 1 and report['fontSource'] == 'synthetic-global-window-fixture'
-for key in ('optionalDefault', 'explicitDimensions', 'cancelBeforeCreate', 'preparedDefinitionRetained', 'oneUndoRedo'):
+for key in ('optionalDefault', 'explicitDimensions', 'cancelBeforeCreate', 'preparedDefinitionRetained', 'oneUndoRedo', 'localFormHistory'):
     assert report[key] is True, key
 assert report['physicalDpiVerified'] is False
 assert [(c['scenario'], c['dimension']) for c in report['cases']] == [(i, dimension) for i in range(6) for dimension in (2, 3)]
@@ -35,11 +35,14 @@ for case in report['cases']:
     assert case['windowScale'] == (1, 1, 1, 1, 2.5, 1)[i]
     contains(case['work'], case['modal']); contains(case['modal'], case['body'])
     actions = case['actions']
-    assert set(actions) == {'primary', 'cancel'}
+    assert set(actions) == {'primary', 'cancel', 'undo', 'redo'}
     for box in actions.values():
         contains(case['modal'], box)
         assert box['y'] >= case['body']['y'] + case['body']['height'] - .1
     assert actions['primary']['x'] + actions['primary']['width'] <= actions['cancel']['x'] + .1
+    assert actions['undo']['y'] >= actions['primary']['y'] + actions['primary']['height'] - .1
+    assert abs(actions['undo']['y'] - actions['redo']['y']) <= .1
+    assert actions['undo']['x'] + actions['undo']['width'] <= actions['redo']['x'] + .1
 
 empty, created, applied = read('empty.json'), read('created.json'), read('applied.json')
 assert empty['formatVersion'] == 2 and not empty['noise2D'] and not empty['noise3D']
