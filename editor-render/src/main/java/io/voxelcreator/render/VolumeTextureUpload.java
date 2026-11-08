@@ -39,6 +39,10 @@ public final class VolumeTextureUpload implements AutoCloseable {
       throw new UnsupportedOperationException("Volume texture copies unavailable");
     }
 
+    /**
+     * Retires an owned texture. A thrown failure may precede or follow backend release; detached
+     * handles are attempted once rather than replayed against potentially reused texture names.
+     */
     void delete(int texture);
   }
 
@@ -338,9 +342,14 @@ public final class VolumeTextureUpload implements AutoCloseable {
       return lastBytes;
     } catch (RuntimeException | Error failure) {
       int written = lastBytes, reused = lastCopied;
-      cancel();
-      lastBytes = written;
-      lastCopied = reused;
+      try {
+        cancel();
+      } catch (RuntimeException | Error cleanup) {
+        if (cleanup != failure) failure.addSuppressed(cleanup);
+      } finally {
+        lastBytes = written;
+        lastCopied = reused;
+      }
       throw failure;
     }
   }
@@ -364,20 +373,43 @@ public final class VolumeTextureUpload implements AutoCloseable {
         lastCopied);
   }
 
-  public void cancel() {
+  private Resident detachCandidate() {
     var abandoned = candidate;
     candidate = null;
     data = null;
     plan = List.of();
     cursor = operation = offset = lastBytes = lastCopied = 0;
-    if (abandoned != null) backend.delete(abandoned.texture());
+    return abandoned;
   }
 
+  private void delete(Resident resident) {
+    if (resident != null) backend.delete(resident.texture());
+  }
+
+  /** Detaches the pending candidate before backend deletion, preserving the resident. */
+  public void cancel() {
+    delete(detachCandidate());
+  }
+
+  /**
+   * Detaches both captured textures before attempting either deletion. Both are attempted even on
+   * failure; the first fault retains identity and a distinct second fault is suppressed.
+   */
   public void clear() {
-    cancel();
     var previous = active;
     active = null;
-    if (previous != null) backend.delete(previous.texture());
+    var abandoned = detachCandidate();
+    try {
+      delete(abandoned);
+    } catch (RuntimeException | Error failure) {
+      try {
+        delete(previous);
+      } catch (RuntimeException | Error cleanup) {
+        if (cleanup != failure) failure.addSuppressed(cleanup);
+      }
+      throw failure;
+    }
+    delete(previous);
   }
 
   private void ensureOpen() {
@@ -388,7 +420,10 @@ public final class VolumeTextureUpload implements AutoCloseable {
   public void close() {
     if (closed) return;
     closed = true;
-    clear();
-    scratch = null;
+    try {
+      clear();
+    } finally {
+      scratch = null;
+    }
   }
 }
